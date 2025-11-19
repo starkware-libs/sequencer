@@ -2,7 +2,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
+use crate::metrics::ClassCacheMetricsTrait;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
@@ -18,12 +18,13 @@ pub trait FetchCompiledClasses: StateReader {
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
-pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
+pub struct StateReaderAndContractManager<S: FetchCompiledClasses, M: ClassCacheMetricsTrait> {
     pub state_reader: S,
     pub contract_class_manager: ContractClassManager,
+    pub class_cache_metrics: M,
 }
 
-impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
+impl<S: FetchCompiledClasses, M: ClassCacheMetricsTrait> StateReaderAndContractManager<S, M> {
     fn get_compiled_from_class_manager(
         &self,
         class_hash: ClassHash,
@@ -40,11 +41,11 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
                     }
                 }
             }
-            CLASS_CACHE_HITS.increment(1);
+            self.class_cache_metrics.increment_hit();
             self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
-        CLASS_CACHE_MISSES.increment(1);
+        self.class_cache_metrics.increment_miss();
 
         let compiled_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, compiled_class.clone());
@@ -70,7 +71,9 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
     }
 }
 
-impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
+impl<S: FetchCompiledClasses, M: ClassCacheMetricsTrait> StateReader
+    for StateReaderAndContractManager<S, M>
+{
     fn get_storage_at(
         &self,
         contract_address: starknet_api::core::ContractAddress,

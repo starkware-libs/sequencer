@@ -5,10 +5,9 @@ use apollo_batcher::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 use blockifier::metrics::{
+    ClassCacheMetrics,
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,
@@ -19,24 +18,36 @@ use crate::dashboard::{Panel, PanelType, Row};
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
 // TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
-fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
-    Panel::ratio_time_series(
-        "class_cache_miss_ratio",
+fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
+    class_cache_metrics: &ClassCacheMetrics,
+    owner: &str,
+) -> Panel {
+    let name = format!("class_cache_miss_ratio_in_{owner}");
+    let description = format!(
         "The ratio of cache misses when requesting compiled classes from the Blockifier State \
-         Reader",
-        &CLASS_CACHE_MISSES,
-        &[&CLASS_CACHE_MISSES, &CLASS_CACHE_HITS],
+         Reader in {owner}"
+    );
+    Panel::ratio_time_series(
+        name.as_str(),
+        description.as_str(),
+        &class_cache_metrics.misses,
+        &[&class_cache_metrics.misses, &class_cache_metrics.hits],
         BLOCKIFIER_METRIC_RATE_DURATION,
     )
 }
 
 // TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
-fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
+fn get_panel_blockifier_state_reader_native_class_returned_ratio(
+    class_cache_metrics: &ClassCacheMetrics,
+) -> Panel {
+    let owner = "batcher";
+    let name = format!("native_class_returned_ratio_in_{owner}");
+    let description = format!("The ratio of Native classes returned by the Blockifier in {owner}");
     Panel::ratio_time_series(
-        "native_class_returned_ratio",
-        "The ratio of Native classes returned by the Blockifier",
+        name.as_str(),
+        description.as_str(),
         &NATIVE_CLASS_RETURNED,
-        &[&CLASS_CACHE_HITS, &CLASS_CACHE_MISSES],
+        &[&class_cache_metrics.misses, &class_cache_metrics.hits],
         BLOCKIFIER_METRIC_RATE_DURATION,
     )
 }
@@ -94,12 +105,25 @@ fn get_panel_proving_gas_in_last_block() -> Panel {
     )
 }
 
-pub(crate) fn get_blockifier_row() -> Row {
+pub(crate) fn get_blockifier_row(
+    batcher_class_cache_metrics: &ClassCacheMetrics,
+    gateway_class_cache_metrics: &ClassCacheMetrics,
+) -> Row {
     Row::new(
         "Blockifier",
         vec![
-            get_panel_blockifier_state_reader_class_cache_miss_ratio(),
-            get_panel_blockifier_state_reader_native_class_returned_ratio(),
+            get_panel_blockifier_state_reader_class_cache_miss_ratio(
+                batcher_class_cache_metrics,
+                "batcher",
+            ),
+            // TODO(Arni): Add native class returned ratio for gateway
+            get_panel_blockifier_state_reader_native_class_returned_ratio(
+                batcher_class_cache_metrics,
+            ),
+            get_panel_blockifier_state_reader_class_cache_miss_ratio(
+                gateway_class_cache_metrics,
+                "gateway",
+            ),
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
             get_panel_transactions_per_block(),

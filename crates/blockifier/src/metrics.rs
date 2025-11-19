@@ -1,9 +1,10 @@
 use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::MetricCounter;
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
 
 define_metrics!(
     Blockifier => {
-        MetricCounter { CLASS_CACHE_MISSES, "class_cache_misses", "Counter of global class cache misses", init=0 },
-        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 },
         MetricCounter {
             NATIVE_CLASS_RETURNED,
             "native_class_returned",
@@ -29,3 +30,38 @@ define_metrics!(
 );
 
 pub const BLOCKIFIER_METRIC_RATE_DURATION: &str = "5m";
+
+#[cfg_attr(any(test, feature = "testing"), automock)]
+pub trait ClassCacheMetricsTrait: std::marker::Sized {
+    fn register(&self);
+    fn increment_miss(&self);
+    fn increment_hit(&self);
+}
+
+pub struct ClassCacheMetrics {
+    pub misses: MetricCounter,
+    pub hits: MetricCounter,
+}
+
+impl ClassCacheMetricsTrait for ClassCacheMetrics {
+    fn register(&self) {
+        self.misses.register();
+        self.hits.register();
+    }
+
+    fn increment_miss(&self) {
+        self.misses.increment(1);
+    }
+
+    fn increment_hit(&self) {
+        self.hits.increment(1);
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+pub fn mock_class_cache_metrics() -> MockClassCacheMetricsTrait {
+    let mut class_cache_metrics = MockClassCacheMetricsTrait::new();
+    class_cache_metrics.expect_increment_miss().times(..).return_const(());
+    class_cache_metrics.expect_increment_hit().times(..).return_const(());
+    class_cache_metrics
+}

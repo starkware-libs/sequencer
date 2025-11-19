@@ -1,8 +1,14 @@
-use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
+use apollo_batcher::metrics::{
+    class_cache_metrics as batcher_class_cache_metrics,
+    BATCHER_INFRA_METRICS,
+};
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
-use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
+use apollo_gateway::metrics::{
+    class_cache_metrics as gateway_class_cache_metrics,
+    GATEWAY_INFRA_METRICS,
+};
 use apollo_l1_endpoint_monitor_types::L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
@@ -76,7 +82,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_mempool_row(),
             get_l1_provider_row(),
             get_l1_gas_price_row(),
-            get_blockifier_row(),
+            get_blockifier_row(&batcher_class_cache_metrics(), &gateway_class_cache_metrics()),
             get_compile_to_casm_row(),
             get_consensus_p2p_row(),
             get_mempool_p2p_row(),

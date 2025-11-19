@@ -28,6 +28,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
+use blockifier::metrics::ClassCacheMetrics;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -52,6 +53,7 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::{
+    class_cache_metrics,
     record_block_close_reason,
     BlockCloseReason,
     PROPOSER_DEFERRED_TXS,
@@ -667,8 +669,9 @@ pub struct BlockMetadata {
 
 // Type definitions for the abort channel required to abort the block builder.
 pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
-pub type BatcherWorkerPool =
-    Arc<WorkerPool<CachedState<StateReaderAndContractManager<ApolloReader>>>>;
+pub type ApolloStateReaderAndContractManager =
+    StateReaderAndContractManager<ApolloReader, ClassCacheMetrics>;
+pub type BatcherWorkerPool = Arc<WorkerPool<CachedState<ApolloStateReaderAndContractManager>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
@@ -703,9 +706,8 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<
-        ConcurrentTransactionExecutor<StateReaderAndContractManager<ApolloReader>>,
-    > {
+    ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
+    {
         info!(
             "preprocess and create transaction executor for block {}",
             block_metadata.block_info.block_number
@@ -728,6 +730,7 @@ impl BlockBuilderFactory {
         let state_reader = StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            class_cache_metrics: class_cache_metrics(),
         };
 
         let executor = ConcurrentTransactionExecutor::start_block(
