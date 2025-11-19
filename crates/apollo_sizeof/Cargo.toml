@@ -7,8 +7,8 @@ license-file.workspace = true
 description = "compute size of types in memory"
 
 [dependencies]
-apollo_sizeof_internal.workspace = true
 apollo_sizeof_macros.workspace = true
+starknet-types-core.workspace = true
 
 [lints]
 workspace = true
