@@ -24,6 +24,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
             None,
+            None,
             keypair.clone(),
             bootstrap_peer_multiaddr.map(|multiaddr| vec![multiaddr]),
             ChainId::Mainnet,

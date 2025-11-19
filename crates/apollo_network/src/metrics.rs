@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
-use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
+use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricHistogram};
 use libp2p::gossipsub::{PublishError, TopicHash};
 use strum::{IntoStaticStr, VariantNames};
 use strum_macros::EnumVariantNames;
@@ -124,6 +124,20 @@ impl EventMetrics {
     }
 }
 
+pub struct LatencyMetrics {
+    pub ping_latency_seconds: MetricHistogram,
+}
+
+impl LatencyMetrics {
+    pub fn register(&self) {
+        self.ping_latency_seconds.register();
+    }
+
+    pub fn update_ping_latency(&self, latency_seconds: f64) {
+        self.ping_latency_seconds.record(latency_seconds);
+    }
+}
+
 // TODO(alonl, shahak): Consider making these fields private and receive Topics instead of
 // TopicHashes in the constructor
 pub struct NetworkMetrics {
@@ -132,6 +146,7 @@ pub struct NetworkMetrics {
     pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
     pub event_metrics: Option<EventMetrics>,
+    pub latency_metrics: Option<LatencyMetrics>,
 }
 
 impl NetworkMetrics {
@@ -150,6 +165,9 @@ impl NetworkMetrics {
         }
         if let Some(event_metrics) = self.event_metrics.as_ref() {
             event_metrics.register();
+        }
+        if let Some(latency_metrics) = self.latency_metrics.as_ref() {
+            latency_metrics.register();
         }
     }
 }
