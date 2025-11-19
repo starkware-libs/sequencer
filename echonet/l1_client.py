@@ -1,10 +1,17 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import logging
 import requests
 
 logger = logging.getLogger(__name__)
+# Taken from apollo_l1_provider/src/lib.rs
+LOG_MESSAGE_TO_L2_EVENT_SIGNATURES = [
+    "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b",
+]
+# Taken from ethereum_base_layer_contracts.rs
+STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,7 @@ class Log:
 
 class L1Client:
     ALCHEMY_URL = "https://eth-mainnet.g.alchemy.com/v2/your-api-key"
+    DATA_ALCHEMY_URL = "https://api.g.alchemy.com/data/v1/your-api-key/utility/blocks/by-timestamp"
 
     @staticmethod
     def get_logs(from_block: int, to_block: int, rpc_url: str = ALCHEMY_URL) -> List[Log]:
@@ -44,11 +52,8 @@ class L1Client:
                 {
                     "fromBlock": hex(from_block),
                     "toBlock": hex(to_block),
-                    "address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",  # Starknet L1 contract
-                    "topics": [
-                        "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
-                        # LogMessageToL2 event signature
-                    ],
+                    "address": STARKNET_L1_CONTRACT_ADDRESS,
+                    "topics": LOG_MESSAGE_TO_L2_EVENT_SIGNATURES,
                 }
             ],
             "id": 1,
@@ -126,3 +131,43 @@ class L1Client:
 
         # Timestamp is hex string, convert to int.
         return int(block["timestamp"], 16)
+
+    def get_block_number_by_timestamp(
+        timestamp: int, rpc_url: str = DATA_ALCHEMY_URL
+    ) -> Optional[int]:
+        """
+        Get the block number at/after a given timestamp using blocks-by-timestamp API.
+        Tries up to 2 times. On failure, logs an error and returns None.
+        """
+        timestamp_iso = (
+            datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        )
+
+        params = {
+            "networks": "eth-mainnet",
+            "timestamp": timestamp_iso,
+            "direction": "AFTER",
+        }
+
+        for _ in range(2):
+            try:
+                response = requests.get(rpc_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                break  # success -> exit loop
+            except (requests.RequestException, ValueError) as exc:
+                last_exc = exc
+        else:
+            logger.error(
+                "get_block_number_by_timestamp failed after 2 attempts, returning None",
+                extra={"url": rpc_url, "timestamp": timestamp},
+                exc_info=last_exc,
+            )
+            return None
+
+        items = data.get("data", [])
+        if not items:
+            return None
+
+        block = items[0].get("block", {})
+        return block.get("number")
