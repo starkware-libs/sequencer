@@ -144,7 +144,7 @@ use validator::Validate;
 use version::{StorageVersionError, Version};
 
 use crate::body::TransactionIndex;
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{LastVotedMarker, ProposalCommitment};
 use crate::db::table_types::SimpleTable;
 use crate::db::{
     open_env,
@@ -217,6 +217,7 @@ fn open_storage_internal(
         last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
         nonces: db_writer.create_common_prefix_table("nonces")?,
+        proposal_commitments: db_writer.create_simple_table("proposal_commitments")?,
         file_offsets: db_writer.create_simple_table("file_offsets")?,
         state_diffs: db_writer.create_simple_table("state_diffs")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
@@ -612,6 +613,7 @@ struct_field_names! {
         last_voted_marker: TableIdentifier<(), NoVersionValueWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
+        proposal_commitments: TableIdentifier<BlockNumber, NoVersionValueWrapper<ProposalCommitment>, SimpleTable>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
