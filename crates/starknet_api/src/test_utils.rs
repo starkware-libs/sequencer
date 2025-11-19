@@ -25,7 +25,7 @@ use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::Fee;
+use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds};
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -194,6 +194,23 @@ impl BlockInfo {
 
     pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
+    }
+}
+
+pub fn resource_bounds_for_testing() -> AllResourceBounds {
+    AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
+        },
     }
 }
 
