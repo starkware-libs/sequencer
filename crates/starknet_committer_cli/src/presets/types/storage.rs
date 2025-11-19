@@ -1,3 +1,5 @@
+use std::fs;
+
 use starknet_patricia_storage::aerospike_storage::AerospikeStorageConfig;
 use starknet_patricia_storage::map_storage::CachedStorageConfig;
 use starknet_patricia_storage::rocksdb_storage::RocksDbOptions;
@@ -26,6 +28,12 @@ pub struct FileBasedStorageFields {
 
     /// Specific database fields for the storage.
     pub specific_db_fields: SpecificDbFields,
+}
+
+impl FileBasedStorageFields {
+    pub fn initialize_storage_path(&self) {
+        fs::create_dir_all(&self.storage_path).expect("Failed to create storage directory.");
+    }
 }
 
 pub struct SingleStorageGlobalFields {
