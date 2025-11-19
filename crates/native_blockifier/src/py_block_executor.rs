@@ -2,6 +2,7 @@
 
 use std::str::FromStr;
 
+use apollo_metrics::metrics::{MetricCounter, MetricScope};
 use apollo_state_reader::apollo_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
@@ -12,6 +13,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::metrics::CacheMetrics;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::AccountTransaction;
@@ -49,7 +51,24 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
+pub type ApolloStateReaderAndContractManager = StateReaderAndContractManager<ApolloReader>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
+
+/// Placeholder class cache metrics. There are not metrics on the native blockifier.
+const NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics {
+    misses: MetricCounter::new(
+        MetricScope::Blockifier,
+        "Class Cache Misses in Native Blockifier",
+        "Counter of the number of times that the class cache was missed",
+        0,
+    ),
+    hits: MetricCounter::new(
+        MetricScope::Blockifier,
+        "Class Cache Misses in Native Blockifier",
+        "Counter of the number of times that the class cache was hit",
+        0,
+    ),
+};
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
 /// computation data.
@@ -79,7 +98,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<ApolloReader>>>,
+    pub tx_executor: Option<TransactionExecutor<ApolloStateReaderAndContractManager>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -397,16 +416,14 @@ impl PyBlockExecutor {
 }
 
 impl PyBlockExecutor {
-    pub fn tx_executor(
-        &mut self,
-    ) -> &mut TransactionExecutor<StateReaderAndContractManager<ApolloReader>> {
+    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<ApolloStateReaderAndContractManager> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
     fn get_aligned_reader(
         &self,
         next_block_number: BlockNumber,
-    ) -> StateReaderAndContractManager<ApolloReader> {
+    ) -> ApolloStateReaderAndContractManager {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
         let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
@@ -414,6 +431,7 @@ impl PyBlockExecutor {
         StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            class_cache_metrics: NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS,
         }
     }
 
