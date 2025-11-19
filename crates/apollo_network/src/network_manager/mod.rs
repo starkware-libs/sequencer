@@ -734,6 +734,8 @@ impl NetworkManager {
                 peer_manager_config,
                 metrics.as_mut()
                     .and_then(|m| m.event_metrics.take()),
+                metrics.as_mut()
+                    .and_then(|m| m.latency_metrics.take()),
                 key.clone(),
                 bootstrap_peer_multiaddr,
                 chain_id,

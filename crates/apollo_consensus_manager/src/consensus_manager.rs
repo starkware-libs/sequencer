@@ -167,6 +167,7 @@ impl ConsensusManager {
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
             event_metrics: Some(EventMetrics { event_counter: CONSENSUS_NETWORK_EVENTS }),
+            latency_metrics: None,
         });
 
         NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics)
