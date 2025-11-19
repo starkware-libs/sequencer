@@ -1,0 +1,19 @@
+[profile.default]
+slow-timeout = { period = "120s", terminate-after = 2 }
+
+[test-groups.serialized]
+max-threads = 1
+
+[[profile.default.overrides]]
+filter = 'package(apollo_integration_tests)'
+test-group = 'serialized'
+
+# Specific slow test: even longer timeout
+[[profile.default.overrides]]
+filter = 'test(test_end_to_end_flow)'
+slow-timeout = { period = "600s", terminate-after = 2 }
+
+# Fast unit tests: shorter timeout
+[[profile.default.overrides]]
+filter = 'package(apollo_infra) & test(unit)'
+slow-timeout = { period = "30s", terminate-after = 2 }
