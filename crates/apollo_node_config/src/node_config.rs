@@ -6,6 +6,7 @@ use std::vec::Vec;
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_config::dumping::{
+    generate_optional_struct_pointer,
     generate_struct_pointer,
     prepend_sub_config_name,
     ser_optional_sub_config,
@@ -152,9 +153,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ]),
         ),
     ];
-    let mut common_execution_config = generate_struct_pointer(
+    let mut common_execution_config = generate_optional_struct_pointer(
         "versioned_constants_overrides".to_owned(),
-        &VersionedConstantsOverrides::default(),
+        Some(&VersionedConstantsOverrides::default()),
         set_pointing_param_paths(&[
             "batcher_config.block_builder_config.versioned_constants_overrides",
             "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
