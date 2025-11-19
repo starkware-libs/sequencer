@@ -24,7 +24,7 @@ pub struct BlockBuilderConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     // TODO(dan): add validation for this field. Probably should be bounded.
     pub proposer_idle_detection_delay_millis: Duration,
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
+    pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
 }
 
 impl Default for BlockBuilderConfig {
@@ -37,7 +37,8 @@ impl Default for BlockBuilderConfig {
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+            // Preserve behavior by defaulting to Some(default overrides).
+            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
         }
     }
 }
@@ -69,7 +70,7 @@ impl SerializeConfig for BlockBuilderConfig {
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.dump(),
+            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
             "versioned_constants_overrides",
         ));
         dump
