@@ -1,3 +1,5 @@
+use strum_macros::EnumIter;
+
 use crate::presets::base::BASE_PRESET;
 use crate::presets::types::flavors::{FlavorFields, InterferenceFlavor};
 use crate::presets::types::storage::{StorageLayout, StorageLayoutName};
@@ -5,6 +7,7 @@ use crate::presets::types::storage::{StorageLayout, StorageLayoutName};
 pub mod flavors;
 pub mod storage;
 
+#[derive(Debug)]
 pub struct PresetFields {
     flavor_fields: FlavorFields,
     storage_layout: StorageLayout,
@@ -37,7 +40,7 @@ impl PresetFields {
     }
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Debug, EnumIter)]
 pub enum Preset {
     /// The base preset.
     Base,
@@ -47,6 +50,12 @@ impl Preset {
     pub fn preset_fields(&self) -> &PresetFields {
         match self {
             Self::Base => &BASE_PRESET,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Base => "base",
         }
     }
 }
