@@ -23,6 +23,7 @@ use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
 use apollo_storage::StorageConfig;
 use apollo_test_utils::send_request;
+use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -80,7 +81,6 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(100000000); // Capacity allows multiple transactions per block.
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
@@ -89,6 +89,10 @@ pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 
 const ALLOW_BOOTSTRAP_TXS: bool = false;
+
+fn block_max_capacity_gas() -> GasAmount {
+    BouncerWeights::default().proving_gas
+}
 
 pub struct NodeSetup {
     executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
@@ -942,7 +946,7 @@ async fn get_sequencer_setup_configs(
                 executable_component_config.clone(),
                 base_layer_config.clone(),
                 base_layer_url.clone(),
-                BLOCK_MAX_CAPACITY_GAS,
+                block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
             );
