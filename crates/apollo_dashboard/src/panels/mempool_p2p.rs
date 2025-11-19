@@ -5,11 +5,12 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
+    MEMPOOL_P2P_PING_LATENCY,
 };
 use apollo_metrics::metrics::MetricDetails;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 // TODO(shahak): Properly name and describe these panels.
@@ -68,6 +69,15 @@ fn get_panel_mempool_p2p_dropped_messages_by_reason() -> Panel {
     )
 }
 
+fn get_panel_mempool_p2p_ping_latency() -> Panel {
+    Panel::from_hist(
+        &MEMPOOL_P2P_PING_LATENCY,
+        "Ping Latency",
+        "The ping latency distribution for mempool p2p connections",
+    )
+    .with_unit(Unit::Seconds)
+}
+
 pub(crate) fn get_mempool_p2p_row() -> Row {
     Row::new(
         "MempoolP2p",
@@ -78,6 +88,7 @@ pub(crate) fn get_mempool_p2p_row() -> Row {
             get_panel_mempool_p2p_broadcasted_batch_size(),
             get_panel_mempool_p2p_network_events_by_type(),
             get_panel_mempool_p2p_dropped_messages_by_reason(),
+            get_panel_mempool_p2p_ping_latency(),
         ],
     )
 }

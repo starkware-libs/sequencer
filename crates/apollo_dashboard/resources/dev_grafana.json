@@ -1146,6 +1146,18 @@
             "sum by (event_type) (increase(apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Ping Latency",
+          "description": "The ping latency distribution for consensus p2p connections",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_ping_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_ping_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true
@@ -1206,6 +1218,18 @@
             "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Ping Latency",
+          "description": "The ping latency distribution for mempool p2p connections",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_ping_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_ping_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true
