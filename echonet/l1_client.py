@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import logging
 import requests
@@ -96,3 +96,50 @@ class L1Client:
             )
             for result in results
         ]
+
+    @staticmethod
+    def get_timestamp_of_block(block_number: int, api_key: str) -> Optional[int]:
+        """
+        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Tries up to RETRIES_COUNT times. On failure, logs an error and returns None.
+        """
+        rpc_url = L1Client.L1_MAINNET_URL.format(api_key=api_key)
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getBlockByNumber",
+            "params": [hex(block_number), False],
+            "id": 1,
+        }
+
+        for attempt in range(L1Client.RETRIES_COUNT):
+            try:
+                response = requests.post(rpc_url, json=payload, timeout=10)
+                response.raise_for_status()
+                result = response.json()
+                logger.debug(
+                    f"get_timestamp_of_block succeeded on attempt {attempt + 1}",
+                    extra={"url": rpc_url, "block_number": block_number},
+                )
+                break  # success -> exit loop
+            except (requests.RequestException, ValueError) as exc:
+                logger.debug(
+                    f"get_timestamp_of_block attempt {attempt + 1}/{L1Client.RETRIES_COUNT} failed",
+                    extra={"url": rpc_url, "block_number": block_number},
+                    exc_info=True,
+                )
+
+        else:
+            logger.error(
+                f"get_timestamp_of_block failed after {L1Client.RETRIES_COUNT} attempts, returning None",
+                extra={"url": rpc_url, "block_number": block_number},
+            )
+            return None
+
+        block = result.get("result")
+        if block is None:
+            # Block not found
+            return None
+
+        # Timestamp is hex string, convert to int.
+        return int(block["timestamp"], 16)
