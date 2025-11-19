@@ -8,9 +8,8 @@ use apollo_infra::metrics::{
 };
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use blockifier::metrics::{
+    CacheMetrics,
     CALLS_RUNNING_NATIVE,
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,
@@ -23,6 +22,9 @@ define_infra_metrics!(batcher);
 
 define_metrics!(
     Batcher => {
+        // Global class cache
+        MetricCounter { CLASS_CACHE_MISSES, "batcher_class_cache_misses", "Counter of the batcher's global class cache misses", init=0 },
+        MetricCounter { CLASS_CACHE_HITS, "batcher_class_cache_hits", "Counter of the batcher's global class cache hits", init=0 },
         // Heights
         MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
         MetricGauge { LAST_BATCHED_BLOCK_HEIGHT, "batcher_last_batched_block_height", "The height of the last block received by batching" },
@@ -75,6 +77,9 @@ pub(crate) fn record_block_close_reason(reason: BlockCloseReason) {
     BLOCK_CLOSE_REASON.increment(1, &[(LABEL_NAME_BLOCK_CLOSE_REASON, reason.into())]);
 }
 
+pub const CLASS_CACHE_METRICS: CacheMetrics =
+    CacheMetrics { misses: CLASS_CACHE_MISSES, hits: CLASS_CACHE_HITS };
+
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     STORAGE_HEIGHT.set_lossy(storage_height.0);
@@ -104,9 +109,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     PROVING_GAS_IN_LAST_BLOCK.register();
 
     // Blockifier's metrics
+    CLASS_CACHE_METRICS.register();
     CALLS_RUNNING_NATIVE.register();
-    CLASS_CACHE_HITS.register();
-    CLASS_CACHE_MISSES.register();
     NATIVE_CLASS_RETURNED.register();
     NATIVE_COMPILATION_ERROR.register();
     TOTAL_CALLS.register();

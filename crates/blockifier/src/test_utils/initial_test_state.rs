@@ -1,3 +1,4 @@
+use apollo_metrics::metrics::{MetricCounter, MetricScope};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -10,9 +11,13 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
+use crate::metrics::CacheMetrics;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use crate::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -172,10 +177,34 @@ pub fn test_state_inner_with_contract_manager(
         run_cairo_native,
         wait_on_native_compilation,
     ));
-    let reader = StateReaderAndContractManager {
-        state_reader: reader.clone(),
-        contract_class_manager: manager,
-    };
+
+    let reader = state_reader_and_contract_manager_for_testing(reader, manager);
 
     CachedState::from(reader)
+}
+
+pub(crate) fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasses>(
+    reader: Reader,
+    manager: ContractClassManager,
+) -> StateReaderAndContractManager<Reader> {
+    // Placeholder - this value is never used in tests.
+    let class_cache_metrics = CacheMetrics {
+        misses: MetricCounter::new(
+            MetricScope::Blockifier,
+            "class_cache_metrics_misses",
+            "Counter of the number of times that the class cache was missed",
+            0,
+        ),
+        hits: MetricCounter::new(
+            MetricScope::Blockifier,
+            "class_cache_metrics_hits",
+            "Counter of the number of times that the class cache was hit",
+            0,
+        ),
+    };
+    StateReaderAndContractManager {
+        state_reader: reader,
+        contract_class_manager: manager,
+        class_cache_metrics,
+    }
 }
