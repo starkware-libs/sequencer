@@ -45,7 +45,7 @@ pub enum BenchmarkFlavor {
     Continuous,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub enum InterferenceFlavor {
     // No interference.
     #[default]
