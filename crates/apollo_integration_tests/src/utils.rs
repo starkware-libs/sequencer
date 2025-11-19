@@ -12,6 +12,7 @@ use apollo_class_manager_config::config::{
     FsClassStorageConfig,
 };
 use apollo_config::converters::UrlAndHeaders;
+use apollo_config::secrets::Sensitive;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
     ConsensusConfig,
@@ -216,7 +217,7 @@ pub fn create_node_config(
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
-        ordered_l1_endpoint_urls: vec![base_layer_url.clone()],
+        ordered_l1_endpoint_urls: Sensitive::new(vec![base_layer_url.clone()]),
         ..Default::default()
     };
     let validate_resource_bounds = !allow_bootstrap_txs;

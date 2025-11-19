@@ -75,6 +75,7 @@ impl EthToStrkOracleClient {
             .url_header_list
             .as_ref()
             .expect("url_header_list should be set in the config")
+            .as_ref()
             .iter()
             .map(|uh| UrlAndHeaderMap {
                 url: uh.url.clone(),

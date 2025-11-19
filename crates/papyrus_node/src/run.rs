@@ -234,7 +234,7 @@ async fn spawn_sync_client(
             let storage = (storage_reader.clone(), storage_writer);
             tokio::spawn(run_sync(
                 configs,
-                config.base_layer_url.clone(),
+                config.base_layer_url.as_ref().clone(),
                 shared_highest_block,
                 pending_data,
                 pending_classes,

@@ -718,9 +718,8 @@ impl NetworkManager {
         debug!("Creating swarm with listen address: {listen_address:?}");
 
         let key_pair = match secret_key {
-            Some(secret_key) => {
-                Keypair::ed25519_from_bytes(secret_key).expect("Error while parsing secret key")
-            }
+            Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.into())
+                .expect("Error while parsing secret key"),
             None => Keypair::generate_ed25519(),
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)

@@ -33,6 +33,8 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
+use crate::secrets::Sensitive;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -204,6 +206,17 @@ where
     Ok(Some(output))
 }
 
+/// Deserializes a space-separated string into a vector of UrlAndHeaders structs wrapped in
+/// Sensitive. Returns an error if any of the substrings cannot be parsed into a valid struct.
+pub fn deserialize_optional_sensitive_list_with_url_and_headers<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<UrlAndHeaders>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(deserialize_optional_list_with_url_and_headers(de)?.map(Sensitive::new))
+}
+
 /// Serializes a vector to string structure. The vector is expected to be a hex string.
 pub fn serialize_optional_vec_u8(optional_vector: &Option<Vec<u8>>) -> String {
     match optional_vector {
@@ -249,6 +262,17 @@ where
     Ok(Some(vector))
 }
 
+/// Deserializes a vector from string structure into a `Sensitive<Vec<u8>>`.
+/// The vector is expected to be a hex string starting with "0x".
+pub fn deserialize_optional_sensitive_vec_u8<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<u8>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(deserialize_optional_vec_u8(de)?.map(Sensitive::new))
+}
+
 /// Serializes a `&[Url]` into a single space-separated string.
 pub fn serialize_slice<T: AsRef<str>>(vector: &[T]) -> String {
     vector.iter().map(|item| item.as_ref()).collect::<Vec<_>>().join(" ")
@@ -271,6 +295,17 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
+}
+
+/// Deserializes a space-separated string into a `Sensitive<Vec<T>>`.
+/// Returns an error if any of the substrings cannot be parsed into `T`.
+pub fn deserialize_sensitive_vec<'de, D, T>(de: D) -> Result<Sensitive<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    Ok(Sensitive::new(deserialize_vec(de)?))
 }
 
 /// Serializes an optional list into a comma-separated string.

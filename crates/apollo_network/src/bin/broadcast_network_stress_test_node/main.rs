@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 use std::vec;
 
+use apollo_config::secrets::Sensitive;
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
@@ -186,7 +187,7 @@ async fn main() {
 
     let mut network_config = NetworkConfig {
         port: args.p2p_port,
-        secret_key: Some(peer_private_key.to_vec()),
+        secret_key: Some(Sensitive::new(peer_private_key.to_vec())),
         ..Default::default()
     };
     if let Some(peer) = &args.bootstrap {

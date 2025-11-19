@@ -3,10 +3,11 @@ use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
-    deserialize_vec,
+    deserialize_sensitive_vec,
     serialize_slice,
 };
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -14,8 +15,8 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
-    #[serde(deserialize_with = "deserialize_vec")]
-    pub ordered_l1_endpoint_urls: Vec<Url>,
+    #[serde(deserialize_with = "deserialize_sensitive_vec")]
+    pub ordered_l1_endpoint_urls: Sensitive<Vec<Url>>,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
 }
@@ -23,10 +24,10 @@ pub struct L1EndpointMonitorConfig {
 impl Default for L1EndpointMonitorConfig {
     fn default() -> Self {
         Self {
-            ordered_l1_endpoint_urls: vec![
+            ordered_l1_endpoint_urls: Sensitive::new(vec![
                 Url::parse("https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY").unwrap(),
                 Url::parse("https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY").unwrap(),
-            ],
+            ]),
             timeout_millis: Duration::from_millis(1000),
         }
     }
@@ -37,7 +38,7 @@ impl SerializeConfig for L1EndpointMonitorConfig {
         BTreeMap::from([
             ser_param(
                 "ordered_l1_endpoint_urls",
-                &serialize_slice(&self.ordered_l1_endpoint_urls),
+                &serialize_slice(self.ordered_l1_endpoint_urls.as_ref()),
                 "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
                  current one is non-operational.",
                 ParamPrivacyInput::Private,

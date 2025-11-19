@@ -12,6 +12,8 @@ use std::sync::Arc;
 
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{ser_generated_param, ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
+use apollo_config::validators::validate_sensitive_string_length;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
 use apollo_starknet_client::writer::{StarknetGatewayClient, StarknetWriter};
@@ -40,16 +42,16 @@ pub struct MonitoringGatewayConfig {
     pub collect_metrics: bool,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub metric_labels: Option<HashMap<String, String>>,
-    #[validate(length(min = 1))]
+    #[validate(custom = "validate_sensitive_string_length")]
     #[serde(default = "random_secret")]
-    pub present_full_config_secret: String,
+    pub present_full_config_secret: Sensitive<String>,
     pub starknet_url: String,
 }
 
-fn random_secret() -> String {
+fn random_secret() -> Sensitive<String> {
     let secret = thread_rng().sample_iter(&Alphanumeric).take(10).map(char::from).collect();
     info!("The randomly generated config presentation secret is: {}", secret);
-    secret
+    Sensitive::new(secret)
 }
 
 impl Default for MonitoringGatewayConfig {
@@ -59,7 +61,7 @@ impl Default for MonitoringGatewayConfig {
             collect_metrics: false,
             metric_labels: None,
             // A constant value for testing purposes.
-            present_full_config_secret: String::from("qwerty"),
+            present_full_config_secret: Sensitive::new(String::from("qwerty")),
             starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
         }
     }
@@ -170,7 +172,7 @@ impl MonitoringServer {
             self.version,
             self.full_general_config_presentation.clone(),
             self.public_general_config_presentation.clone(),
-            self.config.present_full_config_secret.clone(),
+            self.config.present_full_config_secret.as_ref().clone(),
             self.prometheus_handle.clone(),
             self.own_peer_id.clone(),
         );
@@ -229,7 +231,7 @@ fn app(
                 node_config_by_secret(
                     full_general_config_presentation,
                     secret,
-                    present_full_config_secret,
+                    present_full_config_secret.clone(),
                 )
             }),
         )

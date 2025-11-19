@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_comma_separated_str,
-    deserialize_optional_vec_u8,
+    deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
     serialize_optional_vec_u8,
@@ -35,7 +35,8 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
-use apollo_config::validators::validate_vec_u256;
+use apollo_config::secrets::Sensitive;
+use apollo_config::validators::validate_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -60,9 +61,9 @@ pub struct NetworkConfig {
     #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
-    #[validate(custom = "validate_vec_u256")]
-    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub secret_key: Option<Vec<u8>>,
+    #[validate(custom = "validate_sensitive_vec_u256")]
+    #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
+    pub secret_key: Option<Sensitive<Vec<u8>>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
@@ -137,9 +138,10 @@ impl SerializeConfig for NetworkConfig {
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
         ));
+        let secret_key_inner = self.secret_key.as_ref().map(|s| s.as_ref().clone());
         config.extend([ser_param(
             "secret_key",
-            &serialize_optional_vec_u8(&self.secret_key),
+            &serialize_optional_vec_u8(&secret_key_inner),
             "The secret key used for building the peer id. If it's an empty string a random one \
              will be used.",
             ParamPrivacyInput::Private,

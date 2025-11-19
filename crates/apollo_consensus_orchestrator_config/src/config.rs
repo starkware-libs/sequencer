@@ -9,6 +9,7 @@ use apollo_config::converters::{
     serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -18,7 +19,7 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
-    pub recorder_url: Url,
+    pub recorder_url: Sensitive<Url>,
     pub skip_write_height: Option<BlockNumber>,
 
     // Retry policy.
@@ -33,9 +34,9 @@ pub struct CendeConfig {
 impl Default for CendeConfig {
     fn default() -> Self {
         CendeConfig {
-            recorder_url: "https://recorder_url"
-                .parse()
-                .expect("recorder_url must be a valid Recorder URL"),
+            recorder_url: Sensitive::new(
+                "https://recorder_url".parse().expect("recorder_url must be a valid Recorder URL"),
+            ),
             skip_write_height: None,
             max_retry_duration_secs: Duration::from_secs(3),
             min_retry_interval_ms: Duration::from_millis(50),

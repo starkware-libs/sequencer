@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
@@ -246,12 +247,12 @@ impl FlowSequencerSetup {
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
-        consensus_manager_config.cende_config.recorder_url = recorder_url;
+        consensus_manager_config.cende_config.recorder_url = Sensitive::new(recorder_url);
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
-            url_header_list: Some(vec![eth_to_strk_oracle_url_headers]),
+            url_header_list: Some(Sensitive::new(vec![eth_to_strk_oracle_url_headers])),
             ..Default::default()
         };
 

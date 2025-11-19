@@ -4,6 +4,7 @@ use std::path::Path;
 
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 
+use crate::secrets::Sensitive;
 use crate::ConfigError;
 
 /// Custom validation for ASCII string.
@@ -30,6 +31,19 @@ pub(crate) fn validate_path_exists(file_path: &Path) -> Result<(), ValidationErr
 pub fn validate_vec_u256(vec: &[u8]) -> Result<(), ValidationError> {
     if vec.len() != 32 {
         return Err(ValidationError::new("The value is not a 32 byte vector"));
+    }
+    Ok(())
+}
+
+/// Custom validation for a 32 byte vector wrapped in `Sensitive`.
+pub fn validate_sensitive_vec_u256(secret_key: &Sensitive<Vec<u8>>) -> Result<(), ValidationError> {
+    validate_vec_u256(secret_key.as_ref())
+}
+
+/// Custom validation for a non-empty string wrapped in `Sensitive`.
+pub fn validate_sensitive_string_length(secret: &Sensitive<String>) -> Result<(), ValidationError> {
+    if secret.as_ref().is_empty() {
+        return Err(ValidationError::new("length"));
     }
     Ok(())
 }

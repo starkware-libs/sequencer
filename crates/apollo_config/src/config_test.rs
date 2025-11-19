@@ -46,6 +46,7 @@ use crate::loading::{
     update_optional_values,
 };
 use crate::presentation::get_config_presentation;
+use crate::secrets::Sensitive;
 use crate::{
     ConfigError,
     ParamPath,
@@ -129,7 +130,7 @@ fn test_validation() {
 struct TypicalConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     a: Duration,
-    b: String,
+    b: Sensitive<String>, // TODO(victork): hide the serialization of this sensitive value.
     c: bool,
     d: i64,
     e: u64,
@@ -159,7 +160,7 @@ fn test_update_dumped_config() {
     let command = Command::new("Testing");
     let dumped_config = TypicalConfig {
         a: Duration::from_secs(1),
-        b: "bbb".to_owned(),
+        b: Sensitive::new("bbb".to_owned()),
         c: false,
         d: -1,
         e: 10,
@@ -219,7 +220,7 @@ fn test_env_nested_params() {
 fn test_config_presentation() {
     let config = TypicalConfig {
         a: Duration::from_secs(1),
-        b: "bbb".to_owned(),
+        b: Sensitive::new("bbb".to_owned()),
         c: false,
         d: -1,
         e: 10,

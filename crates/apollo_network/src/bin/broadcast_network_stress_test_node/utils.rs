@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::utils::make_multiaddr;
 use apollo_network::NetworkConfig;
@@ -83,7 +84,7 @@ impl TestConfig {
         let _ = TestConfig {
             network_config: NetworkConfig {
                 port: 10000,
-                secret_key: Some(secret_key),
+                secret_key: Some(Sensitive::new(secret_key)),
                 ..Default::default()
             },
             ..Default::default()

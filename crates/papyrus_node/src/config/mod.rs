@@ -21,6 +21,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_config::config::ConsensusConfig;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -56,7 +57,7 @@ pub struct NodeConfig {
     pub rpc: RpcConfig,
     pub central: CentralSourceConfig,
     pub base_layer: EthereumBaseLayerConfig,
-    pub base_layer_url: Url,
+    pub base_layer_url: Sensitive<Url>,
     pub monitoring_gateway: MonitoringGatewayConfig,
     #[validate]
     pub storage: StorageConfig,
@@ -79,7 +80,9 @@ impl Default for NodeConfig {
         NodeConfig {
             central: CentralSourceConfig::default(),
             base_layer: EthereumBaseLayerConfig::default(),
-            base_layer_url: Url::parse("https://mainnet.infura.io/v3/%3Cyour_api_key%3E").unwrap(),
+            base_layer_url: Sensitive::new(
+                Url::parse("https://mainnet.infura.io/v3/%3Cyour_api_key%3E").unwrap(),
+            ),
             #[cfg(feature = "rpc")]
             rpc: RpcConfig::default(),
             monitoring_gateway: MonitoringGatewayConfig::default(),
@@ -116,7 +119,7 @@ impl SerializeConfig for NodeConfig {
                 ),
                 ser_param(
                     "base_layer_url",
-                    &self.base_layer_url,
+                    &self.base_layer_url.as_ref(),
                     "URL for communicating with Ethereum.",
                     ParamPrivacyInput::Private,
                 ),

@@ -124,6 +124,7 @@ impl CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: cende_config
                 .recorder_url
+                .as_ref()
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
             client: ClientBuilder::new(reqwest::Client::new())

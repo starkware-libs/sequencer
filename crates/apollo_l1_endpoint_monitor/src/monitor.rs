@@ -40,7 +40,7 @@ impl L1EndpointMonitor {
             return Ok(self.get_node_url(current_l1_endpoint_index).clone());
         }
 
-        let n_urls = self.config.ordered_l1_endpoint_urls.len();
+        let n_urls = self.config.ordered_l1_endpoint_urls.as_ref().len();
         for offset in 1..n_urls {
             let idx = (current_l1_endpoint_index + offset) % n_urls;
             if self.is_operational(idx).await {
@@ -59,13 +59,18 @@ impl L1EndpointMonitor {
         error!(
             "No operational L1 endpoints found in {:?}",
             // We print only the hostnames to avoid leaking the API keys.
-            self.config.ordered_l1_endpoint_urls.iter().map(to_safe_string).collect::<Vec<_>>()
+            self.config
+                .ordered_l1_endpoint_urls
+                .as_ref()
+                .iter()
+                .map(to_safe_string)
+                .collect::<Vec<_>>()
         );
         Err(L1EndpointMonitorError::NoActiveL1Endpoint)
     }
 
     fn get_node_url(&self, index: usize) -> &Url {
-        &self.config.ordered_l1_endpoint_urls[index]
+        &self.config.ordered_l1_endpoint_urls.as_ref()[index]
     }
 
     /// Check if the L1 endpoint is operational by sending a carefully-chosen request to it.
