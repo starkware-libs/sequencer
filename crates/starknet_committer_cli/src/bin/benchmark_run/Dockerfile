@@ -1,20 +1,39 @@
-FROM ubuntu:24.04
+# ---- Stage 1: Builder (has cargo/rustc)
+FROM rust:latest AS builder
+WORKDIR /app
 
-# Install required runtime dependencies
-RUN apt-get update \ 
-    && apt-get install -y ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Copy toolchain file first so rustup switches versions
+COPY rust-toolchain.toml ./
+RUN rustup show  # triggers toolchain install
 
+# System deps (compile-time)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config cmake clang lld \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# Build (cache mounts speed up rebuilds), then copy artifact out of the cache mount
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release -p starknet_committer_cli --bin starknet_committer_cli \
+ && mkdir -p /out \
+ && cp /app/target/release/starknet_committer_cli /out/
+
+# ---- Stage 2: Runtime
+FROM ubuntu:24.04 AS runtime-base
+
+# Minimal runtime deps
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Non-root user
 RUN groupadd -r committer_benchmark && useradd -m -r -g committer_benchmark committer_benchmark
 
-# Copy the binary from local target/release directory. The binary should be built with the --release
-# flag.
-# Note: need to disable the .dockerignore file during the image build process if it has the "target"
-# directory in it.
-COPY target/release/starknet_committer_cli /usr/local/bin/starknet_committer_cli
-
-RUN chmod +x /usr/local/bin/starknet_committer_cli
-RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_committer_cli
+# Copy binary from builder with perms set in one shot
+COPY --from=builder --chmod=0755 --chown=committer_benchmark:committer_benchmark \
+  /out/starknet_committer_cli /usr/local/bin/starknet_committer_cli
 
 USER committer_benchmark
 
@@ -25,10 +44,10 @@ CMD ["cached-rocksdb", \
     "--n-iterations", "1000000", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
-    "--cache-size", "10000000", \
+    "--cache-size", "1000000", \
     "--checkpoint-interval", "1000", \
+    "--include-inner-stats", \
     "--log-level", "info", \
-    "--allow-mmap", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \
