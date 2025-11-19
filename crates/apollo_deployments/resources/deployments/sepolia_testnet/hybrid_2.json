@@ -1,7 +1,0 @@
-{
-  "consensus_manager_config.network_config.advertised_multiaddr": "/dns/sequencer-core-service.apollo-sepolia-alpha-2.starknet.io/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp",
-  "consensus_manager_config.network_config.advertised_multiaddr.#is_none": false,
-  "mempool_p2p_config.network_config.advertised_multiaddr": "/dns/sequencer-mempool-service.apollo-sepolia-alpha-2.starknet.io/tcp/53200/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp",
-  "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": false,
-  "validator_id": "0x65"
-}
