@@ -6,6 +6,7 @@ on:
       - opened
       - reopened
       - synchronize
+      - edited
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
       - "crates/apollo_compile_to_casm/src/constants.rs" # Contains the Cairo1 compiler version.
@@ -47,4 +48,4 @@ jobs:
       - run: pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 
       - name: Verify cairo contract recompilation (both cairo versions).
-        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
+        run: cargo nextest run -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored
