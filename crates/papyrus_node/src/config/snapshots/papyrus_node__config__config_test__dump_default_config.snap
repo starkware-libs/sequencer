@@ -317,31 +317,6 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "monitoring_gateway.collect_metrics": {
-    "description": "If true, collect and return metrics in the monitoring gateway.",
-    "value": false,
-    "privacy": "Public"
-  },
-  "monitoring_gateway.metric_labels": {
-    "description": "'label1:value1 label2:value2 ...' additional labels for metrics.",
-    "value": "",
-    "privacy": "Public"
-  },
-  "monitoring_gateway.present_full_config_secret": {
-    "description": "A secret for presenting the full general config. If no value is provided, the system will generate one.",
-    "param_type": "String",
-    "privacy": "Private"
-  },
-  "monitoring_gateway.server_address": {
-    "description": "node's monitoring server.",
-    "value": "0.0.0.0:8081",
-    "privacy": "Public"
-  },
-  "monitoring_gateway.starknet_url": {
-    "description": "The URL of a centralized Starknet gateway.",
-    "value": "https://alpha-mainnet.starknet.io/",
-    "privacy": "Public"
-  },
   "network.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,

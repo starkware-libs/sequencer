@@ -259,31 +259,6 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "monitoring_gateway.collect_metrics": {
-    "description": "If true, collect and return metrics in the monitoring gateway.",
-    "pointer_target": "collect_metrics",
-    "privacy": "Public"
-  },
-  "monitoring_gateway.metric_labels": {
-    "description": "'label1:value1 label2:value2 ...' additional labels for metrics.",
-    "privacy": "Public",
-    "value": ""
-  },
-  "monitoring_gateway.present_full_config_secret": {
-    "description": "A secret for presenting the full general config. If no value is provided, the system will generate one.",
-    "param_type": "String",
-    "privacy": "Private"
-  },
-  "monitoring_gateway.server_address": {
-    "description": "node's monitoring server.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8081"
-  },
-  "monitoring_gateway.starknet_url": {
-    "description": "The URL of a centralized Starknet gateway.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
-  },
   "network.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",

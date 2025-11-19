@@ -847,7 +847,7 @@ dependencies = [
  "indexmap 2.12.0",
  "itertools 0.12.1",
  "mempool_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "mockito 1.7.0",
@@ -919,7 +919,7 @@ dependencies = [
  "futures-util",
  "indexmap 2.12.0",
  "lru 0.12.5",
- "metrics 0.24.2",
+ "metrics",
  "mockall",
  "papyrus_base_layer",
  "papyrus_common",
@@ -1279,7 +1279,7 @@ dependencies = [
  "ethnum",
  "futures",
  "indexmap 2.12.0",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "mockito 1.7.0",
@@ -1404,7 +1404,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "mempool_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "mockito 1.7.0",
@@ -1482,7 +1482,7 @@ dependencies = [
  "futures",
  "hyper 0.14.32",
  "mempool_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "regex",
  "reqwest 0.12.24",
@@ -1516,7 +1516,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.32",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "once_cell",
  "pretty_assertions",
@@ -1617,7 +1617,7 @@ dependencies = [
  "hex",
  "indexmap 2.12.0",
  "mempool_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "papyrus_base_layer",
@@ -1831,7 +1831,7 @@ dependencies = [
  "indexmap 2.12.0",
  "itertools 0.12.1",
  "mempool_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
@@ -1928,7 +1928,7 @@ name = "apollo_metrics"
 version = "0.16.0-rc.1"
 dependencies = [
  "indexmap 2.12.0",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "num-traits",
  "paste",
@@ -1951,7 +1951,7 @@ dependencies = [
  "apollo_monitoring_endpoint_config",
  "axum",
  "hyper 0.14.32",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "num-traits",
  "pretty_assertions",
@@ -1993,7 +1993,7 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "libp2p-swarm-test",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
@@ -2129,7 +2129,7 @@ dependencies = [
  "futures",
  "indexmap 2.12.0",
  "lazy_static",
- "metrics 0.24.2",
+ "metrics",
  "mockall",
  "papyrus_common",
  "rand 0.8.5",
@@ -2169,7 +2169,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "apollo_test_utils",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "papyrus_common",
  "prometheus-parse",
@@ -2245,7 +2245,7 @@ dependencies = [
  "jsonrpsee",
  "jsonschema",
  "lazy_static",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "mockall",
  "papyrus_common",
@@ -2552,7 +2552,7 @@ dependencies = [
  "lazy_static",
  "libmdbx",
  "memmap2",
- "metrics 0.24.2",
+ "metrics",
  "metrics-exporter-prometheus",
  "nix 0.20.2",
  "num-bigint 0.4.6",
@@ -3092,7 +3092,7 @@ dependencies = [
  "futures-lite",
  "parking",
  "polling",
- "rustix 1.1.2",
+ "rustix",
  "slab",
  "windows-sys 0.61.2",
 ]
@@ -7227,7 +7227,7 @@ dependencies = [
  "rtnetlink",
  "system-configuration 0.6.1",
  "tokio",
- "windows 0.53.0",
+ "windows",
 ]
 
 [[package]]
@@ -8379,17 +8379,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libproc"
-version = "0.14.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a54ad7278b8bc5301d5ffd2a94251c004feb971feba96c971ea4063645990757"
-dependencies = [
- "bindgen 0.72.1",
- "errno",
- "libc",
-]
-
-[[package]]
 name = "libredox"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8407,12 +8396,6 @@ checksum = "4c970c8ea4c7b023a41cfa4af4c785a16694604c2f2a3b0d1f20a9bcb73fa550"
 dependencies = [
  "bytes",
 ]
-
-[[package]]
-name = "linux-raw-sys"
-version = "0.4.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
 name = "linux-raw-sys"
@@ -8478,15 +8461,6 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
-
-[[package]]
-name = "mach2"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d640282b302c0bb0a2a8e0233ead9035e3bed871f0b7e81fe4a1ec829765db44"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "macro-string"
@@ -8636,16 +8610,6 @@ dependencies = [
 
 [[package]]
 name = "metrics"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56d05972e8cbac2671e85aa9d04d9160d193f8bebd1a5c1a2f4542c62e65d1d0"
-dependencies = [
- "ahash",
- "portable-atomic",
-]
-
-[[package]]
-name = "metrics"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25dea7ac8057892855ec285c440160265225438c3c45072613c25a4b26e98ef5"
@@ -8667,27 +8631,12 @@ dependencies = [
  "hyper-util",
  "indexmap 2.12.0",
  "ipnet",
- "metrics 0.24.2",
+ "metrics",
  "metrics-util",
  "quanta",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "metrics-process"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f69c2a98ebe047f74b834c7eeaad0db5a9fd3604e129721d212e0ef9442e238a"
-dependencies = [
- "libproc",
- "mach2",
- "metrics 0.22.4",
- "once_cell",
- "procfs",
- "rlimit",
- "windows 0.54.0",
 ]
 
 [[package]]
@@ -8699,7 +8648,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-utils",
  "hashbrown 0.15.5",
- "metrics 0.24.2",
+ "metrics",
  "quanta",
  "rand 0.9.2",
  "rand_xoshiro",
@@ -9669,29 +9618,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_monitoring_gateway"
-version = "0.16.0-rc.1"
-dependencies = [
- "apollo_config",
- "apollo_starknet_client",
- "apollo_storage",
- "axum",
- "hyper 0.14.32",
- "metrics 0.24.2",
- "metrics-exporter-prometheus",
- "metrics-process",
- "pretty_assertions",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "validator",
-]
-
-[[package]]
 name = "papyrus_node"
 version = "0.16.0-rc.1"
 dependencies = [
@@ -9721,7 +9647,6 @@ dependencies = [
  "once_cell",
  "papyrus_base_layer",
  "papyrus_common",
- "papyrus_monitoring_gateway",
  "pretty_assertions",
  "reqwest 0.12.24",
  "serde",
@@ -10084,7 +10009,7 @@ dependencies = [
  "concurrent-queue",
  "hermit-abi",
  "pin-project-lite",
- "rustix 1.1.2",
+ "rustix",
  "windows-sys 0.61.2",
 ]
 
@@ -10288,29 +10213,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ee95bc4ef87b8d5ba32e8b7714ccc834865276eab0aed5c9958d00ec45f49e8"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "procfs"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "731e0d9356b0c25f16f33b5be79b1c57b562f141ebfcdb0ad8ac2c13a24293b4"
-dependencies = [
- "bitflags 2.10.0",
- "hex",
- "lazy_static",
- "procfs-core",
- "rustix 0.38.44",
-]
-
-[[package]]
-name = "procfs-core"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d3554923a69f4ce04c4a754260c338f505ce22642d3830e049a399fc2059a29"
-dependencies = [
- "bitflags 2.10.0",
- "hex",
 ]
 
 [[package]]
@@ -11398,19 +11300,6 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.44"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
-dependencies = [
- "bitflags 2.10.0",
- "errno",
- "libc",
- "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "rustix"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd15f8a2c5551a84d56efdc1cd049089e409ac19a3072d5037a17fd70719ff3e"
@@ -11418,7 +11307,7 @@ dependencies = [
  "bitflags 2.10.0",
  "errno",
  "libc",
- "linux-raw-sys 0.11.0",
+ "linux-raw-sys",
  "windows-sys 0.61.2",
 ]
 
@@ -12782,7 +12671,7 @@ dependencies = [
  "fastrand",
  "getrandom 0.3.4",
  "once_cell",
- "rustix 1.1.2",
+ "rustix",
  "windows-sys 0.61.2",
 ]
 
@@ -13066,7 +12955,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a01bbf7db0b3f5eee8930a119fe99bfa1438de1095fe3d26b25e652a5933ef3f"
 dependencies = [
  "futures-util",
- "metrics 0.24.2",
+ "metrics",
  "pin-project-lite",
  "tokio",
  "tokio-stream",
@@ -14069,30 +13958,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "windows"
-version = "0.54.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9252e5725dbed82865af151df558e754e4a3c2c30818359eb17465f1346a1b49"
-dependencies = [
- "windows-core 0.54.0",
- "windows-targets 0.52.6",
-]
-
-[[package]]
 name = "windows-core"
 version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9dcc5b895a6377f1ab9fa55acedab1fd5ac0db66ad1e6c7f47e28a22e446a5dd"
-dependencies = [
- "windows-result 0.1.2",
- "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.54.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12661b9c89351d684a50a8a643ce5f608e20243b9fb84687800163429f161d65"
 dependencies = [
  "windows-result 0.1.2",
  "windows-targets 0.52.6",
