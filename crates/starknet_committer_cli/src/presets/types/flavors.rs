@@ -3,6 +3,9 @@ use tracing::Level;
 pub const DEFAULT_INTERFERENCE_CONCURRENCY_LIMIT: usize = 20;
 
 pub struct FlavorFields {
+    /// A path to a directory to store the output and checkpoints.
+    pub data_path: String,
+
     /// Seed for the random number generator.
     pub seed: u64,
 
