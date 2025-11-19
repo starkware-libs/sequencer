@@ -45,7 +45,7 @@ pub enum BenchmarkFlavor {
     Continuous,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub enum InterferenceFlavor {
     // No interference.
     #[default]
@@ -54,7 +54,8 @@ pub enum InterferenceFlavor {
     Read1KEveryBlock,
 }
 
-/// Settings for interference (spawned tasks that run in parallel to the main benchmark).
+/// Settings for interference (spawned tasks that run in parallel to the main benchmark and access
+/// the storage, to simulate contention).
 pub struct InterferenceFields {
     // The type of interference to apply.
     pub interference_type: InterferenceFlavor,

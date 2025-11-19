@@ -14,6 +14,35 @@ pub enum StorageLayout {
     Fact(SingleStorageFields),
 }
 
+pub trait StorageTypeName {
+    fn short_name(&self) -> String;
+}
+
+impl StorageLayout {
+    pub fn supports_interference(&self) -> bool {
+        // Interference can only be supported if the storage can be accessed from multiple threads
+        // in parallel.
+        // In-memory storage cannot support interference, and any cached-wrapped storage cannot
+        // support interference either.
+        let Self::Fact(SingleStorageFields::FileBased(FileBasedStorageFields {
+            ref global_fields,
+            ..
+        })) = self
+        else {
+            return false;
+        };
+        global_fields.cache_fields.is_none()
+    }
+}
+
+impl StorageTypeName for StorageLayout {
+    fn short_name(&self) -> String {
+        match self {
+            Self::Fact(fact_storage) => fact_storage.short_name(),
+        }
+    }
+}
+
 /// Settings for a file-backed storage.
 pub struct FileBasedStorageFields {
     /// A path to a directory to store the DB, output and checkpoints unless they are
@@ -43,6 +72,14 @@ pub struct SingleStorageGlobalFields {
     pub cache_fields: Option<CachedStorageConfig>,
 }
 
+impl StorageTypeName for SingleStorageGlobalFields {
+    fn short_name(&self) -> String {
+        let short_key_name = self.short_key_size.as_ref().map(|_| "shortkey").unwrap_or("");
+        let cache_name = self.cache_fields.as_ref().map(|_| "cached").unwrap_or("");
+        format!("{short_key_name}_{cache_name}")
+    }
+}
+
 /// Settings for a single storage instance. Forest layouts using more than one storage instance may
 /// use separate instances of this enum.
 // TODO(Dori): Remove this #[allow].
@@ -50,6 +87,21 @@ pub struct SingleStorageGlobalFields {
 pub enum SingleStorageFields {
     Memory(SingleMemoryStorageFields),
     FileBased(FileBasedStorageFields),
+}
+
+impl StorageTypeName for SingleStorageFields {
+    fn short_name(&self) -> String {
+        match self {
+            Self::Memory(SingleMemoryStorageFields(global_fields)) => {
+                format!("memory_{}", global_fields.short_name())
+            }
+            Self::FileBased(FileBasedStorageFields {
+                global_fields, specific_db_fields, ..
+            }) => {
+                format!("{}_{}", specific_db_fields.short_name(), global_fields.short_name())
+            }
+        }
+    }
 }
 
 impl SingleStorageFields {
@@ -71,6 +123,17 @@ pub enum SpecificDbFields {
     RocksDb(RocksDbOptions),
     Mdbx(MdbxFields),
     Aerospike(AerospikeStorageConfig),
+}
+
+impl StorageTypeName for SpecificDbFields {
+    fn short_name(&self) -> String {
+        match self {
+            Self::RocksDb(_) => "rocksdb",
+            Self::Mdbx(_) => "mdbx",
+            Self::Aerospike(_) => "aerospike",
+        }
+        .to_string()
+    }
 }
 
 /// Settings for a MDBX database instance.
