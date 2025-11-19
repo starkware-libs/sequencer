@@ -1,4 +1,5 @@
 mod utils;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -71,10 +72,11 @@ async fn l1_handler_tx_consumed_txs() {
     // without a state update.
     let mut base_layer = MockBaseLayerContract::new();
     // The latest_l1_block and l1_block_at are used internally by the scraper.
-    base_layer.expect_latest_l1_block_number().times(1).returning(move |_| Ok(1));
-    base_layer.expect_latest_l1_block().times(1).returning(move |_| Ok(Some(block_from_number(1))));
-    base_layer.expect_latest_l1_block().times(1).returning(move |_| Ok(Some(block_from_number(2))));
-    base_layer.expect_latest_l1_block().returning(move |_| Ok(Some(block_from_number(3))));
+    let current_l1_block_number = Arc::new(AtomicU64::new(1));
+    let current_l1_block_number_clone = current_l1_block_number.clone();
+    base_layer
+        .expect_latest_l1_block_number()
+        .returning(move |_| Ok(current_l1_block_number_clone.load(Ordering::Relaxed)));
     base_layer
         .expect_l1_block_at()
         .returning(move |block_number| Ok(Some(block_from_number(block_number))));
@@ -112,6 +114,8 @@ async fn l1_handler_tx_consumed_txs() {
         ValidationStatus::Validated
     );
 
+    // Block number 2 is created.
+    current_l1_block_number.store(2, Ordering::Relaxed);
     // Sleep at least one second more than the polling interval to make sure we are not failing due
     // to fractional seconds. After the polling interval passes, the transaction should be
     // consumed.
@@ -131,6 +135,8 @@ async fn l1_handler_tx_consumed_txs() {
     assert!(!snapshot.consumed.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 1);
 
+    // Block number 3 is created.
+    current_l1_block_number.store(3, Ordering::Relaxed);
     // Wait again to make sure the consumption timelock has passed, allowing a deletion to occur.
     tokio::time::advance(TIMELOCK_DURATION + Duration::from_secs(1)).await;
 

@@ -203,13 +203,6 @@ impl BaseLayerContract for AnvilBaseLayer {
         self.ethereum_base_layer.latest_l1_block_number(finality).await
     }
 
-    async fn latest_l1_block(
-        &self,
-        finality: u64,
-    ) -> Result<Option<L1BlockReference>, Self::Error> {
-        self.ethereum_base_layer.latest_l1_block(finality).await
-    }
-
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,

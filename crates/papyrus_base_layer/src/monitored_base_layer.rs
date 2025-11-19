@@ -108,17 +108,6 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
 
-    async fn latest_l1_block(
-        &self,
-        finality: u64,
-    ) -> Result<Option<L1BlockReference>, Self::Error> {
-        self.get()
-            .await?
-            .latest_l1_block(finality)
-            .await
-            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
-    }
-
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,
