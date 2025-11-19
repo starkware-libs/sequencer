@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help Papyrus to improve
+about: Create a report to help Apollo to improve
 title: "bug: "
 labels: "bug"
 assignees: ""
@@ -8,7 +8,7 @@ assignees: ""
 
 # Bug Report
 
-**Papyrus version:**
+**Apollo version:**
 
 <!-- Please specify commit or tag version. -->
 
