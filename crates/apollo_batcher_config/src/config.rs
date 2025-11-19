@@ -2,7 +2,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -69,8 +74,8 @@ impl SerializeConfig for BlockBuilderConfig {
              being executed, the proposer will finish building the current block.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump

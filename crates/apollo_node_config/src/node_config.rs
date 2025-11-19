@@ -150,6 +150,17 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
+        (
+            ser_pointer_target_param(
+                "versioned_constants_overrides.#is_none",
+                &false,
+                "Flag to disable versioned_constants_overrides for all components.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.block_builder_config.versioned_constants_overrides.#is_none",
+                "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none",
+            ]),
+        ),
     ];
     let mut common_execution_config = generate_struct_pointer(
         "versioned_constants_overrides".to_owned(),
