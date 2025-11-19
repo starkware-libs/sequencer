@@ -72,6 +72,7 @@ pub struct CachedStorage<S: Storage> {
     include_inner_stats: bool,
 }
 
+#[derive(Clone)]
 pub struct CachedStorageConfig {
     // Max number of entries in the cache.
     pub cache_size: NonZeroUsize,

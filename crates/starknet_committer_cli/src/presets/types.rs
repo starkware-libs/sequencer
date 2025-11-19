@@ -27,9 +27,19 @@ impl PresetFields {
             );
         }
     }
+
+    pub fn flavor_fields(&self) -> &FlavorFields {
+        &self.flavor_fields
+    }
+
+    pub fn storage_layout(&self) -> &StorageLayout {
+        &self.storage_layout
+    }
 }
 
+#[derive(clap::ValueEnum, Clone, Debug)]
 pub enum Preset {
+    /// The base preset.
     Base,
 }
 
