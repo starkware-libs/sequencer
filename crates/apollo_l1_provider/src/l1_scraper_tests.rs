@@ -382,7 +382,6 @@ async fn test_stuck_sync() {
 fn dummy_base_layer() -> MockBaseLayerContract {
     let mut base_layer = MockBaseLayerContract::new();
     base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Default::default()));
-    base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
     base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
     base_layer
 }
@@ -492,12 +491,13 @@ async fn latest_block_number_goes_down() {
 
     let initial_block_reference = L1BlockReference { number: 0, hash: L1_BLOCK_HASH };
 
-    let latest_l1_block_response = Arc::new(Mutex::new(expected_block_reference));
-    let latest_l1_block_response_clone = latest_l1_block_response.clone();
+    let latest_l1_block_number_response = Arc::new(Mutex::new(L1_LATEST_BLOCK_NUMBER));
+    let latest_l1_block_number_response_clone = latest_l1_block_number_response.clone();
+
     dummy_base_layer
-        .expect_latest_l1_block()
+        .expect_latest_l1_block_number()
         .times(2)
-        .returning(move |_| Ok(Some(*latest_l1_block_response_clone.lock().unwrap())));
+        .returning(move |_| Ok(*latest_l1_block_number_response_clone.lock().unwrap()));
 
     dummy_base_layer.expect_events().times(1).returning(|_, _| Ok(vec![]));
 
@@ -515,7 +515,7 @@ async fn latest_block_number_goes_down() {
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
     // Simulate a base layer returning a lower block number.
-    latest_l1_block_response.lock().unwrap().number = L1_BAD_LATEST_NUMBER;
+    *latest_l1_block_number_response.lock().unwrap() = L1_BAD_LATEST_NUMBER;
 
     // Make sure we don't hit the reorg error in this scenario.
     scraper.assert_no_l1_reorgs().await.unwrap();

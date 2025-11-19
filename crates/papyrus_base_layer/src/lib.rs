@@ -61,9 +61,6 @@ pub trait BaseLayerContract {
 
     async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error>;
 
-    async fn latest_l1_block(&self, finality: u64)
-    -> Result<Option<L1BlockReference>, Self::Error>;
-
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,
