@@ -27,6 +27,8 @@ pub struct ConsensusDynamicConfig {
     /// The duration (seconds) between sync attempts.
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub sync_retry_interval: Duration,
+    /// Future message limits configuration.
+    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -35,8 +37,6 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-    /// Future message limits configuration.
-    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -65,21 +65,19 @@ impl SerializeConfig for ConsensusDynamicConfig {
             ),
         ]);
         config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
+        config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
         config
     }
 }
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([ser_param(
+        BTreeMap::from_iter([ser_param(
             "startup_delay",
             &self.startup_delay.as_secs(),
             "Delay (seconds) before starting consensus to give time for network peering.",
             ParamPrivacyInput::Public,
-        )]);
-        config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
-
-        config
+        )])
     }
 }
 
@@ -98,16 +96,14 @@ impl Default for ConsensusDynamicConfig {
             validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
+            future_msg_limit: FutureMsgLimitsConfig::default(),
         }
     }
 }
 
 impl Default for ConsensusStaticConfig {
     fn default() -> Self {
-        Self {
-            startup_delay: Duration::from_secs(5),
-            future_msg_limit: FutureMsgLimitsConfig::default(),
-        }
+        Self { startup_delay: Duration::from_secs(5) }
     }
 }
 

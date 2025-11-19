@@ -362,7 +362,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 static_config: ConsensusStaticConfig {
                     // TODO(Matan, Dan): Set the right amount
                     startup_delay: Duration::from_secs(15),
-                    ..Default::default()
                 },
             },
             context_config: ContextConfig {
