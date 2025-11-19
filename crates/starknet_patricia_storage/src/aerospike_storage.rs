@@ -41,7 +41,7 @@ pub enum AerospikeStorageError {
     ExpectedBlob(Value),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
