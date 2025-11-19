@@ -4,9 +4,7 @@ use rand::distributions::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
-use starknet_api::core::PatriciaKey;
 use starknet_api::hash::HashOutput;
-use starknet_api::state::StorageKey;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
@@ -51,8 +49,7 @@ fn leaf_preimages_to_storage_keys(
             let mut hasher = Blake2s::<U31>::new();
             hasher.update(i.to_be_bytes().as_slice());
             let result = hasher.finalize();
-            let key = PatriciaKey::try_from(Felt::from_bytes_be_slice(result.as_slice())).unwrap();
-            StarknetStorageKey(StorageKey(key))
+            StarknetStorageKey::try_from(Felt::from_bytes_be_slice(result.as_slice())).unwrap()
         })
         .collect()
 }
@@ -108,9 +105,7 @@ impl BenchmarkFlavor {
                 leaf_preimages_to_storage_keys(total_leaves..(total_leaves + n_updates_arg))
             }
             Self::Continuous => (total_leaves..(total_leaves + n_updates_arg))
-                .map(|i| {
-                    StarknetStorageKey(StorageKey(PatriciaKey::try_from(Felt::from(i)).unwrap()))
-                })
+                .map(|i| StarknetStorageKey::try_from(Felt::from(i)).unwrap())
                 .collect(),
             Self::Overlap => {
                 // Invariant: if there are a total of L leaves in the DB, then the nonzero keys are

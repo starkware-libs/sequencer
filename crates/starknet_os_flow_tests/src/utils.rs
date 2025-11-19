@@ -490,7 +490,7 @@ pub(crate) fn update_expected_storage(
     key: Felt,
     value: Felt,
 ) {
-    let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+    let key = StarknetStorageKey::try_from(key).unwrap();
     let value = StarknetStorageValue(value);
     expected_storage_updates
         .entry(address)

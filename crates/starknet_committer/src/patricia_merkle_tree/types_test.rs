@@ -1,6 +1,5 @@
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
-use starknet_api::state::StorageKey;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
@@ -18,7 +17,7 @@ fn test_cast_to_node_index(
             &ContractAddress::try_from(Felt::from(leaf_index)).unwrap(),
         )
     } else {
-        (&StarknetStorageKey(StorageKey::from(leaf_index))).into()
+        (&StarknetStorageKey::from(leaf_index)).into()
     };
     assert_eq!(actual, expected_node_index);
 }
