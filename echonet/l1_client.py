@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -93,3 +94,32 @@ def get_timestamp_of_block_by_number(
 
     # Timestamp is hex string, convert to int.
     return int(block["timestamp"], 16)
+
+
+def get_block_number_by_timestamp(timestamp: int) -> Optional[int]:
+    """
+    Get the block number at/after a given timestamp using blocks-by-timestamp API.
+    """
+    block_by_timestamp_url = "https://api.g.alchemy.com/data/v1/your-api-key/utility/blocks/by-timestamp"
+    timestamp_iso = (
+        datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+    params = {
+        "networks": "eth-mainnet",
+        "timestamp": timestamp_iso,
+        "direction": "AFTER",
+    }
+
+    response = requests.get(block_by_timestamp_url, params=params)
+    response.raise_for_status()
+    
+    data = response.json()
+    items = data.get("data") or []
+    if not items:
+        return None
+
+    block = items[0].get("block") or {}
+    return block.get("number")
