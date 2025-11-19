@@ -22,11 +22,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{
-    BroadcastNetworkMetrics,
-    EventMetrics,
-    NetworkMetrics,
-};
+use apollo_network::metrics::{BroadcastNetworkMetrics, EventMetrics, NetworkMetrics};
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,

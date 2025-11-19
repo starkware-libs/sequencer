@@ -1,5 +1,5 @@
 use apollo_metrics::define_metrics;
-use apollo_network::network_manager::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
+use apollo_network::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
 
 define_metrics!(
     ConsensusManager => {
