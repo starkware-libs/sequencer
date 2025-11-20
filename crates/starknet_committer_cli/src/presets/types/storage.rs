@@ -7,6 +7,7 @@ pub const DEFAULT_DATA_PATH: &str = "/mnt/data/committer_storage_benchmark";
 pub const DEFAULT_STORAGE_PATH: &str = "/mnt/data/storage";
 
 /// Defines the underlying forest storage used by the committer.
+#[derive(Debug)]
 pub enum StorageLayout {
     // Fact storage layout: each key is the hash of the value.
     Fact(SingleStorageFields),
@@ -39,6 +40,7 @@ impl StorageLayoutName for StorageLayout {
 }
 
 /// Settings for a file-backed storage.
+#[derive(Debug)]
 pub struct FileBasedStorageFields {
     /// A path to a directory to store the DB if needed.
     pub storage_path: String,
@@ -56,6 +58,7 @@ impl FileBasedStorageFields {
     }
 }
 
+#[derive(Debug)]
 pub struct SingleStorageGlobalFields {
     // If not None, the storage will be wrapped in a key-shrinking storage.
     pub short_key_size: Option<ShortKeySize>,
@@ -73,6 +76,7 @@ impl StorageLayoutName for SingleStorageGlobalFields {
 
 /// Settings for a single storage instance. Forest layouts using more than one storage instance may
 /// use separate instances of this enum.
+#[derive(Debug)]
 pub enum SingleStorageFields {
     Memory(SingleMemoryStorageFields),
     FileBased(FileBasedStorageFields),
@@ -103,9 +107,11 @@ impl SingleStorageFields {
 }
 
 /// Settings for a memory-backed storage.
+#[derive(Debug)]
 pub struct SingleMemoryStorageFields(pub SingleStorageGlobalFields);
 
 /// Settings for a specific, single, file-backed database instance.
+#[derive(Debug)]
 pub enum SpecificDbFields {
     RocksDb(RocksDbFields),
     Mdbx(MdbxFields),
@@ -126,16 +132,18 @@ impl StorageLayoutName for SpecificDbFields {
 /// Settings for a MDBX database instance.
 // TODO(Dori): Define a `MdbxStorageConfig` struct in the patricia storage crate, and use it instead
 //   of this struct.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MdbxFields {}
 
 /// Configuration settings for a RocksDB database instance.
+#[derive(Debug)]
 pub struct RocksDbFields {
     pub use_column_families: bool,
     pub allow_mmap: bool,
 }
 
 /// Configuration settings for a Aerospike database instance.
+#[derive(Debug)]
 pub struct AerospikeFields {
     pub aeroset: String,
     pub namespace: String,
