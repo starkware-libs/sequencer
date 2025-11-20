@@ -361,6 +361,7 @@ def show_config_diff(old_content: str, new_content: str, index: int) -> None:
         fromfile=f"config{index}.yaml_old",
         tofile=f"config{index}.yaml",
         lineterm="",
+        n=0,  # context lines; no real 'context' in config files
     )
 
     diff_output = "".join(diff)
