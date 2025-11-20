@@ -628,8 +628,6 @@ struct_field_names! {
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
-        // TODO(guy.f): Remove this in the follow up PR which uses last_voted_marker table.
-        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }
