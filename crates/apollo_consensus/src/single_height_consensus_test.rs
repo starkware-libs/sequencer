@@ -28,7 +28,7 @@ lazy_static! {
     static ref PROPOSAL_INIT: ProposalInit =
         ProposalInit { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
-    static ref VALIDATE_PROPOSAL_EVENT: StateMachineEvent = StateMachineEvent::Proposal(
+    static ref VALIDATE_PROPOSAL_EVENT: StateMachineEvent = StateMachineEvent::FinishedValidation(
         Some(BLOCK.id),
         PROPOSAL_INIT.round,
         PROPOSAL_INIT.valid_round,
@@ -42,17 +42,14 @@ fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
     ProposalInit { height, ..*PROPOSAL_INIT }
 }
 
-fn prevote_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
+fn rebroadcast_prevote_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
     let duration = TIMEOUTS.get_prevote_timeout(round);
-    ShcTask::Prevote(duration, StateMachineEvent::Prevote(prevote(block_felt, 0, round, voter)))
+    ShcTask::Rebroadcast(duration, prevote(block_felt, 0, round, voter))
 }
 
-fn precommit_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
+fn rebroadcast_precommit_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
     let duration = TIMEOUTS.get_precommit_timeout(round);
-    ShcTask::Precommit(
-        duration,
-        StateMachineEvent::Precommit(precommit(block_felt, 0, round, voter)),
-    )
+    ShcTask::Rebroadcast(duration, precommit(block_felt, 0, round, voter))
 }
 
 fn timeout_prevote_task(round: u32) -> ShcTask {
@@ -111,8 +108,9 @@ async fn proposer() {
     let shc_ret = shc.start(&mut context).await.unwrap();
     assert_eq!(*shc_ret.as_tasks().unwrap()[0].as_build_proposal().unwrap().0, 0);
     assert_eq!(
-        shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0)).await,
-        Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)]))
+        shc.handle_event(&mut context, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
+            .await,
+        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)]))
     );
     assert_eq!(
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await,
@@ -129,7 +127,7 @@ async fn proposer() {
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
-            precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)
+            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)
         ]))
     );
 
@@ -194,7 +192,7 @@ async fn validator(repeat_proposal: bool) {
     );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
-        Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)]))
+        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)]))
     );
     if repeat_proposal {
         // Send the same proposal again, which should be ignored (no expectations).
@@ -217,7 +215,7 @@ async fn validator(repeat_proposal: bool) {
             .await,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
-            precommit_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)
+            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)
         ]))
     );
 
@@ -275,7 +273,7 @@ async fn vote_twice(same_vote: bool) {
     );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
-        Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)]))
+        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1)]))
     );
 
     let res =
@@ -295,7 +293,7 @@ async fn vote_twice(same_vote: bool) {
         res,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
-            precommit_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1),
+            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *VALIDATOR_ID_1),
         ]))
     );
 
@@ -350,8 +348,9 @@ async fn rebroadcast_votes() {
     let shc_ret = shc.start(&mut context).await.unwrap();
     assert_eq!(*shc_ret.as_tasks().unwrap()[0].as_build_proposal().unwrap().0, 0);
     assert_eq!(
-        shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0)).await,
-        Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)]))
+        shc.handle_event(&mut context, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
+            .await,
+        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(Some(BLOCK.id.0), 0, *PROPOSER_ID)]))
     );
     assert_eq!(
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await,
@@ -370,17 +369,17 @@ async fn rebroadcast_votes() {
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
-            precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),
+            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),
         ]))
     );
     // Re-broadcast vote.
     assert_eq!(
         shc.handle_event(
             &mut context,
-            StateMachineEvent::Precommit(precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
+            StateMachineEvent::RebroadcastVote(precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         )
         .await,
-        Ok(ShcReturn::Tasks(vec![precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),]))
+        Ok(ShcReturn::Tasks(vec![rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),]))
     );
 }
 
@@ -411,7 +410,7 @@ async fn repropose() {
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     shc.start(&mut context).await.unwrap();
-    shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0))
+    shc.handle_event(&mut context, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
         .await
         .unwrap();
     shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await.unwrap();
@@ -425,7 +424,7 @@ async fn repropose() {
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
-            precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),
+            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, *PROPOSER_ID),
         ]))
     );
     // Advance to the next round.
