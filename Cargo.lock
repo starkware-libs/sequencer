@@ -3592,6 +3592,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "similar",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",

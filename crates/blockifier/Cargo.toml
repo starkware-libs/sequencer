@@ -85,6 +85,7 @@ rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
 rstest_reuse.workspace = true
+similar.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 tikv-jemallocator.workspace = true

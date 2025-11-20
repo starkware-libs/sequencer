@@ -1,0 +1,40 @@
+-[129]           "v1_bound_accounts_cairo0": [],
+-[130]           "v1_bound_accounts_cairo1": [],
+-[131]           "v1_bound_accounts_max_tip": "0x0",
++[129]           "v1_bound_accounts_cairo0": [
++[130]               "0x06d706cfbac9b8262d601c38251c5fbe0497c3a96cc91a92b08d91b61d9e70c4",
++[131]               "0x0309c042d3729173c7f2f91a34f04d8c509c1b292d334679ef1aabf8da0899cc",
++[132]               "0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f",
++[133]               "0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2"
++[134]           ],
++[135]           "v1_bound_accounts_cairo1": [
++[136]               "0x01a736d6ed154502257f02b1ccdf4d9d1089f80811cd6acad48e6b6a9d1f2003",
++[137]               "0x0737ee2f87ce571a58c6c8da558ec18a07ceb64a6172d5ec46171fbc80077a48",
++[138]               "0x05400e90f7e0ae78bd02c77cd75527280470e2fe19c54970dd79dc37a9d3645c",
++[139]               "0x04c6d6cf894f8bc96bb9c525e6853e5483177841f7388f74a46cfda6f028c755",
++[140]               "0x01c0bb51e2ce73dc007601a1e7725453627254016c28f118251a71bbb0507fcb",
++[141]               "0x0251830adc3d8b4d818c2c309d71f1958308e8c745212480c26e01120c69ee49",
++[142]               "0x0251cac7b2f45d255b83b7a06dcdef70c8a8752f00ea776517c1c2243c7a06e5"
++[143]           ],
++[144]           "v1_bound_accounts_max_tip": "0x746a5288000",
+-[158]                   "n_steps": 1132,
+-[159]                   "builtin_instance_counter": {
+-[160]                       "pedersen_builtin": 7,
+-[161]                       "range_check_builtin": 18
++[171]                   "constant": {
++[172]                       "n_steps": 1132,
++[173]                       "builtin_instance_counter": {
++[174]                           "pedersen_builtin": 7,
++[175]                           "range_check_builtin": 18
++[176]                       },
++[177]                       "n_memory_holes": 0
+-[163]                   "n_memory_holes": 0
++[179]                   "calldata_factor": {
++[180]                       "n_steps": 8,
++[181]                       "builtin_instance_counter": {
++[182]                           "pedersen_builtin": 1
++[183]                       },
++[184]                       "n_memory_holes": 0
++[185]                   }
+-[508]   }
++[530]   }

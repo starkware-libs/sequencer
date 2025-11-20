@@ -1,0 +1,318 @@
++[  1]       "tx_event_limits": {
++[  2]           "max_data_length": 300,
++[  3]           "max_keys_length": 50,
++[  4]           "max_n_emitted_events": 1000
++[  5]       },
+-[  3]           "max_contract_bytecode_size": 61440
++[  8]           "max_contract_bytecode_size": 81920
++[  9]       },
++[ 10]       "invoke_tx_max_n_steps": 4000000,
++[ 11]       "deprecated_l2_resource_gas_costs": {
++[ 12]           "gas_per_data_felt": [
++[ 13]               128,
++[ 14]               1000
++[ 15]           ],
++[ 16]           "event_key_factor": [
++[ 17]               2,
++[ 18]               1
++[ 19]           ],
++[ 20]           "gas_per_code_byte": [
++[ 21]               875,
++[ 22]               1000
++[ 23]           ]
++[ 24]       },
++[ 25]       "archival_data_gas_costs": {
++[ 26]           "gas_per_data_felt": [
++[ 27]               5120,
++[ 28]               1
++[ 29]           ],
++[ 30]           "event_key_factor": [
++[ 31]               2,
++[ 32]               1
++[ 33]           ],
++[ 34]           "gas_per_code_byte": [
++[ 35]               35000,
++[ 36]               1
++[ 37]           ]
+-[  5]       "invoke_tx_max_n_steps": 3000000,
+-[ 24]       "ignore_inner_event_resources": false,
++[ 57]       "ignore_inner_event_resources": true,
+-[ 29]       "tx_event_limits": {
+-[ 30]           "max_data_length": 1000000000,
+-[ 31]           "max_keys_length": 1000000000,
+-[ 32]           "max_n_emitted_events": 1000000000
+-[ 33]       },
+-[ 34]       "deprecated_l2_resource_gas_costs": {
+-[ 35]           "gas_per_data_felt": [
+-[ 36]               0,
+-[ 37]               1
+-[ 38]           ],
+-[ 39]           "event_key_factor": [
+-[ 40]               0,
+-[ 41]               1
+-[ 42]           ],
+-[ 43]           "gas_per_code_byte": [
+-[ 44]               0,
+-[ 45]               1
+-[ 46]           ]
+-[ 47]       },
+-[ 48]       "archival_data_gas_costs": {
+-[ 49]           "gas_per_data_felt": [
+-[ 50]               0,
+-[ 51]               1
+-[ 52]           ],
+-[ 53]           "event_key_factor": [
+-[ 54]               0,
+-[ 55]               1
+-[ 56]           ],
+-[ 57]           "gas_per_code_byte": [
+-[ 58]               0,
+-[ 59]               1
+-[ 60]           ]
+-[ 61]       },
+-[ 97]           "memory_hole_gas_cost": 10,
++[102]           "memory_hole_gas_cost": 10,
+-[118]           "validate_rounding_consts": {
+-[119]               "validate_block_number_rounding": 1,
+-[120]               "validate_timestamp_rounding": 1
+-[121]           },
++[125]           "validate_rounding_consts": {
++[126]               "validate_block_number_rounding": 100,
++[127]               "validate_timestamp_rounding": 3600
++[128]           },
+-[193]                   "step_gas_cost": 76401,
+-[194]                   "range_check": 7045
++[193]                   "step_gas_cost": 76501,
++[194]                   "range_check": 7045,
++[195]                   "memory_hole_gas_cost": 2
+-[216]                   "step_gas_cost": 125240,
+-[217]                   "range_check": 13961
++[217]                   "step_gas_cost": 125340,
++[218]                   "range_check": 13961,
++[219]                   "memory_hole_gas_cost": 2
++[244]                   "n_steps": 760,
+-[243]                       "range_check_builtin": 19
++[246]                       "range_check_builtin": 20
+-[245]                   "n_memory_holes": 0,
+-[246]                   "n_steps": 691
++[248]                   "n_memory_holes": 0
++[251]                   "n_steps": 713,
+-[252]                   "n_memory_holes": 0,
+-[253]                   "n_steps": 713
++[255]                   "n_memory_holes": 0
++[258]                   "n_steps": 692,
+-[259]                   "n_memory_holes": 0,
+-[260]                   "n_steps": 692
++[262]                   "n_memory_holes": 0
++[265]                   "n_steps": 1012,
+-[265]                       "range_check_builtin": 18
++[268]                       "range_check_builtin": 19
+-[267]                   "n_memory_holes": 0,
+-[268]                   "n_steps": 944
++[270]                   "n_memory_holes": 0
+-[271]                   "builtin_instance_counter": {},
+-[272]                   "n_memory_holes": 0,
+-[273]                   "n_steps": 19
++[273]                   "n_steps": 61,
++[274]                   "builtin_instance_counter": {
++[275]                       "range_check_builtin": 1
++[276]                   },
++[277]                   "n_memory_holes": 0
++[280]                   "n_steps": 104,
+-[279]                   "n_memory_holes": 0,
+-[280]                   "n_steps": 74
++[284]                   "n_memory_holes": 0
++[287]                   "n_steps": 40,
+-[284]                   "n_memory_holes": 0,
+-[285]                   "n_steps": 40
++[289]                   "n_memory_holes": 0
++[292]                   "n_steps": 38,
+-[289]                   "n_memory_holes": 0,
+-[290]                   "n_steps": 38
++[294]                   "n_memory_holes": 0
+-[293]                   "builtin_instance_counter": {},
+-[294]                   "n_memory_holes": 0,
+-[295]                   "n_steps": 32
++[297]                   "n_steps": 64,
++[298]                   "builtin_instance_counter": {
++[299]                       "range_check_builtin": 1
++[300]                   },
++[301]                   "n_memory_holes": 0
+-[298]                   "builtin_instance_counter": {},
+-[299]                   "n_memory_holes": 0,
+-[300]                   "n_steps": 36
++[304]                   "n_steps": 64,
++[305]                   "builtin_instance_counter": {
++[306]                       "range_check_builtin": 1
++[307]                   },
++[308]                   "n_memory_holes": 0
+-[303]                   "builtin_instance_counter": {},
+-[304]                   "n_memory_holes": 0,
+-[305]                   "n_steps": 29
++[311]                   "n_steps": 64,
++[312]                   "builtin_instance_counter": {
++[313]                       "range_check_builtin": 1
++[314]                   },
++[315]                   "n_memory_holes": 0
++[318]                   "n_steps": 34,
+-[309]                   "n_memory_holes": 0,
+-[310]                   "n_steps": 34
++[320]                   "n_memory_holes": 0
+-[313]                   "builtin_instance_counter": {},
+-[314]                   "n_memory_holes": 0,
+-[315]                   "n_steps": 29
++[323]                   "n_steps": 64,
++[324]                   "builtin_instance_counter": {
++[325]                       "range_check_builtin": 1
++[326]                   },
++[327]                   "n_memory_holes": 0
++[330]                   "n_steps": 44,
+-[319]                   "n_memory_holes": 0,
+-[320]                   "n_steps": 44
++[332]                   "n_memory_holes": 0
++[335]                   "n_steps": 381,
+-[328]                   "n_memory_holes": 0,
+-[329]                   "n_steps": 381
++[341]                   "n_memory_holes": 0
++[344]                   "n_steps": 0,
+-[333]                   "n_memory_holes": 0,
+-[334]                   "n_steps": 0
++[346]                   "n_memory_holes": 0
++[349]                   "n_steps": 751,
+-[338]                       "range_check_builtin": 19
++[351]                       "range_check_builtin": 20
+-[340]                   "n_memory_holes": 0,
+-[341]                   "n_steps": 680
++[353]                   "n_memory_holes": 0
++[356]                   "n_steps": 659,
+-[347]                   "n_memory_holes": 0,
+-[348]                   "n_steps": 659
++[360]                   "n_memory_holes": 0
+-[358]                   "builtin_instance_counter": {},
+-[359]                   "n_memory_holes": 0,
+-[360]                   "n_steps": 73
++[370]                   "n_steps": 98,
++[371]                   "builtin_instance_counter": {
++[372]                       "range_check_builtin": 1
++[373]                   },
++[374]                   "n_memory_holes": 0
++[377]                   "n_steps": 408,
+-[366]                   "n_memory_holes": 0,
+-[367]                   "n_steps": 406
++[381]                   "n_memory_holes": 0
++[384]                   "n_steps": 393,
+-[373]                   "n_memory_holes": 20,
+-[374]                   "n_steps": 391
++[388]                   "n_memory_holes": 0
++[391]                   "n_steps": 205,
+-[380]                   "n_memory_holes": 40,
+-[381]                   "n_steps": 239
++[395]                   "n_memory_holes": 0
++[398]                   "n_steps": 76503,
+-[387]                   "n_memory_holes": 0,
+-[388]                   "n_steps": 76401
++[402]                   "n_memory_holes": 0
++[405]                   "n_steps": 459,
+-[394]                   "n_memory_holes": 40,
+-[395]                   "n_steps": 475
++[409]                   "n_memory_holes": 0
++[412]                   "n_steps": 591,
+-[401]                   "n_memory_holes": 0,
+-[402]                   "n_steps": 589
++[416]                   "n_memory_holes": 0
++[419]                   "n_steps": 512,
+-[408]                   "n_memory_holes": 20,
+-[409]                   "n_steps": 510
++[423]                   "n_memory_holes": 0
++[426]                   "n_steps": 207,
+-[415]                   "n_memory_holes": 40,
+-[416]                   "n_steps": 241
++[430]                   "n_memory_holes": 0
++[433]                   "n_steps": 125342,
+-[422]                   "n_memory_holes": 0,
+-[423]                   "n_steps": 125240
++[437]                   "n_memory_holes": 0
++[440]                   "n_steps": 578,
+-[429]                   "n_memory_holes": 40,
+-[430]                   "n_steps": 594
++[444]                   "n_memory_holes": 0
+-[433]                   "builtin_instance_counter": {},
+-[434]                   "n_memory_holes": 0,
+-[435]                   "n_steps": 84
++[447]                   "n_steps": 139,
++[448]                   "builtin_instance_counter": {
++[449]                       "range_check_builtin": 1
++[450]                   },
++[451]                   "n_memory_holes": 0
+-[443]                   "builtin_instance_counter": {},
+-[444]                   "n_memory_holes": 0,
+-[445]                   "n_steps": 44
++[459]                   "n_steps": 87,
++[460]                   "builtin_instance_counter": {
++[461]                       "range_check_builtin": 1
++[462]                   },
++[463]                   "n_memory_holes": 0
+-[448]                   "builtin_instance_counter": {},
+-[449]                   "n_memory_holes": 0,
+-[450]                   "n_steps": 46
++[466]                   "n_steps": 89,
++[467]                   "builtin_instance_counter": {
++[468]                       "range_check_builtin": 1
++[469]                   },
++[470]                   "n_memory_holes": 0
++[481]                       "n_steps": 2839,
+-[462]                           "pedersen_builtin": 15,
++[483]                           "pedersen_builtin": 16,
+-[465]                       "n_memory_holes": 0,
+-[466]                       "n_steps": 2711
++[486]                       "n_memory_holes": 0
++[496]                       "n_steps": 3792,
+-[480]                       "n_memory_holes": 0,
+-[481]                       "n_steps": 3628
++[501]                       "n_memory_holes": 0
+-[484]                       "n_steps": 0,
+-[485]                       "builtin_instance_counter": {},
++[504]                       "n_steps": 21,
++[505]                       "builtin_instance_counter": {
++[506]                           "pedersen_builtin": 2
++[507]                       },
++[513]                       "n_steps": 3546,
+-[492]                           "pedersen_builtin": 16,
++[515]                           "pedersen_builtin": 14,
+-[495]                       "n_memory_holes": 0,
+-[496]                       "n_steps": 3382
++[518]                       "n_memory_holes": 0
+-[499]                       "n_steps": 0,
+-[500]                       "builtin_instance_counter": {},
++[521]                       "n_steps": 8,
++[522]                       "builtin_instance_counter": {
++[523]                           "pedersen_builtin": 1
++[524]                       },
++[530]                       "n_steps": 1146,
+-[510]                       "n_memory_holes": 0,
+-[511]                       "n_steps": 1069
++[535]                       "n_memory_holes": 0
+-[514]                       "n_steps": 0,
+-[515]                       "builtin_instance_counter": {},
++[538]                       "n_steps": 13,
++[539]                       "builtin_instance_counter": {
++[540]                           "pedersen_builtin": 1
++[541]                       },
+-[535]                   32,
++[561]                   16,
+-[539]                   512,
++[565]                   256,
+-[543]                   1024,
++[569]                   512,
+-[547]                   1024,
++[573]                   512,
+-[559]                   16,
++[585]                   8,
+-[563]                   16,
++[589]                   8,
+-[567]                   8,
++[593]                   4,
+-[576]               5,
+-[577]               1000
++[602]               25,
++[603]               10000
