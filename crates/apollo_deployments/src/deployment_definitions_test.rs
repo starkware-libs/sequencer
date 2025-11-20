@@ -30,6 +30,9 @@ fn deployment_files_are_up_to_date() {
 
     for node_type in NodeType::iter() {
         node_type.test_dump_service_component_configs(None);
+        for node_service in node_type.all_service_names() {
+            node_service.test_dump_node_service_replacer_app_config_files();
+        }
     }
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
