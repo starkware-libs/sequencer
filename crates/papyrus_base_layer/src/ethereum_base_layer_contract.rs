@@ -135,21 +135,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     #[instrument(skip(self), err)]
-    async fn latest_l1_block_number(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<L1BlockNumber> {
+    async fn latest_l1_block_number(&self) -> EthereumBaseLayerResult<L1BlockNumber> {
         let block_number = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_number(),
         )
         .await??;
-        let Some(block_number) = block_number.checked_sub(finality) else {
-            return Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(
-                block_number,
-                finality,
-            ));
-        };
         Ok(block_number)
     }
 
@@ -236,8 +227,6 @@ pub enum EthereumBaseLayerError {
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy::primitives::Log),
-    #[error("Block number is too low: {0}, finality: {1}")]
-    LatestBlockNumberReturnedTooLow(u64, u64),
 }
 
 impl PartialEq for EthereumBaseLayerError {

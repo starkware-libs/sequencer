@@ -76,9 +76,15 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         let finality = self.config.finality;
         let latest_l1_block_number = self
             .base_layer
-            .latest_l1_block_number(finality)
+            .latest_l1_block_number()
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
+        let latest_l1_block_number = latest_l1_block_number.checked_sub(finality).ok_or(
+            L1ScraperError::FinalityTooHigh {
+                finality,
+                latest_l1_block_no_finality: latest_l1_block_number,
+            },
+        )?;
         debug!("Latest L1 block number: {latest_l1_block_number:?}");
 
         // Estimate the number of blocks in the interval, to rewind from the latest block.
@@ -190,9 +196,15 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
 
         let latest_l1_block_number = self
             .base_layer
-            .latest_l1_block_number(self.config.finality)
+            .latest_l1_block_number()
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
+        let latest_l1_block_number = latest_l1_block_number
+            .checked_sub(self.config.finality)
+            .ok_or(L1ScraperError::FinalityTooHigh {
+                finality: self.config.finality,
+                latest_l1_block_no_finality: latest_l1_block_number,
+            })?;
         let latest_l1_block = self
             .base_layer
             .l1_block_at(latest_l1_block_number)
@@ -453,7 +465,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
     }
 }
 
-// TODO(guyn): get rid of finality_too_high, use a better error.
+// TODO(guyn): get rid of finality_too_high, just use the new error FinalityTooHigh.
 impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1ScraperError<BaseLayerType> {
     /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
     /// block number, return FinalityTooHigh.
@@ -461,7 +473,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1ScraperError<Base
         finality: u64,
         base_layer: &BaseLayerType,
     ) -> L1ScraperError<BaseLayerType> {
-        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
+        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number().await;
 
         let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
             Ok(block_number) => block_number,
