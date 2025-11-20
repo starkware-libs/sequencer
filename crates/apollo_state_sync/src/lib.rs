@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -142,12 +143,24 @@ impl StateSync {
                     _ => account_transaction_hashes.push(tx_hash),
                 }
             }
+            let header_commitments = block_header.block_header_commitments().unwrap_or_default();
+            let partial_block_hash_components = PartialBlockHashComponents {
+                header_commitments,
+                block_number: block_header.block_header_without_hash.block_number,
+                l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+                l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+                l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+                sequencer: block_header.block_header_without_hash.sequencer,
+                timestamp: block_header.block_header_without_hash.timestamp,
+                starknet_version: block_header.block_header_without_hash.starknet_version,
+            };
 
             Ok(SyncBlock {
                 state_diff: thin_state_diff,
                 block_header_without_hash: block_header.block_header_without_hash,
                 account_transaction_hashes,
                 l1_transaction_hashes,
+                partial_block_hash_components,
             })
         })
         .await?

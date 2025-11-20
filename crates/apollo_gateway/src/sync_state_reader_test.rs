@@ -61,6 +61,7 @@ async fn test_get_block_info() {
                     l1_da_mode,
                     ..Default::default()
                 },
+                ..Default::default()
             })
         },
     );

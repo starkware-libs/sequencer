@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -311,10 +312,12 @@ fn create_random_sync_block(
         l1_da_mode,
         starknet_version,
     };
+    let partial_block_hash_components = PartialBlockHashComponents::get_test_instance(&mut rng);
     SyncBlock {
         state_diff,
         account_transaction_hashes,
         l1_transaction_hashes,
         block_header_without_hash,
+        partial_block_hash_components,
     }
 }

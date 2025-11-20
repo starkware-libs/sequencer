@@ -52,6 +52,7 @@ use starknet_api::block::{
     GasPrice,
     WEI_PER_ETH,
 };
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -537,11 +538,14 @@ impl ConsensusContext for SequencerConsensusContext {
             })
             .collect::<Vec<TransactionHash>>();
 
+        // TODO(Nimrod): Get the actual partial block hash components from the batcher response.
+        let dummy_partial_block_hash = PartialBlockHashComponents::default();
         let sync_block = SyncBlock {
             state_diff: state_diff.clone(),
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash,
+            partial_block_hash_components: dummy_partial_block_hash,
         };
         self.sync_add_new_block(sync_block).await;
 
