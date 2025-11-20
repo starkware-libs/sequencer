@@ -1,5 +1,6 @@
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Config;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -31,9 +32,10 @@ pub async fn parse_and_commit(
     commit(input, output_path, storage).await;
 }
 
-pub async fn commit(input: InputImpl, output_path: String, mut storage: MapStorage) {
+pub async fn commit(input: InputImpl, output_path: String, storage: MapStorage) {
+    let mut facts_db = FactsDb::new(storage);
     let serialized_filled_forest = SerializedForest(
-        commit_block(input, &mut storage, None).await.expect("Failed to commit the given block."),
+        commit_block(input, &mut facts_db, None).await.expect("Failed to commit the given block."),
     );
     let output = serialized_filled_forest.forest_to_output();
     write_to_file(&output_path, &output);

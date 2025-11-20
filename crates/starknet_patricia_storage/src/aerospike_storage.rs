@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use aerospike::{
     as_bin,
     operations,
@@ -19,7 +21,15 @@ use aerospike::{
     WritePolicy,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    NoStats,
+    PatriciaStorageResult,
+    Storage,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AerospikeStorageError {
@@ -31,6 +41,7 @@ pub enum AerospikeStorageError {
     ExpectedBlob(Value),
 }
 
+#[derive(Clone)]
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
@@ -64,14 +75,15 @@ impl AerospikeStorageConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct AerospikeStorage {
     config: AerospikeStorageConfig,
-    client: Client,
+    client: Arc<Client>,
 }
 
 impl AerospikeStorage {
     pub fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
-        let client = Client::new(&config.client_policy, &config.hosts)?;
+        let client = Arc::new(Client::new(&config.client_policy, &config.hosts)?);
         Ok(Self { config, client })
     }
 
@@ -153,5 +165,9 @@ impl Storage for AerospikeStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }

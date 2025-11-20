@@ -31,6 +31,7 @@ use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_N
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -266,19 +267,17 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
 ) -> (StateRoots, MapStorage) {
-    let mut map_storage = MapStorage::default();
+    let mut facts_db = FactsDb::new(MapStorage::default());
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
-    (
-        commit_state_diff(
-            &mut map_storage,
-            contract_trie_root,
-            classes_trie_root,
-            committer_state_diff,
-        )
-        .await,
-        map_storage,
+    let state_roots = commit_state_diff(
+        &mut facts_db,
+        contract_trie_root,
+        classes_trie_root,
+        committer_state_diff,
     )
+    .await;
+    (state_roots, facts_db.consume_storage())
 }
 
 pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {

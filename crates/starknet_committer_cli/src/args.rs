@@ -10,23 +10,26 @@ use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage}
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+use crate::commands::run_storage_benchmark_wrapper;
+
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
-    /// Constant 1000 state diffs per iteration.
-    #[value(alias("1k-diff"))]
-    Constant1KDiff,
-    /// Constant 4000 state diffs per iteration.
-    #[value(alias("4k-diff"))]
-    Constant4KDiff,
-    /// Periodic peaks of 1000 state diffs per iteration, with 200 diffs on non-peak iterations.
-    /// Peaks are 10 iterations every 500 iterations.
+    /// Constant number of updates per iteration.
+    #[value(alias("constant"))]
+    Constant,
+    /// Periodic peaks of a constant number of updates per peak iteration, with 20% of the number
+    /// of updates on non-peak iterations. Peaks are 10 iterations every 500 iterations.
     #[value(alias("peaks"))]
     PeriodicPeaks,
     /// Constant number of state diffs per iteration, with 20% new leaves per iteration. The other
     /// 80% leaf updates are sampled randomly from recent leaf updates.
-    /// For the first blocks, behaves just like [Self::Constant1KDiff] ("warmup" phase).
-    #[value(alias("overlap-1k-diff"))]
-    Overlap1KDiff,
+    /// For the first blocks, behaves just like [Self::Constant] ("warmup" phase).
+    #[value(alias("overlap"))]
+    Overlap,
+    /// Constant number of updates per iteration, where block N generates updates for leaf keys
+    /// [N * C, (N + 1) * C).
+    #[value(alias("continuous"))]
+    Continuous,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
@@ -109,6 +112,11 @@ pub struct GlobalArgs {
     #[clap(long, default_value = "1k-diff")]
     pub flavor: BenchmarkFlavor,
 
+    /// Number of updates per iteration, where applicable. Different flavors treat this value
+    /// differently, see [BenchmarkFlavor] for more details.
+    #[clap(long, default_value = "1000")]
+    pub n_updates: usize,
+
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
     #[clap(long, default_value = None)]
     pub key_size: Option<ShortKeySizeArg>,
@@ -156,6 +164,26 @@ impl FileStorageArgs {
         fs::create_dir_all(&path).expect("Failed to create storage directory.");
         path
     }
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
+pub enum InterferenceType {
+    /// No interference.
+    None,
+    /// Read 1000 random keys every block.
+    Read1KEveryBlock,
+}
+
+#[derive(Debug, Args, Clone)]
+pub struct InterferenceArgs {
+    /// The type of interference to apply.
+    #[clap(long, default_value = "none")]
+    pub interference_type: InterferenceType,
+
+    /// The maximum number of interference tasks to run concurrently.
+    /// Any attempt to spawn a new interference task will log a warning and not spawn the task.
+    #[clap(long, default_value = "20")]
+    pub interference_concurrency_limit: usize,
 }
 
 #[derive(Debug, Args)]
@@ -211,6 +239,8 @@ pub struct MdbxArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 }
 
 impl StorageFromArgs for MdbxArgs {
@@ -228,12 +258,19 @@ pub struct RocksdbArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 
     /// If true, the storage will use memory-mapped files.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
     #[clap(long, short, action=ArgAction::SetTrue)]
     pub allow_mmap: bool,
+
+    /// If true, the storage will use column families.
+    /// False by default.
+    #[clap(long, action=ArgAction::SetTrue)]
+    pub use_column_families: bool,
 }
 
 impl StorageFromArgs for RocksdbArgs {
@@ -241,6 +278,7 @@ impl StorageFromArgs for RocksdbArgs {
         RocksDbStorage::open(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
             self.rocksdb_options(),
+            self.use_column_families,
         )
         .unwrap()
     }
@@ -258,6 +296,8 @@ pub struct AerospikeArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 
     /// Aerospike aeroset.
     #[clap(long)]
@@ -288,16 +328,52 @@ impl AerospikeArgs {
     }
 }
 
-#[derive(Debug, Subcommand)]
-pub enum StorageBenchmarkCommand {
-    Memory(MemoryArgs),
-    CachedMemory(CachedStorageArgs<MemoryArgs>),
-    Mdbx(MdbxArgs),
-    CachedMdbx(CachedStorageArgs<MdbxArgs>),
-    Rocksdb(RocksdbArgs),
-    CachedRocksdb(CachedStorageArgs<RocksdbArgs>),
-    Aerospike(AerospikeArgs),
-    CachedAerospike(CachedStorageArgs<AerospikeArgs>),
+/// Utility macro to define a storage benchmark command enum and implement the
+/// [StorageBenchmarkCommand::run_benchmark] method. The method itself uses a `match` with identical
+/// arm implementations for each variant; explicit arm implementations are required to avoid dynamic
+/// dispatch of the [Storage] type.
+macro_rules! define_storage_benchmark_command {
+    (
+        $(#[$enum_meta:meta])*
+        $visibility:vis enum $enum_name:ident {
+            $( $variant:ident($args_type:ty) ),+ $(,)?
+        }
+    ) => {
+        $(#[$enum_meta])*
+        $visibility enum $enum_name {
+            $( $variant($args_type), )+
+        }
+
+        impl $enum_name {
+            /// Run the storage benchmark.
+            pub async fn run_benchmark(&self) {
+                // Explicitly create a different concrete storage type in each match arm to avoid
+                // dynamic dispatch.
+                match self {
+                    $(
+                        Self::$variant(args) => {
+                            let storage = args.storage();
+                            run_storage_benchmark_wrapper(self, storage).await;
+                        }
+                    )+
+                }
+            }
+        }
+    };
+}
+
+define_storage_benchmark_command! {
+    #[derive(Debug, Subcommand)]
+    pub enum StorageBenchmarkCommand {
+        Memory(MemoryArgs),
+        CachedMemory(CachedStorageArgs<MemoryArgs>),
+        Mdbx(MdbxArgs),
+        CachedMdbx(CachedStorageArgs<MdbxArgs>),
+        Rocksdb(RocksdbArgs),
+        CachedRocksdb(CachedStorageArgs<RocksdbArgs>),
+        Aerospike(AerospikeArgs),
+        CachedAerospike(CachedStorageArgs<AerospikeArgs>),
+    }
 }
 
 impl StorageBenchmarkCommand {
@@ -336,6 +412,22 @@ impl StorageBenchmarkCommand {
             Self::CachedRocksdb(_) => StorageType::CachedRocksdb,
             Self::Aerospike(_) => StorageType::Aerospike,
             Self::CachedAerospike(_) => StorageType::CachedAerospike,
+        }
+    }
+
+    pub fn interference_args(&self) -> InterferenceArgs {
+        match self {
+            Self::Memory(_)
+            | Self::CachedMemory(_)
+            | Self::CachedMdbx(_)
+            | Self::CachedRocksdb(_)
+            | Self::CachedAerospike(_) => InterferenceArgs {
+                interference_type: InterferenceType::None,
+                interference_concurrency_limit: 0,
+            },
+            Self::Mdbx(args) => args.interference_args.clone(),
+            Self::Rocksdb(args) => args.interference_args.clone(),
+            Self::Aerospike(args) => args.interference_args.clone(),
         }
     }
 }

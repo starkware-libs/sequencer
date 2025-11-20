@@ -37,7 +37,6 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -932,7 +931,7 @@ async fn add_sync_block() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(PartialBlockHashComponents::default()))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -1103,7 +1102,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(expected_artifacts.partial_block_hash_components()),
+            eq(Some(expected_artifacts.partial_block_hash_components())),
         )
         .returning(|_, _, _| Ok(()));
 

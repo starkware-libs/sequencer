@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::path::Path;
+use std::sync::Arc;
 
 use libmdbx::{
     Database as MdbxDb,
@@ -14,6 +15,7 @@ use libmdbx::{
 use page_size;
 
 use crate::storage_trait::{
+    AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
@@ -22,8 +24,9 @@ use crate::storage_trait::{
     StorageStats,
 };
 
+#[derive(Clone)]
 pub struct MdbxStorage {
-    db: MdbxDb<WriteMap>,
+    db: Arc<MdbxDb<WriteMap>>,
 }
 
 // Size in bytes.
@@ -91,7 +94,7 @@ impl MdbxStorage {
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;
-        Ok(Self { db })
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
@@ -142,5 +145,9 @@ impl Storage for MdbxStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(MdbxStorageStats(self.db.stat()?))
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }

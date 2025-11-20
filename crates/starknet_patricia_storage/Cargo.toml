@@ -32,4 +32,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+libmdbx.workspace = true
 rstest.workspace = true
+rust-rocksdb.workspace = true
+tokio.workspace = true

@@ -77,6 +77,7 @@ impl MempoolStateReader for SyncStateReader {
                 },
             },
             use_kzg_da: block_header.l1_da_mode.is_use_kzg_da(),
+            starknet_version: block_header.starknet_version,
         };
 
         Ok(block_info)

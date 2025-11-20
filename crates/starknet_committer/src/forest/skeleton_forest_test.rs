@@ -4,7 +4,6 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_api::state::StorageKey;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
     create_binary_entry_from_u128,
@@ -33,6 +32,8 @@ use crate::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use crate::db::facts_db::FactsDb;
+use crate::db::forest_trait::ForestReader;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
@@ -293,7 +294,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-    #[case] mut storage: MapStorage,
+    #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -311,16 +312,18 @@ fn test_create_original_skeleton_forest(
         classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
     };
 
-    let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        &mut storage,
-        input.contracts_trie_root_hash,
-        input.classes_trie_root_hash,
-        &input.state_diff.actual_storage_updates(),
-        &input.state_diff.actual_classes_updates(),
-        &forest_sorted_indices,
-        &ConfigImpl::new(false, LevelFilter::DEBUG),
-    )
-    .unwrap();
+    let actual_storage_updates = input.state_diff.actual_storage_updates();
+    let actual_classes_updates = input.state_diff.actual_classes_updates();
+    let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
+        .read(
+            input.contracts_trie_root_hash,
+            input.classes_trie_root_hash,
+            &actual_storage_updates,
+            &actual_classes_updates,
+            &forest_sorted_indices,
+            ConfigImpl::new(false, LevelFilter::DEBUG),
+        )
+        .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
         .map(|(address, state)| (contract_address_into_node_index(&address), state))
@@ -378,7 +381,7 @@ fn create_storage_updates(
                     .iter()
                     .map(|val| {
                         (
-                            StarknetStorageKey(StorageKey::from(u128::from(*val))),
+                            StarknetStorageKey::from(u128::from(*val)),
                             StarknetStorageValue(Felt::from(u128::from(*val))),
                         )
                     })

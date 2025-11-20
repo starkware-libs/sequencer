@@ -45,6 +45,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -140,7 +141,7 @@ pub(crate) fn create_committer_state_diff(state_diff: CommitmentStateDiff) -> St
 
 /// Commits the state diff, saves the new commitments and returns the computed roots.
 pub(crate) async fn commit_state_diff(
-    commitments: &mut MapStorage,
+    facts_db: &mut FactsDb<MapStorage>,
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
@@ -148,8 +149,8 @@ pub(crate) async fn commit_state_diff(
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
-        commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
-    filled_forest.write_to_storage(commitments);
+        commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
+    filled_forest.write_to_storage(&mut facts_db.storage);
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
@@ -490,7 +491,7 @@ pub(crate) fn update_expected_storage(
     key: Felt,
     value: Felt,
 ) {
-    let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+    let key = StarknetStorageKey::try_from(key).unwrap();
     let value = StarknetStorageValue(value);
     expected_storage_updates
         .entry(address)

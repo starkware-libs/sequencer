@@ -665,6 +665,7 @@ impl Display for BlockTimestamp {
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
+    pub starknet_version: StarknetVersion,
 
     // Fee-related.
     pub sequencer_address: ContractAddress,

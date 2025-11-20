@@ -3,7 +3,14 @@ use std::marker::PhantomData;
 use blake2::Blake2s;
 use digest::Digest;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+};
 
 #[macro_export]
 macro_rules! define_short_key_storage {
@@ -72,6 +79,16 @@ macro_rules! define_short_key_storage {
 
             fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
                 self.storage.get_stats()
+            }
+
+            fn get_async_self(&self) -> Option<impl AsyncStorage> {
+                Some($name::new(self.storage.get_async_self()?))
+            }
+        }
+
+        impl<S: AsyncStorage> Clone for $name<S> {
+            fn clone(&self) -> Self {
+                Self { storage: self.storage.clone(), _n_bytes: PhantomData }
             }
         }
     };

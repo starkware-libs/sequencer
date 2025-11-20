@@ -37,7 +37,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo, StarknetVersion};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     PartialBlockHashComponents,
@@ -164,8 +164,7 @@ impl BlockExecutionArtifacts {
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
     pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
-        // TODO(Nimrod): Use the version from the block info when available.
-        let starknet_version = StarknetVersion::LATEST;
+        let starknet_version = self.block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
         let header_commitments = calculate_block_commitments(

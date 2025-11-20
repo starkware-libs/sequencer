@@ -96,6 +96,7 @@ async fn test_get_block_info() {
                 },
             },
             use_kzg_da: l1_da_mode.is_use_kzg_da(),
+            starknet_version: Default::default(),
         }
     );
 }

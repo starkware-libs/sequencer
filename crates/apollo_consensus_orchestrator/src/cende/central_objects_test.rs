@@ -218,6 +218,7 @@ fn block_info() -> BlockInfo {
             },
         },
         use_kzg_da: true,
+        starknet_version: StarknetVersion::LATEST,
     }
 }
 

@@ -1,16 +1,27 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
     Cache,
+    ColumnFamily,
+    ColumnFamilyDescriptor,
     Options,
     WriteBatch,
     WriteOptions,
     DB,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    NoStats,
+    PatriciaStorageResult,
+    Storage,
+};
 
 // General database Options.
 
@@ -88,16 +99,43 @@ impl RocksDbOptions {
     }
 }
 
+#[derive(Clone)]
 pub struct RocksDbStorage {
-    db: DB,
-    write_options: WriteOptions,
+    db: Arc<DB>,
+    write_options: Arc<WriteOptions>,
+    /// family according to its last byte. Otherwise, the database is opened with a single
+    /// column family (default behavior).
+    column_families: bool,
 }
 
 impl RocksDbStorage {
-    pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        let db = DB::open(&options.db_options, path)?;
+    pub fn open(
+        path: &Path,
+        options: RocksDbOptions,
+        column_families: bool,
+    ) -> PatriciaStorageResult<Self> {
+        let cfs = if column_families {
+            (0..1 << u8::BITS)
+                .map(|i| ColumnFamilyDescriptor::new(format!("{i}"), Options::default()))
+                .collect()
+        } else {
+            vec![ColumnFamilyDescriptor::new("default", Options::default())]
+        };
 
-        Ok(Self { db, write_options: options.write_options })
+        let db = Arc::new(DB::open_cf_descriptors(&options.db_options, path, cfs)?);
+        let write_options = Arc::new(options.write_options);
+        Ok(Self { db, write_options, column_families })
+    }
+
+    pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
+        if self.column_families {
+            let last_byte = key.0.last().unwrap_or(&0u8);
+            self.db
+                .cf_handle(&format!("{last_byte}"))
+                .unwrap_or_else(|| panic!("Column family not found: {last_byte}"))
+        } else {
+            self.db.cf_handle("default").unwrap()
+        }
     }
 }
 
@@ -105,18 +143,20 @@ impl Storage for RocksDbStorage {
     type Stats = NoStats;
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.db.get(&key.0)?.map(DbValue))
+        let cf = self.get_column_family(key);
+        Ok(self.db.get_cf(&cf, &key.0)?.map(DbValue))
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.db.put_opt(&key.0, &value.0, &self.write_options)?)
+        let cf = self.get_column_family(&key);
+        Ok(self.db.put_cf_opt(&cf, &key.0, &value.0, &self.write_options)?)
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        let raw_keys = keys.iter().map(|k| &k.0);
+        let cfs_and_raw_keys = keys.iter().map(|k| (self.get_column_family(k), k.0.clone()));
         let res = self
             .db
-            .multi_get(raw_keys)
+            .multi_get_cf(cfs_and_raw_keys)
             .into_iter()
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
@@ -126,16 +166,22 @@ impl Storage for RocksDbStorage {
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
         for key in key_to_value.keys() {
-            batch.put(&key.0, &key_to_value[key].0);
+            let cf = self.get_column_family(key);
+            batch.put_cf(&cf, &key.0, &key_to_value[key].0);
         }
         Ok(self.db.write_opt(&batch, &self.write_options)?)
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        Ok(self.db.delete(&key.0)?)
+        let cf = self.get_column_family(key);
+        Ok(self.db.delete_cf_opt(&cf, &key.0, &self.write_options)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }
