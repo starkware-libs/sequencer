@@ -1,0 +1,170 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: resume-ssd-sync-200k
+  namespace: batching-test
+  labels:
+    app: sequencer-sync-ssd
+    job-type: data-sync-resume
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: sequencer-sync-ssd
+    spec:
+      restartPolicy: Never
+      
+      # No nodeSelector - let Kubernetes find available nodes
+      # (SSD PVC works with most nodes except c4d)
+      
+      containers:
+      - name: sync
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
+        imagePullPolicy: Always
+        workingDir: /data/workspace
+        
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          
+          echo "========================================="
+          echo "RESUMING SSD SYNC TO 200K BLOCKS"
+          echo "========================================="
+          echo ""
+          echo "Storage: SSD PVC (sequencer-database-pvc)"
+          echo "Will resume from existing data (~97k blocks)"
+          echo ""
+          
+          # Set PATH
+          export PATH="/app/target/release:$PATH"
+          export RUST_LOG=info
+          
+          # Check existing data
+          if [ -d "/data/workspace/data_with_batching/SN_MAIN" ]; then
+            echo "✓ Found existing blockchain data (will resume)"
+            echo "  Database size: $(du -sh /data/workspace/data_with_batching/SN_MAIN | cut -f1)"
+          else
+            echo "⚠ No existing data found - will start from block 0"
+          fi
+          echo ""
+          
+          # Change to directory with existing data
+          cd /data/workspace
+          
+          # Build apollo_node command with all configs
+          CONFIG_ARGS=""
+          
+          if [ -d "/configs" ]; then
+            echo "Loading configuration files..."
+            for config_file in /configs/*.json; do
+              if [ -f "$config_file" ]; then
+                CONFIG_ARGS="$CONFIG_ARGS --config_file $config_file"
+              fi
+            done
+            
+            # Load test config if exists
+            if [ -f "/data/workspace/test_config.json" ]; then
+              CONFIG_ARGS="$CONFIG_ARGS --config_file /data/workspace/test_config.json"
+            fi
+            
+            # Load minimal_node_config last for overrides
+            if [ -f "/configs/minimal_node_config.json" ]; then
+              CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/minimal_node_config.json"
+            fi
+          fi
+          
+          echo "✓ Configuration loaded"
+          echo ""
+          echo "Starting node..."
+          echo "Target: 200,000 blocks"
+          echo "========================================="
+          echo ""
+          
+          # Start the node with existing data directory
+          cd data_with_batching
+          apollo_node $CONFIG_ARGS 2>&1 | tee ../resume_sync.log &
+          NODE_PID=$!
+          
+          echo "Node PID: $NODE_PID"
+          echo ""
+          echo "Monitoring progress..."
+          echo "(Resuming from ~97k blocks, need to reach 200k)"
+          echo ""
+          
+          # Monitor the node
+          LAST_CHECK=0
+          CHECK_INTERVAL=30
+          TARGET_BLOCK=200000
+          
+          while kill -0 $NODE_PID 2>/dev/null; do
+            CURRENT_TIME=$(date +%s)
+            
+            if [ $((CURRENT_TIME - LAST_CHECK)) -ge $CHECK_INTERVAL ]; then
+              echo "[$(date '+%H:%M:%S')] Status:"
+              
+              # Show recent progress from logs
+              tail -100 ../resume_sync.log | grep -i "height\|block.*[0-9]" | tail -3 || echo "  Syncing..."
+              
+              # Show disk usage
+              echo "  Database size: $(du -sh /data/workspace/data_with_batching/SN_MAIN 2>/dev/null | cut -f1 || echo 'N/A')"
+              echo ""
+              
+              LAST_CHECK=$CURRENT_TIME
+            fi
+            
+            sleep 5
+          done
+          
+          # Node stopped
+          wait $NODE_PID
+          EXIT_CODE=$?
+          
+          echo ""
+          echo "========================================="
+          echo "Node stopped (exit code: $EXIT_CODE)"
+          echo "========================================="
+          echo ""
+          
+          # Show final size
+          if [ -d "/data/workspace/data_with_batching/SN_MAIN" ]; then
+            echo "Final database size:"
+            du -sh /data/workspace/data_with_batching/SN_MAIN
+            echo ""
+            echo "✓ Data saved on SSD PVC!"
+          fi
+          
+          exit $EXIT_CODE
+        
+        resources:
+          requests:
+            cpu: "2"
+            memory: "8Gi"
+            ephemeral-storage: "10Gi"
+          limits:
+            cpu: "4"
+            memory: "16Gi"
+            ephemeral-storage: "20Gi"
+        
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: PATH
+          value: "/app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        
+        volumeMounts:
+        - name: database-storage
+          mountPath: /data
+        - name: sequencer-configs
+          mountPath: /configs
+          readOnly: true
+      
+      volumes:
+      - name: database-storage
+        persistentVolumeClaim:
+          claimName: sequencer-database-pvc  # OLD SSD PVC
+      - name: sequencer-configs
+        configMap:
+          name: sequencer-configs
+

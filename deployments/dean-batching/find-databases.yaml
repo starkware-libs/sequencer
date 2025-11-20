@@ -1,0 +1,85 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: find-databases
+  namespace: dean-batching
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: find-databases
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        role: "apollo-core-service-c4d-standard-8"
+      tolerations:
+        - key: key
+          operator: "Equal"
+          value: "apollo-core-service-c4d-standard-8"
+          effect: "NoSchedule"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod -R 777 /data && echo 'Permissions fixed!'"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      containers:
+      - name: search
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "========================================="
+          echo "SEARCHING FOR ALL BLOCKCHAIN DATABASES"
+          echo "========================================="
+          echo ""
+          
+          echo "1. Searching entire filesystem for SN_MAIN directories..."
+          find / -name "SN_MAIN" -type d 2>/dev/null || echo "None found"
+          echo ""
+          
+          echo "2. Checking common locations:"
+          echo ""
+          
+          echo "  /data:"
+          ls -la /data/ 2>/dev/null || echo "  (not accessible)"
+          echo ""
+          
+          echo "  /app:"
+          ls -la /app/ 2>/dev/null || echo "  (not accessible)"
+          echo ""
+          
+          echo "  /tmp:"
+          ls -la /tmp/ 2>/dev/null || echo "  (not accessible)"
+          echo ""
+          
+          echo "  Home directory:"
+          ls -la ~/ 2>/dev/null || echo "  (not accessible)"
+          echo ""
+          
+          echo "  Current directory:"
+          pwd
+          ls -la . 2>/dev/null || echo "  (not accessible)"
+          echo ""
+          
+          echo "3. Checking for 'batcher' and 'class_manager' directories..."
+          find / -name "batcher" -o -name "class_manager" 2>/dev/null || echo "None found"
+          echo ""
+          
+          echo "4. Disk usage of large directories:"
+          du -sh /* 2>/dev/null | sort -h | tail -20
+          echo ""
+          
+          echo "========================================="
+          echo "SEARCH COMPLETE"
+          echo "========================================="
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dean-hyperdisk-pvc
+

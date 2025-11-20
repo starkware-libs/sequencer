@@ -1,0 +1,248 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sync-to-500k
+  namespace: batching-test
+  labels:
+    app: sequencer-sync
+    job-type: data-sync-500k
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: sequencer-sync-500k
+    spec:
+      restartPolicy: Never
+      
+      # Use c4d node pool for hyperdisk support
+      nodeSelector:
+        role: "apollo-core-service-c4d-standard-8"
+      
+      tolerations:
+        - key: key
+          operator: "Equal"
+          value: "apollo-core-service-c4d-standard-8"
+          effect: "NoSchedule"
+      
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /data_compare_batching/workspace && chmod -R 777 /data_compare_batching/workspace']
+        volumeMounts:
+        - name: database-storage
+          mountPath: /data_compare_batching
+      
+      containers:
+      - name: sync
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
+        imagePullPolicy: Always
+        workingDir: /data_compare_batching/workspace
+        
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          
+          echo "========================================="
+          echo "SYNCING NODE TO 500K BLOCKS (HYPERDISK)"
+          echo "========================================="
+          echo ""
+          echo "Target: Block 500,000"
+          echo "Storage: Hyperdisk Balanced (100GB, 10K IOPS)"
+          echo "Batching: ENABLED (batch_size=100)"
+          echo ""
+          echo "Start time: $(date)"
+          START_TIME=$(date +%s)
+          echo "Start timestamp: $START_TIME"
+          echo ""
+          
+          # Set PATH to include apollo_node
+          export PATH="/app/target/release:$PATH"
+          export RUST_LOG=info
+          
+          # Check existing data
+          if [ -d "/data_compare_batching/workspace/SN_MAIN" ]; then
+            CURRENT_BLOCK=$(ls -1 /data_compare_batching/workspace/SN_MAIN/block_* 2>/dev/null | wc -l || echo "0")
+            echo "✓ Found existing blockchain data"
+            echo "  Current blocks: ~$CURRENT_BLOCK"
+            echo "  Will continue from last synced block"
+            du -sh /data_compare_batching/workspace/SN_MAIN
+          else
+            echo "⚠ No existing data - starting from block 0"
+          fi
+          echo ""
+          
+          # Create test config (sets storage path, enables batching)
+          cat > test_config.json << 'TESTCONFIG'
+          {
+            "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": true,
+            "state_sync_config.central_sync_client_config.sync_config.block_batch_size": 100,
+            "state_sync_config.storage_config.db_config.path_prefix": "."
+          }
+          TESTCONFIG
+          
+          echo "✓ Batching configuration:"
+          cat test_config.json
+          echo ""
+          
+          # Build apollo_node command with same configs as test script
+          echo "Loading configuration files..."
+          
+          CONFIG_ARGS="--config_file /configs/base_layer_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/batcher_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/class_manager_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/consensus_manager_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/revert_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/versioned_constants_overrides_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/validate_resource_bounds_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/gateway_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/http_server_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_endpoint_monitor_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_gas_price_provider_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_gas_price_scraper_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_provider_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_scraper_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mempool_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mempool_p2p_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/monitoring_endpoint_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/sierra_compiler_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/state_sync_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_deployment"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_hybrid"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/node_config"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/minimal_node_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_secrets.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file test_config.json"
+          
+          echo "✓ Configuration loaded"
+          echo ""
+          echo "Starting node..."
+          echo "========================================="
+          echo ""
+          
+          # Start the node
+          apollo_node $CONFIG_ARGS 2>&1 | tee sync.log &
+          NODE_PID=$!
+          
+          echo "Node PID: $NODE_PID"
+          echo ""
+          echo "Monitoring progress to 500,000 blocks..."
+          echo ""
+          
+          # Monitor the node
+          LAST_CHECK=0
+          CHECK_INTERVAL=60  # Check every minute
+          TARGET_BLOCK=500000
+          
+          while kill -0 $NODE_PID 2>/dev/null; do
+            CURRENT_TIME=$(date +%s)
+            
+            if [ $((CURRENT_TIME - LAST_CHECK)) -ge $CHECK_INTERVAL ]; then
+              # Extract current block height from logs
+              CURRENT_BLOCK=$(tail -100 sync.log | grep -oE 'height[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)
+              
+              if [ -n "$CURRENT_BLOCK" ]; then
+                ELAPSED=$((CURRENT_TIME - START_TIME))
+                ELAPSED_MINS=$((ELAPSED / 60))
+                ELAPSED_HOURS=$((ELAPSED_MINS / 60))
+                REMAINING_MINS=$((ELAPSED_MINS % 60))
+                
+                # Calculate rate and ETA
+                if [ $CURRENT_BLOCK -gt 0 ] && [ $ELAPSED -gt 0 ]; then
+                  BLOCKS_PER_SEC=$(echo "scale=2; $CURRENT_BLOCK / $ELAPSED" | bc)
+                  REMAINING_BLOCKS=$((TARGET_BLOCK - CURRENT_BLOCK))
+                  ETA_SECS=$(echo "scale=0; $REMAINING_BLOCKS / $BLOCKS_PER_SEC" | bc)
+                  ETA_MINS=$((ETA_SECS / 60))
+                  ETA_HOURS=$((ETA_MINS / 60))
+                  ETA_MINS_MOD=$((ETA_MINS % 60))
+                  
+                  PERCENT=$(echo "scale=2; $CURRENT_BLOCK * 100 / $TARGET_BLOCK" | bc)
+                  
+                  echo "[$(date '+%Y-%m-%d %H:%M:%S')]"
+                  echo "  Block: $CURRENT_BLOCK / $TARGET_BLOCK ($PERCENT%)"
+                  echo "  Elapsed: ${ELAPSED_HOURS}h ${REMAINING_MINS}m"
+                  echo "  Speed: $BLOCKS_PER_SEC blocks/sec"
+                  echo "  ETA: ~${ETA_HOURS}h ${ETA_MINS_MOD}m remaining"
+                  echo "  DB size: $(du -sh /data_compare_batching/workspace/SN_MAIN 2>/dev/null | cut -f1 || echo 'N/A')"
+                  echo ""
+                fi
+              else
+                echo "[$(date '+%H:%M:%S')] Syncing... (waiting for block data)"
+              fi
+              
+              LAST_CHECK=$CURRENT_TIME
+            fi
+            
+            sleep 5
+          done
+          
+          # Node stopped
+          wait $NODE_PID
+          EXIT_CODE=$?
+          
+          END_TIME=$(date +%s)
+          TOTAL_TIME=$((END_TIME - START_TIME))
+          TOTAL_MINS=$((TOTAL_TIME / 60))
+          TOTAL_HOURS=$((TOTAL_MINS / 60))
+          TOTAL_MINS_MOD=$((TOTAL_MINS % 60))
+          
+          echo ""
+          echo "========================================="
+          echo "SYNC COMPLETED"
+          echo "========================================="
+          echo "Exit code: $EXIT_CODE"
+          echo "Total time: ${TOTAL_HOURS}h ${TOTAL_MINS_MOD}m"
+          echo "End time: $(date)"
+          echo ""
+          
+          if [ -d "/data_compare_batching/workspace/SN_MAIN" ]; then
+            echo "Final database size:"
+            du -sh /data_compare_batching/workspace/SN_MAIN
+            echo ""
+            
+            FINAL_BLOCK=$(tail -100 sync.log | grep -oE 'height[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)
+            if [ -n "$FINAL_BLOCK" ]; then
+              echo "Final block: $FINAL_BLOCK"
+              AVG_SPEED=$(echo "scale=2; $FINAL_BLOCK / $TOTAL_TIME" | bc)
+              echo "Average speed: $AVG_SPEED blocks/sec"
+            fi
+          fi
+          
+          echo ""
+          echo "✓ Sync results saved in sync.log"
+          echo "========================================="
+          
+          exit $EXIT_CODE
+        
+        resources:
+          requests:
+            cpu: "7"  # 7 CPUs (leave room for system pods on c4d-standard-8)
+            memory: "16Gi"
+            ephemeral-storage: "30Gi"
+          limits:
+            cpu: "8"
+            memory: "32Gi"
+            ephemeral-storage: "50Gi"
+        
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: PATH
+          value: "/app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        
+        volumeMounts:
+        - name: database-storage
+          mountPath: /data_compare_batching
+        - name: sequencer-configs
+          mountPath: /configs
+          readOnly: true
+      
+      volumes:
+      - name: database-storage
+        persistentVolumeClaim:
+          claimName: sequencer-database-hyperdisk
+      - name: sequencer-configs
+        configMap:
+          name: sequencer-configs
+

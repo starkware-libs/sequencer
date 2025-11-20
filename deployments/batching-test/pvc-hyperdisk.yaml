@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sequencer-database-hyperdisk
+  namespace: batching-test
+  labels:
+    app: sequencer-batching-test
+    disk-type: hyperdisk-balanced
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hyperdisk-balanced-100gb  # ← Custom class with appropriate IOPS for 100GB
+  resources:
+    requests:
+      storage: 100Gi
+
