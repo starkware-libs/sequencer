@@ -4,6 +4,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{ConfigImpl, StarknetStorageValue};
@@ -24,8 +25,10 @@ impl<S: Storage> FactsDb<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
     }
+}
 
-    pub fn consume_storage(self) -> S {
+impl FactsDb<MapStorage> {
+    pub fn consume_storage(self) -> MapStorage {
         self.storage
     }
 }
