@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Display;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Read;
 use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
@@ -102,53 +102,7 @@ impl Service {
             .chain(once(node_service.get_service_file_path()))
             .collect();
 
-        // TODO(Tsabary): currently using the creation of the non-replacer service struct to DUMP
-        // the list of files of the replacer format. This should be triggered by a new flow.
-        let replacer_components_in_service = node_service
-            .get_components_in_service()
-            .into_iter()
-            .flat_map(|c| c.get_replacer_component_config_file_paths())
-            .collect::<Vec<_>>();
-
-        // TODO(Tsabary): this is yet another hack -- read the original app config file, apply
-        // replacers, and dump.
-        for (src, dest) in components_in_service.iter().zip(replacer_components_in_service.iter()) {
-            let src_path = Path::new(src);
-            let dest_path = Path::new(dest);
-            fs::create_dir_all(dest_path.parent().unwrap()).unwrap(); // ensure directories exist
-
-            // Read the app config file
-            let mut contents = String::new();
-            File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
-
-            // Parse it as a json
-            let map: Map<String, Value> =
-                serde_json::from_str(&contents).expect("JSON should be an object");
-            let original_app_config = Value::Object(map);
-
-            // Create relevant replace predicates.
-            let replace_pred = |key: &str, value: &Value| {
-                key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
-            };
-
-            // Perform replacement
-            let replacer_app_config =
-                insert_replacer_annotations(original_app_config, replace_pred);
-
-            // Dump to file
-            fs::write(dest_path, serde_json::to_string_pretty(&replacer_app_config).unwrap())
-                .unwrap();
-        }
-
-        let replacer_config_filenames: Vec<String> =
-            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
-        let replacer_config_paths: Vec<String> = replacer_components_in_service
-            .into_iter()
-            .chain(replacer_config_filenames)
-            .chain(once(node_service.get_replacer_service_file_path()))
-            .collect();
-        let replacer_deployment_file_path = node_service.replacer_deployment_file_path();
-        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
+        node_service.dump_node_service_replacer_app_config_files();
 
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
@@ -340,6 +294,61 @@ impl NodeService {
 
     pub fn get_update_strategy(&self) -> UpdateStrategy {
         self.as_inner().get_update_strategy()
+    }
+
+    pub fn dump_node_service_replacer_app_config_files(&self) {
+        let components_in_service = self
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_component_config_file_paths())
+            .collect::<Vec<_>>();
+
+        let replacer_components_in_service = self
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_replacer_component_config_file_paths())
+            .collect::<Vec<_>>();
+
+        let replacer_app_config_data: Vec<Value> = components_in_service
+            .iter()
+            .map(|src| {
+                let src_path = Path::new(src);
+                // Read the app config file
+                let mut contents = String::new();
+                File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
+
+                // Parse it as a json
+                let map: Map<String, Value> =
+                    serde_json::from_str(&contents).expect("JSON should be an object");
+                let original_app_config = Value::Object(map);
+
+                // Create relevant replace predicates.
+                let replace_pred = |key: &str, value: &Value| {
+                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
+                };
+
+                // Perform replacement
+                insert_replacer_annotations(original_app_config, replace_pred)
+            })
+            .collect();
+
+        for (data, dest) in
+            replacer_app_config_data.iter().zip(replacer_components_in_service.iter())
+        {
+            let dest_path = Path::new(dest);
+            serialize_to_file(&data, dest_path.to_str().unwrap());
+        }
+
+        let replacer_config_filenames: Vec<String> =
+            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
+        let replacer_config_paths: Vec<String> = replacer_components_in_service
+            .into_iter()
+            .chain(replacer_config_filenames)
+            .chain(once(self.get_replacer_service_file_path()))
+            .collect();
+        let replacer_deployment_file_path = self.replacer_deployment_file_path();
+
+        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
     }
 }
 
