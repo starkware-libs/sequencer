@@ -13,6 +13,11 @@ pub enum BaseLayerSourceError {
     BaseLayerContractError(Box<dyn BaseLayerSourceErrorTrait>),
     #[error("Base layer source creation error: {0}.")]
     BaseLayerSourceCreationError(String),
+    #[error(
+        "Finality is too high: finality: {finality}, latest L1 block number: \
+         {latest_l1_block_number}"
+    )]
+    FinalityTooHigh { finality: u64, latest_l1_block_number: u64 },
 }
 
 pub trait BaseLayerSourceErrorTrait: std::error::Error + Sync + Send {}
@@ -38,9 +43,12 @@ impl<
     ) -> Result<Option<(BlockNumber, BlockHash)>, BaseLayerSourceError> {
         let finality = 0;
         let latest_l1_block_number = self
-            .latest_l1_block_number(finality)
+            .latest_l1_block_number()
             .await
             .map_err(|e| BaseLayerSourceError::BaseLayerContractError(Box::new(e)))?;
+        let latest_l1_block_number = latest_l1_block_number
+            .checked_sub(finality)
+            .ok_or(BaseLayerSourceError::FinalityTooHigh { finality, latest_l1_block_number })?;
         // TODO(guyn): There's no way to actually get an Ok(None) from this function. Consider
         // adding a check against the type of error we get back from get_proved_block_at() and
         // converting that into Ok(None) if we are truly convinced that there are no proved blocks
