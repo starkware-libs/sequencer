@@ -83,8 +83,6 @@ pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
 pub mod consensus;
-#[cfg(feature = "document_calls")]
-pub mod document_calls;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod storage_metrics;
@@ -136,7 +134,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
@@ -974,18 +972,4 @@ pub enum OffsetKind {
     TransactionOutput,
     /// A transaction file.
     Transaction,
-}
-
-/// A storage query. Used for benchmarking in the storage_benchmark binary.
-// TODO(dvir): add more queries (especially get casm).
-// TODO(dvir): consider move this, maybe to test_utils.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StorageQuery {
-    /// Get the class hash at a given state number.
-    GetClassHashAt(StateNumber, ContractAddress),
-    /// Get the nonce at a given state number.
-    GetNonceAt(StateNumber, ContractAddress),
-    /// Get the storage at a given state number.
-    GetStorageAt(StateNumber, ContractAddress, StorageKey),
 }

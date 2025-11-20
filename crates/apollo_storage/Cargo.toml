@@ -7,13 +7,7 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-document_calls = ["lazy_static"]
 testing = ["starknet_api/testing", "tempfile"]
-
-[[bin]]
-name = "storage_benchmark"
-path = "src/bin/storage_benchmark.rs"
-required-features = ["clap", "statistical"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -26,7 +20,6 @@ cairo-lang-utils.workspace = true
 human_bytes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 integer-encoding.workspace = true
-lazy_static = { workspace = true, optional = true }
 libmdbx = { workspace = true, features = ["lifetimed-bytes"] }
 memmap2.workspace = true
 metrics.workspace = true
@@ -44,11 +37,6 @@ thiserror.workspace = true
 tracing = { workspace = true, features = ["log"] }
 validator = { workspace = true, features = ["derive"] }
 zstd.workspace = true
-
-# Binaries dependencies
-clap = { workspace = true, optional = true }
-statistical = { workspace = true, optional = true }
-
 
 [dev-dependencies]
 apollo_test_utils.workspace = true
@@ -76,3 +64,7 @@ tokio = { workspace = true, features = ["full", "sync"] }
 
 [lints]
 workspace = true
+
+# Used in apollo_proc_macros for latency_histogram.
+[package.metadata.cargo-machete]
+ignored = ["papyrus_common"]

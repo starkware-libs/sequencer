@@ -10,7 +10,6 @@ on:
     paths:
       - ".github/workflows/papyrus_ci.yml"
       - "deployments/images/base/Dockerfile"
-      - "papyrus_utilities.Dockerfile"
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/papyrus**/**"
