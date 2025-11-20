@@ -610,3 +610,37 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     );
     assert!(wrapper.next_request().is_none());
 }
+
+#[test]
+fn observer_does_not_record_self_votes() {
+    // Set up as an observer.
+    let id = *VALIDATOR_ID;
+    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true, QuorumType::Byzantine);
+
+    // Start and receive proposal validation completion.
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPropose(ROUND));
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+
+    // Reach mixed prevote quorum with peer votes only (self not counted).
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    // No quorum yet, we didn't vote.
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPrevote(ROUND));
+
+    // Timeout prevote triggers self precommit(nil) path, which observers must not record/broadcast.
+    wrapper.send_timeout_prevote(ROUND);
+    assert!(wrapper.next_request().is_none());
+    assert_eq!(wrapper.state_machine.last_self_precommit(), None);
+
+    // Reach mixed precommit quorum with peer votes only and ensure timeout is scheduled.
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    // No quorum yet, we didn't vote.
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPrecommit(ROUND));
+}
