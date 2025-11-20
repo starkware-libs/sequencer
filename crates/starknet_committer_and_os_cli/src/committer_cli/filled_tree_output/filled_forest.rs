@@ -1,5 +1,6 @@
 use serde::Serialize;
-use starknet_committer::db::forest_trait::{FactsDb, ForestWriter};
+use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::MapStorage;
 
