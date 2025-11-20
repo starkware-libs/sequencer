@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockHeaderWithoutHash;
+use starknet_api::block::BlockHeader;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -18,7 +18,7 @@ pub struct SyncBlock {
     // TODO(Matan): decide if we want block hash, parent block hash and full classes here.
     pub account_transaction_hashes: Vec<TransactionHash>,
     pub l1_transaction_hashes: Vec<TransactionHash>,
-    pub block_header_without_hash: BlockHeaderWithoutHash,
+    pub block_header: BlockHeader,
 }
 
 impl SyncBlock {
