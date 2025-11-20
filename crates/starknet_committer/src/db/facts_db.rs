@@ -8,6 +8,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
@@ -37,10 +38,6 @@ pub struct FactsDb<S: Storage> {
 impl<S: Storage> FactsDb<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
-    }
-
-    pub fn consume_storage(self) -> S {
-        self.storage
     }
 
     /// Creates the contracts trie original skeleton.
@@ -105,6 +102,12 @@ impl<S: Storage> FactsDb<S> {
             &config,
             actual_classes_updates,
         )?)
+    }
+}
+
+impl FactsDb<MapStorage> {
+    pub fn consume_storage(self) -> MapStorage {
+        self.storage
     }
 }
 
