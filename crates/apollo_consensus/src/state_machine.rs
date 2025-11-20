@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use apollo_protobuf::consensus::{Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, trace, warn};
@@ -36,31 +36,52 @@ type WeightedVote = (Vote, u32);
 /// A map of votes, keyed by round and validator ID, with the vote and its weight.
 type VotesMap = HashMap<VoteKey, WeightedVote>;
 
-/// Events which the state machine sends/receives.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Events which the state machine receives. These represent completion events
+/// fed back to the SM after an external task is done.
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum StateMachineEvent {
-    /// Sent by the state machine when a block is required to propose (ProposalCommitment is always
-    /// None). While waiting for the response of GetProposal, the state machine will buffer all
-    /// other events. The caller *must* respond with a valid proposal id for this height to the
-    /// state machine, and the same round sent out.
-    GetProposal(Option<ProposalCommitment>, Round),
-    /// Consensus message, can be both sent from and to the state machine.
-    // (proposal_id, round, valid_round)
-    Proposal(Option<ProposalCommitment>, Round, Option<Round>),
-    /// Consensus message, can be both sent from and to the state machine.
+    /// The local proposal building task has completed.
+    FinishedBuilding(Option<ProposalCommitment>, Round),
+    /// A proposal validation task has completed. (proposal_id, round, valid_round)
+    FinishedValidation(Option<ProposalCommitment>, Round, Option<Round>),
+    /// Prevote message, sent from the SHC to the state machine.
     Prevote(Vote),
-    /// Consensus message, can be both sent from and to the state machine.
+    /// Precommit message, sent from the SHC to the state machine.
     Precommit(Vote),
-    /// The state machine returns this event to the caller when a decision is reached. Not
-    /// expected as an inbound message. We presume that the caller is able to recover the set of
-    /// precommits which led to this decision from the information returned here.
-    Decision(ProposalCommitment, Round),
-    /// Timeout events, can be both sent from and to the state machine.
+    /// TimeoutPropose event, sent from the state machine to the SHC.
     TimeoutPropose(Round),
-    /// Timeout events, can be both sent from and to the state machine.
+    /// TimeoutPrevote event, sent from the state machine to the SHC.
     TimeoutPrevote(Round),
-    /// Timeout events, can be both sent from and to the state machine.
+    /// TimeoutPrecommit event, sent from the state machine to the SHC.
     TimeoutPrecommit(Round),
+    /// Used by the SHC to rebroadcast a self-vote.
+    RebroadcastVote(Vote),
+}
+
+/// Requests the SM/SHC sends to the caller for execution.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum SMRequest {
+    /// Request to build a proposal for a new round.
+    StartBuildProposal { round: Round },
+    /// Request to validate a received proposal from the network.
+    #[allow(dead_code)]
+    StartValidateProposal { init: ProposalInit },
+    /// Request to broadcast a Prevote or Precommit vote.
+    BroadcastVote(Vote),
+    /// Request to schedule a TimeoutPropose.
+    ScheduleTimeoutPropose { round: Round },
+    /// Request to schedule a TimeoutPrevote.
+    ScheduleTimeoutPrevote { round: Round },
+    /// Request to schedule a TimeoutPrecommit.
+    ScheduleTimeoutPrecommit { round: Round },
+    /// Request to schedule a recurring vote rebroadcast.
+    #[allow(dead_code)]
+    ScheduleTimeoutRebroadcast(Vote),
+    /// Decision reached for the given proposal and round.
+    DecisionReached { proposal_id: ProposalCommitment, round: Round },
+    /// Request to re-propose (sent by the leader after advancing to a new round
+    /// with a locked/valid value).
+    Repropose { proposal_id: ProposalCommitment, init: ProposalInit },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -75,7 +96,6 @@ pub(crate) enum Step {
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
 ///
 /// Each height is begun with a call to `start`, with no further calls to it.
-#[derive(Serialize, Deserialize)]
 pub(crate) struct StateMachine {
     height: BlockNumber,
     id: ValidatorId,
@@ -90,9 +110,9 @@ pub(crate) struct StateMachine {
     // {(round, voter): (vote, weight)}
     prevotes: VotesMap,
     precommits: VotesMap,
-    // When true, the state machine will wait for a GetProposal event, buffering all other input
-    // events in `events_queue`.
-    awaiting_get_proposal: bool,
+    // When true, the state machine will wait for a FinishedBuilding event, buffering all other
+    // input events in `events_queue`.
+    awaiting_finished_building: bool,
     events_queue: VecDeque<StateMachineEvent>,
     locked_value_round: Option<(ProposalCommitment, Round)>,
     valid_value_round: Option<(ProposalCommitment, Round)>,
@@ -127,7 +147,7 @@ impl StateMachine {
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
-            awaiting_get_proposal: false,
+            awaiting_finished_building: false,
             events_queue: VecDeque::new(),
             locked_value_round: None,
             valid_value_round: None,
@@ -187,7 +207,7 @@ impl StateMachine {
         &mut self,
         vote_type: VoteType,
         proposal_commitment: Option<ProposalCommitment>,
-    ) -> Vote {
+    ) -> VecDeque<SMRequest> {
         let vote = Vote {
             vote_type,
             height: self.height.0,
@@ -195,23 +215,36 @@ impl StateMachine {
             proposal_commitment,
             voter: self.id,
         };
-        // update the latest self vote.
-        let last_self_vote = match vote_type {
-            VoteType::Prevote => &mut self.last_self_prevote,
-            VoteType::Precommit => &mut self.last_self_precommit,
+        let mut output = VecDeque::new();
+        // Only non-observers record and track self-votes.
+        if self.is_observer {
+            return output;
+        }
+        let (votes_map, last_self_vote) = match vote_type {
+            VoteType::Prevote => (&mut self.prevotes, &mut self.last_self_prevote),
+            VoteType::Precommit => (&mut self.precommits, &mut self.last_self_precommit),
         };
+        // Record the vote in the appropriate map.
+        let inserted = votes_map.insert((self.round, self.id), (vote.clone(), 1)).is_none();
+        assert!(
+            inserted,
+            "This should never happen: duplicate self {:?} vote for round={}, id={}",
+            vote_type, self.round, self.id
+        );
+        // Update the latest self vote.
         assert!(
             last_self_vote.as_ref().is_none_or(|last| self.round > last.round),
             "State machine must progress in time: last_vote: {last_self_vote:?} new_vote: {vote:?}"
         );
         *last_self_vote = Some(vote.clone());
-        vote
+        // Returns VecDeque instead of a single SMRequest so callers can chain requests using
+        // append().
+        output.push_back(SMRequest::BroadcastVote(vote));
+        output
     }
 
-    /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
-    /// needed to trigger the first leader to propose.
-    /// See [`GetProposal`](StateMachineEvent::GetProposal)
-    pub(crate) fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> VecDeque<StateMachineEvent>
+    /// Starts the state machine, effectively calling `StartRound(0)` from the paper.
+    pub(crate) fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -220,26 +253,25 @@ impl StateMachine {
 
     /// Process the incoming event.
     ///
-    /// If we are waiting for a response to [`GetProposal`](`StateMachineEvent::GetProposal`) all
-    /// other incoming events are buffered until that response arrives.
+    /// If we are waiting for a response to
+    /// [`FinishedBuilding`](`StateMachineEvent::FinishedBuilding`) all other incoming events
+    /// are buffered until that response arrives.
     ///
-    /// Returns a set of events for the caller to handle. The caller should not mirror the output
-    /// events back to the state machine, as it makes sure to handle them before returning.
-    // This means that the StateMachine handles events the same regardless of whether it was sent by
-    // self or a peer. This is in line with the Algorithm 1 in the paper and keeps the code simpler.
+    /// Returns a set of requests for the caller to handle. The caller should handle them and pass
+    /// the relevant response back to the state machine.
     pub(crate) fn handle_event<LeaderFn>(
         &mut self,
         event: StateMachineEvent,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         // Mimic LOC 18 in the paper; the state machine doesn't
         // handle any events until `getValue` completes.
-        if self.awaiting_get_proposal {
+        if self.awaiting_finished_building {
             match event {
-                StateMachineEvent::GetProposal(_, round) if round == self.round => {
+                StateMachineEvent::FinishedBuilding(_, round) if round == self.round => {
                     self.events_queue.push_front(event);
                 }
                 _ => {
@@ -257,99 +289,98 @@ impl StateMachine {
     pub(crate) fn handle_enqueued_events<LeaderFn>(
         &mut self,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let mut output_events = VecDeque::new();
+        let mut output_requests = VecDeque::new();
         while let Some(event) = self.events_queue.pop_front() {
-            // Handle a specific event and then decide which of the output events should also be
-            // sent to self.
-            let mut resultant_events = self.handle_event_internal(event, leader_fn);
-            while let Some(e) = resultant_events.pop_front() {
-                match e {
-                    StateMachineEvent::Proposal(_, _, _)
-                    | StateMachineEvent::Prevote(_)
-                    | StateMachineEvent::Precommit(_) => {
-                        if self.is_observer {
-                            continue;
-                        }
-                        self.events_queue.push_back(e.clone());
-                    }
-                    StateMachineEvent::Decision(_, _) => {
-                        output_events.push_back(e);
-                        return output_events;
-                    }
-                    StateMachineEvent::GetProposal(_, _) => {
+            let mut resultant_requests = self.handle_event_internal(event, leader_fn);
+            while let Some(r) = resultant_requests.pop_front() {
+                match r {
+                    SMRequest::StartBuildProposal { .. } => {
                         // LOC 18 in the paper.
-                        assert!(resultant_events.is_empty());
+                        assert!(resultant_requests.is_empty());
                         assert!(!self.is_observer);
-                        output_events.push_back(e);
-                        return output_events;
+                        output_requests.push_back(r);
+                        return output_requests;
                     }
-                    _ => {}
+                    SMRequest::DecisionReached { .. } => {
+                        // These requests stop processing and return immediately.
+                        output_requests.push_back(r);
+                        return output_requests;
+                    }
+                    SMRequest::BroadcastVote(_) => {
+                        assert!(!self.is_observer, "Observers should not broadcast votes");
+                        output_requests.push_back(r);
+                    }
+                    _ => {
+                        output_requests.push_back(r);
+                    }
                 }
-                output_events.push_back(e);
             }
         }
-        output_events
+        output_requests
     }
 
     pub(crate) fn handle_event_internal<LeaderFn>(
         &mut self,
         event: StateMachineEvent,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         trace!("Processing event: {:?}", event);
-        if self.awaiting_get_proposal {
-            assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{event:?}");
+        if self.awaiting_finished_building {
+            assert!(matches!(event, StateMachineEvent::FinishedBuilding(_, _)), "{event:?}");
         }
 
         match event {
-            StateMachineEvent::GetProposal(proposal_id, round) => {
-                self.handle_get_proposal(proposal_id, round)
+            StateMachineEvent::FinishedBuilding(proposal_id, round) => {
+                self.handle_finished_building(proposal_id, round, leader_fn)
             }
-            StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
-                self.handle_proposal(proposal_id, round, valid_round, leader_fn)
+            StateMachineEvent::FinishedValidation(proposal_id, round, valid_round) => {
+                self.handle_finished_validation(proposal_id, round, valid_round, leader_fn)
             }
             StateMachineEvent::Prevote(vote) => self.handle_prevote(vote, leader_fn),
             StateMachineEvent::Precommit(vote) => self.handle_precommit(vote, leader_fn),
-            StateMachineEvent::Decision(_, _) => {
-                unimplemented!(
-                    "If the caller knows of a decision, it can just drop the state machine."
-                )
-            }
             StateMachineEvent::TimeoutPropose(round) => self.handle_timeout_propose(round),
             StateMachineEvent::TimeoutPrevote(round) => self.handle_timeout_prevote(round),
             StateMachineEvent::TimeoutPrecommit(round) => {
                 self.handle_timeout_precommit(round, leader_fn)
             }
+            StateMachineEvent::RebroadcastVote(_) => {
+                unreachable!("StateMachine should not receive RebroadcastVote events");
+            }
         }
     }
 
-    pub(crate) fn handle_get_proposal(
+    pub(crate) fn handle_finished_building<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
-    ) -> VecDeque<StateMachineEvent> {
-        // TODO(matan): Will we allow other events (timeoutPropose) to exit this state?
-        assert!(self.awaiting_get_proposal);
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<SMRequest>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        assert!(self.awaiting_finished_building);
         assert_eq!(round, self.round);
-        self.awaiting_get_proposal = false;
-        VecDeque::from([StateMachineEvent::Proposal(proposal_id, round, None)])
+        self.awaiting_finished_building = false;
+        let old = self.proposals.insert(round, (proposal_id, None));
+        assert!(old.is_none(), "Proposal built when one already exists for this round.");
+
+        self.map_round_to_upons(round, leader_fn)
     }
 
-    // A proposal from a peer (or self) node.
-    pub(crate) fn handle_proposal<LeaderFn>(
+    pub(crate) fn handle_finished_validation<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
         valid_round: Option<Round>,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -358,7 +389,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    pub(crate) fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    pub(crate) fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<SMRequest> {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
@@ -367,18 +398,17 @@ impl StateMachine {
              round={round}."
         );
         CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Propose.into())]);
-        let vote = self.make_self_vote(VoteType::Prevote, None);
-        let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
+        let mut output = self.make_self_vote(VoteType::Prevote, None);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
     }
 
-    // A prevote from a peer (or self) node.
+    // A prevote from a peer node.
     pub(crate) fn handle_prevote<LeaderFn>(
         &mut self,
         vote: Vote,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -393,24 +423,23 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    pub(crate) fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    pub(crate) fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<SMRequest> {
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         };
         debug!("Applying TimeoutPrevote for round={round}.");
         CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Prevote.into())]);
-        let vote = self.make_self_vote(VoteType::Precommit, None);
-        let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
+        let mut output = self.make_self_vote(VoteType::Precommit, None);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
     }
 
-    // A precommit from a peer (or self) node.
+    // A precommit from a peer node.
     fn handle_precommit<LeaderFn>(
         &mut self,
         vote: Vote,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -429,7 +458,7 @@ impl StateMachine {
         &mut self,
         round: u32,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -447,7 +476,7 @@ impl StateMachine {
         &mut self,
         round: u32,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -468,26 +497,35 @@ impl StateMachine {
             info!("START_ROUND_PROPOSER: Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
-                Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(
-                    Some(proposal_id),
-                    self.round,
-                    Some(valid_round),
-                )]),
+                Some((proposal_id, valid_round)) => {
+                    // Record the valid proposal for the current round so upon_reproposal() can
+                    // observe it and emit the corresponding prevote immediately.
+                    let old =
+                        self.proposals.insert(self.round, (Some(proposal_id), Some(valid_round)));
+                    assert!(old.is_none(), "Proposal for current round should not already exist");
+                    let init = ProposalInit {
+                        height: self.height,
+                        round: self.round,
+                        proposer: self.id,
+                        valid_round: Some(valid_round),
+                    };
+                    VecDeque::from([SMRequest::Repropose { proposal_id, init }])
+                }
                 None => {
-                    self.awaiting_get_proposal = true;
+                    self.awaiting_finished_building = true;
                     // Upon conditions are not checked while awaiting a new proposal.
-                    return VecDeque::from([StateMachineEvent::GetProposal(None, self.round)]);
+                    return VecDeque::from([SMRequest::StartBuildProposal { round: self.round }]);
                 }
             }
         } else {
             info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
-            VecDeque::from([StateMachineEvent::TimeoutPropose(self.round)])
+            VecDeque::from([SMRequest::ScheduleTimeoutPropose { round: self.round }])
         };
         output.append(&mut self.current_round_upons());
         output
     }
 
-    fn advance_to_step(&mut self, step: Step) -> VecDeque<StateMachineEvent> {
+    fn advance_to_step(&mut self, step: Step) -> VecDeque<SMRequest> {
         assert_ne!(step, Step::Propose, "Advancing to Propose is done by advancing rounds");
         info!("Advancing step: from {:?} to {step:?} in round={}", self.step, self.round);
         self.step = step;
@@ -498,7 +536,7 @@ impl StateMachine {
         &mut self,
         round: u32,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -509,7 +547,7 @@ impl StateMachine {
         }
     }
 
-    fn current_round_upons(&mut self) -> VecDeque<StateMachineEvent> {
+    fn current_round_upons(&mut self) -> VecDeque<SMRequest> {
         let mut output = VecDeque::new();
         output.append(&mut self.upon_new_proposal());
         output.append(&mut self.upon_reproposal());
@@ -521,7 +559,7 @@ impl StateMachine {
         output
     }
 
-    fn past_round_upons(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    fn past_round_upons(&mut self, round: u32) -> VecDeque<SMRequest> {
         let mut output = VecDeque::new();
         output.append(&mut self.upon_reproposal());
         output.append(&mut self.upon_decision(round));
@@ -529,7 +567,7 @@ impl StateMachine {
     }
 
     // LOC 22 in the paper.
-    fn upon_new_proposal(&mut self) -> VecDeque<StateMachineEvent> {
+    fn upon_new_proposal(&mut self) -> VecDeque<SMRequest> {
         // StateMachine assumes that the proposer is valid.
         if self.step != Step::Propose {
             return VecDeque::new();
@@ -547,14 +585,13 @@ impl StateMachine {
         } else {
             None
         };
-        let vote = self.make_self_vote(VoteType::Prevote, vote_commitment);
-        let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
+        let mut output = self.make_self_vote(VoteType::Prevote, vote_commitment);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
     }
 
     // LOC 28 in the paper.
-    fn upon_reproposal(&mut self) -> VecDeque<StateMachineEvent> {
+    fn upon_reproposal(&mut self) -> VecDeque<SMRequest> {
         if self.step != Step::Propose {
             return VecDeque::new();
         }
@@ -579,14 +616,13 @@ impl StateMachine {
         } else {
             None
         };
-        let vote = self.make_self_vote(VoteType::Prevote, vote_commitment);
-        let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
+        let mut output = self.make_self_vote(VoteType::Prevote, vote_commitment);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
     }
 
     // LOC 34 in the paper.
-    fn maybe_initiate_timeout_prevote(&mut self) -> VecDeque<StateMachineEvent> {
+    fn maybe_initiate_timeout_prevote(&mut self) -> VecDeque<SMRequest> {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
@@ -597,11 +633,11 @@ impl StateMachine {
         if !self.mixed_prevote_quorum.insert(self.round) {
             return VecDeque::new();
         }
-        VecDeque::from([StateMachineEvent::TimeoutPrevote(self.round)])
+        VecDeque::from([SMRequest::ScheduleTimeoutPrevote { round: self.round }])
     }
 
     // LOC 36 in the paper.
-    fn upon_prevote_quorum(&mut self) -> VecDeque<StateMachineEvent> {
+    fn upon_prevote_quorum(&mut self) -> VecDeque<SMRequest> {
         if self.step == Step::Propose {
             return VecDeque::new();
         }
@@ -629,28 +665,26 @@ impl StateMachine {
             CONSENSUS_NEW_VALUE_LOCKS.increment(1);
         }
         self.locked_value_round = new_value;
-        let vote = self.make_self_vote(VoteType::Precommit, Some(*proposal_id));
-        let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
+        let mut output = self.make_self_vote(VoteType::Precommit, Some(*proposal_id));
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
     }
 
     // LOC 44 in the paper.
-    fn upon_nil_prevote_quorum(&mut self) -> VecDeque<StateMachineEvent> {
+    fn upon_nil_prevote_quorum(&mut self) -> VecDeque<SMRequest> {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
         if !self.value_has_enough_votes(&self.prevotes, self.round, &None, &self.quorum) {
             return VecDeque::new();
         }
-        let vote = self.make_self_vote(VoteType::Precommit, None);
-        let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
+        let mut output = self.make_self_vote(VoteType::Precommit, None);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
     }
 
     // LOC 47 in the paper.
-    fn maybe_initiate_timeout_precommit(&mut self) -> VecDeque<StateMachineEvent> {
+    fn maybe_initiate_timeout_precommit(&mut self) -> VecDeque<SMRequest> {
         if !self.round_has_enough_votes(&self.precommits, self.round, &self.quorum) {
             return VecDeque::new();
         }
@@ -658,11 +692,11 @@ impl StateMachine {
         if !self.mixed_precommit_quorum.insert(self.round) {
             return VecDeque::new();
         }
-        VecDeque::from([StateMachineEvent::TimeoutPrecommit(self.round)])
+        VecDeque::from([SMRequest::ScheduleTimeoutPrecommit { round: self.round }])
     }
 
     // LOC 49 in the paper.
-    fn upon_decision(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    fn upon_decision(&mut self, round: u32) -> VecDeque<SMRequest> {
         let Some((Some(proposal_id), _)) = self.proposals.get(&round) else {
             return VecDeque::new();
         };
@@ -671,7 +705,7 @@ impl StateMachine {
             return VecDeque::new();
         }
 
-        VecDeque::from([StateMachineEvent::Decision(*proposal_id, round)])
+        VecDeque::from([SMRequest::DecisionReached { proposal_id: *proposal_id, round }])
     }
 
     // LOC 55 in the paper.
@@ -679,7 +713,7 @@ impl StateMachine {
         &mut self,
         round: u32,
         leader_fn: &LeaderFn,
-    ) -> VecDeque<StateMachineEvent>
+    ) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
