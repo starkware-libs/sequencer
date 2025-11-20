@@ -96,6 +96,7 @@ pub mod header;
 pub mod mmap_file;
 mod serialization;
 pub mod state;
+pub mod storage_reader_server;
 mod version;
 
 mod deprecated;
