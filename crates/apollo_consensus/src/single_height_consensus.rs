@@ -32,7 +32,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
 };
-use crate::state_machine::{StateMachine, StateMachineEvent};
+use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
     ConsensusContext,
@@ -60,8 +60,8 @@ pub(crate) enum ShcTask {
     TimeoutPropose(Duration, StateMachineEvent),
     TimeoutPrevote(Duration, StateMachineEvent),
     TimeoutPrecommit(Duration, StateMachineEvent),
-    Prevote(Duration, StateMachineEvent),
-    Precommit(Duration, StateMachineEvent),
+    /// Periodic rebroadcast of the latest self vote of the given type.
+    Rebroadcast(Duration, Vote),
     /// Building a proposal is handled in 3 stages:
     /// 1. The SHC requests a block to be built from the context.
     /// 2. SHC returns, allowing the context to build the block while the Manager awaits the result
@@ -85,9 +85,10 @@ impl PartialEq for ShcTask {
         match (self, other) {
             (ShcTask::TimeoutPropose(d1, e1), ShcTask::TimeoutPropose(d2, e2))
             | (ShcTask::TimeoutPrevote(d1, e1), ShcTask::TimeoutPrevote(d2, e2))
-            | (ShcTask::TimeoutPrecommit(d1, e1), ShcTask::TimeoutPrecommit(d2, e2))
-            | (ShcTask::Prevote(d1, e1), ShcTask::Prevote(d2, e2))
-            | (ShcTask::Precommit(d1, e1), ShcTask::Precommit(d2, e2)) => d1 == d2 && e1 == e2,
+            | (ShcTask::TimeoutPrecommit(d1, e1), ShcTask::TimeoutPrecommit(d2, e2)) => {
+                d1 == d2 && e1 == e2
+            }
+            (ShcTask::Rebroadcast(d1, v1), ShcTask::Rebroadcast(d2, v2)) => d1 == d2 && v1 == v2,
             (ShcTask::BuildProposal(r1, _), ShcTask::BuildProposal(r2, _)) => r1 == r2,
             (ShcTask::ValidateProposal(pi1, _), ShcTask::ValidateProposal(pi2, _)) => pi1 == pi2,
             _ => false,
@@ -101,21 +102,23 @@ impl ShcTask {
         match self {
             ShcTask::TimeoutPropose(duration, event)
             | ShcTask::TimeoutPrevote(duration, event)
-            | ShcTask::TimeoutPrecommit(duration, event)
-            | ShcTask::Prevote(duration, event)
-            | ShcTask::Precommit(duration, event) => {
+            | ShcTask::TimeoutPrecommit(duration, event) => {
                 tokio::time::sleep(duration).await;
                 event
             }
+            ShcTask::Rebroadcast(duration, vote) => {
+                tokio::time::sleep(duration).await;
+                StateMachineEvent::RebroadcastVote(vote)
+            }
             ShcTask::BuildProposal(round, receiver) => {
                 let proposal_id = receiver.await.ok();
-                StateMachineEvent::GetProposal(proposal_id, round)
+                StateMachineEvent::FinishedBuilding(proposal_id, round)
             }
             ShcTask::ValidateProposal(init, block_receiver) => {
                 // TODO(Asmaa): Consider if we want to differentiate between an interrupt and other
                 // failures.
                 let proposal_id = block_receiver.await.ok();
-                StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round)
+                StateMachineEvent::FinishedValidation(proposal_id, init.round, init.valid_round)
             }
         }
     }
@@ -177,8 +180,8 @@ impl SingleHeightConsensus {
         let height = self.state_machine.height();
         context.set_height_and_round(height, self.state_machine.round()).await;
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
-        let events = self.state_machine.start(&leader_fn);
-        let ret = self.handle_state_machine_events(context, events).await;
+        let requests = self.state_machine.start(&leader_fn);
+        let ret = self.handle_state_machine_requests(context, requests).await;
         // Defensive programming. We don't expect the height and round to have changed from the
         // start of this method.
         context.set_height_and_round(height, self.state_machine.round()).await;
@@ -236,47 +239,51 @@ impl SingleHeightConsensus {
         event: StateMachineEvent,
     ) -> Result<ShcReturn, ConsensusError> {
         trace!("Received StateMachineEvent: {:?}", event);
+        let height = self.state_machine.height();
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
         let ret = match event {
             StateMachineEvent::TimeoutPropose(_round)
             | StateMachineEvent::TimeoutPrevote(_round)
             | StateMachineEvent::TimeoutPrecommit(_round) => {
                 self.handle_timeout(context, event).await
             }
-            StateMachineEvent::Prevote(vote) => {
-                let Some(last_vote) = self.state_machine.last_self_prevote() else {
-                    return Err(ConsensusError::InternalInconsistency(
-                        "No prevote to send".to_string(),
-                    ));
-                };
-                if last_vote.round > vote.round {
-                    // Only replay the newest prevote.
-                    return Ok(ShcReturn::Tasks(Vec::new()));
+            StateMachineEvent::RebroadcastVote(vote) => match vote.vote_type {
+                VoteType::Prevote => {
+                    let Some(last_vote) = self.state_machine.last_self_prevote() else {
+                        return Err(ConsensusError::InternalInconsistency(
+                            "No prevote to send".to_string(),
+                        ));
+                    };
+                    if last_vote.round > vote.round {
+                        // Only replay the newest prevote.
+                        return Ok(ShcReturn::Tasks(Vec::new()));
+                    }
+                    trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
+                    context.broadcast(last_vote.clone()).await?;
+                    Ok(ShcReturn::Tasks(vec![ShcTask::Rebroadcast(
+                        self.timeouts.get_prevote_timeout(0),
+                        vote,
+                    )]))
                 }
-                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
-                context.broadcast(last_vote.clone()).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
-                    self.timeouts.get_prevote_timeout(0),
-                    StateMachineEvent::Prevote(vote),
-                )]))
-            }
-            StateMachineEvent::Precommit(vote) => {
-                let Some(last_vote) = self.state_machine.last_self_precommit() else {
-                    return Err(ConsensusError::InternalInconsistency(
-                        "No precommit to send".to_string(),
-                    ));
-                };
-                if last_vote.round > vote.round {
-                    // Only replay the newest precommit.
-                    return Ok(ShcReturn::Tasks(Vec::new()));
+                VoteType::Precommit => {
+                    let Some(last_vote) = self.state_machine.last_self_precommit() else {
+                        return Err(ConsensusError::InternalInconsistency(
+                            "No precommit to send".to_string(),
+                        ));
+                    };
+                    if last_vote.round > vote.round {
+                        // Only replay the newest precommit.
+                        return Ok(ShcReturn::Tasks(Vec::new()));
+                    }
+                    trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
+                    context.broadcast(last_vote.clone()).await?;
+                    Ok(ShcReturn::Tasks(vec![ShcTask::Rebroadcast(
+                        self.timeouts.get_precommit_timeout(0),
+                        vote,
+                    )]))
                 }
-                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
-                context.broadcast(last_vote.clone()).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
-                    self.timeouts.get_precommit_timeout(0),
-                    StateMachineEvent::Precommit(vote),
-                )]))
-            }
-            StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
+            },
+            StateMachineEvent::FinishedValidation(proposal_id, round, valid_round) => {
                 let height = self.state_machine.height();
                 let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
                 debug!(
@@ -296,10 +303,10 @@ impl SingleHeightConsensus {
                 // Cleanup: validation for round {round} finished, so remove it from the pending
                 // set. This doesn't affect logic.
                 self.pending_validation_rounds.remove(&round);
-                let sm_events = self.state_machine.handle_event(event, &leader_fn);
-                self.handle_state_machine_events(context, sm_events).await
+                let requests = self.state_machine.handle_event(event, &leader_fn);
+                self.handle_state_machine_requests(context, requests).await
             }
-            StateMachineEvent::GetProposal(proposal_id, round) => {
+            StateMachineEvent::FinishedBuilding(proposal_id, round) => {
                 if proposal_id.is_none() {
                     CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
                 }
@@ -315,12 +322,12 @@ impl SingleHeightConsensus {
                     "State machine should not progress while awaiting proposal"
                 );
                 debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
-                let height = self.state_machine.height();
-                let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
-                let sm_events = self.state_machine.handle_event(event, &leader_fn);
-                self.handle_state_machine_events(context, sm_events).await
+                let requests = self.state_machine.handle_event(event, &leader_fn);
+                self.handle_state_machine_requests(context, requests).await
             }
-            _ => unimplemented!("Unexpected event: {:?}", event),
+            StateMachineEvent::Prevote(_) | StateMachineEvent::Precommit(_) => {
+                unreachable!("Peer votes must be handled via handle_vote")
+            }
         };
         context.set_height_and_round(self.state_machine.height(), self.state_machine.round()).await;
         ret
@@ -333,8 +340,8 @@ impl SingleHeightConsensus {
     ) -> Result<ShcReturn, ConsensusError> {
         let height = self.state_machine.height();
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
-        let sm_events = self.state_machine.handle_event(event, &leader_fn);
-        self.handle_state_machine_events(context, sm_events).await
+        let sm_requests = self.state_machine.handle_event(event, &leader_fn);
+        self.handle_state_machine_requests(context, sm_requests).await
     }
 
     /// Handle vote messages from peer nodes.
@@ -374,156 +381,119 @@ impl SingleHeightConsensus {
         info!("Accepting {:?}", vote);
         let height = self.state_machine.height();
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
-        let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
-        let ret = self.handle_state_machine_events(context, sm_events).await;
+        // TODO(Asmaa): consider calling handle_prevote/precommit instead of sending the vote event.
+        let requests = self.state_machine.handle_event(sm_vote, &leader_fn);
+        let ret = self.handle_state_machine_requests(context, requests).await;
         context.set_height_and_round(height, self.state_machine.round()).await;
         ret
     }
 
-    // Handle events output by the state machine.
-    async fn handle_state_machine_events<ContextT: ConsensusContext>(
+    // Handle requests output by the state machine.
+    async fn handle_state_machine_requests<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        mut events: VecDeque<StateMachineEvent>,
+        mut requests: VecDeque<SMRequest>,
     ) -> Result<ShcReturn, ConsensusError> {
         let mut ret_val = Vec::new();
-        while let Some(event) = events.pop_front() {
-            trace!("Handling sm event: {:?}", event);
-            match event {
-                StateMachineEvent::GetProposal(proposal_id, round) => {
-                    ret_val.extend(
-                        self.handle_state_machine_get_proposal(context, proposal_id, round).await,
+        while let Some(request) = requests.pop_front() {
+            trace!("Handling sm request: {:?}", request);
+            match request {
+                SMRequest::StartBuildProposal(round) => {
+                    // Ensure SM has no proposal recorded yet for this round when proposing.
+                    assert!(
+                        !self.state_machine.has_proposal_for_round(round),
+                        "There should be no entry for round {round} when proposing"
                     );
+                    // TODO(Matan): Figure out how to handle failed proposal building. I believe
+                    // this should be handled by applying timeoutPropose when we
+                    // are the leader.
+                    let init = ProposalInit {
+                        height: self.state_machine.height(),
+                        round,
+                        proposer: self.state_machine.validator_id(),
+                        valid_round: None,
+                    };
+                    CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
+                    // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
+                    // independently of the consensus proposal timeout. We currently use the base
+                    // (round 0) proposal timeout for building to avoid giving the Batcher more time
+                    // when proposal time is extended for consensus.
+                    let fin_receiver =
+                        context.build_proposal(init, self.timeouts.get_proposal_timeout(0)).await;
+                    ret_val.push(ShcTask::BuildProposal(round, fin_receiver));
                 }
-                StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
-                    self.handle_state_machine_proposal(context, proposal_id, round, valid_round)
-                        .await;
+                SMRequest::BroadcastVote(vote) => {
+                    let rebroadcast_task = match vote.vote_type {
+                        VoteType::Prevote => {
+                            ShcTask::Rebroadcast(self.timeouts.get_prevote_timeout(0), vote.clone())
+                        }
+                        VoteType::Precommit => ShcTask::Rebroadcast(
+                            self.timeouts.get_precommit_timeout(0),
+                            vote.clone(),
+                        ),
+                    };
+                    // Ensure the voter matches this node.
+                    assert_eq!(vote.voter, self.state_machine.validator_id());
+                    trace!("Writing voted height {} to storage", self.state_machine.height());
+                    self.height_voted_storage
+                        .lock()
+                        .expect(
+                            "Lock should never be poisoned because there should never be \
+                             concurrent access.",
+                        )
+                        .set_prev_voted_height(self.state_machine.height())
+                        .expect("Failed to write voted height {self.height} to storage");
+
+                    info!("Broadcasting {vote:?}");
+                    context.broadcast(vote).await?;
+                    ret_val.push(rebroadcast_task);
                 }
-                StateMachineEvent::Decision(proposal_id, round) => {
-                    return self.handle_state_machine_decision(proposal_id, round).await;
-                }
-                StateMachineEvent::Prevote(vote) => {
-                    ret_val.extend(self.handle_state_machine_vote(context, vote).await?);
-                }
-                StateMachineEvent::Precommit(vote) => {
-                    ret_val.extend(self.handle_state_machine_vote(context, vote).await?);
-                }
-                StateMachineEvent::TimeoutPropose(round) => {
+                SMRequest::ScheduleTimeoutPropose(round) => {
                     ret_val.push(ShcTask::TimeoutPropose(
                         self.timeouts.get_proposal_timeout(round),
-                        event,
+                        StateMachineEvent::TimeoutPropose(round),
                     ));
                 }
-                StateMachineEvent::TimeoutPrevote(round) => {
+                SMRequest::ScheduleTimeoutPrevote(round) => {
                     ret_val.push(ShcTask::TimeoutPrevote(
                         self.timeouts.get_prevote_timeout(round),
-                        event,
+                        StateMachineEvent::TimeoutPrevote(round),
                     ));
                 }
-                StateMachineEvent::TimeoutPrecommit(round) => {
+                SMRequest::ScheduleTimeoutPrecommit(round) => {
                     ret_val.push(ShcTask::TimeoutPrecommit(
                         self.timeouts.get_precommit_timeout(round),
-                        event,
+                        StateMachineEvent::TimeoutPrecommit(round),
                     ));
+                }
+                SMRequest::DecisionReached(proposal_id, round) => {
+                    return self.handle_state_machine_decision(proposal_id, round).await;
+                }
+                SMRequest::Repropose(proposal_id, init) => {
+                    // Make sure there is an existing proposal for the valid round and it matches
+                    // the proposal ID.
+                    let Some(valid_round) = init.valid_round else {
+                        // Newly built proposals are handled by the BuildProposal flow.
+                        continue;
+                    };
+                    let existing = self.state_machine.proposal_id_for_round(valid_round);
+                    assert!(
+                        existing.is_some_and(|id| id == proposal_id),
+                        "A proposal with ID {proposal_id:?} should exist for valid_round: \
+                         {valid_round}. Found: {existing:?}",
+                    );
+                    CONSENSUS_REPROPOSALS.increment(1);
+                    context.repropose(proposal_id, init).await;
+                }
+                SMRequest::ScheduleTimeoutRebroadcast(_) => {
+                    unimplemented!("ScheduleTimeoutRebroadcast is not supported.")
+                }
+                SMRequest::StartValidateProposal(_) => {
+                    unimplemented!("StartValidateProposal is not supported.")
                 }
             }
         }
         Ok(ShcReturn::Tasks(ret_val))
-    }
-
-    /// Initiate block building. See [`ShcTask::BuildProposal`] for more details on the full
-    /// proposal flow.
-    async fn handle_state_machine_get_proposal<ContextT: ConsensusContext>(
-        &mut self,
-        context: &mut ContextT,
-        proposal_id: Option<ProposalCommitment>,
-        round: Round,
-    ) -> Vec<ShcTask> {
-        assert!(
-            proposal_id.is_none(),
-            "StateMachine is requesting a new proposal, but provided a content id."
-        );
-
-        // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
-        // handled by applying timeoutPropose when we are the leader.
-        let init = ProposalInit {
-            height: self.state_machine.height(),
-            round,
-            proposer: self.state_machine.validator_id(),
-            valid_round: None,
-        };
-        CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
-        // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded independently of
-        // the consensus proposal timeout. We currently use the base (round 0) proposal
-        // timeout for building to avoid giving the Batcher more time when proposal time is
-        // extended for consensus.
-        let build_timeout = self.timeouts.get_proposal_timeout(0);
-        let fin_receiver = context.build_proposal(init, build_timeout).await;
-        vec![ShcTask::BuildProposal(round, fin_receiver)]
-    }
-
-    async fn handle_state_machine_proposal<ContextT: ConsensusContext>(
-        &mut self,
-        context: &mut ContextT,
-        proposal_id: Option<ProposalCommitment>,
-        round: Round,
-        valid_round: Option<Round>,
-    ) {
-        let Some(valid_round) = valid_round else {
-            // Newly built proposals are handled by the BuildProposal flow.
-            return;
-        };
-        let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
-
-        // Make sure there is an existing proposal for the valid round and it matches the proposal
-        // ID.
-        let existing = self.state_machine.proposal_id_for_round(valid_round);
-        assert!(
-            existing.is_some_and(|id| id == proposal_id),
-            "A proposal with ID {proposal_id:?} should exist for valid_round: {valid_round}. \
-             Found: {existing:?}",
-        );
-
-        let init = ProposalInit {
-            height: self.state_machine.height(),
-            round,
-            proposer: self.state_machine.validator_id(),
-            valid_round: Some(valid_round),
-        };
-        CONSENSUS_REPROPOSALS.increment(1);
-        context.repropose(proposal_id, init).await;
-    }
-
-    async fn handle_state_machine_vote<ContextT: ConsensusContext>(
-        &mut self,
-        context: &mut ContextT,
-        vote: Vote,
-    ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let task = match vote.vote_type {
-            VoteType::Prevote => ShcTask::Prevote(
-                self.timeouts.get_prevote_timeout(0),
-                StateMachineEvent::Prevote(vote.clone()),
-            ),
-            VoteType::Precommit => ShcTask::Precommit(
-                self.timeouts.get_precommit_timeout(0),
-                StateMachineEvent::Precommit(vote.clone()),
-            ),
-        };
-        // Ensure the voter matches this node.
-        assert_eq!(vote.voter, self.state_machine.validator_id());
-
-        trace!("Writing voted height {} to storage", self.state_machine.height());
-        self.height_voted_storage
-            .lock()
-            .expect(
-                "Lock should never be poisoned because there should never be concurrent access.",
-            )
-            .set_prev_voted_height(self.state_machine.height())
-            .expect("Failed to write voted height {self.height} to storage");
-
-        info!("Broadcasting {vote:?}");
-        context.broadcast(vote).await?;
-        Ok(vec![task])
     }
 
     async fn handle_state_machine_decision(
