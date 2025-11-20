@@ -65,6 +65,7 @@ blockifier_test_utils = { workspace = true }
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
+expect-test.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
@@ -72,6 +73,7 @@ mockito.workspace = true
 num-bigint.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+similar.workspace = true
 
 [lints]
 workspace = true

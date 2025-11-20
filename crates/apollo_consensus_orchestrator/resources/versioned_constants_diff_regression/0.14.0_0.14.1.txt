@@ -1,0 +1,4 @@
+-[  2]       "gas_target": 3200000000,
+-[  3]       "max_block_size": 4000000000,
++[  2]       "gas_target": 4800000000,
++[  3]       "max_block_size": 6000000000,

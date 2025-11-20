@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "orchestrator_versioned_constants_test.rs"]
+mod orchestrator_versioned_constants_test;
+
 use serde::Deserialize;
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::define_versioned_constants;
