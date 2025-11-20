@@ -11,6 +11,7 @@ use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use indexmap::IndexMap;
@@ -53,6 +54,17 @@ pub fn create_contract_class_manager() -> ContractClassManager {
     contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
     contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
     ContractClassManager::start(contract_class_manager_config)
+}
+
+pub fn is_contract_class_declared<R: ReexecutionStateReader>(
+    state_reader: &R,
+    class_hash: ClassHash,
+) -> StateResult<bool> {
+    match state_reader.get_contract_class(&class_hash) {
+        Err(StateError::UndeclaredClassHash(_)) => Ok(false),
+        Err(err) => Err(err),
+        Ok(contract_class) => Ok(matches!(contract_class, StarknetContractClass::Sierra(_))),
+    }
 }
 
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {

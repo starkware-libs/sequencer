@@ -1,6 +1,5 @@
 use std::fs;
 
-use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -19,7 +18,7 @@ use blockifier::state::state_reader_and_contract_manager::{
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -39,6 +38,7 @@ use crate::state_reader::test_state_reader::StarknetContractClassMapping;
 use crate::state_reader::utils::{
     get_chain_info,
     get_compiled_classes_from_contract_class,
+    is_contract_class_declared,
     ReexecutionStateMaps,
 };
 
@@ -209,40 +209,7 @@ impl FetchCompiledClasses for OfflineStateReader {
     }
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        match self.get_contract_class(&class_hash) {
-            Err(StateError::UndeclaredClassHash(_)) => Ok(false),
-            Err(e) => Err(e),
-            Ok(contract_class) => {
-                // Cairo0 (Legacy) classes are not declared, Cairo1 (Sierra) classes are declared
-                Ok(matches!(contract_class, StarknetContractClass::Sierra(_)))
-            }
-        }
-    }
-}
-
-impl OfflineStateReader {
-    pub fn get_transaction_executor(
-        self,
-        block_context_next_block: BlockContext,
-        transaction_executor_config: Option<TransactionExecutorConfig>,
-        contract_class_manager: &ContractClassManager,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
-    {
-        let old_block_number = BlockNumber(
-            block_context_next_block.block_info().block_number.0
-                - constants::STORED_BLOCK_HASH_BUFFER,
-        );
-        let hash = self.old_block_hash;
-        let state_reader = StateReaderAndContractManager {
-            state_reader: self,
-            contract_class_manager: contract_class_manager.clone(),
-        };
-        Ok(TransactionExecutor::<StateReaderAndContractManager<OfflineStateReader>>::pre_process_and_create(
-            state_reader,
-            block_context_next_block,
-            Some(BlockHashAndNumber { number: old_block_number, hash }),
-            transaction_executor_config.unwrap_or_default(),
-        )?)
+        is_contract_class_declared(self, class_hash)
     }
 }
 

@@ -27,7 +27,6 @@ use serde::Serialize;
 use serde_json::{json, to_value};
 use starknet_api::block::{
     BlockHash,
-    BlockHashAndNumber,
     BlockInfo,
     BlockNumber,
     GasPricePerToken,
@@ -60,6 +59,7 @@ use crate::state_reader::utils::{
     get_chain_info,
     get_compiled_classes_from_contract_class,
     get_rpc_state_reader_config,
+    is_contract_class_declared,
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
@@ -168,14 +168,7 @@ impl FetchCompiledClasses for TestStateReader {
     }
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        match self.get_contract_class(&class_hash) {
-            Err(StateError::UndeclaredClassHash(_)) => Ok(false),
-            Err(e) => Err(e),
-            Ok(contract_class) => {
-                // Cairo0 (Legacy) classes are not declared, Cairo1 (Sierra) classes are declared
-                Ok(matches!(contract_class, StarknetContractClass::Sierra(_)))
-            }
-        }
+        is_contract_class_declared(self, class_hash)
     }
 }
 
@@ -291,34 +284,6 @@ impl TestStateReader {
             self.get_versioned_constants()?.clone(),
             BouncerConfig::max(),
         ))
-    }
-
-    pub fn get_transaction_executor(
-        self,
-        block_context_next_block: BlockContext,
-        transaction_executor_config: Option<TransactionExecutorConfig>,
-        contract_class_manager: &ContractClassManager,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
-    {
-        let old_block_number = BlockNumber(
-            block_context_next_block.block_info().block_number.0
-                - constants::STORED_BLOCK_HASH_BUFFER,
-        );
-        let old_block_hash = self.get_old_block_hash(old_block_number)?;
-
-        let state_reader = StateReaderAndContractManager {
-            state_reader: self,
-            contract_class_manager: contract_class_manager.clone(),
-        };
-        Ok(TransactionExecutor::<StateReaderAndContractManager<TestStateReader>>::pre_process_and_create(
-            state_reader,
-            block_context_next_block,
-            Some(BlockHashAndNumber {
-                number: old_block_number,
-                hash: old_block_hash,
-            }),
-            transaction_executor_config.unwrap_or_default(),
-        )?)
     }
 
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {

@@ -1,12 +1,18 @@
 use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::MAX_FEE;
@@ -90,6 +96,33 @@ pub trait ReexecutionStateReader {
                 }
             })
             .collect()
+    }
+
+    fn get_transaction_executor(
+        self,
+        block_context_next_block: BlockContext,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<Self>>>
+    where
+        Self: StateReader + FetchCompiledClasses + Sized,
+    {
+        let old_block_number = BlockNumber(
+            block_context_next_block.block_info().block_number.0
+                - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let old_block_hash = self.get_old_block_hash(old_block_number)?;
+
+        let state_reader = StateReaderAndContractManager {
+            state_reader: self,
+            contract_class_manager: contract_class_manager.clone(),
+        };
+        Ok(TransactionExecutor::<StateReaderAndContractManager<Self>>::pre_process_and_create(
+            state_reader,
+            block_context_next_block,
+            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
+            transaction_executor_config.unwrap_or_default(),
+        )?)
     }
 
     fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash>;
