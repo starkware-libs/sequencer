@@ -75,7 +75,7 @@ async fn l1_handler_tx_consumed_txs() {
     let current_l1_block_number_clone = current_l1_block_number.clone();
     base_layer
         .expect_latest_l1_block_number()
-        .returning(move |_| Ok(*current_l1_block_number_clone.lock().unwrap()));
+        .returning(move || Ok(*current_l1_block_number_clone.lock().unwrap()));
     // base_layer.expect_latest_l1_block_number().times(2).returning(move |_| Ok(1));
     // base_layer.expect_latest_l1_block_number().times(2).returning(move |_| Ok(2));
     // base_layer.expect_latest_l1_block_number().returning(move |_| Ok(3));

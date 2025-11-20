@@ -180,9 +180,8 @@ pub(crate) async fn send_message_from_l1_to_l2(
     call_data: &[u8],
 ) -> (TransactionHash, Uint<256, 4>) {
     let contract = &base_layer.ethereum_base_layer.contract;
-    let finality = 0;
     let last_l1_block_number =
-        base_layer.ethereum_base_layer.latest_l1_block_number(finality).await.unwrap();
+        base_layer.ethereum_base_layer.latest_l1_block_number().await.unwrap();
     assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
 
     // Send message from L1 to L2.
@@ -210,9 +209,8 @@ pub(crate) async fn send_message_from_l1_to_l2(
     assert!(message_timestamp > BlockTimestamp(0));
 
     // Make sure the L1 event was posted to Anvil
-    let finality = 0;
     let last_l1_block_number =
-        base_layer.ethereum_base_layer.latest_l1_block_number(finality).await.unwrap();
+        base_layer.ethereum_base_layer.latest_l1_block_number().await.unwrap();
     assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
     let event_filter = event_identifiers_to_track();
     let mut events = base_layer

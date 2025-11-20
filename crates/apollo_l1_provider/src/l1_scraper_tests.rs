@@ -381,7 +381,7 @@ async fn test_stuck_sync() {
 
 fn dummy_base_layer() -> MockBaseLayerContract {
     let mut base_layer = MockBaseLayerContract::new();
-    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Default::default()));
+    base_layer.expect_latest_l1_block_number().return_once(|| Ok(Default::default()));
     base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
     base_layer
 }
@@ -497,7 +497,7 @@ async fn latest_block_number_goes_down() {
     dummy_base_layer
         .expect_latest_l1_block_number()
         .times(2)
-        .returning(move |_| Ok(*latest_l1_block_number_response_clone.lock().unwrap()));
+        .returning(move || Ok(*latest_l1_block_number_response_clone.lock().unwrap()));
 
     dummy_base_layer.expect_events().times(1).returning(|_, _| Ok(vec![]));
 
