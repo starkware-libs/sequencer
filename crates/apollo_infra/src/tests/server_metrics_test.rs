@@ -180,6 +180,7 @@ async fn setup_remote_server_test(
         socket.ip(),
         socket.port(),
         max_concurrency,
+        None,
         &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move {

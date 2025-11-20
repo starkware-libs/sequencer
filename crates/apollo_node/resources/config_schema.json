@@ -454,6 +454,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.batcher.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.batcher.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.batcher.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -539,6 +549,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.class_manager.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.class_manager.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.class_manager.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -623,6 +643,16 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.config_manager.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.config_manager.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.config_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -714,6 +744,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.gateway.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.gateway.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.gateway.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -804,6 +844,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.l1_endpoint_monitor.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_endpoint_monitor.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_endpoint_monitor.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -888,6 +938,16 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.l1_gas_price_provider.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_gas_price_provider.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.l1_gas_price_provider.port": {
     "description": "Listening port of the remote component server.",
@@ -979,6 +1039,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.l1_provider.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_provider.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_provider.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1069,6 +1139,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.mempool.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.mempool.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.mempool.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1153,6 +1233,16 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.mempool_p2p.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.mempool_p2p.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.mempool_p2p.port": {
     "description": "Listening port of the remote component server.",
@@ -1244,6 +1334,16 @@
     "privacy": "Public",
     "value": 128
   },
+  "components.sierra_compiler.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.sierra_compiler.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.sierra_compiler.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1328,6 +1428,16 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.state_sync.max_streams_per_connection": {
+    "description": "The maximum number of streams per remote connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.state_sync.max_streams_per_connection.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.state_sync.port": {
     "description": "Listening port of the remote component server.",

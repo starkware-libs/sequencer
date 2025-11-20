@@ -38,6 +38,7 @@ where
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
     max_concurrency: usize,
+    max_streams_per_connection: Option<u32>,
     metrics: &'static RemoteServerMetrics,
 }
 
@@ -51,10 +52,17 @@ where
         ip: IpAddr,
         port: u16,
         max_concurrency: usize,
+        max_streams_per_connection: Option<u32>,
         metrics: &'static RemoteServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { local_client, socket: SocketAddr::new(ip, port), max_concurrency, metrics }
+        Self {
+            local_client,
+            socket: SocketAddr::new(ip, port),
+            max_concurrency,
+            max_streams_per_connection,
+            metrics,
+        }
     }
 
     async fn remote_component_server_handler(
@@ -206,6 +214,7 @@ where
         incoming.set_nodelay(true);
 
         Server::builder(incoming)
+            .http2_max_concurrent_streams(self.max_streams_per_connection)
             .serve(make_svc)
             .await
             .unwrap_or_else(|e| panic!("Remote component server start error: {}", e));

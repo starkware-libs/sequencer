@@ -80,6 +80,7 @@ fn valid_component_execution_config(
         local_server_config,
         remote_client_config,
         max_concurrency: 1,
+        max_streams_per_connection: None,
         url: url.to_string(),
         ip,
         port,
