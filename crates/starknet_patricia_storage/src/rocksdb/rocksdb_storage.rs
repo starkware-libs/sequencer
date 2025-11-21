@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 use itertools::Itertools;
@@ -33,7 +34,6 @@ use crate::storage_trait::{
 };
 // General database Options.
 
-const DB_BLOCK_SIZE: usize = 8 * 1024; // 8KB
 const DB_CACHE_SIZE: usize = 8 * 1024 * 1024 * 1024; // 8GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
@@ -51,9 +51,7 @@ const MAX_WRITE_BUFFERS: i32 = 4;
 
 // Concurrency Options.
 
-const NUM_THREADS: i32 = 16;
-// Maximum number of background compactions (STT files merge and rewrite) and flushes.
-const MAX_BACKGROUND_JOBS: i32 = 8;
+const NUM_CORES: i32 = 16;
 
 // Column familiy descriptors.
 pub const LATEST_TRIE_CF: &str = "latest_trie";
@@ -67,7 +65,7 @@ const MAX_COMPACTION_DEBT: u64 = 1024 * 1024 * 1024 * 50; // 50GB
 pub struct CfOptions {
     pub options: Options,
     // Used for stats
-    pub cache_handle: Cache,
+    pub cache_handle: Option<Cache>,
 }
 
 pub struct RocksDbOptions {
@@ -85,9 +83,12 @@ impl Default for RocksDbOptions {
 
         opts.set_bytes_per_sync(BYTES_PER_SYNC);
         opts.set_write_buffer_size(WRITE_BUFFER_SIZE);
-        opts.increase_parallelism(NUM_THREADS);
-        opts.set_max_background_jobs(MAX_BACKGROUND_JOBS);
+        opts.increase_parallelism(NUM_CORES);
+        opts.set_max_background_jobs(NUM_CORES);
         opts.set_max_write_buffer_number(MAX_WRITE_BUFFERS);
+
+        // Use with caution: may cause DB corruption.
+        // opts.set_max_subcompactions(NUM_CORES as u32);
 
         opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
 
@@ -112,8 +113,6 @@ impl Default for RocksDbOptions {
         );
 
         let mut historical_cf_options = opts.clone();
-        let (historical_block_options, historical_cache_handle) = get_historical_cf_block_options();
-        historical_cf_options.set_block_based_table_factory(&historical_block_options);
         historical_cf_options.set_comparator_with_ts(
             "bytewise+u64ts",
             TIMESTAMP_BYTE_SIZE,
@@ -125,12 +124,6 @@ impl Default for RocksDbOptions {
                 a_key.cmp(b_key)
             }),
         );
-
-        // Jimmy historical options
-        historical_cf_options.set_write_buffer_size(WRITE_BUFFER_SIZE * 10);
-        historical_cf_options.set_use_direct_io_for_flush_and_compaction(true);
-        historical_cf_options.set_level_compaction_dynamic_level_bytes(true);
-        historical_cf_options.set_target_file_size_base(256 * 1024 * 1024);
 
         // ~300 MB/s cap for history DB
         let rate_bytes_per_sec = 300 * 1024 * 1024;
@@ -151,12 +144,9 @@ impl Default for RocksDbOptions {
             general_db_options: opts,
             latest_cf_options: CfOptions {
                 options: latest_cf_options,
-                cache_handle: latest_cache_handle,
+                cache_handle: Some(latest_cache_handle),
             },
-            historical_cf_options: CfOptions {
-                options: historical_cf_options,
-                cache_handle: historical_cache_handle,
-            },
+            historical_cf_options: CfOptions { options: historical_cf_options, cache_handle: None },
             write_options,
         }
     }
@@ -171,29 +161,11 @@ fn get_latest_cf_block_options() -> (BlockBasedOptions, Cache) {
     block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
     block.set_partition_filters(true);
 
-    block.set_block_size(DB_BLOCK_SIZE);
     block.set_cache_index_and_filter_blocks(true);
     // Make sure filter blocks are cached.
     block.set_pin_l0_filter_and_index_blocks_in_cache(true);
 
     block.set_bloom_filter(BLOOM_FILTER_NUM_BITS, false);
-
-    (block, cache)
-}
-
-fn get_historical_cf_block_options() -> (BlockBasedOptions, Cache) {
-    let mut block = BlockBasedOptions::default();
-    let cache = Cache::new_lru_cache(DB_CACHE_SIZE / 4);
-    block.set_block_cache(&cache);
-
-    // With a single level, filter blocks become too large to sit in cache.
-    // block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
-    // block.set_partition_filters(true);
-
-    block.set_block_size(DB_BLOCK_SIZE);
-    block.set_cache_index_and_filter_blocks(false);
-    // Make sure filter blocks are cached.
-    block.set_pin_l0_filter_and_index_blocks_in_cache(false);
 
     (block, cache)
 }
@@ -216,7 +188,6 @@ pub struct RocksDbStorage {
     pub(crate) db_options: Options,
     pub(crate) history_options: Options,
     pub(crate) latest_cf_cache_handle: Cache,
-    pub(crate) historical_cf_cache_handle: Cache,
 }
 
 fn be_u64(bytes: &[u8]) -> u64 {
@@ -234,9 +205,31 @@ impl RocksDbStorage {
         let latest_path = path.join("latest");
         let history_path = path.join("history");
 
+        let mut checkpoints_dbs = vec![];
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            if !entry.file_type().unwrap().is_dir() {
+                continue;
+            }
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str == "latest" {
+                continue;
+            }
+            if let Ok(n) = name_str.parse::<u64>() {
+                checkpoints_dbs.push(n);
+            }
+        }
+
+        let current_history_path = if let Some(max_n) = checkpoints_dbs.iter().max() {
+            path.join(max_n.to_string())
+        } else {
+            history_path
+        };
+
         let latest_db = open_db_with_default_cf(&latest_path, &options.latest_cf_options.options)?;
         let history_db =
-            open_db_with_default_cf(&history_path, &options.historical_cf_options.options)?;
+            open_db_with_default_cf(&current_history_path, &options.historical_cf_options.options)?;
 
         Ok(Self {
             latest_db,
@@ -245,8 +238,7 @@ impl RocksDbStorage {
             write_options: options.write_options,
             db_options: options.general_db_options,
             history_options: options.historical_cf_options.options,
-            latest_cf_cache_handle: options.latest_cf_options.cache_handle,
-            historical_cf_cache_handle: options.historical_cf_options.cache_handle,
+            latest_cf_cache_handle: options.latest_cf_options.cache_handle.unwrap(),
         })
     }
 
@@ -268,8 +260,7 @@ impl RocksDbStorage {
             let new_checkpoint_db =
                 open_db_with_default_cf(&new_checkpoint_path, &self.history_options)?;
             let old_db = std::mem::replace(&mut self.recent_history_db, new_checkpoint_db);
-            // Consider stop working on the older history DB.
-            // old_db.set_options(&[("disable_auto_compactions", "true")])?;
+            old_db.set_options(&[("disable_auto_compactions", "true")])?;
 
             self.old_history_dbs.push(old_db);
 
