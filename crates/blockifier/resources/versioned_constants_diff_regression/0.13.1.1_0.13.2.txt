@@ -1,0 +1,94 @@
+-[ 19]               1280,
++[ 19]               35000,
+-[ 36]               32,
++[ 36]               875,
+-[ 44]       "disable_cairo0_redeclaration": false,
++[ 44]       "disable_cairo0_redeclaration": true,
+-[ 55]       "invoke_tx_max_n_steps": 4000000,
++[ 55]       "invoke_tx_max_n_steps": 10000000,
+-[ 61]               "bitwise": 0,
++[ 61]               "bitwise": 594,
+-[210]                   "range_check": 0,
+-[211]                   "step_gas_cost": 0,
+-[212]                   "syscall_base_gas_cost": 0
++[210]                   "bitwise": 1115,
++[211]                   "range_check": 65,
++[212]                   "step_gas_cost": 1852,
++[213]                   "syscall_base_gas_cost": 1
+-[239]               "builtin_instance_counter": {},
++[240]               "builtin_instance_counter": {
++[241]                   "range_check_builtin": 17
++[242]               },
+-[241]               "n_steps": 0
++[244]               "n_steps": 113
+-[246]                       "range_check_builtin": 20
++[249]                       "range_check_builtin": 15
+-[249]                   "n_steps": 760
++[252]                   "n_steps": 827
+-[268]                       "range_check_builtin": 19
++[271]                       "range_check_builtin": 18
+-[271]                   "n_steps": 1012
++[274]                   "n_steps": 1097
+-[356]                       "range_check_builtin": 20
++[359]                       "range_check_builtin": 15
+-[359]                   "n_steps": 751
++[362]                   "n_steps": 818
+-[387]                   "n_steps": 408
++[390]                   "n_steps": 410
+-[394]                   "n_steps": 393
++[397]                   "n_steps": 395
+-[401]                   "n_steps": 205
++[404]                   "n_steps": 207
+-[408]                   "n_steps": 76503
++[411]                   "n_steps": 76505
+-[415]                   "n_steps": 459
++[418]                   "n_steps": 461
+-[422]                   "n_steps": 591
++[425]                   "n_steps": 593
+-[429]                   "n_steps": 512
++[432]                   "n_steps": 514
+-[436]                   "n_steps": 207
++[439]                   "n_steps": 209
+-[443]                   "n_steps": 125342
++[446]                   "n_steps": 125344
+-[450]                   "n_steps": 578
++[453]                   "n_steps": 580
+-[457]                   "n_steps": 139
++[460]                   "n_steps": 141
+-[460]                   "builtin_instance_counter": {},
++[463]                   "builtin_instance_counter": {
++[464]                       "bitwise_builtin": 1115,
++[465]                       "range_check_builtin": 65
++[466]                   },
+-[462]                   "n_steps": 0
++[468]                   "n_steps": 1855
+-[489]                           "range_check_builtin": 63
++[495]                           "range_check_builtin": 53
+-[492]                       "n_steps": 2839
++[498]                       "n_steps": 2973
+-[506]                           "range_check_builtin": 83
++[512]                           "range_check_builtin": 72
+-[509]                       "n_steps": 3792
++[515]                       "n_steps": 4015
+-[523]                           "range_check_builtin": 80
++[529]                           "range_check_builtin": 69
+-[526]                       "n_steps": 3546
++[532]                       "n_steps": 3763
+-[540]                           "range_check_builtin": 17
++[546]                           "range_check_builtin": 16
+-[543]                       "n_steps": 1146
++[549]                       "n_steps": 1233
+-[548]       "segment_arena_cells": true,
++[554]       "segment_arena_cells": false,
+-[558]                   0,
+-[559]                   1
++[564]                   4,
++[565]                   100
+-[578]                   0,
+-[579]                   1
++[584]                   4,
++[585]                   100
+-[594]                   0,
+-[595]                   1
++[600]                   4,
++[601]                   100

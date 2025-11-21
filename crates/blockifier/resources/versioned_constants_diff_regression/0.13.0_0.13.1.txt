@@ -1,0 +1,186 @@
+-[ 15]               0,
++[ 15]               2,
+-[ 19]               0,
++[ 19]               35000,
+-[ 23]               0,
++[ 23]               5120,
+-[ 32]               0,
++[ 32]               2,
+-[ 36]               0,
+-[ 37]               1
++[ 36]               875,
++[ 37]               1000
+-[ 40]               0,
+-[ 41]               1
++[ 40]               128,
++[ 41]               1000
+-[ 52]           "max_contract_bytecode_size": 61440
++[ 52]           "max_contract_bytecode_size": 81920
+-[ 54]       "ignore_inner_event_resources": false,
+-[ 55]       "invoke_tx_max_n_steps": 3000000,
++[ 54]       "ignore_inner_event_resources": true,
++[ 55]       "invoke_tx_max_n_steps": 4000000,
++[172]                   "memory_hole_gas_cost": 2,
+-[173]                   "step_gas_cost": 76401
++[174]                   "step_gas_cost": 76501
++[196]                   "memory_hole_gas_cost": 2,
+-[196]                   "step_gas_cost": 125240
++[198]                   "step_gas_cost": 125340
+-[230]               "validate_block_number_rounding": 1,
+-[231]               "validate_timestamp_rounding": 1
++[232]               "validate_block_number_rounding": 100,
++[233]               "validate_timestamp_rounding": 3600
+-[244]                       "range_check_builtin": 19
++[246]                       "range_check_builtin": 20
+-[247]                   "n_steps": 691
++[249]                   "n_steps": 760
+-[266]                       "range_check_builtin": 18
++[268]                       "range_check_builtin": 19
+-[269]                   "n_steps": 944
++[271]                   "n_steps": 1012
+-[272]                   "builtin_instance_counter": {},
++[274]                   "builtin_instance_counter": {
++[275]                       "range_check_builtin": 1
++[276]                   },
+-[274]                   "n_steps": 19
++[278]                   "n_steps": 61
+-[281]                   "n_steps": 74
++[285]                   "n_steps": 104
+-[294]                   "builtin_instance_counter": {},
++[298]                   "builtin_instance_counter": {
++[299]                       "range_check_builtin": 1
++[300]                   },
+-[296]                   "n_steps": 32
++[302]                   "n_steps": 64
+-[304]                   "builtin_instance_counter": {},
++[310]                   "builtin_instance_counter": {
++[311]                       "range_check_builtin": 1
++[312]                   },
+-[306]                   "n_steps": 36
++[314]                   "n_steps": 64
+-[309]                   "builtin_instance_counter": {},
++[317]                   "builtin_instance_counter": {
++[318]                       "range_check_builtin": 1
++[319]                   },
+-[311]                   "n_steps": 29
++[321]                   "n_steps": 64
+-[319]                   "builtin_instance_counter": {},
++[329]                   "builtin_instance_counter": {
++[330]                       "range_check_builtin": 1
++[331]                   },
+-[321]                   "n_steps": 29
++[333]                   "n_steps": 64
+-[344]                       "range_check_builtin": 19
++[356]                       "range_check_builtin": 20
+-[347]                   "n_steps": 680
++[359]                   "n_steps": 751
+-[364]                   "builtin_instance_counter": {},
++[376]                   "builtin_instance_counter": {
++[377]                       "range_check_builtin": 1
++[378]                   },
+-[366]                   "n_steps": 73
++[380]                   "n_steps": 98
+-[373]                   "n_steps": 406
++[387]                   "n_steps": 408
+-[379]                   "n_memory_holes": 20,
+-[380]                   "n_steps": 391
++[393]                   "n_memory_holes": 0,
++[394]                   "n_steps": 393
+-[386]                   "n_memory_holes": 40,
+-[387]                   "n_steps": 239
++[400]                   "n_memory_holes": 0,
++[401]                   "n_steps": 205
+-[394]                   "n_steps": 76401
++[408]                   "n_steps": 76503
+-[400]                   "n_memory_holes": 40,
+-[401]                   "n_steps": 475
++[414]                   "n_memory_holes": 0,
++[415]                   "n_steps": 459
+-[408]                   "n_steps": 589
++[422]                   "n_steps": 591
+-[414]                   "n_memory_holes": 20,
+-[415]                   "n_steps": 510
++[428]                   "n_memory_holes": 0,
++[429]                   "n_steps": 512
+-[421]                   "n_memory_holes": 40,
+-[422]                   "n_steps": 241
++[435]                   "n_memory_holes": 0,
++[436]                   "n_steps": 207
+-[429]                   "n_steps": 125240
++[443]                   "n_steps": 125342
+-[435]                   "n_memory_holes": 40,
+-[436]                   "n_steps": 594
++[449]                   "n_memory_holes": 0,
++[450]                   "n_steps": 578
+-[439]                   "builtin_instance_counter": {},
++[453]                   "builtin_instance_counter": {
++[454]                       "range_check_builtin": 1
++[455]                   },
+-[441]                   "n_steps": 84
++[457]                   "n_steps": 139
+-[449]                   "builtin_instance_counter": {},
++[465]                   "builtin_instance_counter": {
++[466]                       "range_check_builtin": 1
++[467]                   },
+-[451]                   "n_steps": 44
++[469]                   "n_steps": 87
+-[454]                   "builtin_instance_counter": {},
++[472]                   "builtin_instance_counter": {
++[473]                       "range_check_builtin": 1
++[474]                   },
+-[456]                   "n_steps": 46
++[476]                   "n_steps": 89
+-[468]                           "pedersen_builtin": 15,
++[488]                           "pedersen_builtin": 16,
+-[472]                       "n_steps": 2711
++[492]                       "n_steps": 2839
+-[477]                       "builtin_instance_counter": {},
++[497]                       "builtin_instance_counter": {
++[498]                           "pedersen_builtin": 2
++[499]                       },
+-[479]                       "n_steps": 0
++[501]                       "n_steps": 21
+-[487]                       "n_steps": 3628
++[509]                       "n_steps": 3792
+-[492]                       "builtin_instance_counter": {},
++[514]                       "builtin_instance_counter": {
++[515]                           "pedersen_builtin": 1
++[516]                       },
+-[494]                       "n_steps": 0
++[518]                       "n_steps": 8
+-[498]                           "pedersen_builtin": 16,
++[522]                           "pedersen_builtin": 14,
+-[502]                       "n_steps": 3382
++[526]                       "n_steps": 3546
+-[507]                       "builtin_instance_counter": {},
++[531]                       "builtin_instance_counter": {
++[532]                           "pedersen_builtin": 1
++[533]                       },
+-[509]                       "n_steps": 0
++[535]                       "n_steps": 13
+-[517]                       "n_steps": 1069
++[543]                       "n_steps": 1146
+-[524]           "max_data_length": 1000000000,
+-[525]           "max_keys_length": 1000000000,
+-[526]           "max_n_emitted_events": 1000000000
++[550]           "max_data_length": 300,
++[551]           "max_keys_length": 50,
++[552]           "max_n_emitted_events": 1000
+-[536]                   32,
++[562]                   16,
+-[540]                   512,
++[566]                   256,
+-[544]                   1024,
++[570]                   512,
+-[548]                   1024,
++[574]                   512,
+-[560]                   16,
++[586]                   8,
+-[564]                   16,
++[590]                   8,
+-[572]                   8,
++[598]                   4,
+-[577]               5,
+-[578]               1000
++[603]               25,
++[604]               10000

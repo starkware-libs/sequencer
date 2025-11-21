@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-testing = []
+testing = ["expect-test", "similar"]
 
 [dependencies]
 apollo_infra_utils.workspace = true
@@ -19,6 +19,7 @@ cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 derive_more.workspace = true
+expect-test = { workspace = true, optional = true }
 flate2.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
@@ -32,6 +33,7 @@ semver.workspace = true
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json.workspace = true
 sha3.workspace = true
+similar = { workspace = true, optional = true }
 starknet-crypto.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 strum = { workspace = true, features = ["derive"] }
@@ -41,7 +43,9 @@ time.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+expect-test.workspace = true
 rstest.workspace = true
+similar.workspace = true
 
 [lints]
 workspace = true

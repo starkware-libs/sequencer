@@ -1,0 +1,175 @@
+-[  3]               "l1_data_gas": 0,
++[  3]               "l1_data_gas": 32,
+-[  9]               "l1_gas": 0,
++[  9]               "l1_gas": 551,
+-[ 29]       "comprehensive_state_diff": false,
++[ 29]       "comprehensive_state_diff": true,
+-[ 47]       "enable_reverts": false,
+-[ 48]       "enable_stateful_compression": false,
++[ 47]       "enable_reverts": true,
++[ 48]       "enable_stateful_compression": true,
+-[ 57]       "min_sierra_version_for_sierra_gas": "100.0.0",
++[ 57]       "min_sierra_version_for_sierra_gas": "1.7.0",
+-[ 60]               "add_mod": 0,
+-[ 61]               "bitwise": 594,
+-[ 62]               "ecdsa": 0,
+-[ 63]               "ecop": 0,
+-[ 64]               "keccak": 0,
+-[ 65]               "mul_mod": 0,
+-[ 66]               "pedersen": 0,
+-[ 67]               "poseidon": 0,
++[ 60]               "add_mod": 230,
++[ 61]               "bitwise": 583,
++[ 62]               "ecdsa": 10561,
++[ 63]               "ecop": 4085,
++[ 64]               "keccak": 136189,
++[ 65]               "mul_mod": 604,
++[ 66]               "pedersen": 4050,
++[ 67]               "poseidon": 491,
+-[ 69]               "range_check96": 0
++[ 69]               "range_check96": 56
+-[ 90]           "execute_max_sierra_gas": 10000000000,
++[ 90]           "execute_max_sierra_gas": 1000000000,
+-[116]           "syscall_gas_costs": {
+-[117]               "CallContract": {
+-[118]                   "step_gas_cost": 510,
+-[119]                   "syscall_base_gas_cost": 1
+-[120]               },
+-[121]               "Deploy": {
+-[122]                   "step_gas_cost": 700,
+-[123]                   "syscall_base_gas_cost": 1
+-[124]               },
+-[125]               "EmitEvent": {
+-[126]                   "step_gas_cost": 10,
+-[127]                   "syscall_base_gas_cost": 1
+-[128]               },
+-[129]               "GetBlockHash": {
+-[130]                   "step_gas_cost": 50,
+-[131]                   "syscall_base_gas_cost": 1
+-[132]               },
+-[133]               "GetClassHashAt": {
+-[134]                   "step_gas_cost": 0,
+-[135]                   "syscall_base_gas_cost": 0
+-[136]               },
+-[137]               "GetExecutionInfo": {
+-[138]                   "step_gas_cost": 10,
+-[139]                   "syscall_base_gas_cost": 1
+-[140]               },
+-[141]               "Keccak": {
+-[142]                   "syscall_base_gas_cost": 1
+-[143]               },
+-[144]               "KeccakRound": 180000,
+-[145]               "LibraryCall": {
+-[146]                   "step_gas_cost": 510,
+-[147]                   "syscall_base_gas_cost": 1
+-[148]               },
+-[149]               "MetaTxV0": {
+-[150]                   "step_gas_cost": 0,
+-[151]                   "syscall_base_gas_cost": 0
+-[152]               },
+-[153]               "ReplaceClass": {
+-[154]                   "step_gas_cost": 50,
+-[155]                   "syscall_base_gas_cost": 1
+-[156]               },
+-[157]               "Secp256k1Add": {
+-[158]                   "range_check": 29,
+-[159]                   "step_gas_cost": 406
+-[160]               },
+-[161]               "Secp256k1GetPointFromX": {
+-[162]                   "memory_hole_gas_cost": 20,
+-[163]                   "range_check": 30,
+-[164]                   "step_gas_cost": 391
+-[165]               },
+-[166]               "Secp256k1GetXy": {
+-[167]                   "memory_hole_gas_cost": 40,
+-[168]                   "range_check": 11,
+-[169]                   "step_gas_cost": 239
+-[170]               },
+-[171]               "Secp256k1Mul": {
+-[172]                   "memory_hole_gas_cost": 2,
+-[173]                   "range_check": 7045,
+-[174]                   "step_gas_cost": 76501
+-[175]               },
+-[176]               "Secp256k1New": {
+-[177]                   "memory_hole_gas_cost": 40,
+-[178]                   "range_check": 35,
+-[179]                   "step_gas_cost": 475
+-[180]               },
+-[181]               "Secp256r1Add": {
+-[182]                   "range_check": 57,
+-[183]                   "step_gas_cost": 589
+-[184]               },
+-[185]               "Secp256r1GetPointFromX": {
+-[186]                   "memory_hole_gas_cost": 20,
+-[187]                   "range_check": 44,
+-[188]                   "step_gas_cost": 510
+-[189]               },
+-[190]               "Secp256r1GetXy": {
+-[191]                   "memory_hole_gas_cost": 40,
+-[192]                   "range_check": 11,
+-[193]                   "step_gas_cost": 241
+-[194]               },
+-[195]               "Secp256r1Mul": {
+-[196]                   "memory_hole_gas_cost": 2,
+-[197]                   "range_check": 13961,
+-[198]                   "step_gas_cost": 125340
+-[199]               },
+-[200]               "Secp256r1New": {
+-[201]                   "memory_hole_gas_cost": 40,
+-[202]                   "range_check": 49,
+-[203]                   "step_gas_cost": 594
+-[204]               },
+-[205]               "SendMessageToL1": {
+-[206]                   "step_gas_cost": 50,
+-[207]                   "syscall_base_gas_cost": 1
+-[208]               },
+-[209]               "Sha256ProcessBlock": {
+-[210]                   "bitwise": 1115,
+-[211]                   "range_check": 65,
+-[212]                   "step_gas_cost": 1852,
+-[213]                   "syscall_base_gas_cost": 1
+-[214]               },
+-[215]               "StorageRead": {
+-[216]                   "step_gas_cost": 50,
+-[217]                   "syscall_base_gas_cost": 1
+-[218]               },
+-[219]               "StorageWrite": {
+-[220]                   "step_gas_cost": 50,
+-[221]                   "syscall_base_gas_cost": 1
+-[222]               }
+-[223]           },
+-[231]           "validate_max_sierra_gas": 10000000000,
++[123]           "validate_max_sierra_gas": 100000000,
+-[252]                   "n_steps": 827
++[144]                   "n_steps": 866
+-[274]                   "n_steps": 1097
++[166]                   "n_steps": 1132
+-[308]                   "builtin_instance_counter": {},
++[200]                   "builtin_instance_counter": {
++[201]                       "range_check_builtin": 1
++[202]                   },
+-[310]                   "n_steps": 0
++[204]                   "n_steps": 89
+-[346]                   "n_steps": 0
++[240]                   "n_steps": 100
+-[355]                   "n_steps": 381
++[249]                   "n_steps": 281
+-[362]                   "n_steps": 818
++[256]                   "n_steps": 842
+-[383]                   "n_steps": 98
++[277]                   "n_steps": 104
+-[468]                   "n_steps": 1855
++[362]                   "n_steps": 1865
+-[482]                   "n_steps": 89
++[376]                   "n_steps": 93
+-[495]                           "range_check_builtin": 53
++[389]                           "poseidon_builtin": 4,
++[390]                           "range_check_builtin": 56
+-[498]                       "n_steps": 2973
++[393]                       "n_steps": 3203
+-[515]                       "n_steps": 4015
++[410]                       "n_steps": 4161
+-[532]                       "n_steps": 3763
++[427]                       "n_steps": 3918
+-[549]                       "n_steps": 1233
++[444]                       "n_steps": 1279

@@ -1,0 +1,8 @@
+-[ 19]               35000,
++[ 19]               1280,
+-[ 36]               875,
++[ 36]               32,
+-[ 51]           "max_calldata_length": 4000,
++[ 51]           "max_calldata_length": 5000,
+-[ 54]       "ignore_inner_event_resources": true,
++[ 54]       "ignore_inner_event_resources": false,
