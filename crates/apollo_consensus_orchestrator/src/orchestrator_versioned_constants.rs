@@ -2,6 +2,7 @@ use serde::Deserialize;
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::define_versioned_constants;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use thiserror::Error;
 
 /// Versioned constants for the Consensus.

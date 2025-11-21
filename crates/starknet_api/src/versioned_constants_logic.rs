@@ -1,3 +1,19 @@
+use crate::block::StarknetVersion;
+
+pub trait VersionedConstantsTrait {
+    type Error;
+
+    /// Gets the contents of the JSON file for the specified Starknet version.
+    fn json_str(version: &StarknetVersion) -> Result<&'static str, Self::Error>;
+
+    /// Gets the constants that shipped with the current version of the Starknet.
+    /// To use custom constants, initialize the struct from a file using `from_path`.
+    fn latest_constants() -> &'static Self;
+
+    /// Gets the constants for the specified Starknet version.
+    fn get(version: &StarknetVersion) -> Result<&'static Self, Self::Error>;
+}
+
 /// Auto-generate getters for listed versioned constants versions.
 /// Optionally provide an intermediate struct for deserialization.
 #[macro_export]
@@ -59,37 +75,35 @@ macro_rules! define_versioned_constants_inner {
             )*
         }
 
-        impl $struct_name {
-            /// Gets the contents of the JSON file for the specified Starknet version.
-            pub fn json_str(
+        impl starknet_api::versioned_constants_logic::VersionedConstantsTrait for $struct_name {
+            type Error = $error_type;
+
+            fn json_str(
                 version: &starknet_api::block::StarknetVersion
-            ) -> Result<&'static str, $error_type> {
+            ) -> Result<&'static str, Self::Error> {
                 match version {
                     $(starknet_api::block::StarknetVersion::$variant => paste::paste! {
                         Ok([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                     },)*
-                    _ => Err($error_type::InvalidStarknetVersion(*version)),
+                    _ => Err(Self::Error::InvalidStarknetVersion(*version)),
                 }
             }
 
-            /// Gets the constants that shipped with the current version of the Starknet.
-            /// To use custom constants, initialize the struct from a file using `from_path`.
-            pub fn latest_constants() -> &'static Self {
+            fn latest_constants() -> &'static Self {
                 Self::get(&starknet_api::block::StarknetVersion::LATEST)
                     .expect("Latest version should support VC.")
             }
 
-            /// Gets the constants for the specified Starknet version.
-            pub fn get(
+            fn get(
                 version: &starknet_api::block::StarknetVersion
-            ) -> Result<&'static Self, $error_type> {
+            ) -> Result<&'static Self, Self::Error> {
                 match version {
                     $(
                         starknet_api::block::StarknetVersion::$variant => Ok(
                             & paste::paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
                         ),
                     )*
-                    _ => Err($error_type::InvalidStarknetVersion(*version)),
+                    _ => Err(Self::Error::InvalidStarknetVersion(*version)),
                 }
             }
         }

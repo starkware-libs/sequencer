@@ -26,6 +26,7 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::executable_transaction::AccountTransaction as ExecTx;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};

@@ -24,6 +24,7 @@ use futures::channel::mpsc;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 

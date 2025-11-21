@@ -73,6 +73,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     QUERY_VERSION_BASE,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{
     calldata,
     class_hash,
