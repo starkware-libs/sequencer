@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-testing = []
+testing = ["expect-test", "json-patch"]
 
 [dependencies]
 apollo_infra_utils.workspace = true
@@ -19,10 +19,12 @@ cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 derive_more.workspace = true
+expect-test = { workspace = true, optional = true }
 flate2.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
+json-patch = { workspace = true, optional = true }
 num-bigint.workspace = true
 num-traits.workspace = true
 pretty_assertions.workspace = true
@@ -41,6 +43,8 @@ time.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+expect-test.workspace = true
+json-patch.workspace = true
 rstest.workspace = true
 
 [lints]
