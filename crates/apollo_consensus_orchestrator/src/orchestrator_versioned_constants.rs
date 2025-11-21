@@ -28,6 +28,7 @@ pub struct VersionedConstants {
 define_versioned_constants!(
     VersionedConstants,
     VersionedConstantsError,
+    StarknetVersion::V0_14_0,
     (V0_14_0, "../resources/orchestrator_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/orchestrator_versioned_constants_0_14_1.json"),
 );
