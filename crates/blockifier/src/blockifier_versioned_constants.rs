@@ -39,6 +39,7 @@ define_versioned_constants!(
     RawVersionedConstants,
     VersionedConstantsError,
     StarknetVersion::V0_13_0,
+    "resources/versioned_constants_diff_regression",
     (V0_13_0, "../resources/blockifier_versioned_constants_0_13_0.json"),
     (V0_13_1, "../resources/blockifier_versioned_constants_0_13_1.json"),
     (V0_13_1_1, "../resources/blockifier_versioned_constants_0_13_1_1.json"),

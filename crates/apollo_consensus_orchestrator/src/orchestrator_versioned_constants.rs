@@ -6,7 +6,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use thiserror::Error;
 
 /// Versioned constants for the Consensus.
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct VersionedConstants {
     ///  This is used to calculate the base gas price for the next block according to EIP-1559 and
     /// serves as a sensitivity parameter that limits the maximum rate of change of the gas price
@@ -29,6 +29,7 @@ define_versioned_constants!(
     VersionedConstants,
     VersionedConstantsError,
     StarknetVersion::V0_14_0,
+    "resources/versioned_constants_diff_regression",
     (V0_14_0, "../resources/orchestrator_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/orchestrator_versioned_constants_0_14_1.json"),
 );
