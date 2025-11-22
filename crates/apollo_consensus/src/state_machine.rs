@@ -54,8 +54,8 @@ pub(crate) enum StateMachineEvent {
     TimeoutPrevote(Round),
     /// TimeoutPrecommit event, sent from the state machine to the SHC.
     TimeoutPrecommit(Round),
-    /// Used by the SHC to rebroadcast a self-vote.
-    RebroadcastVote(Vote),
+    /// Used by the manager to notify the SHC that a vote has been broadcast, for rebroadcasting.
+    VoteBroadcasted(Vote),
 }
 
 /// Requests the SM/SHC sends to the caller for execution.
@@ -64,7 +64,6 @@ pub(crate) enum SMRequest {
     /// Request to build a proposal for a new round.
     StartBuildProposal(Round),
     /// Request to validate a received proposal from the network.
-    #[allow(dead_code)]
     StartValidateProposal(ProposalInit),
     /// Request to broadcast a Prevote or Precommit vote.
     BroadcastVote(Vote),
@@ -166,10 +165,6 @@ impl StateMachine {
 
     pub(crate) fn quorum(&self) -> &VotesThreshold {
         &self.quorum
-    }
-
-    pub(crate) fn validator_id(&self) -> ValidatorId {
-        self.id
     }
 
     pub(crate) fn height(&self) -> BlockNumber {
@@ -347,8 +342,8 @@ impl StateMachine {
             StateMachineEvent::TimeoutPrecommit(round) => {
                 self.handle_timeout_precommit(round, leader_fn)
             }
-            StateMachineEvent::RebroadcastVote(_) => {
-                unreachable!("StateMachine should not receive RebroadcastVote events");
+            StateMachineEvent::VoteBroadcasted(_) => {
+                unreachable!("StateMachine should not receive VoteBroadcasted events");
             }
         }
     }
