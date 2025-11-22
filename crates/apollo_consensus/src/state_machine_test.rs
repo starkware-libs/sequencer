@@ -619,7 +619,7 @@ fn observer_does_not_record_self_votes() {
 
     // Start and receive proposal validation completion.
     wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPropose { round: ROUND });
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPropose(ROUND));
     assert!(wrapper.next_request().is_none());
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
 
@@ -629,7 +629,7 @@ fn observer_does_not_record_self_votes() {
     // No quorum yet, we didn't vote.
     assert!(wrapper.next_request().is_none());
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPrevote { round: ROUND });
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPrevote(ROUND));
 
     // Timeout prevote triggers self precommit(nil) path, which observers must not record/broadcast.
     wrapper.send_timeout_prevote(ROUND);
@@ -642,8 +642,5 @@ fn observer_does_not_record_self_votes() {
     // No quorum yet, we didn't vote.
     assert!(wrapper.next_request().is_none());
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::ScheduleTimeoutPrecommit { round: ROUND }
-    );
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeoutPrecommit(ROUND));
 }
