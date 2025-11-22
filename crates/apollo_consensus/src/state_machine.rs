@@ -55,7 +55,6 @@ pub(crate) enum SMRequest {
     /// Request to build a proposal for a new round.
     StartBuildProposal { round: Round },
     /// Request to validate a received proposal from the network.
-    #[allow(dead_code)]
     StartValidateProposal { init: ProposalInit },
     /// Request to broadcast a Prevote or Precommit vote.
     BroadcastVote(Vote),
@@ -66,7 +65,6 @@ pub(crate) enum SMRequest {
     /// Request to schedule a TimeoutPrecommit.
     ScheduleTimeoutPrecommit { round: Round },
     /// Request to schedule a recurring vote rebroadcast.
-    #[allow(dead_code)]
     ScheduleTimeoutRebroadcast(Vote),
     /// Decision reached for the given proposal and round.
     DecisionReached { proposal_id: ProposalCommitment, round: Round },
@@ -160,10 +158,6 @@ impl StateMachine {
 
     pub(crate) fn quorum(&self) -> &VotesThreshold {
         &self.quorum
-    }
-
-    pub(crate) fn validator_id(&self) -> ValidatorId {
-        self.id
     }
 
     pub(crate) fn height(&self) -> BlockNumber {
