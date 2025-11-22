@@ -24,6 +24,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
+use mockall::Sequence;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
@@ -856,4 +857,141 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
         .unwrap();
 
     assert_eq!(decision, RunHeightRes::Sync);
+}
+
+#[rstest]
+#[tokio::test]
+async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
+    const HEIGHT: BlockNumber = BlockNumber(123);
+    const LAST_VOTED_HEIGHT: BlockNumber = BlockNumber(HEIGHT.0 - 1);
+    let block_id = ProposalCommitment(Felt::ONE);
+
+    let mut mock_height_voted_storage = MockHeightVotedStorageTrait::new();
+    mock_height_voted_storage
+        .expect_get_prev_voted_height()
+        .returning(|| Ok(Some(LAST_VOTED_HEIGHT)));
+
+    let mut storage_before_broadcast_sequence = Sequence::new();
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let mut context = MockTestContext::new();
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context
+        .expect_validators()
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_try_sync().returning(|_| false);
+
+    // Set up storage expectation for prevote - must happen before broadcast
+    mock_height_voted_storage
+        .expect_set_prev_voted_height()
+        .with(mockall::predicate::eq(HEIGHT))
+        .times(1)
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+
+    // Set up broadcast expectation for prevote - must happen after storage write
+    // Use a channel to signal when prevote is broadcast so we can send other votes
+    let (prevote_tx, prevote_rx) = oneshot::channel();
+    let prevote_tx_shared = Arc::new(Mutex::new(Some(prevote_tx)));
+    let prevote_tx_for_callback = prevote_tx_shared.clone();
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &Vote| msg == &prevote(Some(block_id.0), HEIGHT.0, 0, *VALIDATOR_ID))
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| {
+            if let Some(tx) = prevote_tx_for_callback.lock().unwrap().take() {
+                let _ = tx.send(());
+            }
+            Ok(())
+        });
+
+    // Set up storage expectation for precommit - must happen before broadcast
+    mock_height_voted_storage
+        .expect_set_prev_voted_height()
+        .with(mockall::predicate::eq(HEIGHT))
+        .times(1)
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+
+    // Set up broadcast expectation for precommit - must happen after storage write
+    // Use a channel to signal when precommit is broadcast
+    let (precommit_tx, precommit_rx) = oneshot::channel();
+    let precommit_tx_shared = Arc::new(Mutex::new(Some(precommit_tx)));
+    let precommit_tx_for_callback = precommit_tx_shared.clone();
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &Vote| msg == &precommit(Some(block_id.0), HEIGHT.0, 0, *VALIDATOR_ID))
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| {
+            if let Some(tx) = precommit_tx_for_callback.lock().unwrap().take() {
+                let _ = tx.send(());
+            }
+            Ok(())
+        });
+
+    // Set up validation expectation
+    context.expect_validate_proposal().returning(move |_, _, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(block_id).unwrap();
+        block_receiver
+    });
+
+    // Send proposal first
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(HEIGHT.0, 0, *PROPOSER_ID))],
+    )
+    .await;
+
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(mock_height_voted_storage)),
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+
+    // Spawn a task to send votes after validator votes
+    let mut sender_clone = sender.clone();
+    let block_id_for_votes = block_id;
+    tokio::spawn(async move {
+        // Wait for validator to validate proposal and broadcast prevote
+        prevote_rx.await.unwrap();
+
+        // Now send other prevotes to reach quorum
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *PROPOSER_ID))
+            .await;
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+            .await;
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_3))
+            .await;
+
+        // Wait for validator to broadcast precommit after reaching prevote quorum
+        precommit_rx.await.unwrap();
+
+        // Now send other precommits to reach decision
+        send(&mut sender_clone, precommit(Some(block_id_for_votes.0), HEIGHT.0, 0, *PROPOSER_ID))
+            .await;
+        send(
+            &mut sender_clone,
+            precommit(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
+        )
+        .await;
+    });
+
+    // Run height - this should trigger storage writes before broadcasts
+    let decision = manager
+        .run_height(&mut context, HEIGHT, &mut subscriber_channels, &mut proposal_receiver_receiver)
+        .await
+        .unwrap();
+
+    assert_decision(decision, block_id.0, 0);
 }
