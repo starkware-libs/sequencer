@@ -9,17 +9,18 @@
 #[path = "manager_test.rs"]
 mod manager_test;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ProposalInit, Vote};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
+use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
@@ -34,8 +35,10 @@ use crate::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_RECEIVED,
+    CONSENSUS_REPROPOSALS,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::state_machine::{SMRequest, StateMachineEvent};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
@@ -189,6 +192,8 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // TODO(guy.f): Remove in the following PR.
     #[allow(dead_code)]
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    // Proposal content streams keyed by (height, round)
+    proposal_streams: BTreeMap<(u64, u32), mpsc::Receiver<ContextT::ProposalPart>>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
@@ -204,6 +209,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
             voted_height_storage,
+            proposal_streams: BTreeMap::new(),
         }
     }
 
@@ -270,6 +276,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.handle_proposal(context, height, None, content_receiver).await?;
         }
 
+        // Height completed; clear any content streams associated with this height.
+        self.proposal_streams.retain(|(h, _), _| *h > height.0);
+
         Ok(res)
     }
 
@@ -302,7 +311,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
-            self.voted_height_storage.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
 
@@ -310,10 +318,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             ShcReturn::Decision(decision) => {
                 return Ok(RunHeightRes::Decision(decision));
             }
-            ShcReturn::Tasks(tasks) => {
-                for task in tasks {
-                    shc_events.push(task.run());
-                }
+            ShcReturn::Requests(requests) => {
+                self.execute_requests(
+                    context,
+                    height,
+                    requests,
+                    &mut shc_events,
+                    broadcast_channels,
+                )
+                .await?;
+                // Reflect initial height/round to context.
+                context.set_height_and_round(height, shc.current_round()).await;
             }
         }
 
@@ -325,14 +340,20 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
-                    self.handle_vote(
-                        context, height, Some(&mut shc), message, broadcast_channels).await?
+                    self.handle_vote(context, height, Some(&mut shc), message, broadcast_channels).await?
                 },
                 content_receiver = proposals_receiver.next() => {
-                    self.handle_proposal(context, height, Some(&mut shc), content_receiver).await?
+                    self.handle_proposal(
+                        context,
+                        height,
+                        Some(&mut shc),
+                        content_receiver
+                    )
+                    .await?
                 },
                 Some(shc_event) = shc_events.next() => {
-                    shc.handle_event(context, shc_event).await?
+                    let leader_fn = |round| -> _ { context.proposer(height, round) };
+                    shc.handle_event(&leader_fn, shc_event)?
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -347,12 +368,19 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
             match shc_return {
                 ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
-                ShcReturn::Tasks(tasks) => {
-                    for task in tasks {
-                        shc_events.push(task.run());
-                    }
+                ShcReturn::Requests(requests) => {
+                    self.execute_requests(
+                        context,
+                        height,
+                        requests,
+                        &mut shc_events,
+                        broadcast_channels,
+                    )
+                    .await?;
                 }
             }
+            // After handling any SHC output, reflect current round.
+            context.set_height_and_round(height, shc.current_round()).await;
         }
     }
 
@@ -363,7 +391,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
         CONSENSUS_CACHED_VOTES.set_lossy(self.future_votes.entry(height.0).or_default().len());
-        let mut tasks = match shc.start(context).await? {
+        let leader_fn = |round| -> _ { context.proposer(height, round) };
+        let mut pending_requests = match shc.start(&leader_fn)? {
             decision @ ShcReturn::Decision(_) => {
                 // Start should generate either TimeoutProposal (validator) or GetProposal
                 // (proposer). We do not enforce this since the Manager is
@@ -371,28 +400,32 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 error!("Decision reached at start of height. {:?}", decision);
                 return Ok(decision);
             }
-            ShcReturn::Tasks(tasks) => tasks,
+            ShcReturn::Requests(requests) => requests,
         };
 
         let cached_proposals = self.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (init, content_receiver) in cached_proposals {
-            match shc.handle_proposal(context, init, content_receiver).await? {
+            match self
+                .handle_proposal_known_init(context, height, shc, init, content_receiver)
+                .await?
+            {
                 decision @ ShcReturn::Decision(_) => return Ok(decision),
-                ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
+                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
             }
         }
 
         let cached_votes = self.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
-            match shc.handle_vote(context, msg).await? {
+            let leader_fn = |round| -> _ { context.proposer(height, round) };
+            match shc.handle_vote(&leader_fn, msg)? {
                 decision @ ShcReturn::Decision(_) => return Ok(decision),
-                ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
+                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
             }
         }
 
-        Ok(ShcReturn::Tasks(tasks))
+        Ok(ShcReturn::Requests(pending_requests))
     }
 
     // Handle a new proposal receiver from the network.
@@ -441,26 +474,47 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         .entry(proposal_init.round)
                         .or_insert((proposal_init, content_receiver));
                 }
-                Ok(ShcReturn::Tasks(Vec::new()))
+                Ok(ShcReturn::Requests(VecDeque::new()))
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop proposal from past height. {:?}", proposal_init);
-                Ok(ShcReturn::Tasks(Vec::new()))
+                Ok(ShcReturn::Requests(VecDeque::new()))
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
                     if self.should_cache_proposal(&height, shc.current_round(), &proposal_init) {
-                        shc.handle_proposal(context, proposal_init, content_receiver).await
+                        self.handle_proposal_known_init(
+                            context,
+                            height,
+                            shc,
+                            proposal_init,
+                            content_receiver,
+                        )
+                        .await
                     } else {
-                        Ok(ShcReturn::Tasks(Vec::new()))
+                        Ok(ShcReturn::Requests(VecDeque::new()))
                     }
                 }
                 None => {
                     trace!("Drop proposal from just completed height. {:?}", proposal_init);
-                    Ok(ShcReturn::Tasks(Vec::new()))
+                    Ok(ShcReturn::Requests(VecDeque::new()))
                 }
             },
         }
+    }
+
+    async fn handle_proposal_known_init(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+        proposal_init: ProposalInit,
+        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+    ) -> Result<ShcReturn, ConsensusError> {
+        // Store the stream; requests will reference it by (height, round)
+        self.proposal_streams.insert((height.0, proposal_init.round), content_receiver);
+        let leader_fn = |round| -> _ { context.proposer(height, round) };
+        shc.handle_proposal(&leader_fn, proposal_init)
     }
 
     // Handle a single consensus message.
@@ -512,25 +566,167 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     trace!("Cache message for a future height. {:?}", message);
                     self.future_votes.entry(message.height).or_default().push(message);
                 }
-                Ok(ShcReturn::Tasks(Vec::new()))
+                Ok(ShcReturn::Requests(VecDeque::new()))
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop message from past height. {:?}", message);
-                Ok(ShcReturn::Tasks(Vec::new()))
+                Ok(ShcReturn::Requests(VecDeque::new()))
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
                     if self.should_cache_vote(&height, shc.current_round(), &message) {
-                        shc.handle_vote(context, message).await
+                        let leader_fn = |round| -> _ { context.proposer(height, round) };
+                        shc.handle_vote(&leader_fn, message)
                     } else {
-                        Ok(ShcReturn::Tasks(Vec::new()))
+                        Ok(ShcReturn::Requests(VecDeque::new()))
                     }
                 }
                 None => {
                     trace!("Drop message from just completed height. {:?}", message);
-                    Ok(ShcReturn::Tasks(Vec::new()))
+                    Ok(ShcReturn::Requests(VecDeque::new()))
                 }
             },
+        }
+    }
+
+    async fn execute_requests(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        mut requests: VecDeque<SMRequest>,
+        shc_events: &mut FuturesUnordered<BoxFuture<'static, StateMachineEvent>>,
+        broadcast_channels: &mut BroadcastVoteChannel,
+    ) -> Result<(), ConsensusError> {
+        while let Some(request) = requests.pop_front() {
+            if let Some(fut) =
+                self.run_request(context, height, request, broadcast_channels).await?
+            {
+                shc_events.push(fut);
+            }
+        }
+        Ok(())
+    }
+
+    async fn run_request(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        request: SMRequest,
+        _broadcast_channels: &mut BroadcastVoteChannel,
+    ) -> Result<Option<BoxFuture<'static, StateMachineEvent>>, ConsensusError> {
+        match request {
+            SMRequest::StartBuildProposal(round) => {
+                let init = ProposalInit {
+                    height,
+                    round,
+                    proposer: self.consensus_config.dynamic_config.validator_id,
+                    valid_round: None,
+                };
+                // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
+                // independently of the consensus proposal timeout. We currently use the base
+                // (round 0) proposal timeout for building to avoid giving the Batcher more time
+                // when proposal time is extended for consensus.
+                let timeout = self.consensus_config.dynamic_config.timeouts.get_proposal_timeout(0);
+                let receiver = context.build_proposal(init, timeout).await;
+                let fut = async move {
+                    let proposal_id = receiver.await.ok();
+                    StateMachineEvent::FinishedBuilding(proposal_id, round)
+                }
+                .boxed();
+                Ok(Some(fut))
+            }
+            SMRequest::StartValidateProposal(init) => {
+                // Look up the stored stream.
+                let key = (height.0, init.round);
+                if let Some(stream) = self.proposal_streams.remove(&key) {
+                    let timeout = self
+                        .consensus_config
+                        .dynamic_config
+                        .timeouts
+                        .get_proposal_timeout(init.round);
+                    let receiver = context.validate_proposal(init, timeout, stream).await;
+                    let round = init.round;
+                    let valid_round = init.valid_round;
+                    let fut = async move {
+                        let proposal_id = receiver.await.ok();
+                        StateMachineEvent::FinishedValidation(proposal_id, round, valid_round)
+                    }
+                    .boxed();
+                    Ok(Some(fut))
+                } else {
+                    // No stream available; ignore.
+                    Ok(None)
+                }
+            }
+            SMRequest::BroadcastVote(vote) => {
+                trace!("Writing voted height {} to storage", height);
+                self.voted_height_storage
+                    .lock()
+                    .expect(
+                        "Lock should never be poisoned because there should never be concurrent \
+                         access.",
+                    )
+                    .set_prev_voted_height(height)
+                    .expect("Failed to write voted height {self.height} to storage");
+                info!("Broadcasting {vote:?}");
+                context.broadcast(vote.clone()).await?;
+                // Schedule a rebroadcast after the appropriate timeout.
+                let duration = match vote.vote_type {
+                    VoteType::Prevote => {
+                        self.consensus_config.dynamic_config.timeouts.get_prevote_timeout(0)
+                    }
+                    VoteType::Precommit => {
+                        self.consensus_config.dynamic_config.timeouts.get_precommit_timeout(0)
+                    }
+                };
+                let fut = async move {
+                    tokio::time::sleep(duration).await;
+                    StateMachineEvent::VoteBroadcasted(vote)
+                }
+                .boxed();
+                Ok(Some(fut))
+            }
+            SMRequest::ScheduleTimeoutPropose(round) => {
+                let duration =
+                    self.consensus_config.dynamic_config.timeouts.get_proposal_timeout(round);
+                let fut = async move {
+                    tokio::time::sleep(duration).await;
+                    StateMachineEvent::TimeoutPropose(round)
+                }
+                .boxed();
+                Ok(Some(fut))
+            }
+            SMRequest::ScheduleTimeoutPrevote(round) => {
+                let duration =
+                    self.consensus_config.dynamic_config.timeouts.get_prevote_timeout(round);
+                let fut = async move {
+                    tokio::time::sleep(duration).await;
+                    StateMachineEvent::TimeoutPrevote(round)
+                }
+                .boxed();
+                Ok(Some(fut))
+            }
+            SMRequest::ScheduleTimeoutPrecommit(round) => {
+                let duration =
+                    self.consensus_config.dynamic_config.timeouts.get_precommit_timeout(round);
+                let fut = async move {
+                    tokio::time::sleep(duration).await;
+                    StateMachineEvent::TimeoutPrecommit(round)
+                }
+                .boxed();
+                Ok(Some(fut))
+            }
+            SMRequest::Repropose(proposal_id, init) => {
+                context.repropose(proposal_id, init).await;
+                CONSENSUS_REPROPOSALS.increment(1);
+                Ok(None)
+            }
+            SMRequest::DecisionReached(_, _) => {
+                // Should be handled by SHC, not manager.
+                Err(ConsensusError::InternalInconsistency(
+                    "Manager received DecisionReached request".to_string(),
+                ))
+            }
         }
     }
 
