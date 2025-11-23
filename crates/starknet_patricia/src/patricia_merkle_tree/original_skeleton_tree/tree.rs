@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use starknet_api::hash::HashOutput;
+
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -38,5 +40,21 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
 
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a> {
         self.sorted_leaf_indices
+    }
+}
+
+impl<'a> OriginalSkeletonTreeImpl<'a> {
+    pub fn create_unmodified(root_hash: HashOutput) -> Self {
+        Self {
+            nodes: HashMap::from([(
+                NodeIndex::ROOT,
+                OriginalSkeletonNode::UnmodifiedSubTree(root_hash),
+            )]),
+            sorted_leaf_indices: SortedLeafIndices::default(),
+        }
+    }
+
+    pub fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
+        Self { nodes: HashMap::new(), sorted_leaf_indices }
     }
 }
