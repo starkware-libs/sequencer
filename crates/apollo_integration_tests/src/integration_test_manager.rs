@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::panic;
@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
+use apollo_deployments::service::NodeService;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -27,7 +28,6 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     AccountId,
@@ -95,7 +95,7 @@ fn block_max_capacity_gas() -> GasAmount {
 }
 
 pub struct NodeSetup {
-    executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    executables: HashMap<NodeService, ExecutableSetup>,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -108,12 +108,12 @@ pub struct NodeSetup {
 }
 
 fn get_executable_by_component(
-    executables: &IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    executables: &HashMap<NodeService, ExecutableSetup>,
     component: ComponentConfigInService,
 ) -> &ExecutableSetup {
     executables
         .iter()
-        .find(|(components, _)| components.contains(&component))
+        .find(|(service, _)| service.get_components_in_service().contains(&component))
         .map(|(_, executable)| executable)
         .unwrap_or_else(|| {
             panic!("Expected at least one executable with component {:?}", component)
@@ -122,7 +122,7 @@ fn get_executable_by_component(
 
 impl NodeSetup {
     pub fn new(
-        executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+        executables: HashMap<NodeService, ExecutableSetup>,
         storage_handles: StorageTestHandles,
     ) -> Self {
         let http_server_config =
@@ -163,16 +163,11 @@ impl NodeSetup {
         self.executables.values_mut()
     }
 
-    pub fn set_executable_config_path(
-        &mut self,
-        index: usize,
-        new_path: PathBuf,
-    ) -> Result<(), &'static str> {
-        if let Some(exec) = self.executables.get_index_mut(index) {
-            exec.1.node_config_path = new_path;
-            Ok(())
+    pub fn set_executable_config_path(&mut self, service: NodeService, new_path: PathBuf) {
+        if let Some(exec) = self.executables.get_mut(&service) {
+            exec.node_config_path = new_path;
         } else {
-            panic!("Invalid executable index")
+            panic!("Invalid executable service: {service:?}")
         }
     }
 
@@ -202,15 +197,18 @@ impl NodeSetup {
 
     pub fn run(self) -> RunningNode {
         let executable_handles = self
-            .get_executables()
-            .map(|executable| {
-                info!("Running {}.", executable.node_execution_id);
-                spawn_run_node(
-                    vec![executable.node_config_path.clone()],
-                    executable.node_execution_id.into(),
+            .executables
+            .iter()
+            .map(|(service, executable)| {
+                (
+                    *service,
+                    spawn_run_node(
+                        vec![executable.node_config_path.clone()],
+                        executable.node_execution_id.into(),
+                    ),
                 )
             })
-            .collect::<Vec<_>>();
+            .collect::<HashMap<NodeService, AbortOnDropHandle<()>>>();
 
         RunningNode { node_setup: self, executable_handles }
     }
@@ -234,7 +232,7 @@ impl NodeSetup {
 
 pub struct RunningNode {
     node_setup: NodeSetup,
-    executable_handles: Vec<AbortOnDropHandle<()>>,
+    executable_handles: HashMap<NodeService, AbortOnDropHandle<()>>,
 }
 
 impl RunningNode {
@@ -251,7 +249,7 @@ impl RunningNode {
     }
 
     fn propagate_executable_panic(&self) {
-        for handle in &self.executable_handles {
+        for handle in self.executable_handles.values() {
             // A finished handle implies a running node executable has panicked.
             if handle.is_finished() {
                 // Panic, dropping all other handles, which should drop.
@@ -466,7 +464,7 @@ impl IntegrationTestManager {
                 .running_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
-            running_node.executable_handles.iter().for_each(|handle| {
+            running_node.executable_handles.values().for_each(|handle| {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
             });
@@ -901,7 +899,7 @@ async fn get_sequencer_setup_configs(
 
     // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
-        let mut executables = IndexMap::new();
+        let mut executables = HashMap::new();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -925,8 +923,6 @@ async fn get_sequencer_setup_configs(
 
         // Per node, create the executables constituting it.
         for (component_set, executable_component_config) in node_component_config.into_iter() {
-            let component_set = component_set.get_components_in_service();
-
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
