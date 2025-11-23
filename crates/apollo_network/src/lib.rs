@@ -208,14 +208,8 @@ pub mod metrics;
 pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
-<<<<<<< HEAD
 pub mod peer_manager;
-||||||| 82bc6f70b
-mod peer_manager;
-=======
-mod peer_manager;
 mod prune_dead_connections;
->>>>>>> origin/main-v0.14.1
 mod sqmr;
 #[cfg(test)]
 mod test_utils;

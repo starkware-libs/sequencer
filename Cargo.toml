@@ -118,14 +118,8 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-<<<<<<< HEAD
 aerospike = { version = "2.0.0-alpha.6", default-features = false }
-alloy = "1.0.38"
-||||||| 82bc6f70b
-alloy = "1.0.38"
-=======
 alloy = "1.1.0"
->>>>>>> origin/main-v0.14.1
 anyhow = "1.0.44"
 apollo_base_layer_tests.path = "crates/apollo_base_layer_tests"
 apollo_batcher.path = "crates/apollo_batcher"
@@ -352,29 +346,11 @@ sha2 = "0.10.8"
 sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
-<<<<<<< HEAD
-sizeof = { path = "crates/sizeof", version = "0.17.0-rc.0" }
-sizeof_internal = { path = "crates/sizeof/sizeof_internal", version = "0.17.0-rc.0" }
-sizeof_macro = { path = "crates/sizeof/sizeof_macro", version = "0.17.0-rc.0" }
-||||||| 82bc6f70b
-sizeof = { path = "crates/sizeof", version = "0.16.0-rc.1" }
-sizeof_internal = { path = "crates/sizeof/sizeof_internal", version = "0.16.0-rc.1" }
-sizeof_macro = { path = "crates/sizeof/sizeof_macro", version = "0.16.0-rc.1" }
-=======
->>>>>>> origin/main-v0.14.1
 socket2 = "0.5.8"
 starknet-core = "0.16.0"
 starknet-crypto = "0.8.1"
-<<<<<<< HEAD
-starknet-types-core = "=0.2.3"
-starknet_api = { path = "crates/starknet_api", version = "0.17.0-rc.0" }
-||||||| 82bc6f70b
-starknet-types-core = "=0.2.3"
-starknet_api = { path = "crates/starknet_api", version = "0.16.0-rc.1" }
-=======
 starknet-types-core = "0.2.4"
-starknet_api = { path = "crates/starknet_api", version = "0.16.0-rc.1" }
->>>>>>> origin/main-v0.14.1
+starknet_api = { path = "crates/starknet_api", version = "0.17.0-rc.0" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_committer_cli.path = "crates/starknet_committer_cli"

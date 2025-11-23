@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 
-<<<<<<< HEAD
-import sys
 import urllib.parse
-||||||| 82bc6f70b
-import sys
-=======
->>>>>>> origin/main-v0.14.1
 from typing import Optional
 
 from common_lib import (

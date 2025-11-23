@@ -38,20 +38,10 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-<<<<<<< HEAD
     /// Future message limits configuration.
     pub future_msg_limit: FutureMsgLimitsConfig,
-||||||| 82bc6f70b
-    /// How many heights in the future should we cache.
-    pub future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    pub future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    pub future_height_round_limit: u32,
-=======
     /// Config for the storage used to write/read consensus state.
     pub storage_config: StorageConfig,
->>>>>>> origin/main-v0.14.1
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -87,7 +77,6 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-<<<<<<< HEAD
         let mut config = BTreeMap::from_iter([ser_param(
             "startup_delay",
             &self.startup_delay.as_secs(),
@@ -95,42 +84,6 @@ impl SerializeConfig for ConsensusStaticConfig {
             ParamPrivacyInput::Public,
         )]);
         config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
-
-        config
-||||||| 82bc6f70b
-        BTreeMap::from_iter([
-            ser_param(
-                "startup_delay",
-                &self.startup_delay.as_secs(),
-                "Delay (seconds) before starting consensus to give time for network peering.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_limit",
-                &self.future_height_limit,
-                "How many heights in the future should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_round_limit",
-                &self.future_round_limit,
-                "How many rounds in the future (for current height) should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_round_limit",
-                &self.future_height_round_limit,
-                "How many rounds should we cache for future heights.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-=======
-        let mut config = BTreeMap::from_iter([ser_param(
-            "startup_delay",
-            &self.startup_delay.as_secs(),
-            "Delay (seconds) before starting consensus to give time for network peering.",
-            ParamPrivacyInput::Public,
-        )]);
         config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config
     }
@@ -342,177 +295,12 @@ impl SerializeConfig for FutureMsgLimitsConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
->>>>>>> origin/main-v0.14.1
     }
 }
 
 impl Default for FutureMsgLimitsConfig {
     fn default() -> Self {
-<<<<<<< HEAD
-        Self {
-            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-        }
-    }
-}
-
-impl Default for ConsensusStaticConfig {
-    fn default() -> Self {
-        Self {
-            startup_delay: Duration::from_secs(5),
-            future_msg_limit: FutureMsgLimitsConfig::default(),
-        }
-    }
-}
-
-impl ConsensusConfig {
-    // TODO(Nadin): create a generic trait for this
-    pub fn from_parts(
-        dynamic_config: ConsensusDynamicConfig,
-        static_config: ConsensusStaticConfig,
-    ) -> Self {
-        Self { dynamic_config, static_config }
-    }
-}
-
-impl Default for ConsensusConfig {
-    fn default() -> Self {
-        Self::from_parts(ConsensusDynamicConfig::default(), ConsensusStaticConfig::default())
-    }
-}
-
-/// Configuration for consensus timeouts.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct TimeoutsConfig {
-    /// The timeout for a proposal.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout: Duration,
-    /// The timeout for a prevote.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout: Duration,
-    /// The timeout for a precommit.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout: Duration,
-}
-
-impl SerializeConfig for TimeoutsConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "proposal_timeout",
-                &self.proposal_timeout.as_secs_f64(),
-                "The timeout (seconds) for a proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "prevote_timeout",
-                &self.prevote_timeout.as_secs_f64(),
-                "The timeout (seconds) for a prevote.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "precommit_timeout",
-                &self.precommit_timeout.as_secs_f64(),
-                "The timeout (seconds) for a precommit.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for TimeoutsConfig {
-    fn default() -> Self {
-        Self {
-            proposal_timeout: Duration::from_secs_f64(3.0),
-            prevote_timeout: Duration::from_secs_f64(1.0),
-            precommit_timeout: Duration::from_secs_f64(1.0),
-        }
-||||||| 82bc6f70b
-        Self {
-            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-        }
-    }
-}
-
-impl Default for ConsensusStaticConfig {
-    fn default() -> Self {
-        Self {
-            startup_delay: Duration::from_secs(5),
-            future_height_limit: 10,
-            future_round_limit: 10,
-            future_height_round_limit: 1,
-        }
-    }
-}
-
-impl ConsensusConfig {
-    // TODO(Nadin): create a generic trait for this
-    pub fn from_parts(
-        dynamic_config: ConsensusDynamicConfig,
-        static_config: ConsensusStaticConfig,
-    ) -> Self {
-        Self { dynamic_config, static_config }
-    }
-}
-
-impl Default for ConsensusConfig {
-    fn default() -> Self {
-        Self::from_parts(ConsensusDynamicConfig::default(), ConsensusStaticConfig::default())
-    }
-}
-
-/// Configuration for consensus timeouts.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct TimeoutsConfig {
-    /// The timeout for a proposal.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout: Duration,
-    /// The timeout for a prevote.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout: Duration,
-    /// The timeout for a precommit.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout: Duration,
-}
-
-impl SerializeConfig for TimeoutsConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "proposal_timeout",
-                &self.proposal_timeout.as_secs_f64(),
-                "The timeout (seconds) for a proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "prevote_timeout",
-                &self.prevote_timeout.as_secs_f64(),
-                "The timeout (seconds) for a prevote.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "precommit_timeout",
-                &self.precommit_timeout.as_secs_f64(),
-                "The timeout (seconds) for a precommit.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for TimeoutsConfig {
-    fn default() -> Self {
-        Self {
-            proposal_timeout: Duration::from_secs_f64(3.0),
-            prevote_timeout: Duration::from_secs_f64(1.0),
-            precommit_timeout: Duration::from_secs_f64(1.0),
-        }
-=======
         Self { future_height_limit: 10, future_round_limit: 10, future_height_round_limit: 1 }
->>>>>>> origin/main-v0.14.1
     }
 }
 

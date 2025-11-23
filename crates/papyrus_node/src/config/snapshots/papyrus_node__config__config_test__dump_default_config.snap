@@ -197,52 +197,6 @@ expression: dumped_default_config
     "value": "0x64",
     "privacy": "Public"
   },
-<<<<<<< HEAD
-  "consensus.static_config.future_msg_limit.future_height_limit": {
-    "description": "How many heights in the future should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_msg_limit.future_height_round_limit": {
-    "description": "How many rounds should we cache for future heights.",
-    "value": {
-      "$serde_json::private::Number": "1"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_msg_limit.future_round_limit": {
-    "description": "How many rounds in the future (for current height) should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
-    "privacy": "Public"
-  },
-||||||| 82bc6f70b
-  "consensus.static_config.future_height_limit": {
-    "description": "How many heights in the future should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_height_round_limit": {
-    "description": "How many rounds should we cache for future heights.",
-    "value": {
-      "$serde_json::private::Number": "1"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_round_limit": {
-    "description": "How many rounds in the future (for current height) should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
-    "privacy": "Public"
-  },
-=======
->>>>>>> origin/main-v0.14.1
   "consensus.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {

@@ -136,19 +136,10 @@ async fn with_metrics() {
         "# HELP {metric_name} {metric_help}\n# TYPE {metric_name} counter\n{metric_name} \
          {metric_value}\n\n"
     );
-<<<<<<< HEAD
     assert!(
         body_string.contains(&expected_prefix),
         "body_string: {body_string}, expected_prefix: {expected_prefix}"
     );
-||||||| 82bc6f70b
-    assert!(body_string.starts_with(&expected_prefix));
-=======
-    assert!(
-        body_string.contains(&expected_prefix),
-        "body_string: {body_string}, expected_substring: {expected_prefix}"
-    );
->>>>>>> origin/main-v0.14.1
 }
 
 #[tokio::test]

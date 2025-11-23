@@ -186,7 +186,6 @@ fn get_total_batched_txs_count(recorder_handle: &PrometheusHandle) -> usize {
 
 fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_blocks: bool) {
     if expecting_full_blocks {
-<<<<<<< HEAD
         let metrics = recorder_handle.render();
         let full_blocks_metric = apollo_batcher::metrics::BLOCK_CLOSE_REASON
             .parse_numeric_metric::<u64>(
@@ -197,12 +196,6 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
                 )],
             )
             .unwrap();
-        assert!(full_blocks_metric > 0);
-||||||| 82bc6f70b
-        assert!(full_blocks_metric > 0);
-    } else {
-        assert_eq!(full_blocks_metric, 0);
-=======
         assert!(
             full_blocks_metric > 0,
             "Expected full blocks, but found {full_blocks_metric} full blocks."
@@ -212,7 +205,6 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
             full_blocks_metric, 0,
             "Expected no full blocks, but found {full_blocks_metric} full blocks."
         );
->>>>>>> origin/main-v0.14.1
     }
     // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
     // It is possible that a block is filled, no need to assert that this is not the case.

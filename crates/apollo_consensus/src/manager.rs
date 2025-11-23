@@ -565,68 +565,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height.0);
         CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(*max_cached_block_number);
     }
-<<<<<<< HEAD
-
-    fn should_cache_msg(
-        &self,
-        current_height: &BlockNumber,
-        current_round: u32,
-        msg_height: u64,
-        msg_round: u32,
-        msg_description: &str,
-    ) -> bool {
-        let limits = &self.consensus_config.static_config.future_msg_limit;
-        let height_diff = msg_height.saturating_sub(current_height.0);
-
-        let should_cache = height_diff <= limits.future_height_limit.into()
-            // For current height, check against current round + future_round_limit
-            && (height_diff == 0 && msg_round <= current_round + limits.future_round_limit
-                // For future heights, check absolute round limit
-                || height_diff > 0 && msg_round <= limits.future_height_round_limit);
-
-        if !should_cache {
-            warn!(
-                "Dropping {} for height={} round={} when current_height={} current_round={} - \
-                 limits: future_height={}, future_height_round={}, future_round={}",
-                msg_description,
-                msg_height,
-                msg_round,
-                current_height.0,
-                current_round,
-                limits.future_height_limit,
-                limits.future_height_round_limit,
-                limits.future_round_limit
-            );
-        }
-
-        should_cache
-    }
-
-    fn should_cache_proposal(
-        &self,
-        current_height: &BlockNumber,
-        current_round: u32,
-        proposal: &ProposalInit,
-    ) -> bool {
-        self.should_cache_msg(
-            current_height,
-            current_round,
-            proposal.height.0,
-            proposal.round,
-            "proposal",
-        )
-    }
-
-    fn should_cache_vote(
-        &self,
-        current_height: &BlockNumber,
-        current_round: u32,
-        vote: &Vote,
-    ) -> bool {
-        self.should_cache_msg(current_height, current_round, vote.height, vote.round, "vote")
-    }
-||||||| 82bc6f70b
-=======
 
     fn should_cache_msg(
         &self,
@@ -686,5 +624,4 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> bool {
         self.should_cache_msg(current_height, current_round, vote.height, vote.round, "vote")
     }
->>>>>>> origin/main-v0.14.1
 }

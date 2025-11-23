@@ -780,13 +780,7 @@ fn class_hash_migration_data_from_state(
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-<<<<<<< HEAD
-            250218310
-||||||| 82bc6f70b
-            217796820
-=======
             218272460
->>>>>>> origin/main-v0.14.1
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

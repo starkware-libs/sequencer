@@ -5,17 +5,6 @@
   "consensus_manager_config.cende_config.max_retry_duration_secs": 3,
   "consensus_manager_config.cende_config.min_retry_interval_ms": 50,
   "consensus_manager_config.cende_config.max_retry_interval_ms": 1000,
-<<<<<<< HEAD
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_limit": 20,
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_round_limit": 5,
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_round_limit": 20,
-  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": 15,
-||||||| 82bc6f70b
-  "consensus_manager_config.consensus_manager_config.static_config.future_height_limit": 20,
-  "consensus_manager_config.consensus_manager_config.static_config.future_height_round_limit": 5,
-  "consensus_manager_config.consensus_manager_config.static_config.future_round_limit": 20,
-  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": 15,
-=======
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": 20,
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_round_limit": 5,
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_round_limit": 20,
@@ -29,7 +18,6 @@
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_object_size": 1073741824,
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_size": 1099511627776,
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.scope": "StateOnly",
->>>>>>> origin/main-v0.14.1
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": 1.0,
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.base": 1.0,
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.delta": 0.5,
