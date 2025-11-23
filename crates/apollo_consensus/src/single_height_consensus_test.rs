@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_consensus_config::config::{Timeout, TimeoutsConfig};
@@ -5,6 +6,8 @@ use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDA
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
+use mockall::predicate::eq;
+use mockall::Sequence;
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -12,7 +15,15 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
-use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
+use crate::storage::MockHeightVotedStorageTrait;
+use crate::test_utils::{
+    precommit,
+    prevote,
+    MockTestContext,
+    NoOpHeightVotedStorage,
+    TestBlock,
+    TestProposalPart,
+};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -96,6 +107,7 @@ async fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -173,6 +185,7 @@ async fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -251,6 +264,7 @@ async fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -326,6 +340,7 @@ async fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -382,6 +397,7 @@ async fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -450,6 +466,100 @@ async fn repropose() {
 }
 
 #[tokio::test]
+async fn writes_voted_height_to_storage() {
+    const HEIGHT: BlockNumber = BlockNumber(123);
+
+    let mock_storage = Arc::new(Mutex::new(MockHeightVotedStorageTrait::new()));
+    let mut storage_before_broadcast_sequence = Sequence::new();
+
+    let mut context = MockTestContext::new();
+
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_validate_proposal().returning(move |_, _, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(BLOCK.id).unwrap();
+        block_receiver
+    });
+    context.expect_set_height_and_round().returning(move |_, _| ());
+
+    mock_storage
+        .lock()
+        .unwrap()
+        .expect_set_prev_voted_height()
+        .with(eq(HEIGHT))
+        .times(1)
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+
+    context
+        .expect_broadcast()
+        .times(1) // Once we see the first broadcast we expect the voted height to be written to storage.
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+
+    let mut shc = SingleHeightConsensus::new(
+        HEIGHT,
+        false,
+        *VALIDATOR_ID_1,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+        mock_storage.clone(),
+    );
+
+    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
+    assert_eq!(
+        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
+        &get_proposal_init_for_height(HEIGHT)
+    );
+    assert_eq!(
+        shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
+        Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
+    );
+
+    // This is the call that will result in the prevote broadcast and storage write.
+    let res =
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).await;
+    assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
+
+    // Add enough prevotes so that we move to precommit step and set expectations for the precommit
+    // broadcast and storage write:
+
+    mock_storage
+        .lock()
+        .unwrap()
+        .expect_set_prev_voted_height()
+        .with(eq(HEIGHT))
+        .times(1)
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
+        .in_sequence(&mut storage_before_broadcast_sequence)
+        .returning(move |_| Ok(()));
+    // The Node got a Prevote quorum.
+    assert_eq!(
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+            .await,
+        Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0)]))
+    );
+
+    let precommits = vec![
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
+    ];
+    assert_eq!(
+        // This is the call that will result in the precommit broadcast and storage write.
+        shc.handle_vote(&mut context, precommits[0].clone()).await,
+        Ok(ShcReturn::Tasks(Vec::new()))
+    );
+}
+
+#[tokio::test]
 async fn shc_applies_proposal_timeouts_across_rounds() {
     let mut context = MockTestContext::new();
 
@@ -480,6 +590,7 @@ async fn shc_applies_proposal_timeouts_across_rounds() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         timeouts.clone(),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
     // context expectations.
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);

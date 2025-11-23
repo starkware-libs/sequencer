@@ -59,6 +59,6 @@ fn write_last_height_return_error_when_previous_last_height_is_equal() {
     assert_eq!(storage.get_prev_voted_height().unwrap(), Some(BlockNumber(2)));
     assert_matches!(
         storage.set_prev_voted_height(BlockNumber(1)),
-        Err(HeightVotedStorageError::InconsistentStorageState { msg: _ })
+        Err(HeightVotedStorageError::InconsistentStorageState { error_msg: _ })
     );
 }
