@@ -2,12 +2,14 @@ use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ClassHash;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::MAX_FEE;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -17,6 +19,7 @@ use crate::state_reader::compile::{
     sierra_to_versioned_contract_class_v1,
 };
 use crate::state_reader::errors::ReexecutionResult;
+use crate::state_reader::utils::contract_class_to_compiled_classes;
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -27,8 +30,9 @@ pub trait ReexecutionStateReader {
                 let abi_length = sierra.abi.len();
                 let sierra_length = sierra.sierra_program.len();
 
+                let sierra_contract = SierraContractClass::from(sierra);
                 let (contract_class, sierra_version) =
-                    sierra_to_versioned_contract_class_v1(sierra)?;
+                    sierra_to_versioned_contract_class_v1(sierra_contract)?;
 
                 Ok(ClassInfo::new(&contract_class, sierra_length, abi_length, sierra_version)?)
             }
@@ -92,6 +96,26 @@ pub trait ReexecutionStateReader {
     }
 
     fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash>;
+
+    /// Converts a `starknet_core::types::ContractClass` to `CompiledClasses`.
+    fn starknet_core_contract_class_to_compiled_classes(
+        &self,
+        contract_class: StarknetContractClass,
+    ) -> StateResult<CompiledClasses> {
+        match contract_class {
+            StarknetContractClass::Sierra(flat_sierra) => {
+                let sierra = SierraContractClass::from(flat_sierra);
+                let (class_v1, _) = sierra_to_versioned_contract_class_v1(sierra.clone())?;
+
+                Ok(contract_class_to_compiled_classes(class_v1, Some(sierra))?)
+            }
+            StarknetContractClass::Legacy(legacy) => {
+                let class_v0 = legacy_to_contract_class_v0(legacy)?;
+
+                Ok(contract_class_to_compiled_classes(class_v0, None)?)
+            }
+        }
+    }
 }
 
 /// Trait of the functions \ queries required for reexecution.
