@@ -113,6 +113,7 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
+            future_msg_limit: FutureMsgLimitsConfig::default(),
             storage_config: StorageConfig {
                 db_config: apollo_storage::db::DbConfig {
                     path_prefix: "/data/consensus".into(),
@@ -271,31 +272,6 @@ pub struct FutureMsgLimitsConfig {
     pub future_round_limit: u32,
     /// How many rounds should we cache for future heights.
     pub future_height_round_limit: u32,
-}
-
-impl SerializeConfig for FutureMsgLimitsConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "future_height_limit",
-                &self.future_height_limit,
-                "How many heights in the future should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_round_limit",
-                &self.future_round_limit,
-                "How many rounds in the future (for current height) should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_round_limit",
-                &self.future_height_round_limit,
-                "How many rounds should we cache for future heights.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for FutureMsgLimitsConfig {

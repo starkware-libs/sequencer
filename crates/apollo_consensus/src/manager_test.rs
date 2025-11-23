@@ -75,6 +75,7 @@ fn consensus_config() -> ConsensusConfig {
         },
         ConsensusStaticConfig {
             startup_delay: Duration::ZERO,
+            future_msg_limit: FutureMsgLimitsConfig::default(),
             storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
         },
     )

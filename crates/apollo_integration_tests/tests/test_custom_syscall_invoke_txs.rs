@@ -12,7 +12,7 @@ use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::Tip;
 
-use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
+use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -22,13 +22,11 @@ const CUSTOM_INVOKE_TX_COUNT: usize = 5;
 /// Test a wide range of different kinds of invoke transactions.
 #[tokio::test]
 async fn custom_syscall_invoke_txs() {
-    end_to_end_flow(
+    end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_syscall_invoke_txs_scenario(),
         GasAmount(110000000),
-        false,
-        false,
-    )
+    ))
     .await
 }
 

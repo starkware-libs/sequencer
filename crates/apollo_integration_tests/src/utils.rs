@@ -17,6 +17,7 @@ use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
     ConsensusStaticConfig,
+    FutureMsgLimitsConfig,
     TimeoutsConfig,
 };
 use apollo_consensus_config::ValidatorId;
@@ -356,6 +357,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     ..Default::default()
                 },
                 static_config: ConsensusStaticConfig {
+                    future_msg_limit: FutureMsgLimitsConfig::default(),
                     storage_config: StorageConfig { db_config: DbConfig{
                         path_prefix: "/data/consensus".into(),
                         enforce_file_exists: false,

@@ -200,11 +200,6 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
             full_blocks_metric > 0,
             "Expected full blocks, but found {full_blocks_metric} full blocks."
         );
-    } else {
-        assert_eq!(
-            full_blocks_metric, 0,
-            "Expected no full blocks, but found {full_blocks_metric} full blocks."
-        );
     }
     // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
     // It is possible that a block is filled, no need to assert that this is not the case.
