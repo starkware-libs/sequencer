@@ -26,14 +26,11 @@ use starknet_api::test_utils::{
     valid_resource_bounds_for_testing,
     NonceManager,
     TEST_ERC20_CONTRACT_ADDRESS2,
-    VALID_L2_GAS_MAX_AMOUNT,
-    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
-    Fee,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -50,10 +47,6 @@ use starknet_api::{
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
-
-#[allow(clippy::as_conversions)]
-pub const VALID_ACCOUNT_BALANCE: Fee =
-    Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
 
 pub const TIP_FOR_TESTING: Tip = Tip(1);
 

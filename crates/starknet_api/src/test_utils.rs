@@ -143,6 +143,10 @@ pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 
+#[allow(clippy::as_conversions)]
+pub const VALID_ACCOUNT_BALANCE: Fee =
+    Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
+
 // V3 transactions:
 pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
