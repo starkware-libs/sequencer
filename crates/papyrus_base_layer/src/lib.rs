@@ -59,7 +59,7 @@ pub trait BaseLayerContract {
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error>;
 
-    async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error>;
+    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error>;
 
     async fn l1_block_at(
         &self,

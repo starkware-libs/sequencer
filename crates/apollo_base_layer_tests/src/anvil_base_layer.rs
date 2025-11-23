@@ -199,8 +199,8 @@ impl BaseLayerContract for AnvilBaseLayer {
         self.ethereum_base_layer.get_proved_block_at(l1_block).await
     }
 
-    async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error> {
-        self.ethereum_base_layer.latest_l1_block_number(finality).await
+    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error> {
+        self.ethereum_base_layer.latest_l1_block_number().await
     }
 
     async fn l1_block_at(

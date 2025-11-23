@@ -13,10 +13,9 @@ async fn test_mocked_starknet_state_update() {
     let base_layer = AnvilBaseLayer::new(None).await;
 
     // Check that the contract was initialized (during the construction above).
-    let no_finality = 0;
     let genesis_block_number = 1;
     let genesis_block_hash = 0;
-    let latest_l1_block_number = base_layer.latest_l1_block_number(no_finality).await.unwrap();
+    let latest_l1_block_number = base_layer.latest_l1_block_number().await.unwrap();
     let initial_state = base_layer.get_proved_block_at(latest_l1_block_number).await.unwrap();
     assert_eq!(
         initial_state.number,
@@ -58,7 +57,7 @@ async fn test_mocked_starknet_state_update() {
         .unwrap();
 
     // New block has been added, need to update the latest L1 block number.
-    let latest_l1_block_number = base_layer.latest_l1_block_number(no_finality).await.unwrap();
+    let latest_l1_block_number = base_layer.latest_l1_block_number().await.unwrap();
     let updated_block_number_and_hash =
         base_layer.get_proved_block_at(latest_l1_block_number).await.unwrap();
     assert_eq!(
