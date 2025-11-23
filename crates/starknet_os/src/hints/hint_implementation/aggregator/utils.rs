@@ -232,7 +232,7 @@ impl FullStateDiffWriter {
 }
 
 /// Writes the given `FullOsOutput` to the VM at the specified address.
-fn write_full_os_output(
+pub(crate) fn write_full_os_output(
     output: &FullOsOutput,
     vm: &mut VirtualMachine,
     address: Relocatable,
