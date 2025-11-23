@@ -258,12 +258,9 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
 
-        let Some(latest_l1_block) = latest_l1_block else {
-            // TODO(guyn): get rid of finality_too_high, use a better error.
-            return Err(
-                L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
-            );
-        };
+        let latest_l1_block = latest_l1_block
+            .ok_or(L1ScraperError::MissingBlock { block_number: latest_l1_block_number })?;
+
         let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
             panic!("Should never fetch events without first getting the last processed L1 block.");
         };
@@ -432,6 +429,8 @@ pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync + Debug> 
          {latest_l1_block_no_finality:?}"
     )]
     FinalityTooHigh { finality: u64, latest_l1_block_no_finality: L1BlockNumber },
+    #[error("Block number {block_number} not found")]
+    MissingBlock { block_number: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
     HashCalculationError(StarknetApiError),
     // Leaky abstraction, these errors should not propagate here.
@@ -462,25 +461,6 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
             (Self::NeedsRestart, Self::NeedsRestart) => true,
             _ => false,
         }
-    }
-}
-
-// TODO(guyn): get rid of finality_too_high, just use the new error FinalityTooHigh.
-impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1ScraperError<BaseLayerType> {
-    /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
-    /// block number, return FinalityTooHigh.
-    pub async fn finality_too_high(
-        finality: u64,
-        base_layer: &BaseLayerType,
-    ) -> L1ScraperError<BaseLayerType> {
-        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number().await;
-
-        let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
-            Ok(block_number) => block_number,
-            Err(error) => return Self::BaseLayerError(error),
-        };
-
-        Self::FinalityTooHigh { finality, latest_l1_block_no_finality }
     }
 }
 
