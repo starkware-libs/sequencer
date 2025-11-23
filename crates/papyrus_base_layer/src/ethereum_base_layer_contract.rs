@@ -13,7 +13,11 @@ use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol;
 use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_vec,
+    serialize_slice,
+};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
@@ -73,7 +77,9 @@ pub struct EthereumBaseLayerContract {
 }
 
 impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig, url: Url) -> Self {
+    pub fn new(config: EthereumBaseLayerConfig) -> Self {
+        let url =
+            config.ordered_l1_endpoint_urls.first().expect("No endpoint URLs provided").clone();
         let contract = build_contract_instance(config.starknet_contract_address, url.clone());
         Self { url, contract, config }
     }
@@ -260,6 +266,8 @@ impl PartialEq for EthereumBaseLayerError {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
+    #[serde(deserialize_with = "deserialize_vec")]
+    pub ordered_l1_endpoint_urls: Vec<Url>,
     pub starknet_contract_address: EthereumContractAddress,
     // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
     // Note 2: make sure to calculate the block number as activation epoch x32.
@@ -298,6 +306,13 @@ impl Validate for EthereumBaseLayerConfig {
 impl SerializeConfig for EthereumBaseLayerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
+            ser_param(
+                "ordered_l1_endpoint_urls",
+                &serialize_slice(&self.ordered_l1_endpoint_urls),
+                "An ordered list of URLs for communicating with Ethereum. The list is used in \
+                 order, cyclically, switching if the current one is non-operational.",
+                ParamPrivacyInput::Private,
+            ),
             ser_param(
                 "starknet_contract_address",
                 &self.starknet_contract_address.to_string(),
@@ -339,6 +354,9 @@ impl Default for EthereumBaseLayerConfig {
             "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
 
         Self {
+            ordered_l1_endpoint_urls: vec![
+                "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY".parse().unwrap(),
+            ],
             starknet_contract_address,
             fusaka_no_bpo_start_block_number: 0,
             bpo1_start_block_number: 0,
