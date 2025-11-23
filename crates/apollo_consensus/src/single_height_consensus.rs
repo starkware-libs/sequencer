@@ -149,86 +149,124 @@ impl SingleHeightConsensus {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         trace!("Received StateMachineEvent: {:?}", event);
-        let ret = match event {
-            StateMachineEvent::TimeoutPropose(_round)
-            | StateMachineEvent::TimeoutPrevote(_round)
-            | StateMachineEvent::TimeoutPrecommit(_round) => {
-                let sm_requests = self.state_machine.handle_event(event, leader_fn);
-                self.handle_state_machine_requests(sm_requests)
-            }
-            StateMachineEvent::RebroadcastVote(vote) => match vote.vote_type {
-                VoteType::Prevote => {
-                    let Some(last_vote) = self.state_machine.last_self_prevote() else {
-                        return Err(ConsensusError::InternalInconsistency(
-                            "No prevote to send".to_string(),
-                        ));
-                    };
-                    if last_vote.round > vote.round {
-                        // Only replay the newest prevote.
-                        return Ok(ShcReturn::Requests(VecDeque::new()));
-                    }
-                    trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
-                    Ok(ShcReturn::Requests(VecDeque::from([
-                        SMRequest::BroadcastVote(vote.clone()),
-                        SMRequest::ScheduleTimeoutRebroadcast(vote),
-                    ])))
-                }
-                VoteType::Precommit => {
-                    let Some(last_vote) = self.state_machine.last_self_precommit() else {
-                        return Err(ConsensusError::InternalInconsistency(
-                            "No precommit to send".to_string(),
-                        ));
-                    };
-                    if last_vote.round > vote.round {
-                        // Only replay the newest precommit.
-                        return Ok(ShcReturn::Requests(VecDeque::new()));
-                    }
-                    trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
-                    Ok(ShcReturn::Requests(VecDeque::from([
-                        SMRequest::BroadcastVote(vote.clone()),
-                        SMRequest::ScheduleTimeoutRebroadcast(vote),
-                    ])))
-                }
-            },
+        match event {
+            StateMachineEvent::TimeoutPropose(_)
+            | StateMachineEvent::TimeoutPrevote(_)
+            | StateMachineEvent::TimeoutPrecommit(_) => self.handle_timeout_event(leader_fn, event),
+            StateMachineEvent::RebroadcastVote(vote) => self.handle_rebroadcast_vote(vote),
             StateMachineEvent::FinishedValidation(proposal_id, round, _valid_round) => {
-                if proposal_id.is_some() {
-                    CONSENSUS_PROPOSALS_VALIDATED.increment(1);
-                } else {
-                    CONSENSUS_PROPOSALS_INVALID.increment(1);
-                }
-
-                // Cleanup: validation for round {round} finished, so remove it from the pending
-                // set. This doesn't affect logic.
-                self.pending_validation_rounds.remove(&round);
-                let requests = self.state_machine.handle_event(event, leader_fn);
-                self.handle_state_machine_requests(requests)
+                self.handle_finished_validation(leader_fn, proposal_id, round)
             }
             StateMachineEvent::FinishedBuilding(proposal_id, round) => {
-                if proposal_id.is_none() {
-                    CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
-                } else {
-                    CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
-                }
-                // Ensure SM has no proposal recorded yet for this round when proposing.
-                assert!(
-                    !self.state_machine.has_proposal_for_round(round),
-                    "There should be no entry for round {round} when proposing"
-                );
-
-                assert_eq!(
-                    round,
-                    self.state_machine.round(),
-                    "State machine should not progress while awaiting proposal"
-                );
-                debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
-                let requests = self.state_machine.handle_event(event, &leader_fn);
-                self.handle_state_machine_requests(requests)
+                self.handle_finished_building(leader_fn, proposal_id, round)
             }
             StateMachineEvent::Prevote(_) | StateMachineEvent::Precommit(_) => {
                 unreachable!("Peer votes must be handled via handle_vote")
             }
-        };
-        ret
+        }
+    }
+
+    fn handle_timeout_event<LeaderFn>(
+        &mut self,
+        leader_fn: &LeaderFn,
+        event: StateMachineEvent,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        let sm_requests = self.state_machine.handle_event(event, leader_fn);
+        self.handle_state_machine_requests(sm_requests)
+    }
+
+    fn handle_rebroadcast_vote(&mut self, vote: Vote) -> Result<ShcReturn, ConsensusError> {
+        match vote.vote_type {
+            VoteType::Prevote => {
+                let Some(last_vote) = self.state_machine.last_self_prevote() else {
+                    return Err(ConsensusError::InternalInconsistency(
+                        "No prevote to send".to_string(),
+                    ));
+                };
+                if last_vote.round > vote.round {
+                    // Only replay the newest prevote.
+                    return Ok(ShcReturn::Requests(VecDeque::new()));
+                }
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
+                Ok(ShcReturn::Requests(VecDeque::from([
+                    SMRequest::BroadcastVote(vote.clone()),
+                    SMRequest::ScheduleTimeoutRebroadcast(vote),
+                ])))
+            }
+            VoteType::Precommit => {
+                let Some(last_vote) = self.state_machine.last_self_precommit() else {
+                    return Err(ConsensusError::InternalInconsistency(
+                        "No precommit to send".to_string(),
+                    ));
+                };
+                if last_vote.round > vote.round {
+                    // Only replay the newest precommit.
+                    return Ok(ShcReturn::Requests(VecDeque::new()));
+                }
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
+                Ok(ShcReturn::Requests(VecDeque::from([
+                    SMRequest::BroadcastVote(vote.clone()),
+                    SMRequest::ScheduleTimeoutRebroadcast(vote),
+                ])))
+            }
+        }
+    }
+
+    fn handle_finished_validation<LeaderFn>(
+        &mut self,
+        leader_fn: &LeaderFn,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        if proposal_id.is_some() {
+            CONSENSUS_PROPOSALS_VALIDATED.increment(1);
+        } else {
+            CONSENSUS_PROPOSALS_INVALID.increment(1);
+        }
+        // Cleanup: validation for round {round} finished, so remove it from the pending
+        // set. This doesn't affect logic.
+        self.pending_validation_rounds.remove(&round);
+        let requests = self.state_machine.handle_event(
+            StateMachineEvent::FinishedValidation(proposal_id, round, None),
+            leader_fn,
+        );
+        self.handle_state_machine_requests(requests)
+    }
+
+    fn handle_finished_building<LeaderFn>(
+        &mut self,
+        leader_fn: &LeaderFn,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        if proposal_id.is_none() {
+            CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
+        } else {
+            CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
+        }
+        // Ensure SM has no proposal recorded yet for this round when proposing.
+        assert!(
+            !self.state_machine.has_proposal_for_round(round),
+            "There should be no entry for round {round} when proposing"
+        );
+        assert_eq!(
+            round,
+            self.state_machine.round(),
+            "State machine should not progress while awaiting proposal"
+        );
+        let requests = self
+            .state_machine
+            .handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round), leader_fn);
+        self.handle_state_machine_requests(requests)
     }
 
     /// Handle vote messages from peer nodes.
