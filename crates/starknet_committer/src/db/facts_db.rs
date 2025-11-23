@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTree,
-    OriginalSkeletonTreeImpl,
-};
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
@@ -51,8 +48,8 @@ impl<S: Storage> FactsDb<S> {
             &mut self.storage,
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
-            &OriginalSkeletonContractsTrieConfig::new(),
             &HashMap::new(),
+            &OriginalSkeletonContractsTrieConfig::new(),
         )?)
     }
 
