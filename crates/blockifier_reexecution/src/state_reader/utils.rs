@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs::read_to_string;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
@@ -15,10 +15,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
+use crate::state_reader::compile::{
+    legacy_to_contract_class_v0,
+    sierra_to_versioned_contract_class_v1,
+};
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
