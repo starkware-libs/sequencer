@@ -80,6 +80,7 @@ pub trait BaseLayerContract {
 
     async fn get_url(&self) -> Result<Url, Self::Error>;
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.
