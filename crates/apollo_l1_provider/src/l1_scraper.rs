@@ -188,9 +188,14 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), BaseLayerType> {
         let scrape_timestamp = self.clock.unix_now();
 
+        let latest_l1_block_number = self
+            .base_layer
+            .latest_l1_block_number(self.config.finality)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?;
         let latest_l1_block = self
             .base_layer
-            .latest_l1_block(self.config.finality)
+            .l1_block_at(latest_l1_block_number)
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
 
