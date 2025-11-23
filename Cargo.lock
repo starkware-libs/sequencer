@@ -1695,6 +1695,7 @@ dependencies = [
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
+ "assert_matches",
  "async-trait",
  "futures",
  "lru 0.12.5",
