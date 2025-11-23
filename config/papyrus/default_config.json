@@ -1,9 +1,14 @@
 {
+  "base_layer.ordered_l1_endpoint_urls": {
+    "description": "An ordered list of URLs for communicating with Ethereum. The list is used in order, cyclically, switching if the current one is non-operational.",
+    "privacy": "Private",
+    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY"
+  },
   "base_layer.fusaka_no_bpo_start_block_number": {
     "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
     "privacy": "Public",
     "value": 0
-  },
+  },  
   "base_layer.bpo1_start_block_number": {
     "description": "The block number at which BPO1 update was deployed.",
     "privacy": "Public",
@@ -246,10 +251,8 @@
   },
   "context.build_proposal_time_ratio_for_retrospective_block_hash": {
     "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
-    "value": {
-      "$serde_json::private::Number": "0.7"
-    },
-    "privacy": "Public"
+    "privacy": "Public",
+    "value": 0.7
   },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
@@ -348,10 +351,8 @@
   },
   "context.retrospective_block_hash_retry_interval_millis": {
     "description": "The interval between retrospective block hash retries.",
-    "value": {
-      "$serde_json::private::Number": "500"
-    },
-    "privacy": "Public"
+    "privacy": "Public",
+    "value": 500
   },
   "context.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
