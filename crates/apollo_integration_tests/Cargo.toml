@@ -96,6 +96,10 @@ name = "integration_test_restart_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
 
 [[bin]]
+name = "integration_test_restart_service_multiple_nodes_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_multiple_nodes_flow.rs"
+
+[[bin]]
 name = "integration_test_revert_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_revert_flow.rs"
 
