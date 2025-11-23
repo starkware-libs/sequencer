@@ -77,6 +77,8 @@ pub struct ConsensusManager {
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    #[allow(dead_code)]
+    foo: i32,
 }
 
 impl ConsensusManager {
@@ -97,6 +99,7 @@ impl ConsensusManager {
             signature_manager_client,
             config_manager_client,
             l1_gas_price_provider,
+            foo: 0,
         }
     }
 
