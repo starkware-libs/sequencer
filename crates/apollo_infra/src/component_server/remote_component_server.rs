@@ -7,6 +7,7 @@ use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
+use hyper::server::conn::AddrIncoming;
 use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
@@ -37,6 +38,7 @@ where
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
     max_concurrency: usize,
+    max_streams_per_connection: Option<u32>,
     metrics: &'static RemoteServerMetrics,
 }
 
@@ -50,10 +52,17 @@ where
         ip: IpAddr,
         port: u16,
         max_concurrency: usize,
+        max_streams_per_connection: Option<u32>,
         metrics: &'static RemoteServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { local_client, socket: SocketAddr::new(ip, port), max_concurrency, metrics }
+        Self {
+            local_client,
+            socket: SocketAddr::new(ip, port),
+            max_concurrency,
+            max_streams_per_connection,
+            metrics,
+        }
     }
 
     async fn remote_component_server_handler(
@@ -199,7 +208,13 @@ where
             }
         });
 
-        Server::bind(&self.socket)
+        let mut incoming = AddrIncoming::bind(&self.socket).unwrap_or_else(|e| {
+            panic!("Failed to bind remote component server socket {:#?}: {e}", self.socket)
+        });
+        incoming.set_nodelay(true);
+
+        Server::builder(incoming)
+            .http2_max_concurrent_streams(self.max_streams_per_connection)
             .serve(make_svc)
             .await
             .unwrap_or_else(|e| panic!("Remote component server start error: {e}"));
