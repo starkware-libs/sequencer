@@ -11,6 +11,7 @@ use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateRe
 use futures::executor::block_on;
 use lazy_static::lazy_static;
 use starknet_api::block::{BlockInfo, BlockNumber, GasPriceVector, GasPrices};
+use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -24,6 +25,7 @@ pub(crate) struct SyncStateReader {
     block_number: BlockNumber,
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
+    class_cache: GlobalContractCache<RunnableCompiledClass>,
     runtime: tokio::runtime::Handle,
 }
 
@@ -31,10 +33,11 @@ impl SyncStateReader {
     pub fn from_number(
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
+        class_cache: GlobalContractCache<RunnableCompiledClass>,
         block_number: BlockNumber,
         runtime: tokio::runtime::Handle,
     ) -> Self {
-        Self { block_number, state_sync_client, class_manager_client, runtime }
+        Self { block_number, state_sync_client, class_manager_client, class_cache, runtime }
     }
 }
 
@@ -106,6 +109,16 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        // Check cache first.
+        // Note: GlobalContractCache uses std::sync::Mutex which blocks the thread.
+        // This is safe here because get_compiled_class() is always called from
+        // spawn_blocking contexts (see ProcessTxBlockingTask in gateway.rs), not
+        // directly from async code. Cache operations are very fast (hash map lookups),
+        // so the blocking time is minimal (microseconds).
+        if let Some(cached_class) = self.class_cache.get(&class_hash) {
+            return Ok(cached_class);
+        }
+
         let mut is_class_declared = self
             .runtime
             .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
@@ -129,14 +142,18 @@ impl BlockifierStateReader for SyncStateReader {
                  was declared",
             );
 
-        match contract_class {
+        let runnable_class = match contract_class {
             ContractClass::V1(casm_contract_class) => {
-                Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
+                RunnableCompiledClass::V1(casm_contract_class.try_into()?)
             }
             ContractClass::V0(deprecated_contract_class) => {
-                Ok(RunnableCompiledClass::V0(deprecated_contract_class.try_into()?))
+                RunnableCompiledClass::V0(deprecated_contract_class.try_into()?)
             }
-        }
+        };
+
+        // Cache the compiled class before returning
+        self.class_cache.set(class_hash, runnable_class.clone());
+        Ok(runnable_class)
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
@@ -158,9 +175,16 @@ impl BlockifierStateReader for SyncStateReader {
     }
 }
 
+/// Factory for creating SyncStateReader instances with a shared class cache.
+///
+/// The class cache is shared across all state readers created by this factory,
+/// maximizing cache hit rates across transaction validations. The cache uses
+/// std::sync::Mutex internally, which is safe because state reader operations
+/// are always executed in spawn_blocking contexts (see ProcessTxBlockingTask).
 pub struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
+    pub class_cache: GlobalContractCache<RunnableCompiledClass>,
     pub runtime: tokio::runtime::Handle,
 }
 
@@ -176,6 +200,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
         Ok(Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
+            self.class_cache.clone(),
             latest_block_number,
             self.runtime.clone(),
         )))
@@ -185,6 +210,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
         Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
+            self.class_cache.clone(),
             block_number,
             self.runtime.clone(),
         ))
