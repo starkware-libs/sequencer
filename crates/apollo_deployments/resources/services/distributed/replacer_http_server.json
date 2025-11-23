@@ -39,6 +39,7 @@
   "components.gateway.remote_client_config.initial_retry_delay_ms": 1,
   "components.gateway.remote_client_config.max_retry_interval_ms": 1000,
   "components.gateway.remote_client_config.retries": 150,
+  "components.gateway.remote_client_config.set_tcp_nodelay": true,
   "components.gateway.remote_server_config.#is_none": true,
   "components.gateway.url": "$$$_COMPONENTS-GATEWAY-URL_$$$",
   "components.http_server.execution_mode": "Enabled",

@@ -93,6 +93,7 @@
   "components.signature_manager.remote_server_config.#is_none": false,
   "components.signature_manager.remote_server_config.bind_ip": "0.0.0.0",
   "components.signature_manager.remote_server_config.max_streams_per_connection": 8,
+  "components.signature_manager.remote_server_config.set_tcp_nodelay": true,
   "components.signature_manager.url": "sequencer-signaturemanager-service",
   "components.state_sync.execution_mode": "Disabled",
   "components.state_sync.local_server_config.#is_none": true,

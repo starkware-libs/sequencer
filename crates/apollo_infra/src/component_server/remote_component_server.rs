@@ -40,6 +40,7 @@ const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 pub struct RemoteServerConfig {
     pub max_streams_per_connection: u32,
     pub bind_ip: IpAddr,
+    pub set_tcp_nodelay: bool,
 }
 
 impl SerializeConfig for RemoteServerConfig {
@@ -57,6 +58,12 @@ impl SerializeConfig for RemoteServerConfig {
                 "Maximal number of streams per HTTP connection.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "set_tcp_nodelay",
+                &self.set_tcp_nodelay,
+                "Whether to set TCP_NODELAY on the server responses.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -66,6 +73,7 @@ impl Default for RemoteServerConfig {
         Self {
             max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
             bind_ip: DEFAULT_BIND_IP,
+            set_tcp_nodelay: true,
         }
     }
 }
@@ -220,10 +228,10 @@ where
                                 // Return a 503 Service Unavailable response to indicate that the server is
                                 // busy, which should indicate the load balancer to divert the request to
                                 // another server.
-                                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                                    .body(Body::from(body))
-                                    .expect("Should be able to construct server http response.");
+                                .status(StatusCode::SERVICE_UNAVAILABLE)
+                                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                .body(Body::from(body))
+                                .expect("Should be able to construct server http response.");
                             // Explicitly mention the type, helping the Rust compiler avoid
                             // Error type ambiguity.
                             let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
@@ -247,7 +255,7 @@ where
         let mut incoming = AddrIncoming::bind(&bind_socket).unwrap_or_else(|e| {
             panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
-        incoming.set_nodelay(true);
+        incoming.set_nodelay(self.config.set_tcp_nodelay);
 
         Server::builder(incoming)
             .http2_max_concurrent_streams(self.config.max_streams_per_connection)
