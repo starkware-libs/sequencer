@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
+use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -14,6 +14,7 @@ use validator::ValidationError;
 use crate::definitions::ConfigPointersMap;
 use crate::node_config::{
     SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
     POINTER_TARGET_VALUE,
@@ -158,16 +159,11 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
     config_pointers_map: ConfigPointersMap,
-    non_pointer_params: Pointers,
 }
 
 impl DeploymentBaseAppConfig {
-    pub fn new(
-        config: SequencerNodeConfig,
-        config_pointers_map: ConfigPointersMap,
-        non_pointer_params: Pointers,
-    ) -> Self {
-        Self { config, config_pointers_map, non_pointer_params }
+    pub fn new(config: SequencerNodeConfig, config_pointers_map: ConfigPointersMap) -> Self {
+        Self { config, config_pointers_map }
     }
 
     pub fn get_config(&self) -> &SequencerNodeConfig {
@@ -198,7 +194,7 @@ impl DeploymentBaseAppConfig {
             self.config.dump(),
             // TODO(Tsabary): avoid the cloning here
             &self.config_pointers_map.clone().into(),
-            &self.non_pointer_params,
+            &CONFIG_NON_POINTERS_WHITELIST,
         )
         .unwrap();
 

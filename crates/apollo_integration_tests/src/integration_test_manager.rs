@@ -20,7 +20,7 @@ use apollo_network::network_manager::test_utils::create_connected_network_config
 use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
-use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_storage::StorageConfig;
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
@@ -951,11 +951,7 @@ async fn get_sequencer_setup_configs(
                 ALLOW_BOOTSTRAP_TXS,
             );
 
-            let base_app_config = DeploymentBaseAppConfig::new(
-                config,
-                config_pointers_map,
-                CONFIG_NON_POINTERS_WHITELIST.clone(),
-            );
+            let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
 
             let node_execution_id = NodeExecutionId::new(node_index);
             let exec_config_path =
