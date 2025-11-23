@@ -133,7 +133,6 @@ impl FlowTestSetup {
             sender_address,
             receiver_address,
             base_layer_config.clone(),
-            &base_layer_url,
             NUM_L1_TRANSACTIONS,
         )
         .await;

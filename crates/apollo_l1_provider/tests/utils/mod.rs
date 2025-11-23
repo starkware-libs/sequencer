@@ -66,12 +66,8 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
     let mut base_layer = AnvilBaseLayer::new(None).await;
-    anvil_mine_blocks(
-        base_layer.ethereum_base_layer.config.clone(),
-        NUMBER_OF_BLOCKS_TO_MINE,
-        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
-    )
-    .await;
+    anvil_mine_blocks(base_layer.ethereum_base_layer.config.clone(), NUMBER_OF_BLOCKS_TO_MINE)
+        .await;
     // We use a really long timeout because in the tests we sometimes advance the fake time by large
     // jumps (e.g., when the runtime yields, tokio moves the fake time to the next pending timer).
     base_layer.ethereum_base_layer.config.timeout_millis = Duration::from_secs(10000);
