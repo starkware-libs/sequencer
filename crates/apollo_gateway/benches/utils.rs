@@ -5,12 +5,11 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{valid_resource_bounds_for_testing, NonceManager};
 
 const N_TXS: usize = 100;
 
@@ -34,7 +33,7 @@ impl TransactionGenerator {
         let invoke_args = invoke_tx_args!(
             nonce: self.nonce_manager.next(self.sender_address),
             sender_address: self.sender_address,
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             calldata: create_trivial_calldata(self.test_contract_address),
         );
         rpc_invoke_tx(invoke_args)

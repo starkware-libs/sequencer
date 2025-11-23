@@ -25,7 +25,7 @@ use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds};
+use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -212,6 +212,10 @@ pub fn resource_bounds_for_testing() -> AllResourceBounds {
             max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
         },
     }
+}
+
+pub fn valid_resource_bounds_for_testing() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(resource_bounds_for_testing())
 }
 
 /// A trait for producing test transactions.

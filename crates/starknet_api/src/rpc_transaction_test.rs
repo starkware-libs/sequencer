@@ -13,21 +13,20 @@ use crate::state::SierraContractClass;
 use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
 use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxArgs};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use crate::test_utils::resource_bounds_for_testing;
+use crate::test_utils::valid_resource_bounds_for_testing;
 use crate::transaction::fields::{
     AccountDeploymentData,
     ContractAddressSalt,
     PaymasterData,
     Tip,
     TransactionSignature,
-    ValidResourceBounds,
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
 fn create_declare_tx() -> RpcTransaction {
     rpc_declare_tx(
         DeclareTxArgs {
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
+            resource_bounds: valid_resource_bounds_for_testing(),
             tip: Tip(1),
             signature: TransactionSignature(vec![felt!("0x1"), felt!("0x2")].into()),
             sender_address: contract_address!("0x3"),
@@ -45,7 +44,7 @@ fn create_declare_tx() -> RpcTransaction {
 
 fn create_deploy_account_tx() -> RpcTransaction {
     rpc_deploy_account_tx(DeployAccountTxArgs {
-        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
+        resource_bounds: valid_resource_bounds_for_testing(),
         contract_address_salt: ContractAddressSalt(felt!("0x1")),
         class_hash: class_hash!("0x2"),
         constructor_calldata: calldata![felt!("0x1")],
@@ -60,7 +59,7 @@ fn create_deploy_account_tx() -> RpcTransaction {
 
 fn create_invoke_tx() -> RpcTransaction {
     rpc_invoke_tx(InvokeTxArgs {
-        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
+        resource_bounds: valid_resource_bounds_for_testing(),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
         sender_address: contract_address!("0x1"),
         nonce: nonce!(1),
