@@ -15,7 +15,9 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
 use serde_json::{json, to_value};
@@ -150,6 +152,19 @@ impl StateReader for TestStateReader {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for TestStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        self.starknet_core_contract_class_to_compiled_classes(&contract_class)
+    }
+
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        Ok(true)
     }
 }
 

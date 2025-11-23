@@ -9,7 +9,9 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
@@ -189,6 +191,17 @@ impl ReexecutionStateReader for OfflineStateReader {
 
     fn get_old_block_hash(&self, _old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
         Ok(self.old_block_hash)
+    }
+}
+
+impl FetchCompiledClasses for OfflineStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class = self.get_contract_class(&class_hash)?;
+        self.starknet_core_contract_class_to_compiled_classes(&contract_class)
+    }
+
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        Ok(true)
     }
 }
 
