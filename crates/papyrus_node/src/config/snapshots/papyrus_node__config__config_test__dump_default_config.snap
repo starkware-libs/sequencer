@@ -250,6 +250,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.build_proposal_time_ratio_for_retrospective_block_hash": {
+    "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
+    "value": {
+      "$serde_json::private::Number": "0.7"
+    },
+    "privacy": "Public"
+  },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
     "value": "0x0",
@@ -366,6 +373,13 @@ expression: dumped_default_config
     "description": "The buffer size for streaming outbound proposals.",
     "value": {
       "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
+  "context.retrospective_block_hash_retry_interval_millis": {
+    "description": "The interval between retrospective block hash retries.",
+    "value": {
+      "$serde_json::private::Number": "500"
     },
     "privacy": "Public"
   },
