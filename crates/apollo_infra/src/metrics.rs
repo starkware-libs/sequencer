@@ -71,6 +71,7 @@ impl RemoteClientMetrics {
             .record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 
+    // TODO(Tsabary): consider deleting
     pub fn get_attempts_metric(&self) -> &'static MetricHistogram {
         self.attempts
     }
@@ -191,6 +192,7 @@ impl LocalServerMetrics {
         self.received_msgs
     }
 
+    // TODO(Tsabary): consider deleting
     pub fn get_processed_metric(&self) -> &'static MetricCounter {
         self.processed_msgs
     }
@@ -285,10 +287,12 @@ impl RemoteServerMetrics {
         self.total_received_msgs
     }
 
+    // TODO(Tsabary): consider deleting
     pub fn get_valid_received_metric(&self) -> &'static MetricCounter {
         self.valid_received_msgs
     }
 
+    // TODO(Tsabary): consider deleting
     pub fn get_processed_metric(&self) -> &'static MetricCounter {
         self.processed_msgs
     }

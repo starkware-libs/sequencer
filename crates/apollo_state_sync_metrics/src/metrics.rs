@@ -5,7 +5,14 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
+<<<<<<< HEAD
 use apollo_metrics::{define_infra_metrics, define_metrics, MetricCommon};
+||||||| 912efc99a
+use apollo_metrics::{define_infra_metrics, define_metrics};
+=======
+use apollo_metrics::metrics::MetricDetails;
+use apollo_metrics::{define_infra_metrics, define_metrics};
+>>>>>>> origin/main-v0.14.1
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;

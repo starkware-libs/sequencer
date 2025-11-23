@@ -175,6 +175,7 @@ impl TransfersGenerator {
     /// Returns the transactions and the executor wrapper.
     pub fn prepare_to_run_block_of_transfers(
         &mut self,
+        worker_pool: Option<Arc<WorkerPool<CachedState<DictStateReader>>>>,
         timeout: Option<Duration>,
     ) -> (Vec<Transaction>, ExecutorWrapper) {
         // Reset nonce manager since we create a fresh state.
@@ -203,6 +204,7 @@ impl TransfersGenerator {
             stack_size: self.config.stack_size,
         };
 
+<<<<<<< HEAD
         let executor_wrapper = if executor_config.concurrency_config.enabled {
             let worker_pool =
                 Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
@@ -274,9 +276,86 @@ impl TransfersGenerator {
         // Validate native execution.
         let expected_cairo_native = cairo_version.is_cairo_native();
         for execution_info in &execution_infos {
+||||||| 912efc99a
+            let expected_cairo_native = self.config.cairo_version.is_cairo_native();
+=======
+        let executor_wrapper = if executor_config.concurrency_config.enabled {
+            let worker_pool = worker_pool.unwrap_or_else(|| {
+                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()))
+            });
+
+            let executor = ConcurrentTransactionExecutor::new_for_testing(
+                state,
+                self.block_context.clone(),
+                worker_pool.clone(),
+                execution_deadline,
+            );
+            ExecutorWrapper::Concurrent(executor, worker_pool)
+        } else {
+            let executor =
+                TransactionExecutor::new(state, self.block_context.clone(), executor_config);
+            ExecutorWrapper::Sequential(executor)
+        };
+
+        (txs, executor_wrapper)
+    }
+
+    /// Runs the prepared transactions on the executor.
+    /// Asserts that none of the transactions reverted.
+    /// Returns the execution results.
+    pub fn run_block_of_transfers(
+        txs: &[Transaction],
+        executor_wrapper: &mut ExecutorWrapper,
+        execution_deadline: Option<Instant>,
+    ) -> Vec<TransactionExecutionInfo> {
+        let results = match executor_wrapper {
+            ExecutorWrapper::Concurrent(ref mut executor, _) => executor.add_txs_and_wait(txs),
+            ExecutorWrapper::Sequential(ref mut executor) => {
+                executor.execute_txs(txs, execution_deadline)
+            }
+        };
+
+        // Extract execution infos and validate that no transactions reverted.
+        results
+            .into_iter()
+            .map(|result| {
+                let (execution_info, _state_maps) = result.unwrap();
+                assert!(!execution_info.is_reverted());
+                execution_info
+            })
+            .collect()
+    }
+
+    /// Finalizes the executor and validates native execution of the transactions.
+    /// Returns the block execution summary and execution infos.
+    pub fn summarize_run_block_of_transfers(
+        executor_wrapper: ExecutorWrapper,
+        execution_infos: Vec<TransactionExecutionInfo>,
+        cairo_version: CairoVersion,
+    ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+        // Finalize executor and get block summary.
+        let block_summary = match executor_wrapper {
+            ExecutorWrapper::Concurrent(mut executor, worker_pool) => {
+                let block_summary = executor.close_block(execution_infos.len()).unwrap();
+
+                drop(executor);
+                Arc::try_unwrap(worker_pool)
+                    .expect("More than one instance of worker pool exists")
+                    .join();
+
+                block_summary
+            }
+            ExecutorWrapper::Sequential(mut executor) => executor.finalize().unwrap(),
+        };
+
+        // Validate native execution.
+        let expected_cairo_native = cairo_version.is_cairo_native();
+        for execution_info in &execution_infos {
+>>>>>>> origin/main-v0.14.1
             execution_info.check_call_infos_native_execution(expected_cairo_native);
         }
 
+<<<<<<< HEAD
         (block_summary, execution_infos)
     }
 
@@ -300,6 +379,33 @@ impl TransfersGenerator {
             execution_infos,
             self.config.cairo_version,
         )
+||||||| 912efc99a
+        (block_summary, collected_execution_infos)
+=======
+        (block_summary, execution_infos)
+    }
+
+    /// Generates and executes transfer transactions.
+    /// Returns the block summary and the execution infos.
+    pub fn execute_block_of_transfers(
+        &mut self,
+        timeout: Option<Duration>,
+    ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+        // Prepare: generates transactions and creates executor.
+        let (txs, mut executor_wrapper) = self.prepare_to_run_block_of_transfers(None, timeout);
+
+        // Run: executes the transactions and asserts that none of them reverted.
+        let execution_deadline = timeout.map(|timeout_duration| Instant::now() + timeout_duration);
+        let execution_infos =
+            Self::run_block_of_transfers(&txs, &mut executor_wrapper, execution_deadline);
+
+        // Summarize: finalizes executor, and validates native execution (if applicable).
+        Self::summarize_run_block_of_transfers(
+            executor_wrapper,
+            execution_infos,
+            self.config.cairo_version,
+        )
+>>>>>>> origin/main-v0.14.1
 
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.

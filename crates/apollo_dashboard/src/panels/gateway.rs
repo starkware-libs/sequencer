@@ -11,7 +11,12 @@ use apollo_gateway::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
+<<<<<<< HEAD
 use apollo_metrics::MetricCommon;
+||||||| 912efc99a
+=======
+use apollo_metrics::metrics::MetricQueryName;
+>>>>>>> origin/main-v0.14.1
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder::{sum_by_label, DisplayMethod, RANGE_DURATION};

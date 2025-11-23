@@ -196,10 +196,5 @@ fn modify_height_configs_idle_nodes(
             node_start_height;
         config.consensus_manager_config.as_mut().unwrap().cende_config.skip_write_height =
             Some(node_start_height);
-        // TODO(Gilad): remove once we add support to updating the StarknetContract on Anvil.
-        // This will require mocking the required permissions in the contract that typically
-        // forbid one from updating the state through an API call.
-        config.l1_provider_config.as_mut().unwrap().provider_startup_height_override =
-            Some(BlockNumber(1));
     });
 }

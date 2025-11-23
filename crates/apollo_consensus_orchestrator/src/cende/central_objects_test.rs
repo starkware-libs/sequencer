@@ -14,6 +14,7 @@ use apollo_batcher::cende_client_types::{
 };
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_infra_utils::test_utils::assert_json_eq;
+use apollo_sizeof::SizeOf;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::StorageEntry;
@@ -66,7 +67,6 @@ use num_bigint::BigUint;
 use rstest::rstest;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
-use sizeof::SizeOf;
 use starknet_api::block::{
     BlockHash,
     BlockInfo,

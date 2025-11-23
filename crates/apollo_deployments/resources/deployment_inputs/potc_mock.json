@@ -39,7 +39,20 @@
   "state_sync_type": "Central",
   "p2p_communication_type": "Internal",
   "deployment_environment": "PotcMock",
+<<<<<<< HEAD
   "audited_libfuncs_only": true,
   "requires_k8s_service_config_params": false,
   "http_server_port": 8080
+||||||| 912efc99a
+  "audited_libfuncs_only": true,
+  "requires_k8s_service_config_params": false
+=======
+  "audited_libfuncs_only": false,
+  "requires_k8s_service_config_params": false,
+  "http_server_port": 8080,
+  "monitoring_endpoint_config_port": 8082,
+  "state_sync_config_rpc_config_port": 8090,
+  "mempool_p2p_config_network_config_port": 53200,
+  "consensus_manager_config_network_config_port": 53080
+>>>>>>> origin/main-v0.14.1
 }

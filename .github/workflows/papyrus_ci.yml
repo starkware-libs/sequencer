@@ -10,7 +10,6 @@ on:
     paths:
       - ".github/workflows/papyrus_ci.yml"
       - "deployments/images/base/Dockerfile"
-      - "papyrus_utilities.Dockerfile"
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/papyrus**/**"
@@ -64,22 +63,6 @@ jobs:
           target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
-  # FIXME: Job is currently running out of disk space, error is hidden inside the `Annoatations`
-  # tab on github. FIX THE ISSUE AND RE-ENABLE THE JOB.
-  # p2p-sync-e2e-test:
-  #   runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: ./.github/actions/bootstrap
-  #       with:
-  #         github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  #     - name: Build node
-  #       run: cargo build -p papyrus_node
-
-  #     - name: Run p2p sync end-to-end test
-  #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
-
   integration-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
@@ -107,20 +90,6 @@ jobs:
         env:
           SEED: 0
 
-  # TODO(DanB): Re-enable this job when necessary.
-  # Note that currently the `papyrus_load_test` build fails.
-  # build-papyrus-utilities-image:
-  #   runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-  #     - name: Build Papyrus utilites docker image
-  #       uses: docker/build-push-action@v3.2.0
-  #       with:
-  #         push: false
-  #         context: .
-  #         file: papyrus_utilities.Dockerfile
 
   random-table-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64

@@ -942,6 +942,7 @@ fn log_txs_execution_result(
     result: &Result<BlockExecutionArtifacts, Arc<BlockBuilderError>>,
 ) {
     if let Ok(block_artifacts) = result {
+<<<<<<< HEAD
         let execution_infos = block_artifacts
             .execution_data
             .execution_infos_and_signatures
@@ -960,6 +961,24 @@ fn log_txs_execution_result(
         let mut log_msg = String::with_capacity(estimated_capacity);
         let _ = write!(
             &mut log_msg,
+||||||| 912efc99a
+        let mut log_msg = format!(
+=======
+        let execution_infos = &block_artifacts.execution_data.execution_infos;
+        let rejected_hashes = &block_artifacts.execution_data.rejected_tx_hashes;
+
+        // Estimate capacity: base message + (hash + status) per transaction
+        // TransactionHash is 66 chars (0x + 64 hex), status is ~12 chars, separator is 4 chars
+        // Total per transaction: ~82 chars
+        const CHARS_PER_TX: usize = 82;
+        const BASE_CAPACITY: usize = 80; // Base message length
+        let total_txs = execution_infos.len() + rejected_hashes.len();
+        let estimated_capacity = BASE_CAPACITY + total_txs * CHARS_PER_TX;
+
+        let mut log_msg = String::with_capacity(estimated_capacity);
+        let _ = write!(
+            &mut log_msg,
+>>>>>>> origin/main-v0.14.1
             "Finished generating proposal {} with {} transactions",
             proposal_id,
             execution_infos.len(),

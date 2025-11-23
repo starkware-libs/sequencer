@@ -4,4 +4,10 @@
 
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
+<<<<<<< HEAD
 pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.7.1";
+||||||| 912efc99a
+pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.6.2";
+=======
+pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.7.2";
+>>>>>>> origin/main-v0.14.1

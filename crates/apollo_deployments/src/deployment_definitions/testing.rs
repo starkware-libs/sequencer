@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use starknet_api::block::BlockNumber;
+||||||| 912efc99a
+use starknet_api::block::BlockNumber;
+=======
+use apollo_http_server_config::config::HTTP_SERVER_PORT;
+use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
+use apollo_rpc::RPC_CONFIG_DEFAULT_PORT;
+>>>>>>> origin/main-v0.14.1
 use url::Url;
 
 use crate::config_override::{
@@ -10,7 +18,12 @@ use crate::config_override::{
     PeerToPeerBootstrapConfig,
 };
 use crate::deployment::Deployment;
-use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::deployment_definitions::{
+    Environment,
+    StateSyncType,
+    CONSENSUS_P2P_PORT,
+    MEMPOOL_P2P_PORT,
+};
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
 
@@ -32,13 +45,21 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x1001",
         Url::parse("https://integration-sepolia.starknet.io/").expect("Invalid URL"),
         "0x1002",
-        Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
         StateSyncType::P2P,
         PeerToPeerBootstrapConfig::new(None),
         PeerToPeerBootstrapConfig::new(None),
         false,
+<<<<<<< HEAD
         HTTP_SERVER_PORT,
+||||||| 912efc99a
+=======
+        HTTP_SERVER_PORT,
+        MONITORING_ENDPOINT_DEFAULT_PORT,
+        RPC_CONFIG_DEFAULT_PORT,
+        MEMPOOL_P2P_PORT,
+        CONSENSUS_P2P_PORT,
+>>>>>>> origin/main-v0.14.1
     )
 }
 

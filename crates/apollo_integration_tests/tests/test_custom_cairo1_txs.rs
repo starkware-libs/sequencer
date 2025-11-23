@@ -5,7 +5,6 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    test_resource_bounds_mapping,
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
@@ -14,12 +13,13 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, CompiledClassHash};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
+use starknet_api::test_utils::resource_bounds_for_testing;
 use starknet_api::transaction::fields::{ContractAddressSalt, Tip};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
+use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -29,13 +29,11 @@ const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn custom_cairo1_txs() {
-    end_to_end_flow(
+    end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_cairo1_txs_scenario(),
         BouncerWeights::default().proving_gas,
-        false,
-        false,
-    )
+    ))
     .await
 }
 
@@ -230,7 +228,7 @@ fn generate_test_get_execution_info_without_block_info_invoke_tx(
     let fn_name = "test_get_execution_info_without_block_info";
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-    let resources_bounds_values = test_resource_bounds_mapping();
+    let resources_bounds_values = resource_bounds_for_testing();
     let calldata = vec![
         TransactionVersion::THREE.0,                    // version
         *account_tx_generator.sender_address().0.key(), // account address

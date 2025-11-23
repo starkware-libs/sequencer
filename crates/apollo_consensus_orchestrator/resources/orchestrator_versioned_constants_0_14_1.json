@@ -1,7 +1,17 @@
 {
     "gas_price_max_change_denominator": 48,
+<<<<<<< HEAD
     "gas_target": 4800000000,
     "max_block_size": 6000000000,
     "min_gas_price": "0x186a0",
+||||||| 912efc99a
+    "gas_target": 4000000000,
+    "max_block_size": 5000000000,
+    "min_gas_price": "0x186a0",
+=======
+    "gas_target": 4800000000,
+    "max_block_size": 6000000000,
+    "min_gas_price": "0xb2d05e00",
+>>>>>>> origin/main-v0.14.1
     "l1_gas_price_margin_percent": 10
 }

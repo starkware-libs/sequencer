@@ -4,7 +4,13 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
+<<<<<<< HEAD
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
+||||||| 912efc99a
+use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_FIELD_ELEMENT};
+=======
+use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
+>>>>>>> origin/main-v0.14.1
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
@@ -87,6 +93,10 @@ pub fn deserialize_blob(blob_bytes: &[u8; BYTES_PER_BLOB]) -> [Fr; FIELD_ELEMENT
         .collect::<Vec<Fr>>()
         .try_into()
         .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB")
+}
+
+pub(crate) fn deserialize_blob(raw_blob: &[u8]) -> Vec<Fr> {
+    raw_blob.chunks(BYTES_PER_FIELD_ELEMENT).map(BigUint::from_bytes_be).map(Fr::from).collect()
 }
 
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
@@ -177,12 +187,28 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     Ok([d0, d1, Felt::from(d2)])
 }
 
+<<<<<<< HEAD
 pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
 
 /// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
 #[serde_as]
+||||||| 912efc99a
+/// Structure to hold blob data, commitments, proofs, and versioned hashes.
+pub struct Blobs {
+    pub blobs: Vec<Vec<u8>>,
+    pub commitments: Vec<KzgCommitment>,
+    pub proofs: Vec<KzgProof>,
+    pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Serializable structure to hold blob data, commitments, proofs, and versioned hashes.
+/// All cryptographic objects are converted to byte arrays for easy serialization.
+=======
+/// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
+#[serde_as]
+>>>>>>> origin/main-v0.14.1
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LegacyBlobArtifacts {
     #[serde_as(as = "Vec<Bytes>")]
@@ -238,6 +264,7 @@ pub fn compute_legacy_blob_commitments(
         versioned_hashes.push(versioned_hash);
     }
 
+<<<<<<< HEAD
     Ok(LegacyBlobArtifacts { commitments, proofs, versioned_hashes })
 }
 
@@ -301,4 +328,75 @@ pub fn decode_blobs(raw_blobs: Vec<[u8; BYTES_PER_BLOB]>) -> Result<Vec<Felt>, F
         }
     }
     Ok(result)
+||||||| 912efc99a
+    Ok(Blobs { blobs, commitments, proofs, versioned_hashes })
+=======
+    Ok(LegacyBlobArtifacts { commitments, proofs, versioned_hashes })
+}
+
+/// Structure to hold blob artifacts: commitments, cell proofs (CELLS_PER_EXT_BLOB per blob), and
+/// versioned hashes.
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BlobArtifacts {
+    #[serde_as(as = "Vec<Bytes>")]
+    pub commitments: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub cell_proofs: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Computes KZG commitments, cell proofs, and versioned hashes for a list of raw blobs.
+///
+/// For each blob, computes the KZG commitment and the corresponding KZG cell proofs that is used
+/// to verify the commitment. Returns the internal `CellBlobs` structure with native KZG types.
+pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts, FftError> {
+    let mut commitments = Vec::new();
+    let mut cell_proofs = Vec::new();
+    let mut versioned_hashes = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        // Convert raw blob bytes to Blob.
+        let blob = Blob::from_bytes(raw_blob)?;
+
+        // Compute KZG commitment.
+        let commitment = blob_to_kzg_commitment(&blob)?;
+
+        // Compute KZG cell proofs.
+        let (_, blob_cell_proofs) = KZG_SETTINGS.compute_cells_and_kzg_proofs(&blob)?;
+
+        // Compute versioned hash.
+        let versioned_hash = kzg_to_versioned_hash(&commitment);
+
+        commitments.push(*commitment);
+        cell_proofs.extend(blob_cell_proofs.into_iter().map(|proof| *proof));
+        versioned_hashes.push(versioned_hash);
+    }
+
+    Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
+}
+
+pub fn decode_blobs(raw_blobs: Vec<Vec<u8>>) -> Result<Vec<Felt>, FftError> {
+    let mut result = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        let mut coeffs = deserialize_blob(raw_blob);
+
+        if coeffs.len() != FIELD_ELEMENTS_PER_BLOB {
+            return Err(FftError::InvalidBlobSize(coeffs.len()));
+        }
+
+        bit_reversal(&mut coeffs)?;
+        let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
+            .ok_or(FftError::EvalDomainCreation)?;
+        domain.ifft_in_place(&mut coeffs);
+
+        for fr_elem in coeffs {
+            let bytes = fr_elem.into_bigint().to_bytes_be();
+            result.push(Felt::from_bytes_be_slice(&bytes));
+        }
+    }
+    Ok(result)
+>>>>>>> origin/main-v0.14.1
 }

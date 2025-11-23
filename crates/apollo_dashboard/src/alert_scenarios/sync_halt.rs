@@ -1,6 +1,11 @@
 use std::time::Duration;
 
+<<<<<<< HEAD
 use apollo_metrics::MetricCommon;
+||||||| 912efc99a
+=======
+use apollo_metrics::metrics::MetricQueryName;
+>>>>>>> origin/main-v0.14.1
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,

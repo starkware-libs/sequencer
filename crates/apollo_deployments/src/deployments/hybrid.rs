@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -8,7 +8,6 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use indexmap::IndexMap;
 use libp2p::Multiaddr;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
@@ -77,8 +76,8 @@ impl From<HybridNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
+    fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
+        let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
 
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
@@ -878,13 +877,21 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     inputs.eth_fee_token_address,
                     inputs.starknet_gateway_url.clone(),
                     inputs.strk_fee_token_address,
-                    inputs.l1_startup_height_override,
                     inputs.num_validators,
                     inputs.state_sync_type.clone(),
                     consensus_p2p_bootstrap_config.clone(),
                     mempool_p2p_bootstrap_config.clone(),
                     inputs.audited_libfuncs_only,
+<<<<<<< HEAD
                     inputs.http_server_port,
+||||||| 912efc99a
+=======
+                    inputs.http_server_port,
+                    inputs.monitoring_endpoint_config_port,
+                    inputs.state_sync_config_rpc_config_port,
+                    inputs.mempool_p2p_config_network_config_port,
+                    inputs.consensus_manager_config_network_config_port,
+>>>>>>> origin/main-v0.14.1
                 ),
                 &inputs.node_namespace_format,
                 &inputs.ingress_domain,

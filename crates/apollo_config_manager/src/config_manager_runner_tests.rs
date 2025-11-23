@@ -10,12 +10,22 @@ use apollo_config_manager_types::communication::{
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
+<<<<<<< HEAD
 use apollo_node_config::node_config::{
     NodeDynamicConfig,
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
 };
+||||||| 912efc99a
+use apollo_node_config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+    CONFIG_POINTERS,
+};
+=======
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig, CONFIG_POINTERS};
+>>>>>>> origin/main-v0.14.1
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
@@ -31,11 +41,7 @@ fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
     let config = SequencerNodeConfig::default();
     let config_pointers_map = ConfigPointersMap::create_for_testing(CONFIG_POINTERS.clone());
 
-    let base_app_config = DeploymentBaseAppConfig::new(
-        config,
-        config_pointers_map,
-        CONFIG_NON_POINTERS_WHITELIST.clone(),
-    );
+    let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
 
     // Create a temporary file
     let temp_file = NamedTempFile::new().expect("Failed to create temporary config file");

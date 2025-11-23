@@ -204,7 +204,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .get_or_insert_mut(quantized_timestamp, || self.spawn_query(quantized_timestamp));
         // If the query is not finished, return an error.
         if !handle.is_finished() {
-            warn!("Query not yet resolved: timestamp={timestamp}");
+            info!("Query not yet resolved: timestamp={timestamp}");
             return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
         }
         let result = handle.now_or_never().expect("Handle must be finished if we got here");

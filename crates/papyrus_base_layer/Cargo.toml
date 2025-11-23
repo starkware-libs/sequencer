@@ -9,22 +9,32 @@ license-file.workspace = true
 workspace = true
 
 [features]
+<<<<<<< HEAD
 testing = ["alloy/node-bindings", "tar", "tempfile"]
+||||||| 912efc99a
+testing = ["alloy/node-bindings", "colored", "tar", "tempfile"]
+=======
+testing = ["alloy/node-bindings"]
+>>>>>>> origin/main-v0.14.1
 
 [dependencies]
 alloy = { workspace = true, features = ["contract", "json-rpc", "node-bindings", "rpc-types"] }
 apollo_config.workspace = true
 apollo_l1_endpoint_monitor_types.workspace = true
 async-trait.workspace = true
+<<<<<<< HEAD
 ethers.workspace = true
+||||||| 912efc99a
+colored = { workspace = true, optional = true }
+ethers.workspace = true
+=======
+>>>>>>> origin/main-v0.14.1
 futures.workspace = true
 hex.workspace = true
 mockall.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-tar = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
@@ -34,9 +44,13 @@ validator.workspace = true
 [dev-dependencies]
 apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+<<<<<<< HEAD
 ethers-core.workspace = true
+||||||| 912efc99a
+colored.workspace = true
+ethers-core.workspace = true
+=======
+>>>>>>> origin/main-v0.14.1
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-tar.workspace = true
-tempfile.workspace = true

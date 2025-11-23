@@ -3,15 +3,31 @@
 import argparse
 import json
 import sys
+<<<<<<< HEAD
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
 from difflib import unified_diff
+||||||| 912efc99a
+from enum import Enum
+=======
+from abc import ABC, abstractmethod
+>>>>>>> origin/main-v0.14.1
 from typing import Any, Optional
 
+<<<<<<< HEAD
+||||||| 912efc99a
+import tempfile
+import urllib.parse
+=======
+import tempfile
+import urllib.error
+import urllib.request
+>>>>>>> origin/main-v0.14.1
 import yaml
+<<<<<<< HEAD
 from common_lib import (
     Colors,
     NamespaceAndInstructionArgs,
@@ -25,6 +41,43 @@ from common_lib import (
     run_kubectl_command,
 )
 from restarter_lib import ServiceRestarter
+||||||| 912efc99a
+from difflib import unified_diff
+
+
+class Colors(Enum):
+    """ANSI color codes for terminal output"""
+
+    RED = "\033[1;31m"
+    GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[1;34m"
+    RESET = "\033[0m"
+
+
+def print_colored(message: str, color: Colors = Colors.RESET, file=sys.stdout) -> None:
+    """Print message with color"""
+    print(f"{color.value}{message}{Colors.RESET.value}", file=file)
+
+
+def print_error(message: str) -> None:
+    print_colored(message, color=Colors.RED, file=sys.stderr)
+=======
+from common_lib import (
+    Colors,
+    NamespaceAndInstructionArgs,
+    RestartStrategy,
+    Service,
+    ask_for_confirmation,
+    get_namespace_args,
+    print_colored,
+    print_error,
+    restart_strategy_converter,
+    run_kubectl_command,
+)
+from difflib import unified_diff
+from restarter_lib import ServiceRestarter
+>>>>>>> origin/main-v0.14.1
 
 
 class ApolloArgsParserBuilder:
@@ -362,6 +415,7 @@ def show_config_diff(old_content: str, new_content: str, index: int) -> None:
         fromfile=f"config{index}.yaml_old",
         tofile=f"config{index}.yaml",
         lineterm="",
+        n=0,  # context lines; no real 'context' in config files
     )
 
     diff_output = "".join(diff)
@@ -393,12 +447,69 @@ def apply_configmap(
             sys.exit(1)
 
 
+<<<<<<< HEAD
 def update_config_and_restart_nodes(
     config_values_updater: ConfigValuesUpdater,
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
-    service: Service,
-    restarter: ServiceRestarter,
+||||||| 912efc99a
+def restart_pod(
+    namespace: str, service: Service, index: int, cluster: Optional[str] = None
 ) -> None:
+    """Restart pod by deleting it"""
+    # Get the list of pods (one string per line).
+    kubectl_args = [
+        "get",
+        "pods",
+        "-o",
+        "name",
+    ]
+    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
+
+    # Filter the list of pods to only include the ones that match the service and extract the pod name.
+    pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
+
+    if not pods:
+        print_error(f"Could not find pods for service {service.pod_name}.")
+        sys.exit(1)
+
+    # Go over each pod and delete it.
+    for pod in pods:
+        kubectl_args = [
+            "delete",
+            "pod",
+            pod,
+        ]
+        kubectl_args.extend(get_namespace_args(namespace, cluster))
+
+        try:
+            run_kubectl_command(kubectl_args, capture_output=False)
+            print_colored(f"Restarted {pod} for node {index}")
+        except Exception as e:
+            print_error(f"Failed restarting {pod} for node {index}: {e}")
+            sys.exit(1)
+
+
+def update_config_and_restart_nodes(
+    config_overrides: dict[str, Any],
+    namespace_list: list[str],
+=======
+def _update_config(
+    config_values_updater: ConfigValuesUpdater,
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
+>>>>>>> origin/main-v0.14.1
+    service: Service,
+<<<<<<< HEAD
+    restarter: ServiceRestarter,
+||||||| 912efc99a
+    cluster_list: Optional[list[str]] = None,
+    restart_nodes: bool = True,
+    # TODO(guy.f): Remove this once we have metrics we use to decide based on.
+    wait_between_restarts: bool = False,
+    post_restart_instructions: Optional[list[str]] = None,
+=======
+>>>>>>> origin/main-v0.14.1
+) -> None:
+<<<<<<< HEAD
     assert config_values_updater is not None, "config_values_updater must be provided"
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
@@ -408,6 +519,37 @@ def update_config_and_restart_nodes(
             Colors.RED,
         )
 
+||||||| 912efc99a
+    assert config_overrides is not None, "config_overrides must be provided"
+    assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
+
+    if post_restart_instructions is not None:
+        assert len(post_restart_instructions) == len(
+            namespace_list
+        ), f"logs_explorer_urls must have the same length as namespace_list. logs_explorer_urls: {len(post_restart_instructions)}, namespace_list: {len(namespace_list)}"
+
+    if wait_between_restarts:
+        assert (
+            post_restart_instructions is not None
+        ), "logs_explorer_urls must be provided when wait_between_restarts is True"
+    else:
+        assert (
+            post_restart_instructions is None
+        ), "logs_explorer_urls must be None when wait_between_restarts is False"
+
+    if not cluster_list:
+        print_colored(
+            "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
+            Colors.RED,
+        )
+    else:
+        assert len(cluster_list) == len(
+            namespace_list
+        ), f"cluster_list must have the same number of values as namespace_list. cluster_list: {cluster_list}, namespace_list: {namespace_list}"
+
+=======
+    """Update and apply configurations for all nodes."""
+>>>>>>> origin/main-v0.14.1
     # Store original and updated configs for all nodes
     configs = []
 
@@ -453,11 +595,54 @@ def update_config_and_restart_nodes(
             namespace_and_instruction_args.get_cluster(index),
         )
 
+<<<<<<< HEAD
     for index, config in enumerate(configs):
         if not restarter.restart_service(index):
             print_colored("\nAborting restart process.")
             sys.exit(1)
 
     print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
+||||||| 912efc99a
+    if restart_nodes:
+        for index, config in enumerate(configs):
+            restart_pod(
+                namespace_list[index], service, index, cluster_list[index] if cluster_list else None
+            )
+            if wait_between_restarts:
+                instructions = post_restart_instructions[index]
+                print_colored(f"Restarted pod.\n{instructions}. ", Colors.YELLOW)
+                # Don't ask in the case of the last job.
+                if index != len(configs) - 1 and not wait_until_y_or_n(
+                    f"Do you want to restart the next pod?"
+                ):
+                    print_colored("\nAborting restart process.")
+                    return
+        print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
+    else:
+        print_colored("\nSkipping pod restart (--no-restart was specified)")
+=======
+
+def update_config_and_restart_nodes(
+    config_values_updater: Optional[ConfigValuesUpdater],
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
+    service: Service,
+    restarter: ServiceRestarter,
+) -> None:
+    assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
+
+    if not namespace_and_instruction_args.cluster_list:
+        print_colored(
+            "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
+            Colors.RED,
+        )
+
+    if config_values_updater is not None:
+        _update_config(config_values_updater, namespace_and_instruction_args, service)
+
+    for index in range(namespace_and_instruction_args.size()):
+        if not restarter.restart_service(index):
+            print_colored("\nAborting restart process.")
+            sys.exit(1)
+>>>>>>> origin/main-v0.14.1
 
     print("\nOperation completed successfully!")

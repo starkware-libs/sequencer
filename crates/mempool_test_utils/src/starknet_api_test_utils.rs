@@ -10,10 +10,8 @@ use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
@@ -24,14 +22,18 @@ use starknet_api::test_utils::invoke::{
     rpc_invoke_tx,
     InvokeTxArgs,
 };
-use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
+use starknet_api::test_utils::{
+    valid_resource_bounds_for_testing,
+    NonceManager,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+    VALID_L2_GAS_MAX_AMOUNT,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
-    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -49,13 +51,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
-pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
-pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
-// Enough to declare the test class, but under the OS's upper limit.
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
-pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
-pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
-pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 #[allow(clippy::as_conversions)]
 pub const VALID_ACCOUNT_BALANCE: Fee =
     Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
@@ -63,28 +58,6 @@ pub const VALID_ACCOUNT_BALANCE: Fee =
 pub const TIP_FOR_TESTING: Tip = Tip(1);
 
 // Utils.
-
-// TODO(Noam): Merge this into test_valid_resource_bounds
-pub fn test_resource_bounds_mapping() -> AllResourceBounds {
-    AllResourceBounds {
-        l1_gas: ResourceBounds {
-            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
-            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
-        },
-        l2_gas: ResourceBounds {
-            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
-            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
-        },
-        l1_data_gas: ResourceBounds {
-            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
-            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
-        },
-    }
-}
-
-pub fn test_valid_resource_bounds() -> ValidResourceBounds {
-    ValidResourceBounds::AllResources(test_resource_bounds_mapping())
-}
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
@@ -110,7 +83,7 @@ pub fn declare_tx() -> RpcTransaction {
         declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_address,
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             compiled_class_hash: compiled_class_hash
         ),
@@ -129,7 +102,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
 
     rpc_invoke_tx(invoke_tx_args!(
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
         nonce : nonce_manager.next(sender_address),
         sender_address,
         calldata,
@@ -157,7 +130,7 @@ pub fn generate_deploy_account_with_salt(
 ) -> RpcTransaction {
     let deploy_account_args = deploy_account_tx_args!(
         class_hash: account.get_class_hash(),
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
         contract_address_salt
     );
 
@@ -178,19 +151,42 @@ struct L1HandlerTransactionGenerator {
 impl L1HandlerTransactionGenerator {
     const L1_ACCOUNT_ADDRESS: StarkHash = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 
-    /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
+    /// Creates an L1 handler transaction calling either "l1_handler_set_value" or
+    /// "l1_handler_set_value_and_revert" entry point in
     /// [TestContract](FeatureContract::TestContract).
+<<<<<<< HEAD
     fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
         self.n_generated_txs += 1;
 
+||||||| 912efc99a
+    fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
+        let l1_tx_nonce = self.l1_tx_nonce;
+        self.l1_tx_nonce += 1;
+=======
+    fn create_l1_to_l2_message_args(&mut self, should_revert: bool) -> L1HandlerTransaction {
+        self.n_generated_txs += 1;
+
+>>>>>>> origin/main-v0.14.1
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
+<<<<<<< HEAD
         L1HandlerTransaction {
+||||||| 912efc99a
+        let l1_handler_tx = L1HandlerTransaction {
+=======
+        // TODO(Arni): Consider saving this value as a lazy constant.
+        let entry_point_selector = if should_revert {
+            selector_from_name("l1_handler_set_value_and_revert")
+        } else {
+            selector_from_name("l1_handler_set_value")
+        };
+
+        L1HandlerTransaction {
+>>>>>>> origin/main-v0.14.1
             contract_address: test_contract.get_instance_address(0),
-            // TODO(Arni): Consider saving this value as a lazy constant.
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
+            entry_point_selector,
             calldata: calldata![
                 Self::L1_ACCOUNT_ADDRESS,
                 // Arbitrary key and value.
@@ -360,8 +356,16 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
+<<<<<<< HEAD
     pub fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
         self.l1_handler_tx_generator.create_l1_to_l2_message_args()
+||||||| 912efc99a
+    pub fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
+        self.l1_handler_tx_generator.create_l1_to_l2_message_args()
+=======
+    pub fn create_l1_to_l2_message_args(&mut self, should_revert: bool) -> L1HandlerTransaction {
+        self.l1_handler_tx_generator.create_l1_to_l2_message_args(should_revert)
+>>>>>>> origin/main-v0.14.1
     }
 
     pub fn n_l1_txs(&self) -> usize {
@@ -398,7 +402,7 @@ impl AccountTransactionGenerator {
             .sender_address(self.sender_address())
             .tip(TIP_FOR_TESTING)
             .nonce(self.next_nonce())
-            .resource_bounds(test_valid_resource_bounds())
+            .resource_bounds(valid_resource_bounds_for_testing())
     }
 
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
@@ -468,7 +472,7 @@ impl AccountTransactionGenerator {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
             sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             compiled_class_hash,
         );
@@ -510,7 +514,7 @@ impl AccountTransactionGenerator {
 
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             calldata
         );
@@ -528,7 +532,7 @@ impl AccountTransactionGenerator {
         assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
         let deploy_account_args = deploy_account_tx_args!(
             class_hash: self.account.class_hash(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             contract_address_salt: ContractAddressSalt(self.contract_address_salt.0)
         );
         rpc_deploy_account_tx(deploy_account_args)

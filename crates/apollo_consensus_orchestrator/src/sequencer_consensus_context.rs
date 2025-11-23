@@ -254,14 +254,32 @@ impl ConsensusContext for SequencerConsensusContext {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = make_gas_price_params(&self.config);
+<<<<<<< HEAD
         let mut l2_gas_price = self.l2_gas_price;
         if let Some(override_value) = self.config.override_l2_gas_price_fri {
             info!("Overriding L2 gas price to {override_value} fri");
             l2_gas_price = GasPrice(override_value);
         }
+||||||| 912efc99a
+=======
+        let mut l2_gas_price = self.l2_gas_price;
+        if let Some(override_value) = self.config.override_l2_gas_price_fri {
+            info!("Overriding L2 gas price to {override_value} fri");
+            l2_gas_price = GasPrice(override_value);
+        }
+
+        // The following calculations will panic on overflow/negative result.
+        let total_build_proposal_time = timeout - self.config.build_proposal_margin_millis;
+        let time_now = self.deps.clock.now();
+        let batcher_deadline = time_now + total_build_proposal_time;
+        let retrospective_block_hash_deadline = time_now
+            + total_build_proposal_time
+                .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
+
+>>>>>>> origin/main-v0.14.1
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
-            batcher_timeout: timeout - self.config.build_proposal_margin_millis,
+            batcher_deadline,
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
@@ -274,6 +292,10 @@ impl ConsensusContext for SequencerConsensusContext {
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
             proposal_round: self.current_round,
+            retrospective_block_hash_deadline,
+            retrospective_block_hash_retry_interval_millis: self
+                .config
+                .retrospective_block_hash_retry_interval_millis,
         };
         let handle = tokio::spawn(
             async move {

@@ -5,11 +5,35 @@ import json
 import sys
 from typing import Any
 
+<<<<<<< HEAD
 from common_lib import Colors, NamespaceAndInstructionArgs, Service, print_colored, print_error
 from restarter_lib import ServiceRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,
+||||||| 912efc99a
+from update_config_and_restart_nodes_lib import (
+    ApolloArgsParserBuilder,
+    Colors,
+    Service,
+    get_context_list_from_args,
+    get_namespace_list_from_args,
+    print_colored,
+    print_error,
+=======
+from common_lib import (
+    Colors,
+    NamespaceAndInstructionArgs,
+    Service,
+    print_colored,
+    print_error,
+)
+from metrics_lib import MetricConditionGater
+from restarter_lib import ServiceRestarter, WaitOnMetricRestarter
+from update_config_and_restart_nodes_lib import (
+    ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
+>>>>>>> origin/main-v0.14.1
     update_config_and_restart_nodes,
 )
 
@@ -135,6 +159,12 @@ Examples:
         help="Service type to operate on; determines configmap and pod names (default: Core)",
     )
 
+    args_builder.add_argument(
+        "--no-check-for-good-proposal",
+        action="store_true",
+        help="If set, for restarts of Core (only), will not stop to check that a new proposal succeeded post restarts before continuing.",
+    )
+
     args = args_builder.build()
     config_overrides = parse_config_overrides(args.config_overrides)
 
@@ -146,6 +176,7 @@ Examples:
         print_error("No config overrides provided")
         sys.exit(1)
 
+<<<<<<< HEAD
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
         NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
         NamespaceAndInstructionArgs.get_context_list_from_args(args),
@@ -155,7 +186,42 @@ Examples:
     restarter = ServiceRestarter.from_restart_strategy(
         args.restart_strategy,
         namespace_and_instruction_args,
+||||||| 912efc99a
+    update_config_and_restart_nodes(
+        config_overrides,
+        get_namespace_list_from_args(args),
+=======
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(
+        NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
+        NamespaceAndInstructionArgs.get_context_list_from_args(args),
+        None,
+    )
+
+    if args.service == Service.Core and not args.no_check_for_good_proposal:
+        restarter = WaitOnMetricRestarter(
+            namespace_and_instruction_args,
+            args.service,
+            [
+                MetricConditionGater.Metric(
+                    "consensus_decisions_reached_as_proposer", lambda x: x > 0
+                )
+            ],
+            metrics_port=8082,
+            restart_strategy=args.restart_strategy,
+        )
+    else:
+        restarter = ServiceRestarter.from_restart_strategy(
+            args.restart_strategy,
+            namespace_and_instruction_args,
+            args.service,
+        )
+
+    update_config_and_restart_nodes(
+        ConstConfigValuesUpdater(config_overrides),
+        namespace_and_instruction_args,
+>>>>>>> origin/main-v0.14.1
         args.service,
+<<<<<<< HEAD
     )
 
     update_config_and_restart_nodes(
@@ -163,6 +229,12 @@ Examples:
         namespace_and_instruction_args,
         args.service,
         restarter,
+||||||| 912efc99a
+        get_context_list_from_args(args),
+        not args.no_restart,
+=======
+        restarter,
+>>>>>>> origin/main-v0.14.1
     )
 
 

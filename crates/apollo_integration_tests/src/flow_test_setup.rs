@@ -2,6 +2,12 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+<<<<<<< HEAD
+||||||| 912efc99a
+use alloy::node_bindings::AnvilInstance;
+=======
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+>>>>>>> origin/main-v0.14.1
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;

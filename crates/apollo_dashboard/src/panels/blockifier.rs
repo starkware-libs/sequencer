@@ -1,9 +1,20 @@
+<<<<<<< HEAD
 use apollo_batcher::metrics::{
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
     SIERRA_GAS_IN_LAST_BLOCK,
 };
 use apollo_metrics::MetricCommon;
+||||||| 912efc99a
+use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
+=======
+use apollo_batcher::metrics::{
+    NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
+    SIERRA_GAS_IN_LAST_BLOCK,
+};
+use apollo_metrics::metrics::MetricQueryName;
+>>>>>>> origin/main-v0.14.1
 use blockifier::metrics::{
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
@@ -42,7 +53,12 @@ fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
 }
 
 fn get_panel_native_compilation_error() -> Panel {
-    Panel::from_counter(&NATIVE_COMPILATION_ERROR, PanelType::Stat)
+    Panel::new(
+        "Native compilation error count",
+        "Count of the number of times there was a native compilation error",
+        NATIVE_COMPILATION_ERROR.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
 }
 
 fn get_panel_native_execution_ratio() -> Panel {

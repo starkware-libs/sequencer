@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [
   "crates/apollo_deployments/resources/app_configs/config_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/revert_config.json",
@@ -8,3 +9,16 @@
   "crates/apollo_deployments/resources/deployments/replacer_instance.json",
   "crates/apollo_deployments/resources/services/distributed/replacer_signature_manager.json"
 ]
+||||||| 912efc99a
+=======
+[
+  "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_revert_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_versioned_constants_overrides_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_validate_resource_bounds_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/deployments/replacer_deployment.json",
+  "crates/apollo_deployments/resources/deployments/replacer_instance.json",
+  "crates/apollo_deployments/resources/services/distributed/replacer_signature_manager.json"
+]
+>>>>>>> origin/main-v0.14.1

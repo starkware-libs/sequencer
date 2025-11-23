@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 

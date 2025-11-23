@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //! Benchmark suite for the Apollo mempool crate.
 //!
 //! This module provides tools to measure the performance of the mempool service under various
@@ -42,3 +43,54 @@ fn invoke_benchmarks(criterion: &mut Criterion) {
 
 criterion_group!(benches, invoke_benchmarks);
 criterion_main!(benches);
+||||||| 912efc99a
+=======
+//! Benchmark suite for the Apollo mempool crate.
+//!
+//! This module provides tools to measure the performance of the mempool service under various
+//! transaction loads and configurations.
+//!
+//! The main benchmark, `invoke_benchmark`, evaluates how efficiently the mempool processes randomly
+//! generated invoke transactions across different scenarios.
+//!
+//! To run the benchmarks, use: `cargo bench --bench apollo_mempool`.
+/// import the Mempool test utilities.
+mod utils;
+
+use apollo_mempool_config::config::MempoolConfig;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use utils::{BenchTestSetup, BenchTestSetupConfig};
+
+fn run_invoke_benchmark(criterion: &mut Criterion, config: &BenchTestSetupConfig) {
+    let test_setup = BenchTestSetup::new(config);
+    let id_param = format!(
+        "{} txs, {} accounts, with chunk size {}",
+        config.n_txs, config.n_accounts, config.chunk_size
+    );
+    criterion.bench_with_input(
+        BenchmarkId::new("invoke", id_param),
+        &test_setup,
+        |bencher, test_setup| {
+            bencher
+                .to_async(tokio::runtime::Runtime::new().unwrap())
+                .iter(|| test_setup.mempool_add_get_txs());
+        },
+    );
+}
+
+fn invoke_benchmarks(criterion: &mut Criterion) {
+    let configs = [BenchTestSetupConfig {
+        n_txs: 10000,
+        n_accounts: 150,
+        chunk_size: 100,
+        mempool_config: MempoolConfig::default(),
+    }];
+
+    for config in configs.iter() {
+        run_invoke_benchmark(criterion, config);
+    }
+}
+
+criterion_group!(benches, invoke_benchmarks);
+criterion_main!(benches);
+>>>>>>> origin/main-v0.14.1

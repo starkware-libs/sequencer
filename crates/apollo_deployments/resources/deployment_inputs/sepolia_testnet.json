@@ -1,6 +1,14 @@
 {
+<<<<<<< HEAD
   "node_and_validator_ids": [[0, "0x1"], [1,"0x64"], [2,"0x65"], [3,"0x66"],[10,"0x1"], [11,"0x1"], [12,"0x1"], [13,"0x1"], [14,"0x1"], [15,"0x1"]],
   "num_validators": 3,
+||||||| 912efc99a
+  "node_and_validator_ids": [[0, "0x1"], [1,"0x64"], [2,"0x65"], [3,"0x66"]],
+  "num_validators": 3,
+=======
+  "node_and_validator_ids": [[10,"0x1"], [11,"0x64"], [12,"0x65"], [13,"0x66"], [14,"0x67"], [15,"0x68"]],
+  "num_validators": 5,
+>>>>>>> origin/main-v0.14.1
   "http_server_ingress_alternative_name": "alpha-sepolia.starknet.io",
   "ingress_domain": "starknet.io",
   "secret_name_format": "apollo-sepolia-alpha-{}",
@@ -15,6 +23,17 @@
   "p2p_communication_type": "External",
   "deployment_environment": "SepoliaTestnet",
   "audited_libfuncs_only": true,
+<<<<<<< HEAD
   "requires_k8s_service_config_params": true,
   "http_server_port": 8080
+||||||| 912efc99a
+  "requires_k8s_service_config_params": true
+=======
+  "requires_k8s_service_config_params": true,
+  "http_server_port": 8080,
+  "monitoring_endpoint_config_port": 8082,
+  "state_sync_config_rpc_config_port": 8090,
+  "mempool_p2p_config_network_config_port": 53200,
+  "consensus_manager_config_network_config_port": 53080
+>>>>>>> origin/main-v0.14.1
 }

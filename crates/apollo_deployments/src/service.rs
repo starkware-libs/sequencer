@@ -1,8 +1,10 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Display;
+use std::fs::File;
+use std::io::Read;
 use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
@@ -15,10 +17,15 @@ use apollo_node_config::component_execution_config::{
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
-use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
+<<<<<<< HEAD
 use serde_json::{json, Value};
+||||||| 912efc99a
+use serde_json::json;
+=======
+use serde_json::{json, Map, Value};
+>>>>>>> origin/main-v0.14.1
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -95,11 +102,13 @@ impl Service {
             .flat_map(|c| c.get_component_config_file_paths())
             .collect::<Vec<_>>();
         let config_paths = components_in_service
+            .clone()
             .into_iter()
             .chain(config_filenames.clone())
             .chain(once(node_service.get_service_file_path()))
             .collect();
 
+<<<<<<< HEAD
         // TODO(Tsabary): currently using the creation of the non-replacer service struct to DUMP
         // the list of files of the replacer format. This should be triggered by a new flow.
         let replacer_components_in_service = node_service
@@ -117,6 +126,11 @@ impl Service {
         let replacer_deployment_file_path = node_service.replacer_deployment_file_path();
         serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
 
+||||||| 912efc99a
+=======
+        node_service.dump_node_service_replacer_app_config_files();
+
+>>>>>>> origin/main-v0.14.1
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
         let toleration = node_service.get_toleration(&environment);
@@ -288,6 +302,7 @@ impl NodeService {
             .to_string()
     }
 
+<<<<<<< HEAD
     fn get_replacer_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
@@ -298,6 +313,20 @@ impl NodeService {
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+||||||| 912efc99a
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+=======
+    fn get_replacer_service_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(self.get_replacer_config_file_path())
+            .to_string_lossy()
+            .to_string()
+    }
+
+    pub fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+>>>>>>> origin/main-v0.14.1
         self.as_inner().get_components_in_service()
     }
 
@@ -307,6 +336,61 @@ impl NodeService {
 
     pub fn get_update_strategy(&self) -> UpdateStrategy {
         self.as_inner().get_update_strategy()
+    }
+
+    pub fn dump_node_service_replacer_app_config_files(&self) {
+        let components_in_service = self
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_component_config_file_paths())
+            .collect::<Vec<_>>();
+
+        let replacer_components_in_service = self
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_replacer_component_config_file_paths())
+            .collect::<Vec<_>>();
+
+        let replacer_app_config_data: Vec<Value> = components_in_service
+            .iter()
+            .map(|src| {
+                let src_path = Path::new(src);
+                // Read the app config file
+                let mut contents = String::new();
+                File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
+
+                // Parse it as a json
+                let map: Map<String, Value> =
+                    serde_json::from_str(&contents).expect("JSON should be an object");
+                let original_app_config = Value::Object(map);
+
+                // Create relevant replace predicates.
+                let replace_pred = |key: &str, value: &Value| {
+                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
+                };
+
+                // Perform replacement
+                insert_replacer_annotations(original_app_config, replace_pred)
+            })
+            .collect();
+
+        for (data, dest) in
+            replacer_app_config_data.iter().zip(replacer_components_in_service.iter())
+        {
+            let dest_path = Path::new(dest);
+            serialize_to_file(&data, dest_path.to_str().unwrap());
+        }
+
+        let replacer_config_filenames: Vec<String> =
+            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
+        let replacer_config_paths: Vec<String> = replacer_components_in_service
+            .into_iter()
+            .chain(replacer_config_filenames)
+            .chain(once(self.get_replacer_service_file_path()))
+            .collect();
+        let replacer_deployment_file_path = self.replacer_deployment_file_path();
+
+        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
     }
 }
 
@@ -415,10 +499,31 @@ impl NodeType {
         }
     }
 
+    pub fn get_services_of_components(
+        &self,
+        component_type: ComponentConfigInService,
+    ) -> HashSet<NodeService> {
+        let services: HashSet<_> = self
+            .all_service_names()
+            .into_iter()
+            .filter(|node_service| {
+                node_service.get_components_in_service().contains(&component_type)
+            })
+            .collect();
+
+        assert!(
+            !services.is_empty(),
+            "Expected at least one NodeService containing component type {:?}",
+            component_type
+        );
+
+        services
+    }
+
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
-    ) -> IndexMap<NodeService, ComponentConfig> {
+    ) -> HashMap<NodeService, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
             Self::Consolidated => ConsolidatedNodeServiceName::get_component_configs(ports),
@@ -479,9 +584,7 @@ impl NodeType {
 }
 
 pub(crate) trait GetComponentConfigs: ServiceNameInner {
-    // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
-    // integration test relies on indices rather than service names.
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig>;
+    fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig>;
 
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.

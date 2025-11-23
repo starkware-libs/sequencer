@@ -59,22 +59,11 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: npm install -g ganache@7.4.3
 
       - run: |
           cargo test -p papyrus_node
         env:
           SEED: 0
-
-  build-load-test:
-    runs-on: macos-latest
-    if: github.event.schedule == '30 0 * * *'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: cargo build -p papyrus_load_test
 
   integration-test:
     runs-on: macos-latest

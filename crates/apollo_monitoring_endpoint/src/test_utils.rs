@@ -4,7 +4,7 @@ use std::str::FromStr;
 use anyhow::Result;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_metrics::metrics::parse_numeric_metric;
+use apollo_metrics::test_utils::parse_numeric_metric;
 use axum::body::Body;
 use axum::http::Request;
 use hyper::body::to_bytes;
@@ -116,6 +116,14 @@ impl MonitoringClient {
 
 pub(crate) fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
     Request::builder()
+        .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())
+        .body(Body::empty())
+        .unwrap()
+}
+
+pub fn build_post_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
         .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())
         .body(Body::empty())
         .unwrap()

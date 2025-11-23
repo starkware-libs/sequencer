@@ -31,6 +31,7 @@ pub enum TestIdentifier {
     EndToEndFlowTestManyTxs,
     EndToEndFlowTestCustomSyscallInvokeTxs,
     EndToEndFlowTestCustomCairo0Txs,
+    RevertedL1HandlerTx,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
     RestartFlowIntegrationTest,

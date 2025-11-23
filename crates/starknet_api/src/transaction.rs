@@ -1,8 +1,8 @@
 use std::sync::LazyLock;
 
+use apollo_sizeof::SizeOf;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};

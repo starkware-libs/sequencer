@@ -36,7 +36,7 @@ impl Default for ConfigManagerConfig {
     }
 }
 
-// TODO(Tsabary): wrap under `testing` feature.
+#[cfg(any(feature = "testing", test))]
 impl ConfigManagerConfig {
     pub fn disabled() -> Self {
         Self { enable_config_updates: false, ..Default::default() }

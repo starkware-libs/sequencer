@@ -37,10 +37,12 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     if log_comment:
         query_parts.append(quote(log_comment))
     query_value = "%0A".join(query_parts)
+    # TODO(Ron): Turn link into variable to save space in the json file
     link = "\n".join(
         [
             "https://console.cloud.google.com/logs/query;",
             f"query={query_value};",
+            "summaryFields=resource%252Flabels%252Fnamespace_name,resource%252Flabels%252Fcontainer_name;",
             "timeRange=${__from:date:iso}%2F${__to:date:iso}",
             "?project=${gcp_project}",
         ]

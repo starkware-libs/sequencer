@@ -19,6 +19,7 @@ use apollo_consensus::metrics::{
 use apollo_consensus_manager::metrics::{
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PING_LATENCY,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
@@ -38,11 +39,21 @@ use apollo_consensus_orchestrator::metrics::{
     LABEL_CENDE_FAILURE_REASON,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
 };
+<<<<<<< HEAD
 use apollo_metrics::MetricCommon;
 use apollo_network::network_manager::metrics::{
     LABEL_NAME_BROADCAST_DROP_REASON,
     LABEL_NAME_EVENT_TYPE,
 };
+||||||| 912efc99a
+use apollo_network::network_manager::metrics::{
+    LABEL_NAME_BROADCAST_DROP_REASON,
+    LABEL_NAME_EVENT_TYPE,
+};
+=======
+use apollo_metrics::metrics::MetricQueryName;
+use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
+>>>>>>> origin/main-v0.14.1
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
@@ -126,6 +137,7 @@ fn get_panel_consensus_round_above_zero() -> Panel {
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 
+<<<<<<< HEAD
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
@@ -136,6 +148,18 @@ pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
+||||||| 912efc99a
+pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
+    Panel::new(
+        "Average Block Time",
+        "Average block time (10m window)",
+        vec![format!("1 / rate({}[10m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
+}
+=======
+>>>>>>> origin/main-v0.14.1
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
@@ -434,6 +458,7 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
         sum_by_label(
             &CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
             LABEL_NAME_BROADCAST_DROP_REASON,
+<<<<<<< HEAD
             DisplayMethod::Increase(RANGE_DURATION),
             true,
         ),
@@ -449,6 +474,35 @@ fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
              ({DEFAULT_DURATION} window)",
         ),
         increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, DEFAULT_DURATION),
+||||||| 912efc99a
+            CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name_with_filter()
+        )],
+=======
+            DisplayMethod::Increase(RANGE_DURATION),
+            true,
+        ),
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_ping_latency() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_PING_LATENCY,
+        "Ping Latency",
+        "The ping latency distribution for consensus p2p connections",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
+    Panel::new(
+        "Consensus Decisions Reached As Proposer",
+        format!(
+            "The number of rounds with decision reached where this node is the proposer \
+             ({DEFAULT_DURATION} window)",
+        ),
+        increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, DEFAULT_DURATION),
+>>>>>>> origin/main-v0.14.1
         PanelType::TimeSeries,
     )
     .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
@@ -462,7 +516,6 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
             get_panel_consensus_round_advanced(),
-            get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_decisions_reached_as_proposer(),
@@ -507,6 +560,7 @@ pub(crate) fn get_consensus_p2p_row() -> Row {
             get_panel_consensus_proposals_num_received_messages(),
             get_panel_consensus_proposals_dropped_messages_by_reason(),
             get_panel_consensus_network_events_by_type(),
+            get_panel_consensus_ping_latency(),
         ],
     )
 }

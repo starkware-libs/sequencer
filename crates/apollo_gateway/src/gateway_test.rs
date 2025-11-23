@@ -45,7 +45,6 @@ use clap::Command;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     declare_tx,
-    test_valid_resource_bounds,
     VALID_ACCOUNT_BALANCE,
 };
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -65,7 +64,11 @@ use starknet_api::test_utils::declare::{
 };
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{
+    valid_resource_bounds_for_testing,
+    TestingTxArgs,
+    CHAIN_ID_FOR_TESTS,
+};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
@@ -173,7 +176,7 @@ fn invoke_args() -> InvokeTxArgs {
     let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let mut args = invoke_tx_args!(
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
         sender_address: account_contract().get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0))
     );
@@ -186,7 +189,7 @@ fn invoke_args() -> InvokeTxArgs {
 fn deploy_account_args() -> DeployAccountTxArgs {
     let mut args = deploy_account_tx_args!(
         class_hash: account_contract().get_class_hash(),
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
     );
     let internal_tx = args.get_internal_tx();
     args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
@@ -199,7 +202,7 @@ fn declare_args() -> DeclareTxArgsWithContractClass {
         args: declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_contract().get_instance_address(0),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             class_hash: contract_class.calculate_class_hash(),
             compiled_class_hash: default_compiled_contract_class().compiled_class_hash(),
         ),

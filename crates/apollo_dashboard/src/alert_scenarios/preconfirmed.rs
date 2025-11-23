@@ -1,4 +1,5 @@
 use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,

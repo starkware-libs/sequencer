@@ -7,11 +7,25 @@ attrs==25.4.0
 autoflake==2.3.1
 bitarray==3.7.2
 black==23.1a1
+<<<<<<< HEAD
 cachetools==6.2.1
 cairo-lang==0.14.0.1
 certifi==2025.10.5
 charset-normalizer==3.4.4
 ckzg==2.1.5
+||||||| 912efc99a
+cachetools==6.1.0
+cairo-lang==0.14.0.1
+certifi==2025.7.14
+charset-normalizer==3.4.2
+ckzg==2.1.1
+=======
+cachetools==6.1.0
+cairo-lang==0.14.1a0
+certifi==2025.7.14
+charset-normalizer==3.4.2
+ckzg==2.1.1
+>>>>>>> origin/main-v0.14.1
 click==8.1.8
 cytoolz==1.1.0
 ecdsa==0.19.1

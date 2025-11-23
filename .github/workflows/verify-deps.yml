@@ -16,7 +16,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: npm install -g ganache@7.4.3
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build

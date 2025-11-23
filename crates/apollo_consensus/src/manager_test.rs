@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
+<<<<<<< HEAD
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
@@ -10,6 +11,19 @@ use apollo_consensus_config::config::{
     FutureMsgLimitsConfig,
     TimeoutsConfig,
 };
+||||||| 912efc99a
+use apollo_consensus_config::config::TimeoutsConfig;
+=======
+use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_consensus_config::config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    ConsensusStaticConfig,
+    FutureMsgLimitsConfig,
+    Timeout,
+    TimeoutsConfig,
+};
+>>>>>>> origin/main-v0.14.1
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -17,6 +31,8 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
@@ -36,16 +52,32 @@ lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
     static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
-    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig {
-        prevote_timeout: Duration::from_millis(100),
-        precommit_timeout: Duration::from_millis(100),
-        proposal_timeout: Duration::from_millis(100),
-    };
+    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::new(
+        // proposal
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(1000)
+        ),
+        // prevote
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(500)
+        ),
+        // precommit
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(500)
+        )
+    );
 }
 
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
+<<<<<<< HEAD
 #[fixture]
 fn consensus_config() -> ConsensusConfig {
     ConsensusConfig::from_parts(
@@ -58,6 +90,25 @@ fn consensus_config() -> ConsensusConfig {
     )
 }
 
+||||||| 912efc99a
+=======
+#[fixture]
+fn consensus_config() -> ConsensusConfig {
+    ConsensusConfig::from_parts(
+        ConsensusDynamicConfig {
+            validator_id: *VALIDATOR_ID,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            future_msg_limit: FutureMsgLimitsConfig::default(),
+        },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
+        },
+    )
+}
+
+>>>>>>> origin/main-v0.14.1
 async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
         BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
@@ -338,6 +389,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
+<<<<<<< HEAD
 
 #[rstest]
 #[tokio::test]
@@ -655,3 +707,323 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     });
     decision_rx.await.unwrap();
 }
+||||||| 912efc99a
+=======
+
+#[rstest]
+#[tokio::test]
+async fn future_height_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
+    // Use very low limit - only cache 1 height ahead with round 0.
+    consensus_config.dynamic_config.future_msg_limit = FutureMsgLimitsConfig {
+        future_height_limit: 1,
+        future_round_limit: 0,
+        future_height_round_limit: 0,
+    };
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    // Send proposal and votes for height 2 (should be dropped when processing height 0).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+
+    // Send proposal and votes for height 1 (should be cached when processing height 0).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+
+    // Send proposal and votes for height 0 (current height - needed to reach consensus).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(0, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| false);
+    expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
+    expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    // Set up coordination to detect when node votes Nil for height 2 (indicating proposal was
+    // dropped, so the node didn't received the proposal and votes Nil).
+    let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
+    context
+        .expect_broadcast()
+        .withf(move |vote: &Vote| vote.height == 2 && vote.proposal_commitment.is_none())
+        .times(1)
+        .return_once(move |_| {
+            height2_nil_vote_trigger.send(()).unwrap();
+            Ok(())
+        });
+    // Handle all other broadcasts normally.
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut subscriber_channels = subscriber_channels.into();
+
+    // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(0),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ZERO, 0);
+
+    // Run height 1 - should succeed using cached proposal.
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(1),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE, 0);
+
+    // Run height 2 in background - shouldn't reach consensus because proposal was dropped.
+    let manager_handle = tokio::spawn(async move {
+        manager
+            .run_height(
+                &mut context,
+                BlockNumber(2),
+                false,
+                &mut subscriber_channels,
+                &mut proposal_receiver_receiver,
+            )
+            .await
+    });
+
+    // Race between consensus completing and height2_nil_vote_trigger being fired.
+    tokio::select! {
+        _ = height2_nil_vote_wait => {
+            // SUCCESS: height2_nil_vote_trigger was fired - this means the proposal was dropped as
+            // expected, and the node didn't receive the proposal and votes Nil.
+        }
+        consensus_result = manager_handle => {
+            panic!("FAIL: Node should not reach consensus. {consensus_result:?}");
+        }
+    }
+}
+
+#[rstest]
+#[tokio::test]
+async fn current_height_round_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
+    consensus_config.dynamic_config.future_msg_limit = FutureMsgLimitsConfig {
+        future_height_limit: 10,
+        future_round_limit: 0, // Accept only current round (current_round + 0).
+        future_height_round_limit: 1,
+    };
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    // Send proposals for rounds 0 and 1, proposal for round 1 should be dropped.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
+    )
+    .await;
+
+    // Send votes for round 1. These should be dropped because when state machine is in round 0,
+    // round 1 > current_round(0) + future_round_limit(0).
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+
+    // Send Nil votes for round 0 (current round).
+    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(None, 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, 1, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| false);
+    // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
+    expect_validate_proposal(&mut context, Felt::ONE, 2);
+    context
+        .expect_validators()
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // Set up coordination for round advancement.
+    let (round1_trigger, round1_wait) = oneshot::channel();
+    let (round2_trigger, round2_wait) = oneshot::channel();
+
+    context
+        .expect_set_height_and_round()
+        .withf(|height, round| *height == BlockNumber(1) && *round == 1)
+        .times(1)
+        .return_once(|_, _| {
+            round1_trigger.send(()).unwrap();
+        });
+    context
+        .expect_set_height_and_round()
+        .withf(|height, round| *height == BlockNumber(1) && *round == 2)
+        .times(1)
+        .return_once(|_, _| {
+            round2_trigger.send(()).unwrap();
+        });
+    // Handle all other set_height_and_round calls normally.
+    context.expect_set_height_and_round().returning(move |_, _| ());
+
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut subscriber_channels = subscriber_channels.into();
+
+    // Spawn tasks to send messages when rounds advance.
+    let mut sender_clone1 = sender.clone();
+    tokio::spawn(async move {
+        round1_wait.await.unwrap();
+        // Send Nil votes from other nodes for round 1.
+        send(&mut sender_clone1, prevote(None, 1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, prevote(None, 1, 1, *PROPOSER_ID)).await;
+        send(&mut sender_clone1, precommit(None, 1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, precommit(None, 1, 1, *PROPOSER_ID)).await;
+    });
+
+    let mut sender_clone2 = sender.clone();
+    let mut proposal_sender_clone = proposal_receiver_sender.clone();
+    tokio::spawn(async move {
+        round2_wait.await.unwrap();
+        // Send proposal for round 2.
+        send_proposal(
+            &mut proposal_sender_clone,
+            vec![TestProposalPart::Init(proposal_init(1, 2, *PROPOSER_ID))],
+        )
+        .await;
+        // Send votes for round 2.
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
+    });
+
+    // Run height 1 - should reach consensus in round 2 because:
+    // 1. Round 1 votes (sent initially) are dropped since 1 > current_round(0) +
+    //    future_round_limit(0)
+    // 2. Round 0 has Nil votes → timeout → advance to round 1
+    // 3. When advancing to round 1, send Nil votes for round 1 → timeout → advance to round 2
+    // 4. When advancing to round 2, send proposal + quorum votes for round 2 → consensus reached
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(1),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE, 2);
+}
+
+#[rstest]
+#[tokio::test]
+async fn run_consensus_dynamic_client_updates_validator_between_heights(
+    consensus_config: ConsensusConfig,
+) {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    // Keep a handle to the vote sender so the paired receiver stays alive.
+    let _vote_sender = mock_network.broadcasted_messages_sender;
+    let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
+    // proposer.
+    let mut context = MockTestContext::new();
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_validators().returning(move |h: BlockNumber| {
+        if h == BlockNumber(1) { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
+    });
+    context.expect_proposer().returning(move |h: BlockNumber, _| {
+        if h == BlockNumber(1) { *VALIDATOR_ID } else { *PROPOSER_ID }
+    });
+    context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
+    context.expect_try_sync().returning(|_| false);
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // In this test, build_proposal should be called only when the dynamic config returns that we
+    // are the proposer, which happens at H2.
+    context
+        .expect_build_proposal()
+        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .returning(move |_, _| {
+            let (sender, receiver) = oneshot::channel();
+            sender.send(ProposalCommitment(Felt::TWO)).unwrap();
+            receiver
+        })
+        .times(1);
+    // Expect a decision at height 2.
+    let (decision_tx, decision_rx) = oneshot::channel();
+    context
+        .expect_decision_reached()
+        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(2))
+        .return_once(move |_, _| {
+            let _ = decision_tx.send(());
+            Ok(())
+        })
+        .times(1);
+
+    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID (order is important)
+    let mut mock_client = MockConfigManagerClient::new();
+    let validator_config = consensus_config.dynamic_config.clone();
+    let proposer_config =
+        ConsensusDynamicConfig { validator_id: *PROPOSER_ID, ..validator_config.clone() };
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(validator_config));
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
+
+    let run_consensus_args = RunConsensusArguments {
+        start_active_height: BlockNumber(1),
+        start_observe_height: BlockNumber(1),
+        consensus_config,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: Some(Arc::new(mock_client)),
+    };
+
+    // Spawn consensus and wait for a decision at height 2.
+    tokio::spawn(async move {
+        run_consensus(
+            run_consensus_args,
+            context,
+            subscriber_channels.into(),
+            proposal_receiver_receiver,
+        )
+        .await
+    });
+    decision_rx.await.unwrap();
+}
+>>>>>>> origin/main-v0.14.1

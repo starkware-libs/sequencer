@@ -7,15 +7,14 @@ license.workspace = true
 
 [features]
 testing = [
-  "apollo_batcher_types/testing",
   "apollo_l1_provider_types/testing",
+  "apollo_state_sync_types/testing",
   "apollo_time/testing",
   "pretty_assertions",
   "starknet_api/testing",
 ]
 
 [dependencies]
-apollo_batcher_types.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_provider_config.workspace = true
@@ -25,23 +24,26 @@ apollo_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_time.workspace = true
 async-trait.workspace = true
+chrono.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 papyrus_base_layer.workspace = true
 pretty_assertions = { workspace = true, optional = true }
 starknet_api.workspace = true
+static_assertions.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 alloy.workspace = true
-apollo_batcher_types = { workspace = true, features = ["testing"] }
+apollo_base_layer_tests.workspace = true
 apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+futures.workspace = true
 itertools.workspace = true
 mockall.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
@@ -49,6 +51,6 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-
+tokio = { workspace = true, features = ["test-util"] }
 [lints]
 workspace = true

@@ -17,6 +17,7 @@ apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
+apollo_storage = { workspace = true }
 apollo_time = { workspace = true, features = ["tokio"] }
 async-trait.workspace = true
 futures.workspace = true
@@ -38,9 +39,16 @@ apollo_network = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+assert_matches.workspace = true
 enum-as-inner.workspace = true
 mockall.workspace = true
+<<<<<<< HEAD
 rstest.workspace = true
+||||||| 912efc99a
+=======
+rstest.workspace = true
+tempfile.workspace = true
+>>>>>>> origin/main-v0.14.1
 test-case.workspace = true
 
 [lints]

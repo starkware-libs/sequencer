@@ -36,7 +36,6 @@ use clap::{arg, value_parser, Arg, ArgMatches, Command};
 use itertools::{chain, Itertools};
 use lazy_static::lazy_static;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
@@ -57,7 +56,6 @@ pub struct NodeConfig {
     pub central: CentralSourceConfig,
     pub base_layer: EthereumBaseLayerConfig,
     pub base_layer_url: Url,
-    pub monitoring_gateway: MonitoringGatewayConfig,
     #[validate]
     pub storage: StorageConfig,
     /// None if the syncing should be disabled.
@@ -82,7 +80,6 @@ impl Default for NodeConfig {
             base_layer_url: Url::parse("https://mainnet.infura.io/v3/%3Cyour_api_key%3E").unwrap(),
             #[cfg(feature = "rpc")]
             rpc: RpcConfig::default(),
-            monitoring_gateway: MonitoringGatewayConfig::default(),
             storage: StorageConfig::default(),
             sync: Some(SyncConfig { store_sierras_and_casms: true, ..Default::default() }),
             p2p_sync: None,
@@ -100,7 +97,6 @@ impl SerializeConfig for NodeConfig {
         let mut sub_configs = vec![
             prepend_sub_config_name(self.central.dump(), "central"),
             prepend_sub_config_name(self.base_layer.dump(), "base_layer"),
-            prepend_sub_config_name(self.monitoring_gateway.dump(), "monitoring_gateway"),
             prepend_sub_config_name(self.storage.dump(), "storage"),
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),

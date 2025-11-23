@@ -40,6 +40,11 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
+    #[error(
+        "Finality is too high: finality: {finality}, latest L1 block number: \
+         {latest_l1_block_number}"
+    )]
+    FinalityTooHigh { finality: u64, latest_l1_block_number: u64 },
 }
 
 pub struct L1GasPriceScraper<B: BaseLayerContract> {
@@ -146,10 +151,18 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
     }
 
     async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        self.base_layer
-            .latest_l1_block_number(self.config.finality)
+        let latest_l1_block_number = self
+            .base_layer
+            .latest_l1_block_number()
             .await
-            .map_err(L1GasPriceScraperError::BaseLayerError)
+            .map_err(L1GasPriceScraperError::BaseLayerError)?;
+        let latest_l1_block_number = latest_l1_block_number
+            .checked_sub(self.config.finality)
+            .ok_or(L1GasPriceScraperError::FinalityTooHigh {
+                finality: self.config.finality,
+                latest_l1_block_number,
+            })?;
+        Ok(latest_l1_block_number)
     }
 }
 

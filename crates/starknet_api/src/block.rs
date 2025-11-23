@@ -5,9 +5,9 @@ mod block_test;
 use std::fmt::Display;
 use std::ops::Deref;
 
+use apollo_sizeof::SizeOf;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;

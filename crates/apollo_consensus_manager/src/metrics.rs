@@ -1,11 +1,12 @@
 use apollo_metrics::define_metrics;
-use apollo_network::network_manager::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
+use apollo_network::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
 
 define_metrics!(
     ConsensusManager => {
         // topic agnostic metrics
         MetricGauge { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
         MetricGauge { CONSENSUS_NUM_BLACKLISTED_PEERS, "apollo_consensus_num_blacklisted_peers", "The number of currently blacklisted peers by the consensus component" },
+        MetricHistogram { CONSENSUS_PING_LATENCY, "apollo_consensus_ping_latency_seconds", "The ping latency in seconds for the consensus p2p component" },
 
         // Votes topic metrics
         MetricCounter { CONSENSUS_VOTES_NUM_SENT_MESSAGES, "apollo_consensus_votes_num_sent_messages", "The number of messages sent by the consensus p2p component over the Votes topic", init = 0 },
@@ -23,6 +24,7 @@ define_metrics!(
         MetricGauge { CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING, "apollo_consensus_reverted_batcher_up_to_and_including", "The block number up to which the batcher has reverted"},
     },
 );
+<<<<<<< HEAD
 
 pub(crate) fn register_metrics() {
     CONSENSUS_NUM_CONNECTED_PEERS.register();
@@ -36,3 +38,20 @@ pub(crate) fn register_metrics() {
     CONSENSUS_NETWORK_EVENTS.register();
     CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING.register();
 }
+||||||| 912efc99a
+=======
+
+pub(crate) fn register_metrics() {
+    CONSENSUS_NUM_CONNECTED_PEERS.register();
+    CONSENSUS_NUM_BLACKLISTED_PEERS.register();
+    CONSENSUS_PING_LATENCY.register();
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES.register();
+    CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES.register();
+    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.register();
+    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.register();
+    CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.register();
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.register();
+    CONSENSUS_NETWORK_EVENTS.register();
+    CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING.register();
+}
+>>>>>>> origin/main-v0.14.1
