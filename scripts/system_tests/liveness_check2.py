@@ -1,18 +1,18 @@
 import argparse
 import os
 import random
+import socket
 import subprocess
 import sys
 import time
+from copy import deepcopy
+from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import numbers
 import requests
-import socket
 import yaml
-from copy import deepcopy
-from multiprocessing import Process, Queue
 
 
 def load_yaml(file_path: Path) -> Dict[str, Any]:

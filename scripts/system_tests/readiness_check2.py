@@ -2,13 +2,13 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import tempfile
 import yaml
-from copy import deepcopy
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 

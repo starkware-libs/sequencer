@@ -1,9 +1,8 @@
 import hashlib
 import random
 import re
-from typing import Optional
-
 import string
+from typing import Optional
 
 
 def sanitize_name(name: str) -> str:

@@ -6,9 +6,9 @@ it's not present in the layout. This makes overlays flexible while still validat
 against the schema to prevent invalid keys.
 """
 
+from copy import deepcopy
 from typing import Any, Dict, Optional, Union, get_origin
 
-from copy import deepcopy
 from src.config.schema import ServiceConfig
 
 # Type aliases for dictionary fields that allow arbitrary keys
