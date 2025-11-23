@@ -1,6 +1,6 @@
 name: gateway
 
-replicas: 2
+replicas: 1
 
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json

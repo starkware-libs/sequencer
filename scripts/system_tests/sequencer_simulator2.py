@@ -44,10 +44,55 @@ def port_forward(
     max_attempts: int = 25,
 ):
     cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
-    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Capture stderr to see kubectl errors
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    error_output_read = False
+
+    def get_error_if_failed():
+        """Check if process failed and return error message, None if still running."""
+        nonlocal error_output_read
+        if error_output_read:
+            return None  # Already read the output
+
+        if process.poll() is not None:
+            # Process terminated, read stderr (non-blocking since process is done)
+            error_output_read = True
+            try:
+                _, stderr = process.communicate(timeout=1)
+                return stderr.strip() if stderr else "Process terminated with unknown error"
+            except subprocess.TimeoutExpired:
+                return "Process terminated but could not read error output"
+        return None
+
+    # Give kubectl a moment to start and potentially fail
+    time.sleep(0.5)
+
+    # Check if process has already failed
+    error_msg = get_error_if_failed()
+    if error_msg:
+        raise RuntimeError(
+            f"❌ Port-forward to {pod_name}:{remote_port} failed immediately.\n"
+            f"kubectl error: {error_msg}"
+        )
+
     if not wait_ready:
         return
+
     for attempt in range(max_attempts):
+        # Check if process has failed
+        error_msg = get_error_if_failed()
+        if error_msg:
+            raise RuntimeError(
+                f"❌ Port-forward to {pod_name}:{remote_port} failed.\n"
+                f"kubectl error: {error_msg}"
+            )
+
         try:
             with socket.create_connection(("localhost", local_port), timeout=1):
                 print(
@@ -60,9 +105,36 @@ def port_forward(
             )
             time.sleep(1)
 
-    raise RuntimeError(
-        f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_attempts} attempts."
-    )
+    # Final check - if process failed, get the error
+    error_msg = get_error_if_failed()
+    if error_msg:
+        raise RuntimeError(
+            f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_attempts} attempts.\n"
+            f"kubectl error: {error_msg}"
+        )
+    else:
+        # Process still running but port not ready - kill it and report
+        process.terminate()
+        final_error_msg = None
+        try:
+            process.wait(timeout=2)
+            # Try to read any final error output
+            if not error_output_read:
+                try:
+                    _, stderr = process.communicate(timeout=1)
+                    if stderr:
+                        final_error_msg = stderr.strip()
+                except subprocess.TimeoutExpired:
+                    pass
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+        error_details = f"\nkubectl error: {final_error_msg}" if final_error_msg else ""
+        raise RuntimeError(
+            f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_attempts} attempts.\n"
+            f"Port {local_port} is not accessible. Check if the pod is running and the port is correct.\n"
+            f"Pod: {pod_name}, Local port: {local_port}, Remote port: {remote_port}{error_details}"
+        )
 
 
 def run_simulator(http_port: int, monitoring_port: int, sender_address: str, receiver_address: str):
