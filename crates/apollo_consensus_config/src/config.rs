@@ -304,17 +304,6 @@ impl Default for FutureMsgLimitsConfig {
     }
 }
 
-/// Configuration for future message limits.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Validate, PartialEq)]
-pub struct FutureMsgLimitsConfig {
-    /// How many heights in the future should we cache.
-    pub future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    pub future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    pub future_height_round_limit: u32,
-}
-
 impl SerializeConfig for FutureMsgLimitsConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
@@ -337,12 +326,6 @@ impl SerializeConfig for FutureMsgLimitsConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
-    }
-}
-
-impl Default for FutureMsgLimitsConfig {
-    fn default() -> Self {
-        Self { future_height_limit: 10, future_round_limit: 10, future_height_round_limit: 1 }
     }
 }
 
