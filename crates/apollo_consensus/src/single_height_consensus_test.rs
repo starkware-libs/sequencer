@@ -1,4 +1,6 @@
-use apollo_consensus_config::config::TimeoutsConfig;
+use std::time::Duration;
+
+use apollo_consensus_config::config::{Timeout, TimeoutsConfig};
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
@@ -41,28 +43,29 @@ fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
 }
 
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let duration = TIMEOUTS.get_prevote_timeout(round);
     ShcTask::Prevote(
-        TIMEOUTS.prevote_timeout,
+        duration,
         StateMachineEvent::Prevote(block_felt.map(ProposalCommitment), round),
     )
 }
 
 fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let duration = TIMEOUTS.get_precommit_timeout(round);
     ShcTask::Precommit(
-        TIMEOUTS.precommit_timeout,
+        duration,
         StateMachineEvent::Precommit(block_felt.map(ProposalCommitment), round),
     )
 }
 
 fn timeout_prevote_task(round: u32) -> ShcTask {
-    ShcTask::TimeoutPrevote(TIMEOUTS.prevote_timeout, StateMachineEvent::TimeoutPrevote(round))
+    let duration = TIMEOUTS.get_prevote_timeout(round);
+    ShcTask::TimeoutPrevote(duration, StateMachineEvent::TimeoutPrevote(round))
 }
 
 fn timeout_precommit_task(round: u32) -> ShcTask {
-    ShcTask::TimeoutPrecommit(
-        TIMEOUTS.precommit_timeout,
-        StateMachineEvent::TimeoutPrecommit(round),
-    )
+    let duration = TIMEOUTS.get_precommit_timeout(round);
+    ShcTask::TimeoutPrecommit(duration, StateMachineEvent::TimeoutPrecommit(round))
 }
 
 async fn handle_proposal(
@@ -444,4 +447,99 @@ async fn repropose() {
     };
     assert_eq!(decision.block, BLOCK.id);
     assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
+}
+
+#[tokio::test]
+async fn shc_applies_proposal_timeouts_across_rounds() {
+    let mut context = MockTestContext::new();
+
+    let timeouts = TimeoutsConfig::new(
+        // Proposal timeouts: base=100ms, delta=60ms, max=200ms.
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(60),
+            Duration::from_millis(200),
+        ),
+        // unused prevote and precommit timeouts.
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(150),
+        ),
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(150),
+        ),
+    );
+
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        false,
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        timeouts.clone(),
+    );
+    // context expectations.
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+
+    // Round 0 validate: timeout = 100ms.
+    let expected_validate_timeout_r0 = Duration::from_millis(100);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 0 && *timeout == expected_validate_timeout_r0)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+
+    let (mut content_tx, content_rx) = mpsc::channel(CHANNEL_SIZE);
+    content_tx.send(TestProposalPart::Init(ProposalInit::default())).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, ProposalInit::default(), content_rx).await.unwrap();
+
+    // Round 1 validate: timeout = 160ms.
+    let expected_validate_timeout_r1 = Duration::from_millis(160);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 1 && *timeout == expected_validate_timeout_r1)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+    let (mut content_tx2, content_rx2) = mpsc::channel(CHANNEL_SIZE);
+    let round1_init = ProposalInit {
+        height: BlockNumber(0),
+        round: 1,
+        proposer: *PROPOSER_ID,
+        ..Default::default()
+    };
+    content_tx2.send(TestProposalPart::Init(round1_init)).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, round1_init, content_rx2).await.unwrap();
+
+    // Round 2 validate: timeout = min(100 + 2*60, 200) = 200ms (capped).
+    let expected_validate_timeout_r2 = Duration::from_millis(200);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 2 && *timeout == expected_validate_timeout_r2)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+    let (mut content_tx3, content_rx3) = mpsc::channel(CHANNEL_SIZE);
+    let round2_init = ProposalInit {
+        height: BlockNumber(0),
+        round: 2,
+        proposer: *PROPOSER_ID,
+        ..Default::default()
+    };
+    content_tx3.send(TestProposalPart::Init(round2_init)).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, round2_init, content_rx3).await.unwrap();
 }
