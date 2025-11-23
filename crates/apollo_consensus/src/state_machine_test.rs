@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use lazy_static::lazy_static;
+use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -17,6 +18,7 @@ lazy_static! {
 
 const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ONE));
 const ROUND: Round = 0;
+const HEIGHT: BlockNumber = BlockNumber(0);
 
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
     state_machine: StateMachine,
@@ -33,7 +35,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         quorum_type: QuorumType,
     ) -> Self {
         Self {
-            state_machine: StateMachine::new(id, total_weight, is_observer, quorum_type),
+            state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
             leader_fn,
             events: VecDeque::new(),
         }

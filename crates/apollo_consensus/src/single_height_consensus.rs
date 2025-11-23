@@ -133,7 +133,6 @@ impl ShcTask {
 /// SHC is not a top level task, it is called directly and returns values (doesn't directly run sub
 /// tasks). SHC does have side effects, such as sending messages to the network via the context.
 pub(crate) struct SingleHeightConsensus {
-    height: BlockNumber,
     validators: Vec<ValidatorId>,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
@@ -156,9 +155,8 @@ impl SingleHeightConsensus {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators, is_observer, quorum_type);
+        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
         Self {
-            height,
             validators,
             timeouts,
             state_machine,
@@ -179,13 +177,14 @@ impl SingleHeightConsensus {
         &mut self,
         context: &mut ContextT,
     ) -> Result<ShcReturn, ConsensusError> {
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
-        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+        let height = self.state_machine.height();
+        context.set_height_and_round(height, self.state_machine.round()).await;
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
         let events = self.state_machine.start(&leader_fn);
         let ret = self.handle_state_machine_events(context, events).await;
         // Defensive programming. We don't expect the height and round to have changed from the
         // start of this method.
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context.set_height_and_round(height, self.state_machine.round()).await;
         ret
     }
 
@@ -199,11 +198,12 @@ impl SingleHeightConsensus {
         p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
         debug!("Received {init:?}");
-        let proposer_id = context.proposer(self.height, init.round);
-        if init.height != self.height {
-            warn!("Invalid proposal height: expected {:?}, got {:?}", self.height, init.height);
+        let height = self.state_machine.height();
+        if init.height != height {
+            warn!("Invalid proposal height: expected {:?}, got {:?}", height, init.height);
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
+        let proposer_id = context.proposer(height, init.round);
         if init.proposer != proposer_id {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return Ok(ShcReturn::Tasks(Vec::new()));
@@ -223,7 +223,7 @@ impl SingleHeightConsensus {
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
         let block_receiver = context.validate_proposal(init, timeout, p2p_messages_receiver).await;
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context.set_height_and_round(height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
 
@@ -275,8 +275,8 @@ impl SingleHeightConsensus {
                 )]))
             }
             StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
-                let leader_fn =
-                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                let height = self.state_machine.height();
+                let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
                 debug!(
                     proposer = %leader_fn(round),
                     %round,
@@ -314,14 +314,14 @@ impl SingleHeightConsensus {
                     "State machine should not progress while awaiting proposal"
                 );
                 debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
-                let leader_fn =
-                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                let height = self.state_machine.height();
+                let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
                 let sm_events = self.state_machine.handle_event(event, &leader_fn);
                 self.handle_state_machine_events(context, sm_events).await
             }
             _ => unimplemented!("Unexpected event: {:?}", event),
         };
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context.set_height_and_round(self.state_machine.height(), self.state_machine.round()).await;
         ret
     }
 
@@ -330,7 +330,8 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         event: StateMachineEvent,
     ) -> Result<ShcReturn, ConsensusError> {
-        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+        let height = self.state_machine.height();
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
         let sm_events = self.state_machine.handle_event(event, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
     }
@@ -376,10 +377,11 @@ impl SingleHeightConsensus {
             }
         }
         info!("Accepting {:?}", vote);
-        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+        let height = self.state_machine.height();
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
         let ret = self.handle_state_machine_events(context, sm_events).await;
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context.set_height_and_round(height, self.state_machine.round()).await;
         ret
     }
 
@@ -466,7 +468,7 @@ impl SingleHeightConsensus {
         // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
         // handled by applying timeoutPropose when we are the leader.
         let init = ProposalInit {
-            height: self.height,
+            height: self.state_machine.height(),
             round,
             proposer: self.state_machine.validator_id(),
             valid_round: None,
@@ -506,7 +508,7 @@ impl SingleHeightConsensus {
         let old = self.proposals.insert(round, Some(proposal_id));
         assert!(old.is_none(), "There should be no proposal for round {round}.");
         let init = ProposalInit {
-            height: self.height,
+            height: self.state_machine.height(),
             round,
             proposer: self.state_machine.validator_id(),
             valid_round: Some(valid_round),
@@ -541,7 +543,7 @@ impl SingleHeightConsensus {
         };
         let vote = Vote {
             vote_type,
-            height: self.height.0,
+            height: self.state_machine.height().0,
             round,
             proposal_commitment: proposal_id,
             voter: self.state_machine.validator_id(),

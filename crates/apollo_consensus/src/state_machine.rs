@@ -10,6 +10,7 @@ mod state_machine_test;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use tracing::{debug, info, trace, warn};
 
 use crate::metrics::{
@@ -66,6 +67,7 @@ pub(crate) enum Step {
 /// Each height is begun with a call to `start`, with no further calls to it.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct StateMachine {
+    height: BlockNumber,
     id: ValidatorId,
     round: Round,
     step: Step,
@@ -92,12 +94,14 @@ pub(crate) struct StateMachine {
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
     pub(crate) fn new(
+        height: BlockNumber,
         id: ValidatorId,
         total_weight: u64,
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
         Self {
+            height,
             id,
             round: 0,
             step: Step::Propose,
@@ -134,6 +138,10 @@ impl StateMachine {
 
     pub(crate) fn validator_id(&self) -> ValidatorId {
         self.id
+    }
+
+    pub(crate) fn height(&self) -> BlockNumber {
+        self.height
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
