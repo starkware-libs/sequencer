@@ -22,11 +22,6 @@ use crate::ValidatorId;
 pub struct ConsensusDynamicConfig {
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
-    /// Timeouts configuration for consensus.
-    pub timeouts: TimeoutsConfig,
-    /// The duration (seconds) between sync attempts.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub sync_retry_interval: Duration,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -35,6 +30,11 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
+    /// Timeouts configuration for consensus.
+    pub timeouts: TimeoutsConfig,
+    /// The duration (seconds) between sync attempts.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub sync_retry_interval: Duration,
     /// Future message limits configuration.
     pub future_msg_limit: FutureMsgLimitsConfig,
 }
@@ -50,11 +50,22 @@ pub struct ConsensusConfig {
 
 impl SerializeConfig for ConsensusDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "validator_id",
+            &self.validator_id,
+            "The validator id of the node.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl SerializeConfig for ConsensusStaticConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
             ser_param(
-                "validator_id",
-                &self.validator_id,
-                "The validator id of the node.",
+                "startup_delay",
+                &self.startup_delay.as_secs(),
+                "Delay (seconds) before starting consensus to give time for network peering.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -65,20 +76,7 @@ impl SerializeConfig for ConsensusDynamicConfig {
             ),
         ]);
         config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
-        config
-    }
-}
-
-impl SerializeConfig for ConsensusStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([ser_param(
-            "startup_delay",
-            &self.startup_delay.as_secs(),
-            "Delay (seconds) before starting consensus to give time for network peering.",
-            ParamPrivacyInput::Public,
-        )]);
         config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
-
         config
     }
 }
@@ -94,11 +92,7 @@ impl SerializeConfig for ConsensusConfig {
 
 impl Default for ConsensusDynamicConfig {
     fn default() -> Self {
-        Self {
-            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-        }
+        Self { validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID) }
     }
 }
 
@@ -106,6 +100,8 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
+            timeouts: TimeoutsConfig::default(),
+            sync_retry_interval: Duration::from_secs_f64(1.0),
             future_msg_limit: FutureMsgLimitsConfig::default(),
         }
     }

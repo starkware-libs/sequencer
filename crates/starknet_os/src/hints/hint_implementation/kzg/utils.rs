@@ -4,11 +4,10 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
+use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, Bytes};
 use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
@@ -28,7 +27,6 @@ const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const LOG2_FIELD_ELEMENTS_PER_BLOB: usize = 12;
 pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << LOG2_FIELD_ELEMENTS_PER_BLOB;
-const _: () = assert!(BYTES_PER_BLOB == FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT);
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -40,8 +38,6 @@ pub enum FftError {
     InvalidBinaryToUsize(ParseIntError),
     #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     InvalidBlobSize(usize),
-    #[error("Invalid bytes in blob: {0}.")]
-    InvalidBytesInBlob(usize),
     #[error(transparent)]
     ParseBigUint(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
@@ -49,12 +45,12 @@ pub enum FftError {
 }
 
 static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
-    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP, 0)
+    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP)
         .unwrap_or_else(|error| panic!("Failed to load trusted setup: {error}."))
 });
 
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
-    Ok(KZG_SETTINGS.blob_to_kzg_commitment(blob)?)
+    Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
 
 fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
@@ -68,25 +64,25 @@ fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
     bytes
 }
 
-pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<[u8; BYTES_PER_BLOB], FftError> {
+pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
     }
-    let flattened_blob = blob
+    Ok(blob
         .iter()
         .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
-        .collect::<Vec<_>>();
-    let flattened_blob_bytes = flattened_blob.len();
-    flattened_blob.try_into().map_err(|_| FftError::InvalidBytesInBlob(flattened_blob_bytes))
+        .collect())
 }
 
-pub fn deserialize_blob(blob_bytes: &[u8; BYTES_PER_BLOB]) -> [Fr; FIELD_ELEMENTS_PER_BLOB] {
-    blob_bytes
+pub fn deserialize_blob(
+    blob_bytes: &[u8; BYTES_PER_BLOB],
+) -> Result<[Fr; FIELD_ELEMENTS_PER_BLOB], FftError> {
+    Ok(blob_bytes
         .chunks_exact(BYTES_PER_FIELD_ELEMENT)
         .map(|slice| Fr::from(BigUint::from_bytes_be(slice)))
         .collect::<Vec<Fr>>()
         .try_into()
-        .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB")
+        .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB"))
 }
 
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
@@ -132,9 +128,7 @@ pub(crate) fn bit_reversal<T>(unreversed_blob: &mut [T]) -> Result<(), FftError>
     Ok(())
 }
 
-pub(crate) fn polynomial_coefficients_to_blob(
-    coefficients: Vec<Fr>,
-) -> Result<[u8; BYTES_PER_BLOB], FftError> {
+pub(crate) fn polynomial_coefficients_to_blob(coefficients: Vec<Fr>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
@@ -181,16 +175,35 @@ pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &Big
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
 
-/// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct LegacyBlobArtifacts {
-    #[serde_as(as = "Vec<Bytes>")]
-    pub commitments: Vec<[u8; 48]>,
-    #[serde_as(as = "Vec<Bytes>")]
-    pub proofs: Vec<[u8; 48]>,
-    #[serde_as(as = "Vec<Bytes>")]
+/// Structure to hold blob data, commitments, proofs, and versioned hashes.
+pub struct Blobs {
+    pub blobs: Vec<Vec<u8>>,
+    pub commitments: Vec<KzgCommitment>,
+    pub proofs: Vec<KzgProof>,
     pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Serializable structure to hold blob data, commitments, proofs, and versioned hashes.
+/// All cryptographic objects are converted to byte arrays for easy serialization.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SerializableBlobs {
+    pub blobs: Vec<Vec<u8>>,
+    pub commitments: Vec<Vec<u8>>,      // 48 bytes each
+    pub proofs: Vec<Vec<u8>>,           // 48 bytes each
+    pub versioned_hashes: Vec<Vec<u8>>, // 32 bytes each
+}
+impl From<Blobs> for SerializableBlobs {
+    fn from(Blobs { blobs, commitments, proofs, versioned_hashes }: Blobs) -> Self {
+        Self {
+            blobs,
+            commitments: commitments
+                .into_iter()
+                .map(|commitment| commitment.to_bytes().as_ref().to_vec())
+                .collect(),
+            proofs: proofs.into_iter().map(|proof| proof.to_bytes().as_ref().to_vec()).collect(),
+            versioned_hashes: versioned_hashes.into_iter().map(|hash| hash.to_vec()).collect(),
+        }
+    }
 }
 
 /// Computes a versioned hash from a KZG commitment.
@@ -209,13 +222,12 @@ fn kzg_to_versioned_hash(commitment: &KzgCommitment) -> [u8; 32] {
     hash.into()
 }
 
-/// Computes KZG commitments, legacy proofs, and versioned hashes for a list of raw blobs.
+/// Computes KZG commitments, proofs, and versioned hashes for a list of raw blobs.
 ///
 /// For each blob, computes the KZG commitment and the corresponding KZG proof that is used
-/// to verify the commitment. Returns `LegacyBlobArtifacts` structure.
-pub fn compute_legacy_blob_commitments(
-    raw_blobs: Vec<Vec<u8>>,
-) -> Result<LegacyBlobArtifacts, FftError> {
+/// to verify the commitment. Returns the internal `Blobs` structure with native KZG types.
+pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<Blobs, FftError> {
+    let mut blobs = Vec::new();
     let mut commitments = Vec::new();
     let mut proofs = Vec::new();
     let mut versioned_hashes = Vec::new();
@@ -228,77 +240,16 @@ pub fn compute_legacy_blob_commitments(
         let commitment = blob_to_kzg_commitment(&blob)?;
 
         // Compute KZG proof.
-        let proof = KZG_SETTINGS.compute_blob_kzg_proof(&blob, &commitment.to_bytes())?;
+        let proof = KzgProof::compute_blob_kzg_proof(&blob, &commitment.to_bytes(), &KZG_SETTINGS)?;
 
         // Compute versioned hash.
         let versioned_hash = kzg_to_versioned_hash(&commitment);
 
-        commitments.push(*commitment);
-        proofs.push(*proof);
+        blobs.push(raw_blob.clone());
+        commitments.push(commitment);
+        proofs.push(proof);
         versioned_hashes.push(versioned_hash);
     }
 
-    Ok(LegacyBlobArtifacts { commitments, proofs, versioned_hashes })
-}
-
-/// Structure to hold blob artifacts: commitments, cell proofs (CELLS_PER_EXT_BLOB per blob), and
-/// versioned hashes.
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BlobArtifacts {
-    #[serde_as(as = "Vec<Bytes>")]
-    pub commitments: Vec<[u8; 48]>,
-    #[serde_as(as = "Vec<Bytes>")]
-    pub cell_proofs: Vec<[u8; 48]>,
-    #[serde_as(as = "Vec<Bytes>")]
-    pub versioned_hashes: Vec<[u8; 32]>,
-}
-
-/// Computes KZG commitments, cell proofs, and versioned hashes for a list of raw blobs.
-///
-/// For each blob, computes the KZG commitment and the corresponding KZG cell proofs that is used
-/// to verify the commitment. Returns the internal `CellBlobs` structure with native KZG types.
-pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts, FftError> {
-    let mut commitments = Vec::new();
-    let mut cell_proofs = Vec::new();
-    let mut versioned_hashes = Vec::new();
-
-    for raw_blob in raw_blobs.iter() {
-        // Convert raw blob bytes to Blob.
-        let blob = Blob::from_bytes(raw_blob)?;
-
-        // Compute KZG commitment.
-        let commitment = blob_to_kzg_commitment(&blob)?;
-
-        // Compute KZG cell proofs.
-        let (_, blob_cell_proofs) = KZG_SETTINGS.compute_cells_and_kzg_proofs(&blob)?;
-
-        // Compute versioned hash.
-        let versioned_hash = kzg_to_versioned_hash(&commitment);
-
-        commitments.push(*commitment);
-        cell_proofs.extend(blob_cell_proofs.into_iter().map(|proof| *proof));
-        versioned_hashes.push(versioned_hash);
-    }
-
-    Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
-}
-
-pub fn decode_blobs(raw_blobs: Vec<[u8; BYTES_PER_BLOB]>) -> Result<Vec<Felt>, FftError> {
-    let mut result = Vec::new();
-
-    for raw_blob in raw_blobs.iter() {
-        let mut coeffs: Vec<Fr> = deserialize_blob(raw_blob).into();
-
-        bit_reversal(&mut coeffs)?;
-        let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
-            .ok_or(FftError::EvalDomainCreation)?;
-        domain.ifft_in_place(&mut coeffs);
-
-        for fr_elem in coeffs {
-            let bytes = fr_elem.into_bigint().to_bytes_be();
-            result.push(Felt::from_bytes_be_slice(&bytes));
-        }
-    }
-    Ok(result)
+    Ok(Blobs { blobs, commitments, proofs, versioned_hashes })
 }

@@ -4,13 +4,11 @@ use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
 use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
-use strum::EnumCount;
 use tracing::{info, instrument};
 
 const PORTS_PER_INSTANCE: u16 = 60;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 28;
-#[allow(clippy::as_conversions)]
-const MAX_NUMBER_OF_TESTS: u16 = TestIdentifier::COUNT as u16;
+const MAX_NUMBER_OF_TESTS: u16 = 11;
 const BASE_PORT: u16 = 11000;
 
 // Ensure available ports don't exceed u16::MAX.
@@ -23,7 +21,7 @@ const _: () = {
 };
 
 #[repr(u16)]
-#[derive(Debug, Copy, Clone, IntoPrimitive, EnumCount)]
+#[derive(Debug, Copy, Clone, IntoPrimitive)]
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
     EndToEndFlowTest,

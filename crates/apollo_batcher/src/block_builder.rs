@@ -1,7 +1,6 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
@@ -58,12 +57,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::{
-    record_block_close_reason,
-    BlockCloseReason,
-    PROPOSER_DEFERRED_TXS,
-    VALIDATOR_WASTED_TXS,
-};
+use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -214,7 +208,6 @@ pub trait BlockBuilderTrait: Send {
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
     pub is_validator: bool,
-    pub proposer_idle_detection_delay: Duration,
 }
 
 pub struct BlockBuilder {
@@ -237,9 +230,6 @@ pub struct BlockBuilder {
     n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
-
-    /// Timestamp when block building started.
-    block_building_start: tokio::time::Instant,
 }
 
 impl BlockBuilder {
@@ -273,7 +263,6 @@ impl BlockBuilder {
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
-            block_building_start: tokio::time::Instant::now(),
         }
     }
 }
@@ -298,19 +287,13 @@ impl BlockBuilder {
                 if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
-                record_block_close_reason(BlockCloseReason::Deadline);
-                break;
-            }
-
-            if self.should_finish_due_to_timeout_while_propose() {
-                let now = tokio::time::Instant::now();
-                let time_since_start = now.duration_since(self.block_building_start);
-                info!(
-                    "No transactions are being executed and {:?} passed since block building \
-                     started (timeout is set to {:?}), finishing block building.",
-                    time_since_start, self.execution_params.proposer_idle_detection_delay,
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::Deadline.into(),
+                    )],
                 );
-                record_block_close_reason(BlockCloseReason::IdleExecutionTimeout);
                 break;
             }
             if final_n_executed_txs.is_none() {
@@ -333,7 +316,13 @@ impl BlockBuilder {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
-                record_block_close_reason(BlockCloseReason::FullBlock);
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::FullBlock.into(),
+                    )],
+                );
                 break;
             }
 
@@ -373,28 +362,6 @@ impl BlockBuilder {
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
         );
-        // Sanity check to avoid panic and skip logging if numbers aren't aligned
-        if final_n_executed_txs_nonopt <= self.n_executed_txs
-            && self.n_executed_txs <= self.block_txs.len()
-        {
-            debug!(
-                "Finished building block as {}. Transaction hashes: included in block: {:?}, \
-                 proposer excluded but we executed: {:?}, not finished executing: {:?}",
-                if self.execution_params.is_validator { "validator" } else { "proposer" },
-                self.block_txs[0..final_n_executed_txs_nonopt]
-                    .iter()
-                    .map(|tx| tx.tx_hash())
-                    .collect::<Vec<_>>(),
-                self.block_txs[final_n_executed_txs_nonopt..self.n_executed_txs]
-                    .iter()
-                    .map(|tx| tx.tx_hash())
-                    .collect::<Vec<_>>(),
-                self.block_txs[self.n_executed_txs..]
-                    .iter()
-                    .map(|tx| tx.tx_hash())
-                    .collect::<Vec<_>>(),
-            );
-        }
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
@@ -413,7 +380,6 @@ impl BlockBuilder {
             compiled_class_hashes_for_migration,
             block_info,
         } = block_summary;
-
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
@@ -583,18 +549,6 @@ impl BlockBuilder {
                 );
             }
         }
-    }
-
-    fn should_finish_due_to_timeout_while_propose(&self) -> bool {
-        if self.execution_params.is_validator {
-            return false;
-        };
-        if self.n_txs_in_progress() > 0 {
-            return false;
-        };
-        let now = tokio::time::Instant::now();
-        let time_since_start = now.duration_since(self.block_building_start);
-        time_since_start >= self.execution_params.proposer_idle_detection_delay
     }
 
     async fn sleep(&mut self) {

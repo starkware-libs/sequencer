@@ -4,7 +4,6 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_DROPPED,
 };
-use apollo_metrics::MetricCommon;
 
 use crate::alerts::{
     Alert,

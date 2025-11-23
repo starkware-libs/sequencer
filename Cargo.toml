@@ -85,7 +85,6 @@ members = [
   "crates/apollo_task_executor",
   "crates/apollo_test_utils",
   "crates/apollo_time",
-  "crates/bench_tools",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/blockifier_test_utils",
@@ -121,7 +120,7 @@ license-file = "LICENSE"
 
 [workspace.dependencies]
 aerospike = { version = "2.0.0-alpha.6", default-features = false }
-alloy = "1.0.38"
+alloy = "0.12"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_config.path = "crates/apollo_batcher_config"
@@ -218,7 +217,6 @@ async-trait = "0.1.79"
 atomic_refcell = "0.1.13"
 axum = "0.6.12"
 base64 = "0.13.0"
-bench_tools.path = "crates/bench_tools"
 bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
@@ -228,7 +226,7 @@ blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.17.0-rc.0" }
 byteorder = "1.4.3"
 bytes = "1"
-c-kzg = "2.1.5"
+c-kzg = "1.0.3"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
 cairo-lang-casm = "2.12.3"
@@ -237,7 +235,7 @@ cairo-lang-sierra = "2.12.3"
 cairo-lang-sierra-to-casm = "2.12.3"
 cairo-lang-starknet-classes = "2.12.3"
 cairo-lang-utils = "2.12.3"
-cairo-native = "0.7.1"
+cairo-native = "0.6.2"
 cairo-vm = "2.5.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"

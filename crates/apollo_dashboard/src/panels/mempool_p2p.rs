@@ -6,14 +6,12 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_metrics::MetricCommon;
 use apollo_network::network_manager::metrics::{
     LABEL_NAME_BROADCAST_DROP_REASON,
     LABEL_NAME_EVENT_TYPE,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
-use crate::query_builder::{sum_by_label, DisplayMethod};
 
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
     Panel::from_gauge(&MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
@@ -39,7 +37,11 @@ fn get_panel_mempool_p2p_network_events_by_type() -> Panel {
     Panel::new(
         MEMPOOL_P2P_NETWORK_EVENTS.get_name(),
         MEMPOOL_P2P_NETWORK_EVENTS.get_description(),
-        sum_by_label(&MEMPOOL_P2P_NETWORK_EVENTS, LABEL_NAME_EVENT_TYPE, DisplayMethod::Raw, false),
+        vec![format!(
+            "sum by ({}) ({})",
+            LABEL_NAME_EVENT_TYPE,
+            MEMPOOL_P2P_NETWORK_EVENTS.get_name_with_filter()
+        )],
         PanelType::TimeSeries,
     )
 }
@@ -48,12 +50,11 @@ fn get_panel_mempool_p2p_dropped_messages_by_reason() -> Panel {
     Panel::new(
         MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_name(),
         MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_description(),
-        sum_by_label(
-            &MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
+        vec![format!(
+            "sum by ({}) ({})",
             LABEL_NAME_BROADCAST_DROP_REASON,
-            DisplayMethod::Raw,
-            false,
-        ),
+            MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_name_with_filter()
+        )],
         PanelType::TimeSeries,
     )
 }

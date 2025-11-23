@@ -20,7 +20,7 @@ use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceCl
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::StateSyncClient;
-use apollo_time::time::{Clock, ClockExt, DateTime};
+use apollo_time::time::{sleep_until, Clock, DateTime};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -182,7 +182,7 @@ pub(crate) async fn validate_proposal(
                     "validating proposal parts".to_string(),
                 ));
             }
-            _ = args.deps.clock.sleep_until(deadline) => {
+            _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return Err(ValidateProposalError::ValidationTimeout(
                     "validating proposal parts".to_string(),
@@ -361,7 +361,7 @@ async fn await_second_proposal_part(
                 "waiting for second proposal part".to_string(),
             ))
         }
-        _ = clock.sleep_until(deadline) => {
+        _ = sleep_until(deadline, clock) => {
             Err(ValidateProposalError::ValidationTimeout(
                 "waiting for second proposal part".to_string(),
             ))

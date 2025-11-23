@@ -12,12 +12,7 @@ use apollo_class_manager_config::config::{
 };
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_consensus_config::config::{
-    ConsensusConfig,
-    ConsensusDynamicConfig,
-    ConsensusStaticConfig,
-    TimeoutsConfig,
-};
+use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
@@ -201,7 +196,7 @@ pub fn create_node_config(
     let l1_scraper_config = L1ScraperConfig {
         chain_id: chain_info.chain_id.clone(),
         startup_rewind_time_seconds: Duration::from_secs(0),
-        polling_interval_seconds: Duration::from_secs(1),
+        polling_interval_seconds: Duration::from_secs(0),
         ..Default::default()
     };
     let l1_provider_config = L1ProviderConfig {
@@ -354,15 +349,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             network_config,
             immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
-                dynamic_config: ConsensusDynamicConfig {
-                    timeouts: timeouts.clone(),
-                    ..Default::default()
-                },
                 static_config: ConsensusStaticConfig {
                     // TODO(Matan, Dan): Set the right amount
                     startup_delay: Duration::from_secs(15),
+                    timeouts: timeouts.clone(),
                     ..Default::default()
                 },
+                ..Default::default()
             },
             context_config: ContextConfig {
                 num_validators,

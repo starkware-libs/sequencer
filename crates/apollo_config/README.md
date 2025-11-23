@@ -1,8 +1,8 @@
-# apollo-config
+# papyrus-config
 
 ## Description
 
-apollo-config is a flexible and powerful layered configuration system designed specifically for Apollo, a Starknet node. This system allows you to easily manage configurations for your Apollo sequencer by leveraging various sources and providing additional helpful features.
+papyrus-config is a flexible and powerful layered configuration system designed specifically for Papyrus, a Starknet node. This system allows you to easily manage configurations for your Papyrus node by leveraging various sources and providing additional helpful features.
 
 ## Configuration sources
 
@@ -27,7 +27,7 @@ Supports multiple configuration sources in ascending order of overriding priorit
 
 Developer reference documentation is available at https://docs.rs/apollo_config/. The documentation on this site is updated periodically.
 
-To view the most up-to-date documentation, enter the following command at the root directory of the project:
+To view the most up-to-date documentation, enter the following command at the root directory of the `papyrus` project:
 
 ```shell
 cargo doc --open -p apollo_config

@@ -93,18 +93,18 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
-        debug!("Processing tx: {:?}", &tx);
-        let tx_signature = tx.signature().clone();
+        debug!("Processing tx with signature: {:?}", tx.signature());
         let is_p2p = p2p_message_metadata.is_some();
 
         let start_time = std::time::Instant::now();
-        let ret = self.add_tx_inner(tx, p2p_message_metadata).await;
+        let ret = self.add_tx_inner(&tx, p2p_message_metadata).await;
         let elapsed = start_time.elapsed().as_secs_f64();
 
         debug!(
             "Processed tx with signature: {:?}. duration: {elapsed} sec, ret: {ret:?}, is_p2p: \
-             {is_p2p}",
-            &tx_signature,
+             {is_p2p}, tx: {:?}",
+            tx.signature(),
+            tx
         );
 
         ret
@@ -112,10 +112,10 @@ impl Gateway {
 
     async fn add_tx_inner(
         &self,
-        tx: RpcTransaction,
+        tx: &RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
-        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+        let mut metric_counters = GatewayMetricHandle::new(tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
@@ -126,16 +126,17 @@ impl Gateway {
         }
 
         // Perform stateless validations.
-        self.stateless_tx_validator.validate(&tx)?;
+        self.stateless_tx_validator.validate(tx)?;
 
         let tx_signature = tx.signature().clone();
-        let internal_tx =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-                },
-            )?;
+        let internal_tx = self
+            .transaction_converter
+            .convert_rpc_tx_to_internal_rpc_tx(tx.clone())
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+            })?;
 
         let executable_tx = self
             .transaction_converter
@@ -161,7 +162,8 @@ impl Gateway {
             Ok(Err(starknet_err)) => {
                 info!(
                     "Gateway validation failed for tx with signature: {:?} with error: {}",
-                    &tx_signature, starknet_err
+                    tx.signature(),
+                    starknet_err
                 );
                 metric_counters.record_add_tx_failure(&starknet_err);
                 return Err(starknet_err);
@@ -169,7 +171,7 @@ impl Gateway {
             Err(join_err) => {
                 let err = StarknetError::internal_with_signature_logging(
                     "Failed to process tx",
-                    &tx_signature,
+                    tx.signature(),
                     join_err,
                 );
                 metric_counters.record_add_tx_failure(&err);
@@ -183,8 +185,10 @@ impl Gateway {
             args: AddTransactionArgs::new(internal_tx, nonce),
             p2p_message_metadata,
         };
-        let mempool_client_result = self.mempool_client.add_tx(add_tx_args).await;
-        match mempool_client_result_to_deprecated_gw_result(&tx_signature, mempool_client_result) {
+        match mempool_client_result_to_deprecated_gw_result(
+            tx.signature(),
+            self.mempool_client.add_tx(add_tx_args).await,
+        ) {
             Ok(()) => {}
             Err(e) => {
                 metric_counters.record_add_tx_failure(&e);

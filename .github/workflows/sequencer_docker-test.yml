@@ -14,7 +14,6 @@ on:
 env:
   crate_triggers: "apollo_node,apollo_dashboard,apollo_integration_tests"
   path_triggers: ".github/workflows/sequencer_docker-test.yml,scripts/*.py,scripts/system_tests/**/*.py"
-  path_triggers_exclude: "scripts/prod/**/*"
 
 permissions:
   contents: read
@@ -54,8 +53,7 @@ jobs:
           python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
             --commit_id ${{ github.event.pull_request.base.sha }} \
             --crate_triggers ${{ env.crate_triggers }} \
-            --path_triggers ${{ env.path_triggers }} \
-            --path_triggers_exclude ${{ env.path_triggers_exclude }}
+            --path_triggers ${{ env.path_triggers }}
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"

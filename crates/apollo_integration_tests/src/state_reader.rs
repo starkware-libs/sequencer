@@ -32,7 +32,6 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -279,13 +278,10 @@ fn prepare_state_diff(
 
     // Setup the common test contracts that are used by default in all test invokes.
     // TODO(batcher): this does nothing until we actually start excuting stuff in the batcher.
-    state_diff_builder.set_contracts(default_test_contracts).declare(&HashVersion::V2).deploy();
+    state_diff_builder.set_contracts(default_test_contracts).declare().deploy();
 
     // Declare and deploy and the ERC20 contract, so that transfers from it can be made.
-    state_diff_builder
-        .set_contracts(std::slice::from_ref(erc20_contract))
-        .declare(&HashVersion::V2)
-        .deploy();
+    state_diff_builder.set_contracts(std::slice::from_ref(erc20_contract)).declare().deploy();
 
     // TODO(deploy_account_support): once we have batcher with execution, replace with:
     // ```
@@ -429,7 +425,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
         self
     }
 
-    fn declare(&mut self, hash_version: &HashVersion) -> &mut Self {
+    fn declare(&mut self) -> &mut Self {
         for contract in self.contracts {
             match contract.cairo_version() {
                 CairoVersion::Cairo0 => {
@@ -438,10 +434,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution
                 // to avoid compilation errors when using the "cairo_native" feature
                 _ => {
-                    self.declared_classes.insert(
-                        contract.class_hash(),
-                        contract.contract.get_compiled_class_hash(hash_version),
-                    );
+                    self.declared_classes.insert(contract.class_hash(), Default::default());
                 }
             }
         }
@@ -482,10 +475,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
         &mut self,
         deployed_accounts_defined_in_the_test: &'a [Contract],
     ) {
-        self.set_contracts(deployed_accounts_defined_in_the_test)
-            .declare(&HashVersion::V2)
-            .deploy()
-            .fund();
+        self.set_contracts(deployed_accounts_defined_in_the_test).declare().deploy().fund();
 
         // Set nonces as 1 in the state so that subsequent invokes can pass validation.
         self.nonces = self
@@ -499,11 +489,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
         &mut self,
         undeployed_accounts_defined_in_the_test: &'a [Contract],
     ) {
-        // Imitate the behavior of a class that was declared before the migration
-        // with casm v1 (poseidon) to trigger migration in the integration tests.
-        self.set_contracts(undeployed_accounts_defined_in_the_test)
-            .declare(&HashVersion::V1)
-            .fund();
+        self.set_contracts(undeployed_accounts_defined_in_the_test).declare().fund();
     }
 
     fn build(self) -> ThinStateDiff {

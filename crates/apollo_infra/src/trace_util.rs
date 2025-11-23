@@ -26,8 +26,7 @@ pub async fn configure_tracing() {
                 .with_target(false) // No module name.
                 // Instead, file name and line number.
                 .with_file(true)
-                .with_line_number(true)
-                .flatten_event(true);
+                .with_line_number(true);
 
             let level_filter_layer = EnvFilter::builder()
                 .with_default_directive(DEFAULT_LEVEL.into())
