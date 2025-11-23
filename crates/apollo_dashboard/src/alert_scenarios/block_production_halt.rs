@@ -3,7 +3,7 @@ use std::time::Duration;
 use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alerts::{

@@ -2,23 +2,23 @@ name: Sequencer-Cdk8s-Test
 on:
   workflow_dispatch:
 
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    paths:
-      - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "deployments/sequencer/**"
+  # push:
+  #   branches:
+  #     - main
+  #     - main-v[0-9].**
+  #   tags:
+  #     - v[0-9].**
+  #   paths:
+  #     - ".github/workflows/sequencer_cdk8s-test.yml"
+  #     - "deployments/sequencer/**"
 
-  pull_request:
-    branches:
-      - main
-      - main-v[0-9].**
-    paths:
-      - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "deployments/sequencer/**"
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - main-v[0-9].**
+  #   paths:
+  #     - ".github/workflows/sequencer_cdk8s-test.yml"
+  #     - "deployments/sequencer/**"
 
 jobs:
   prepare:

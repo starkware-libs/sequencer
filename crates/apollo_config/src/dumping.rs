@@ -421,7 +421,7 @@ fn verify_pointing_params_by_name(
                     serialized_param.content
                         == SerializedContent::PointerTarget(target_param.to_owned()),
                     "The target param {param_path} should point to {target_param}, or to be \
-                     whitelisted."
+                     whitelisted. You can use set_pointing_param_paths to point it to a value."
                 );
             };
         }

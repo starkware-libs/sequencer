@@ -3,5 +3,5 @@
   "consensus_manager_config.network_config.advertised_multiaddr.#is_none": true,
   "mempool_p2p_config.network_config.advertised_multiaddr": "",
   "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": true,
-  "validator_id": "0x1"
+  "validator_id": "0x65"
 }

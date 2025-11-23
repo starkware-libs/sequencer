@@ -1,6 +1,0 @@
-{
-    "central.http_headers": "X-Throttling-Bypass:dlaxszinf1zggax2xfbqeujanj603hhry8vli3vma34j",
-    "network.#is_none": false,
-    "storage.db_config.path_prefix": "./scripts/papyrus/p2p_sync_e2e_test/data_server",
-    "network.secret_key": "0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd"
-}

@@ -1,4 +1,5 @@
 use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,
@@ -35,8 +36,6 @@ fn get_preconfirmed_block_not_written(
         alert_env_filtering,
     )
 }
-
-use apollo_metrics::MetricCommon;
 
 pub(crate) fn get_preconfirmed_block_not_written_vec() -> Vec<Alert> {
     vec![

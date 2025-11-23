@@ -4,13 +4,16 @@
 
 use std::collections::HashMap;
 use std::io::{self, Read};
+use std::sync::LazyLock;
 
-use apollo_gateway::errors::serde_err_to_state_err;
+use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
+use apollo_compile_to_casm_types::RawClass;
+use apollo_sierra_compilation_config::config::{
+    SierraCompilationConfig,
+    DEFAULT_MAX_BYTECODE_SIZE,
+};
 use blockifier::state::state_api::StateResult;
-use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
-use cairo_lang_utils::bigint::BigUintAsHex;
 use flate2::bufread;
-use serde::Deserialize;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
@@ -20,6 +23,7 @@ use starknet_api::deprecated_contract_class::{
     Program,
 };
 use starknet_api::hash::StarkHash;
+use starknet_api::state::SierraContractClass;
 use starknet_core::types::{
     CompressedLegacyContractClass,
     FlattenedSierraClass,
@@ -27,12 +31,12 @@ use starknet_core::types::{
     LegacyEntryPointsByType,
 };
 
-#[derive(Debug, Deserialize)]
-pub struct MiddleSierraContractClass {
-    pub sierra_program: Vec<BigUintAsHex>,
-    pub contract_class_version: String,
-    pub entry_points_by_type: ContractEntryPoints,
-}
+static SIERRA_COMPILER: LazyLock<SierraCompiler> = LazyLock::new(|| {
+    create_sierra_compiler(SierraCompilationConfig {
+        max_bytecode_size: 10 * DEFAULT_MAX_BYTECODE_SIZE,
+        ..Default::default()
+    })
+});
 
 /// Maps `LegacyEntryPointsByType` to a `HashMap` where each `EntryPointType`
 /// is associated with a vector of `EntryPoint`. Converts selectors and offsets
@@ -73,37 +77,30 @@ pub fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
 }
 
 /// Compile a FlattenedSierraClass to a versioned ContractClass V1 (casm) using
-/// cairo_lang_starknet_classes.
+/// apollo_compile_to_casm.
 pub fn sierra_to_versioned_contract_class_v1(
-    sierra: FlattenedSierraClass,
+    flattened_sierra: FlattenedSierraClass,
 ) -> StateResult<(ContractClass, SierraVersion)> {
-    let middle_sierra: MiddleSierraContractClass = {
-        let v = serde_json::to_value(sierra).map_err(serde_err_to_state_err);
-        serde_json::from_value(v?).map_err(serde_err_to_state_err)?
-    };
-    let sierra = cairo_lang_starknet_classes::contract_class::ContractClass {
-        sierra_program: middle_sierra.sierra_program,
-        contract_class_version: middle_sierra.contract_class_version,
-        entry_points_by_type: middle_sierra.entry_points_by_type,
-        sierra_program_debug_info: None,
-        abi: None,
-    };
+    let serde_value = serde_json::to_value(&flattened_sierra)
+        .unwrap_or_else(|err| panic!("Failed to serialize flattened Sierra: {err}"));
+    let sierra_contract: SierraContractClass =
+        serde_json::from_value(serde_value).unwrap_or_else(|err| {
+            panic!(
+                "Failed to deserialize SierraContractClass: {err} for flattened_sierra: \
+                 {flattened_sierra:?}"
+            );
+        });
+    let sierra_version = SierraVersion::extract_from_program(&sierra_contract.sierra_program)
+        .unwrap_or_else(|err| panic!("Failed to extract Sierra version: {err}"));
+    let raw_class = RawClass::try_from(sierra_contract)
+        .unwrap_or_else(|err| panic!("Failed to convert SierraContractClass into RawClass: {err}"));
+    let (raw_executable_class, _) = SIERRA_COMPILER
+        .compile(raw_class)
+        .unwrap_or_else(|err| panic!("Failed to compile Sierra to Casm: {err}"));
+    let contract_class: ContractClass = serde_json::from_value(raw_executable_class.into_value())
+        .unwrap_or_else(|err| panic!("Failed to deserialize ContractClass: {err}"));
 
-    let sierra_program_values =
-        sierra.sierra_program.iter().take(3).map(|felt| felt.value.clone()).collect::<Vec<_>>();
-
-    let sierra_version = SierraVersion::extract_from_program(&sierra_program_values).unwrap();
-
-    let casm =
-        cairo_lang_starknet_classes::casm_contract_class::CasmContractClass::from_contract_class(
-            sierra,
-            false,
-            usize::MAX,
-        )
-        // TODO(Aviv): Reconsider the unwrap.
-        .unwrap();
-    // TODO(AVIV): return only ContractClass.
-    Ok((ContractClass::V1((casm, sierra_version.clone())), sierra_version))
+    Ok((contract_class, sierra_version))
 }
 
 /// Compile a CompressedLegacyContractClass to a ContractClass V0 using cairo_lang_starknet_classes.

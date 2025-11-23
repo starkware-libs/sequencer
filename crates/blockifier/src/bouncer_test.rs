@@ -17,7 +17,7 @@ use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
     builtins_to_gas,
-    get_particia_update_resources,
+    get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
     verify_tx_weights_within_max_capacity,
@@ -410,22 +410,54 @@ fn test_bouncer_try_update_n_txs(
     let accumulated_weights = TxWeights { bouncer_weights, ..Default::default() };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
+    bouncer.bouncer_config.block_max_capacity.sierra_gas = GasAmount::MAX;
+    bouncer.bouncer_config.block_max_capacity.proving_gas = GasAmount::MAX;
 
     // Prepare first tx resources.
     let mut first_transactional_state = TransactionalState::create_transactional(&mut state);
-    let first_tx_state_changes_keys =
-        first_transactional_state.to_state_diff().unwrap().state_maps.keys();
 
+    let first_tx_state_changes_keys = StateChangesKeys {
+        storage_keys: HashSet::from([(contract_address!(1_u128), storage_key!(1_u128))]),
+        modified_contracts: HashSet::from([contract_address!(1_u128)]),
+        ..StateChangesKeys::default()
+    };
+    let first_tx_execution_summary = ExecutionSummary {
+        visited_storage_entries: HashSet::from([
+            (contract_address!(1_u128), storage_key!(1_u128)),
+            (contract_address!(2_u128), storage_key!(2_u128)),
+        ]),
+        ..ExecutionSummary::default()
+    };
     // Try to update the bouncer.
     let mut result = bouncer.try_update(
         &first_transactional_state,
         &first_tx_state_changes_keys,
-        &ExecutionSummary::default(),
+        &first_tx_execution_summary,
         &BuiltinCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
     assert_matches!(result, Ok(()));
+
+    // Regression test to cover complicated calculations such as patricia update.
+    expect![
+        r#"
+        BouncerWeights {
+            l1_gas: 10,
+            message_segment_length: 10,
+            n_events: 10,
+            state_diff_size: 14,
+            sierra_gas: GasAmount(
+                406810,
+            ),
+            n_txs: 20,
+            proving_gas: GasAmount(
+                527266,
+            ),
+        }
+    "#
+    ]
+    .assert_debug_eq(&bouncer.accumulated_weights.bouncer_weights);
 
     // Prepare second tx resources.
     let mut second_transactional_state =
@@ -619,7 +651,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let n_visited_storage_entries = if casm_hash_computation_builtins.is_empty() { 0 } else { 1 };
 
     let mut additional_os_resources =
-        get_particia_update_resources(n_visited_storage_entries).prover_builtins();
+        get_patricia_update_resources(n_visited_storage_entries, 0).prover_builtins();
     add_maps(&mut additional_os_resources, &casm_hash_computation_builtins);
 
     let result = get_tx_weights(
@@ -748,7 +780,13 @@ fn class_hash_migration_data_from_state(
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
+<<<<<<< HEAD
             250218310
+||||||| 82bc6f70b
+            217796820
+=======
+            218272460
+>>>>>>> origin/main-v0.14.1
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

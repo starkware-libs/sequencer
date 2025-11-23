@@ -907,6 +907,7 @@
         "builtin_counters": {
           "range_check": 31,
           "pedersen": 4
+<<<<<<< HEAD
         },
         "syscalls_usage": {
           "CallContract": {
@@ -3605,6 +3606,27 @@
             "call_count": 2,
             "linear_factor": 0
           }
+||||||| 82bc6f70b
+=======
+        },
+        "syscalls_usage": {
+          "CallContract": {
+            "call_count": 7,
+            "linear_factor": 0
+          },
+          "StorageRead": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "StorageWrite": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "EmitEvent": {
+            "call_count": 2,
+            "linear_factor": 0
+          }
+>>>>>>> origin/main-v0.14.1
         }
       },
       "actual_fee": "0x26fe9d250e000",

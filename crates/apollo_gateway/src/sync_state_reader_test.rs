@@ -225,18 +225,21 @@ fn assert_eq_state_result(
 #[rstest]
 #[case::class_declared(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    1,
     Ok(true),
     Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared_but_in_class_manager(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared(
     Ok(None),
+    0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     *DUMMY_CLASS_HASH,
@@ -244,6 +247,7 @@ fn assert_eq_state_result(
 #[tokio::test]
 async fn test_get_compiled_class(
     #[case] class_manager_client_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    #[case] n_calls_to_class_manager_client: usize,
     #[case] sync_client_result: StateSyncClientResult<bool>,
     #[case] expected_result: StateResult<RunnableCompiledClass>,
     #[case] class_hash: ClassHash,
@@ -255,9 +259,9 @@ async fn test_get_compiled_class(
 
     mock_class_manager_client
         .expect_get_executable()
-        .times(0..=1)
+        .times(n_calls_to_class_manager_client)
         .with(predicate::eq(class_hash))
-        .returning(move |_| class_manager_client_result.clone());
+        .return_once(move |_| class_manager_client_result);
 
     mock_state_sync_client
         .expect_is_class_declared_at()
@@ -280,10 +284,12 @@ async fn test_get_compiled_class(
 }
 
 #[tokio::test]
-#[should_panic]
+#[should_panic(expected = "Class with hash {class_hash:?} doesn't appear in class manager even \
+                           though it was declared")]
 async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
     test_get_compiled_class(
         Ok(None),
+        1,
         Ok(true),
         Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
         *DUMMY_CLASS_HASH,

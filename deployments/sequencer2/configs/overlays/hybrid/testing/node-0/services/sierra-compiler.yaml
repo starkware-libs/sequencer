@@ -1,0 +1,18 @@
+name: sierracompiler
+
+replicas: 1
+
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
+  sequencerConfig:
+    components_sierra_compiler_port: 55007
+    components_sierra_compiler_url: sequencer-sierracompiler-service
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: sierra-compiler
+    port: 55007
+    targetPort: 55007
+    protocol: TCP

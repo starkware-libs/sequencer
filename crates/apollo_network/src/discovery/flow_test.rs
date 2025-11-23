@@ -15,6 +15,7 @@ use super::{Behaviour, DiscoveryConfig};
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::{BridgedBehaviour, MixedBehaviour};
 use crate::peer_manager::PeerManagerConfig;
+use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 use crate::utils::StreamMap;
 
 #[derive(NetworkBehaviour)]
@@ -31,10 +32,13 @@ impl DiscoveryMixedBehaviour {
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
             None, // No event tracker for tests
+            None, // No latency metrics for tests
             key,
             bootstrap_peer_multiaddr,
             ChainId::Mainnet,
             None,
+            DEFAULT_PING_INTERVAL,
+            DEFAULT_PING_TIMEOUT,
         );
         Self {
             identify: mixed_behaviour.identify,

@@ -4,11 +4,17 @@ use toml_test_utils::{DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 
 /// Hard-coded list of crates that are allowed to use test code in their (non-dev) dependencies.
 /// Should only contain test-related crates.
+<<<<<<< HEAD
 static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 7] = [
+||||||| 82bc6f70b
+static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
+=======
+static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
+    "apollo_base_layer_tests",
+>>>>>>> origin/main-v0.14.1
     "apollo_integration_tests",
     "apollo_test_utils",
     "blockifier_test_utils",
-    "papyrus_load_test",
     "mempool_test_utils",
     // The CLI crate exposes tests that require test utils in dependencies.
     // TODO(Dori): Consider splitting the build of the CLI crate to a test build and a production
