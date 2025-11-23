@@ -155,6 +155,48 @@ async fn latest_block_number_goes_down() {
     assert_eq!(scraper.fetch_events().await, Ok((expected_block_reference, vec![])));
 }
 
+#[tokio::test]
+async fn base_layer_returns_block_number_below_finality() {
+    // Setup.
+    const FINALITY: u64 = 10;
+    const INITIAL_L1_BLOCK_NUMBER: u64 = 100;
+    const L1_BLOCK_HASH: L1BlockHash = L1BlockHash([123; 32]);
+    const WRONG_L1_BLOCK_NUMBER: u64 = 5;
+
+    let initial_block_reference =
+        L1BlockReference { number: INITIAL_L1_BLOCK_NUMBER, hash: L1_BLOCK_HASH };
+
+    let latest_l1_block_number_response = Arc::new(AtomicU64::new(INITIAL_L1_BLOCK_NUMBER));
+    let latest_l1_block_number_response_clone = latest_l1_block_number_response.clone();
+
+    let mut dummy_base_layer: MockBaseLayerContract = MockBaseLayerContract::new();
+
+    dummy_base_layer
+        .expect_latest_l1_block_number()
+        .returning(move || Ok(latest_l1_block_number_response_clone.load(Ordering::Relaxed)));
+    dummy_base_layer
+        .expect_l1_block_at()
+        .returning(move |number| Ok(Some(L1BlockReference { number, hash: L1_BLOCK_HASH })));
+
+    let mut scraper = scraper_with_dummy().await;
+    scraper.config.finality = FINALITY;
+
+    scraper.scrape_from_this_l1_block = Some(initial_block_reference);
+    scraper.base_layer = dummy_base_layer;
+
+    // Test.
+    scraper.send_events_to_l1_provider().await.unwrap();
+
+    // Simulate a base layer returning a lower block number.
+    latest_l1_block_number_response.store(WRONG_L1_BLOCK_NUMBER, Ordering::Relaxed);
+
+    // The scraper should return a finality too high error.
+    assert_matches!(
+        scraper.send_events_to_l1_provider().await,
+        Err(L1ScraperError::FinalityTooHigh { .. })
+    );
+}
+
 #[test]
 #[ignore = "similar to backlog_happy_flow, only shorter, and sprinkle some start_block/get_txs \
             attempts while its bootstrapping (and assert failure on height), then assert that they \
