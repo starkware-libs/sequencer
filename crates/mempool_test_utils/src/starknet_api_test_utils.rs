@@ -48,8 +48,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
-pub const TIP_FOR_TESTING: Tip = Tip(1);
-
 // Utils.
 
 /// Get the contract class used for testing.
@@ -357,6 +355,8 @@ pub struct AccountTransactionGenerator {
 }
 
 impl AccountTransactionGenerator {
+    const TIP_FOR_TESTING: Tip = Tip(1);
+
     pub fn is_deployed(&self) -> bool {
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
@@ -369,7 +369,7 @@ impl AccountTransactionGenerator {
         );
         InvokeTxArgs::default()
             .sender_address(self.sender_address())
-            .tip(TIP_FOR_TESTING)
+            .tip(Self::TIP_FOR_TESTING)
             .nonce(self.next_nonce())
             .resource_bounds(valid_resource_bounds_for_testing())
     }
