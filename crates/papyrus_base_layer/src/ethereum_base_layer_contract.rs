@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
+use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
@@ -58,7 +59,7 @@ sol!(
 
 /// An interface that plays the role of the starknet L1 contract. It is able to create messages to
 /// L2 from this contract, which appear on the corresponding base layer.
-pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
+pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>;
 
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
@@ -78,6 +79,7 @@ impl EthereumBaseLayerContract {
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
 
+    /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
         &self,
@@ -92,10 +94,9 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             call_state_block_hash.call_raw().into_future()
         )?;
 
-        let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number)
             .inspect_err(|err| error!("{err}: {state_block_number}"))?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash)
             .inspect_err(|err| error!("{err}: {state_block_hash}"))?;
         Ok(BlockHashAndNumber {
             number: BlockNumber(block_number),
@@ -327,7 +328,7 @@ fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
     node_url: Url,
 ) -> StarknetL1Contract {
-    let l1_client = ProviderBuilder::default().on_http(node_url);
+    let l1_client = ProviderBuilder::default().connect_http(node_url);
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)

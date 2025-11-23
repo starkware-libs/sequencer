@@ -16,7 +16,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 use crate::metrics::MEMPOOL_P2P_BROADCASTED_BATCH_SIZE;
 
@@ -63,7 +63,7 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 )
             }
             MempoolP2pPropagatorRequest::BroadcastQueuedTransactions() => {
-                debug!("Received a request to broadcast queued transactions, broadcasting.");
+                trace!("Received a request to broadcast queued transactions, broadcasting.");
                 MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(
                     self.broadcast_queued_transactions().await,
                 )

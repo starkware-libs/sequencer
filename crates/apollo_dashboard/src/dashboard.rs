@@ -8,6 +8,7 @@ use apollo_infra::metrics::{
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
+    MetricCommon,
     MetricCounter,
     MetricGauge,
     MetricHistogram,
@@ -16,6 +17,8 @@ use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 use serde_with::skip_serializing_none;
+
+use crate::query_builder;
 
 #[cfg(test)]
 #[path = "dashboard_test.rs"]
@@ -137,11 +140,40 @@ pub(crate) struct Panel {
     extra: ExtraParams,
 }
 
+// helper: unify "String" and "Vec<String>"
+pub(crate) trait IntoExprs {
+    fn into_exprs(self) -> Vec<String>;
+}
+
+impl IntoExprs for String {
+    fn into_exprs(self) -> Vec<String> {
+        vec![self]
+    }
+}
+
+impl IntoExprs for &str {
+    fn into_exprs(self) -> Vec<String> {
+        vec![self.to_string()]
+    }
+}
+
+impl IntoExprs for Vec<String> {
+    fn into_exprs(self) -> Vec<String> {
+        self
+    }
+}
+
+impl IntoExprs for Vec<&str> {
+    fn into_exprs(self) -> Vec<String> {
+        self.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    }
+}
+
 impl Panel {
     pub(crate) fn new(
         name: impl ToString,
         description: impl ToString,
-        exprs: Vec<String>,
+        exprs: impl IntoExprs,
         panel_type: PanelType,
     ) -> Self {
         // A panel assigns a unique id to each of its expressions. Conventionally, we use letters
@@ -149,6 +181,9 @@ impl Panel {
         const NUM_LETTERS: u8 = b'Z' - b'A' + 1;
         let name = name.to_string();
         let description = description.to_string();
+
+        let exprs = exprs.into_exprs();
+
         assert!(
             exprs.len() <= NUM_LETTERS.into(),
             "Too many expressions ({} > {NUM_LETTERS}) in panel '{name}'.",
@@ -156,6 +191,7 @@ impl Panel {
         );
         Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
     }
+
     pub fn with_unit(mut self, unit: Unit) -> Self {
         self.extra.unit = Some(unit);
         self
@@ -238,9 +274,10 @@ impl Panel {
         self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
+    // TODO(Tsabary): consider deleting.
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
-    // TODO(alonl): remove the _ prefix once the function is used.
-    pub(crate) fn _from_request_type_labeled_hist(
+    #[allow(dead_code)]
+    pub(crate) fn from_request_type_labeled_hist(
         metric: &LabeledMetricHistogram,
         panel_type: PanelType,
         request_label: &str,
@@ -264,7 +301,7 @@ impl Panel {
                          (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])))",
                     )
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
             panel_type,
         )
     }
@@ -276,25 +313,24 @@ impl Panel {
         denominator_parts: &[&MetricCounter],
         duration: &str,
     ) -> Self {
-        let numerator_expr =
-            format!("increase({}[{}])", numerator.get_name_with_filter(), duration);
+        let numerator_expr = query_builder::increase(numerator, duration);
 
         let denominator_expr = denominator_parts
             .iter()
-            .map(|m| format!("increase({}[{}])", m.get_name_with_filter(), duration))
+            .map(|m| query_builder::increase(*m, duration))
             .collect::<Vec<_>>()
             .join(" + ");
 
         let expr = format!("({numerator_expr} / ({denominator_expr}))");
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
+        Self::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -303,7 +339,7 @@ impl Panel {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -327,7 +363,7 @@ impl Panel {
                         metric_name_with_filter.as_ref(),
                     )
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
             PanelType::TimeSeries,
         )
     }
@@ -368,7 +404,7 @@ pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Opt
 
 // There is no equivalent for LabeledPanels because they are less straightforward than
 // UnlabeledPanels and require an aggregation of metrics more often, for example the panels created
-// using `get_multi_metric_panel`.
+// using [`get_multi_metric_panel`].
 /// A struct that contains all unlabeled panels for a given metrics struct.
 struct UnlabeledPanels(Vec<Panel>);
 
@@ -428,7 +464,9 @@ impl From<&RemoteServerMetrics> for UnlabeledPanels {
     }
 }
 
-pub(crate) fn _create_request_type_labeled_hist_panels(
+// TODO(Tsabary): consider deleting.
+#[allow(dead_code)]
+pub(crate) fn create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
 ) -> Vec<Panel> {
@@ -436,14 +474,14 @@ pub(crate) fn _create_request_type_labeled_hist_panels(
         .get_flat_label_values()
         .into_iter()
         .map(|request_label| {
-            Panel::_from_request_type_labeled_hist(metric, panel_type, request_label)
+            Panel::from_request_type_labeled_hist(metric, panel_type, request_label)
         })
         .collect()
 }
 
 // For a given request label and vector of labeled histogram metrics, create a panel with multiple
 // expressions.
-pub(crate) fn get_multi_metric_panel(
+fn get_multi_metric_panel(
     panel_name: &str,
     panel_description: &str,
     request_label: &str,
@@ -520,7 +558,7 @@ impl Serialize for Row {
 }
 
 // This function assumes that all metrics share the same labels.
-fn get_request_type_labeled_panels(
+fn get_request_type_panels(
     labeled_metrics: &Vec<&LabeledMetricHistogram>,
     panel_class_name: &str,
 ) -> Vec<Panel> {
@@ -546,32 +584,32 @@ fn get_request_type_labeled_panels(
     panels
 }
 
-pub(crate) fn get_labeled_client_panels(
+fn get_infra_client_panels(
     local_client_metrics: &LocalClientMetrics,
     remote_client_metrics: &RemoteClientMetrics,
 ) -> Vec<Panel> {
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_client_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_client_metrics.get_all_labeled_metrics());
-    get_request_type_labeled_panels(&labeled_metrics, "client")
+    get_request_type_panels(&labeled_metrics, "client")
 }
 
-pub(crate) fn get_labeled_server_panels(
+fn get_infra_server_panels(
     local_server_metrics: &LocalServerMetrics,
     remote_server_metrics: &RemoteServerMetrics,
 ) -> Vec<Panel> {
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_server_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_server_metrics.get_all_labeled_metrics());
-    get_request_type_labeled_panels(&labeled_metrics, "server")
+    get_request_type_panels(&labeled_metrics, "server")
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
-    let labeled_client_panels = get_labeled_client_panels(
+    let labeled_client_panels = get_infra_client_panels(
         metrics.get_local_client_metrics(),
         metrics.get_remote_client_metrics(),
     );
-    let labeled_server_panels = get_labeled_server_panels(
+    let labeled_server_panels = get_infra_server_panels(
         metrics.get_local_server_metrics(),
         metrics.get_remote_server_metrics(),
     );
@@ -585,4 +623,15 @@ pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMet
     panels.extend(labeled_server_panels);
 
     Row::new(row_name, panels)
+}
+
+/// Returns a PromQL expression that calculates the time since the last increase of the given
+/// metric. Assumes there was an increase in the last 12 hours.
+pub(crate) fn get_time_since_last_increase_expr(metric_name: &str) -> String {
+    const TIME_RANGE: &str = "12h";
+    format!(
+        // The max over time is the timestamp of the last increase in the last 12 hours.
+        "time() - max_over_time((timestamp(increase({metric_name}[{TIME_RANGE}])) != \
+         0))[{TIME_RANGE}:])"
+    )
 }

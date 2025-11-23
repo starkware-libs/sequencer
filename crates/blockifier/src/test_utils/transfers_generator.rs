@@ -22,12 +22,12 @@ use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutor,
-    TransactionExecutorError,
     DEFAULT_STACK_SIZE,
 };
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::{BlockContext, ChainInfo};
-use crate::state::cached_state::StateMaps;
+use crate::state::cached_state::CachedState;
+use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
@@ -85,6 +85,16 @@ pub struct TransfersGenerator {
     random_recipient_generator: Option<StdRng>,
     recipient_addresses: Option<Vec<ContractAddress>>,
     config: TransfersGeneratorConfig,
+}
+
+/// Enum to wrap both executor types for unified handling.
+#[allow(clippy::large_enum_variant)]
+pub enum ExecutorWrapper {
+    Concurrent(
+        ConcurrentTransactionExecutor<DictStateReader>,
+        Arc<WorkerPool<CachedState<DictStateReader>>>,
+    ),
+    Sequential(TransactionExecutor<DictStateReader>),
 }
 
 impl TransfersGenerator {
@@ -161,59 +171,16 @@ impl TransfersGenerator {
         }
     }
 
-    #[allow(clippy::type_complexity)]
-    fn _run_txs(
-        &self,
-        txs: Vec<Transaction>,
-        execution_deadline: Option<Instant>,
-    ) -> (
-        Vec<Result<(TransactionExecutionInfo, StateMaps), TransactionExecutorError>>,
-        BlockExecutionSummary,
-    ) {
-        let state = test_state(
-            &self.chain_info,
-            self.config.balance,
-            &[(self.account_contract, self.config.n_accounts)],
-        );
-        let executor_config = TransactionExecutorConfig {
-            concurrency_config: self.config.concurrency_config.clone(),
-            stack_size: self.config.stack_size,
-        };
-
-        if executor_config.concurrency_config.enabled {
-            let worker_pool =
-                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
-
-            let mut executor = ConcurrentTransactionExecutor::new_for_testing(
-                state,
-                self.block_context.clone(),
-                worker_pool.clone(),
-                execution_deadline,
-            );
-
-            let results = executor.add_txs_and_wait(&txs);
-            let block_summary = executor.close_block(results.len()).unwrap();
-
-            drop(executor);
-            Arc::try_unwrap(worker_pool)
-                .expect("More than one instance of worker pool exists")
-                .join();
-
-            (results, block_summary)
-        } else {
-            let mut executor =
-                TransactionExecutor::new(state, self.block_context.clone(), executor_config);
-            let results = executor.execute_txs(&txs, execution_deadline);
-            (results, executor.finalize().unwrap())
-        }
-    }
-
-    /// Generates and executes transfer transactions.
-    /// Returns the block summary and the execution infos.
-    pub fn execute_block_of_transfers(
+    /// Prepares transactions and executor for running a block.
+    /// Returns the transactions and the executor wrapper.
+    pub fn prepare_to_run_block_of_transfers(
         &mut self,
         timeout: Option<Duration>,
-    ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+    ) -> (Vec<Transaction>, ExecutorWrapper) {
+        // Reset nonce manager since we create a fresh state.
+        self.nonce_manager = NonceManager::default();
+
+        // Generate transactions
         let mut txs: Vec<Transaction> = Vec::with_capacity(self.config.n_txs);
         for _ in 0..self.config.n_txs {
             let sender_address = self.account_addresses[self.sender_index];
@@ -224,21 +191,115 @@ impl TransfersGenerator {
             let account_tx = AccountTransaction::new_for_sequencing(tx);
             txs.push(Transaction::Account(account_tx));
         }
-        let execution_deadline = timeout.map(|timeout| Instant::now() + timeout);
-        let (results, block_summary) = self._run_txs(txs, execution_deadline);
-        // Execution infos of transactions that were executed.
-        let mut collected_execution_infos = Vec::<TransactionExecutionInfo>::new();
-        for result in results {
-            let execution_info = &result.unwrap().0;
 
-            assert!(!execution_info.is_reverted());
+        let execution_deadline = timeout.map(|timeout_duration| Instant::now() + timeout_duration);
+        let state = test_state(
+            &self.chain_info,
+            self.config.balance,
+            &[(self.account_contract, self.config.n_accounts)],
+        );
+        let executor_config = TransactionExecutorConfig {
+            concurrency_config: self.config.concurrency_config.clone(),
+            stack_size: self.config.stack_size,
+        };
 
-            let expected_cairo_native = self.config.cairo_version.is_cairo_native();
+        let executor_wrapper = if executor_config.concurrency_config.enabled {
+            let worker_pool =
+                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
+
+            let executor = ConcurrentTransactionExecutor::new_for_testing(
+                state,
+                self.block_context.clone(),
+                worker_pool.clone(),
+                execution_deadline,
+            );
+            ExecutorWrapper::Concurrent(executor, worker_pool)
+        } else {
+            let executor =
+                TransactionExecutor::new(state, self.block_context.clone(), executor_config);
+            ExecutorWrapper::Sequential(executor)
+        };
+
+        (txs, executor_wrapper)
+    }
+
+    /// Runs the prepared transactions on the executor.
+    /// Asserts that none of the transactions reverted.
+    /// Returns the execution results.
+    pub fn run_block_of_transfers(
+        txs: &[Transaction],
+        executor_wrapper: &mut ExecutorWrapper,
+        execution_deadline: Option<Instant>,
+    ) -> Vec<TransactionExecutionInfo> {
+        let results = match executor_wrapper {
+            ExecutorWrapper::Concurrent(ref mut executor, _) => executor.add_txs_and_wait(txs),
+            ExecutorWrapper::Sequential(ref mut executor) => {
+                executor.execute_txs(txs, execution_deadline)
+            }
+        };
+
+        // Extract execution infos and validate that no transactions reverted.
+        results
+            .into_iter()
+            .map(|result| {
+                let (execution_info, _state_maps) = result.unwrap();
+                assert!(!execution_info.is_reverted());
+                execution_info
+            })
+            .collect()
+    }
+
+    /// Finalizes the executor and validates native execution of the transactions.
+    /// Returns the block execution summary and execution infos.
+    pub fn summarize_run_block_of_transfers(
+        executor_wrapper: ExecutorWrapper,
+        execution_infos: Vec<TransactionExecutionInfo>,
+        cairo_version: CairoVersion,
+    ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+        // Finalize executor and get block summary.
+        let block_summary = match executor_wrapper {
+            ExecutorWrapper::Concurrent(mut executor, worker_pool) => {
+                let block_summary = executor.close_block(execution_infos.len()).unwrap();
+
+                drop(executor);
+                Arc::try_unwrap(worker_pool)
+                    .expect("More than one instance of worker pool exists")
+                    .join();
+
+                block_summary
+            }
+            ExecutorWrapper::Sequential(mut executor) => executor.finalize().unwrap(),
+        };
+
+        // Validate native execution.
+        let expected_cairo_native = cairo_version.is_cairo_native();
+        for execution_info in &execution_infos {
             execution_info.check_call_infos_native_execution(expected_cairo_native);
-            collected_execution_infos.push(execution_info.clone());
         }
 
-        (block_summary, collected_execution_infos)
+        (block_summary, execution_infos)
+    }
+
+    /// Generates and executes transfer transactions.
+    /// Returns the block summary and the execution infos.
+    pub fn execute_block_of_transfers(
+        &mut self,
+        timeout: Option<Duration>,
+    ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+        // Prepare: generates transactions and creates executor.
+        let (txs, mut executor_wrapper) = self.prepare_to_run_block_of_transfers(timeout);
+
+        // Run: executes the transactions and asserts that none of them reverted.
+        let execution_deadline = timeout.map(|timeout_duration| Instant::now() + timeout_duration);
+        let execution_infos =
+            Self::run_block_of_transfers(&txs, &mut executor_wrapper, execution_deadline);
+
+        // Summarize: finalizes executor, and validates native execution (if applicable).
+        Self::summarize_run_block_of_transfers(
+            executor_wrapper,
+            execution_infos,
+            self.config.cairo_version,
+        )
 
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.

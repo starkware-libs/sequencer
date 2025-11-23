@@ -1,6 +1,7 @@
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
+use apollo_metrics::MetricCommon;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alerts::{
@@ -16,11 +17,8 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
-/// The was a round larger than zero in the last hour.
-fn get_consensus_round_above_zero(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+/// There was a consensus round number higher than zero.
+pub(crate) fn get_consensus_round_above_zero() -> Alert {
     Alert::new(
         "consensus_round_above_zero",
         "Consensus round above zero",
@@ -33,23 +31,10 @@ fn get_consensus_round_above_zero(
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
+        AlertEnvFiltering::All,
     )
-}
-
-pub(crate) fn get_consensus_round_above_zero_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_round_above_zero(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-        get_consensus_round_above_zero(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
 }
 
 fn get_consensus_round_above_zero_multiple_times(

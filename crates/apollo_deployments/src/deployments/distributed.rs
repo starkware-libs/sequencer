@@ -39,7 +39,7 @@ const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
 
-pub const RETRIES_FOR_L1_SERVICES: usize = 2;
+pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
 // TODO(Tsabary): define consts and functions whenever relevant.
 

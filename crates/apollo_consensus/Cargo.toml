@@ -10,6 +10,7 @@ description = "Reach consensus for Starknet"
 testing = []
 
 [dependencies]
+apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
@@ -32,12 +33,14 @@ tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 enum-as-inner.workspace = true
 mockall.workspace = true
+rstest.workspace = true
 test-case.workspace = true
 
 [lints]

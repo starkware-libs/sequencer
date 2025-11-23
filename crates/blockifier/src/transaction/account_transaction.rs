@@ -561,14 +561,6 @@ impl AccountTransaction {
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
-            // TODO(Meshi): Find a better way to handle tests non V3 transactions.
-            if tx_context.block_context.versioned_constants.block_casm_hash_v1_declares
-                && self.tx.version() >= TransactionVersion::THREE
-            {
-                if let Transaction::Declare(declare_tx) = &self.tx {
-                    declare_tx.check_compile_class_hash_v2_declaration()?;
-                }
-            }
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),

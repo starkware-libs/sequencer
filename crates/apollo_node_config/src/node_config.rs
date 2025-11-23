@@ -294,6 +294,16 @@ pub struct NodeDynamicConfig {
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 
+impl SerializeConfig for NodeDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let sub_configs = [
+            ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+        ];
+        sub_configs.into_iter().flatten().collect()
+    }
+}
+
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {
     fn from(sequencer_node_config: &SequencerNodeConfig) -> Self {
         // TODO(Nadin/Tsabary): consider creating a macro for this.

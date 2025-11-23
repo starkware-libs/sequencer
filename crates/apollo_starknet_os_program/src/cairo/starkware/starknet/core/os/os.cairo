@@ -490,7 +490,7 @@ func migrate_classes_to_v2_casm_hash{
     let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
     let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
     %{ vm_exit_scope() %}
-    // Verify the guessed v2 hash.
+    // Sanity check: verify the guessed v2 hash.
     assert compiled_class_fact.hash = casm_hash_v2;
     // Update the casm hash from v1 to v2.
     dict_update{dict_ptr=contract_class_changes}(

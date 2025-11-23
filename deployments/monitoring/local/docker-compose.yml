@@ -31,7 +31,7 @@ services:
       - RUST_BACKTRACE=${RUST_BACKTRACE}
     entrypoint: "/bin/bash -c"
     command: >
-      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
+      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-hybrid 0 --n-consolidated 1;
       cp -r ./output/data/* /data; cp -r ./output/configs/* /config"
     volumes:
       - data:/data

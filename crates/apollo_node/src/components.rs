@@ -125,39 +125,40 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let (config_manager, config_manager_runner) = match config
-        .components
-        .config_manager
-        .execution_mode
-    {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-            let config_manager_config =
-                config.config_manager_config.as_ref().expect("Config Manager config should be set");
-            let config_manger =
-                ConfigManager::new(config_manager_config.clone(), NodeDynamicConfig::from(config));
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
-            let config_manager_runner = ConfigManagerRunner::new(
-                config_manager_config.clone(),
-                config_manager_client,
-                cli_args,
-            );
-            (Some(config_manger), Some(config_manager_runner))
-        }
+    let (config_manager, config_manager_runner) =
+        match config.components.config_manager.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                let node_dynamic_config = NodeDynamicConfig::from(config);
+                let config_manager_config = config
+                    .config_manager_config
+                    .as_ref()
+                    .expect("Config Manager config should be set");
+                let config_manger =
+                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
+                let config_manager_client = clients
+                    .get_config_manager_shared_client()
+                    .expect("Config Manager client should be available");
+                let config_manager_runner = ConfigManagerRunner::new(
+                    config_manager_config.clone(),
+                    config_manager_client,
+                    node_dynamic_config,
+                    cli_args,
+                );
+                (Some(config_manger), Some(config_manager_runner))
+            }
 
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-        | ReactiveComponentExecutionMode::Remote => {
-            panic!(
-                "ConfigManager does not support remote mode - it's a local infrastructure \
-                 component"
-            );
-        }
-        ReactiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            (None, None)
-        }
-    };
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::Remote => {
+                panic!(
+                    "ConfigManager does not support remote mode - it's a local infrastructure \
+                     component"
+                );
+            }
+            ReactiveComponentExecutionMode::Disabled => {
+                // TODO(tsabary): assert config is not set.
+                (None, None)
+            }
+        };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
@@ -381,6 +382,8 @@ pub async fn create_node_components(
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer =
                 EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
+            // TODO(guyn): figure out how to start in case we can't reach L1 to get the start block.
+            // TODO(guyn): maybe put the fetch_start_block logic inside the scraper loop?
             let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
@@ -475,6 +478,8 @@ pub async fn create_node_components(
                     base_layer_config.clone(),
                     initial_node_url.clone(),
                 );
+                // Which L2 block is already proved at the L1 height the scraper was initialized on.
+                // It is safe to start syncing the provider from this height.
                 let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await

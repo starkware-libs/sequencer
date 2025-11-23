@@ -48,6 +48,7 @@ rand.workspace = true
 regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
+serde_with.workspace = true
 sha2.workspace = true
 sha3.workspace = true
 shared_execution_objects.workspace = true

@@ -147,6 +147,36 @@ fn test_positive_flow(
 }
 
 #[rstest]
+#[case::l2_gas_amount_out_of_limit(
+    StatelessTransactionValidatorConfig {
+        validate_resource_bounds: true,
+        max_l2_gas_amount: 100,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(200),
+                ..NON_EMPTY_RESOURCE_BOUNDS
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+)]
+fn valid_l2_gas_amount_on_declare(
+    #[case] config: StatelessTransactionValidatorConfig,
+    #[case] rpc_tx_args: RpcTransactionArgs,
+) {
+    let tx_type = TransactionType::Declare;
+    let tx_validator = StatelessTransactionValidator { config };
+
+    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
+
+    assert_matches!(tx_validator.validate(&tx), Ok(()));
+}
+
+#[rstest]
 #[case::zero_resource_bounds(
     RpcTransactionArgs {
         resource_bounds: AllResourceBounds::default(),
@@ -172,6 +202,21 @@ fn test_positive_flow(
         min_gas_price: DEFAULT_VALIDATOR_CONFIG.min_gas_price
     },
 )]
+fn test_invalid_resource_bounds(
+    #[case] rpc_tx_args: RpcTransactionArgs,
+    #[case] expected_error: StatelessTransactionValidatorError,
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
+    tx_type: TransactionType,
+) {
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG.to_owned() };
+
+    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
+
+    assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
+}
+
+#[rstest]
 #[case::max_l2_gas_amount_too_high(
     RpcTransactionArgs {
         resource_bounds: AllResourceBounds {
@@ -188,11 +233,10 @@ fn test_positive_flow(
         max_gas_amount: DEFAULT_VALIDATOR_CONFIG.max_l2_gas_amount
     },
 )]
-fn test_invalid_resource_bounds(
+fn test_invalid_max_l2_gas_amount(
     #[case] rpc_tx_args: RpcTransactionArgs,
     #[case] expected_error: StatelessTransactionValidatorError,
-    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
-    tx_type: TransactionType,
+    #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG.to_owned() };

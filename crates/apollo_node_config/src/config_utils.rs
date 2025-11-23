@@ -213,7 +213,7 @@ impl DeploymentBaseAppConfig {
     pub fn dump_config_file(&self, config_path: &Path) {
         let value = self.as_value();
         serialize_to_file(
-            value,
+            &value,
             config_path.to_str().expect("Should be able to convert path to string"),
         );
     }

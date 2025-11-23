@@ -6,7 +6,7 @@ use apollo_node_config::node_config::NodeDynamicConfig;
 use crate::config_manager::ConfigManager;
 
 #[tokio::test]
-async fn test_config_manager_update_config() {
+async fn config_manager_update_config() {
     // Set a config manager.
     let config = ConfigManagerConfig::default();
 
@@ -31,7 +31,7 @@ async fn test_config_manager_update_config() {
     // Set a new dynamic config by creating a new consensus dynamic config. For simplicity, we
     // create an arbitrary one and assert it's not the default one.
     let new_consensus_dynamic_config =
-        ConsensusDynamicConfig { validator_id: ValidatorId::from(1_u8) };
+        ConsensusDynamicConfig { validator_id: ValidatorId::from(1_u8), ..Default::default() };
     assert_ne!(
         consensus_dynamic_config, new_consensus_dynamic_config,
         "Consensus dynamic config should be different: {consensus_dynamic_config:#?} != {:#?}",

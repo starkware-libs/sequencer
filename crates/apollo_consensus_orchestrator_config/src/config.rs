@@ -133,11 +133,13 @@ pub struct ContextConfig {
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
     /// If given, will override the L2 gas price.
-    pub override_l2_gas_price: Option<u128>,
+    pub override_l2_gas_price_fri: Option<u128>,
     /// If given, will override the L1 gas price.
-    pub override_l1_gas_price: Option<u128>,
+    pub override_l1_gas_price_wei: Option<u128>,
     /// If given, will override the L1 data gas price.
-    pub override_l1_data_gas_price: Option<u128>,
+    pub override_l1_data_gas_price_wei: Option<u128>,
+    /// If given, will override the conversion rate.
+    pub override_eth_to_fri_rate: Option<u128>,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -233,24 +235,31 @@ impl SerializeConfig for ContextConfig {
             ),
         ]);
         dump.extend(ser_optional_param(
-            &self.override_l2_gas_price,
+            &self.override_l2_gas_price_fri,
             0,
-            "override_l2_gas_price",
-            "Replace the L2 gas price with this value.",
+            "override_l2_gas_price_fri",
+            "Replace the L2 gas price (fri) with this value.",
             ParamPrivacyInput::Public,
         ));
         dump.extend(ser_optional_param(
-            &self.override_l1_gas_price,
+            &self.override_l1_gas_price_wei,
             0,
-            "override_l1_gas_price",
-            "Replace the L1 gas price with this value.",
+            "override_l1_gas_price_wei",
+            "Replace the L1 gas price (wei) with this value.",
             ParamPrivacyInput::Public,
         ));
         dump.extend(ser_optional_param(
-            &self.override_l1_data_gas_price,
+            &self.override_l1_data_gas_price_wei,
             0,
-            "override_l1_data_gas_price",
-            "Replace the L1 data gas price with this value.",
+            "override_l1_data_gas_price_wei",
+            "Replace the L1 data gas price (wei) with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_eth_to_fri_rate,
+            0,
+            "override_eth_to_fri_rate",
+            "Replace the Eth-to-Fri conversion rate with this value.",
             ParamPrivacyInput::Public,
         ));
         dump.extend(ser_optional_param(
@@ -282,9 +291,10 @@ impl Default for ContextConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
-            override_l2_gas_price: None,
-            override_l1_gas_price: None,
-            override_l1_data_gas_price: None,
+            override_l2_gas_price_fri: None,
+            override_l1_gas_price_wei: None,
+            override_l1_data_gas_price_wei: None,
+            override_eth_to_fri_rate: None,
         }
     }
 }

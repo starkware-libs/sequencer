@@ -18,6 +18,7 @@ env:
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
+  path_triggers_exclude: "scripts/prod/**/*"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
   dockerfile_base_path: ./deployments/images/sequencer
@@ -61,7 +62,8 @@ jobs:
           python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
             --commit_id ${{ github.event.pull_request.base.sha }} \
             --crate_triggers ${{ env.crate_triggers }} \
-            --path_triggers ${{ env.path_triggers }}
+            --path_triggers ${{ env.path_triggers }} \
+            --path_triggers_exclude ${{ env.path_triggers_exclude }}
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"
@@ -298,7 +300,7 @@ jobs:
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
 
       - name: Create storage files
-        run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
+        run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-hybrid 0 --n-distributed 0
 
       - name: Export application config dir
         run: |

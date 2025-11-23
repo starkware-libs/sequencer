@@ -70,17 +70,6 @@ setup_env_variables_from_yml() {
 }
 
 install_dependencies() {
-  packages=("@commitlint/cli" "@commitlint/config-conventional")
-
-  for pkg in "${packages[@]}"; do
-    if npm list "$pkg" >/dev/null 2>&1; then
-      log_debug "$pkg is already installed ✅"
-    else  
-      echo "$pkg is NOT installed ❌ — installing..."
-      npm install "$pkg"
-    fi
-  done
-
   # List of crate names to check/install
   CRATES=("taplo-cli" "cargo-machete")
 
@@ -195,29 +184,6 @@ restore_old_env() {
   fi
 }
 
-add_commit_lint_to_path() {
-  # Step 1: Try to locate commitlint using which.
-  COMMITLINT_PATH="$(which commitlint)"
-  if [ -n "$COMMITLINT_PATH" ]; then
-    log_debug 'commitlint found in $PATH'
-    return
-  fi
-
-  # Step 2: If which fails, use find to search from home directory
-  echo "commitlint not found via which. Consider adding it to your path. Searching with find..."
-  COMMITLINT_PATH="$(find ~/ \( -type f -o -type l \) -name commitlint -perm -u+x 2>/dev/null | grep "bin/" | head -n 1 | xargs dirname)"
-
-  # Step 3: Add to path if needed
-  if [ -n "$COMMITLINT_PATH" ]; then
-    echo "commitlint found at: $COMMITLINT_PATH"
-    ORIGINAL_PATH="$PATH"
-    export PATH="$COMMITLINT_PATH:$PATH"
-  else
-    echo "commitlint not found in PATH or local directories." >&2
-    exit 1
-  fi
-}
-
 # Parse command-line arguments
 parse_args "$@"
 
@@ -233,7 +199,6 @@ setup_new_venv
 install_yq
 setup_env_variables_from_yml
 install_dependencies
-add_commit_lint_to_path
 
 # Change directory to the top of the repository which is needed for the presubmit script to run.
 cd "$REPO_LOCATION" || {

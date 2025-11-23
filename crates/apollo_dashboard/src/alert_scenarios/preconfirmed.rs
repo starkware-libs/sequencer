@@ -36,6 +36,8 @@ fn get_preconfirmed_block_not_written(
     )
 }
 
+use apollo_metrics::MetricCommon;
+
 pub(crate) fn get_preconfirmed_block_not_written_vec() -> Vec<Alert> {
     vec![
         get_preconfirmed_block_not_written(

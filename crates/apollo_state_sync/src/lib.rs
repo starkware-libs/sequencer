@@ -119,6 +119,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 impl StateSync {
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let storage_reader = self.storage_reader.clone();
+        // TODO(Tsabary): remove spawn blocking from this file.
         tokio::task::spawn_blocking(move || {
             let txn = storage_reader.begin_ro_txn()?;
 
@@ -154,19 +155,29 @@ impl StateSync {
     }
 
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
-        // Getting the next block because the Sync block only contains parent hash.
-        match (self.get_block(block_number).await, self.starknet_client.as_ref()) {
-            (Ok(block), _) => Ok(block.block_header_without_hash.parent_hash),
-            (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => {
+        // Attempt reading the block hash from the storage.
+        let storage_reader = self.storage_reader.clone();
+        let block_hash_opt = tokio::task::spawn_blocking(move || {
+            Ok::<_, StateSyncError>(
+                storage_reader
+                    .begin_ro_txn()?
+                    .get_block_header(block_number)?
+                    .map(|header| header.block_hash),
+            )
+        })
+        .await??;
+
+        match (block_hash_opt, self.starknet_client.as_ref()) {
+            (Some(block_hash), _) => Ok(block_hash),
+            (None, Some(starknet_client)) => {
                 // As a fallback, try to get the block hash through the feeder directly. This
                 // method is faster than get_block which the sync runner uses.
-                // TODO(shahak): Test this flow.
                 starknet_client
                     .block_hash(block_number)
                     .await?
                     .ok_or(StateSyncError::BlockNotFound(block_number))
             }
-            (Err(err), _) => Err(err),
+            (None, None) => Err(StateSyncError::BlockNotFound(block_number)),
         }
     }
 

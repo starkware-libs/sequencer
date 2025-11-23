@@ -11,17 +11,25 @@ use apollo_mempool::metrics::{
     TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::{
+    increase,
+    sum_by_label,
+    DisplayMethod,
+    DEFAULT_DURATION,
+    RANGE_DURATION,
+};
 
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
         "Mempool Transactions Received Rate (TPS)",
         "The rate of transactions received by the mempool (1m window)",
-        vec![format!(
+        format!(
             "sum(rate({}[1m])) or vector(0)",
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        )],
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query("Adding transaction to mempool")
@@ -29,8 +37,8 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
 fn get_panel_mempool_transactions_committed() -> Panel {
     Panel::new(
         "Transactions Committed",
-        "Number of transactions committed to a block (10m window)",
-        vec![format!("increase({}[10m])", MEMPOOL_TRANSACTIONS_COMMITTED.get_name_with_filter())],
+        format!("Number of transactions committed to a block ({DEFAULT_DURATION} window)"),
+        increase(&MEMPOOL_TRANSACTIONS_COMMITTED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -38,11 +46,12 @@ fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         "Dropped Transactions by Reason",
         "Number of transactions dropped from the mempool by reason (over the selected time range)",
-        vec![format!(
-            "sum  by ({}) (increase({}[$__range]))",
+        sum_by_label(
+            &MEMPOOL_TRANSACTIONS_DROPPED,
             LABEL_NAME_DROP_REASON,
-            MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter()
-        )],
+            DisplayMethod::Increase(RANGE_DURATION),
+            false,
+        ),
         PanelType::Stat,
     )
 }
@@ -50,7 +59,7 @@ fn get_panel_mempool_pool_size() -> Panel {
     Panel::new(
         "Pool Size (Num TXs)",
         "Number of all the transactions in the mempool",
-        vec![MEMPOOL_POOL_SIZE.get_name_with_filter().to_string()],
+        MEMPOOL_POOL_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
 }
@@ -58,7 +67,7 @@ fn get_panel_mempool_priority_queue_size() -> Panel {
     Panel::new(
         "Prioritized Transactions",
         "Number of transactions prioritized for batching",
-        vec![MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter().to_string()],
+        MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
 }
@@ -66,7 +75,7 @@ fn get_panel_mempool_pending_queue_size() -> Panel {
     Panel::new(
         "Pending Transactions",
         "Number of transactions eligible for batching but below the gas price threshold",
-        vec![MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter().to_string()],
+        MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
 }
@@ -74,7 +83,7 @@ fn get_panel_mempool_total_size_in_bytes() -> Panel {
     Panel::new(
         "Mempool Size (Data)",
         "Size of the transactions in the mempool",
-        vec![MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter().to_string()],
+        MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Bytes)
@@ -83,7 +92,7 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     Panel::new(
         "Delayed Declare Transactions",
         "Number of delayed declare transactions",
-        vec![MEMPOOL_DELAYED_DECLARES_SIZE.get_name_with_filter().to_string()],
+        MEMPOOL_DELAYED_DECLARES_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
 }

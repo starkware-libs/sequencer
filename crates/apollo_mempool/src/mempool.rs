@@ -563,7 +563,7 @@ impl Mempool {
         Ok(())
     }
 
-    /// If this transaction is already in the pool but the fees have increased beyond the thereshold
+    /// If this transaction is already in the pool but the fees have increased beyond the threshold
     /// in the config, remove the existing transaction from the queue and the pool.
     /// Note: This method will **not** add the new incoming transaction.
     #[instrument(level = "debug", skip(self, incoming_tx), err)]
@@ -588,9 +588,9 @@ impl Mempool {
         };
 
         if !self.should_replace_tx(&existing_tx_reference, &incoming_tx_reference) {
-            debug!(
-                "{existing_tx_reference} was not replaced by {incoming_tx_reference} due to
-                insufficient fee escalation."
+            info!(
+                "{existing_tx_reference} was not replaced by {incoming_tx_reference} due to \
+                 insufficient fee escalation."
             );
             // TODO(Elin): consider adding a more specific error type / message.
             return Err(MempoolError::DuplicateNonce { address, nonce });
@@ -638,13 +638,24 @@ impl Mempool {
         incoming_value >= escalation_qualified_value
     }
 
+    #[instrument(skip_all, parent = None)]
+    fn log_and_count_expired_txs(&self, expired_txs: &[TransactionReference]) {
+        if !expired_txs.is_empty() {
+            metric_count_expired_txs(expired_txs.len());
+            info!(
+                "Removed expired transactions: {:?}",
+                expired_txs.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+            );
+        }
+    }
+
     fn remove_expired_txs(&mut self) -> AddressToNonce {
         let removed_txs = self
             .tx_pool
             .remove_txs_older_than(self.config.dynamic_config.transaction_ttl, &self.state.staged);
         let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
-        metric_count_expired_txs(removed_txs.len());
+        self.log_and_count_expired_txs(&removed_txs);
         self.update_state_metrics();
         queued_txs
             .into_iter()
@@ -671,7 +682,7 @@ impl Mempool {
         });
 
         // Remove old transactions from the pool.
-        metric_count_expired_txs(old_txs.len());
+        self.log_and_count_expired_txs(&old_txs);
         let account_nonce_updates: AddressToNonce = old_txs
             .into_iter()
             .map(|tx| {
@@ -853,8 +864,8 @@ impl std::fmt::Display for TransactionReference {
         let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price } = self;
         write!(
             f,
-            "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash},
-            tip: {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
+            "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash}, tip: \
+             {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
         )
     }
 }

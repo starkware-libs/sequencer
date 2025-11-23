@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
+use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -18,6 +20,9 @@ pub struct BlockBuilderConfig {
     pub bouncer_config: BouncerConfig,
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    // TODO(dan): add validation for this field. Probably should be bounded.
+    pub proposer_idle_detection_delay_millis: Duration,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
@@ -30,6 +35,7 @@ impl Default for BlockBuilderConfig {
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
+            proposer_idle_detection_delay_millis: Duration::from_millis(2000),
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -51,6 +57,14 @@ impl SerializeConfig for BlockBuilderConfig {
             &self.tx_polling_interval_millis,
             "Time to wait (in milliseconds) between transaction requests when the previous \
              request returned no transactions.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "proposer_idle_detection_delay_millis",
+            &self.proposer_idle_detection_delay_millis.as_millis(),
+            "Minimum time (in milliseconds) that must pass since block creation started before \
+             checking for idle state. If this delay has passed AND no transactions are currently \
+             being executed, the proposer will finish building the current block.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut prepend_sub_config_name(

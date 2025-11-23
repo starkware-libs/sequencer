@@ -654,13 +654,13 @@ impl From<StateMaps> for CommitmentStateDiff {
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct StateChangesKeys {
-    nonce_keys: HashSet<ContractAddress>,
-    class_hash_keys: HashSet<ContractAddress>,
-    storage_keys: HashSet<StorageEntry>,
-    compiled_class_hash_keys: HashSet<ClassHash>,
+    pub(crate) nonce_keys: HashSet<ContractAddress>,
+    pub(crate) class_hash_keys: HashSet<ContractAddress>,
+    pub(crate) storage_keys: HashSet<StorageEntry>,
+    pub(crate) compiled_class_hash_keys: HashSet<ClassHash>,
     // Note: this field may not be consistent with the above keys; specifically, it may be
     // strictlly contained in them. For example, as a result of a `difference` operation.
-    modified_contracts: HashSet<ContractAddress>,
+    pub(crate) modified_contracts: HashSet<ContractAddress>,
 }
 
 impl StateChangesKeys {

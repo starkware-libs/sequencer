@@ -108,7 +108,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
         with:

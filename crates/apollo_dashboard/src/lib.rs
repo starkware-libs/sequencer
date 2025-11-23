@@ -6,3 +6,5 @@ pub mod dashboard_definitions;
 #[cfg(test)]
 mod metric_definitions_test;
 mod panels;
+
+mod query_builder;

@@ -103,7 +103,7 @@ impl StarknetClient {
             format!("{}; {}; {}", info.os_type(), info.version(), info.bitness());
         let app_user_agent = format!(
             "{product_name}/{product_version} ({system_information})",
-            product_name = "papyrus",
+            product_name = "apollo",
             product_version = node_version,
             system_information = system_information
         );

@@ -6,6 +6,7 @@ use apollo_gateway::metrics::{
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_SUCCESS;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
+use apollo_metrics::MetricCommon;
 
 use crate::alerts::{
     Alert,

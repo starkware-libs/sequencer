@@ -893,23 +893,30 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     class_hash: class_hash!(7_u64),
     compiled_class_hash: CompiledClassHash(8_u64.into()),
     ..Default::default()
-}))]
+}), HashVersion::V2)]
+#[should_panic(expected = "DeclareTransactionCasmHashMissMatch")]
+#[case::poseidon_declare_tx(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
+    class_hash: class_hash!(7_u64),
+    compiled_class_hash: CompiledClassHash(8_u64.into()),
+    ..Default::default()
+}), HashVersion::V1)]
 #[should_panic(expected = "UninitializedStorageAddress")]
 #[case::wrong_tx_version(DeclareTransaction::V2(DeclareTransactionV2 {
     sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     ..Default::default()
-}))]
+}), HashVersion::V2)]
 #[should_panic(expected = "InvalidNonce")]
 #[case::wrong_nonce(DeclareTransaction::V3(DeclareTransactionV3 {
     sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     nonce: Nonce(felt!(1_u64)),
     ..Default::default()
-}))]
+}), HashVersion::V2)]
 #[should_panic(expected = "UninitializedStorageAddress")]
 #[case::wrong_sender_address(DeclareTransaction::V3(DeclareTransactionV3 {
     sender_address: ContractAddress(PatriciaKey::from(1_u128)),
     ..Default::default()
-}))]
+}), HashVersion::V2)]
 #[should_panic(expected = "InsufficientResourceBounds")]
 #[case::non_trivial_resource_bounds(DeclareTransaction::V3(DeclareTransactionV3 {
     sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
@@ -919,8 +926,12 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         l1_data_gas: ResourceBounds::default(),
     }),
     ..Default::default()
-}))]
-fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: DeclareTransaction) {
+}), HashVersion::V2)]
+fn test_bootstrap_declare(
+    block_context: BlockContext,
+    #[case] declare_tx: DeclareTransaction,
+    #[case] hash_version: HashVersion,
+) {
     let class_info = calculate_class_info_for_testing(
         FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
     );
@@ -930,10 +941,12 @@ fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: Decla
         tx_hash: TransactionHash::default(),
         class_info,
     };
-    // If this is a V3 declare, override the compiled_class_hash field with v2 hash.
-    if let DeclareTransaction::V3(ref mut tx_v3) = executable_declare.tx {
-        if let ContractClass::V1((casm, _)) = contract_class {
-            tx_v3.compiled_class_hash = casm.hash(&HashVersion::V2);
+
+    // Update compiled_class_hash in V3 declare txs to match the contract class with the given hash
+    // version.
+    if let DeclareTransaction::V3(tx) = &mut executable_declare.tx {
+        if let ContractClass::V1((casm, _)) = &contract_class {
+            tx.compiled_class_hash = casm.hash(&hash_version);
         }
     }
     let compiled_class_hash = executable_declare.tx.compiled_class_hash();

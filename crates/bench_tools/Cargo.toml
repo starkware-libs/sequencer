@@ -1,0 +1,25 @@
+[package]
+name = "bench_tools"
+edition.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+criterion.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+apollo_infra_utils.workspace = true
+glob.workspace = true
+rstest.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+harness = false
+name = "dummy_bench"
+path = "src/benches/dummy_bench.rs"
