@@ -816,6 +816,7 @@ dependencies = [
  "colored 3.0.0",
  "papyrus_base_layer",
  "starknet_api",
+ "tokio",
  "url",
 ]
 
