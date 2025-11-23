@@ -9,7 +9,6 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
     SkeletonLeaf,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -17,6 +16,8 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTreeImpl,
 };
 use starknet_patricia_storage::map_storage::MapStorage;
+
+use crate::db::create_facts_tree::create_original_skeleton_tree;
 
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
@@ -30,7 +31,7 @@ where
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton = OriginalSkeletonTreeImpl::create(
+    let mut original_skeleton = create_original_skeleton_tree(
         storage,
         root_hash,
         sorted_leaf_indices,
