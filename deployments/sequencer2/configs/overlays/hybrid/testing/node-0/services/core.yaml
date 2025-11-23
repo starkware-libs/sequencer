@@ -63,5 +63,5 @@ persistentVolume:
   accessModes:
   - ReadWriteOnce
   mountPath: /data
-  size: 10Gi
+  size: 2Gi
   storageClass: ""
