@@ -6,6 +6,7 @@ use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
 
 use crate::ethereum_base_layer_contract::{
+    CircularUrlIterator,
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     Starknet,
@@ -25,8 +26,8 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
     let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
     let config = EthereumBaseLayerConfig::default();
-    let url = config.ordered_l1_endpoint_urls.first().expect("No endpoint URLs provided").clone();
-    let base_layer = EthereumBaseLayerContract { contract, config, url };
+    let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+    let base_layer = EthereumBaseLayerContract { contract, config, url_iterator };
 
     (base_layer, asserter)
 }
