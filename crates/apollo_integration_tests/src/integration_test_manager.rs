@@ -33,7 +33,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
-use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -356,7 +355,6 @@ impl IntegrationTestManager {
         anvil_mine_blocks(
             anvil_base_layer.ethereum_base_layer.config.clone(),
             MIN_EXPECTED_BLOCK_NUMBER,
-            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
         )
         .await;
 

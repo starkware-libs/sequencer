@@ -24,7 +24,7 @@ async fn fusaka_blob_fee_sanity_check() {
         .expect("expected infura api key to be set in INFURA_API_KEY environment variable");
     let url = Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
         .expect("expected infura url to be valid");
-    let mut base_layer = EthereumBaseLayerContract::new(config.clone(), url);
+    let mut base_layer = EthereumBaseLayerContract::new(config.clone());
 
     // This is a known time when the data gas price was relatively high:
     // https://sepolia.blobscan.com/block/9716185

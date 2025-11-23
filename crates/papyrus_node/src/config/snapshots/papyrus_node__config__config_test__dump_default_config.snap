@@ -1,682 +1,833 @@
+---
+source: crates/papyrus_node/src/config/config_test.rs
+expression: dumped_default_config
+---
 {
   "base_layer.ordered_l1_endpoint_urls": {
     "description": "An ordered list of URLs for communicating with Ethereum. The list is used in order, cyclically, switching if the current one is non-operational.",
-    "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY"
+    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY",
+    "privacy": "Private"
   },
-  "base_layer.fusaka_no_bpo_start_block_number": {
-    "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
-    "privacy": "Public",
-    "value": 0
-  },  
-  "base_layer.bpo1_start_block_number": {
-    "description": "The block number at which BPO1 update was deployed.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "base_layer.bpo2_start_block_number": {
-    "description": "The block number at which BPO2 update was deployed.",
-    "privacy": "Public",
-    "value": 0
+  "base_layer.prague_blob_gas_calc": {
+    "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
+    "value": true,
+    "privacy": "Public"
   },
   "base_layer.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
-    "privacy": "Public",
-    "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
+    "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+    "privacy": "Public"
   },
   "base_layer.timeout_millis": {
     "description": "The timeout (milliseconds) for a query of the L1 base layer",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "base_layer_url": {
     "description": "URL for communicating with Ethereum.",
-    "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
+    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E",
+    "privacy": "Private"
   },
   "central.class_cache_size": {
     "description": "Size of class cache, must be a positive integer.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "central.concurrent_requests": {
     "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
-    "privacy": "Public",
-    "value": 10
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
   },
   "central.http_headers": {
     "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
-    "privacy": "Private",
-    "value": ""
+    "value": "",
+    "privacy": "Private"
   },
   "central.max_classes_to_download": {
     "description": "Maximum number of classes to download at a given time.",
-    "privacy": "Public",
-    "value": 20
+    "value": {
+      "$serde_json::private::Number": "20"
+    },
+    "privacy": "Public"
   },
   "central.max_state_updates_to_download": {
     "description": "Maximum number of state updates to download at a given time.",
-    "privacy": "Public",
-    "value": 20
+    "value": {
+      "$serde_json::private::Number": "20"
+    },
+    "privacy": "Public"
   },
   "central.max_state_updates_to_store_in_memory": {
     "description": "Maximum number of state updates to store in memory at a given time.",
-    "privacy": "Public",
-    "value": 20
+    "value": {
+      "$serde_json::private::Number": "20"
+    },
+    "privacy": "Public"
   },
   "central.retry_config.max_retries": {
     "description": "Maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 10
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
   },
   "central.retry_config.retry_base_millis": {
     "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 30
+    "value": {
+      "$serde_json::private::Number": "30"
+    },
+    "privacy": "Public"
   },
   "central.retry_config.retry_max_delay_millis": {
     "description": "Max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 30000
+    "value": {
+      "$serde_json::private::Number": "30000"
+    },
+    "privacy": "Public"
   },
   "central.starknet_url": {
     "description": "Starknet feeder-gateway URL. It should match chain_id.",
-    "pointer_target": "starknet_url",
+    "value": "https://alpha-mainnet.starknet.io/",
     "privacy": "Public"
-  },
-  "chain_id": {
-    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
-  },
-  "collect_metrics": {
-    "description": "If true, collect metrics for the node.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "collect_profiling_metrics": {
     "description": "If true, collect profiling metrics for the node.",
-    "privacy": "Public",
-    "value": false
+    "value": false,
+    "privacy": "Public"
   },
   "consensus.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "consensus.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
-    "privacy": "Public",
-    "value": 10
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
-    "privacy": "Public",
-    "value": 1
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
-    "privacy": "Public",
-    "value": 10
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
-    "privacy": "Public",
-    "value": 1.0
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.precommit.base": {
     "description": "The base timeout (seconds).",
-    "privacy": "Public",
-    "value": 1.0
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.precommit.delta": {
     "description": "The per-round timeout delta (seconds).",
-    "privacy": "Public",
-    "value": 0.5
+    "value": {
+      "$serde_json::private::Number": "0.5"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.precommit.max": {
     "description": "The maximum timeout (seconds).",
-    "privacy": "Public",
-    "value": 5.0
+    "value": {
+      "$serde_json::private::Number": "5.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.prevote.base": {
     "description": "The base timeout (seconds).",
-    "privacy": "Public",
-    "value": 0.3
+    "value": {
+      "$serde_json::private::Number": "0.3"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.prevote.delta": {
     "description": "The per-round timeout delta (seconds).",
-    "privacy": "Public",
-    "value": 0.1
+    "value": {
+      "$serde_json::private::Number": "0.1"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.prevote.max": {
     "description": "The maximum timeout (seconds).",
-    "privacy": "Public",
-    "value": 1.0
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.proposal.base": {
     "description": "The base timeout (seconds).",
-    "privacy": "Public",
-    "value": 9.1
+    "value": {
+      "$serde_json::private::Number": "9.1"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.proposal.delta": {
     "description": "The per-round timeout delta (seconds).",
-    "privacy": "Public",
-    "value": 0.0
+    "value": {
+      "$serde_json::private::Number": "0.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.timeouts.proposal.max": {
     "description": "The maximum timeout (seconds).",
-    "privacy": "Public",
-    "value": 15.0
+    "value": {
+      "$serde_json::private::Number": "15.0"
+    },
+    "privacy": "Public"
   },
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
-    "privacy": "Public",
-    "value": "0x64"
+    "value": "0x64",
+    "privacy": "Public"
   },
   "consensus.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
-    "privacy": "Public",
-    "value": 5
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
+    "value": "SN_MAIN",
     "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.enforce_file_exists": {
     "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
-    "privacy": "Public",
-    "value": false
+    "value": false,
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.growth_step": {
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
-    "privacy": "Public",
-    "value": 4294967296
+    "value": {
+      "$serde_json::private::Number": "4294967296"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.max_readers": {
     "description": "The maximum number of readers used by the database.",
-    "privacy": "Public",
-    "value": 8192
+    "value": {
+      "$serde_json::private::Number": "8192"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1099511627776
+    "value": {
+      "$serde_json::private::Number": "1099511627776"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.min_size": {
     "description": "The minimum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1048576
+    "value": {
+      "$serde_json::private::Number": "1048576"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.db_config.path_prefix": {
     "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
-    "privacy": "Public",
-    "value": "/data/consensus"
+    "value": "/data/consensus",
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.mmap_file_config.growth_step": {
     "description": "The growth step in bytes, must be greater than max_object_size.",
-    "privacy": "Public",
-    "value": 1073741824
+    "value": {
+      "$serde_json::private::Number": "1073741824"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.mmap_file_config.max_object_size": {
     "description": "The maximum size of a single object in the file in bytes",
-    "privacy": "Public",
-    "value": 268435456
+    "value": {
+      "$serde_json::private::Number": "268435456"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.mmap_file_config.max_size": {
     "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
-    "privacy": "Public",
-    "value": 1099511627776
+    "value": {
+      "$serde_json::private::Number": "1099511627776"
+    },
+    "privacy": "Public"
   },
   "consensus.static_config.storage_config.scope": {
     "description": "The categories of data saved in storage.",
-    "privacy": "Public",
-    "value": "StateOnly"
+    "value": "StateOnly",
+    "privacy": "Public"
   },
   "context.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "context.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
-    "privacy": "Public",
-    "value": 1
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
   },
   "context.build_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "context.build_proposal_time_ratio_for_retrospective_block_hash": {
     "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
-    "privacy": "Public",
-    "value": 0.7
+    "value": {
+      "$serde_json::private::Number": "0.7"
+    },
+    "privacy": "Public"
   },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
-    "privacy": "Public",
-    "value": "0x0"
+    "value": "0x0",
+    "privacy": "Public"
   },
   "context.chain_id": {
     "description": "The chain id of the Starknet chain.",
-    "pointer_target": "chain_id",
+    "value": "SN_MAIN",
     "privacy": "Public"
   },
   "context.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
-    "privacy": "Public",
-    "value": true
+    "value": true,
+    "privacy": "Public"
   },
   "context.l1_data_gas_price_multiplier_ppt": {
     "description": "Part per thousand of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
-    "privacy": "Public",
-    "value": 135
+    "value": {
+      "$serde_json::private::Number": "135"
+    },
+    "privacy": "Public"
   },
   "context.l1_gas_tip_wei": {
     "description": "This additional gas is added to the L1 gas price.",
-    "privacy": "Public",
-    "value": 1000000000
+    "value": {
+      "$serde_json::private::Number": "1000000000"
+    },
+    "privacy": "Public"
   },
   "context.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
-    "privacy": "Public",
-    "value": 1000000000000000000
+    "value": {
+      "$serde_json::private::Number": "1000000000000000000"
+    },
+    "privacy": "Public"
   },
   "context.max_l1_gas_price_wei": {
     "description": "The maximum L1 gas price in wei.",
-    "privacy": "Public",
-    "value": 200000000000
+    "value": {
+      "$serde_json::private::Number": "200000000000"
+    },
+    "privacy": "Public"
   },
   "context.min_l1_data_gas_price_wei": {
     "description": "The minimum L1 data gas price in wei.",
-    "privacy": "Public",
-    "value": 1
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
   },
   "context.min_l1_gas_price_wei": {
     "description": "The minimum L1 gas price in wei.",
-    "privacy": "Public",
-    "value": 1000000000
+    "value": {
+      "$serde_json::private::Number": "1000000000"
+    },
+    "privacy": "Public"
   },
   "context.num_validators": {
     "description": "The number of validators.",
-    "privacy": "Public",
-    "value": 1
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
   },
   "context.override_eth_to_fri_rate": {
     "description": "Replace the Eth-to-Fri conversion rate with this value.",
-    "privacy": "Public",
-    "value": 0
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
   },
   "context.override_eth_to_fri_rate.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "context.override_l1_data_gas_price_wei": {
     "description": "Replace the L1 data gas price (wei) with this value.",
-    "privacy": "Public",
-    "value": 0
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
   },
   "context.override_l1_data_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "context.override_l1_gas_price_wei": {
     "description": "Replace the L1 gas price (wei) with this value.",
-    "privacy": "Public",
-    "value": 0
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
   },
   "context.override_l1_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "context.override_l2_gas_price_fri": {
     "description": "Replace the L2 gas price (fri) with this value.",
-    "privacy": "Public",
-    "value": 0
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
   },
   "context.override_l2_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "context.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "context.retrospective_block_hash_retry_interval_millis": {
     "description": "The interval between retrospective block hash retries.",
-    "privacy": "Public",
-    "value": 500
+    "value": {
+      "$serde_json::private::Number": "500"
+    },
+    "privacy": "Public"
   },
   "context.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
-    "privacy": "Public",
-    "value": 10000
+    "value": {
+      "$serde_json::private::Number": "10000"
+    },
+    "privacy": "Public"
   },
   "context.validator_ids": {
     "description": "Optional explicit set of validator IDs (comma separated).",
-    "privacy": "Public",
-    "value": ""
+    "value": "",
+    "privacy": "Public"
   },
   "context.validator_ids.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "network.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "network.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
+    "value": "",
+    "privacy": "Public"
   },
   "network.advertised_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "network.bootstrap_peer_multiaddr": {
     "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
-    "privacy": "Public",
-    "value": ""
+    "value": "",
+    "privacy": "Public"
   },
   "network.bootstrap_peer_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "network.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
-    "privacy": "Public",
-    "value": 100000
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
   },
   "network.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
+    "value": "SN_MAIN",
     "privacy": "Public"
   },
   "network.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
     "description": "The base delay in milliseconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 2
+    "value": {
+      "$serde_json::private::Number": "2"
+    },
+    "privacy": "Public"
   },
   "network.discovery_config.bootstrap_dial_retry_config.factor": {
     "description": "The factor for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
   },
   "network.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
     "description": "The maximum delay in seconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
   },
   "network.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "network.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
-    "privacy": "Public",
-    "value": 120
+    "value": {
+      "$serde_json::private::Number": "120"
+    },
+    "privacy": "Public"
   },
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
-    "privacy": "Public",
-    "value": 1
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
   },
   "network.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "network.port": {
     "description": "The port that the node listens on for incoming connections.",
-    "privacy": "Public",
-    "value": 10000
+    "value": {
+      "$serde_json::private::Number": "10000"
+    },
+    "privacy": "Public"
   },
   "network.prune_dead_connections_ping_interval": {
     "description": "The interval in seconds between each prune dead connections ping check.",
-    "privacy": "Public",
-    "value": 15
+    "value": {
+      "$serde_json::private::Number": "15"
+    },
+    "privacy": "Public"
   },
   "network.prune_dead_connections_ping_timeout": {
     "description": "The timeout in seconds for a ping to be considered failed.",
-    "privacy": "Public",
-    "value": 20
+    "value": {
+      "$serde_json::private::Number": "20"
+    },
+    "privacy": "Public"
   },
   "network.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
-    "privacy": "Public",
-    "value": 100000
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
   },
   "network.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
-    "privacy": "Private",
-    "value": ""
+    "value": "",
+    "privacy": "Private"
   },
   "network.session_timeout": {
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
-    "privacy": "Public",
-    "value": 120
+    "value": {
+      "$serde_json::private::Number": "120"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": true,
+    "privacy": "TemporaryValue"
   },
   "p2p_sync.buffer_size": {
     "description": "Size of the buffer for read from the storage and for incoming responses.",
-    "privacy": "Public",
-    "value": 100000
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.num_block_classes_per_query": {
     "description": "The maximum amount of block's classes to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.num_block_state_diffs_per_query": {
     "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.num_block_transactions_per_query": {
     "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.num_headers_per_query": {
     "description": "The maximum amount of headers to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 10000
+    "value": {
+      "$serde_json::private::Number": "10000"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.wait_period_for_new_data": {
     "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
-    "privacy": "Public",
-    "value": 50
+    "value": {
+      "$serde_json::private::Number": "50"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.wait_period_for_other_protocol": {
     "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
-    "privacy": "Public",
-    "value": 50
+    "value": {
+      "$serde_json::private::Number": "50"
+    },
+    "privacy": "Public"
   },
   "rpc.apollo_gateway_retry_config.max_retries": {
     "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 5
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
   },
   "rpc.apollo_gateway_retry_config.retry_base_millis": {
     "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 50
+    "value": {
+      "$serde_json::private::Number": "50"
+    },
+    "privacy": "Public"
   },
   "rpc.apollo_gateway_retry_config.retry_max_delay_millis": {
     "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
+    "value": "SN_MAIN",
     "privacy": "Public"
   },
   "rpc.collect_metrics": {
     "description": "If true, collect metrics for the rpc.",
-    "pointer_target": "collect_metrics",
+    "value": false,
     "privacy": "Public"
   },
   "rpc.execution_config.default_initial_gas_cost": {
     "description": "The initial gas cost for a transaction",
-    "privacy": "Public",
-    "value": 10000000000
+    "value": {
+      "$serde_json::private::Number": "10000000000"
+    },
+    "privacy": "Public"
   },
   "rpc.execution_config.eth_fee_contract_address": {
     "description": "The eth fee token address to receive fees",
-    "privacy": "Public",
-    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+    "privacy": "Public"
   },
   "rpc.execution_config.strk_fee_contract_address": {
     "description": "The strk fee token address to receive fees",
-    "privacy": "Public",
-    "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+    "privacy": "Public"
   },
   "rpc.ip": {
     "description": "The JSON RPC server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": "0.0.0.0",
+    "privacy": "Public"
   },
   "rpc.max_events_chunk_size": {
     "description": "Maximum chunk size supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "rpc.max_events_keys": {
     "description": "Maximum number of keys supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 100
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
   },
   "rpc.port": {
     "description": "The JSON RPC server port.",
-    "privacy": "Public",
-    "value": 8090
+    "value": {
+      "$serde_json::private::Number": "8090"
+    },
+    "privacy": "Public"
   },
   "rpc.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",
-    "pointer_target": "starknet_url",
+    "value": "https://alpha-mainnet.starknet.io/",
     "privacy": "Public"
-  },
-  "starknet_url": {
-    "description": "The URL of a centralized Starknet gateway.",
-    "privacy": "TemporaryValue",
-    "value": "https://alpha-mainnet.starknet.io/"
   },
   "storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
+    "value": "SN_MAIN",
     "privacy": "Public"
   },
   "storage.db_config.enforce_file_exists": {
     "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
-    "privacy": "Public",
-    "value": false
+    "value": false,
+    "privacy": "Public"
   },
   "storage.db_config.growth_step": {
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
-    "privacy": "Public",
-    "value": 4294967296
+    "value": {
+      "$serde_json::private::Number": "4294967296"
+    },
+    "privacy": "Public"
   },
   "storage.db_config.max_readers": {
     "description": "The maximum number of readers used by the database.",
-    "privacy": "Public",
-    "value": 8192
+    "value": {
+      "$serde_json::private::Number": "8192"
+    },
+    "privacy": "Public"
   },
   "storage.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1099511627776
+    "value": {
+      "$serde_json::private::Number": "1099511627776"
+    },
+    "privacy": "Public"
   },
   "storage.db_config.min_size": {
     "description": "The minimum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1048576
+    "value": {
+      "$serde_json::private::Number": "1048576"
+    },
+    "privacy": "Public"
   },
   "storage.db_config.path_prefix": {
     "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
-    "privacy": "Public",
-    "value": "./data"
+    "value": "./data",
+    "privacy": "Public"
   },
   "storage.mmap_file_config.growth_step": {
     "description": "The growth step in bytes, must be greater than max_object_size.",
-    "privacy": "Public",
-    "value": 1073741824
+    "value": {
+      "$serde_json::private::Number": "1073741824"
+    },
+    "privacy": "Public"
   },
   "storage.mmap_file_config.max_object_size": {
     "description": "The maximum size of a single object in the file in bytes",
-    "privacy": "Public",
-    "value": 268435456
+    "value": {
+      "$serde_json::private::Number": "268435456"
+    },
+    "privacy": "Public"
   },
   "storage.mmap_file_config.max_size": {
     "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
-    "privacy": "Public",
-    "value": 1099511627776
+    "value": {
+      "$serde_json::private::Number": "1099511627776"
+    },
+    "privacy": "Public"
   },
   "storage.scope": {
     "description": "The categories of data saved in storage.",
-    "privacy": "Public",
-    "value": "FullArchive"
+    "value": "FullArchive",
+    "privacy": "Public"
   },
   "sync.#is_none": {
     "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
+    "value": false,
+    "privacy": "TemporaryValue"
   },
   "sync.base_layer_propagation_sleep_duration": {
     "description": "Time in seconds to poll the base layer to get the latest proved block.",
-    "privacy": "Public",
-    "value": 10
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
   },
   "sync.block_propagation_sleep_duration": {
     "description": "Time in seconds before checking for a new block after the node is synchronized.",
-    "privacy": "Public",
-    "value": 2
+    "value": {
+      "$serde_json::private::Number": "2"
+    },
+    "privacy": "Public"
   },
   "sync.blocks_max_stream_size": {
     "description": "Max amount of blocks to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "sync.collect_pending_data": {
     "description": "Whether to collect data on pending blocks.",
-    "privacy": "Public",
-    "value": false
+    "value": false,
+    "privacy": "Public"
   },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
-    "privacy": "Public",
-    "value": 3
+    "value": {
+      "$serde_json::private::Number": "3"
+    },
+    "privacy": "Public"
   },
   "sync.state_updates_max_stream_size": {
     "description": "Max amount of state updates to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
   },
   "sync.store_sierras_and_casms": {
     "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-    "privacy": "Public",
-    "value": true
+    "value": true,
+    "privacy": "Public"
   },
   "sync.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
-    "privacy": "Public",
-    "value": true
+    "value": true,
+    "privacy": "Public"
   }
 }
