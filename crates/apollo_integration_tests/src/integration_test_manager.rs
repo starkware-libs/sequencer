@@ -155,6 +155,12 @@ impl NodeSetup {
         &self.get_consensus_manager().monitoring_client
     }
 
+    pub fn get_executable_by_service(&self, service: NodeService) -> &ExecutableSetup {
+        self.executables
+            .get(&service)
+            .unwrap_or_else(|| panic!("Executable service {service:?} does not exist."))
+    }
+
     pub fn get_executables(&self) -> impl ExactSizeIterator<Item = &ExecutableSetup> {
         self.executables.values()
     }
@@ -193,6 +199,14 @@ impl NodeSetup {
 
     pub fn get_consensus_manager(&self) -> &ExecutableSetup {
         get_executable_by_component(&self.executables, ComponentConfigInService::Consensus)
+    }
+
+    pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
+        let executable_setup = self.get_executable_by_service(service);
+        spawn_run_node(
+            vec![executable_setup.node_config_path.clone()],
+            executable_setup.node_execution_id.into(),
+        )
     }
 
     pub fn run(self) -> RunningNode {
@@ -256,6 +270,24 @@ impl RunningNode {
                 panic!("A running node executable has unexpectedly panicked.");
             }
         }
+    }
+
+    pub fn shutdown_service(&mut self, service: NodeService) {
+        let handle = self
+            .executable_handles
+            .remove(&service)
+            .expect("Service {service:?} does not exist in the running executables map.");
+        assert!(!handle.is_finished(), "Handle should still be running.");
+        handle.abort();
+    }
+
+    pub fn run_service(&mut self, service: NodeService) {
+        assert!(
+            !self.executable_handles.contains_key(&service),
+            "Service {service:?} is already running."
+        );
+        let handle = self.node_setup.run_service(service);
+        self.executable_handles.insert(service, handle);
     }
 }
 
@@ -349,6 +381,27 @@ impl IntegrationTestManager {
         });
 
         // Wait for the nodes to start
+        self.await_alive(5000, 50).await;
+    }
+
+    pub async fn run_node_services(
+        &mut self,
+        nodes_services_to_run: HashMap<usize, Vec<NodeService>>,
+    ) {
+        get_node_executable_path();
+        info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
+        nodes_services_to_run.into_iter().for_each(|(node_index, services)| {
+            let running_node = self
+                .running_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
+
+            for service in services {
+                running_node.run_service(service);
+            }
+        });
+
+        // Wait for the rerun executables to start
         self.await_alive(5000, 50).await;
     }
 
@@ -456,6 +509,23 @@ impl IntegrationTestManager {
 
     pub fn get_node_indices(&self) -> HashSet<usize> {
         self.node_indices.clone()
+    }
+
+    pub fn shutdown_node_services(
+        &mut self,
+        node_services_to_shutdown: HashMap<usize, Vec<NodeService>>,
+    ) {
+        node_services_to_shutdown.into_iter().for_each(|(node_index, node_services)| {
+            let running_node = self
+                .running_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
+
+            for service in node_services {
+                running_node.shutdown_service(service);
+                info!("Node {node_index} service {service:?} has been shut down.");
+            }
+        });
     }
 
     pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
