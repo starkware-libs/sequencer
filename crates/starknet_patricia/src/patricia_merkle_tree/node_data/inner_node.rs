@@ -163,7 +163,7 @@ impl PathToBottom {
     pub(crate) const RIGHT_CHILD: Self =
         Self { path: EdgePath(U256::ONE), length: EdgePathLength(1), _fake_field: () };
 
-    pub(crate) fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
+    pub fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
         NodeIndex::compute_bottom_index(root_index, self)
     }
 

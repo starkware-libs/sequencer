@@ -13017,7 +13017,6 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
- "tracing",
 ]
 
 [[package]]

@@ -34,7 +34,6 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
-tracing.workspace = true
 
 # Optional dependencies required for tests and the testing feature.
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
