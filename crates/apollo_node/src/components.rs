@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
@@ -35,6 +36,7 @@ use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
+use tokio::time::sleep;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -403,6 +405,8 @@ pub async fn create_node_components(
             None
         }
     };
+
+    sleep(Duration::from_secs(10)).await;
 
     // Must be initialized after the l1 scraper, since the provider's (L2) startup height is derived
     // from the scraper's (L1) startup height (unless the former is overridden via the config).

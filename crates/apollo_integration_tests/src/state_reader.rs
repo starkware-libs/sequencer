@@ -61,12 +61,14 @@ pub(crate) const CLASS_MANAGER_DB_PATH_SUFFIX: &str = "class_manager";
 pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
 pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
+pub(crate) const CONSENSUS_DB_PATH_SUFFIX: &str = "consensus";
 
 #[derive(Debug, Clone)]
 pub struct StorageTestConfig {
     pub batcher_storage_config: StorageConfig,
     pub state_sync_storage_config: StorageConfig,
     pub class_manager_storage_config: FsClassStorageConfig,
+    pub consensus_storage_config: StorageConfig,
 }
 
 impl StorageTestConfig {
@@ -74,8 +76,14 @@ impl StorageTestConfig {
         batcher_storage_config: StorageConfig,
         state_sync_storage_config: StorageConfig,
         class_manager_storage_config: FsClassStorageConfig,
+        consensus_storage_config: StorageConfig,
     ) -> Self {
-        Self { batcher_storage_config, state_sync_storage_config, class_manager_storage_config }
+        Self {
+            batcher_storage_config,
+            state_sync_storage_config,
+            class_manager_storage_config,
+            consensus_storage_config,
+        }
     }
 }
 
@@ -84,6 +92,7 @@ pub struct StorageTestHandles {
     pub batcher_storage_handle: Option<TempDir>,
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<TempDirHandlePair>,
+    pub consensus_storage_handle: Option<TempDir>,
 }
 
 impl StorageTestHandles {
@@ -91,8 +100,14 @@ impl StorageTestHandles {
         batcher_storage_handle: Option<TempDir>,
         state_sync_storage_handle: Option<TempDir>,
         class_manager_storage_handles: Option<TempDirHandlePair>,
+        consensus_storage_handle: Option<TempDir>,
     ) -> Self {
-        Self { batcher_storage_handle, state_sync_storage_handle, class_manager_storage_handles }
+        Self {
+            batcher_storage_handle,
+            state_sync_storage_handle,
+            class_manager_storage_handles,
+            consensus_storage_handle,
+        }
     }
 }
 
@@ -165,16 +180,26 @@ impl StorageTestSetup {
 
         initialize_class_manager_test_state(&mut class_manager_storage, classes);
 
+        let consensus_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_consensus_path_with_db_suffix());
+        let (_, consensus_storage_config, consensus_storage_handle) =
+            TestStorageBuilder::new(consensus_db_path)
+                .scope(StorageScope::StateOnly)
+                .chain_id(chain_info.chain_id.clone())
+                .build();
+
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,
                 state_sync_storage_config,
                 class_manager_storage_config,
+                consensus_storage_config,
             ),
             storage_handles: StorageTestHandles::new(
                 batcher_storage_handle,
                 state_sync_storage_handle,
                 class_manager_storage_handles,
+                consensus_storage_handle,
             ),
         }
     }

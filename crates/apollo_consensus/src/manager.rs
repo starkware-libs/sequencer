@@ -10,6 +10,7 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
@@ -35,11 +36,11 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::storage::HeightVotedStorageTrait;
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
 
 /// Arguments for running consensus.
-#[derive(Clone)]
 pub struct RunConsensusArguments {
     /// Consensus configuration (static + dynamic). Static fields are used directly; dynamic
     /// fields are refreshed at height boundaries via `config_manager_client` when provided.
@@ -52,6 +53,9 @@ pub struct RunConsensusArguments {
     pub quorum_type: QuorumType,
     /// Optional client for fetching dynamic consensus config between heights.
     pub config_manager_client: Option<SharedConfigManagerClient>,
+    /// Storage used to persist last voted consensus height.
+    // See MultiHeightManager foran explanation of why we have Arc<Mutex>>.
+    pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl std::fmt::Debug for RunConsensusArguments {
@@ -62,6 +66,7 @@ impl std::fmt::Debug for RunConsensusArguments {
             .field("dynamic_config", &self.consensus_config.dynamic_config)
             .field("static_config", &self.consensus_config.static_config)
             .field("quorum_type", &self.quorum_type)
+            .field("last_voted_height_storage", &self.last_voted_height_storage)
             .finish()
     }
 }
@@ -94,7 +99,7 @@ pub async fn run_consensus<ContextT>(
 where
     ContextT: ConsensusContext,
 {
-    info!("Running consensus, args: {:?}", run_consensus_args.clone());
+    info!("Running consensus, args: {:?}", run_consensus_args);
     register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(run_consensus_args.consensus_config.static_config.startup_delay).await;
@@ -106,6 +111,7 @@ where
     let mut manager = MultiHeightManager::new(
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
+        run_consensus_args.last_voted_height_storage.clone(),
     );
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
@@ -177,16 +183,27 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+    // The reason for this Arc<Mutex> we cannot share this instance mutably  with
+    // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
+    // rust limitations.
+    // TODO(guy.f): Remove in the following PR.
+    #[allow(dead_code)]
+    voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-    pub(crate) fn new(consensus_config: ConsensusConfig, quorum_type: QuorumType) -> Self {
+    pub(crate) fn new(
+        consensus_config: ConsensusConfig,
+        quorum_type: QuorumType,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    ) -> Self {
         Self {
             consensus_config,
             quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
+            voted_height_storage,
         }
     }
 
