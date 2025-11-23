@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use starknet_api::class_cache::GlobalContractCache;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::{CompiledClassV0, CompiledClassV1, RunnableCompiledClass};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+use crate::state::state_api::StateResult;
+use crate::state::errors::StateError;
 
 pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 600;
 
@@ -34,6 +37,29 @@ impl CompiledClasses {
                     RunnableCompiledClass::V1(compiled_class_v1.clone())
                 }
             },
+        }
+    }
+
+    /// Converts a [`starknet_api::contract_class::ContractClass`] into the corresponding
+    /// [`CompiledClasses`].
+    ///
+    /// For `V1` (Cairo 1) classes, a matching `SierraContractClass` must be provided.
+    /// For `V0` classes, this argument should be `None`.
+    pub fn from_contract_class(
+        contract_class: &ContractClass,
+        sierra_contract_class: Option<SierraContractClass>,
+    ) -> StateResult<CompiledClasses> {
+        match contract_class {
+            ContractClass::V0(deprecated_class) => {
+                Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_class.clone())?))
+            }
+            ContractClass::V1(versioned_casm) => {
+                let sierra_contract_class = sierra_contract_class.expect("V1 contract class requires Sierra class");
+                Ok(CompiledClasses::V1(
+                    CompiledClassV1::try_from(versioned_casm.clone())?,
+                    Arc::new(sierra_contract_class.clone()),
+                ))
+            }
         }
     }
 }
