@@ -1,7 +1,6 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::sync::Arc;
 
-use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_provider_types::errors::L1ProviderError;
@@ -48,6 +47,31 @@ pub struct L1Provider {
 }
 
 impl L1Provider {
+    pub fn new(
+        config: L1ProviderConfig,
+        l1_provider_client: SharedL1ProviderClient,
+        state_sync_client: SharedStateSyncClient,
+        clock: Option<Arc<dyn Clock>>,
+    ) -> Self {
+        let bootstrapper = Bootstrapper::new(
+            l1_provider_client,
+            state_sync_client,
+            config.startup_sync_sleep_retry_interval_seconds,
+        );
+        Self {
+            config,
+            bootstrapper,
+            current_height: BlockNumber(0),
+            tx_manager: TransactionManager::new(
+                config.new_l1_handler_cooldown_seconds,
+                config.l1_handler_cancellation_timelock_seconds,
+                config.l1_handler_consumption_timelock_seconds,
+            ),
+            state: ProviderState::Uninitialized,
+            clock: clock.unwrap_or_else(|| Arc::new(DefaultClock)),
+            start_height: None,
+        }
+    }
     // Functions Called by the scraper.
 
     // Start the provider, get first-scrape events, start L2 sync.
@@ -488,99 +512,3 @@ impl PartialEq for L1Provider {
 }
 
 impl ComponentStarter for L1Provider {}
-
-pub struct L1ProviderBuilder {
-    pub config: L1ProviderConfig,
-    pub l1_provider_client: SharedL1ProviderClient,
-    pub batcher_client: SharedBatcherClient,
-    pub state_sync_client: SharedStateSyncClient,
-    startup_height: Option<BlockNumber>,
-    catchup_height: Option<BlockNumber>,
-    clock: Option<Arc<dyn Clock>>,
-}
-
-impl L1ProviderBuilder {
-    pub fn new(
-        config: L1ProviderConfig,
-        l1_provider_client: SharedL1ProviderClient,
-        batcher_client: SharedBatcherClient,
-        state_sync_client: SharedStateSyncClient,
-    ) -> Self {
-        Self {
-            config,
-            l1_provider_client,
-            batcher_client,
-            state_sync_client,
-            startup_height: None,
-            catchup_height: None,
-            clock: None,
-        }
-    }
-
-    pub fn startup_height(mut self, startup_height: BlockNumber) -> Self {
-        self.startup_height = Some(startup_height);
-        self
-    }
-
-    pub fn catchup_height(mut self, catchup_height: BlockNumber) -> Self {
-        self.catchup_height = Some(catchup_height);
-        self
-    }
-
-    pub fn clock(mut self, clock: Arc<dyn Clock>) -> Self {
-        self.clock = Some(clock);
-        self
-    }
-
-    pub fn build(self) -> L1Provider {
-        let l1_provider_startup_height = self
-            .config
-            .provider_startup_height_override
-            .inspect(|&startup_height_override| {
-                warn!(
-                    "OVERRIDE L1 provider startup height: {startup_height_override}. WARNING: \
-                     When the scraper is active, this value MUST be less than or equal to the \
-                     scraper's last known LogStateUpdate, otherwise L2 reorgs may be possible. \
-                     See docstring."
-                );
-            })
-            .or(self.startup_height);
-
-        // TODO(guyn): try to remove the input catchup_height entirely (check if it is needed for
-        // tests/Anvil).
-        let catchup_height = self
-            .config
-            .bootstrap_catch_up_height_override
-            .inspect(|catch_up_height_override| {
-                warn!(
-                    "OVERRIDE L1 provider catch-up height: {catch_up_height_override}. WARNING: \
-                     this MUST be greater or equal to the default non-overridden value, which is \
-                     the (runtime fetched) batcher height, or the sync will never complete!"
-                );
-            })
-            .or(self.catchup_height)
-            .unwrap_or_default(); // If bootstrapper is not running, the catchup height can be arbitrarily low. 
-
-        let bootstrapper = Bootstrapper::new(
-            self.l1_provider_client,
-            self.state_sync_client,
-            self.config.startup_sync_sleep_retry_interval_seconds,
-            catchup_height,
-        );
-
-        info!("Starting L1 provider at height: {:?}", l1_provider_startup_height);
-        L1Provider {
-            start_height: l1_provider_startup_height,
-            bootstrapper,
-            current_height: l1_provider_startup_height.unwrap_or_default(),
-            tx_manager: TransactionManager::new(
-                self.config.new_l1_handler_cooldown_seconds,
-                self.config.l1_handler_cancellation_timelock_seconds,
-                self.config.l1_handler_consumption_timelock_seconds,
-            ),
-            state: ProviderState::Uninitialized,
-            config: self.config,
-            clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
-        }
-    }
-}

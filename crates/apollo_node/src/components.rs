@@ -14,7 +14,7 @@ use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
@@ -411,11 +411,11 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let l1_provider_config =
                 config.l1_provider_config.expect("L1 Provider config should be set");
-            let l1_provider_builder = L1ProviderBuilder::new(
+            let mut l1_provider = L1Provider::new(
                 l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_batcher_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
+                None,
             );
             if l1_provider_config.dummy_mode {
                 let batcher_height = batcher
@@ -433,30 +433,13 @@ pub async fn create_node_components(
                 info!(
                     "L1 provider dummy mode startup height set at batcher height: {batcher_height}"
                 );
-                // Helps keep override use more structured, prevents bugs.
-                assert!(
-                    l1_provider_config
-                        .provider_startup_height_override
-                        .xor(l1_provider_config.bootstrap_catch_up_height_override)
-                        .is_none(),
-                    "Configuration error: overriding only one of startup_height={startup:?} or \
-                     catchup_height={catchup:?} is not supported in l1 provider's dummy mode. \
-                     Either set neither (this is the preferred way) which sets both values to the \
-                     batcher height, or set both if you have a specific startup flow in mind.",
-                    startup = l1_provider_config.provider_startup_height_override,
-                    catchup = l1_provider_config.bootstrap_catch_up_height_override
-                );
-                let mut provider = l1_provider_builder
-                    .startup_height(batcher_height)
-                    .catchup_height(batcher_height)
-                    .build();
-                provider
+                l1_provider
                     .initialize(batcher_height, vec![])
                     .await
                     .expect("Failed to initialize L1 provider in dummy mode");
-                Some(provider)
+                Some(l1_provider)
             } else {
-                Some(l1_provider_builder.build())
+                Some(l1_provider)
             }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {

@@ -2184,16 +2184,6 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "l1_provider_config.bootstrap_catch_up_height_override": {
-    "description": "Override height at which the provider should catch up to the bootstrapper.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_provider_config.bootstrap_catch_up_height_override.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "l1_provider_config.dummy_mode": {
     "description": "When true, the L1 provider operates in dummy mode, always responding with trivial truthy responses without connecting to actual L1.",
     "privacy": "Public",
@@ -2213,16 +2203,6 @@
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
     "privacy": "Public",
     "value": 70
-  },
-  "l1_provider_config.provider_startup_height_override": {
-    "description": "Override height at which the provider should start",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_provider_config.provider_startup_height_override.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
