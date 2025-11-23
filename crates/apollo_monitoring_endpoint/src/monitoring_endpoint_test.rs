@@ -138,7 +138,7 @@ async fn with_metrics() {
     );
     assert!(
         body_string.contains(&expected_prefix),
-        "body_string: {body_string}, expected_prefix: {expected_prefix}"
+        "body_string: {body_string}, expected_substring: {expected_prefix}"
     );
 }
 
