@@ -1,6 +1,5 @@
 use alloy::providers::Provider;
 use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
-use assert_matches::assert_matches;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerError;
 use papyrus_base_layer::BaseLayerContract;
 use pretty_assertions::assert_eq;
@@ -144,20 +143,19 @@ async fn latest_proved_block_ethereum() {
     ];
 
     for (finality, expected) in scenarios {
-        let latest_block = base_layer.latest_proved_block(finality).await;
-        match latest_block {
-            Ok(latest_block) => {
-                assert_eq!(latest_block, expected, "Failed at finality {}", finality)
+        let latest_l1_block_number = base_layer.latest_l1_block_number(finality).await;
+        let latest_l1_block_number = match latest_l1_block_number {
+            Ok(latest_l1_block_number) => latest_l1_block_number,
+            Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _)) => {
+                assert!(finality > FINAL_ETHEREUM_BLOCK);
+                return;
             }
             Err(e) => {
-                assert_matches!(
-                    e,
-                    EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _),
-                    "Expected error at finality {} but got: {:?}",
-                    finality,
-                    e
-                );
+                panic!("Unexpected error: {:?}", e);
             }
-        }
+        };
+
+        let latest_block = base_layer.get_proved_block_at(latest_l1_block_number).await.unwrap();
+        assert_eq!(latest_block, expected.unwrap(), "Failed at finality {}", finality);
     }
 }
