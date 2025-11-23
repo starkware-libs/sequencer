@@ -240,13 +240,13 @@ impl SingleHeightConsensus {
             | StateMachineEvent::TimeoutPrecommit(_round) => {
                 self.handle_timeout(context, event).await
             }
-            StateMachineEvent::Prevote(_proposal_id, round) => {
+            StateMachineEvent::Prevote(vote) => {
                 let Some(last_vote) = &self.last_prevote else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No prevote to send".to_string(),
                     ));
                 };
-                if last_vote.round > round {
+                if last_vote.round > vote.round {
                     // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
@@ -254,16 +254,16 @@ impl SingleHeightConsensus {
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.get_prevote_timeout(0),
-                    event,
+                    StateMachineEvent::Prevote(last_vote.clone()),
                 )]))
             }
-            StateMachineEvent::Precommit(_proposal_id, round) => {
+            StateMachineEvent::Precommit(vote) => {
                 let Some(last_vote) = &self.last_precommit else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No precommit to send".to_string(),
                     ));
                 };
-                if last_vote.round > round {
+                if last_vote.round > vote.round {
                     // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
@@ -271,7 +271,7 @@ impl SingleHeightConsensus {
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.get_precommit_timeout(0),
-                    event,
+                    StateMachineEvent::Precommit(last_vote.clone()),
                 )]))
             }
             StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
@@ -350,14 +350,10 @@ impl SingleHeightConsensus {
         }
 
         let (votes, sm_vote) = match vote.vote_type {
-            VoteType::Prevote => (
-                &mut self.prevotes,
-                StateMachineEvent::Prevote(vote.proposal_commitment, vote.round),
-            ),
-            VoteType::Precommit => (
-                &mut self.precommits,
-                StateMachineEvent::Precommit(vote.proposal_commitment, vote.round),
-            ),
+            VoteType::Prevote => (&mut self.prevotes, StateMachineEvent::Prevote(vote.clone())),
+            VoteType::Precommit => {
+                (&mut self.precommits, StateMachineEvent::Precommit(vote.clone()))
+            }
         };
 
         match votes.entry((vote.round, vote.voter)) {
@@ -407,27 +403,11 @@ impl SingleHeightConsensus {
                 StateMachineEvent::Decision(proposal_id, round) => {
                     return self.handle_state_machine_decision(proposal_id, round).await;
                 }
-                StateMachineEvent::Prevote(proposal_id, round) => {
-                    ret_val.extend(
-                        self.handle_state_machine_vote(
-                            context,
-                            proposal_id,
-                            round,
-                            VoteType::Prevote,
-                        )
-                        .await?,
-                    );
+                StateMachineEvent::Prevote(vote) => {
+                    ret_val.extend(self.handle_state_machine_vote(context, vote).await?);
                 }
-                StateMachineEvent::Precommit(proposal_id, round) => {
-                    ret_val.extend(
-                        self.handle_state_machine_vote(
-                            context,
-                            proposal_id,
-                            round,
-                            VoteType::Precommit,
-                        )
-                        .await?,
-                    );
+                StateMachineEvent::Precommit(vote) => {
+                    ret_val.extend(self.handle_state_machine_vote(context, vote).await?);
                 }
                 StateMachineEvent::TimeoutPropose(round) => {
                     ret_val.push(ShcTask::TimeoutPropose(
@@ -520,42 +500,34 @@ impl SingleHeightConsensus {
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        proposal_id: Option<ProposalCommitment>,
-        round: Round,
-        vote_type: VoteType,
+        vote: Vote,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let prevote_timeout = self.timeouts.get_prevote_timeout(round);
-        let precommit_timeout = self.timeouts.get_precommit_timeout(round);
-        let (votes, last_vote, task) = match vote_type {
+        let prevote_timeout = self.timeouts.get_prevote_timeout(vote.round);
+        let precommit_timeout = self.timeouts.get_precommit_timeout(vote.round);
+        let (votes, last_vote, task) = match vote.vote_type {
             VoteType::Prevote => (
                 &mut self.prevotes,
                 &mut self.last_prevote,
-                ShcTask::Prevote(prevote_timeout, StateMachineEvent::Prevote(proposal_id, round)),
+                ShcTask::Prevote(prevote_timeout, StateMachineEvent::Prevote(vote.clone())),
             ),
             VoteType::Precommit => (
                 &mut self.precommits,
                 &mut self.last_precommit,
-                ShcTask::Precommit(
-                    precommit_timeout,
-                    StateMachineEvent::Precommit(proposal_id, round),
-                ),
+                ShcTask::Precommit(precommit_timeout, StateMachineEvent::Precommit(vote.clone())),
             ),
         };
-        let vote = Vote {
-            vote_type,
-            height: self.state_machine.height().0,
-            round,
-            proposal_commitment: proposal_id,
-            voter: self.state_machine.validator_id(),
-        };
-        if let Some(old) = votes.insert((round, self.state_machine.validator_id()), vote.clone()) {
+        // Ensure the voter matches this node.
+        assert_eq!(vote.voter, self.state_machine.validator_id());
+        if let Some(old) =
+            votes.insert((vote.round, self.state_machine.validator_id()), vote.clone())
+        {
             return Err(ConsensusError::InternalInconsistency(format!(
                 "State machine should not send repeat votes: old={old:?}, new={vote:?}"
             )));
         }
         *last_vote = match last_vote {
             None => Some(vote.clone()),
-            Some(last_vote) if round > last_vote.round => Some(vote.clone()),
+            Some(last_vote) if vote.round > last_vote.round => Some(vote.clone()),
             Some(_) => {
                 // According to the Tendermint paper, the state machine should only vote for its
                 // current round. It should monotonically increase its round. It should only vote
