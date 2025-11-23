@@ -93,7 +93,7 @@ fn test_decrypt_state_diff_from_blobs() {
     ];
 
     let original_state_diff =
-        PartialOsStateDiff::try_from_output_iter(&mut da_segment.clone().into_iter())
+        PartialOsStateDiff::try_from_output_iter(&mut da_segment.clone().into_iter(), None)
             .expect("Failed to parse DA segment into PartialOsStateDiff");
 
     // Random number of keys.
@@ -137,7 +137,7 @@ fn test_decrypt_state_diff_from_blobs() {
     let da_segment_fr: Vec<Fr> =
         full_da_segment.into_iter().map(|felt| Fr::from(felt.to_biguint())).collect();
 
-    let blobs: Vec<Vec<u8>> = da_segment_fr
+    let blobs: Vec<_> = da_segment_fr
         .chunks(FIELD_ELEMENTS_PER_BLOB)
         .map(|chunk| polynomial_coefficients_to_blob(chunk.to_vec()).unwrap())
         .collect();

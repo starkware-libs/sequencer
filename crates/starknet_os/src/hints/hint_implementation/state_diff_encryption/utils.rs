@@ -1,4 +1,5 @@
 use blake2::Blake2s256;
+use c_kzg::BYTES_PER_BLOB;
 use digest::Digest;
 use starknet_types_core::curve::AffinePoint;
 use starknet_types_core::felt::Felt;
@@ -203,7 +204,7 @@ pub enum DecryptionError {
 // TODO(Einat): Test this function in the OS tests.
 #[allow(dead_code)]
 pub fn decrypt_state_diff_from_blobs(
-    blobs: Vec<Vec<u8>>,
+    blobs: Vec<[u8; BYTES_PER_BLOB]>,
     private_key: Felt,
     committee_index: usize,
 ) -> Result<PartialOsStateDiff, DecryptionError> {
@@ -222,5 +223,6 @@ pub fn decrypt_state_diff_from_blobs(
     );
 
     // The parser will consume only what it needs and ignore trailing padding.
-    Ok(PartialOsStateDiff::try_from_output_iter(&mut decrypted_da.into_iter())?)
+    // No need to pass private keys here, as the DA segment is already decrypted.
+    Ok(PartialOsStateDiff::try_from_output_iter(&mut decrypted_da.into_iter(), None)?)
 }
