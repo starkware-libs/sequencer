@@ -11,7 +11,7 @@
 # ```
 autoflake
 black==23.1a1
-cairo-lang==0.14.0.1
+cairo-lang==0.14.1a0
 GitPython
 isort>=5.0.0
 # pytest-asyncio 1.1.0 depends on backports.asyncio.runner, which is not compatible with python 3.11
