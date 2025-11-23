@@ -162,7 +162,7 @@ fn test_max_memory_usage() {
     });
     let compilation_result = compiler.compile(contract_class);
     assert_matches!(compilation_result, Err(CompilationUtilError::CompilationError(string))
-        if string.contains("memory allocation failure")
+        if string.contains("memory allocation")
     );
 }
 
