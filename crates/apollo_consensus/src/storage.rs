@@ -9,35 +9,37 @@ use starknet_api::block::BlockNumber;
 #[path = "storage_test.rs"]
 mod storage_test;
 
+/// Possible errors when interacting the the height voted state.
 #[derive(thiserror::Error, Debug)]
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
-pub(crate) enum HeightVotedStorageError {
+pub enum HeightVotedStorageError {
+    /// Errors coming from the underlying storage.
     #[error(transparent)]
     StorageError(#[from] apollo_storage::StorageError),
+    /// The storage state is invalid (e.g. trying to set a lower height than the current one).
     #[error("Inconsistent storage state: {msg}")]
-    InconsistentStorageState { msg: String },
+    InconsistentStorageState {
+        #[allow(missing_docs)]
+        msg: String,
+    },
 }
 
+/// Trait for interacting with the height voted state.
 #[cfg_attr(test, mockall::automock)]
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
-pub(crate) trait HeightVotedStorageTrait: Debug + Send + Sync {
+pub trait HeightVotedStorageTrait: Debug + Send + Sync {
+    /// Returns the last height on which the node voted.
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError>;
+    /// Sets the last height on which the node voted.
     fn set_prev_voted_height(&mut self, height: BlockNumber)
     -> Result<(), HeightVotedStorageError>;
 }
 
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
 struct HeightVotedStorage {
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
 }
 
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
-pub(crate) fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
+/// Opens and returns the storage used for storing last voted height state.
+pub fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
     let (storage_reader, storage_writer) = open_storage(config).expect("Failed to open storage");
     HeightVotedStorage { storage_reader, storage_writer }
 }

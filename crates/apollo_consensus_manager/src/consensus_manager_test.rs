@@ -1,14 +1,19 @@
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig};
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use mockall::predicate::eq;
 use starknet_api::block::BlockNumber;
 use tokio::time::{timeout, Duration};
@@ -16,6 +21,20 @@ use tokio::time::{timeout, Duration};
 use crate::consensus_manager::ConsensusManager;
 
 const BATCHER_HEIGHT: BlockNumber = BlockNumber(10);
+
+/// Returns a config for a new (i.e. empty) storage.
+fn get_new_storage_config() -> StorageConfig {
+    static DB_INDEX: AtomicUsize = AtomicUsize::new(0);
+    let db_file_path = format!(
+        "{}-{}",
+        tempfile::tempdir().unwrap().path().to_str().unwrap(),
+        DB_INDEX.fetch_add(1, Ordering::Relaxed)
+    );
+    StorageConfig {
+        db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
+        ..Default::default()
+    }
+}
 
 #[tokio::test]
 async fn revert_batcher_blocks() {
@@ -65,7 +84,16 @@ async fn no_reverts_without_config() {
     mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
 
     let consensus_manager = ConsensusManager::new(
-        ConsensusManagerConfig::default(),
+        ConsensusManagerConfig {
+            consensus_manager_config: ConsensusConfig {
+                static_config: ConsensusStaticConfig {
+                    storage_config: get_new_storage_config(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(MockClassManagerClient::new()),
