@@ -429,7 +429,8 @@ pub async fn create_node_components(
                     .unwrap()
                     .height
                     .prev()
-                    .expect("Batcher height should not be 0 in dummy mode");
+                    .unwrap_or_default();
+                //                    .expect("Batcher height should not be 0 in dummy mode");
                 info!(
                     "L1 provider dummy mode startup height set at batcher height: {batcher_height}"
                 );
