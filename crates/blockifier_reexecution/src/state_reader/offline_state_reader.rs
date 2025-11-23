@@ -9,12 +9,14 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -160,7 +162,8 @@ impl StateReader for OfflineStateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
-                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                let sierra_contract = SierraContractClass::from(sierra);
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra_contract).unwrap();
                 Ok(casm.try_into().unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {
@@ -189,6 +192,19 @@ impl ReexecutionStateReader for OfflineStateReader {
 
     fn get_old_block_hash(&self, _old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
         Ok(self.old_block_hash)
+    }
+}
+
+impl FetchCompiledClasses for OfflineStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class = self.get_contract_class(&class_hash)?;
+        self.starknet_core_contract_class_to_compiled_class(contract_class)
+    }
+
+    /// This check is no needed in the reexecution context.
+    /// We assume that all the classes returned successfuly by the OfflineStateReader are declared.
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        Ok(true)
     }
 }
 
