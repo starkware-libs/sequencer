@@ -10,16 +10,17 @@ use starknet_api::block::BlockNumber;
 mod storage_test;
 
 /// Possible errors when interacting the the height voted state.
+/// Possible errors when interacting the the height voted state.
 #[derive(thiserror::Error, Debug)]
 pub enum HeightVotedStorageError {
     /// Errors coming from the underlying storage.
     #[error(transparent)]
     StorageError(#[from] apollo_storage::StorageError),
     /// The storage state is invalid (e.g. trying to set a lower height than the current one).
-    #[error("Inconsistent storage state: {msg}")]
+    #[error("Inconsistent storage state: {error_msg}")]
     InconsistentStorageState {
         #[allow(missing_docs)]
-        msg: String,
+        error_msg: String,
     },
 }
 
@@ -34,6 +35,8 @@ pub trait HeightVotedStorageTrait: Debug + Send + Sync {
 }
 
 struct HeightVotedStorage {
+    // TODO(guy.f): Remove in the following PR.
+    #[allow(dead_code)]
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
 }
@@ -60,19 +63,29 @@ impl HeightVotedStorageTrait for HeightVotedStorage {
         let txn = self.storage_writer.begin_rw_txn()?;
         let last_voted_marker_from_storage = txn.get_last_voted_marker()?;
         let last_voted_marker_to_write = LastVotedMarker { height };
-        if let Some(last_voted_marker_from_storage) = last_voted_marker_from_storage {
-            if last_voted_marker_to_write < last_voted_marker_from_storage {
-                return Err(HeightVotedStorageError::InconsistentStorageState {
-                    msg: format!(
+        match last_voted_marker_from_storage {
+            Some(last_voted_marker_from_storage)
+                if last_voted_marker_to_write < last_voted_marker_from_storage =>
+            {
+                Err(HeightVotedStorageError::InconsistentStorageState {
+                    error_msg: format!(
                         "Last voted height in storage {} is higher than the updated last voted \
                          height to write {}",
                         last_voted_marker_from_storage.height, last_voted_marker_to_write.height
                     ),
-                });
+                })
+            }
+            Some(last_voted_marker_from_storage)
+                if last_voted_marker_to_write == last_voted_marker_from_storage =>
+            {
+                // No need to re-write a value which is already there.
+                Ok(())
+            }
+            _ => {
+                txn.set_last_voted_marker(&last_voted_marker_to_write)?.commit()?;
+                Ok(())
             }
         }
-        txn.set_last_voted_marker(&last_voted_marker_to_write)?.commit()?;
-        Ok(())
     }
 }
 

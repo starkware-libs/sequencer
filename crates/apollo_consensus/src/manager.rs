@@ -302,6 +302,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
+            self.voted_height_storage.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
 
