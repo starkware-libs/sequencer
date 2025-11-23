@@ -102,8 +102,6 @@ impl Service {
             .chain(once(node_service.get_service_file_path()))
             .collect();
 
-        node_service.dump_node_service_replacer_app_config_files();
-
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
         let toleration = node_service.get_toleration(&environment);
@@ -296,7 +294,7 @@ impl NodeService {
         self.as_inner().get_update_strategy()
     }
 
-    pub fn dump_node_service_replacer_app_config_files(&self) {
+    fn replacer_app_config_files(&self) -> Vec<(Value, String)> {
         let components_in_service = self
             .get_components_in_service()
             .into_iter()
@@ -332,12 +330,10 @@ impl NodeService {
             })
             .collect();
 
-        for (data, dest) in
-            replacer_app_config_data.iter().zip(replacer_components_in_service.iter())
-        {
-            let dest_path = Path::new(dest);
-            serialize_to_file(&data, dest_path.to_str().unwrap());
-        }
+        let mut data_and_file_paths: Vec<(Value, String)> = replacer_app_config_data
+            .into_iter()
+            .zip(replacer_components_in_service.clone())
+            .collect();
 
         let replacer_config_filenames: Vec<String> =
             vec![deployment_replacer_file_path(), instance_replacer_file_path()];
@@ -348,7 +344,22 @@ impl NodeService {
             .collect();
         let replacer_deployment_file_path = self.replacer_deployment_file_path();
 
-        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
+        data_and_file_paths.push((replacer_config_paths.into(), replacer_deployment_file_path));
+
+        data_and_file_paths
+    }
+
+    pub fn dump_node_service_replacer_app_config_files(&self) {
+        for (data, file_path) in self.replacer_app_config_files().into_iter() {
+            serialize_to_file(&data, &file_path);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn test_dump_node_service_replacer_app_config_files(&self) {
+        for (data, file_path) in self.replacer_app_config_files().into_iter() {
+            serialize_to_file_test(&data, &file_path, FIX_BINARY_NAME);
+        }
     }
 }
 
