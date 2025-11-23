@@ -67,6 +67,7 @@ mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 serde.workspace = true
 serde_json.workspace = true
+static_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
@@ -94,6 +95,10 @@ path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_pos
 [[bin]]
 name = "integration_test_restart_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
+
+[[bin]]
+name = "integration_test_restart_service_multiple_nodes_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_multiple_nodes_flow.rs"
 
 [[bin]]
 name = "integration_test_revert_flow"
