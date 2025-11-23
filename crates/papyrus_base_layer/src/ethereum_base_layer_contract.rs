@@ -70,18 +70,45 @@ sol!(
 pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>;
 
 #[derive(Clone, Debug)]
+pub struct CircularUrlIterator {
+    urls: Vec<Url>,
+    index: usize,
+}
+
+impl CircularUrlIterator {
+    pub fn new(urls: Vec<Url>) -> Self {
+        Self { urls, index: 0 }
+    }
+
+    pub fn get_current_url(&self) -> Url {
+        self.urls.get(self.index).cloned().expect("No endpoint URLs provided")
+    }
+}
+
+impl Iterator for CircularUrlIterator {
+    type Item = Url;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.index = (self.index + 1) % self.urls.len();
+        self.urls.get(self.index).cloned()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
-    pub url: Url,
+    pub url_iterator: CircularUrlIterator,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
 }
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
-        let url =
-            config.ordered_l1_endpoint_urls.first().expect("No endpoint URLs provided").clone();
-        let contract = build_contract_instance(config.starknet_contract_address, url.clone());
-        Self { url, contract, config }
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let contract = build_contract_instance(
+            config.starknet_contract_address,
+            url_iterator.get_current_url(),
+        );
+        Self { url_iterator, contract, config }
     }
 }
 
@@ -221,12 +248,17 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     async fn get_url(&self) -> Result<Url, Self::Error> {
-        Ok(self.url.clone())
+        Ok(self.url_iterator.get_current_url())
     }
 
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
+    }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
+        self.url_iterator.next().ok_or(EthereumBaseLayerError::OrdererL1EndpointUrlsListIsEmpty)?;
         Ok(())
     }
 }
@@ -247,6 +279,8 @@ pub enum EthereumBaseLayerError {
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy::primitives::Log),
+    #[error("The orderer_l1_endpoint_urls list is empty")]
+    OrdererL1EndpointUrlsListIsEmpty,
 }
 
 impl PartialEq for EthereumBaseLayerError {
