@@ -179,7 +179,7 @@ pub fn create_node_config(
     chain_info: ChainInfo,
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
-    consensus_manager_config: ConsensusManagerConfig,
+    mut consensus_manager_config: ConsensusManagerConfig,
     eth_to_strk_oracle_config: EthToStrkOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
@@ -234,6 +234,9 @@ pub fn create_node_config(
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+
+    consensus_manager_config.consensus_manager_config.static_config.storage_config =
+        storage_config.consensus_storage_config.clone();
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
     let sierra_compiler_config = SierraCompilationConfig::default();

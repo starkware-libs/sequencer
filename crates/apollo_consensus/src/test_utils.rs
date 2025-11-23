@@ -8,6 +8,7 @@ use mockall::mock;
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
+use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
 use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
@@ -107,4 +108,19 @@ pub fn precommit(block_felt: Option<Felt>, height: u64, round: u32, voter: Valid
 }
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }
+}
+
+#[derive(Debug)]
+pub struct NoOpHeightVotedStorage;
+
+impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
+    fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
+        Ok(None)
+    }
+    fn set_prev_voted_height(
+        &mut self,
+        _height: BlockNumber,
+    ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
 }
