@@ -233,6 +233,10 @@ pub struct GenericStateSync<
     pending_blocks: Vec<(BlockNumber, Block, BlockSignature)>,
     // Queue for compilation tasks - maintains ordering while allowing concurrent compilation
     compilation_tasks: FuturesOrdered<CompilationTask>,
+    // Buffer for out-of-order completed compilations (fixes marker mismatch bug)
+    pending_compilations: std::collections::HashMap<BlockNumber, CompiledBlockData>,
+    // Track the next expected block number for consecutive batching
+    next_expected_compilation_block: BlockNumber,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -467,50 +471,51 @@ impl<
             // tasks
             debug!("Selecting between block sync, state diff sync, and compilation tasks.");
 
-            // Check if we need to collect and flush a batch
-            if self.compilation_tasks.len() >= self.config.block_batch_size {
-                info!(
-                    "Batch size reached ({} blocks). Collecting compiled results...",
-                    self.compilation_tasks.len()
-                );
-
-                // Collect all completed compilations (in order!)
-                let mut compiled_batch = Vec::new();
-                for _ in 0..self.config.block_batch_size {
-                    if let Some(result) = self.compilation_tasks.next().await {
-                        match result {
-                            Ok(compiled_block) => {
-                                compiled_batch.push(compiled_block);
-                            }
-                            Err(e) => {
-                                error!("Compilation task failed: {:?}", e);
-                                return Err(e);
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if !compiled_batch.is_empty() {
-                    let batch_size = compiled_batch.len();
-                    let first_block = compiled_batch.first().map(|(bn, _, _, _, _, _)| *bn);
-                    let last_block = compiled_batch.last().map(|(bn, _, _, _, _, _)| *bn);
-                    info!(
-                        "Collected {batch_size} compiled blocks ({first_block:?} to \
-                         {last_block:?}). Writing to storage in ONE transaction..."
-                    );
-
-                    // Write all compiled blocks in ONE transaction
-                    self.write_compiled_batch(compiled_batch).await?;
-
-                    info!("Successfully wrote {batch_size} blocks to storage in one transaction.");
-                }
-            }
+            // Try to collect and flush a consecutive batch if we have enough blocks
+            self.try_flush_consecutive_batch().await?;
 
             // Select from all streams
             tokio::select! {
-                // No longer check compilation_tasks here - we collect them in batches above
+                // Poll compilation tasks to buffer completed compilations
+                Some(result) = self.compilation_tasks.next(), if !self.compilation_tasks.is_empty() => {
+                    match result {
+                        Ok(compiled_block) => {
+                            let block_number = compiled_block.0;
+                            
+                            // If this is the first block, initialize next_expected_compilation_block
+                            if self.next_expected_compilation_block == BlockNumber(0) && self.pending_compilations.is_empty() {
+                                info!(
+                                    "First block received: {}. Setting as starting point for consecutive batching.",
+                                    block_number
+                                );
+                                self.next_expected_compilation_block = block_number;
+                            }
+                            
+                            if block_number == self.next_expected_compilation_block {
+                                // This is the next block we're waiting for
+                                info!(
+                                    "Compilation completed for expected block {}. Buffering...",
+                                    block_number
+                                );
+                            } else {
+                                // Out-of-order block
+                                info!(
+                                    "Compilation completed for block {} (out of order, expecting {}). Buffering...",
+                                    block_number,
+                                    self.next_expected_compilation_block
+                                );
+                            }
+                            
+                            // Always insert and try to flush (regardless of order)
+                            self.pending_compilations.insert(block_number, compiled_block);
+                            self.try_flush_consecutive_batch().await?;
+                        }
+                        Err(e) => {
+                            error!("Compilation task failed: {:?}", e);
+                            return Err(e);
+                        }
+                    }
+                }
                 // Check for sync events from streams
                 res = block_stream.next() => {
                     let sync_event = res.expect("Received None from block stream.")?;
@@ -887,6 +892,164 @@ impl<
             deployed_contract_class_definitions,
             block_contains_old_classes,
         ))
+    }
+
+    // Try to flush a consecutive batch if we have enough blocks
+    async fn try_flush_consecutive_batch(&mut self) -> StateSyncResult {
+        let batch_size = self.config.block_batch_size;
+        
+        // Safety: If buffer is too large, flush consecutive blocks to prevent OOM
+        // But only if we have enough consecutive blocks to make it worthwhile (maintains batching benefits)
+        let buffer_size = self.pending_compilations.len();
+        let max_buffer_size = batch_size * 20; // Allow up to 20 batches worth of buffering (20,000 blocks)
+        let min_partial_batch_size = batch_size / 10; // Only flush partial batches if we have at least 100 consecutive blocks
+        
+        if buffer_size > max_buffer_size {
+            warn!(
+                "Buffer size ({}) exceeds safety limit ({}). Checking for flushable consecutive blocks...",
+                buffer_size,
+                max_buffer_size
+            );
+            
+            // Count how many consecutive blocks we have starting from next_expected
+            let mut consecutive_count = 0;
+            let mut check_block = self.next_expected_compilation_block;
+            while consecutive_count < batch_size {
+                if self.pending_compilations.contains_key(&check_block) {
+                    consecutive_count += 1;
+                    check_block = check_block.unchecked_next();
+                } else {
+                    break;
+                }
+            }
+            
+            // Only flush if we have a meaningful batch (at least min_partial_batch_size)
+            if consecutive_count >= min_partial_batch_size {
+                warn!(
+                    "Flushing {} consecutive blocks (minimum {} required) to prevent OOM while maintaining batching benefits.",
+                    consecutive_count,
+                    min_partial_batch_size
+                );
+                
+                // Collect and flush the consecutive blocks
+                let mut consecutive_blocks = Vec::new();
+                let mut current_block = self.next_expected_compilation_block;
+                for _ in 0..consecutive_count {
+                    if let Some(compiled_block) = self.pending_compilations.remove(&current_block) {
+                        consecutive_blocks.push(compiled_block);
+                        current_block = current_block.unchecked_next();
+                    }
+                }
+                
+                let first_block = consecutive_blocks.first().map(|(bn, _, _, _, _, _)| *bn);
+                let last_block = consecutive_blocks.last().map(|(bn, _, _, _, _, _)| *bn);
+                info!(
+                    "Flushing partial consecutive batch of {} blocks ({:?} to {:?}) due to buffer size limit...",
+                    consecutive_blocks.len(),
+                    first_block,
+                    last_block
+                );
+                
+                self.write_compiled_batch(consecutive_blocks).await?;
+                self.next_expected_compilation_block = current_block;
+                
+                info!(
+                    "Successfully flushed batch. Next expected block: {}",
+                    self.next_expected_compilation_block
+                );
+            } else {
+                // Emergency fallback: If buffer is extremely large (1.5x threshold), flush whatever we have
+                let emergency_threshold = max_buffer_size + (max_buffer_size / 2); // 30,000 blocks
+                if buffer_size > emergency_threshold {
+                    error!(
+                        "EMERGENCY: Buffer size ({}) exceeds emergency threshold ({}). Flushing {} consecutive blocks to prevent OOM (batching degraded).",
+                        buffer_size,
+                        emergency_threshold,
+                        consecutive_count
+                    );
+                    
+                    // Flush whatever consecutive blocks we have (even if < min_partial_batch_size)
+                    let mut consecutive_blocks = Vec::new();
+                    let mut current_block = self.next_expected_compilation_block;
+                    for _ in 0..consecutive_count {
+                        if let Some(compiled_block) = self.pending_compilations.remove(&current_block) {
+                            consecutive_blocks.push(compiled_block);
+                            current_block = current_block.unchecked_next();
+                        }
+                    }
+                    
+                    if !consecutive_blocks.is_empty() {
+                        let first_block = consecutive_blocks.first().map(|(bn, _, _, _, _, _)| *bn);
+                        let last_block = consecutive_blocks.last().map(|(bn, _, _, _, _, _)| *bn);
+                        info!(
+                            "EMERGENCY flush of {} blocks ({:?} to {:?})",
+                            consecutive_blocks.len(),
+                            first_block,
+                            last_block
+                        );
+                        
+                        self.write_compiled_batch(consecutive_blocks).await?;
+                        self.next_expected_compilation_block = current_block;
+                    }
+                } else {
+                    warn!(
+                        "Buffer size ({}) exceeds limit ({}), but only {} consecutive blocks available (minimum {} required). Waiting for more consecutive blocks to maintain batching benefits.",
+                        buffer_size,
+                        max_buffer_size,
+                        consecutive_count,
+                        min_partial_batch_size
+                    );
+                }
+            }
+            
+            return Ok(());
+        }
+        
+        // Normal case: CHECK if we have a full consecutive batch (don't remove yet)
+        let mut current_block = self.next_expected_compilation_block;
+        let mut count = 0;
+        while count < batch_size {
+            if self.pending_compilations.contains_key(&current_block) {
+                count += 1;
+                current_block = current_block.unchecked_next();
+            } else {
+                // Gap found - not enough consecutive blocks yet
+                return Ok(());
+            }
+        }
+        
+        // We have a full batch! Now remove and collect them
+        let mut consecutive_blocks = Vec::new();
+        current_block = self.next_expected_compilation_block;
+        for _ in 0..batch_size {
+            if let Some(compiled_block) = self.pending_compilations.remove(&current_block) {
+                consecutive_blocks.push(compiled_block);
+                current_block = current_block.unchecked_next();
+            }
+        }
+        
+        // Flush the batch
+        let first_block = consecutive_blocks.first().map(|(bn, _, _, _, _, _)| *bn);
+        let last_block = consecutive_blocks.last().map(|(bn, _, _, _, _, _)| *bn);
+        info!(
+            "Flushing consecutive batch of {} blocks ({:?} to {:?})...",
+            consecutive_blocks.len(),
+            first_block,
+            last_block
+        );
+        
+        // Write the batch
+        self.write_compiled_batch(consecutive_blocks).await?;
+        
+        // Update next expected block
+        self.next_expected_compilation_block = current_block;
+        
+        info!(
+            "Successfully flushed batch. Next expected block: {}",
+            self.next_expected_compilation_block
+        );
+        
+        Ok(())
     }
 
     // Write a compiled batch to storage (called after compilation completes)
@@ -1465,6 +1628,14 @@ impl StateSync {
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         let base_layer_source = base_layer_source.map(Arc::new);
+        
+        // Initialize next_expected_compilation_block to current state marker
+        let next_expected_compilation_block = reader
+            .begin_ro_txn()
+            .ok()
+            .and_then(|txn| txn.get_state_marker().ok())
+            .unwrap_or(BlockNumber(0));
+        
         Self {
             config,
             shared_highest_block,
@@ -1479,6 +1650,8 @@ impl StateSync {
             class_manager_client,
             pending_blocks: Vec::new(),
             compilation_tasks: FuturesOrdered::new(),
+            pending_compilations: std::collections::HashMap::new(),
+            next_expected_compilation_block,
         }
     }
 }
