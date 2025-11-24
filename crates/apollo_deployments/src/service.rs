@@ -17,6 +17,7 @@ use apollo_node_config::component_execution_config::{
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
+use phf::phf_set;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Map, Value};
@@ -52,6 +53,29 @@ use crate::test_utils::FIX_BINARY_NAME;
 use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
+
+pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
+    "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
+    "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
+    "consensus_manager_config.context_config.build_proposal_margin_millis",
+    "consensus_manager_config.context_config.override_eth_to_fri_rate",
+    "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none",
+    "consensus_manager_config.context_config.override_l1_data_gas_price_wei",
+    "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none",
+    "consensus_manager_config.context_config.override_l1_gas_price_wei",
+    "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none",
+    "consensus_manager_config.context_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none",
+    "gateway_config.authorized_declarer_accounts",
+    "gateway_config.authorized_declarer_accounts.#is_none",
+    "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
+    "gateway_config.stateless_tx_validator_config.min_gas_price",
+    "mempool_config.dynamic_config.transaction_ttl",
+    "sierra_compiler_config.max_bytecode_size",
+    "versioned_constants_overrides.max_n_events",
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -536,6 +560,10 @@ impl NodeType {
 }
 
 fn replace_pred(key: &str, value: &Value) -> bool {
+    if KEYS_TO_BE_REPLACED.contains(key) {
+        return true;
+    }
+
     // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
     let port_cond = key.ends_with(".port") && value.as_u64().map(|n| n != 0).unwrap_or(false);
 

@@ -35,6 +35,7 @@ config:
     state_sync_config_rpc_config_port: 8090
     strk_fee_token_address: "0x1002"
     validator_id: "0x64"
+    versioned_constants_overrides_max_n_events": 1000
 
 service:
   ports:
