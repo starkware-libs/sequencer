@@ -48,7 +48,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         url: Url::parse(&server.url()).unwrap(),
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
-    let url_header_list = Some(vec![url_and_headers]);
+    let url_header_list = Some(vec![url_and_headers].into());
     let config =
         EthToStrkOracleConfig { url_header_list, lag_interval_seconds, ..Default::default() };
     let client = EthToStrkOracleClient::new(config.clone());
@@ -82,16 +82,19 @@ async fn eth_to_fri_rate_two_urls() {
     // For server2 we get the expected response.
     let _m2 = make_server(&mut server2, json!({"price": &expected_rate_hex, "decimals": 18})).await;
 
-    let url_header_list = Some(vec![
-        UrlAndHeaders {
-            url: Url::parse(&server1.url()).unwrap(),
-            headers: BTreeMap::new(), // No additional headers needed for this test.
-        },
-        UrlAndHeaders {
-            url: Url::parse(&server2.url()).unwrap(),
-            headers: BTreeMap::new(), // No additional headers needed for this test.
-        },
-    ]);
+    let url_header_list = Some(
+        vec![
+            UrlAndHeaders {
+                url: Url::parse(&server1.url()).unwrap(),
+                headers: BTreeMap::new(), // No additional headers needed for this test.
+            },
+            UrlAndHeaders {
+                url: Url::parse(&server2.url()).unwrap(),
+                headers: BTreeMap::new(), // No additional headers needed for this test.
+            },
+        ]
+        .into(),
+    );
     let config =
         EthToStrkOracleConfig { url_header_list, lag_interval_seconds, ..Default::default() };
     let client = EthToStrkOracleClient::new(config.clone());
