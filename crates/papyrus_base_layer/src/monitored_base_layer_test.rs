@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use apollo_config::secrets::Sensitive;
+use apollo_infra_utils::url::to_safe_string;
 use apollo_l1_endpoint_monitor_types::MockL1EndpointMonitorClient;
 use url::Url;
 
@@ -11,7 +13,7 @@ async fn switch_between_endpoints() {
     // Setup.
     let url1 = Url::parse("http://first_endpoint").unwrap();
     let url2 = Url::parse("http://second_endpoint").unwrap();
-    let urls = [url1.clone(), url2.clone()];
+    let urls: [Sensitive<Url>; 2] = [url1.clone().into(), url2.clone().into()];
     let config =
         EthereumBaseLayerConfig { ordered_l1_endpoint_urls: urls.to_vec(), ..Default::default() };
     let base_layer = EthereumBaseLayerContract::new(config);
@@ -19,21 +21,21 @@ async fn switch_between_endpoints() {
     l1_endpoint_monitor
         .expect_get_active_l1_endpoint()
         .times(1)
-        .returning(move || Ok(url1.clone()));
+        .returning(move || Ok(Sensitive::new(url1.clone()).with_redactor(to_safe_string)));
     l1_endpoint_monitor
         .expect_get_active_l1_endpoint()
         .times(1)
-        .returning(move || Ok(url2.clone()));
+        .returning(move || Ok(Sensitive::new(url2.clone()).with_redactor(to_safe_string)));
     let l1_endpoint_monitor_client = Arc::new(l1_endpoint_monitor);
     let monitored_base_layer =
         MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 
     monitored_base_layer.ensure_operational().await.unwrap();
-    let get_url = monitored_base_layer.current_node_url.read().await.clone();
-    assert_eq!(get_url, urls[0]);
+    let get_url = monitored_base_layer.current_node_url.read().await;
+    assert_eq!(*get_url, urls[0].clone());
 
     // Trying a second time should switch the URL to the second one.
     monitored_base_layer.ensure_operational().await.unwrap();
-    let get_url = monitored_base_layer.current_node_url.read().await.clone();
-    assert_eq!(get_url, urls[1]);
+    let get_url = monitored_base_layer.current_node_url.read().await;
+    assert_eq!(*get_url, urls[1].clone());
 }

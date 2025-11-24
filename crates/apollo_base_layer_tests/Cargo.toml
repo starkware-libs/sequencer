@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 alloy.workspace = true
+apollo_config.workspace = true
 async-trait.workspace = true
 colored.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }

@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra_utils.workspace = true
 serde.workspace = true
 url = { workspace = true, features = ["serde"] }
 validator.workspace = true

@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut, RangeInclusive};
 
+use apollo_config::secrets::Sensitive;
 use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorClientError,
     L1EndpointMonitorError,
@@ -24,7 +25,7 @@ pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContra
 // largely immutable API.
 pub struct MonitoredBaseLayer<B: BaseLayerContract + Send + Sync> {
     pub monitor: SharedL1EndpointMonitorClient,
-    current_node_url: RwLock<Url>,
+    current_node_url: RwLock<Sensitive<Url>>,
     base_layer: Mutex<B>,
 }
 
@@ -52,7 +53,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
     /// of an external HTTP call.
     async fn ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
         let active_l1_endpoint = self.monitor.get_active_l1_endpoint().await;
-        let current_node_url;
+        let current_node_url: Sensitive<Url>;
         {
             current_node_url = self.current_node_url.read().await.clone();
         } // Drop the read lock
@@ -61,8 +62,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    to_safe_string(&current_node_url),
-                    to_safe_string(&new_node_url)
+                    current_node_url, new_node_url
                 );
 
                 let mut base_layer = self.base_layer.lock().await;
@@ -71,7 +71,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
                     .await
                     .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))?;
 
-                *self.current_node_url.write().await = new_node_url;
+                *self.current_node_url.write().await = new_node_url.clone();
             }
             Ok(_) => (), // Noop; the current node URL is still operational.
             Err(L1EndpointMonitorClientError::L1EndpointMonitorError(err)) => Err(err)?,
@@ -153,11 +153,11 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
 
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.current_node_url.read().await.clone())
     }
 
-    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.get()
             .await?
             .set_provider_url(url)
@@ -231,11 +231,4 @@ impl<B: BaseLayerContract + Send + Sync> std::fmt::Debug for MonitoredBaseLayerE
             MonitoredBaseLayerError::BaseLayerContractError(err) => write!(f, "{err:?}"),
         }
     }
-}
-
-// TODO(guyn): this is duplicated code from apollo_l1_endpoint_monitor/src/monitor.rs
-// TODO(guyn): when it is moved to apollo_infra_utils, we should import it instead.
-fn to_safe_string(url: &Url) -> String {
-    // We print only the hostnames to avoid leaking the API keys.
-    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }
