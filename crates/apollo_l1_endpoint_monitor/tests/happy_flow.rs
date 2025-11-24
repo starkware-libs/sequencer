@@ -28,7 +28,8 @@ async fn end_to_end_cycle_and_recovery() {
                 bad_node_url.clone(),
                 good_url_1.clone(),
                 good_url_2.clone(),
-            ],
+            ]
+            .into(),
             ..Default::default()
         },
     };
@@ -61,7 +62,9 @@ async fn end_to_end_cycle_and_recovery() {
     // Anvil is configured to use an ephemeral port, so this new node will be bound to a fresh port.
     // We cannot reuse the previous URL since the old port may no longer be available.
     let good_url_1 = good_node_1.endpoint_url();
-    monitor.config.ordered_l1_endpoint_urls[1] = good_url_1.clone();
+    let mut new_ordered_l1_endpoint_urls = monitor.config.ordered_l1_endpoint_urls.as_ref().clone();
+    new_ordered_l1_endpoint_urls[1] = good_url_1.clone();
+    monitor.config.ordered_l1_endpoint_urls = new_ordered_l1_endpoint_urls.into();
     // Index wraps around from 2 to 0, 0 is still down so 1 is picked, which is operational now.
     let active3 = monitor.get_active_l1_endpoint().await.unwrap();
     assert_eq!(active3, good_url_1);

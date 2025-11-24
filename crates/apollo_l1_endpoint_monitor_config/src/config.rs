@@ -7,15 +7,25 @@ use apollo_config::converters::{
     serialize_slice,
 };
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 use validator::Validate;
 
+// Deserializes a sensitive vector from space-separated string structure.
+fn deserialize_sensitive_vec<'de, D>(de: D) -> Result<Sensitive<Vec<Url>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec = deserialize_vec(de)?;
+    Ok(Sensitive::new(vec))
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
-    #[serde(deserialize_with = "deserialize_vec")]
-    pub ordered_l1_endpoint_urls: Vec<Url>,
+    #[serde(deserialize_with = "deserialize_sensitive_vec")]
+    pub ordered_l1_endpoint_urls: Sensitive<Vec<Url>>,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
 }
@@ -26,7 +36,8 @@ impl Default for L1EndpointMonitorConfig {
             ordered_l1_endpoint_urls: vec![
                 Url::parse("https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY").unwrap(),
                 Url::parse("https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY").unwrap(),
-            ],
+            ]
+            .into(),
             timeout_millis: Duration::from_millis(1000),
         }
     }
