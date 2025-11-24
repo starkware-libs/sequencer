@@ -1594,6 +1594,21 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_limit": {
+    "description": "How many heights in the future should we cache.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_round_limit": {
+    "description": "How many rounds should we cache for future heights.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_round_limit": {
+    "description": "How many rounds in the future (for current height) should we cache.",
+    "privacy": "Public",
+    "value": 10
+  },
   "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
