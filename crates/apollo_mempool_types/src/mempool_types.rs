@@ -50,6 +50,19 @@ pub struct ValidationArgs {
     pub max_l2_gas_price: GasPrice,
 }
 
+impl ValidationArgs {
+    pub fn new(args: &AddTransactionArgs) -> Self {
+        Self {
+            address: args.tx.contract_address(),
+            account_nonce: args.account_state.nonce,
+            tx_hash: args.tx.tx_hash(),
+            tx_nonce: args.tx.nonce(),
+            tip: args.tx.tip(),
+            max_l2_gas_price: args.tx.resource_bounds().l2_gas.max_price_per_unit,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,

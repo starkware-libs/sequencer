@@ -11,7 +11,7 @@ use apollo_mempool_p2p_types::communication::{
 };
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -44,6 +44,8 @@ use crate::test_utils::{
     add_tx_expect_error,
     commit_block,
     get_txs_and_assert_expected,
+    validate_tx,
+    validate_tx_expect_error,
     MempoolMetrics,
 };
 use crate::transaction_pool::TransactionPool;
@@ -206,12 +208,13 @@ fn builder_with_queue(
 }
 
 #[track_caller]
-fn add_tx_and_verify_replacement(
+fn validate_and_add_tx_and_verify_replacement(
     mut mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
+    validate_tx(&mut mempool, &ValidationArgs::new(&valid_replacement_input));
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
@@ -223,13 +226,13 @@ fn add_tx_and_verify_replacement(
 }
 
 #[track_caller]
-fn add_tx_and_verify_replacement_in_pool(
+fn validate_and_add_tx_and_verify_replacement_in_pool(
     mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
 ) {
     let in_priority_queue = false;
     let in_pending_queue = false;
-    add_tx_and_verify_replacement(
+    validate_and_add_tx_and_verify_replacement(
         mempool,
         valid_replacement_input,
         in_priority_queue,
@@ -238,7 +241,7 @@ fn add_tx_and_verify_replacement_in_pool(
 }
 
 #[track_caller]
-fn add_txs_and_verify_no_replacement(
+fn validate_and_add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
     existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
@@ -246,14 +249,16 @@ fn add_txs_and_verify_no_replacement(
     in_pending_queue: bool,
 ) {
     for input in invalid_replacement_inputs {
-        add_tx_expect_error(
+        let expected_error = MempoolError::DuplicateNonce {
+            address: input.tx.contract_address(),
+            nonce: input.tx.nonce(),
+        };
+        validate_tx_expect_error(
             &mut mempool,
-            &input,
-            MempoolError::DuplicateNonce {
-                address: input.tx.contract_address(),
-                nonce: input.tx.nonce(),
-            },
+            &ValidationArgs::new(&input),
+            expected_error.clone(),
         );
+        add_tx_expect_error(&mut mempool, &input, expected_error);
     }
 
     // Verify transaction was not replaced.
@@ -264,14 +269,14 @@ fn add_txs_and_verify_no_replacement(
 }
 
 #[track_caller]
-fn add_txs_and_verify_no_replacement_in_pool(
+fn validate_and_add_txs_and_verify_no_replacement_in_pool(
     mempool: Mempool,
     existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
 ) {
     let in_priority_queue = false;
     let in_pending_queue = false;
-    add_txs_and_verify_no_replacement(
+    validate_and_add_txs_and_verify_no_replacement(
         mempool,
         existing_tx,
         invalid_replacement_inputs,
@@ -501,7 +506,7 @@ fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstra
 
 // TODO(Elin): reconsider this test in a more realistic scenario.
 #[rstest]
-fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
+fn test_validate_and_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Same hash is possible if signature is different, for example.
@@ -510,12 +515,16 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
 
     // Test.
+    validate_tx(&mut mempool, &ValidationArgs::new(&input));
     add_tx(&mut mempool, &input);
-    add_tx_expect_error(
+
+    let expected_error = MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() };
+    validate_tx_expect_error(
         &mut mempool,
-        &duplicate_input,
-        MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() },
+        &ValidationArgs::new(&duplicate_input),
+        expected_error.clone(),
     );
+    add_tx_expect_error(&mut mempool, &duplicate_input, expected_error);
 
     // Assert: the original transaction remains.
     let expected_mempool_content = MempoolTestContentBuilder::new().with_pool([input.tx]).build();
@@ -525,18 +534,24 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
 #[rstest]
 #[case::lower_nonce(0, MempoolError::NonceTooOld { address: contract_address!("0x0"), tx_nonce: nonce!(0), account_nonce: nonce!(1) })]
 #[case::equal_nonce(1, MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) })]
-fn test_add_tx_rejects_tx_of_queued_nonce(
+fn test_validate_and_add_tx_rejects_tx_of_queued_nonce(
     #[case] tx_nonce: u8,
     #[case] expected_error: MempoolError,
     mut mempool: Mempool,
 ) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
+    validate_tx(&mut mempool, &ValidationArgs::new(&input));
     add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
     let invalid_input =
         add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 1);
+    validate_tx_expect_error(
+        &mut mempool,
+        &ValidationArgs::new(&invalid_input),
+        expected_error.clone(),
+    );
     add_tx_expect_error(&mut mempool, &invalid_input, expected_error);
 }
 
@@ -567,24 +582,23 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn add_tx_with_committed_account_nonce(mut mempool: Mempool) {
+fn test_validate_and_add_tx_with_committed_account_nonce(mut mempool: Mempool) {
     // Setup: commit a block with account nonce 1.
     commit_block(&mut mempool, [("0x0", 1)], []);
 
     // Add a transaction with nonce 0. Should be rejected with NonceTooOld.
     let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
-    add_tx_expect_error(
-        &mut mempool,
-        &input,
-        MempoolError::NonceTooOld {
-            address: contract_address!("0x0"),
-            tx_nonce: nonce!(0),
-            account_nonce: nonce!(1),
-        },
-    );
+    let expected_error = MempoolError::NonceTooOld {
+        address: contract_address!("0x0"),
+        tx_nonce: nonce!(0),
+        account_nonce: nonce!(1),
+    };
+    validate_tx_expect_error(&mut mempool, &ValidationArgs::new(&input), expected_error.clone());
+    add_tx_expect_error(&mut mempool, &input, expected_error);
 
     // Add a transaction with nonce 1. Should be accepted.
     let input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    validate_tx(&mut mempool, &ValidationArgs::new(&input));
     add_tx(&mut mempool, &input);
 }
 
@@ -745,7 +759,7 @@ fn test_fee_escalation_valid_replacement(
         // Test and assert.
         let expected_in_priority_queue = in_priority_queue || escalate_to_priority;
         let expected_in_pending_queue = in_pending_queue && !escalate_to_priority;
-        add_tx_and_verify_replacement(
+        validate_and_add_tx_and_verify_replacement(
             mempool,
             valid_replacement_input,
             expected_in_priority_queue,
@@ -786,7 +800,7 @@ fn test_fee_escalation_invalid_replacement(
     // Test and assert.
     let invalid_replacement_inputs =
         [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
-    add_txs_and_verify_no_replacement(
+    validate_and_add_txs_and_verify_no_replacement(
         mempool,
         existing_tx,
         invalid_replacement_inputs,
@@ -834,7 +848,7 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
     // Test and assert: replacement with maximum values.
     let valid_replacement_input =
         add_tx_input!(tx_hash: 1, tip: 0, max_l2_gas_price: min_gas_price);
-    add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
+    validate_and_add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
 #[rstest]
@@ -849,7 +863,7 @@ fn test_fee_escalation_valid_replacement_maximum_values() {
     // Test and assert: replacement with maximum values.
     let valid_replacement_input =
         add_tx_input!(tx_hash: 1, tip: u64::MAX / 50 , max_l2_gas_price: u128::MAX / 50);
-    add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
+    validate_and_add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
 #[rstest]
@@ -875,7 +889,7 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
         // Test and assert: overflow gracefully handled.
         let invalid_replacement_input =
             add_tx_input!(tx_hash: 1, tip: u64::MAX, max_l2_gas_price: u128::MAX);
-        add_txs_and_verify_no_replacement_in_pool(
+        validate_and_add_txs_and_verify_no_replacement_in_pool(
             mempool,
             existing_tx,
             [invalid_replacement_input],
@@ -894,7 +908,11 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
     // Test and assert: overflow gracefully handled.
     let invalid_replacement_input =
         add_tx_input!(tx_hash: 1, tip: u64::MAX, max_l2_gas_price: u128::MAX);
-    add_txs_and_verify_no_replacement_in_pool(mempool, existing_tx, [invalid_replacement_input]);
+    validate_and_add_txs_and_verify_no_replacement_in_pool(
+        mempool,
+        existing_tx,
+        [invalid_replacement_input],
+    );
 }
 
 // `update_gas_price_threshold` tests.
@@ -1399,14 +1417,13 @@ fn no_delay_declare_front_run() {
         declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
     );
     add_tx(&mut mempool, &declare);
-    add_tx_expect_error(
-        &mut mempool,
-        &declare,
-        MempoolError::DuplicateNonce {
-            address: declare.tx.contract_address(),
-            nonce: declare.tx.nonce(),
-        },
-    );
+
+    let expected_error = MempoolError::DuplicateNonce {
+        address: declare.tx.contract_address(),
+        nonce: declare.tx.nonce(),
+    };
+    add_tx_expect_error(&mut mempool, &declare, expected_error.clone());
+    validate_tx_expect_error(&mut mempool, &ValidationArgs::new(&declare), expected_error);
 }
 
 #[rstest]
