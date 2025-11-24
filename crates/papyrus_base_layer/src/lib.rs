@@ -15,6 +15,7 @@ use starknet_api::transaction::L1HandlerTransaction;
 use url::Url;
 
 pub mod constants;
+pub mod cyclic_base_layer_wrapper;
 pub mod ethereum_base_layer_contract;
 pub mod monitored_base_layer;
 
@@ -44,7 +45,10 @@ impl std::fmt::Display for L1BlockHash {
 
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum MockError {}
+pub enum MockError {
+    #[error("Mock error")]
+    MockError,
+}
 
 /// Interface for getting data from the Starknet base contract.
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
