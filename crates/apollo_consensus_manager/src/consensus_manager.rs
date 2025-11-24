@@ -3,13 +3,14 @@
 mod consensus_manager_test;
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_consensus::storage::get_voted_height_storage;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -265,12 +266,16 @@ impl ConsensusManager {
         } else {
             QuorumType::Byzantine
         };
+
         apollo_consensus::RunConsensusArguments {
             consensus_config: self.config.consensus_manager_config.clone(),
             start_active_height: active_height,
             start_observe_height: observer_height,
             quorum_type,
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
+            last_voted_height_storage: Arc::new(Mutex::new(get_voted_height_storage(
+                self.config.consensus_manager_config.static_config.storage_config.clone(),
+            ))),
         }
     }
 

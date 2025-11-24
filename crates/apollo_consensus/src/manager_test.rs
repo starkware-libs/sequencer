@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::vec;
 
@@ -18,7 +18,6 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
-use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
@@ -29,7 +28,14 @@ use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
-use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
+use crate::test_utils::{
+    precommit,
+    prevote,
+    proposal_init,
+    MockTestContext,
+    NoOpHeightVotedStorage,
+    TestProposalPart,
+};
 use crate::types::ValidatorId;
 use crate::votes_threshold::QuorumType;
 use crate::RunConsensusArguments;
@@ -74,8 +80,8 @@ fn consensus_config() -> ConsensusConfig {
             future_msg_limit: FutureMsgLimitsConfig::default(),
         },
         ConsensusStaticConfig {
+            storage_config: StorageConfig::default(),
             startup_delay: Duration::ZERO,
-            storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
         },
     )
 }
@@ -154,7 +160,11 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -228,6 +238,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         start_observe_height: BlockNumber(1),
         quorum_type: QuorumType::Byzantine,
         config_manager_client: None,
+        last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -286,7 +297,11 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // Ensure our validator id matches the expectation in the broadcast assertion.
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -343,7 +358,11 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
     let res = manager
         .run_height(
             &mut context,
@@ -426,7 +445,11 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Handle all other broadcasts normally.
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
     let mut subscriber_channels = subscriber_channels.into();
 
     // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
@@ -552,7 +575,11 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     // Handle all other set_height_and_round calls normally.
     context.expect_set_height_and_round().returning(move |_, _| ());
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn tasks to send messages when rounds advance.
@@ -663,6 +690,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         consensus_config,
         quorum_type: QuorumType::Byzantine,
         config_manager_client: Some(Arc::new(mock_client)),
+        last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     };
 
     // Spawn consensus and wait for a decision at height 2.

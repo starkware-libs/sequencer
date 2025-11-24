@@ -38,8 +38,11 @@ tracing.workspace = true
 apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_consensus_config = { workspace = true }
 apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 apollo_signature_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true }
 mockall.workspace = true
 rstest.workspace = true
+tempfile.workspace = true
