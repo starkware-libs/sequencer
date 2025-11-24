@@ -25,6 +25,7 @@ apollo_state_sync_types.workspace = true
 apollo_time.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
+futures.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 papyrus_base_layer.workspace = true
@@ -43,7 +44,6 @@ apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
-futures.workspace = true
 itertools.workspace = true
 mockall.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }

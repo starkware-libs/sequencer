@@ -55,25 +55,30 @@ pub trait BaseLayerContract {
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error>;
 
-    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error>;
+    async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error>;
 
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error>;
 
     /// Get specific events from the Starknet base contract between two L1 block numbers.
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 
     async fn get_block_header(
+        &mut self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockHeader>, Self::Error>;
+
+    async fn get_block_header_immutable(
         &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
