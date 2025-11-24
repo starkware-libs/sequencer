@@ -216,7 +216,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(previous_leaves)
     }
 
-    fn create_unmodified(root_hash: HashOutput) -> Self {
+    pub(crate) fn create_unmodified(root_hash: HashOutput) -> Self {
         Self {
             nodes: HashMap::from([(
                 NodeIndex::ROOT,
