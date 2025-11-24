@@ -1646,6 +1646,7 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_config",

@@ -33,6 +33,8 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
+use crate::secrets::Sensitive;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -271,6 +273,17 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
+}
+
+/// Deserializes a sensitive vector from space-separated string structure.
+pub fn deserialize_sensitive_vec<'de, D, T>(de: D) -> Result<Sensitive<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    let vec = deserialize_vec(de)?;
+    Ok(Sensitive::new(vec))
 }
 
 /// Serializes an optional list into a comma-separated string.

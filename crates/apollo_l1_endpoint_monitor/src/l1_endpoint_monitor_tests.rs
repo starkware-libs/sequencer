@@ -21,7 +21,7 @@ async fn check_get_active_l1_endpoint_success(
     expected_index_of_returned_url: usize,
 ) {
     let active = monitor.get_active_l1_endpoint().await.unwrap();
-    assert_eq!(&active, expected_returned_url);
+    assert_eq!(&active, &expected_returned_url.clone().into());
     assert_eq!(monitor.current_l1_endpoint_index, expected_index_of_returned_url);
 }
 
@@ -30,7 +30,10 @@ fn url(url: &str) -> Url {
 }
 
 fn l1_endpoint_monitor_config(ordered_l1_endpoint_urls: Vec<Url>) -> L1EndpointMonitorConfig {
-    L1EndpointMonitorConfig { ordered_l1_endpoint_urls, timeout_millis: Duration::from_millis(100) }
+    L1EndpointMonitorConfig {
+        ordered_l1_endpoint_urls: ordered_l1_endpoint_urls.into(),
+        timeout_millis: Duration::from_millis(100),
+    }
 }
 
 /// Used to mock an L1 endpoint, like infura.

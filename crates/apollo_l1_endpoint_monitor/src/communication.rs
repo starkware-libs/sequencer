@@ -29,7 +29,9 @@ impl ComponentRequestHandler<L1EndpointMonitorRequest, L1EndpointMonitorResponse
     ) -> L1EndpointMonitorResponse {
         match request {
             L1EndpointMonitorRequest::GetActiveL1Endpoint() => {
-                L1EndpointMonitorResponse::GetActiveL1Endpoint(self.get_active_l1_endpoint().await)
+                L1EndpointMonitorResponse::GetActiveL1Endpoint(
+                    self.get_active_l1_endpoint().await.map(|url| url.as_ref().clone()),
+                ) // TODO(victork): make sure we're allowed to expose the URL here
             }
         }
     }
