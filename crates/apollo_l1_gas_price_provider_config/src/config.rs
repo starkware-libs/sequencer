@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
-    deserialize_optional_list_with_url_and_headers,
+    deserialize_optional_sensitive_list_with_url_and_headers,
     serialize_optional_list_with_url_and_headers,
     UrlAndHeaders,
 };
@@ -13,6 +13,7 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
+use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -22,8 +23,8 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct EthToStrkOracleConfig {
-    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
-    pub url_header_list: Option<Vec<UrlAndHeaders>>,
+    #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
+    pub url_header_list: Option<Vec<Sensitive<UrlAndHeaders>>>,
     pub lag_interval_seconds: u64,
     pub max_cache_size: usize,
     pub query_timeout_sec: u64,
@@ -34,7 +35,11 @@ impl SerializeConfig for EthToStrkOracleConfig {
         BTreeMap::from_iter([
             ser_param(
                 "url_header_list",
-                &serialize_optional_list_with_url_and_headers(&self.url_header_list),
+                &serialize_optional_list_with_url_and_headers(
+                    &self.url_header_list.as_ref().map(|list| {
+                        list.iter().map(|s| s.as_ref()).cloned().collect()
+                    }),
+                ),
                 "A list of Url+HTTP headers for the eth to strk oracle. \
                  The url is followed by a comma and then headers as key^value pairs, separated by commas. \
                  For example: `https://api.example.com/api,key1^value1,key2^value2`. \
@@ -71,10 +76,13 @@ impl SerializeConfig for EthToStrkOracleConfig {
 impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
         Self {
-            url_header_list: Some(vec![UrlAndHeaders {
-                url: Url::parse("https://api.example.com/api").expect("Invalid URL"),
-                headers: BTreeMap::new(),
-            }]),
+            url_header_list: Some(vec![
+                UrlAndHeaders {
+                    url: Url::parse("https://api.example.com/api").expect("Invalid URL"),
+                    headers: BTreeMap::new(),
+                }
+                .into(),
+            ]),
             lag_interval_seconds: 1,
             max_cache_size: 100,
             query_timeout_sec: 3,
