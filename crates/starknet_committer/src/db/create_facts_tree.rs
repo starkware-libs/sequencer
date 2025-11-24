@@ -18,10 +18,12 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
     OriginalSkeletonTreeResult,
 };
-use starknet_patricia::patricia_merkle_tree::traversal::{calculate_subtrees_roots, SubTree};
+use starknet_patricia::patricia_merkle_tree::traversal::SubTree;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
+
+use crate::db::traversal::calculate_subtrees_roots;
 
 #[cfg(test)]
 #[path = "create_facts_tree_test.rs"]

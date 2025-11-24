@@ -263,8 +263,8 @@ impl TryFrom<&Vec<Felt>> for Preimage {
     }
 }
 
-#[cfg(test)]
-pub(crate) fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
+#[cfg(any(feature = "testing", test))]
+pub fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
     raw_preimages
         .into_iter()
         .map(|(hash, raw_preimage)| {
