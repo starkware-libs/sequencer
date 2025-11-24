@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 
+use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use starknet_api::block::BlockHashAndNumber;
 use tracing::info;
@@ -25,7 +26,7 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
     // the caller that we should try again (by returning None).
     async fn cycle_url_on_error<ReturnType: std::fmt::Debug>(
         &mut self,
-        start_url: &Url,
+        start_url: &Sensitive<Url>,
         result: Result<ReturnType, B::Error>,
     ) -> Option<Result<ReturnType, B::Error>> {
         // In case we succeed, just return the (successful) result.
@@ -47,19 +48,11 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
         let Ok(new_url) = new_url_result else {
             return Some(Err(new_url_result.expect_err("result is checked at let-else")));
         };
-        info!(
-            "Cycling URL from {:?} to {:?}",
-            to_safe_string(&current_url),
-            to_safe_string(&new_url)
-        );
+        info!("Cycling URL from {:?} to {:?}", &current_url, &new_url);
 
         // If we've cycled back to the start URL, we need to return the last error we got.
         if &new_url == start_url {
-            info!(
-                "Cycled back to start URL {:?}, returning error {:?}.",
-                to_safe_string(start_url),
-                result
-            );
+            info!("Cycled back to start URL {:?}, returning error {:?}.", start_url, result);
             return Some(result);
         }
         // If we cycled but still haven't reached the start URL, we return None to signal that we
@@ -142,20 +135,15 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         self.base_layer.get_block_header_immutable(block_number).await
     }
 
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         self.base_layer.get_url().await
     }
 
-    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.base_layer.set_provider_url(url).await
     }
 
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         self.base_layer.cycle_provider_url().await
     }
-}
-
-fn to_safe_string(url: &Url) -> String {
-    // We print only the hostnames to avoid leaking the API keys.
-    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }

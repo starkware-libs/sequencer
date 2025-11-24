@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_config::secrets::Sensitive;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
 use apollo_infra::metrics::{
@@ -30,7 +31,7 @@ where
     ComponentClientType:
         Send + Sync + ComponentClient<L1EndpointMonitorRequest, L1EndpointMonitorResponse>,
 {
-    async fn get_active_l1_endpoint(&self) -> L1EndpointMonitorClientResult<Url> {
+    async fn get_active_l1_endpoint(&self) -> L1EndpointMonitorClientResult<Sensitive<Url>> {
         let request = L1EndpointMonitorRequest::GetActiveL1Endpoint();
 
         handle_all_response_variants!(
@@ -63,14 +64,14 @@ generate_permutation_labels! {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1EndpointMonitorResponse {
-    GetActiveL1Endpoint(L1EndpointMonitorResult<Url>),
+    GetActiveL1Endpoint(L1EndpointMonitorResult<Sensitive<Url>>),
 }
 impl_debug_for_infra_requests_and_responses!(L1EndpointMonitorResponse);
 
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait L1EndpointMonitorClient: Send + Sync {
-    async fn get_active_l1_endpoint(&self) -> L1EndpointMonitorClientResult<Url>;
+    async fn get_active_l1_endpoint(&self) -> L1EndpointMonitorClientResult<Sensitive<Url>>;
 }
 
 #[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
