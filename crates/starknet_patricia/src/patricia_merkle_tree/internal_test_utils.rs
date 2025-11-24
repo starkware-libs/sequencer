@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
     TreeHashFunction,
@@ -65,10 +65,6 @@ pub(crate) fn random() -> ThreadRng {
     rand::thread_rng()
 }
 
-pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
-    NodeIndex::from_subtree_index(NodeIndex::new(index), height)
-}
-
 #[rstest]
 #[should_panic]
 #[case(U256::ZERO, U256::ZERO)]
@@ -102,13 +98,4 @@ pub(crate) fn get_initial_updated_skeleton(
             }))
             .collect(),
     }
-}
-
-pub(crate) fn as_fully_indexed(
-    subtree_height: u8,
-    indices: impl Iterator<Item = U256>,
-) -> Vec<NodeIndex> {
-    indices
-        .map(|index| small_tree_index_to_full(index, SubTreeHeight::new(subtree_height)))
-        .collect()
 }

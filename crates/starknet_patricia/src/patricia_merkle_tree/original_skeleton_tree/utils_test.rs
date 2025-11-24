@@ -4,12 +4,12 @@ use rand::Rng;
 use rstest::rstest;
 
 use super::split_leaves;
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
-use crate::patricia_merkle_tree::internal_test_utils::{
+use crate::patricia_merkle_tree::external_test_utils::{
     as_fully_indexed,
-    random,
+    get_random_u256,
     small_tree_index_to_full,
 };
+use crate::patricia_merkle_tree::internal_test_utils::random;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 
 /// Creates an array of increasing random U256 numbers, with jumps of up to 'jump' between two
