@@ -94,7 +94,6 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
-  "crates/papyrus_node",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
@@ -298,7 +297,6 @@ os_info = "3.6.0"
 page_size = "0.6.0"
 papyrus_base_layer.path = "crates/papyrus_base_layer"
 papyrus_common.path = "crates/papyrus_common"
-papyrus_node.path = "crates/papyrus_node"
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
