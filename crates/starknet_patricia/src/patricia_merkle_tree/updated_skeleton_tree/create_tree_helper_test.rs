@@ -6,11 +6,13 @@ use rstest::{fixture, rstest};
 use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
+use crate::patricia_merkle_tree::external_test_utils::{
+    as_fully_indexed,
+    small_tree_index_to_full,
+};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
-    as_fully_indexed,
     get_initial_updated_skeleton,
-    small_tree_index_to_full,
     MockTrie,
     TestTreeHashFunction,
 };

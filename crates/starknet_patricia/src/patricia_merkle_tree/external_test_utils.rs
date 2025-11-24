@@ -227,3 +227,13 @@ impl NodeIndex {
         subtree_index + (offset << (subtree_index.bit_length() - 1))
     }
 }
+
+pub fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
+    NodeIndex::from_subtree_index(NodeIndex::new(index), height)
+}
+
+pub fn as_fully_indexed(subtree_height: u8, indices: impl Iterator<Item = U256>) -> Vec<NodeIndex> {
+    indices
+        .map(|index| small_tree_index_to_full(index, SubTreeHeight::new(subtree_height)))
+        .collect()
+}
