@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_infra_utils::url::to_safe_string;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -277,7 +279,7 @@ impl FlowSequencerSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
-            base_layer_url,
+            Sensitive::new(base_layer_url).with_redactor(to_safe_string),
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
