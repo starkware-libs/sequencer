@@ -24,7 +24,7 @@ pub enum HeightVotedStorageError {
 }
 
 /// Trait for interacting with the height voted state.
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 pub trait HeightVotedStorageTrait: Debug + Send + Sync {
     /// Returns the last height on which the node voted.
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError>;
