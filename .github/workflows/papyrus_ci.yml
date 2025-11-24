@@ -29,40 +29,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  executable-run:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build node
-        run: |
-          mkdir data
-          cargo build -p papyrus_node
-
-      - name: Run executable
-        run: >
-          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
-          & sleep 30 ; kill $!
-
-  executable-run-no-rpc:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build node
-        run: |
-          mkdir data
-          cargo build -p papyrus_node --no-default-features
-
-      - name: Run executable
-        run: >
-          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
-          & sleep 30 ; kill $!
-
   integration-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
@@ -75,21 +41,7 @@ jobs:
           --test latency_histogram
           --test gateway_integration_test
           --test feeder_gateway_integration_test
-          -- --include-ignored --skip test_gw_integration_testnet;
-          cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
-
-  test-no-rpc:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          cargo test -p papyrus_node --no-default-features
-        env:
-          SEED: 0
-
+          -- --include-ignored --skip test_gw_integration_testnet
 
   random-table-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64

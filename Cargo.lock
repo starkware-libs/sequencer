@@ -9548,51 +9548,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_node"
-version = "0.16.0-rc.1"
-dependencies = [
- "anyhow",
- "apollo_central_sync",
- "apollo_central_sync_config",
- "apollo_class_manager_types",
- "apollo_config",
- "apollo_consensus_config",
- "apollo_consensus_orchestrator_config",
- "apollo_infra_utils",
- "apollo_network",
- "apollo_p2p_sync",
- "apollo_p2p_sync_config",
- "apollo_rpc",
- "apollo_starknet_client",
- "apollo_storage",
- "apollo_test_utils",
- "clap",
- "const_format",
- "futures",
- "futures-util",
- "insta",
- "itertools 0.12.1",
- "lazy_static",
- "metrics-exporter-prometheus",
- "once_cell",
- "papyrus_base_layer",
- "papyrus_common",
- "pretty_assertions",
- "reqwest 0.12.24",
- "serde",
- "serde_json",
- "starknet_api",
- "strum 0.25.0",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "url",
- "validator",
-]
-
-[[package]]
 name = "parity-scale-codec"
 version = "3.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
