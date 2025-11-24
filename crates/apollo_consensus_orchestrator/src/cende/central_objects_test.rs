@@ -13,6 +13,7 @@ use apollo_batcher::cende_client_types::{
     TransactionExecutionStatus,
 };
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_consensus::types::ProposalCommitment;
 use apollo_infra_utils::test_utils::assert_json_eq;
 use apollo_sizeof::SizeOf;
 use apollo_starknet_client::reader::objects::state::StateDiff;
@@ -623,6 +624,10 @@ fn declare_tx_with_hash(tx_hash: u64) -> InternalConsensusTransaction {
     })
 }
 
+fn proposal_commitment() -> ProposalCommitment {
+    ProposalCommitment(felt!("0x80020000"))
+}
+
 // Returns a vector of transactions and a mock class manager with the expectation that needed to
 // convert the consensus transactions to central transactions.
 fn input_txs_and_mock_class_manager() -> (Vec<InternalConsensusTransaction>, MockClassManagerClient)
@@ -667,6 +672,8 @@ fn central_blob() -> AerospikeBlob {
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
         compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
+        proposal_commitment: proposal_commitment(),
+        parent_proposal_commitment: Some(proposal_commitment()),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the

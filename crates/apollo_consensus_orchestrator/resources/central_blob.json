@@ -1175,5 +1175,7 @@
       "0x4",
       "0x3"
     ]
-  ]
+  ],
+  "proposal_commitment": "0x80020000",
+  "parent_proposal_commitment": "0x80020000"
 }
