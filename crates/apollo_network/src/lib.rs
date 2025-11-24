@@ -36,19 +36,31 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
+use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
 use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 
 pub(crate) type Bytes = Vec<u8>;
+
+// Deserializes a sensitive Vec<u8> from hex string structure.
+fn deserialize_optional_sensitive_vec_u8<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<u8>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_vec = deserialize_optional_vec_u8(de)?;
+    Ok(optional_vec.map(Sensitive::new))
+}
 
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
@@ -62,8 +74,8 @@ pub struct NetworkConfig {
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
     #[validate(custom = "validate_vec_u256")]
-    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub secret_key: Option<Vec<u8>>,
+    #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
+    pub secret_key: Option<Sensitive<Vec<u8>>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
@@ -140,7 +152,7 @@ impl SerializeConfig for NetworkConfig {
         ));
         config.extend([ser_param(
             "secret_key",
-            &serialize_optional_vec_u8(&self.secret_key),
+            &serialize_optional_vec_u8(&self.secret_key.as_ref().map(|s| s.as_ref().clone())),
             "The secret key used for building the peer id. If it's an empty string a random one \
              will be used.",
             ParamPrivacyInput::Private,

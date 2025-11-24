@@ -186,7 +186,7 @@ async fn main() {
 
     let mut network_config = NetworkConfig {
         port: args.p2p_port,
-        secret_key: Some(peer_private_key.to_vec()),
+        secret_key: Some(peer_private_key.to_vec().into()),
         ..Default::default()
     };
     if let Some(peer) = &args.bootstrap {
