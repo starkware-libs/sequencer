@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use apollo_config::secrets::Sensitive;
 use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use mockito::{Matcher, Server, ServerGuard};
@@ -21,7 +22,7 @@ async fn check_get_active_l1_endpoint_success(
     expected_index_of_returned_url: usize,
 ) {
     let active = monitor.get_active_l1_endpoint().await.unwrap();
-    assert_eq!(&active, expected_returned_url);
+    assert_eq!(&active, &expected_returned_url.clone().into());
     assert_eq!(monitor.current_l1_endpoint_index, expected_index_of_returned_url);
 }
 
@@ -29,7 +30,9 @@ fn url(url: &str) -> Url {
     Url::parse(url).unwrap()
 }
 
-fn l1_endpoint_monitor_config(ordered_l1_endpoint_urls: Vec<Url>) -> L1EndpointMonitorConfig {
+fn l1_endpoint_monitor_config(
+    ordered_l1_endpoint_urls: Vec<Sensitive<Url>>,
+) -> L1EndpointMonitorConfig {
     L1EndpointMonitorConfig { ordered_l1_endpoint_urls, timeout_millis: Duration::from_millis(100) }
 }
 
@@ -70,7 +73,10 @@ async fn non_responsive_skips_to_next() {
 
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 0,
-        config: l1_endpoint_monitor_config(vec![url(BAD_ENDPOINT_1), good_endpoint.clone()]),
+        config: l1_endpoint_monitor_config(vec![
+            url(BAD_ENDPOINT_1).into(),
+            good_endpoint.clone().into(),
+        ]),
     };
 
     // Test.
@@ -86,9 +92,9 @@ async fn current_endpoint_still_works() {
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 1,
         config: l1_endpoint_monitor_config(vec![
-            url(BAD_ENDPOINT_1),
-            good_endpoint.clone(),
-            url(BAD_ENDPOINT_2),
+            url(BAD_ENDPOINT_1).into(),
+            good_endpoint.clone().into(),
+            url(BAD_ENDPOINT_2).into(),
         ]),
     };
 
@@ -105,9 +111,9 @@ async fn wrap_around_success() {
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 2,
         config: l1_endpoint_monitor_config(vec![
-            url(BAD_ENDPOINT_1),
-            good_url.clone(),
-            url(BAD_ENDPOINT_2),
+            url(BAD_ENDPOINT_1).into(),
+            good_url.clone().into(),
+            url(BAD_ENDPOINT_2).into(),
         ]),
     };
 
@@ -120,7 +126,10 @@ async fn all_down_fails() {
     // Setup.
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 0,
-        config: l1_endpoint_monitor_config(vec![url(BAD_ENDPOINT_1), url(BAD_ENDPOINT_2)]),
+        config: l1_endpoint_monitor_config(vec![
+            url(BAD_ENDPOINT_1).into(),
+            url(BAD_ENDPOINT_2).into(),
+        ]),
     };
 
     // Test.
