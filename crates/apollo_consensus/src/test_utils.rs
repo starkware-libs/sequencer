@@ -123,4 +123,7 @@ impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
     ) -> Result<(), HeightVotedStorageError> {
         Ok(())
     }
+    fn revert_height(&mut self, _height: BlockNumber) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
 }
