@@ -14,6 +14,7 @@ use apollo_infra::metrics::{
 use apollo_metrics::metrics::LabeledMetricCounter;
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use blockifier::metrics::CacheMetrics;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
@@ -39,6 +40,8 @@ define_infra_metrics!(gateway);
 
 define_metrics!(
     Gateway => {
+        MetricCounter { CLASS_CACHE_MISSES, "gateway_class_cache_misses", "Counter of the gateway's global class cache misses", init=0 },
+        MetricCounter { CLASS_CACHE_HITS, "gateway_class_cache_hits", "Counter of the gateway's global class cache hits", init=0 },
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
@@ -243,7 +246,11 @@ impl Drop for GatewayMetricHandle {
     }
 }
 
+pub const GATEWAY_CLASS_CACHE_METRICS: CacheMetrics =
+    CacheMetrics { misses: CLASS_CACHE_MISSES, hits: CLASS_CACHE_HITS };
+
 pub(crate) fn register_metrics() {
+    GATEWAY_CLASS_CACHE_METRICS.register();
     GATEWAY_TRANSACTIONS_RECEIVED.register();
     GATEWAY_TRANSACTIONS_FAILED.register();
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();

@@ -13,6 +13,7 @@ use crate::state::state_api::StateReader;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
+use crate::test_utils::initial_test_state::state_reader_and_contract_manager_for_testing;
 
 fn build_reader_and_declare_contract(
     contract: FeatureContractData,
@@ -23,10 +24,10 @@ fn build_reader_and_declare_contract(
     // Declare the contract in the storage.
     reader.add_class(&contract, &HashVersion::V2);
 
-    StateReaderAndContractManager {
-        state_reader: reader,
-        contract_class_manager: ContractClassManager::start(contract_manager_config),
-    }
+    state_reader_and_contract_manager_for_testing(
+        reader,
+        ContractClassManager::start(contract_manager_config),
+    )
 }
 
 #[rstest]
