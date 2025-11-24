@@ -33,6 +33,8 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
+use crate::secrets::Sensitive;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -202,6 +204,17 @@ where
         output.push(value);
     }
     Ok(Some(output))
+}
+
+/// Deserializes a sensitive list of UrlAndHeaders from a pipe-separated string structure.
+pub fn deserialize_optional_sensitive_list_with_url_and_headers<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<UrlAndHeaders>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_list = deserialize_optional_list_with_url_and_headers(de)?;
+    Ok(optional_list.map(Sensitive::new))
 }
 
 /// Serializes a vector to string structure. The vector is expected to be a hex string.

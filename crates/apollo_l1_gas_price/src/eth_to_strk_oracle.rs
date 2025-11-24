@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
@@ -44,7 +45,7 @@ fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
 #[derive(Clone, Debug)]
 pub struct UrlAndHeaderMap {
     /// The base URL.
-    pub url: Url,
+    pub url: Sensitive<Url>,
     /// A map of header keyword-value pairs in a format suitable for HTTP requests.
     pub headers: HeaderMap,
 }
@@ -75,9 +76,10 @@ impl EthToStrkOracleClient {
             .url_header_list
             .as_ref()
             .expect("url_header_list should be set in the config")
+            .as_ref() // Returns sensitive URL vector
             .iter()
             .map(|uh| UrlAndHeaderMap {
-                url: uh.url.clone(),
+                url: uh.url.clone().into(),
                 headers: btreemap_to_headermap(uh.headers.clone()),
             })
             .collect::<Vec<_>>();
@@ -111,7 +113,7 @@ impl EthToStrkOracleClient {
                 url_header_list.iter().cycle().skip(initial_index).take(list_len).enumerate()
             {
                 let UrlAndHeaderMap { url, headers } = url_and_headers;
-                let mut url = url.clone();
+                let mut url = url.as_ref().clone(); // TODO(victork): make sure we're allowed to expose the URL here
                 url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
                 let result = tokio::time::timeout(Duration::from_secs(query_timeout_sec), async {
                     let response = client.get(url.clone()).headers(headers.clone()).send().await?;
