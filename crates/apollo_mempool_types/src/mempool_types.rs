@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use strum::VariantNames;
 
@@ -37,6 +38,16 @@ impl AddTransactionArgs {
         let address = tx.contract_address();
         Self { tx, account_state: AccountState { address, nonce } }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ValidationArgs {
+    pub address: ContractAddress,
+    pub account_nonce: Nonce,
+    pub tx_hash: TransactionHash,
+    pub tx_nonce: Nonce,
+    pub tip: Tip,
+    pub max_l2_gas_price: GasPrice,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

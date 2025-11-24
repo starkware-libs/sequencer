@@ -10,6 +10,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolResult,
     MempoolSnapshot,
     MempoolStateSnapshot,
+    ValidationArgs,
 };
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
@@ -333,6 +334,12 @@ impl Mempool {
             })
             .cloned() // Soft-delete: return without deleting from mempool.
             .collect())
+    }
+
+    /// Perform validation of an incoming transaction.
+    pub fn validate_tx(&mut self, _args: ValidationArgs) -> MempoolResult<()> {
+        // TODO(Lev): Implement validation of an incoming transaction.
+        Ok(())
     }
 
     /// Adds a new transaction to the mempool.
