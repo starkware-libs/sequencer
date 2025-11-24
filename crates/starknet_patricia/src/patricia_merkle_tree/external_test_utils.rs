@@ -3,23 +3,16 @@ use std::collections::HashMap;
 use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
-use serde_json::json;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
 use super::filled_tree::node_serde::PatriciaPrefix;
-use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
-use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
-use super::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use super::node_data::leaf::{Leaf};
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
-use super::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use super::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use super::updated_skeleton_tree::hash_function::TreeHashFunction;
-use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
+use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 
@@ -44,76 +37,6 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     let mut padded_rand = [0u8; 32];
     padded_rand[32 - rand.len()..].copy_from_slice(&rand);
     low + U256::from_be_bytes(padded_rand)
-}
-
-pub async fn tree_computation_flow<L, TH>(
-    leaf_modifications: LeafModifications<L>,
-    storage: &mut MapStorage,
-    root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
-) -> FilledTreeImpl<L>
-where
-    TH: TreeHashFunction<L> + 'static,
-    L: Leaf + 'static,
-{
-    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-    let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton = OriginalSkeletonTreeImpl::create(
-        storage,
-        root_hash,
-        sorted_leaf_indices,
-        &config,
-        &leaf_modifications,
-    )
-    .expect("Failed to create the original skeleton tree");
-
-    let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
-        &mut original_skeleton,
-        &leaf_modifications
-            .iter()
-            .map(|(index, data)| {
-                (
-                    *index,
-                    match data.is_empty() {
-                        true => SkeletonLeaf::Zero,
-                        false => SkeletonLeaf::NonZero,
-                    },
-                )
-            })
-            .collect(),
-    )
-    .expect("Failed to create the updated skeleton tree");
-
-    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
-        .await
-        .expect("Failed to create the filled tree")
-}
-
-pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
-    leaf_modifications: LeafModifications<L>,
-    storage: &mut MapStorage,
-    root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
-) -> String {
-    // Move from leaf number to actual index.
-    let leaf_modifications = leaf_modifications
-        .into_iter()
-        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<LeafModifications<L>>();
-
-    let filled_tree =
-        tree_computation_flow::<L, TH>(leaf_modifications, storage, root_hash, config).await;
-
-    let hash_result = filled_tree.get_root_hash();
-
-    let mut result_map = HashMap::new();
-    // Serialize the hash result.
-    let json_hash = &json!(hash_result.0.to_hex_string());
-    result_map.insert("root_hash", json_hash);
-    // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize());
-    result_map.insert("storage_changes", json_storage);
-    serde_json::to_string(&result_map).expect("serialization failed")
 }
 
 pub struct AdditionHash;
