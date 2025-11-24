@@ -320,11 +320,6 @@ impl NodeService {
                     serde_json::from_str(&contents).expect("JSON should be an object");
                 let original_app_config = Value::Object(map);
 
-                // Create relevant replace predicates.
-                let replace_pred = |key: &str, value: &Value| {
-                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
-                };
-
                 // Perform replacement
                 insert_replacer_annotations(original_app_config, replace_pred)
             })
@@ -519,18 +514,6 @@ impl NodeType {
 
             // Dumping in the replacer format.
 
-            let replace_pred = |key: &str, value: &Value| {
-                // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
-                let port_cond =
-                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false);
-
-                // Condition 2: service urls: ".url" suffix and a non-localhost string value
-                let url_cond = key.ends_with(".url")
-                    && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
-
-                port_cond || url_cond
-            };
-
             let pruned_with_replacer_annotations =
                 insert_replacer_annotations(pruned, replace_pred);
             let file_path = node_service.get_replacer_service_file_path();
@@ -550,6 +533,17 @@ impl NodeType {
             serialize_to_file_test(map, path, FIX_BINARY_NAME);
         });
     }
+}
+
+fn replace_pred(key: &str, value: &Value) -> bool {
+    // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
+    let port_cond = key.ends_with(".port") && value.as_u64().map(|n| n != 0).unwrap_or(false);
+
+    // Condition 2: service urls: ".url" suffix and a non-localhost string value
+    let url_cond =
+        key.ends_with(".url") && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
+
+    port_cond || url_cond
 }
 
 pub(crate) trait GetComponentConfigs: ServiceNameInner {
