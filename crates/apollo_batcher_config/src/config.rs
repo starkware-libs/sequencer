@@ -118,9 +118,10 @@ pub struct PreconfirmedCendeConfig {
 impl Default for PreconfirmedCendeConfig {
     fn default() -> Self {
         Self {
-            recorder_url: Sensitive::new(
-                "https://recorder_url".parse().expect("recorder_url must be a valid Recorder URL"),
-            ),
+            recorder_url: "https://recorder_url"
+                .parse::<Url>()
+                .expect("recorder_url must be a valid Recorder URL")
+                .into(),
         }
     }
 }
