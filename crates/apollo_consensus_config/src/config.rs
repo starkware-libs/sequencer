@@ -38,8 +38,6 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-    /// Future message limits configuration.
-    pub future_msg_limit: FutureMsgLimitsConfig,
     /// Config for the storage used to write/read consensus state.
     pub storage_config: StorageConfig,
 }
@@ -83,7 +81,6 @@ impl SerializeConfig for ConsensusStaticConfig {
             "Delay (seconds) before starting consensus to give time for network peering.",
             ParamPrivacyInput::Public,
         )]);
-        config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
         config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config
     }
@@ -113,7 +110,6 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
-            future_msg_limit: FutureMsgLimitsConfig::default(),
             storage_config: StorageConfig {
                 db_config: apollo_storage::db::DbConfig {
                     path_prefix: "/data/consensus".into(),
