@@ -7,6 +7,7 @@ use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
+
 #[cfg(test)]
 #[path = "state_reader_and_contract_manager_test.rs"]
 pub mod state_reader_and_contract_manager_test;
