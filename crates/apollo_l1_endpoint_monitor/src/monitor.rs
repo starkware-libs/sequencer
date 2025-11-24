@@ -1,5 +1,6 @@
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
+use apollo_config::secrets::Sensitive;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n;
 use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
@@ -32,40 +33,39 @@ impl L1EndpointMonitor {
     /// Returns a functional L1 endpoint, or fails if all configured endpoints are non-operational.
     /// The method cycles through the configured endpoints, starting from the currently selected one
     /// and returns the first one that is operational.
-    pub async fn get_active_l1_endpoint(&mut self) -> L1EndpointMonitorResult<Url> {
+    pub async fn get_active_l1_endpoint(&mut self) -> L1EndpointMonitorResult<Sensitive<Url>> {
         let current_l1_endpoint_index = self.current_l1_endpoint_index;
         // This check can be done async, instead of blocking the user, but this requires an
         // additional "active" component or async task in our infra.
         if self.is_operational(current_l1_endpoint_index).await {
-            return Ok(self.get_node_url(current_l1_endpoint_index).clone());
+            return Ok(self.get_node_url(current_l1_endpoint_index));
         }
 
         let n_urls = self.config.ordered_l1_endpoint_urls.len();
         for offset in 1..n_urls {
             let idx = (current_l1_endpoint_index + offset) % n_urls;
             if self.is_operational(idx).await {
-                // TODO(guyn): print the end point without the API key (use to_safe_string)
                 warn!(
                     "L1 endpoint {} down; switched to {}",
-                    to_safe_string(self.get_node_url(current_l1_endpoint_index)),
-                    to_safe_string(self.get_node_url(idx))
+                    self.get_node_url(current_l1_endpoint_index).to_string(),
+                    self.get_node_url(idx).to_string()
                 );
 
                 self.current_l1_endpoint_index = idx;
-                return Ok(self.get_node_url(idx).clone());
+                return Ok(self.get_node_url(idx));
             }
         }
 
         error!(
             "No operational L1 endpoints found in {:?}",
             // We print only the hostnames to avoid leaking the API keys.
-            self.config.ordered_l1_endpoint_urls.iter().map(to_safe_string).collect::<Vec<_>>()
+            &self.config.ordered_l1_endpoint_urls
         );
         Err(L1EndpointMonitorError::NoActiveL1Endpoint)
     }
 
-    fn get_node_url(&self, index: usize) -> &Url {
-        &self.config.ordered_l1_endpoint_urls[index]
+    fn get_node_url(&self, index: usize) -> Sensitive<Url> {
+        self.config.ordered_l1_endpoint_urls[index].clone()
     }
 
     /// Check if the L1 endpoint is operational by sending a carefully-chosen request to it.
@@ -73,8 +73,7 @@ impl L1EndpointMonitor {
     // high-level readability (through a dedicated const) and to improve testability.
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
-        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.clone());
-        let l1_endpoint_url = to_safe_string(l1_endpoint_url);
+        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.as_ref().clone()); // TODO(victork): make sure we're allowed to expose the URL here
 
         // Note: response type annotation is coupled with the rpc method used.
         let is_operational_result = tokio::time::timeout(
@@ -110,9 +109,3 @@ impl L1EndpointMonitor {
 }
 
 impl ComponentStarter for L1EndpointMonitor {}
-
-// TODO(Arni): Move to apollo_infra_utils.
-fn to_safe_string(url: &Url) -> String {
-    // We print only the hostnames to avoid leaking the API keys.
-    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
-}

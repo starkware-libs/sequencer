@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut, RangeInclusive};
 
+use apollo_config::secrets::Sensitive;
 use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorClientError,
     L1EndpointMonitorError,
@@ -57,21 +58,21 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
             current_node_url = self.current_node_url.read().await.clone();
         } // Drop the read lock
         match active_l1_endpoint {
-            Ok(new_node_url) if new_node_url != current_node_url => {
+            Ok(new_node_url) if new_node_url != current_node_url.clone().into() => {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    to_safe_string(&current_node_url),
-                    to_safe_string(&new_node_url)
+                    Sensitive::new(current_node_url).to_string(),
+                    new_node_url.to_string()
                 );
 
                 let mut base_layer = self.base_layer.lock().await;
                 base_layer
-                    .set_provider_url(new_node_url.clone())
+                    .set_provider_url(new_node_url.as_ref().clone())
                     .await
                     .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))?;
 
-                *self.current_node_url.write().await = new_node_url;
+                *self.current_node_url.write().await = new_node_url.as_ref().clone();
             }
             Ok(_) => (), // Noop; the current node URL is still operational.
             Err(L1EndpointMonitorClientError::L1EndpointMonitorError(err)) => Err(err)?,
@@ -212,11 +213,4 @@ impl<B: BaseLayerContract + Send + Sync> std::fmt::Debug for MonitoredBaseLayerE
             MonitoredBaseLayerError::BaseLayerContractError(err) => write!(f, "{err:?}"),
         }
     }
-}
-
-// TODO(guyn): this is duplicated code from apollo_l1_endpoint_monitor/src/monitor.rs
-// TODO(guyn): when it is moved to apollo_infra_utils, we should import it instead.
-fn to_safe_string(url: &Url) -> String {
-    // We print only the hostnames to avoid leaking the API keys.
-    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }

@@ -1647,6 +1647,7 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.16.0-rc.1"
 dependencies = [
  "alloy",
+ "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_config",
@@ -1673,6 +1674,7 @@ dependencies = [
 name = "apollo_l1_endpoint_monitor_types"
 version = "0.16.0-rc.1"
 dependencies = [
+ "apollo_config",
  "apollo_infra",
  "apollo_metrics",
  "apollo_proc_macros",

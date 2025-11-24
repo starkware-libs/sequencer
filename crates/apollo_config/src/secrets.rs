@@ -8,6 +8,7 @@
 //! - Deserialize: transparent, and deserializes exactly like `T`, ignoring the `redactor` field.
 
 use core::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -63,6 +64,18 @@ impl<T> Sensitive<T> {
         F: FnOnce(&mut T) -> R,
     {
         f(&mut self.inner)
+    }
+}
+
+impl<T> FromStr for Sensitive<T>
+where
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    type Err = T::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = T::from_str(s)?;
+        Ok(Sensitive::new(value))
     }
 }
 

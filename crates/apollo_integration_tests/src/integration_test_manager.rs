@@ -965,7 +965,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
-                base_layer_url.clone(),
+                base_layer_url.clone().into(),
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,

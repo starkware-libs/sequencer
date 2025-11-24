@@ -12,6 +12,7 @@ use apollo_class_manager_config::config::{
     FsClassStorageConfig,
 };
 use apollo_config::converters::UrlAndHeaders;
+use apollo_config::secrets::Sensitive;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
     ConsensusConfig,
@@ -185,7 +186,7 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
-    base_layer_url: Url,
+    base_layer_url: Sensitive<Url>,
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
