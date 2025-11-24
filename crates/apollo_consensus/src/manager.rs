@@ -172,16 +172,107 @@ pub enum RunHeightRes {
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
+/// Manages votes and proposals for future heights.
+#[derive(Debug)]
+struct ConsensusCache<ContextT: ConsensusContext> {
+    // Mapping: { Height : Vec<Vote> }
+    future_votes: BTreeMap<BlockNumber, Vec<Vote>>,
+    // Mapping: { Height : { Round : (Init, Receiver)}}
+    cached_proposals:
+        BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+}
+
+impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
+    fn new() -> Self {
+        Self { future_votes: BTreeMap::new(), cached_proposals: BTreeMap::new() }
+    }
+
+    /// Filters the cached messages:
+    /// - returns (and removes from stored votes) all of the current height votes.
+    /// - drops votes from earlier heights.
+    /// - retains future votes in the cache.
+    fn get_current_height_votes(&mut self, height: BlockNumber) -> Vec<Vote> {
+        loop {
+            let Some(entry) = self.future_votes.first_entry() else {
+                return Vec::new();
+            };
+            match entry.key().cmp(&height) {
+                std::cmp::Ordering::Greater => return Vec::new(),
+                std::cmp::Ordering::Equal => return entry.remove(),
+                std::cmp::Ordering::Less => {
+                    entry.remove();
+                }
+            }
+        }
+    }
+
+    /// Checks if a cached proposal already exists (with correct height)
+    /// - returns the proposals for the height if they exist and removes them from the cache.
+    /// - cleans up any proposals from earlier heights.
+    fn get_current_height_proposals(
+        &mut self,
+        height: BlockNumber,
+    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
+        loop {
+            let Some(entry) = self.cached_proposals.first_entry() else {
+                return Vec::new();
+            };
+            match entry.key().cmp(&height) {
+                std::cmp::Ordering::Greater => return Vec::new(),
+                std::cmp::Ordering::Equal => {
+                    let round_to_proposals = entry.remove();
+                    return round_to_proposals.into_values().collect();
+                }
+                std::cmp::Ordering::Less => {
+                    entry.remove();
+                }
+            }
+        }
+    }
+
+    /// Clears any cached messages for the given height or any lower height.
+    fn clear_past_and_current_heights(&mut self, height: BlockNumber) {
+        self.get_current_height_votes(height);
+        self.get_current_height_proposals(height);
+    }
+
+    /// Caches a vote for a future height.
+    fn cache_future_vote(&mut self, vote: Vote) {
+        self.future_votes.entry(BlockNumber(vote.height)).or_default().push(vote);
+    }
+
+    /// Caches a proposal for a future height.
+    fn cache_future_proposal(
+        &mut self,
+        proposal_init: ProposalInit,
+        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+    ) {
+        self.cached_proposals
+            .entry(proposal_init.height)
+            .or_default()
+            .entry(proposal_init.round)
+            .or_insert((proposal_init, content_receiver));
+    }
+
+    fn report_max_cached_block_number_metric(&self, height: BlockNumber) {
+        // If nothing is cached use current height as "max".
+        let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height);
+        CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(max_cached_block_number.0);
+    }
+
+    fn report_cached_votes_metric(&self, height: BlockNumber) {
+        let cached_votes_count =
+            self.future_votes.get(&height).map(|votes| votes.len()).unwrap_or(0);
+        CONSENSUS_CACHED_VOTES.set_lossy(cached_votes_count);
+    }
+}
+
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     consensus_config: ConsensusConfig,
-    future_votes: BTreeMap<BlockNumber, Vec<Vote>>,
     quorum_type: QuorumType,
-    // Mapping: { Height : { Round : (Init, Receiver)}}
-    cached_proposals:
-        BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     last_voted_height_at_initialization: Option<BlockNumber>,
     // The reason for this Arc<Mutex> we cannot share this instance mutably  with
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
@@ -191,6 +282,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     // Proposal content streams keyed by (height, round)
     proposal_streams: BTreeMap<(BlockNumber, Round), mpsc::Receiver<ContextT::ProposalPart>>,
+    cache: ConsensusCache<ContextT>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
@@ -208,11 +300,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Self {
             consensus_config,
             quorum_type,
-            future_votes: BTreeMap::new(),
-            cached_proposals: BTreeMap::new(),
             last_voted_height_at_initialization,
             voted_height_storage,
             proposal_streams: BTreeMap::new(),
+            cache: ConsensusCache::new(),
         }
     }
 
@@ -246,25 +337,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await?;
 
         // Clear any existing votes and proposals for previous heights as well as the current just
-        // completed height.
-        //
-        // Networking layer assumes messages are handled in a timely fashion, otherwise we may build
-        // up a backlog of useless messages. Similarly we don't want to waste space on old messages.
-        // This is particularly important when there is a significant lag and we continually finish
-        // heights immediately due to sync.
+        // completed height using the dedicated cache manager.
+        self.cache.clear_past_and_current_heights(height);
 
-        // We use get_current_height_votes for its side effect of removing votes for lower
-        // heights (we don't care about the actual votes).
-        self.get_current_height_votes(height);
+        // Clear any votes/proposals that might have arrived *during* the final await/cleanup,
+        // which still belong to the completed height or lower.
         while let Some(message) =
             broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
         {
-            // Discard any votes for this heigh or lower by sending a None SHC.
+            // Discard any votes for this height or lower by sending a None SHC.
             self.handle_vote(context, height, None, message, broadcast_channels).await?;
         }
-        // We call this method to filter out any proposals for previous/current heights (we don't
-        // care about the returned proposals).
-        self.get_current_height_proposals(height);
         while let Ok(content_receiver) = proposals_receiver.try_next() {
             self.handle_proposal(context, height, None, content_receiver).await?;
         }
@@ -300,7 +383,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
-        self.report_max_cached_block_number_metric(height);
+        self.cache.report_max_cached_block_number_metric(height);
 
         // If we already voted for this height, do not proceed until we sync to this height.
         // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
@@ -362,7 +445,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let sync_retry_interval = self.consensus_config.dynamic_config.sync_retry_interval;
         let mut sync_poll_deadline = clock.now() + sync_retry_interval;
         loop {
-            self.report_max_cached_block_number_metric(height);
+            self.cache.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     self.handle_vote(context, height, Some(&mut shc), message, broadcast_channels).await?
@@ -414,7 +497,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
-        CONSENSUS_CACHED_VOTES.set_lossy(self.future_votes.entry(height).or_default().len());
+        self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
             match shc.start(&leader_fn)? {
@@ -430,7 +513,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         };
 
-        let cached_proposals = self.get_current_height_proposals(height);
+        let cached_proposals = self.cache.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (init, content_receiver) in cached_proposals {
             match self
@@ -442,7 +525,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         }
 
-        let cached_votes = self.get_current_height_votes(height);
+        let cached_votes = self.cache.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
@@ -495,11 +578,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     // "good" nodes can propose).
                     //
                     // When moving to version 1.0 make sure this is addressed.
-                    self.cached_proposals
-                        .entry(proposal_init.height)
-                        .or_default()
-                        .entry(proposal_init.round)
-                        .or_insert((proposal_init, content_receiver));
+                    self.cache.cache_future_proposal(proposal_init, content_receiver);
                 }
                 Ok(ShcReturn::Requests(VecDeque::new()))
             }
@@ -591,7 +670,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Greater => {
                 if self.should_cache_vote(&height, 0, &message) {
                     trace!("Cache message for a future height. {:?}", message);
-                    self.future_votes.entry(BlockNumber(message.height)).or_default().push(message);
+                    self.cache.cache_future_vote(message);
                 }
                 Ok(ShcReturn::Requests(VecDeque::new()))
             }
@@ -745,56 +824,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 ))
             }
         }
-    }
-
-    /// Checks if a cached proposal already exists (with correct height)
-    /// - returns the proposals for the height if they exist and removes them from the cache.
-    /// - cleans up any proposals from earlier heights.
-    fn get_current_height_proposals(
-        &mut self,
-        height: BlockNumber,
-    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
-        loop {
-            let Some(entry) = self.cached_proposals.first_entry() else {
-                return Vec::new();
-            };
-            match entry.key().cmp(&height) {
-                std::cmp::Ordering::Greater => return vec![],
-                std::cmp::Ordering::Equal => {
-                    let round_to_proposals = entry.remove();
-                    return round_to_proposals.into_values().collect();
-                }
-                std::cmp::Ordering::Less => {
-                    entry.remove();
-                }
-            }
-        }
-    }
-
-    /// Filters the cached messages:
-    /// - returns (and removes from stored votes) all of the current height votes.
-    /// - drops votes from earlier heights.
-    /// - retains future votes in the cache.
-    fn get_current_height_votes(&mut self, height: BlockNumber) -> Vec<Vote> {
-        // Depends on `future_votes` being sorted by height.
-        loop {
-            let Some(entry) = self.future_votes.first_entry() else {
-                return Vec::new();
-            };
-            match entry.key().cmp(&height) {
-                std::cmp::Ordering::Greater => return Vec::new(),
-                std::cmp::Ordering::Equal => return entry.remove(),
-                std::cmp::Ordering::Less => {
-                    entry.remove();
-                }
-            }
-        }
-    }
-
-    fn report_max_cached_block_number_metric(&self, height: BlockNumber) {
-        // If nothing is cached use current height as "max".
-        let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height);
-        CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(max_cached_block_number.0);
     }
 
     fn should_cache_msg(
