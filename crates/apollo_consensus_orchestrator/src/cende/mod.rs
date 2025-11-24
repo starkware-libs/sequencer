@@ -6,6 +6,7 @@ use std::future::ready;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use apollo_config::secrets::Sensitive;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
@@ -105,7 +106,7 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    url: Sensitive<Url>,
     client: ClientWithMiddleware,
     skip_write_height: Option<BlockNumber>,
     class_manager: SharedClassManagerClient,
@@ -124,8 +125,12 @@ impl CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: cende_config
                 .recorder_url
+                .as_ref()
+                .clone()
                 .join(RECORDER_WRITE_BLOB_PATH)
-                .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
+                .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL")
+                .into(),
+
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
@@ -153,7 +158,7 @@ impl CendeContext for CendeAmbassador {
         }
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone());
+        let request_builder = self.client.post(self.url.as_ref().clone());
 
         task::spawn(
             async move {

@@ -926,7 +926,7 @@ async fn get_sequencer_setup_configs(
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
         let state_sync_config = state_sync_configs.remove(0);
 
-        consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
+        consensus_manager_config.cende_config.recorder_url = recorder_url.clone().into();
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone()]),
             ..Default::default()
