@@ -251,7 +251,7 @@ impl FlowSequencerSetup {
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
-            url_header_list: Some(vec![eth_to_strk_oracle_url_headers]),
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers.into()]),
             ..Default::default()
         };
 

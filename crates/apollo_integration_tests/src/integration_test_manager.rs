@@ -1001,7 +1001,7 @@ async fn get_sequencer_setup_configs(
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
-            url_header_list: Some(vec![eth_to_strk_oracle_url.clone()]),
+            url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()
         };
 
