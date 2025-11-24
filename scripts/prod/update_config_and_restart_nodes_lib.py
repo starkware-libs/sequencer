@@ -360,7 +360,6 @@ def show_config_diff(old_content: str, new_content: str, index: int) -> None:
         new_lines,
         fromfile=f"config{index}.yaml_old",
         tofile=f"config{index}.yaml",
-        lineterm="",
         n=0,  # context lines; no real 'context' in config files
     )
 
