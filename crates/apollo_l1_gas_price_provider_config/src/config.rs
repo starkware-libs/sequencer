@@ -13,17 +13,29 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
+use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
 use url::Url;
 use validator::Validate;
 
+// Deserializes a sensitive list of UrlAndHeaders from a pipe-separated string structure.
+fn deserialize_optional_sensitive_list_with_url_and_headers<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<UrlAndHeaders>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_list = deserialize_optional_list_with_url_and_headers(de)?;
+    Ok(optional_list.map(Sensitive::new))
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct EthToStrkOracleConfig {
-    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
-    pub url_header_list: Option<Vec<UrlAndHeaders>>,
+    #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
+    pub url_header_list: Option<Sensitive<Vec<UrlAndHeaders>>>,
     pub lag_interval_seconds: u64,
     pub max_cache_size: usize,
     pub query_timeout_sec: u64,
@@ -34,7 +46,9 @@ impl SerializeConfig for EthToStrkOracleConfig {
         BTreeMap::from_iter([
             ser_param(
                 "url_header_list",
-                &serialize_optional_list_with_url_and_headers(&self.url_header_list),
+                &serialize_optional_list_with_url_and_headers(
+                    &self.url_header_list.as_ref().map(|s| s.as_ref().clone()),
+                ),
                 "A list of Url+HTTP headers for the eth to strk oracle. \
                  The url is followed by a comma and then headers as key^value pairs, separated by commas. \
                  For example: `https://api.example.com/api,key1^value1,key2^value2`. \
@@ -71,10 +85,10 @@ impl SerializeConfig for EthToStrkOracleConfig {
 impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
         Self {
-            url_header_list: Some(vec![UrlAndHeaders {
+            url_header_list: Some(Sensitive::new(vec![UrlAndHeaders {
                 url: Url::parse("https://api.example.com/api").expect("Invalid URL"),
                 headers: BTreeMap::new(),
-            }]),
+            }])),
             lag_interval_seconds: 1,
             max_cache_size: 100,
             query_timeout_sec: 3,
