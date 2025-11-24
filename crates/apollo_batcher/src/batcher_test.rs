@@ -37,6 +37,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -92,6 +93,10 @@ fn proposal_commitment() -> ProposalCommitment {
     BlockExecutionArtifacts::create_for_testing().commitment()
 }
 
+fn parent_proposal_commitment() -> ProposalCommitment {
+    ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&test_state_diff()) }
+}
+
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
     ProposeBlockInput {
         proposal_id,
@@ -125,6 +130,7 @@ impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReaderTrait::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
             .block_info
@@ -303,6 +309,10 @@ fn verify_decision_reached_response(
     assert_eq!(
         response.central_objects.execution_infos,
         expected_artifacts.execution_data.execution_infos
+    );
+    assert_eq!(
+        response.central_objects.parent_proposal_commitment,
+        Some(parent_proposal_commitment())
     );
 }
 
