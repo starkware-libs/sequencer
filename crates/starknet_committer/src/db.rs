@@ -3,3 +3,4 @@ pub mod create_facts_tree;
 pub mod external_test_utils;
 pub mod facts_db;
 pub mod forest_trait;
+pub mod traversal;
