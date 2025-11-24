@@ -4,7 +4,6 @@ use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
@@ -12,9 +11,7 @@ use crate::patricia_merkle_tree::internal_test_utils::{
     as_fully_indexed,
     get_initial_updated_skeleton,
     small_tree_index_to_full,
-    MockLeaf,
     MockTrie,
-    OriginalSkeletonMockTrieConfig,
     TestTreeHashFunction,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
@@ -495,19 +492,10 @@ fn test_update_node_in_nonempty_tree(
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
-    let empty_map = HashMap::new();
-    let mut empty_storage = MapStorage::default();
-    let config = OriginalSkeletonMockTrieConfig::new(false);
-    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
-        &mut empty_storage,
-        root_hash,
-        SortedLeafIndices::new(&mut []),
-        &config,
-        &empty_map,
-    )
-    .unwrap();
+    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
+    let empty_map = HashMap::new();
     let filled = MockTrie::create_with_existing_leaves::<TestTreeHashFunction>(updated, empty_map)
         .await
         .unwrap();
