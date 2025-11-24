@@ -36,6 +36,7 @@
 //! # Ok::<(), apollo_storage::StorageError>(())
 
 use starknet_api::block::BlockNumber;
+use starknet_api::hash::StarkHash;
 
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
@@ -50,9 +51,18 @@ pub struct LastVotedMarker {
     // type Round is defined in apollo_consensus crate which would make a circular dependency.
 }
 
+/// The proposal commitment accepted by consensus.
+#[derive(Debug, Eq, PartialEq)]
+pub struct ProposalCommitment(pub StarkHash);
+
 #[allow(missing_docs)]
 pub trait ConsensusStorageReader {
     fn get_last_voted_marker(&self) -> StorageResult<Option<LastVotedMarker>>;
+
+    fn get_proposal_commitment(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ProposalCommitment>>;
 }
 
 #[allow(missing_docs)]
@@ -61,6 +71,12 @@ where
     Self: Sized,
 {
     fn set_last_voted_marker(self, last_voted_marker: &LastVotedMarker) -> StorageResult<Self>;
+
+    fn append_proposal_commitment(
+        self,
+        block_number: BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+    ) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> ConsensusStorageReader for StorageTxn<'_, Mode> {
@@ -68,12 +84,30 @@ impl<Mode: TransactionKind> ConsensusStorageReader for StorageTxn<'_, Mode> {
         let table = self.open_table(&self.tables.last_voted_marker)?;
         Ok(table.get(&self.txn, &())?)
     }
+
+    fn get_proposal_commitment(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ProposalCommitment>> {
+        let table = self.open_table(&self.tables.proposal_commitments)?;
+        Ok(table.get(&self.txn, &block_number)?)
+    }
 }
 
 impl ConsensusStorageWriter for StorageTxn<'_, RW> {
     fn set_last_voted_marker(self, last_voted_marker: &LastVotedMarker) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.last_voted_marker)?;
         table.upsert(&self.txn, &(), last_voted_marker)?;
+        Ok(self)
+    }
+
+    fn append_proposal_commitment(
+        self,
+        block_number: BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+    ) -> StorageResult<Self> {
+        let table = self.open_table(&self.tables.proposal_commitments)?;
+        table.append(&self.txn, &block_number, proposal_commitment)?;
         Ok(self)
     }
 }

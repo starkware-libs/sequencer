@@ -135,7 +135,7 @@ use crate::compression_utils::{
     serialize_and_compress,
     IsCompressed,
 };
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{LastVotedMarker, ProposalCommitment};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::NoValue;
 use crate::header::StorageBlockHeader;
@@ -370,6 +370,7 @@ auto_storage_serde! {
         pub prime: serde_json::Value,
         pub reference_manager: serde_json::Value,
     }
+    pub struct ProposalCommitment(pub StarkHash);
     pub struct ReceiptCommitment(pub StarkHash);
     pub enum Resource {
         L1Gas = 0,
