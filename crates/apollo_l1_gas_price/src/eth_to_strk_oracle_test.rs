@@ -51,7 +51,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         url: Url::parse(&server.url()).unwrap(),
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
-    let url_header_list = Some(vec![url_and_headers]);
+    let url_header_list = Some(vec![url_and_headers.into()]);
     let config = EthToStrkOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
@@ -125,7 +125,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
         url: Url::parse(&server.url()).unwrap(),
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
-    let url_header_list = Some(vec![url_and_headers]);
+    let url_header_list = Some(vec![url_and_headers.into()]);
     let config = EthToStrkOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
@@ -179,11 +179,13 @@ async fn eth_to_fri_rate_two_urls() {
         UrlAndHeaders {
             url: Url::parse(&server1.url()).unwrap(),
             headers: BTreeMap::new(), // No additional headers needed for this test.
-        },
+        }
+        .into(),
         UrlAndHeaders {
             url: Url::parse(&server2.url()).unwrap(),
             headers: BTreeMap::new(), // No additional headers needed for this test.
-        },
+        }
+        .into(),
     ]);
     let config = EthToStrkOracleConfig {
         url_header_list,

@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
@@ -46,7 +47,7 @@ pub struct UrlAndHeaderMap {
     /// The base URL.
     pub url: Url,
     /// A map of header keyword-value pairs in a format suitable for HTTP requests.
-    pub headers: HeaderMap,
+    pub headers: Sensitive<HeaderMap>,
 }
 
 type PriceQuery = AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>;
@@ -77,8 +78,8 @@ impl EthToStrkOracleClient {
             .expect("url_header_list should be set in the config")
             .iter()
             .map(|uh| UrlAndHeaderMap {
-                url: uh.url.clone(),
-                headers: btreemap_to_headermap(uh.headers.clone()),
+                url: uh.as_ref().url.clone(),
+                headers: btreemap_to_headermap(uh.as_ref().headers.clone()).into(),
             })
             .collect::<Vec<_>>();
         Self {
@@ -110,11 +111,12 @@ impl EthToStrkOracleClient {
             for (i, url_and_headers) in
                 url_header_list.iter().cycle().skip(initial_index).take(list_len).enumerate()
             {
-                let UrlAndHeaderMap { url, headers } = url_and_headers;
-                let mut url = url.clone();
+                let UrlAndHeaderMap { mut url, headers } = url_and_headers.clone();
                 url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
                 let result = tokio::time::timeout(Duration::from_secs(query_timeout_sec), async {
-                    let response = client.get(url.clone()).headers(headers.clone()).send().await?;
+                    // TODO(victork): make sure we're allowed to expose the headers here
+                    let response =
+                        client.get(url.clone()).headers(headers.as_ref().clone()).send().await?;
                     let body = response.text().await?;
                     let rate = resolve_query(body)?;
                     Ok::<_, EthToStrkOracleClientError>(rate)
