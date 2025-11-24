@@ -2540,6 +2540,7 @@ dependencies = [
  "apollo_proc_macros",
  "apollo_test_utils",
  "assert_matches",
+ "async-trait",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
