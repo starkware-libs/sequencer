@@ -219,31 +219,6 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
-  "consensus.dynamic_config.validator_id": {
-    "description": "The validator id of the node.",
-    "privacy": "Public",
-    "value": "0x64"
-  },
-  "consensus.static_config.future_msg_limit.future_height_limit": {
-    "description": "How many heights in the future should we cache.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "consensus.static_config.future_msg_limit.future_height_round_limit": {
-    "description": "How many rounds should we cache for future heights.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus.static_config.future_msg_limit.future_round_limit": {
-    "description": "How many rounds in the future (for current height) should we cache.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "consensus.static_config.startup_delay": {
-    "description": "Delay (seconds) before starting consensus to give time for network peering.",
-    "privacy": "Public",
-    "value": 5
-  },
   "context.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -261,10 +236,8 @@
   },
   "context.build_proposal_time_ratio_for_retrospective_block_hash": {
     "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
-    "value": {
-      "$serde_json::private::Number": "0.7"
-    },
-    "privacy": "Public"
+    "privacy": "Public",
+    "value": 0.7
   },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
@@ -363,10 +336,8 @@
   },
   "context.retrospective_block_hash_retry_interval_millis": {
     "description": "The interval between retrospective block hash retries.",
-    "value": {
-      "$serde_json::private::Number": "500"
-    },
-    "privacy": "Public"
+    "privacy": "Public",
+    "value": 500
   },
   "context.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
