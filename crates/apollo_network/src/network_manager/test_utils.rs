@@ -184,7 +184,7 @@ pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
         .map(|(port, private_key)| NetworkConfig {
             port,
             bootstrap_peer_multiaddr: Some(nodes_addresses.clone()),
-            secret_key: Some(private_key.to_vec()),
+            secret_key: Some(private_key.to_vec().into()),
             ..Default::default()
         })
         .collect()
