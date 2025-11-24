@@ -29,10 +29,23 @@ define_metrics!(
 
 pub const BLOCKIFIER_METRIC_RATE_DURATION: &str = "5m";
 
-// TODO(Arni): Fix visibility of members of this struct (make them not public).
 pub struct CacheMetrics {
-    pub misses: MetricCounter,
-    pub hits: MetricCounter,
+    misses: MetricCounter,
+    hits: MetricCounter,
+}
+
+impl CacheMetrics {
+    pub const fn new(misses: MetricCounter, hits: MetricCounter) -> Self {
+        Self { misses, hits }
+    }
+
+    pub fn misses(&self) -> &MetricCounter {
+        &self.misses
+    }
+
+    pub fn hits(&self) -> &MetricCounter {
+        &self.hits
+    }
 }
 
 impl CacheMetrics {
@@ -55,6 +68,7 @@ impl CacheMetrics {
             self.hits.get_scope(),
             "Scope of misses and hits must be the same"
         );
+
         self.misses.get_scope()
     }
 }
