@@ -42,7 +42,7 @@ use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, MempoolStateReader};
 use crate::sync_state_reader::SyncStateReader;
 
-fn state_reader_and_contract_manager(
+fn sync_state_reader_and_contract_manager(
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
     contract_class_manager: ContractClassManager,
@@ -281,7 +281,7 @@ async fn test_get_block_info() {
         },
     );
 
-    let state_reader_and_contract_manager = state_reader_and_contract_manager(
+    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager.clone(),
@@ -339,7 +339,7 @@ async fn test_get_storage_at() {
         )
         .returning(move |_, _, _| Ok(value));
 
-    let state_reader_and_contract_manager = state_reader_and_contract_manager(
+    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager.clone(),
@@ -370,7 +370,7 @@ async fn test_get_nonce_at() {
         .with(predicate::eq(block_number), predicate::eq(contract_address))
         .returning(move |_, _| Ok(expected_result));
 
-    let state_reader_and_contract_manager = state_reader_and_contract_manager(
+    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager.clone(),
@@ -402,7 +402,7 @@ async fn test_get_class_hash_at() {
         .with(predicate::eq(block_number), predicate::eq(contract_address))
         .returning(move |_, _| Ok(expected_result));
 
-    let state_reader_and_contract_manager = state_reader_and_contract_manager(
+    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager.clone(),
@@ -443,8 +443,6 @@ fn assert_eq_state_result(
     }
 }
 
-// TODO(Arni): Check if any test cases here should move to the tests of
-// `StateReaderAndContractManager`.
 #[rstest]
 #[case::cairo_0_declared_and_cached(
     cairo_0_declared_scenario(),
@@ -483,7 +481,7 @@ async fn test_get_compiled_class(
         first_scenario.expectations,
     );
 
-    let first_state_reader_and_class_manager = state_reader_and_contract_manager(
+    let first_state_reader_and_class_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager.clone(),
@@ -506,7 +504,7 @@ async fn test_get_compiled_class(
         second_scenario.expectations,
     );
 
-    let second_state_reader_and_class_manager = state_reader_and_contract_manager(
+    let second_state_reader_and_class_manager = sync_state_reader_and_contract_manager(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         contract_class_manager,
