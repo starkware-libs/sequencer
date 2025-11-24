@@ -4,7 +4,9 @@ mod central_objects;
 
 use std::sync::Arc;
 
+use apollo_batcher::utils::append_route_to_sensitive_url;
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use apollo_config::secrets::Sensitive;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
@@ -105,7 +107,7 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    url: Sensitive<Url>,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -119,12 +121,14 @@ impl CendeAmbassador {
             .retry_bounds(cende_config.min_retry_interval_ms, cende_config.max_retry_interval_ms)
             .jitter(Jitter::None)
             .build_with_total_retry_duration(cende_config.max_retry_duration_secs);
+
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
-            url: cende_config
-                .recorder_url
-                .join(RECORDER_WRITE_BLOB_PATH)
-                .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
+            url: {
+                let mut recorder_url = cende_config.recorder_url;
+                append_route_to_sensitive_url(&mut recorder_url, RECORDER_WRITE_BLOB_PATH);
+                recorder_url
+            },
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
@@ -139,7 +143,7 @@ impl CendeContext for CendeAmbassador {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone());
+        let request_builder = self.client.post(self.url.as_ref().clone()); // TODO(victork): make sure we're allowed to expose the URL here
 
         task::spawn(
             async move {

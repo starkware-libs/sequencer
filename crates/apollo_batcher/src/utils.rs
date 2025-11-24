@@ -84,7 +84,7 @@ pub(crate) fn proposal_status_from(
 }
 
 // Appends a route to a sensitive url.
-pub(crate) fn append_route_to_sensitive_url(sensitive_url: &mut Sensitive<Url>, suffix: &str) {
+pub fn append_route_to_sensitive_url(sensitive_url: &mut Sensitive<Url>, suffix: &str) {
     sensitive_url
         .modify_in_place(|url: &mut Url| *url = url.join(suffix).expect("Failed to construct URL"));
 }
