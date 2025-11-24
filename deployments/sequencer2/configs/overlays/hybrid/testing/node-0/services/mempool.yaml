@@ -11,6 +11,7 @@ config:
     components_gateway_port: 55002
     components_mempool_url: sequencer-mempool-service
     components_mempool_port: 55006
+    mempool_config_dynamic_config_transaction_ttl: 300
 
 service:
   enabled: true
