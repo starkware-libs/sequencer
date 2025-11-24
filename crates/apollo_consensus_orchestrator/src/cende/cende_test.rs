@@ -89,6 +89,8 @@ async fn write_prev_height_blob(
     #[case] expected_result: bool,
     #[case] expected_metrics: ExpectedMetrics,
 ) {
+    use url::Url;
+
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
@@ -98,7 +100,7 @@ async fn write_prev_height_blob(
     let mock = server.mock("POST", RECORDER_WRITE_BLOB_PATH).with_status(mock_status_code).create();
 
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: url.parse().unwrap(), ..Default::default() },
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap().into(), ..Default::default() },
         Arc::new(MockClassManagerClient::new()),
     );
 
@@ -128,6 +130,8 @@ async fn write_prev_height_blob_multiple_retries(
     #[case] expected_retries_max: usize,
     #[case] expected_result: bool,
 ) {
+    use url::Url;
+
     let mut server = mockito::Server::new_async().await;
     let url = server.url();
 
@@ -141,7 +145,7 @@ async fn write_prev_height_blob_multiple_retries(
         .create();
 
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: url.parse().unwrap(), ..Default::default() },
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap().into(), ..Default::default() },
         Arc::new(MockClassManagerClient::new()),
     );
 
