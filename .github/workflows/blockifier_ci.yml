@@ -125,11 +125,10 @@ jobs:
           clean: false
 
       # Benchmark the current branch and compare to the previous run.
-      # TODO(Dori): Uncomment when the merge to main-v0.14.1-committer is complete.
-      # - run: |
-      #     cargo run -p bench_tools -- run-and-compare \
-      #       --package blockifier \
-      #       --out /tmp/new_results \
-      #       --regression-limit 8.0 \
-      #       --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
-      #       --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
+      - run: |
+          cargo run -p bench_tools -- run-and-compare \
+            --package blockifier \
+            --out /tmp/new_results \
+            --regression-limit 8.0 \
+            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
