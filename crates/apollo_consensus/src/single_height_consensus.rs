@@ -47,7 +47,7 @@ use crate::votes_threshold::QuorumType;
 /// blocking further calls to itself.
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(EnumAsInner))]
-pub enum ShcReturn {
+pub(crate) enum ShcReturn {
     Tasks(Vec<ShcTask>),
     Decision(Decision),
 }
@@ -55,7 +55,7 @@ pub enum ShcReturn {
 /// A task which should be run without blocking calls to SHC.
 #[derive(Debug)]
 #[cfg_attr(test, derive(EnumAsInner))]
-pub enum ShcTask {
+pub(crate) enum ShcTask {
     TimeoutPropose(Duration, StateMachineEvent),
     TimeoutPrevote(Duration, StateMachineEvent),
     TimeoutPrecommit(Duration, StateMachineEvent),
@@ -95,7 +95,7 @@ impl PartialEq for ShcTask {
 }
 
 impl ShcTask {
-    pub async fn run(self) -> StateMachineEvent {
+    pub(crate) async fn run(self) -> StateMachineEvent {
         trace!("Running task: {:?}", self);
         match self {
             ShcTask::TimeoutPropose(duration, event)
@@ -135,7 +135,6 @@ impl ShcTask {
 pub(crate) struct SingleHeightConsensus {
     height: BlockNumber,
     validators: Vec<ValidatorId>,
-    id: ValidatorId,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
     proposals: HashMap<Round, Option<ProposalCommitment>>,
@@ -161,7 +160,6 @@ impl SingleHeightConsensus {
         Self {
             height,
             validators,
-            id,
             timeouts,
             state_machine,
             proposals: HashMap::new(),
@@ -230,7 +228,7 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub async fn handle_event<ContextT: ConsensusContext>(
+    pub(crate) async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
         event: StateMachineEvent,
@@ -467,8 +465,12 @@ impl SingleHeightConsensus {
 
         // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
         // handled by applying timeoutPropose when we are the leader.
-        let init =
-            ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
+        let init = ProposalInit {
+            height: self.height,
+            round,
+            proposer: self.state_machine.validator_id(),
+            valid_round: None,
+        };
         CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
         // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded independently of
         // the consensus proposal timeout. We currently use the base (round 0) proposal
@@ -506,7 +508,7 @@ impl SingleHeightConsensus {
         let init = ProposalInit {
             height: self.height,
             round,
-            proposer: self.id,
+            proposer: self.state_machine.validator_id(),
             valid_round: Some(valid_round),
         };
         CONSENSUS_REPROPOSALS.increment(1);
@@ -542,9 +544,9 @@ impl SingleHeightConsensus {
             height: self.height.0,
             round,
             proposal_commitment: proposal_id,
-            voter: self.id,
+            voter: self.state_machine.validator_id(),
         };
-        if let Some(old) = votes.insert((round, self.id), vote.clone()) {
+        if let Some(old) = votes.insert((round, self.state_machine.validator_id()), vote.clone()) {
             return Err(ConsensusError::InternalInconsistency(format!(
                 "State machine should not send repeat votes: old={old:?}, new={vote:?}"
             )));
