@@ -9557,6 +9557,7 @@ dependencies = [
  "hex",
  "mockall",
  "pretty_assertions",
+ "rstest",
  "serde",
  "starknet-types-core",
  "starknet_api",
