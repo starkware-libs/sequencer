@@ -55,20 +55,20 @@ pub type ApolloStateReaderAndContractManager = StateReaderAndContractManager<Apo
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
 /// Placeholder class cache metrics. There are not metrics on the native blockifier.
-const NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics {
-    misses: MetricCounter::new(
+const NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics::new(
+    MetricCounter::new(
         MetricScope::Blockifier,
         "Class Cache Misses in Native Blockifier",
         "Counter of the number of times that the class cache was missed",
         0,
     ),
-    hits: MetricCounter::new(
+    MetricCounter::new(
         MetricScope::Blockifier,
         "Class Cache Misses in Native Blockifier",
         "Counter of the number of times that the class cache was hit",
         0,
     ),
-};
+);
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
 /// computation data.

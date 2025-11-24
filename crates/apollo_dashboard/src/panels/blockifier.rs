@@ -38,8 +38,8 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
     Panel::ratio_time_series(
         name.as_str(),
         description.as_str(),
-        &class_cache_metrics.misses,
-        &[&class_cache_metrics.misses, &class_cache_metrics.hits],
+        class_cache_metrics.misses(),
+        &[class_cache_metrics.misses(), class_cache_metrics.hits()],
         BLOCKIFIER_METRIC_RATE_DURATION,
     )
 }
@@ -54,7 +54,7 @@ fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
         name,
         description,
         &NATIVE_CLASS_RETURNED,
-        &[&class_cache_metrics.misses, &class_cache_metrics.hits],
+        &[class_cache_metrics.misses(), class_cache_metrics.hits()],
         BLOCKIFIER_METRIC_RATE_DURATION,
     )
 }
