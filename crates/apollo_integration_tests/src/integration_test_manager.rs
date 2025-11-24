@@ -5,6 +5,7 @@ use std::panic;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_config::secrets::Sensitive;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_http_server::test_utils::HttpTestClient;
@@ -12,6 +13,7 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_infra_utils::url::to_safe_string;
 use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -1147,7 +1149,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
-                base_layer_url.clone(),
+                Sensitive::new(base_layer_url.clone()).with_redactor(to_safe_string),
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
