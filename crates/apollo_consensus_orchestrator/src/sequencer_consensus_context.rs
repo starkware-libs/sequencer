@@ -614,6 +614,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 },
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
+                proposal_commitment: block,
+                parent_proposal_commitment: central_objects
+                    .parent_proposal_commitment
+                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
             })
             .await
             .inspect_err(|e| {
