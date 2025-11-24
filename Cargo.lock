@@ -1372,6 +1372,7 @@ dependencies = [
  "apollo_node_config",
  "apollo_rpc",
  "libp2p",
+ "phf",
  "serde",
  "serde_json",
  "serde_with",
