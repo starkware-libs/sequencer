@@ -108,6 +108,7 @@ pub struct CentralObjects {
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
