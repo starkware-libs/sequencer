@@ -8,6 +8,7 @@
 //! - Deserialize: transparent, and deserializes exactly like `T`, ignoring the `redactor` field.
 
 use core::fmt;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -63,6 +64,14 @@ impl<T> Sensitive<T> {
         F: FnOnce(&mut T) -> R,
     {
         f(&mut self.inner)
+    }
+}
+
+impl<T> Deref for Sensitive<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
