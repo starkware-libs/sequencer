@@ -421,8 +421,8 @@ async fn test_get_class_hash_at() {
     assert_eq!(result, expected_result);
 }
 
-// TODO(Arni): Check if any test cases here should move to the tests of
-// `StateReaderAndContractManager`.
+// TODO(Arni): Convert scenarios that are covered in the blockifier's
+// state_reader_and_contract_manager_test.rs to unit tests of sync_state_reader.
 #[rstest]
 #[case::cairo_0_declared_and_cached(
     cairo_0_declared_scenario(),

@@ -11,6 +11,8 @@ pub mod state_api;
 #[cfg(any(feature = "testing", test))]
 pub mod state_api_test_utils;
 pub mod state_reader_and_contract_manager;
+#[cfg(any(feature = "testing", test))]
+pub mod state_reader_and_contract_manager_test_utils;
 pub mod stateful_compression;
 #[cfg(any(feature = "testing", test))]
 pub mod stateful_compression_test_utils;
