@@ -16,7 +16,7 @@ use super::node_data::inner_node::{EdgePathLength, PathToBottom};
 use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
 use super::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
-use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
+use super::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use super::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use super::updated_skeleton_tree::hash_function::TreeHashFunction;
 use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};

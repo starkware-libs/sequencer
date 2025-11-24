@@ -8,7 +8,10 @@ use tracing::warn;
 
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::{
+    NoCompareOriginalSkeletonTrieConfig,
+    OriginalSkeletonTreeConfig,
+};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
@@ -136,7 +139,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(())
     }
 
-    pub(crate) fn create_impl<L: Leaf>(
+    pub fn create<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -166,7 +169,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(skeleton_tree)
     }
 
-    pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
+    pub fn create_and_get_previous_leaves<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -194,6 +197,23 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             Some(&mut leaves),
         )?;
         Ok((skeleton_tree, leaves))
+    }
+
+    pub fn get_leaves<L: Leaf>(
+        storage: &mut impl Storage,
+        root_hash: HashOutput,
+        sorted_leaf_indices: SortedLeafIndices<'a>,
+    ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
+        let config = NoCompareOriginalSkeletonTrieConfig::default();
+        let leaf_modifications = LeafModifications::new();
+        let (_, previous_leaves) = Self::create_and_get_previous_leaves(
+            storage,
+            root_hash,
+            sorted_leaf_indices,
+            &leaf_modifications,
+            &config,
+        )?;
+        Ok(previous_leaves)
     }
 
     fn create_unmodified(root_hash: HashOutput) -> Self {
