@@ -812,6 +812,7 @@ name = "apollo_base_layer_tests"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
@@ -1560,6 +1561,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -9573,6 +9575,7 @@ version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra_utils",
  "assert_matches",
  "async-trait",
  "futures",

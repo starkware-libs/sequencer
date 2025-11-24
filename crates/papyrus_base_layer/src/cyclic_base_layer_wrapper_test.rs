@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use apollo_config::secrets::Sensitive;
+use apollo_infra_utils::url::to_safe_string;
 use rstest::rstest;
 use starknet_api::block::BlockHashAndNumber;
 use url::Url;
@@ -8,11 +10,13 @@ use url::Url;
 use crate::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockReference, MockBaseLayerContract, MockError};
 
-fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Url, MockError> {
+fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Sensitive<Url>, MockError> {
     if num_url_calls_made.load(Ordering::Relaxed) % 2 == 0 {
-        Ok(Url::parse("http://first_endpoint").unwrap())
+        Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
+            .with_redactor(to_safe_string))
     } else {
-        Ok(Url::parse("http://second_endpoint").unwrap())
+        Ok(Sensitive::new(Url::parse("http://second_endpoint").unwrap())
+            .with_redactor(to_safe_string))
     }
 }
 
@@ -253,10 +257,10 @@ async fn get_url_itself_fails() {
 async fn get_block_header_fails_after_cycle_error() {
     // Setup.
     let mut base_layer = MockBaseLayerContract::new();
-    base_layer
-        .expect_get_url()
-        .times(2)
-        .returning(move || Ok(Url::parse("http://first_endpoint").unwrap()));
+    base_layer.expect_get_url().times(2).returning(move || {
+        Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
+            .with_redactor(to_safe_string))
+    });
     base_layer.expect_get_block_header().times(1).returning(move |_| Err(MockError::MockError));
     base_layer.expect_cycle_provider_url().times(1).returning(move || Err(MockError::MockError));
     let mut wrapper = CyclicBaseLayerWrapper::new(base_layer);
@@ -301,7 +305,10 @@ async fn pass_through_get_block_header_immutable(#[case] success: bool) {
 async fn pass_through_get_url() {
     // Setup.
     let mut base_layer = MockBaseLayerContract::new();
-    base_layer.expect_get_url().returning(move || Ok(Url::parse("http://first_endpoint").unwrap()));
+    base_layer.expect_get_url().returning(move || {
+        Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
+            .with_redactor(to_safe_string))
+    });
     let wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
     // Test.
@@ -317,7 +324,12 @@ async fn pass_through_set_provider_url() {
     let mut wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
     // Test.
-    let result = wrapper.set_provider_url(Url::parse("http://first_endpoint").unwrap()).await;
+    let result = wrapper
+        .set_provider_url(
+            Sensitive::new(Url::parse("http://first_endpoint").unwrap())
+                .with_redactor(to_safe_string),
+        )
+        .await;
     assert!(result.is_ok());
 }
 
