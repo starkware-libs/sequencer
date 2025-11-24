@@ -5,6 +5,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::StatusCode;
 use rstest::rstest;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use url::Url;
 
 use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
@@ -98,7 +99,7 @@ async fn write_prev_height_blob(
     let mock = server.mock("POST", RECORDER_WRITE_BLOB_PATH).with_status(mock_status_code).create();
 
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: url.parse().unwrap(), ..Default::default() },
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap().into(), ..Default::default() },
         Arc::new(MockClassManagerClient::new()),
     );
 
@@ -141,7 +142,7 @@ async fn write_prev_height_blob_multiple_retries(
         .create();
 
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: url.parse().unwrap(), ..Default::default() },
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap().into(), ..Default::default() },
         Arc::new(MockClassManagerClient::new()),
     );
 
