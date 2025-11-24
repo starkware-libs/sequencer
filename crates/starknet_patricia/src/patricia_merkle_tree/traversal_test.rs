@@ -18,8 +18,9 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_leaf_entry,
     create_leaf_patricia_key,
     AdditionHash,
+    MockLeaf,
 };
-use crate::patricia_merkle_tree::internal_test_utils::{small_tree_index_to_full, MockLeaf};
+use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     to_preimage_map,
     BinaryData,

@@ -4,7 +4,9 @@ use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
+use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
@@ -14,7 +16,50 @@ use super::node_data::leaf::Leaf;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
 use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
+use crate::generate_trie_config;
 use crate::patricia_merkle_tree::errors::TypesError;
+use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+
+#[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
+pub struct MockLeaf(pub Felt);
+
+impl HasStaticPrefix for MockLeaf {
+    fn get_static_prefix() -> DbKeyPrefix {
+        DbKeyPrefix::new(&[0])
+    }
+}
+
+impl DBObject for MockLeaf {
+    fn serialize(&self) -> DbValue {
+        DbValue(self.0.to_bytes_be().to_vec())
+    }
+}
+
+impl Deserializable for MockLeaf {
+    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
+        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+    }
+}
+
+impl Leaf for MockLeaf {
+    type Input = Felt;
+    type Output = String;
+
+    fn is_empty(&self) -> bool {
+        self.0 == Felt::ZERO
+    }
+
+    // Create a leaf with value equal to input. If input is `Felt::MAX`, returns an error.
+    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
+        if input == Felt::MAX {
+            return Err(LeafError::LeafComputationError("Leaf computation error".to_string()));
+        }
+        Ok((Self(input), input.to_hex_string()))
+    }
+}
+
+generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
 
 pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
     if *value > u256_from_felt(&Felt::MAX) {

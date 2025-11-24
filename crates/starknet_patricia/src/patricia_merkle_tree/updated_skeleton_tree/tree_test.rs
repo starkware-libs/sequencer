@@ -4,7 +4,8 @@ use rstest::{fixture, rstest};
 use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::internal_test_utils::{get_initial_updated_skeleton, MockLeaf};
+use crate::patricia_merkle_tree::external_test_utils::MockLeaf;
+use crate::patricia_merkle_tree::internal_test_utils::get_initial_updated_skeleton;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;

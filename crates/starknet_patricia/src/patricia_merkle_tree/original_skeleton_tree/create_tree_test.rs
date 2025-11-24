@@ -18,8 +18,9 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
 };
-use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
