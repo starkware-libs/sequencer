@@ -1,8 +1,11 @@
+use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -11,10 +14,11 @@ use hyper::server::conn::AddrIncoming;
 use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tower::{service_fn, Service, ServiceExt};
 use tracing::{debug, error, trace, warn};
+use validator::Validate;
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
@@ -28,6 +32,44 @@ use crate::metrics::RemoteServerMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
+const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
+const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+
+// The communication configuration of a local component server.
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RemoteServerConfig {
+    pub max_streams_per_connection: u32,
+    pub bind_ip: IpAddr,
+}
+
+impl SerializeConfig for RemoteServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "bind_ip",
+                &self.bind_ip.to_string(),
+                "Binding address of the remote component server.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_streams_per_connection",
+                &self.max_streams_per_connection,
+                "Maximal number of streams per HTTP connection.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for RemoteServerConfig {
+    fn default() -> Self {
+        Self {
+            max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
+            bind_ip: DEFAULT_BIND_IP,
+        }
+    }
+}
+
 /// The `RemoteComponentServer` struct is a generic server that receives requests and returns
 /// responses for a specified component, using HTTP connection.
 pub struct RemoteComponentServer<Request, Response>
@@ -35,10 +77,10 @@ where
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
+    config: RemoteServerConfig,
+    port: u16,
     max_concurrency: usize,
-    max_streams_per_connection: Option<u32>,
     metrics: &'static RemoteServerMetrics,
 }
 
@@ -49,20 +91,13 @@ where
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
-        ip: IpAddr,
+        remote_server_config: RemoteServerConfig,
         port: u16,
         max_concurrency: usize,
-        max_streams_per_connection: Option<u32>,
         metrics: &'static RemoteServerMetrics,
     ) -> Self {
         metrics.register();
-        Self {
-            local_client,
-            socket: SocketAddr::new(ip, port),
-            max_concurrency,
-            max_streams_per_connection,
-            metrics,
-        }
+        Self { local_client, config: remote_server_config, port, max_concurrency, metrics }
     }
 
     async fn remote_component_server_handler(
@@ -134,9 +169,10 @@ where
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) {
+        let bind_socket = SocketAddr::new(self.config.bind_ip, self.port);
         debug!(
             "Starting server with socket {:?} with {:?} concurrent connections",
-            self.socket, self.max_concurrency
+            bind_socket, self.max_concurrency
         );
         let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
 
@@ -208,13 +244,13 @@ where
             }
         });
 
-        let mut incoming = AddrIncoming::bind(&self.socket).unwrap_or_else(|e| {
-            panic!("Failed to bind remote component server socket {:#?}: {e}", self.socket)
+        let mut incoming = AddrIncoming::bind(&bind_socket).unwrap_or_else(|e| {
+            panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
         incoming.set_nodelay(true);
 
         Server::builder(incoming)
-            .http2_max_concurrent_streams(self.max_streams_per_connection)
+            .http2_max_concurrent_streams(self.config.max_streams_per_connection)
             .serve(make_svc)
             .await
             .unwrap_or_else(|e| panic!("Remote component server start error: {e}"));
