@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use apollo_metrics::metrics::{
-    MetricCommon,
+    MetricDetails,
     MetricHistogram,
     MetricScope,
     COLLECT_SEQUENCER_PROFILING_METRICS,

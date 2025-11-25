@@ -259,9 +259,18 @@ impl ConsensusContext for SequencerConsensusContext {
             info!("Overriding L2 gas price to {override_value} fri");
             l2_gas_price = GasPrice(override_value);
         }
+
+        // The following calculations will panic on overflow/negative result.
+        let total_build_proposal_time = timeout - self.config.build_proposal_margin_millis;
+        let time_now = self.deps.clock.now();
+        let batcher_deadline = time_now + total_build_proposal_time;
+        let retrospective_block_hash_deadline = time_now
+            + total_build_proposal_time
+                .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
+
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
-            batcher_timeout: timeout - self.config.build_proposal_margin_millis,
+            batcher_deadline,
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
@@ -274,6 +283,10 @@ impl ConsensusContext for SequencerConsensusContext {
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
             proposal_round: self.current_round,
+            retrospective_block_hash_deadline,
+            retrospective_block_hash_retry_interval_millis: self
+                .config
+                .retrospective_block_hash_retry_interval_millis,
         };
         let handle = tokio::spawn(
             async move {

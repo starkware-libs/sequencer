@@ -8,6 +8,7 @@ use apollo_consensus_config::config::{
     ConsensusDynamicConfig,
     ConsensusStaticConfig,
     FutureMsgLimitsConfig,
+    Timeout,
     TimeoutsConfig,
 };
 use apollo_network::network_manager::test_utils::{
@@ -17,6 +18,8 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
@@ -36,11 +39,26 @@ lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
     static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
-    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig {
-        prevote_timeout: Duration::from_millis(100),
-        precommit_timeout: Duration::from_millis(100),
-        proposal_timeout: Duration::from_millis(100),
-    };
+    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::new(
+        // proposal
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(1000)
+        ),
+        // prevote
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(500)
+        ),
+        // precommit
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(500)
+        )
+    );
 }
 
 const CHANNEL_SIZE: usize = 10;
@@ -53,8 +71,12 @@ fn consensus_config() -> ConsensusConfig {
             validator_id: *VALIDATOR_ID,
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
+            future_msg_limit: FutureMsgLimitsConfig::default(),
         },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
+        },
     )
 }
 
@@ -343,7 +365,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
 #[tokio::test]
 async fn future_height_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
     // Use very low limit - only cache 1 height ahead with round 0.
-    consensus_config.static_config.future_msg_limit = FutureMsgLimitsConfig {
+    consensus_config.dynamic_config.future_msg_limit = FutureMsgLimitsConfig {
         future_height_limit: 1,
         future_round_limit: 0,
         future_height_round_limit: 0,
@@ -461,7 +483,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
 #[rstest]
 #[tokio::test]
 async fn current_height_round_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
-    consensus_config.static_config.future_msg_limit = FutureMsgLimitsConfig {
+    consensus_config.dynamic_config.future_msg_limit = FutureMsgLimitsConfig {
         future_height_limit: 10,
         future_round_limit: 0, // Accept only current round (current_round + 0).
         future_height_round_limit: 1,

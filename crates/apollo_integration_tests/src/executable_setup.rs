@@ -12,39 +12,34 @@ use tokio::fs::create_dir_all;
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
+// TODO(victork): consider completely removing this struct and use index directly
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
     node_index: usize,
-    executable_index: usize,
 }
 
 impl NodeExecutionId {
-    pub fn new(node_index: usize, executable_index: usize) -> Self {
-        Self { node_index, executable_index }
+    pub fn new(node_index: usize) -> Self {
+        Self { node_index }
     }
     pub fn get_node_index(&self) -> usize {
         self.node_index
     }
-    pub fn get_executable_index(&self) -> usize {
-        self.executable_index
-    }
 
-    // TODO(victork): remove path dependency on executable index
     pub fn build_path(&self, base: &Path) -> PathBuf {
         base.join(format!("node_{}", self.node_index))
-            .join(format!("executable_{}", self.executable_index))
     }
 }
 
 impl std::fmt::Display for NodeExecutionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Node id {} part {}", self.node_index, self.executable_index)
+        write!(f, "Node id {}", self.node_index)
     }
 }
 
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
-        NodeRunner::new(val.node_index, val.executable_index)
+        NodeRunner::new(val.node_index)
     }
 }
 

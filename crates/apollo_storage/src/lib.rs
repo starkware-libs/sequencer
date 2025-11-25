@@ -84,8 +84,7 @@ pub mod class;
 pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
-#[cfg(feature = "document_calls")]
-pub mod document_calls;
+pub mod consensus;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
@@ -104,6 +103,9 @@ mod deprecated;
 
 #[cfg(test)]
 mod test_instances;
+
+#[cfg(test)]
+mod open_storage_test;
 
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
@@ -136,7 +138,7 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersio
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
@@ -144,6 +146,7 @@ use validator::Validate;
 use version::{StorageVersionError, Version};
 
 use crate::body::TransactionIndex;
+use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
     open_env,
@@ -213,6 +216,7 @@ fn open_storage_internal(
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
         headers: db_writer.create_simple_table("headers")?,
+        last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
         nonces: db_writer.create_common_prefix_table("nonces")?,
         file_offsets: db_writer.create_simple_table("file_offsets")?,
@@ -594,6 +598,7 @@ pub fn table_names() -> &'static [&'static str] {
 }
 
 struct_field_names! {
+    // When adding a new table you need to update the MAX_DBS.
     struct Tables {
         block_hash_to_number: TableIdentifier<BlockHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         block_signatures: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockSignature>, SimpleTable>,
@@ -610,6 +615,7 @@ struct_field_names! {
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
+        last_voted_marker: TableIdentifier<(), NoVersionValueWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
         partial_block_hashes_components: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHashComponents>, SimpleTable>,
@@ -975,18 +981,4 @@ pub enum OffsetKind {
     TransactionOutput,
     /// A transaction file.
     Transaction,
-}
-
-/// A storage query. Used for benchmarking in the storage_benchmark binary.
-// TODO(dvir): add more queries (especially get casm).
-// TODO(dvir): consider move this, maybe to test_utils.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StorageQuery {
-    /// Get the class hash at a given state number.
-    GetClassHashAt(StateNumber, ContractAddress),
-    /// Get the nonce at a given state number.
-    GetNonceAt(StateNumber, ContractAddress),
-    /// Get the storage at a given state number.
-    GetStorageAt(StateNumber, ContractAddress, StorageKey),
 }

@@ -47,7 +47,7 @@ fn setup_scraper(
     expected_number_of_blocks: usize,
 ) -> L1GasPriceScraper<MockBaseLayerContract> {
     let mut mock_contract = MockBaseLayerContract::new();
-    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(end_block));
+    mock_contract.expect_latest_l1_block_number().returning(move || Ok(end_block));
     mock_contract.expect_get_block_header().returning(move |block_number| {
         if block_number >= end_block {
             Ok(None)
@@ -89,7 +89,7 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     // Explicitly making the mocks here, so we can customize them for the test.
     let mut mock_contract = MockBaseLayerContract::new();
     // Note the order of the expectation is important! Can only scrape the first blocks first.
-    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(END_BLOCK2));
+    mock_contract.expect_latest_l1_block_number().returning(move || Ok(END_BLOCK2));
     mock_contract
         .expect_get_block_header()
         .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
@@ -154,7 +154,7 @@ async fn l1_reorg_gas_price_scraper_error() {
     // Explicitly making the mocks here, so we can customize them for the test.
     let mut mock_contract = MockBaseLayerContract::new();
     // Note the order of the expectation is important! Can only scrape the first blocks first.
-    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(END_BLOCK2));
+    mock_contract.expect_latest_l1_block_number().returning(move || Ok(END_BLOCK2));
     mock_contract
         .expect_get_block_header()
         .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
@@ -231,10 +231,10 @@ async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
 
     // Explicitly making the mocks here, so we can customize them for the test.
     let mut mock_contract = MockBaseLayerContract::new();
-    // This expectation just returns the last block number we want (which is end_of_chain-finality).
+    // This expectation just returns the last block number.
     mock_contract
         .expect_latest_l1_block_number()
-        .returning(move |finality| Ok(end_of_chain_clone.load(Ordering::SeqCst) - finality));
+        .returning(move || Ok(end_of_chain_clone.load(Ordering::SeqCst)));
     // This expectation will return the regular chain, or the chain with the reorg (depending on
     // has_reorg_happened).
     mock_contract.expect_get_block_header().returning(move |block_number| {

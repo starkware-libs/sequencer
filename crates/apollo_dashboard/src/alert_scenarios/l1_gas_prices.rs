@@ -3,7 +3,7 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,

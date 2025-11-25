@@ -67,7 +67,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 360
+    "value": 358
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
@@ -92,12 +92,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
     "privacy": "Public",
-    "value": 604
+    "value": 358
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 5722
+    "value": 5723
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
@@ -107,12 +107,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
     "description": "Range_check gas weight.",
     "privacy": "Public",
-    "value": 70
+    "value": 90
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
     "description": "range_check96 gas weight.",
     "privacy": "Public",
-    "value": 56
+    "value": 179
   },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
@@ -1524,50 +1524,135 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
-    "description": "The validator id of the node.",
-    "pointer_target": "validator_id",
-    "privacy": "Public"
-  },
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_limit": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_height_round_limit": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.consensus_manager_config.static_config.future_msg_limit.future_round_limit": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10
-  },
-  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
-    "description": "Delay (seconds) before starting consensus to give time for network peering.",
-    "privacy": "Public",
-    "value": 5
   },
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.base": {
+    "description": "The base timeout (seconds).",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.delta": {
+    "description": "The per-round timeout delta (seconds).",
+    "privacy": "Public",
+    "value": 0.5
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.max": {
+    "description": "The maximum timeout (seconds).",
+    "privacy": "Public",
+    "value": 5.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.base": {
+    "description": "The base timeout (seconds).",
+    "privacy": "Public",
+    "value": 0.3
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.delta": {
+    "description": "The per-round timeout delta (seconds).",
+    "privacy": "Public",
+    "value": 0.1
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.max": {
+    "description": "The maximum timeout (seconds).",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base": {
+    "description": "The base timeout (seconds).",
     "privacy": "Public",
-    "value": 3.0
+    "value": 9.1
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.delta": {
+    "description": "The per-round timeout delta (seconds).",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max": {
+    "description": "The maximum timeout (seconds).",
+    "privacy": "Public",
+    "value": 15.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
+    "description": "The validator id of the node.",
+    "pointer_target": "validator_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
+    "description": "Delay (seconds) before starting consensus to give time for network peering.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.enforce_file_exists": {
+    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
+    "privacy": "Public",
+    "value": false
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
+    "privacy": "Public",
+    "value": 4294967296
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.max_size": {
+    "description": "The maximum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.min_size": {
+    "description": "The minimum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
+    "privacy": "Public",
+    "value": "/data/consensus"
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than max_object_size.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_object_size": {
+    "description": "The maximum size of a single object in the file in bytes",
+    "privacy": "Public",
+    "value": 268435456
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_size": {
+    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.scope": {
+    "description": "The categories of data saved in storage.",
+    "privacy": "Public",
+    "value": "StateOnly"
   },
   "consensus_manager_config.context_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
@@ -1578,6 +1663,11 @@
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
     "privacy": "Public",
     "value": 1000
+  },
+  "consensus_manager_config.context_config.build_proposal_time_ratio_for_retrospective_block_hash": {
+    "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
+    "privacy": "Public",
+    "value": 0.7
   },
   "consensus_manager_config.context_config.builder_address": {
     "description": "The address of the contract that builds the block.",
@@ -1674,6 +1764,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "consensus_manager_config.context_config.retrospective_block_hash_retry_interval_millis": {
+    "description": "The interval between retrospective block hash retries.",
+    "privacy": "Public",
+    "value": 500
+  },
   "consensus_manager_config.context_config.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
@@ -1763,6 +1858,16 @@
     "description": "The port that the node listens on for incoming connections.",
     "privacy": "Public",
     "value": 10000
+  },
+  "consensus_manager_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "consensus_manager_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
   },
   "consensus_manager_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
@@ -2079,16 +2184,6 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "l1_provider_config.bootstrap_catch_up_height_override": {
-    "description": "Override height at which the provider should catch up to the bootstrapper.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_provider_config.bootstrap_catch_up_height_override.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "l1_provider_config.dummy_mode": {
     "description": "When true, the L1 provider operates in dummy mode, always responding with trivial truthy responses without connecting to actual L1.",
     "privacy": "Public",
@@ -2108,16 +2203,6 @@
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
     "privacy": "Public",
     "value": 70
-  },
-  "l1_provider_config.provider_startup_height_override": {
-    "description": "Override height at which the provider should start",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_provider_config.provider_startup_height_override.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
@@ -2143,6 +2228,11 @@
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
     "value": 30
+  },
+  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": {
+    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
+    "privacy": "Public",
+    "value": false
   },
   "l1_scraper_config.startup_rewind_time_seconds": {
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
@@ -2193,6 +2283,11 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
+  },
+  "mempool_p2p_config.max_concurrent_gateway_requests": {
+    "description": "Maximum number of concurrent gateway requests before rejecting new transactions.",
+    "privacy": "Public",
+    "value": 10000
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
@@ -2273,6 +2368,16 @@
     "description": "The port that the node listens on for incoming connections.",
     "privacy": "Public",
     "value": 11111
+  },
+  "mempool_p2p_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "mempool_p2p_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
   },
   "mempool_p2p_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
@@ -2548,6 +2653,16 @@
     "description": "The port that the node listens on for incoming connections.",
     "privacy": "Public",
     "value": 12345
+  },
+  "state_sync_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "state_sync_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
   },
   "state_sync_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",

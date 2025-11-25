@@ -139,6 +139,7 @@ use crate::compression_utils::{
     serialize_and_compress,
     IsCompressed,
 };
+use crate::consensus::LastVotedMarker;
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::NoValue;
 use crate::header::StorageBlockHeader;
@@ -330,6 +331,9 @@ auto_storage_serde! {
     }
     pub struct L1ToL2Payload(pub Vec<Felt>);
     pub struct L2ToL1Payload(pub Vec<Felt>);
+    pub struct LastVotedMarker {
+        pub height: BlockNumber,
+    }
     enum MarkerKind {
         Header = 0,
         Body = 1,
@@ -744,6 +748,16 @@ impl StorageSerde for StorageKey {
 ////////////////////////////////////////////////////////////////////////
 //  Primitive types.
 ////////////////////////////////////////////////////////////////////////
+impl StorageSerde for () {
+    fn serialize_into(&self, _: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        Ok(())
+    }
+
+    fn deserialize_from(_: &mut impl std::io::Read) -> Option<Self> {
+        Some(())
+    }
+}
+
 impl StorageSerde for bool {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         u8::from(*self).serialize_into(res)

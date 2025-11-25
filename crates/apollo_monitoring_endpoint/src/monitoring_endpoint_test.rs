@@ -37,9 +37,10 @@ use crate::monitoring_endpoint::{
     MEMPOOL_SNAPSHOT,
     METRICS,
     READY,
+    SET_LOG_LEVEL,
     VERSION,
 };
-use crate::test_utils::build_request;
+use crate::test_utils::{build_post_request, build_request};
 use crate::tokio_metrics::{
     TOKIO_GLOBAL_QUEUE_DEPTH,
     TOKIO_MAX_BUSY_DURATION_MICROS,
@@ -71,6 +72,10 @@ async fn request_app(app: Router, method: &str) -> Response {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
 }
 
+async fn request_post_app(app: Router, method: &str) -> Response {
+    app.oneshot(build_post_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
+}
+
 #[tokio::test]
 async fn node_version() {
     let response = request_app(setup_monitoring_endpoint(None).app(), VERSION).await;
@@ -90,6 +95,26 @@ async fn alive_endpoint() {
 async fn ready_endpoint() {
     let response = request_app(setup_monitoring_endpoint(None).app(), READY).await;
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn set_log_level_valid() {
+    let app = setup_monitoring_endpoint(None).app();
+    let crate_name = "apollo_monitoring_endpoint";
+    let level = "debug";
+    let method = format!("{SET_LOG_LEVEL}/{crate_name}/{level}");
+    let response = request_post_app(app, &method).await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn set_log_level_invalid_level() {
+    let app = setup_monitoring_endpoint(None).app();
+    let crate_name = "apollo_monitoring_endpoint";
+    let invalid_level = "foobar";
+    let method = format!("{SET_LOG_LEVEL}/{crate_name}/{invalid_level}");
+    let response = request_post_app(app, &method).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -221,6 +246,10 @@ fn expected_l1_provider_snapshot() -> L1ProviderSnapshot {
     let expected_rejected_hashes = (10..15).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_rejected_staged_hashes = (10..12).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_committed_hashes = (15..20).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_cancellation_started_on_l2 = (20..25).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_cancelled_on_l2 = (25..30).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_consumed = (30..35).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_number_of_txs_in_records = 35;
     let l1_provider_state = String::from("Validate");
     let current_height = BlockNumber(1);
     L1ProviderSnapshot {
@@ -229,6 +258,10 @@ fn expected_l1_provider_snapshot() -> L1ProviderSnapshot {
         rejected_transactions: expected_rejected_hashes,
         rejected_staged_transactions: expected_rejected_staged_hashes,
         committed_transactions: expected_committed_hashes,
+        cancellation_started_on_l2: expected_cancellation_started_on_l2,
+        cancelled_on_l2: expected_cancelled_on_l2,
+        consumed: expected_consumed,
+        number_of_txs_in_records: expected_number_of_txs_in_records,
         l1_provider_state,
         current_height,
     }
@@ -242,14 +275,9 @@ async fn l1_provider_snapshot() {
     assert_eq!(response.status(), StatusCode::OK);
     let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
 
-    let expected_json = to_value(expected_l1_provider_snapshot()).expect(
-        "Failed to serialize
-L1ProviderSnapshot",
-    );
-    let received_json: Value = from_slice(&body_bytes).expect(
-        "Failed to
-parse JSON string",
-    );
+    let expected_json =
+        to_value(expected_l1_provider_snapshot()).expect("Failed to serialize L1ProviderSnapshot");
+    let received_json: Value = from_slice(&body_bytes).expect("Failed to parse JSON string");
 
     assert_eq!(expected_json, received_json);
 }

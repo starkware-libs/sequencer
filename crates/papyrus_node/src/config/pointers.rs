@@ -37,7 +37,6 @@ use clap::{arg, value_parser, Arg, ArgMatches, Command};
 use itertools::{chain, Itertools};
 use lazy_static::lazy_static;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
@@ -58,6 +57,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[
+                "consensus.static_config.storage_config.db_config.chain_id",
                 "context.chain_id",
                 "network.chain_id",
                 "rpc.chain_id",
@@ -73,7 +73,6 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "rpc.starknet_url",
                 "central.starknet_url",
-                "monitoring_gateway.starknet_url",
             ]),
         ),
         (
@@ -84,7 +83,6 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ),
             set_pointing_param_paths(&[
                 "rpc.collect_metrics",
-                "monitoring_gateway.collect_metrics",
             ]),
         ),
     ]

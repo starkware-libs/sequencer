@@ -23,7 +23,7 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 use apollo_storage::metrics::{
     BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
     CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,

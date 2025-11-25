@@ -4,7 +4,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_DROPPED,
 };
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,
@@ -59,19 +59,16 @@ fn get_mempool_evictions_count_alert(
     alert_severity: AlertSeverity,
 ) -> Alert {
     let evicted_label: &str = DropReason::Evicted.into();
-    let metric_name_with_filter_and_reason = format!(
-        "{}, {LABEL_NAME_DROP_REASON}=\"{evicted_label}\"}}",
-        MEMPOOL_TRANSACTIONS_DROPPED
-            .get_name_with_filter()
-            .strip_suffix("}")
-            .expect("Metric label filter should end with a }")
+
+    let query_expr = MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filer_and_additional_fields(
+        &format!("{LABEL_NAME_DROP_REASON}=\"{evicted_label}\""),
     );
 
     Alert::new(
         "mempool_evictions_count",
         "Mempool evictions count",
         AlertGroup::Mempool,
-        metric_name_with_filter_and_reason,
+        query_expr,
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,

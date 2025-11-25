@@ -3,4 +3,3 @@ pub mod metrics;
 pub mod pending_classes;
 pub mod python_json;
 pub mod state;
-pub mod storage_query;

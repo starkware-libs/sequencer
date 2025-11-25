@@ -15,7 +15,6 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::test_utils::assert_json_eq;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
@@ -94,7 +93,7 @@ fn load_http_headers() {
         ("NAME_1".to_string(), "VALUE_1".to_string()),
         ("NAME_2".to_string(), "VALUE_2".to_string()),
     ]);
-    assert_eq!(config.central.http_headers.unwrap(), target_http_headers);
+    assert_eq!(config.central.http_headers.unwrap().into(), target_http_headers);
 }
 
 // insta doesn't work well with features, so if the output between two features are different we

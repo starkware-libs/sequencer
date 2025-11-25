@@ -18,6 +18,7 @@ use starknet_api::transaction::{
 
 use crate::body::TransactionIndex;
 use crate::compression_utils::IsCompressed;
+use crate::consensus::LastVotedMarker;
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
@@ -55,6 +56,9 @@ auto_impl_get_test_instance! {
     pub enum IsCompressed {
         No = 0,
         Yes = 1,
+    }
+    pub struct LastVotedMarker{
+        pub height: BlockNumber,
     }
     enum MarkerKind {
         Header = 0,

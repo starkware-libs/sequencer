@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
-import sys
 import urllib.parse
 from typing import Optional
 
 from common_lib import (
+    Colors,
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
     print_colored,
-    print_error,
 )
-from restarter_lib import ServiceRestarter
+from metrics_lib import MetricConditionGater
+from restarter_lib import ServiceRestarter, WaitOnMetricRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,
@@ -21,8 +21,7 @@ from update_config_and_restart_nodes_lib import (
 )
 
 
-# TODO(guy.f): Remove this once we have metrics we use to decide based on.
-def get_logs_explorer_url_for_revert(
+def get_logs_explorer_url_for_enable_revert(
     namespace: str,
     block_number: int,
     project_name: str,
@@ -36,9 +35,8 @@ def get_logs_explorer_url_for_revert(
 
 
 def set_revert_mode(
-    namespace_list: list[str],
-    context_list: Optional[list[str]],
-    project_name: str,
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
+    restarter: ServiceRestarter,
     should_revert: bool,
     revert_up_to_block: int,
     immediate_active_height: Optional[int] = None,
@@ -55,30 +53,73 @@ def set_revert_mode(
         config_overrides["consensus_manager_config.immediate_active_height"] = height
         config_overrides["consensus_manager_config.cende_config.skip_write_height"] = height
 
+    update_config_and_restart_nodes(
+        ConstConfigValuesUpdater(config_overrides),
+        namespace_and_instruction_args,
+        Service.Core,
+        restarter,
+    )
+
+
+def enable_revert_mode(
+    namespace_list: list[str],
+    context_list: Optional[list[str]],
+    project_name: str,
+    revert_up_to_block: int,
+):
+    print_colored(
+        f"Enabling revert mode (reverting up to and including block {revert_up_to_block})",
+        Colors.YELLOW,
+    )
     post_restart_instructions = []
     for namespace in namespace_list:
-        url = get_logs_explorer_url_for_revert(namespace, revert_up_to_block, project_name)
+        url = get_logs_explorer_url_for_enable_revert(namespace, revert_up_to_block, project_name)
 
         post_restart_instructions.append(
             f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
         )
 
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
-        namespace_list,
-        context_list,
-        post_restart_instructions,
+        namespace_list, context_list, post_restart_instructions
     )
-    restarter = ServiceRestarter.from_restart_strategy(
+    restarter = WaitOnMetricRestarter(
+        namespace_and_instruction_args,
+        Service.Core,
+        [
+            MetricConditionGater.Metric(
+                "apollo_consensus_reverted_batcher_up_to_and_including",
+                lambda x: x == revert_up_to_block,
+                f"Waiting for the batcher to revert up to and including {revert_up_to_block}",
+            ),
+            MetricConditionGater.Metric(
+                "apollo_state_sync_reverted_up_to_and_including",
+                lambda x: x == revert_up_to_block,
+                f"Waiting for state sync to revert up to and including {revert_up_to_block}",
+            ),
+        ],
+        8082,
         RestartStrategy.ALL_AT_ONCE,
-        namespace_and_instruction_args,
-        Service.Core,
     )
+    set_revert_mode(namespace_and_instruction_args, restarter, True, revert_up_to_block)
 
-    update_config_and_restart_nodes(
-        ConstConfigValuesUpdater(config_overrides),
+
+def disable_revert_mode(
+    namespace_list: list[str],
+    context_list: Optional[list[str]],
+    immediate_active_height: int,
+):
+    print_colored("Disabling revert mode", Colors.YELLOW)
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(namespace_list, context_list)
+
+    set_revert_mode(
         namespace_and_instruction_args,
-        Service.Core,
-        restarter,
+        ServiceRestarter.from_restart_strategy(
+            RestartStrategy.ALL_AT_ONCE, namespace_and_instruction_args, Service.Core
+        ),
+        False,
+        # Setting to max block to max u64 to disable revert.
+        2**64 - 1,
+        immediate_active_height,
     )
 
 
@@ -122,14 +163,16 @@ Examples:
         "--disable-revert-only", action="store_true", help="Disable revert mode"
     )
 
-    args_builder.add_argument(
+    block_revert_args_group = args_builder.parser.add_mutually_exclusive_group(required=True)
+
+    block_revert_args_group.add_argument(
         "-b",
         "--revert-up-to-block",
         type=int,
         help="Block number up to which to revert (inclusive). Must be a positive integer.",
     )
 
-    args_builder.add_argument(
+    block_revert_args_group.add_argument(
         "-f",
         "--feeder-url",
         type=str,
@@ -145,52 +188,28 @@ Examples:
 
     args = args_builder.build()
 
-    should_revert = not args.disable_revert_only
-    if should_revert:
-        if args.feeder_url is None and args.revert_up_to_block is None:
-            print_error(
-                "Error: Either --feeder-url or --revert_up_to_block (-b) are required when reverting is requested."
-            )
-            sys.exit(1)
-        if args.feeder_url is not None and args.revert_up_to_block is not None:
-            print_error("Error: Cannot specify both --feeder-url and --revert_up_to_block (-b).")
-            sys.exit(1)
-
-    if args.disable_revert_only:
-        if args.feeder_url is not None:
-            print_error("Error: --feeder-url cannot be set when using --disable-revert-only")
-            sys.exit(1)
-        if args.revert_up_to_block is not None:
-            print_error("Error: --revert-up-to-block (-b) cannot be set when disabling revert.")
-            sys.exit(1)
-
     namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
     context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
+    should_revert = not args.disable_revert_only
     should_disable_revert = not args.revert_only
+    revert_up_to_block = (
+        args.revert_up_to_block
+        if args.revert_up_to_block is not None
+        else get_current_block_number(args.feeder_url)
+    )
     if should_revert:
-        revert_up_to_block = (
-            args.revert_up_to_block
-            if args.revert_up_to_block is not None
-            else get_current_block_number(args.feeder_url)
-        )
-        f"\nEnabling revert mode up to (and including) block {revert_up_to_block}"
-        set_revert_mode(
+        enable_revert_mode(
             namespace_list,
             context_list,
             args.project_name,
-            True,
             revert_up_to_block,
         )
+
     if should_disable_revert:
-        print_colored(f"\nDisabling revert mode")
-        # Setting to max block to max u64.
-        set_revert_mode(
+        disable_revert_mode(
             namespace_list,
             context_list,
-            args.project_name,
-            False,
-            18446744073709551615,
             # Immediate active height is the block number which will be the first block proposed.
             revert_up_to_block,
         )

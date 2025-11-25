@@ -1,6 +1,5 @@
 use apollo_infra_utils::template::Template;
 use serde_json::Value;
-
 const REPLACER_FORMAT: &str = "$$$_{}_$$$";
 
 pub(crate) fn insert_replacer_annotations<F>(mut json: Value, pred: F) -> Value

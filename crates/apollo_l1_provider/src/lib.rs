@@ -12,7 +12,6 @@ pub(crate) mod transaction_record;
 pub mod test_utils;
 
 pub use apollo_l1_provider_config::config::L1ProviderConfig;
-use apollo_l1_provider_types::SessionState;
 use papyrus_base_layer::constants::{
     EventIdentifier,
     CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER,
@@ -21,79 +20,7 @@ use papyrus_base_layer::constants::{
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
 
-use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManagerConfig;
-
-/// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ProviderState {
-    /// Provider is not read for proposing or validating. Use start_block to transition to Propose
-    /// or Validate.
-    Pending,
-    /// Provider is ready for proposing. Use commit_block to finish and return to Pending.
-    Propose,
-    /// Provider is catching up using sync. Only happens on startup.
-    Bootstrap(Bootstrapper),
-    /// Provider is ready for validating. Use validate to validate a transaction.
-    Validate,
-}
-
-impl ProviderState {
-    pub fn as_str(&self) -> &str {
-        match self {
-            ProviderState::Pending => "Pending",
-            ProviderState::Propose => "Propose",
-            ProviderState::Bootstrap(_) => "Bootstrap",
-            ProviderState::Validate => "Validate",
-        }
-    }
-
-    /// Checks if the provider is in its uninitialized state. In this state, the provider has
-    /// started, but its startup sequence, triggered via the initialization API, has not yet
-    /// begun.
-    pub fn uninitialized(&mut self) -> bool {
-        self.get_bootstrapper().is_some_and(|bootstrapper| !bootstrapper.sync_started())
-    }
-
-    pub fn is_bootstrapping(&self) -> bool {
-        if let ProviderState::Bootstrap { .. } = self {
-            return true;
-        }
-
-        false
-    }
-
-    pub fn get_bootstrapper(&mut self) -> Option<&mut Bootstrapper> {
-        if let ProviderState::Bootstrap(bootstrapper) = self {
-            return Some(bootstrapper);
-        }
-
-        None
-    }
-
-    fn transition_to_pending(&self) -> ProviderState {
-        assert!(
-            !self.is_bootstrapping(),
-            "Transitioning from bootstrapping should be done manually by the L1Provider."
-        );
-        ProviderState::Pending
-    }
-}
-
-impl From<SessionState> for ProviderState {
-    fn from(state: SessionState) -> Self {
-        match state {
-            SessionState::Propose => ProviderState::Propose,
-            SessionState::Validate => ProviderState::Validate,
-        }
-    }
-}
-
-impl std::fmt::Display for ProviderState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
 
 // TODO(Nadin): Move to the l1 provider config crate.
 impl From<L1ProviderConfig> for TransactionManagerConfig {

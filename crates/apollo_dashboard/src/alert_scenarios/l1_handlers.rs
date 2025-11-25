@@ -1,5 +1,5 @@
 use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_SUCCESS_COUNT;
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,

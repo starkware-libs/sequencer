@@ -11,7 +11,7 @@ use apollo_mempool::metrics::{
     TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder::{
