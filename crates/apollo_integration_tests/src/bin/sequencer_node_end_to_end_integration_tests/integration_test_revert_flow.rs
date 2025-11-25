@@ -194,7 +194,5 @@ fn modify_height_configs_idle_nodes(
         // function accordingly.
         config.consensus_manager_config.as_mut().unwrap().immediate_active_height =
             node_start_height;
-        config.consensus_manager_config.as_mut().unwrap().cende_config.skip_write_height =
-            Some(node_start_height);
     });
 }
