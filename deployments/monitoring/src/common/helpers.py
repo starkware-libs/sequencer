@@ -23,17 +23,6 @@ def alert_env_filename_suffix(env: EnvironmentName) -> str:
     return env_to_alert_filename_suffix_mapping[env]
 
 
-# Translates the environment name to a GCP project name in order to access the logs.
-def env_to_gcp_project_name(env: EnvironmentName) -> str:
-    env_to_gcp_project_name_mapping = {
-        EnvironmentName.DEV: "",
-        EnvironmentName.INTEGRATION: "starkware-starknet-testnet",
-        EnvironmentName.TESTNET: "starkware-starknet-testnet",
-        EnvironmentName.MAINNET: "starkware-prod",
-    }
-    return env_to_gcp_project_name_mapping[env]
-
-
 def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
     message_color = "light_white"
     time_color = "light_black"
