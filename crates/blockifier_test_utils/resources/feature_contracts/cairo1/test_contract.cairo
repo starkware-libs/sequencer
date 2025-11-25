@@ -517,7 +517,6 @@ mod TestContract {
         self: @ContractState,
         class_hash: ClassHash,
         self_address: ContractAddress,
-        deploy_and_fail_selector: felt252,
         contract_address_salt: felt252,
         expected_deploy_address: ContractAddress,
     ) {
@@ -527,7 +526,7 @@ mod TestContract {
         assert(current_class_hash == zero_class_hash, 'ALREADY_DEPLOYED');
         match syscalls::call_contract_syscall(
             self_address,
-            deploy_and_fail_selector,
+            selector!("deploy_and_fail"),
             array![class_hash.into(), contract_address_salt, expected_deploy_address.into(),]
                 .span(),
         ) {
