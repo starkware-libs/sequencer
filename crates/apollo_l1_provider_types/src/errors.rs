@@ -9,14 +9,6 @@ use crate::ProviderState;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1ProviderError {
-    #[error("`get_txs` while in `Validate` state")]
-    GetTransactionConsensusBug,
-    // This is likely due to a crash, restart block proposal.
-    #[error("`get_txs` called when provider is not in proposer state")]
-    OutOfSessionGetTransactions,
-    // This is likely due to a crash, restart block proposal.
-    #[error("`validate` called when provider is not in proposer state")]
-    OutOfSessionValidate,
     // This error indicates that the provider is uninitialized.
     // It likely occurs if the provider restarted while the scraper remained active.
     // In that case, the scraper's restart logic will automatically reinitialize the provider.
@@ -28,8 +20,6 @@ pub enum L1ProviderError {
     UnexpectedProviderState { expected: ProviderState, found: ProviderState },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
-    #[error("`validate` called while in `Propose` state")]
-    ValidateTransactionConsensusBug,
 }
 
 impl L1ProviderError {
