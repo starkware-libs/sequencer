@@ -35,6 +35,7 @@ starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true, features = ["log"] }
 validator = { workspace = true, features = ["derive"] }
 zstd.workspace = true
