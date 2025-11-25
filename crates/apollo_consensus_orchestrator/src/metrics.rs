@@ -36,7 +36,7 @@ pub const LABEL_CENDE_FAILURE_REASON: &str = "cende_write_failure_reason";
 
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum CendeWriteFailureReason {
+pub(crate) enum CendeWritePrevHeightFailureReason {
     SkipWriteHeight,
     CommunicationError,
     CendeRecorderError,
@@ -46,10 +46,10 @@ pub(crate) enum CendeWriteFailureReason {
 
 generate_permutation_labels! {
     CENDE_WRITE_BLOB_FAILURE_REASON,
-    (LABEL_CENDE_FAILURE_REASON, CendeWriteFailureReason),
+    (LABEL_CENDE_FAILURE_REASON, CendeWritePrevHeightFailureReason),
 }
 
-pub(crate) fn record_write_failure(reason: CendeWriteFailureReason) {
+pub(crate) fn record_write_failure(reason: CendeWritePrevHeightFailureReason) {
     CENDE_WRITE_BLOB_FAILURE.increment(1, &[(LABEL_CENDE_FAILURE_REASON, reason.into())]);
 }
 
