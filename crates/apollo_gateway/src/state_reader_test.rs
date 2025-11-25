@@ -18,6 +18,7 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_api_test_utils::assert_eq_state_result;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::test_utils::initial_test_state::state_reader_and_contract_manager_for_testing;
 use lazy_static::lazy_static;
@@ -430,21 +431,6 @@ lazy_static! {
         DUMMY_CONTRACT_CLASS_V0.clone().try_into().unwrap();
 }
 
-fn assert_eq_state_result(
-    a: &StateResult<RunnableCompiledClass>,
-    b: &StateResult<RunnableCompiledClass>,
-) {
-    match (a, b) {
-        (Ok(a), Ok(b)) => assert_eq!(a, b),
-        (Err(StateError::UndeclaredClassHash(a)), Err(StateError::UndeclaredClassHash(b))) => {
-            assert_eq!(a, b)
-        }
-        _ => panic!("StateResult mismatch (or unsupported comparison): {a:?} vs {b:?}"),
-    }
-}
-
-// TODO(Arni): Check if any test cases here should move to the tests of
-// `StateReaderAndContractManager`.
 #[rstest]
 #[case::cairo_0_declared_and_cached(
     cairo_0_declared_scenario(),
