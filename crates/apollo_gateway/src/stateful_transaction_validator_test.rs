@@ -135,6 +135,7 @@ async fn test_extract_state_nonce_and_run_validations(
         // The mempool does not have any transactions from the sender.
         Ok(false)
     });
+    mock_mempool_client.expect_validate_tx().returning(|_| Ok(()));
     let mempool_client = Arc::new(mock_mempool_client);
     let runtime = tokio::runtime::Handle::current();
 
@@ -353,10 +354,12 @@ async fn validate_resource_bounds(
     };
 
     let result = tokio::task::spawn_blocking(move || {
+        let mut mempool_client = MockMempoolClient::new();
+        mempool_client.expect_validate_tx().returning(|_| Ok(()));
         stateful_validator.run_transaction_validations(
             &executable_tx,
             account_nonce,
-            Arc::new(MockMempoolClient::new()),
+            Arc::new(mempool_client),
             tokio::runtime::Handle::current(),
         )
     })
@@ -471,10 +474,12 @@ async fn run_transaction_validation_test(
     };
 
     let result = tokio::task::spawn_blocking(move || {
+        let mut mempool_client = MockMempoolClient::new();
+        mempool_client.expect_validate_tx().returning(|_| Ok(()));
         stateful_validator.run_transaction_validations(
             &executable_tx,
             account_nonce,
-            Arc::new(MockMempoolClient::new()),
+            Arc::new(mempool_client),
             tokio::runtime::Handle::current(),
         )
     })

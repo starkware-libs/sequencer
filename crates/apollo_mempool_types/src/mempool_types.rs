@@ -6,6 +6,7 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
@@ -40,7 +41,7 @@ impl AddTransactionArgs {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ValidationArgs {
     pub address: ContractAddress,
     pub account_nonce: Nonce,
@@ -48,6 +49,19 @@ pub struct ValidationArgs {
     pub tx_nonce: Nonce,
     pub tip: Tip,
     pub max_l2_gas_price: GasPrice,
+}
+
+impl ValidationArgs {
+    pub fn new(tx: &AccountTransaction, account_nonce: Nonce) -> Self {
+        Self {
+            address: tx.sender_address(),
+            account_nonce,
+            tx_hash: tx.tx_hash(),
+            tx_nonce: tx.nonce(),
+            tip: tx.tip(),
+            max_l2_gas_price: tx.resource_bounds().get_l2_bounds().max_price_per_unit,
+        }
+    }
 }
 
 impl From<&AddTransactionArgs> for ValidationArgs {
