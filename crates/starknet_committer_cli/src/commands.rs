@@ -419,7 +419,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     }
 
     // Export to csv in the last iteration.
-    if n_iterations % checkpoint_interval != 0 {
+    if !n_iterations.is_multiple_of(checkpoint_interval) {
         time_measurement.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,

@@ -14,7 +14,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   REPO_NAME: ${{ github.repository }}
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   docker-build-push:

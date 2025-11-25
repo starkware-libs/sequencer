@@ -102,12 +102,12 @@ async fn request_prioritization() {
     for i in 1..=NUMBER_OF_MESSAGES {
         let client = client.clone();
         task::spawn(async move {
-            let request = if i % 2 == 0 {
+            let request = if i.is_multiple_of(2) {
                 PriorityTestRequest::HighPriorityAdd(i)
             } else {
                 PriorityTestRequest::NormalPriorityAdd(i)
             };
-            let expected_response = if i % 2 == 0 {
+            let expected_response = if i.is_multiple_of(2) {
                 PriorityTestResponse::HighPriorityAdd(i)
             } else {
                 PriorityTestResponse::NormalPriorityAdd(i)

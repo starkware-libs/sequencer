@@ -71,7 +71,7 @@ pub(crate) fn copy_dir_contents(src: &Path, dst: &Path) {
 /// Panics if the input vector has an odd number of elements.
 pub fn parse_absolute_time_limits(args: Vec<String>) -> HashMap<String, f64> {
     assert!(
-        args.len() % 2 == 0,
+        args.len().is_multiple_of(2),
         "Invalid number of absolute time limits arguments: expected even number, got {}",
         args.len()
     );

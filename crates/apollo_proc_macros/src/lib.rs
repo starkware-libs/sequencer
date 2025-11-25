@@ -454,7 +454,7 @@ pub fn log_every_n(input: TokenStream) -> TokenStream {
             let counter = #ident.get_or_init(|| ::std::sync::atomic::AtomicUsize::new(0));
             let current_count = counter.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed);
 
-            if current_count % (#n) == 0 {
+            if current_count.is_multiple_of(#n) {
                 #log_macro!(#(#args),*);
             }
         }
