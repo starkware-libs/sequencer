@@ -3,6 +3,9 @@ use crate::block::StarknetVersion;
 pub trait VersionedConstantsTrait {
     type Error;
 
+    /// Gets the first version with versioned constants.
+    fn first_version() -> StarknetVersion;
+
     /// Gets the contents of the JSON file for the specified Starknet version.
     fn json_str(version: &StarknetVersion) -> Result<&'static str, Self::Error>;
 
@@ -18,7 +21,12 @@ pub trait VersionedConstantsTrait {
 /// Optionally provide an intermediate struct for deserialization.
 #[macro_export]
 macro_rules! define_versioned_constants {
-    ($struct_name:ident, $error_type:ident, $(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    (
+        $struct_name:ident,
+        $error_type:ident,
+        $first_version:expr,
+        $(($variant:ident, $path_to_json:expr)),* $(,)?
+    ) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
         paste::paste! {
@@ -33,7 +41,7 @@ macro_rules! define_versioned_constants {
         }
 
         $crate::define_versioned_constants_inner!(
-            $struct_name, $error_type, $(($variant, $path_to_json)),*
+            $struct_name, $error_type, $first_version, $(($variant, $path_to_json)),*
         );
     };
 
@@ -41,6 +49,7 @@ macro_rules! define_versioned_constants {
         $struct_name:ident,
         $intermediate_struct_name:ident,
         $error_type:ident,
+        $first_version:expr,
         $(($variant:ident, $path_to_json:expr)),* $(,)?
     ) => {
         // Static (lazy) instances of the versioned constants.
@@ -60,14 +69,19 @@ macro_rules! define_versioned_constants {
         }
 
         $crate::define_versioned_constants_inner!(
-            $struct_name, $error_type, $(($variant, $path_to_json)),*
+            $struct_name, $error_type, $first_version, $(($variant, $path_to_json)),*
         );
     };
 }
 
 #[macro_export]
 macro_rules! define_versioned_constants_inner {
-    ($struct_name:ident, $error_type:ident, $(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    (
+        $struct_name:ident,
+        $error_type:ident,
+        $first_version:expr,
+        $(($variant:ident, $path_to_json:expr)),* $(,)?
+    ) => {
         paste::paste! {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
@@ -77,6 +91,10 @@ macro_rules! define_versioned_constants_inner {
 
         impl starknet_api::versioned_constants_logic::VersionedConstantsTrait for $struct_name {
             type Error = $error_type;
+
+            fn first_version() -> StarknetVersion {
+                $first_version
+            }
 
             fn json_str(
                 version: &starknet_api::block::StarknetVersion
