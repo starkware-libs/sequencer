@@ -32,26 +32,10 @@ use crate::state_reader::reexecution_state_reader::{
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
-pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
-
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
-
-pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
-    match (
-        node_url.contains("mainnet"),
-        node_url.contains("sepolia"),
-        node_url.contains("integration"),
-    ) {
-        (true, false, false) => Ok(ChainId::Mainnet),
-        (false, true, false) => Ok(ChainId::Sepolia),
-        // Integration URLs may contain the word "sepolia".
-        (false, _, true) => Ok(ChainId::IntegrationSepolia),
-        _ => Err(ReexecutionError::AmbiguousChainIdFromUrl(node_url.to_string())),
-    }
-}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
@@ -365,18 +349,4 @@ macro_rules! assert_eq_state_diff {
             "Expected and actual state diffs do not match.",
         );
     };
-}
-
-/// Returns the block numbers for re-execution.
-/// There is a block number for each Starknet Version (starting v0.13)
-/// And some additional blocks with specific transactions.
-pub fn get_block_numbers_for_reexecution(relative_path: Option<String>) -> Vec<BlockNumber> {
-    let file_path = relative_path.unwrap_or_default()
-        + &(FULL_RESOURCES_DIR.to_string() + "/../block_numbers_for_reexecution.json");
-    let block_numbers_examples: HashMap<String, u64> =
-        serde_json::from_str(&read_to_string(file_path.clone()).expect(
-            &("Failed to read the block_numbers_for_reexecution file at ".to_string() + &file_path),
-        ))
-        .expect("Failed to deserialize block header");
-    block_numbers_examples.values().cloned().map(BlockNumber).collect()
 }
