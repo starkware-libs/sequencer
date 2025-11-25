@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echonet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echonet
+      role: flask
+  template:
+    metadata:
+      labels:
+        app: echonet
+        role: flask
+    spec:
+      containers:
+        - name: app
+          image: python:3.11-slim
+          ports: [{containerPort: 80}]
+          env:
+            - { name: PYTHONUNBUFFERED, value: "1" }
+            - { name: BLOCKS_DIR, value: "/data/blocks" }
+            - { name: ECHONET_LOG_DIR, value: "/data/echonet" }
+          command: ["bash","-lc"]
+          args:
+            - >
+              pip install --no-cache-dir flask gunicorn requests aiohttp >/dev/null &&
+              echo "[FLASK] starting gunicorn on :80" &&
+              gunicorn -w 1 -b 0.0.0.0:80 echo_center:app --timeout 0 --access-logfile -
+          volumeMounts:
+            - { name: app-src, mountPath: /app }
+            - { name: data-dir, mountPath: /data }
+          workingDir: /app
+      volumes:
+        - name: app-src
+          configMap:
+            name: echonet-app
+            items:
+              - { key: echo_center.py, path: echo_center.py }
+              - { key: transaction_sender.py, path: transaction_sender.py }
+              - { key: reports.py, path: reports.py }
+              - { key: consts.py, path: consts.py }
+              - { key: feeder_client.py, path: feeder_client.py }
+              - { key: shared_context.py, path: shared_context.py }
+              - { key: l1_handler.py, path: l1_handler.py }
+
+        - name: data-dir
+          emptyDir: {}
+
+
+
+

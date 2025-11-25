@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  - name: echonet-app
+    files:
+      - echo_center.py=../../echo_center.py
+      - transaction_sender.py=../../transaction_sender.py
+      - reports.py=../../reports.py
+      - consts.py=../../consts.py
+      - feeder_client.py=../../feeder_client.py
+      - shared_context.py=../../shared_context.py
+      - l1_handler.py=../../l1_handler.py
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+
+
+
