@@ -78,7 +78,7 @@ pub(crate) fn record_block_close_reason(reason: BlockCloseReason) {
 }
 
 pub const BATCHER_CLASS_CACHE_METRICS: CacheMetrics =
-    CacheMetrics { misses: CLASS_CACHE_MISSES, hits: CLASS_CACHE_HITS };
+    CacheMetrics::new(CLASS_CACHE_MISSES, CLASS_CACHE_HITS);
 
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();

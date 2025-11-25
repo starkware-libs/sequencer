@@ -22,20 +22,20 @@ use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 /// Placeholder class cache metrics. The metrics are not tested in the blockifier's context.
-const BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics {
-    misses: MetricCounter::new(
+const BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics::new(
+    MetricCounter::new(
         MetricScope::Blockifier,
         "Class Cache Misses in Blockifier",
         "Counter of the number of times that the class cache was missed",
         0,
     ),
-    hits: MetricCounter::new(
+    MetricCounter::new(
         MetricScope::Blockifier,
         "Class Cache Misses in Blockifier",
         "Counter of the number of times that the class cache was hit",
         0,
     ),
-};
+);
 
 /// Utility to fund an account.
 pub fn fund_account(

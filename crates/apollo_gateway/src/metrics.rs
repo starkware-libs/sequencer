@@ -247,7 +247,7 @@ impl Drop for GatewayMetricHandle {
 }
 
 pub const GATEWAY_CLASS_CACHE_METRICS: CacheMetrics =
-    CacheMetrics { misses: CLASS_CACHE_MISSES, hits: CLASS_CACHE_HITS };
+    CacheMetrics::new(CLASS_CACHE_MISSES, CLASS_CACHE_HITS);
 
 pub(crate) fn register_metrics() {
     GATEWAY_CLASS_CACHE_METRICS.register();
