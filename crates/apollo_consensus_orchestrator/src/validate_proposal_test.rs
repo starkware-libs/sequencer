@@ -26,6 +26,7 @@ use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 

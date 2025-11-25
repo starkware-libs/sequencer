@@ -19,6 +19,7 @@ use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 

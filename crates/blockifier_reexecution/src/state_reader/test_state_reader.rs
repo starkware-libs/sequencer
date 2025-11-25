@@ -30,6 +30,7 @@ use starknet_api::block::{
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 

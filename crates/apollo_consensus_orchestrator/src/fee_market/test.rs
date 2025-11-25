@@ -2,6 +2,7 @@ use std::sync::LazyLock;
 
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::fee_market::calculate_next_base_gas_price;
 use crate::orchestrator_versioned_constants::VersionedConstants;

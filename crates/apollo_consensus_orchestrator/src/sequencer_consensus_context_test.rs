@@ -37,6 +37,7 @@ use starknet_api::block::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
