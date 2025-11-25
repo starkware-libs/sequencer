@@ -469,6 +469,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.batcher.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -574,6 +579,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.class_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -678,6 +688,11 @@
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 10
+  },
+  "components.config_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.config_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -789,6 +804,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.gateway.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -899,6 +919,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.l1_endpoint_monitor.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1003,6 +1028,11 @@
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 10
+  },
+  "components.l1_gas_price_provider.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.l1_gas_price_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1114,6 +1144,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.l1_provider.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1224,6 +1259,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.mempool.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1328,6 +1368,11 @@
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 10
+  },
+  "components.mempool_p2p.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1439,6 +1484,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.sierra_compiler.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1544,6 +1594,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.signature_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1648,6 +1703,11 @@
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 10
+  },
+  "components.state_sync.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
