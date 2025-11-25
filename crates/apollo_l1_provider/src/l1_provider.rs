@@ -230,13 +230,10 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending => Err(L1ProviderError::UnexpectedProviderState {
+            _ => Err(L1ProviderError::UnexpectedProviderState {
                 expected: ProviderState::Propose,
                 found: self.state,
             }),
-            ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionGetTransactions),
-            ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
-            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
@@ -258,13 +255,10 @@ impl L1Provider {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
-            ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending => Err(L1ProviderError::UnexpectedProviderState {
+            _ => Err(L1ProviderError::UnexpectedProviderState {
                 expected: ProviderState::Validate,
                 found: self.state,
             }),
-            ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionValidate),
-            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
