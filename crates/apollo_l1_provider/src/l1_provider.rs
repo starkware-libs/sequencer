@@ -169,6 +169,8 @@ impl L1Provider {
                     if let Err(previously_consumed_at) =
                         self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
                     {
+                        // TODO(guyn): need to check if this is really a critical bug, or if we can
+                        // log and ignore.
                         panic!(
                             "Double consumption of {tx_hash} at {consumed_at}, previously \
                              consumed at {previously_consumed_at}."
@@ -228,12 +230,10 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending => {
-                panic!(
-                    "get_txs called while in pending state. Panicking in order to restart the \
-                     provider and bootstrap again."
-                );
-            }
+            ProviderState::Pending => Err(L1ProviderError::UnexpectedProviderState {
+                expected: ProviderState::Propose,
+                found: self.state,
+            }),
             ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionGetTransactions),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
             ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
@@ -259,12 +259,10 @@ impl L1Provider {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending => {
-                panic!(
-                    "validate called while in pending state. Panicking in order to restart the \
-                     provider and bootstrap again."
-                );
-            }
+            ProviderState::Pending => Err(L1ProviderError::UnexpectedProviderState {
+                expected: ProviderState::Validate,
+                found: self.state,
+            }),
             ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionValidate),
             ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
