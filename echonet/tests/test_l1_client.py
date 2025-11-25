@@ -3,10 +3,13 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import logging
 import requests
 import unittest
 from l1_client import L1Client
 from unittest.mock import Mock, patch
+
+logger = logging.getLogger("l1 client tests")
 
 
 class TestL1Client(unittest.TestCase):
@@ -61,24 +64,24 @@ class TestL1Client(unittest.TestCase):
 
         mock_post.side_effect = [request_exception, successful_response]
 
-        logs = L1Client.get_logs(
+        client = L1Client(api_key="api_key", logger=logger)
+        logs = client.get_logs(
             from_block=self.BLOCK_NUMBER_SAMPLE,
             to_block=self.BLOCK_NUMBER_SAMPLE,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_post.call_count, 2)
         self.assertEqual(logs, [self.EXPECTED_LOG_SAMPLE])
 
     def test_get_logs_raises_on_invalid_block_range(self):
+        client = L1Client(api_key="api_key", logger=logger)
         with self.assertRaisesRegex(
             ValueError,
             "from_block must be less than or equal to to_block",
         ):
-            L1Client.get_logs(
+            client.get_logs(
                 from_block=11,
                 to_block=10,
-                api_key="api_key",
             )
 
     @patch("l1_client.requests.post")
@@ -116,10 +119,10 @@ class TestL1Client(unittest.TestCase):
 
         mock_post.return_value = response_ok
 
-        logs = L1Client.get_logs(
+        client = L1Client(api_key="api_key", logger=logger)
+        logs = client.get_logs(
             from_block=1,
             to_block=2,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_post.call_count, 1)
@@ -161,10 +164,10 @@ class TestL1Client(unittest.TestCase):
 
         mock_post.return_value = response_ok
 
-        logs = L1Client.get_logs(
+        client = L1Client(api_key="api_key", logger=logger)
+        logs = client.get_logs(
             from_block=1,
             to_block=1,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_post.call_count, 1)
@@ -180,9 +183,9 @@ class TestL1Client(unittest.TestCase):
 
         mock_post.side_effect = [request_exception, successful_response]
 
-        result = L1Client.get_timestamp_of_block(
+        client = L1Client(api_key="api_key", logger=logger)
+        result = client.get_timestamp_of_block(
             block_number=123,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_post.call_count, 2)
@@ -196,9 +199,9 @@ class TestL1Client(unittest.TestCase):
 
         mock_post.return_value = response_ok
 
-        result = L1Client.get_timestamp_of_block(
+        client = L1Client(api_key="api_key", logger=logger)
+        result = client.get_timestamp_of_block(
             block_number=123,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_post.call_count, 1)
@@ -216,9 +219,9 @@ class TestL1Client(unittest.TestCase):
 
         mock_get.side_effect = [request_exception, successful_response]
 
-        result = L1Client.get_block_number_by_timestamp(
+        client = L1Client(api_key="api_key", logger=logger)
+        result = client.get_block_number_by_timestamp(
             timestamp=1_600_000_000,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_get.call_count, 2)
@@ -232,9 +235,9 @@ class TestL1Client(unittest.TestCase):
 
         mock_get.return_value = response_ok
 
-        result = L1Client.get_block_number_by_timestamp(
+        client = L1Client(api_key="api_key", logger=logger)
+        result = client.get_block_number_by_timestamp(
             timestamp=1_600_000_000,
-            api_key="api_key",
         )
 
         self.assertEqual(mock_get.call_count, 1)
