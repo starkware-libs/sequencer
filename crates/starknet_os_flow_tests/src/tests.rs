@@ -1995,6 +1995,44 @@ async fn test_deploy_syscall() {
 
 #[rstest]
 #[tokio::test]
+async fn test_inner_deploy_failure() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_manager, [test_contract_address, _empty_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (empty_contract, calldata![]),
+        ])
+        .await;
+
+    // Precompute the expected deploy address of the new empty contract instance.
+    let salt = ContractAddressSalt(Felt::from(127));
+    let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
+    let expected_deploy_address =
+        calculate_contract_address(salt, empty_class_hash, &calldata![], test_contract_address)
+            .unwrap();
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_get_class_hash_after_failed_deploy",
+        &[
+            empty_class_hash.0,
+            **test_contract_address,
+            selector_from_name("deploy_and_fail").0,
+            salt.0,
+            **expected_deploy_address,
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test and verify storage changes.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
 async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let cairo_version =
         if is_cairo0 { CairoVersion::Cairo0 } else { CairoVersion::Cairo1(RunnableCairo1::Casm) };
