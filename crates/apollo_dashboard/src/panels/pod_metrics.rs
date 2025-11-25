@@ -1,41 +1,215 @@
-use apollo_metrics::metric_label_filter;
+use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::infra_panels::POD_LEGEND;
 
-fn get_pod_memory_utilization_panel() -> Panel {
-    Panel::new(
-        "pod_memory_utilization",
-        "Pod Memory Utilization",
-        vec![format!("container_memory_working_set_bytes{0}", metric_label_filter!())],
-        PanelType::TimeSeries,
-    )
-}
-
-fn get_pod_disk_utilization_panel() -> Panel {
-    Panel::new(
-        "pod_disk_utilization",
-        "Pod Disk Utilization",
-        vec![format!("kubelet_volume_stats_used_bytes{0}", metric_label_filter!())],
-        PanelType::TimeSeries,
-    )
-}
-
-fn get_pod_cpu_utilization_panel() -> Panel {
-    Panel::new(
-        "pod_cpu_utilization",
-        "Pod CPU Utilization",
-        vec![format!("container_cpu_usage_seconds_total{0}", metric_label_filter!())],
-        PanelType::TimeSeries,
-    )
-}
+// TODO(Tsabary): add thresholds.
+// TODO(Tsabary): replace query building with relevant functions and templates.
 
 pub(crate) fn get_pod_metrics_row() -> Row {
     Row::new(
         "Pod Metrics",
         vec![
-            get_pod_memory_utilization_panel(),
+            get_pod_cpu_request_utilization_panel(),
+            get_pod_cpu_throttling_panel(),
+            get_pod_memory_request_utilization_panel(),
+            get_pod_memory_limit_utilization_panel(),
             get_pod_disk_utilization_panel(),
-            get_pod_cpu_utilization_panel(),
+            get_pod_disk_limit_utilization_panel(),
         ],
     )
+}
+
+const POD_METRICS_DEFAULT_DURATION: &str = "5m";
+
+// ---------------------------- CPU ----------------------------
+
+// Pod CPU utilization as a ratio of:
+//   total CPU usage rate of containers in the pod (in cores)
+//   --------------------------------------------------------
+//   total CPU cores requested by containers in the pod
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "How much of its requested CPU is this pod actually using?"
+fn get_pod_cpu_request_utilization_panel() -> Panel {
+    Panel::new(
+        "Pod CPU Request Utilization",
+        format!("Pod CPU utilization (usage / requests) ({POD_METRICS_DEFAULT_DURATION} window)"),
+        format!(
+            "
+            (
+                sum by (namespace, pod) (
+                    rate(container_cpu_usage_seconds_total{METRIC_LABEL_FILTER}[{POD_METRICS_DEFAULT_DURATION}])
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    kube_pod_container_resource_requests_cpu_cores{METRIC_LABEL_FILTER}
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
+}
+
+// Pod CPU throttling as a ratio of:
+//   number of CFS CPU periods where containers in the pod were throttled
+//   --------------------------------------------------------------------
+//   total number of CFS CPU periods for containers in the pod
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "What fraction of time is this pod being CPU-throttled by its CPU *limit*?"
+fn get_pod_cpu_throttling_panel() -> Panel {
+    Panel::new(
+        "Pod CPU throttling",
+        format!("Pod CPU throttling (throttled / total periods) ({POD_METRICS_DEFAULT_DURATION} window)"),
+        format!(
+            "(
+                sum by (namespace, pod) (
+                    rate(container_cpu_cfs_throttled_periods_total{METRIC_LABEL_FILTER}[{POD_METRICS_DEFAULT_DURATION}])
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    rate(container_cpu_cfs_periods_total{METRIC_LABEL_FILTER}[{POD_METRICS_DEFAULT_DURATION}])
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
+}
+
+// ---------------------------- MEMORY ----------------------------
+
+// Pod memory utilization as a ratio of:
+//   total memory used by containers in the pod
+//   ------------------------------------------------
+//   total memory requested by containers in the pod
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "How much of its requested memory is this pod actually using?"
+fn get_pod_memory_request_utilization_panel() -> Panel {
+    Panel::new(
+        "Pod Memory Request Utilization",
+        "Pod memory utilization (used / requests)",
+        format!(
+            "
+            (
+                sum by (namespace, pod) (
+                    container_memory_working_set_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    kube_pod_container_resource_requests_memory_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
+}
+
+// Pod memory limit utilization as a ratio of:
+//   total memory used by containers in the pod
+//   ------------------------------------------
+//   total memory limit of containers in the pod
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "How close is this pod to its memory *limit* (OOM-kill threshold)?"
+// Note: memory is not throttled like CPU; crossing this limit results in OOM kills.
+fn get_pod_memory_limit_utilization_panel() -> Panel {
+    Panel::new(
+        "Pod Memory Limit Utilization",
+        "Pod memory limit utilization (used / limits)",
+        format!(
+            "
+            (
+                sum by (namespace, pod) (
+                    container_memory_working_set_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    container_spec_memory_limit_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
+}
+
+// ---------------------------- DISK ----------------------------
+
+// Pod disk utilization (PVC) as a ratio of:
+//   total volume bytes used by the pod
+//   ----------------------------------
+//   total volume capacity bytes of the pod
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "How much of the provisioned PVC capacity is this pod using?"
+fn get_pod_disk_utilization_panel() -> Panel {
+    Panel::new(
+        "Pod Disk Utilization",
+        "Pod disk utilization (used / capacity)",
+        format!(
+            "
+            (
+                sum by (namespace, pod) (
+                    kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    kubelet_volume_stats_capacity_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
+}
+
+// Pod disk limit utilization (PVC) as a ratio of:
+//   total volume bytes used by the pod
+//   ----------------------------------
+//   total volume capacity bytes of the pod (effective disk limit)
+// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
+// Interpreted as: "How close is this pod's PVC storage to being full (disk *limit* saturation)?"
+fn get_pod_disk_limit_utilization_panel() -> Panel {
+    Panel::new(
+        "Pod Disk Limit Utilization",
+        "Pod disk limit utilization (used / capacity)",
+        format!(
+            "
+            (
+                sum by (namespace, pod) (
+                    kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            /
+            (
+                sum by (namespace, pod) (
+                    kubelet_volume_stats_capacity_bytes{METRIC_LABEL_FILTER}
+                )
+            )
+            "
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_legends(POD_LEGEND)
+    .with_unit(Unit::PercentUnit)
 }

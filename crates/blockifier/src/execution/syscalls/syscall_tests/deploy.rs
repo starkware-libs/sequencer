@@ -280,7 +280,7 @@ fn calldata_length(cairo_version: CairoVersion) {
         .versioned_constants
         .get_additional_os_syscall_resources(&HashMap::from([(
             SyscallSelector::Deploy,
-            (SyscallUsage::new(1, 0)),
+            SyscallUsage::with_call_count(1),
         )]))
         .builtin_instance_counter
         .get(&BuiltinName::pedersen)

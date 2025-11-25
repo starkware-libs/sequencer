@@ -121,29 +121,32 @@ impl TestDeps {
         &mut self,
         block_number: BlockNumber,
         final_n_executed_txs: usize,
+        number_of_times: usize,
     ) {
         assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let proposal_id = Arc::new(OnceLock::new());
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
-            proposal_id_clone.set(input.proposal_id).unwrap();
-            Ok(())
-        });
+        self.batcher.expect_propose_block().times(number_of_times).returning(
+            move |input: ProposeBlockInput| {
+                proposal_id_clone.set(input.proposal_id).unwrap();
+                Ok(())
+            },
+        );
         self.batcher
             .expect_start_height()
             .times(1)
             .withf(move |input| input.height == block_number)
             .return_const(Ok(()));
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
+        self.batcher.expect_get_proposal_content().times(number_of_times).returning(move |input| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
             Ok(GetProposalContentResponse {
                 content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
             })
         });
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
+        self.batcher.expect_get_proposal_content().times(number_of_times).returning(move |input| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
             Ok(GetProposalContentResponse {
                 content: GetProposalContent::Finished {
@@ -158,12 +161,13 @@ impl TestDeps {
         &mut self,
         block_number: BlockNumber,
         final_n_executed_txs: usize,
+        number_of_times: usize,
     ) {
         assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let proposal_id = Arc::new(OnceLock::new());
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_validate_block().times(1).returning(
+        self.batcher.expect_validate_block().times(number_of_times).returning(
             move |input: ValidateBlockInput| {
                 proposal_id_clone.set(input.proposal_id).unwrap();
                 Ok(())
@@ -174,7 +178,7 @@ impl TestDeps {
             .withf(move |input| input.height == block_number)
             .return_const(Ok(()));
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(1).returning(
+        self.batcher.expect_send_proposal_content().times(number_of_times).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
                 let SendProposalContent::Txs(txs) = input.content else {
@@ -185,7 +189,7 @@ impl TestDeps {
             },
         );
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(1).returning(
+        self.batcher.expect_send_proposal_content().times(number_of_times).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
                 assert_eq!(input.content, SendProposalContent::Finish(final_n_executed_txs));

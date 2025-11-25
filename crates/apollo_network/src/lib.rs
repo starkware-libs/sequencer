@@ -27,7 +27,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use apollo_network::network_manager::metrics::NetworkMetrics;
+//! use apollo_network::metrics::NetworkMetrics;
 //! use apollo_network::network_manager::NetworkManager;
 //! use apollo_network::NetworkConfig;
 //! use starknet_api::core::ChainId;
@@ -200,10 +200,12 @@ pub mod discovery;
 mod e2e_broadcast_test;
 mod event_tracker;
 pub mod gossipsub_impl;
+pub mod metrics;
 pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
 pub mod peer_manager;
+mod prune_dead_connections;
 mod sqmr;
 #[cfg(test)]
 mod test_utils;
@@ -234,6 +236,8 @@ use peer_manager::PeerManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
+
+use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 
 pub(crate) type Bytes = Vec<u8>;
 
@@ -333,6 +337,10 @@ pub struct NetworkConfig {
 
     /// Buffer size for reported peer IDs (peers flagged for malicious behavior). Default: 100000
     pub reported_peer_ids_buffer_size: usize,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_interval: Duration,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_timeout: Duration,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -373,6 +381,18 @@ impl SerializeConfig for NetworkConfig {
                 "reported_peer_ids_buffer_size",
                 &self.reported_peer_ids_buffer_size,
                 "The size of the buffer that holds the reported peer ids.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_interval",
+                &self.prune_dead_connections_ping_interval.as_secs(),
+                "The interval in seconds between each prune dead connections ping check.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_timeout",
+                &self.prune_dead_connections_ping_timeout.as_secs(),
+                "The timeout in seconds for a ping to be considered failed.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -424,6 +444,8 @@ impl Default for NetworkConfig {
             peer_manager_config: PeerManagerConfig::default(),
             broadcasted_message_metadata_buffer_size: 100000,
             reported_peer_ids_buffer_size: 100000,
+            prune_dead_connections_ping_interval: DEFAULT_PING_INTERVAL,
+            prune_dead_connections_ping_timeout: DEFAULT_PING_TIMEOUT,
         }
     }
 }

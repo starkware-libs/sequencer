@@ -88,6 +88,11 @@ pub struct DeploymentInputs {
     pub deployment_environment: Environment,
     pub requires_k8s_service_config_params: bool,
     pub audited_libfuncs_only: bool,
+    pub http_server_port: u16,
+    pub monitoring_endpoint_config_port: u16,
+    pub state_sync_config_rpc_config_port: u16,
+    pub mempool_p2p_config_network_config_port: u16,
+    pub consensus_manager_config_network_config_port: u16,
 }
 
 impl DeploymentInputs {
@@ -269,7 +274,7 @@ impl ServicePort {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+#[derive(Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
@@ -337,6 +342,13 @@ impl ComponentConfigInService {
         self.get_component_config_names()
             .into_iter()
             .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/{name}.json"))
+            .collect()
+    }
+
+    pub fn get_replacer_component_config_file_paths(&self) -> Vec<String> {
+        self.get_component_config_names()
+            .into_iter()
+            .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/replacer_{name}.json"))
             .collect()
     }
 }

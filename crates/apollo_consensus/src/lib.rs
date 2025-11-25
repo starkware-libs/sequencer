@@ -31,6 +31,7 @@ pub use manager::{run_consensus, RunConsensusArguments};
 pub mod metrics;
 #[allow(missing_docs)]
 pub mod simulation_network_receiver;
+pub mod storage;
 pub mod stream_handler;
 
 mod manager;

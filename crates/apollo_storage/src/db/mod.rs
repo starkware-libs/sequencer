@@ -43,7 +43,7 @@ use self::table_types::{DbCursor, DbCursorTrait};
 use crate::db::table_types::TableType;
 
 // Maximum number of Sub-Databases.
-const MAX_DBS: usize = 21;
+const MAX_DBS: usize = 24;
 
 // Note that NO_TLS mode is used by default.
 type EnvironmentKind = WriteMap;
@@ -222,6 +222,8 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
                 no_rdahead: true,
                 // LIFO policy for recycling a Garbage Collection items should be faster.
                 liforeclaim: true,
+                // Exclusive access - prevent other processes from opening the same database.
+                exclusive: true,
                 ..Default::default()
             })
             .open(&config.path())?,

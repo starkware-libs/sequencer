@@ -18,6 +18,7 @@ use starknet_api::transaction::{
 
 use crate::body::TransactionIndex;
 use crate::compression_utils::IsCompressed;
+use crate::consensus::LastVotedMarker;
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
@@ -56,6 +57,9 @@ auto_impl_get_test_instance! {
         No = 0,
         Yes = 1,
     }
+    pub struct LastVotedMarker{
+        pub height: BlockNumber,
+    }
     enum MarkerKind {
         Header = 0,
         Body = 1,
@@ -66,6 +70,7 @@ auto_impl_get_test_instance! {
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
+        BlockHash = 9,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,

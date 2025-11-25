@@ -13,12 +13,14 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -27,13 +29,15 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
+use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -51,12 +55,10 @@ use starknet_os::io::os_output_types::{
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
     create_default_initial_state_data,
-    get_deploy_fee_token_tx_and_address,
     get_initial_deploy_account_tx,
     InitialState,
     InitialStateData,
@@ -71,13 +73,24 @@ use crate::utils::{
     divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
-    CommitmentOutput,
     ExecutionOutput,
 };
 
 /// The STRK fee token address that was deployed when initializing the default initial state.
-pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
-    LazyLock::new(|| get_deploy_fee_token_tx_and_address(Nonce::default()).1);
+/// The resulting address depends on the nonce of the deploying account - if extra init transactions
+/// are added to the initial state construction before the STRK fee token is deployed, the address
+/// must be updated.
+pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
+        0x1a465ff487205d561821685efff4903cb07d69f014b1688a560f8c6380cd025
+    "#]];
+pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    ContractAddress(
+        PatriciaKey::try_from(Felt::from_hex_unchecked(
+            EXPECTED_STRK_FEE_TOKEN_ADDRESS.data.trim(),
+        ))
+        .unwrap(),
+    )
+});
 
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
@@ -109,8 +122,8 @@ pub(crate) struct TestManager<S: FlowTestState> {
 }
 
 pub(crate) struct OsTestExpectedValues {
-    pub(crate) previous_global_root: HashOutput,
-    pub(crate) new_global_root: HashOutput,
+    pub(crate) previous_global_root: GlobalRoot,
+    pub(crate) new_global_root: GlobalRoot,
     pub(crate) previous_block_number: PreviousBlockNumber,
     pub(crate) new_block_number: BlockNumber,
     pub(crate) config_hash: Felt,
@@ -130,6 +143,16 @@ pub(crate) struct OsTestOutput<S: FlowTestState> {
 }
 
 impl<S: FlowTestState> OsTestOutput<S> {
+    pub(crate) fn get_builtin_usage(&self, builtin_name: &BuiltinName) -> usize {
+        *self
+            .runner_output
+            .metrics
+            .execution_resources
+            .builtin_instance_counter
+            .get(builtin_name)
+            .unwrap()
+    }
+
     pub(crate) fn perform_default_validations(&self) {
         self.perform_validations(true, None);
     }
@@ -394,6 +417,11 @@ impl<S: FlowTestState> TestManager<S> {
         });
     }
 
+    pub(crate) fn add_fund_address_tx_with_default_amount(&mut self, address: ContractAddress) {
+        let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
+        self.add_fund_address_tx(address, transfer_amount);
+    }
+
     pub(crate) fn add_fund_address_tx(&mut self, address: ContractAddress, amount: u128) {
         let calldata = create_calldata(
             *STRK_FEE_TOKEN_ADDRESS,
@@ -550,13 +578,13 @@ impl<S: FlowTestState> TestManager<S> {
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
-        // Commitment output is updated after each block.
-        let mut previous_commitment = CommitmentOutput {
+        // The state roots updated after each block.
+        let mut previous_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
         let mut entire_state_diff = StateDiff::default();
-        let expected_previous_global_root = previous_commitment.global_root();
+        let expected_previous_global_root = previous_state_roots.global_root();
         let previous_block_number =
             PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
@@ -589,19 +617,21 @@ impl<S: FlowTestState> TestManager<S> {
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
-            let new_commitment = commit_state_diff(
-                &mut map_storage,
-                previous_commitment.contracts_trie_root_hash,
-                previous_commitment.classes_trie_root_hash,
+            let mut db = FactsDb::new(map_storage);
+            let new_state_roots = commit_state_diff(
+                &mut db,
+                previous_state_roots.contracts_trie_root_hash,
+                previous_state_roots.classes_trie_root_hash,
                 committer_state_diff,
             )
             .await;
+            map_storage = db.consume_storage();
 
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
                 create_cached_state_input_and_commitment_infos(
-                    &previous_commitment,
-                    &new_commitment,
+                    &previous_state_roots,
+                    &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
                 );
@@ -634,9 +664,9 @@ impl<S: FlowTestState> TestManager<S> {
             };
             os_block_inputs.push(os_block_input);
             cached_state_inputs.push(cached_state_input);
-            previous_commitment = new_commitment;
+            previous_state_roots = new_state_roots;
         }
-        let expected_new_global_root = previous_commitment.global_root();
+        let expected_new_global_root = previous_state_roots.global_root();
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             cached_state_inputs,

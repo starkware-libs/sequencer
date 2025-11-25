@@ -196,7 +196,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
-            sierra_gas: GasAmount(5000000000),
+            sierra_gas: GasAmount(6000000000),
             proving_gas: GasAmount(6000000000),
         }
     }
@@ -322,7 +322,7 @@ impl CasmHashComputationData {
 /// Tracks which classes need migration from V1 to V2 compiled hashes and
 /// accumulates the estimated execution resources required to perform the migration.
 struct CasmHashMigrationData {
-    class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
     resources: EstimatedExecutionResources,
 }
 
@@ -423,16 +423,16 @@ impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
             gas_costs: BuiltinGasCosts {
-                pedersen: 5722,
-                range_check: 70,
+                pedersen: 5723,
+                range_check: 90,
                 ecdsa: 2000000,
                 ecop: 857850,
                 bitwise: 583,
                 keccak: 600000,
                 poseidon: 11450,
-                add_mod: 360,
-                mul_mod: 604,
-                range_check96: 56,
+                add_mod: 358,
+                mul_mod: 358,
+                range_check96: 179,
             },
         }
     }
@@ -646,6 +646,8 @@ impl Bouncer {
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
+        // Also, `get_patricia_update_resources` relies on this property - each cell must
+        // be counted at most once as modified.
         self.state_changes_keys.extend(state_changes_keys);
         self.accumulated_weights.class_hashes_to_migrate.extend(tx_weights.class_hashes_to_migrate);
     }
@@ -846,7 +848,11 @@ pub fn get_tx_weights<S: StateReader>(
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
 
     // Patricia update + transaction resources.
-    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
+    let patrticia_update_resources = get_patricia_update_resources(
+        n_visited_storage_entries,
+        // TODO(Yoni): consider counting here the global contract tree and the aliases as well.
+        state_changes_keys.storage_keys.len(),
+    );
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Builtin gas costs for stone and for stwo.
@@ -859,6 +865,13 @@ pub fn get_tx_weights<S: StateReader>(
         executed_class_hashes,
         versioned_constants,
     )?;
+    // Total state changes keys are the sum of marginal state changes keys and the
+    // migration state changes.
+    let mut total_state_changes_keys = StateChangesKeys {
+        compiled_class_hash_keys: migration_data.class_hashes_to_migrate.keys().cloned().collect(),
+        ..Default::default()
+    };
+    total_state_changes_keys.extend(state_changes_keys);
 
     let blake_opcode_gas = bouncer_config.blake_weight;
 
@@ -903,7 +916,7 @@ pub fn get_tx_weights<S: StateReader>(
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
-        state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
+        state_diff_size: get_onchain_data_segment_length(&total_state_changes_keys.count()),
         sierra_gas: total_sierra_gas,
         n_txs: 1,
         proving_gas: total_proving_gas,
@@ -932,22 +945,39 @@ pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
         .collect()
 }
 
-/// Returns the estimated Cairo resources for Patricia tree updates, or hash invocations
-/// (done by the OS), required for accessing (read/write) the given storage entries.
-// For each tree: n_visited_leaves * log(n_initialized_leaves)
-// as the height of a Patricia tree with N uniformly distributed leaves is ~log(N),
-// and number of visited leaves includes reads and writes.
-pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> ExecutionResources {
+/// Returns the estimated Cairo resources for Patricia tree updates given the accessed and
+/// modified storage entries.
+///
+/// Each access (read or write) requires a traversal of the previous tree, and a write access
+/// requires an additional traversal of the new tree.
+///
+/// Note:
+///   1. n_visited_storage_entries includes both read and write accesses, and may overlap with
+///      n_first_time_modified_storage_entries (if the first access to a cell was write) and may not
+///      (if a cell was read by a previous transaction and is now modified for the first time).
+///   2. In practice, the OS performs a multi-update, which is more efficient than performing
+///      separate updates. However, we use this conservative estimate for simplicity.
+pub fn get_patricia_update_resources(
+    n_visited_storage_entries: usize,
+    n_first_time_modified_storage_entries: usize,
+) -> ExecutionResources {
+    // The height of a Patricia tree with N uniformly distributed leaves is ~log(N).
     const TREE_HEIGHT_UPPER_BOUND: usize = 24;
-    let n_updates = n_visited_storage_entries * TREE_HEIGHT_UPPER_BOUND;
+    // TODO(Yoni, 1/5/2024): re-estimate this.
+    const STEPS_IN_TREE_PER_HEIGHT: usize = 16;
+    const PEDERSENS_PER_HEIGHT: usize = 1;
 
-    ExecutionResources {
-        // TODO(Yoni, 1/5/2024): re-estimate this.
-        n_steps: 32 * n_updates,
-        // For each Patricia update there are two hash calculations.
-        builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 2 * n_updates)]),
+    let resources_per_tree_access = ExecutionResources {
+        n_steps: TREE_HEIGHT_UPPER_BOUND * STEPS_IN_TREE_PER_HEIGHT,
+        builtin_instance_counter: HashMap::from([(
+            BuiltinName::pedersen,
+            TREE_HEIGHT_UPPER_BOUND * PEDERSENS_PER_HEIGHT,
+        )]),
         n_memory_holes: 0,
-    }
+    };
+
+    // One traversal per access (read or write), and an additional one per write access.
+    &resources_per_tree_access * (n_visited_storage_entries + n_first_time_modified_storage_entries)
 }
 
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(

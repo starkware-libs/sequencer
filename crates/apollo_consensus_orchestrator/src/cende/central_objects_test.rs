@@ -14,6 +14,7 @@ use apollo_batcher::cende_client_types::{
 };
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_infra_utils::test_utils::assert_json_eq;
+use apollo_sizeof::SizeOf;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::StorageEntry;
@@ -28,6 +29,7 @@ use blockifier::execution::call_info::{
 };
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::execution::entry_point::{CallEntryPoint, CallType};
+use blockifier::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::fee::resources::{
@@ -65,7 +67,6 @@ use num_bigint::BigUint;
 use rstest::rstest;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
-use sizeof::SizeOf;
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -218,6 +219,7 @@ fn block_info() -> BlockInfo {
             },
         },
         use_kzg_da: true,
+        starknet_version: StarknetVersion::LATEST,
     }
 }
 
@@ -530,8 +532,13 @@ fn call_info() -> CallInfo {
             read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
-        // TODO(Meshi): insert relevant values.
         builtin_counters: execution_resources().prover_builtins(),
+        syscalls_usage: HashMap::from([
+            (SyscallSelector::CallContract, SyscallUsage { call_count: 7, linear_factor: 0 }),
+            (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::EmitEvent, SyscallUsage { call_count: 2, linear_factor: 0 }),
+        ]),
     }
 }
 

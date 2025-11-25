@@ -25,11 +25,13 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let address = contract_address!("0x111");
     let class_hash = class_hash!("0x222");
+    let class_hash_of_undeployed_contract = felt!("0x0");
+    let non_existing_address = felt!("0x333");
     state.state.address_to_class_hash.insert(address, class_hash);
 
     // Test deployed contract.
     let positive_entry_point_call = CallEntryPoint {
-        calldata: calldata![address.into(), class_hash.0],
+        calldata: calldata![address.into(), class_hash.0, non_existing_address],
         entry_point_selector: selector_from_name("test_get_class_hash_at"),
         ..trivial_external_entry_point_new(test_contract)
     };
@@ -51,18 +53,20 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 15960,
+            gas_consumed: 28370,
         }
     "#]]
     .assert_debug_eq(&positive_call_info.execution);
     assert!(!positive_call_info.execution.failed);
     assert_eq!(positive_call_info.execution.retdata, retdata![]);
-    // Test undeployed contract - should return class_hash = 0 and succeed.
-    let non_existing_address = felt!("0x333");
-    let class_hash_of_undeployed_contract = felt!("0x0");
 
+    // Test undeployed contract - should return class_hash = 0 and succeed.
     let negative_entry_point_call = CallEntryPoint {
-        calldata: calldata![non_existing_address, class_hash_of_undeployed_contract],
+        calldata: calldata![
+            non_existing_address,
+            class_hash_of_undeployed_contract,
+            non_existing_address
+        ],
         entry_point_selector: selector_from_name("test_get_class_hash_at"),
         ..trivial_external_entry_point_new(test_contract)
     };
@@ -71,7 +75,7 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
     // Sanity check: giving the wrong expected class hash to the test should make it fail.
     let different_class_hash = class_hash!("0x444");
     let different_class_hash_entry_point_call = CallEntryPoint {
-        calldata: calldata![address.into(), different_class_hash.0],
+        calldata: calldata![address.into(), different_class_hash.0, non_existing_address],
         entry_point_selector: selector_from_name("test_get_class_hash_at"),
         ..trivial_external_entry_point_new(test_contract)
     };

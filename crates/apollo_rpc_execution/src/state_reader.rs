@@ -212,14 +212,20 @@ impl BlockifierStateReader for ExecutionStateReader {
         class_hash: ClassHash,
         _compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        // Try to read the compiled class hash v2 from the dedicated stateless table.
-        // If it's missing (e.g., class not declared/Cairo0), return the default value.
-        let maybe_hash = self
-            .storage_reader
-            .begin_ro_txn()
-            .map_err(storage_err_to_state_err)?
-            .get_executable_class_hash_v2(&class_hash)
-            .map_err(storage_err_to_state_err)?;
+        let maybe_hash =
+            if let Some((class_manager_client, run_time_handle)) = &self.class_manager_handle {
+                // First, try getting from class manager if available.
+                run_time_handle
+                    .block_on(class_manager_client.get_executable_class_hash_v2(class_hash))
+                    .map_err(|e| StateError::StateReadError(e.to_string()))?
+            } else {
+                // Fall back to reading from storage.
+                self.storage_reader
+                    .begin_ro_txn()
+                    .map_err(storage_err_to_state_err)?
+                    .get_executable_class_hash_v2(&class_hash)
+                    .map_err(storage_err_to_state_err)?
+            };
 
         maybe_hash.ok_or(StateError::MissingCompiledClassHashV2(class_hash))
     }

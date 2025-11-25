@@ -244,7 +244,7 @@ impl<'a> SortedLeafIndices<'a> {
         self.0.binary_search(value).is_ok()
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 

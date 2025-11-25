@@ -1,7 +1,12 @@
 use blake2::Blake2s256;
+use c_kzg::BYTES_PER_BLOB;
 use digest::Digest;
 use starknet_types_core::curve::AffinePoint;
 use starknet_types_core::felt::Felt;
+
+use crate::hints::hint_implementation::kzg::utils::{decode_blobs, FftError};
+use crate::io::os_output::OsOutputError;
+use crate::io::os_output_types::{PartialOsStateDiff, TryFromOutputIter};
 
 #[cfg(test)]
 #[path = "utils_test.rs"]
@@ -186,4 +191,38 @@ pub fn naive_encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
         }
     }
     unpacked_u32s
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DecryptionError {
+    #[error(transparent)]
+    Fft(#[from] FftError),
+    #[error(transparent)]
+    Parsing(#[from] OsOutputError),
+}
+
+// TODO(Einat): Test this function in the OS tests.
+#[allow(dead_code)]
+pub fn decrypt_state_diff_from_blobs(
+    blobs: Vec<[u8; BYTES_PER_BLOB]>,
+    private_key: Felt,
+    committee_index: usize,
+) -> Result<PartialOsStateDiff, DecryptionError> {
+    let decoded_blobs = decode_blobs(blobs)?;
+
+    let n_keys: usize = decoded_blobs[0].try_into().expect("n_keys should fit in usize");
+    let sn_public_key = decoded_blobs[committee_index + 1];
+    let encrypted_symmetric_key = decoded_blobs[n_keys + committee_index + 1];
+
+    // Decrypt the state diff (may include trailing zeros from blob padding).
+    let decrypted_da = decrypt_state_diff(
+        private_key,
+        sn_public_key,
+        encrypted_symmetric_key,
+        &decoded_blobs[2 * n_keys + 1..],
+    );
+
+    // The parser will consume only what it needs and ignore trailing padding.
+    // No need to pass private keys here, as the DA segment is already decrypted.
+    Ok(PartialOsStateDiff::try_from_output_iter(&mut decrypted_da.into_iter(), None)?)
 }

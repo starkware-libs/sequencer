@@ -1,5 +1,5 @@
+use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::StarknetApiError;
@@ -91,4 +91,20 @@ pub enum L1DataAvailabilityMode {
     #[default]
     Calldata,
     Blob,
+}
+
+impl L1DataAvailabilityMode {
+    pub fn from_use_kzg_da(use_kzg_da: bool) -> Self {
+        match use_kzg_da {
+            true => Self::Blob,
+            false => Self::Calldata,
+        }
+    }
+
+    pub fn is_use_kzg_da(&self) -> bool {
+        match self {
+            Self::Blob => true,
+            Self::Calldata => false,
+        }
+    }
 }

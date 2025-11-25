@@ -672,6 +672,7 @@ pub(crate) fn decompress_program(
     base64::decode(base64_compressed_program).map_err(internal_server_error)?;
     let compressed_data =
         base64::decode(base64_compressed_program).map_err(internal_server_error)?;
+    // TODO(dan): add time and size limits.
     let mut decoder = GzDecoder::new(compressed_data.as_slice());
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed).map_err(internal_server_error)?;

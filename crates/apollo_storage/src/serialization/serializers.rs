@@ -28,6 +28,10 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -135,6 +139,7 @@ use crate::compression_utils::{
     serialize_and_compress,
     IsCompressed,
 };
+use crate::consensus::LastVotedMarker;
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::NoValue;
 use crate::header::StorageBlockHeader;
@@ -176,6 +181,13 @@ auto_storage_serde! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+    }
+    pub struct BlockHeaderCommitments {
+        pub transaction_commitment: TransactionCommitment,
+        pub event_commitment: EventCommitment,
+        pub receipt_commitment: ReceiptCommitment,
+        pub state_diff_commitment: StateDiffCommitment,
+        pub concatenated_counts: Felt,
     }
     pub struct BlockSignature(pub Signature);
     pub enum BlockStatus {
@@ -319,6 +331,9 @@ auto_storage_serde! {
     }
     pub struct L1ToL2Payload(pub Vec<Felt>);
     pub struct L2ToL1Payload(pub Vec<Felt>);
+    pub struct LastVotedMarker {
+        pub height: BlockNumber,
+    }
     enum MarkerKind {
         Header = 0,
         Body = 1,
@@ -329,6 +344,7 @@ auto_storage_serde! {
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
+        BlockHash = 9,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,
@@ -351,6 +367,16 @@ auto_storage_serde! {
         DeprecatedContractClass = 3,
         TransactionOutput = 4,
         Transaction = 5,
+    }
+    pub struct PartialBlockHashComponents {
+        pub header_commitments: BlockHeaderCommitments,
+        pub block_number: BlockNumber,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
+        pub sequencer: SequencerContractAddress,
+        pub timestamp: BlockTimestamp,
+        pub starknet_version: StarknetVersion,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
@@ -723,6 +749,16 @@ impl StorageSerde for StorageKey {
 ////////////////////////////////////////////////////////////////////////
 //  Primitive types.
 ////////////////////////////////////////////////////////////////////////
+impl StorageSerde for () {
+    fn serialize_into(&self, _: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        Ok(())
+    }
+
+    fn deserialize_from(_: &mut impl std::io::Read) -> Option<Self> {
+        Some(())
+    }
+}
+
 impl StorageSerde for bool {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         u8::from(*self).serialize_into(res)

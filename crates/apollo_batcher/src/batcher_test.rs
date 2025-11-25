@@ -301,9 +301,15 @@ fn verify_decision_reached_response(
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
     assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
     assert_eq!(
-        response.central_objects.execution_infos,
-        expected_artifacts.execution_data.execution_infos
+        response.central_objects.execution_infos.len(),
+        expected_artifacts.execution_data.execution_infos_and_signatures.len()
     );
+    for (tx_hash, info) in &response.central_objects.execution_infos {
+        assert_eq!(
+            info,
+            &expected_artifacts.execution_data.execution_infos_and_signatures[tx_hash].0
+        );
+    }
 }
 
 fn assert_proposal_metrics(
@@ -925,8 +931,8 @@ async fn add_sync_block() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()))
-        .returning(|_, _| Ok(()));
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
+        .returning(|_, _, _| Ok(()));
 
     mock_dependencies
         .mempool_client
@@ -1093,8 +1099,12 @@ async fn decision_reached() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.thin_state_diff()))
-        .returning(|_, _| Ok(()));
+        .with(
+            eq(INITIAL_HEIGHT),
+            eq(expected_artifacts.thin_state_diff()),
+            eq(Some(expected_artifacts.partial_block_hash_components())),
+        )
+        .returning(|_, _, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
@@ -1114,7 +1124,7 @@ async fn decision_reached() {
     );
     assert_eq!(
         BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
-        Some(expected_artifacts.execution_data.execution_infos.len())
+        Some(expected_artifacts.execution_data.execution_infos_and_signatures.len())
     );
     assert_eq!(
         REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
@@ -1125,9 +1135,9 @@ async fn decision_reached() {
         Some(
             expected_artifacts
                 .execution_data
-                .execution_infos
+                .execution_infos_and_signatures
                 .values()
-                .filter(|info| info.revert_error.is_some())
+                .filter(|(info, _)| info.revert_error.is_some())
                 .count(),
         )
     );
@@ -1156,24 +1166,29 @@ async fn test_execution_info_order_is_kept() {
     mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
     mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing();
     // Check that the execution_infos were initiated properly for this test.
-    verify_indexed_execution_infos(&block_builder_result.execution_data.execution_infos);
+    let execution_infos = block_builder_result
+        .execution_data
+        .execution_infos_and_signatures
+        .iter()
+        .map(|(hash, (info, _))| (*hash, info.clone()))
+        .collect();
+    verify_indexed_execution_infos(&execution_infos);
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(block_builder_result.clone()),
+        Ok(block_builder_result),
     );
 
     let decision_reached_response =
         batcher_propose_and_commit_block(mock_dependencies).await.unwrap();
 
     // Verify that the execution_infos are in the same order as returned from the block_builder.
-    let expected_execution_infos = block_builder_result.execution_data.execution_infos;
-    assert_eq!(decision_reached_response.central_objects.execution_infos, expected_execution_infos);
+    assert_eq!(decision_reached_response.central_objects.execution_infos, execution_infos);
 }
 
 #[tokio::test]
@@ -1236,7 +1251,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
         .times(1)
         .returning(move |_, _, _| Err(l1_error.clone()));
 
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
 

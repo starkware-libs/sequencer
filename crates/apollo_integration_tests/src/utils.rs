@@ -2,6 +2,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_class_manager_config::config::{
@@ -12,7 +13,12 @@ use apollo_class_manager_config::config::{
 };
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
+use apollo_consensus_config::config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    ConsensusStaticConfig,
+    TimeoutsConfig,
+};
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
@@ -47,6 +53,7 @@ use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -74,7 +81,6 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::StorageTestConfig;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
@@ -112,9 +118,10 @@ impl TestScenario for ConsensusTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+        const SHOULD_REVERT: bool = false;
         (
             create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
-            create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs),
+            create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs, SHOULD_REVERT),
         )
     }
 
@@ -196,11 +203,10 @@ pub fn create_node_config(
     let l1_scraper_config = L1ScraperConfig {
         chain_id: chain_info.chain_id.clone(),
         startup_rewind_time_seconds: Duration::from_secs(0),
-        polling_interval_seconds: Duration::from_secs(0),
+        polling_interval_seconds: Duration::from_secs(1),
         ..Default::default()
     };
     let l1_provider_config = L1ProviderConfig {
-        provider_startup_height_override: Some(BlockNumber(1)),
         startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(0),
@@ -334,14 +340,10 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
-    // TODO(Matan, Dan): set reasonable default timeouts.
-    let mut timeouts = TimeoutsConfig::default();
-    timeouts.precommit_timeout *= 3;
-    timeouts.prevote_timeout *= 3;
-    timeouts.proposal_timeout *= 3;
-
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
-
+    let mut timeouts = TimeoutsConfig::default();
+    // Scale by 2.0 for integration runs to avoid timeouts.
+    timeouts.scale_by(2.0);
     network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
@@ -349,13 +351,20 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             network_config,
             immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
-                static_config: ConsensusStaticConfig {
-                    // TODO(Matan, Dan): Set the right amount
-                    startup_delay: Duration::from_secs(15),
+                dynamic_config: ConsensusDynamicConfig {
                     timeouts: timeouts.clone(),
                     ..Default::default()
                 },
-                ..Default::default()
+                static_config: ConsensusStaticConfig {
+                    storage_config: StorageConfig { db_config: DbConfig{
+                        path_prefix: "/data/consensus".into(),
+                        enforce_file_exists: false,
+                        ..Default::default()
+                    },
+                    ..Default::default() },
+                    // TODO(Matan, Dan): Set the right amount
+                    startup_delay: Duration::from_secs(15),
+                },
             },
             context_config: ContextConfig {
                 num_validators,
@@ -522,8 +531,9 @@ pub fn create_invoke_txs(
 pub fn create_l1_to_l2_messages_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
     n_txs: usize,
+    should_revert: bool,
 ) -> Vec<L1HandlerTransaction> {
-    (0..n_txs).map(|_| tx_generator.create_l1_to_l2_message_args()).collect()
+    (0..n_txs).map(|_| tx_generator.create_l1_to_l2_message_args(should_revert)).collect()
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(

@@ -10,6 +10,7 @@ workspace = true
 
 [features]
 testing = [
+  "apollo_class_manager_types/testing",
   "apollo_gateway_config/testing",
   "apollo_mempool_types/testing",
   "blockifier/testing",

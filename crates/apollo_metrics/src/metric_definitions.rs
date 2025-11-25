@@ -1,9 +1,4 @@
-#[macro_export]
-macro_rules! metric_label_filter {
-    () => {
-        "{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-    };
-}
+pub const METRIC_LABEL_FILTER: &str = "{cluster=~\"$cluster\", namespace=~\"$namespace\"}";
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
 /// This generates:

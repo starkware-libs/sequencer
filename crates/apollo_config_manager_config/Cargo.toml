@@ -11,5 +11,8 @@ apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 
+[features]
+testing = []
+
 [lints]
 workspace = true

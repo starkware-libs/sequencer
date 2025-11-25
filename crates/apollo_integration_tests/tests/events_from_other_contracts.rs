@@ -1,4 +1,4 @@
-use apollo_integration_tests::anvil_base_layer::{send_message_to_l2, AnvilBaseLayer};
+use apollo_base_layer_tests::anvil_base_layer::{send_message_to_l2, AnvilBaseLayer};
 use assert_matches::assert_matches;
 use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
@@ -8,20 +8,13 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 // Ensure that the base layer instance filters out events from other deployments of the core
 // contract.
 #[tokio::test]
 async fn events_from_other_contract() {
-    if !in_ci() {
-        return;
-    }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let anvil_base_layer = AnvilBaseLayer::new().await;
+    let anvil_base_layer = AnvilBaseLayer::new(None).await;
     // Anvil base layer already auto-deployed a starknet contract.
     let this_contract = &anvil_base_layer.ethereum_base_layer.contract;
 

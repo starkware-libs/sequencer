@@ -1,4 +1,6 @@
-use apollo_consensus_config::config::TimeoutsConfig;
+use std::time::Duration;
+
+use apollo_consensus_config::config::{Timeout, TimeoutsConfig};
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
@@ -36,40 +38,51 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 1;
 
+fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
+    ProposalInit { height, ..*PROPOSAL_INIT }
+}
+
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let duration = TIMEOUTS.get_prevote_timeout(round);
     ShcTask::Prevote(
-        TIMEOUTS.prevote_timeout,
+        duration,
         StateMachineEvent::Prevote(block_felt.map(ProposalCommitment), round),
     )
 }
 
 fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let duration = TIMEOUTS.get_precommit_timeout(round);
     ShcTask::Precommit(
-        TIMEOUTS.precommit_timeout,
+        duration,
         StateMachineEvent::Precommit(block_felt.map(ProposalCommitment), round),
     )
 }
 
 fn timeout_prevote_task(round: u32) -> ShcTask {
-    ShcTask::TimeoutPrevote(TIMEOUTS.prevote_timeout, StateMachineEvent::TimeoutPrevote(round))
+    let duration = TIMEOUTS.get_prevote_timeout(round);
+    ShcTask::TimeoutPrevote(duration, StateMachineEvent::TimeoutPrevote(round))
 }
 
 fn timeout_precommit_task(round: u32) -> ShcTask {
-    ShcTask::TimeoutPrecommit(
-        TIMEOUTS.precommit_timeout,
-        StateMachineEvent::TimeoutPrecommit(round),
-    )
+    let duration = TIMEOUTS.get_precommit_timeout(round);
+    ShcTask::TimeoutPrecommit(duration, StateMachineEvent::TimeoutPrecommit(round))
 }
 
 async fn handle_proposal(
+    height: BlockNumber,
     shc: &mut SingleHeightConsensus,
     context: &mut MockTestContext,
 ) -> ShcReturn {
     // Send the proposal from the peer.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TestProposalPart::Init(ProposalInit::default())).await.unwrap();
+    content_sender
+        .send(TestProposalPart::Init(get_proposal_init_for_height(height)))
+        .await
+        .unwrap();
 
-    shc.handle_proposal(context, *PROPOSAL_INIT, content_receiver).await.unwrap()
+    shc.handle_proposal(context, get_proposal_init_for_height(height), content_receiver)
+        .await
+        .unwrap()
 }
 
 #[tokio::test]
@@ -149,11 +162,12 @@ async fn proposer() {
 #[test_case(true; "repeat_proposal")]
 #[tokio::test]
 async fn validator(repeat_proposal: bool) {
+    const HEIGHT: BlockNumber = BlockNumber(0);
     let mut context = MockTestContext::new();
 
     // Creation calls to `context.validators`.
     let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
+        HEIGHT,
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
@@ -171,39 +185,43 @@ async fn validator(repeat_proposal: bool) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
-    let shc_ret = handle_proposal(&mut shc, &mut context).await;
-    assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT);
+    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
+    assert_eq!(
+        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
+        &get_proposal_init_for_height(HEIGHT)
+    );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
     if repeat_proposal {
         // Send the same proposal again, which should be ignored (no expectations).
-        let shc_ret = handle_proposal(&mut shc, &mut context).await;
+        let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
         assert_eq!(shc_ret, ShcReturn::Tasks(Vec::new()));
     }
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).await,
         Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+            .await,
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0)]))
     );
 
     let precommits = vec![
-        precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
     ];
     assert_eq!(
         shc.handle_vote(&mut context, precommits[0].clone()).await,
@@ -222,10 +240,12 @@ async fn validator(repeat_proposal: bool) {
 #[test_case(false; "equivocation")]
 #[tokio::test]
 async fn vote_twice(same_vote: bool) {
+    const HEIGHT: BlockNumber = BlockNumber(0);
+
     let mut context = MockTestContext::new();
 
     let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
+        HEIGHT,
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
@@ -243,41 +263,50 @@ async fn vote_twice(same_vote: bool) {
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
-    let shc_ret = handle_proposal(&mut shc, &mut context).await;
-    assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT,);
+    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
+    assert_eq!(
+        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
+        &get_proposal_init_for_height(HEIGHT)
+    );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
 
-    let res = shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).await;
+    let res =
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     context
     .expect_broadcast()
     .times(1) // Shows the repeat vote is ignored.
-    .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+    .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
     .returning(move |_| Ok(()));
-    let res = shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await;
+    let res = shc
+        .handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+        .await;
     // The Node got a Prevote quorum.
     assert_eq!(
         res,
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0),]))
     );
 
-    let first_vote = precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID);
+    let first_vote = precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID);
     let res = shc.handle_vote(&mut context, first_vote.clone()).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
-    let second_vote =
-        if same_vote { first_vote.clone() } else { precommit(Some(Felt::TWO), 0, 0, *PROPOSER_ID) };
+    let second_vote = if same_vote {
+        first_vote.clone()
+    } else {
+        precommit(Some(Felt::TWO), HEIGHT.0, 0, *PROPOSER_ID)
+    };
     let res = shc.handle_vote(&mut context, second_vote.clone()).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     let ShcReturn::Decision(decision) = shc
-        .handle_vote(&mut context, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2))
+        .handle_vote(&mut context, precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
         .await
         .unwrap()
     else {
@@ -418,4 +447,99 @@ async fn repropose() {
     };
     assert_eq!(decision.block, BLOCK.id);
     assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
+}
+
+#[tokio::test]
+async fn shc_applies_proposal_timeouts_across_rounds() {
+    let mut context = MockTestContext::new();
+
+    let timeouts = TimeoutsConfig::new(
+        // Proposal timeouts: base=100ms, delta=60ms, max=200ms.
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(60),
+            Duration::from_millis(200),
+        ),
+        // unused prevote and precommit timeouts.
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(150),
+        ),
+        Timeout::new(
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+            Duration::from_millis(150),
+        ),
+    );
+
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        false,
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        timeouts.clone(),
+    );
+    // context expectations.
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+
+    // Round 0 validate: timeout = 100ms.
+    let expected_validate_timeout_r0 = Duration::from_millis(100);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 0 && *timeout == expected_validate_timeout_r0)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+
+    let (mut content_tx, content_rx) = mpsc::channel(CHANNEL_SIZE);
+    content_tx.send(TestProposalPart::Init(ProposalInit::default())).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, ProposalInit::default(), content_rx).await.unwrap();
+
+    // Round 1 validate: timeout = 160ms.
+    let expected_validate_timeout_r1 = Duration::from_millis(160);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 1 && *timeout == expected_validate_timeout_r1)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+    let (mut content_tx2, content_rx2) = mpsc::channel(CHANNEL_SIZE);
+    let round1_init = ProposalInit {
+        height: BlockNumber(0),
+        round: 1,
+        proposer: *PROPOSER_ID,
+        ..Default::default()
+    };
+    content_tx2.send(TestProposalPart::Init(round1_init)).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, round1_init, content_rx2).await.unwrap();
+
+    // Round 2 validate: timeout = min(100 + 2*60, 200) = 200ms (capped).
+    let expected_validate_timeout_r2 = Duration::from_millis(200);
+    context
+        .expect_validate_proposal()
+        .times(1)
+        .withf(move |init, timeout, _| init.round == 2 && *timeout == expected_validate_timeout_r2)
+        .returning(move |_, _, _| {
+            let (tx, rx) = oneshot::channel();
+            tx.send(BLOCK.id).ok();
+            rx
+        });
+    let (mut content_tx3, content_rx3) = mpsc::channel(CHANNEL_SIZE);
+    let round2_init = ProposalInit {
+        height: BlockNumber(0),
+        round: 2,
+        proposer: *PROPOSER_ID,
+        ..Default::default()
+    };
+    content_tx3.send(TestProposalPart::Init(round2_init)).await.unwrap();
+    let _ = shc.handle_proposal(&mut context, round2_init, content_rx3).await.unwrap();
 }

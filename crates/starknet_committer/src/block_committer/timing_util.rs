@@ -1,9 +1,9 @@
 use std::fs::{self, File};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use csv::Writer;
 use serde::{Deserialize, Serialize};
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
@@ -19,11 +19,16 @@ pub enum Action {
     Write,
 }
 
+pub struct Timers {
+    pub system: SystemTime,
+    pub instant: Instant,
+}
+
 pub struct TimeMeasurement {
-    pub block_timer: Option<Instant>,
-    pub read_timer: Option<Instant>,
-    pub compute_timer: Option<Instant>,
-    pub writer_timer: Option<Instant>,
+    pub block_timers: Option<Timers>,
+    pub read_timers: Option<Timers>,
+    pub compute_timers: Option<Timers>,
+    pub writer_timers: Option<Timers>,
     pub total_time: u64, // Total duration of all blocks (milliseconds).
     pub n_new_facts: Vec<usize>,
     pub n_read_facts: Vec<usize>,
@@ -32,17 +37,22 @@ pub struct TimeMeasurement {
     pub compute_durations: Vec<u64>, // Duration of a block new facts computation (milliseconds).
     pub write_durations: Vec<u64>, // Duration of a block new facts write (milliseconds).
     pub facts_in_db: Vec<usize>,   // Number of facts in the DB prior to the current block.
+    pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of the measurement
+                                    * for each action. */
     pub block_number: usize,
     pub total_facts: usize,
+
+    // Storage related statistics.
+    pub storage_stat_columns: Vec<&'static str>,
 }
 
 impl TimeMeasurement {
-    pub fn new(size: usize) -> Self {
+    pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            block_timer: None,
-            read_timer: None,
-            compute_timer: None,
-            writer_timer: None,
+            block_timers: None,
+            read_timers: None,
+            compute_timers: None,
+            writer_timers: None,
             total_time: 0,
             n_new_facts: Vec::with_capacity(size),
             n_read_facts: Vec::with_capacity(size),
@@ -51,17 +61,19 @@ impl TimeMeasurement {
             write_durations: Vec::with_capacity(size),
             block_durations: Vec::with_capacity(size),
             facts_in_db: Vec::with_capacity(size),
+            time_of_measurement: Vec::with_capacity(size),
             block_number: 0,
             total_facts: 0,
+            storage_stat_columns,
         }
     }
 
-    fn get_mut_timer(&mut self, action: &Action) -> &mut Option<Instant> {
+    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Timers> {
         match action {
-            Action::EndToEnd => &mut self.block_timer,
-            Action::Read => &mut self.read_timer,
-            Action::Compute => &mut self.compute_timer,
-            Action::Write => &mut self.writer_timer,
+            Action::EndToEnd => &mut self.block_timers,
+            Action::Read => &mut self.read_timers,
+            Action::Compute => &mut self.compute_timers,
+            Action::Write => &mut self.writer_timers,
         }
     }
 
@@ -69,6 +81,7 @@ impl TimeMeasurement {
         self.n_new_facts.clear();
         self.block_durations.clear();
         self.facts_in_db.clear();
+        self.time_of_measurement.clear();
         self.n_read_facts.clear();
         self.read_durations.clear();
         self.compute_durations.clear();
@@ -76,29 +89,39 @@ impl TimeMeasurement {
     }
 
     pub fn start_measurement(&mut self, action: Action) {
-        *self.get_mut_timer(&action) = Some(Instant::now());
+        *self.get_mut_timers(&action) =
+            Some(Timers { system: SystemTime::now(), instant: Instant::now() });
     }
 
     /// Stop the measurement for the given action and add the duration to the corresponding vector.
     /// facts_count is either the number of facts read from the DB for Read action, or the number of
     /// new facts written to the DB for the Total action.
     pub fn stop_measurement(&mut self, facts_count: Option<usize>, action: Action) {
-        let duration = self
-            .get_mut_timer(&action)
-            .expect("stop_measurement called before start_measurement")
-            .elapsed();
+        let Timers { system: system_timer, instant: instant_timer } = self
+            .get_mut_timers(&action)
+            .as_ref()
+            .expect("stop_measurement called before start_measurement");
+        let instant_duration = instant_timer.elapsed();
+        let system_duration = SystemTime::now()
+            .duration_since(*system_timer)
+            .map(|duration| format!("{} milliseconds", duration.as_millis()))
+            .unwrap_or("SAMPLE ERROR: unknown system time".to_string());
         info!(
-            "Time elapsed for {action:?} in iteration {}: {} milliseconds",
+            "Time elapsed for {action:?} in iteration {}: {} or {} milliseconds (instant / system \
+             time)",
             self.n_results(),
-            duration.as_millis()
+            instant_duration.as_millis(),
+            system_duration,
         );
-        let millis: u64 = duration.as_millis().try_into().unwrap();
+        let millis: u64 = instant_duration.as_millis().try_into().unwrap();
         match action {
             Action::EndToEnd => {
                 self.block_durations.push(millis);
                 self.total_time += millis;
                 self.n_new_facts.push(facts_count.unwrap());
                 self.facts_in_db.push(self.total_facts);
+                self.time_of_measurement
+                    .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
                 self.total_facts += facts_count.unwrap();
                 self.block_number += 1;
             }
@@ -175,35 +198,56 @@ impl TimeMeasurement {
         }
     }
 
-    pub fn to_csv(&mut self, path: &str, output_dir: &str) {
+    pub fn to_csv(
+        &mut self,
+        path: &str,
+        output_dir: &str,
+        storage_stat_values: Option<Vec<String>>,
+    ) {
         fs::create_dir_all(output_dir).expect("Failed to create output directory.");
         let file =
             File::create(format!("{output_dir}/{path}")).expect("Failed to create CSV file.");
         let mut wtr = Writer::from_writer(file);
-        wtr.write_record([
-            "block_number",
-            "n_new_facts",
-            "n_read_facts",
-            "initial_facts_in_db",
-            "block_duration_millis",
-            "read_duration_millis",
-            "compute_duration_millis",
-            "write_duration_millis",
-        ])
+        wtr.write_record(
+            [
+                vec![
+                    "block_number",
+                    "n_new_facts",
+                    "n_read_facts",
+                    "initial_facts_in_db",
+                    "time_of_measurement",
+                    "block_duration_millis",
+                    "read_duration_millis",
+                    "compute_duration_millis",
+                    "write_duration_millis",
+                ],
+                self.storage_stat_columns.clone(),
+            ]
+            .concat(),
+        )
         .expect("Failed to write CSV header.");
         let n_results = self.n_results();
+        let empty_storage_stat_row = vec!["".to_string(); self.storage_stat_columns.len()];
         for i in 0..n_results {
-            wtr.write_record(&[
+            // The last row in this checkpoint contains the storage statistics.
+            let mut record = vec![
                 (self.block_number - n_results + i).to_string(),
                 self.n_new_facts[i].to_string(),
                 self.n_read_facts[i].to_string(),
                 self.facts_in_db[i].to_string(),
+                self.time_of_measurement[i].to_string(),
                 self.block_durations[i].to_string(),
                 self.read_durations[i].to_string(),
                 self.compute_durations[i].to_string(),
                 self.write_durations[i].to_string(),
-            ])
-            .expect("Failed to write CSV record.");
+            ];
+            if i == n_results - 1 {
+                record
+                    .extend(storage_stat_values.clone().unwrap_or(empty_storage_stat_row.clone()));
+            } else {
+                record.extend(empty_storage_stat_row.clone());
+            }
+            wtr.write_record(&record).expect("Failed to write CSV record.");
         }
         wtr.flush().expect("Failed to flush CSV writer.");
         self.clear_measurements();

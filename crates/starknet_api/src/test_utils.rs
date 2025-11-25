@@ -18,6 +18,7 @@ use crate::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
+    StarknetVersion,
 };
 use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
@@ -25,7 +26,7 @@ use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::Fee;
+use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -135,6 +136,14 @@ macro_rules! compiled_class_hash {
     };
 }
 
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+// Enough to declare the test class, but under the OS's upper limit.
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
+pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+
 // V3 transactions:
 pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
@@ -181,12 +190,34 @@ impl BlockInfo {
             gas_prices: DEFAULT_GAS_PRICES,
             // TODO(Yoni): change to true.
             use_kzg_da: false,
+            starknet_version: StarknetVersion::LATEST,
         }
     }
 
     pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
     }
+}
+
+pub fn resource_bounds_for_testing() -> AllResourceBounds {
+    AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
+        },
+    }
+}
+
+pub fn valid_resource_bounds_for_testing() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(resource_bounds_for_testing())
 }
 
 /// A trait for producing test transactions.

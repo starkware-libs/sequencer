@@ -1,20 +1,32 @@
+use std::fmt::Display;
 use std::path::Path;
+use std::sync::Arc;
 
 use libmdbx::{
     Database as MdbxDb,
     DatabaseFlags,
     Geometry,
     PageSize,
+    Stat,
     TableFlags,
     WriteFlags,
     WriteMap,
 };
 use page_size;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+    StorageStats,
+};
 
+#[derive(Clone)]
 pub struct MdbxStorage {
-    db: MdbxDb<WriteMap>,
+    db: Arc<MdbxDb<WriteMap>>,
 }
 
 // Size in bytes.
@@ -30,6 +42,30 @@ fn get_page_size(os_page_size: usize) -> PageSize {
     }
 
     PageSize::Set(page_size)
+}
+
+pub struct MdbxStorageStats(Stat);
+
+impl StorageStats for MdbxStorageStats {
+    fn column_titles() -> Vec<&'static str> {
+        vec!["Page size", "Tree depth", "Branch pages", "Leaf pages", "Overflow pages"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![
+            self.0.page_size().to_string(),
+            self.0.depth().to_string(),
+            self.0.branch_pages().to_string(),
+            self.0.leaf_pages().to_string(),
+            self.0.overflow_pages().to_string(),
+        ]
+    }
+}
+
+impl Display for MdbxStorageStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MdbxStorageStats: {}", self.stat_string())
+    }
 }
 
 impl MdbxStorage {
@@ -58,24 +94,25 @@ impl MdbxStorage {
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;
-        Ok(Self { db })
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
 impl Storage for MdbxStorage {
+    type Stats = MdbxStorageStats;
+
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         Ok(txn.get(&table, &key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
         txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         txn.commit()?;
-        Ok(prev_val)
+        Ok(())
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -98,14 +135,19 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
-        if prev_val.is_some() {
-            txn.del(&table, &key.0, None)?;
-            txn.commit()?;
-        }
-        Ok(prev_val)
+        txn.del(&table, &key.0, None)?;
+        txn.commit()?;
+        Ok(())
+    }
+
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        Ok(MdbxStorageStats(self.db.stat()?))
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }

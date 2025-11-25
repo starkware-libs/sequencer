@@ -4,9 +4,9 @@ mod rpc_transaction_test;
 
 use std::collections::HashMap;
 
+use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -216,6 +216,7 @@ impl InternalRpcTransaction {
     implement_internal_getters_for_internal_rpc!(
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
+        (signature, TransactionSignature),
         (tip, Tip),
     );
 
