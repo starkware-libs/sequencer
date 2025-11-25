@@ -22,7 +22,7 @@ use crate::rpc_objects::{
     RpcSuccessResponse,
 };
 use crate::rpc_state_reader::RpcStateReader;
-use crate::state_reader::MempoolStateReader;
+use crate::state_reader::SpecificBlockStateReader;
 
 async fn run_rpc_server() -> mockito::ServerGuard {
     mockito::Server::new_async().await

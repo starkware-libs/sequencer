@@ -36,7 +36,7 @@ use crate::rpc_objects::{
 };
 use crate::state_reader::{
     GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
+    SpecificBlockStateReader,
     StateReaderFactory,
 };
 
@@ -99,7 +99,7 @@ impl RpcStateReader {
     }
 }
 
-impl MempoolStateReader for RpcStateReader {
+impl SpecificBlockStateReader for RpcStateReader {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
 

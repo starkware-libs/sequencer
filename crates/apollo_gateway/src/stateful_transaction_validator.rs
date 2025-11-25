@@ -34,7 +34,7 @@ use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransaction
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
 use crate::state_reader::{
     GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
+    SpecificBlockStateReader,
     StateReaderFactory,
 };
 
@@ -348,7 +348,7 @@ fn skip_stateful_validations(
 }
 
 pub fn get_latest_block_info(
-    state_reader: &dyn MempoolStateReader,
+    state_reader: &dyn SpecificBlockStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     state_reader
         .get_block_info()

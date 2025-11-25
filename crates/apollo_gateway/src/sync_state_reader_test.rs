@@ -29,7 +29,7 @@ use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
-use crate::state_reader::MempoolStateReader;
+use crate::state_reader::SpecificBlockStateReader;
 use crate::sync_state_reader::SyncStateReader;
 
 #[tokio::test]

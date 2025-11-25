@@ -1,6 +1,5 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use blockifier::execution::contract_class::RunnableCompiledClass;
-use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
@@ -14,8 +13,9 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
-    fn get_block_info(&self) -> Result<BlockInfo, StateError>;
+/// A state reader of a specific block.
+pub trait SpecificBlockStateReader: BlockifierStateReader + Send + Sync {
+    fn get_block_info(&self) -> StateResult<BlockInfo>;
 }
 
 #[cfg_attr(test, automock)]
@@ -25,7 +25,10 @@ pub trait StateReaderFactory: Send + Sync {
     ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>>;
 }
 
-pub trait GatewayStateReaderWithCompiledClasses: MempoolStateReader + FetchCompiledClasses {}
+pub trait GatewayStateReaderWithCompiledClasses:
+    SpecificBlockStateReader + FetchCompiledClasses
+{
+}
 
 impl BlockifierStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
     fn get_storage_at(
@@ -67,7 +70,7 @@ impl FetchCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {
 // Therefore, for using the Box<dyn GatewayStateReaderWithCompiledClasses>, that the
 // StateReaderFactory creates, we need to implement the MempoolStateReader trait for
 // Box<dyn GatewayStateReaderWithCompiledClasses>.
-impl MempoolStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
+impl SpecificBlockStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
         self.as_ref().get_block_info()
     }
@@ -75,7 +78,7 @@ impl MempoolStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
 
 impl GatewayStateReaderWithCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {}
 
-impl MempoolStateReader
+impl SpecificBlockStateReader
     for StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>
 {
     fn get_block_info(&self) -> StateResult<BlockInfo> {

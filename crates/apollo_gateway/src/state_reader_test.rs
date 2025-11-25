@@ -39,7 +39,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
-use crate::state_reader::{GatewayStateReaderWithCompiledClasses, MempoolStateReader};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, SpecificBlockStateReader};
 use crate::sync_state_reader::SyncStateReader;
 
 fn state_reader_and_contract_manager(

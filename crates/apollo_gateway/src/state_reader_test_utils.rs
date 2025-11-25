@@ -18,7 +18,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{
     GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
+    SpecificBlockStateReader,
     StateReaderFactory,
 };
 
@@ -28,7 +28,7 @@ pub struct TestStateReader {
     pub blockifier_state_reader: DictStateReader,
 }
 
-impl MempoolStateReader for TestStateReader {
+impl SpecificBlockStateReader for TestStateReader {
     fn get_block_info(&self) -> Result<BlockInfo, StateError> {
         Ok(self.block_info.clone())
     }

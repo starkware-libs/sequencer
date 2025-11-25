@@ -38,7 +38,7 @@ use crate::metrics::{
 };
 use crate::state_reader::{
     GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
+    SpecificBlockStateReader,
     StateReaderFactory,
 };
 
@@ -98,7 +98,7 @@ impl SyncStateReader {
     }
 }
 
-impl MempoolStateReader for SyncStateReader {
+impl SpecificBlockStateReader for SyncStateReader {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
         let block = block_on(self.state_sync_client.get_block(self.block_number))
             .map_err(|e| StateError::StateReadError(e.to_string()))?;
