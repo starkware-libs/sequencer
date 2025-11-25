@@ -340,6 +340,7 @@ auto_storage_serde! {
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
+        BlockHash = 9,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,

@@ -78,6 +78,7 @@
 
 pub mod base_layer;
 pub mod block_hash;
+pub mod block_hash_marker;
 pub mod body;
 pub mod class;
 pub mod class_hash;
@@ -754,6 +755,7 @@ pub(crate) enum MarkerKind {
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
+    BlockHash,
 }
 
 pub(crate) type MarkersTable<'env> =
