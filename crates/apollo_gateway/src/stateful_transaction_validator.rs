@@ -6,6 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
+use apollo_mempool_types::mempool_types::ValidationArgs;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
@@ -159,6 +160,7 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
         self.validate_state_preconditions(executable_tx, account_nonce)?;
+        validate_by_mempool(executable_tx, account_nonce, mempool_client.clone(), runtime.clone())?;
         self.run_validate_entry_point(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(())
     }
@@ -308,6 +310,19 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         }
         Ok(())
     }
+}
+
+/// Perform transaction validation by the mempool.
+fn validate_by_mempool(
+    tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+    mempool_client: SharedMempoolClient,
+    runtime: tokio::runtime::Handle,
+) -> StatefulTransactionValidatorResult<()> {
+    let validation_args = ValidationArgs::new(tx, account_nonce);
+    runtime
+        .block_on(mempool_client.validate_tx(validation_args))
+        .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err))
 }
 
 /// Check if validation of an invoke transaction should be skipped due to deploy_account not being
