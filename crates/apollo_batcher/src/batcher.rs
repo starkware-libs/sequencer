@@ -43,6 +43,7 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -139,6 +140,10 @@ pub struct Batcher {
 
     /// Number of proposals made since coming online.
     proposals_counter: u64,
+
+    /// The proposal commitment of the previous height.
+    /// This is returned by the decision_reached function.
+    prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 }
 
 impl Batcher {
@@ -170,6 +175,7 @@ impl Batcher {
             validate_tx_streams: HashMap::new(),
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
+            prev_proposal_commitment: None,
         }
     }
 
@@ -631,6 +637,7 @@ impl Batcher {
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
+        let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -639,6 +646,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
+
         let execution_infos = block_execution_artifacts.execution_data.execution_infos;
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
@@ -663,7 +671,7 @@ impl Batcher {
                     .casm_hash_computation_data_proving_gas,
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
-                parent_proposal_commitment: None,
+                parent_proposal_commitment,
             },
         })
     }
@@ -682,12 +690,16 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
+        let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+
         // Commit the proposal to the storage.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
         info!("Successfully committed proposal for block {} to storage.", height);
+        self.prev_proposal_commitment =
+            Some((height, ProposalCommitment { state_diff_commitment }));
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
@@ -919,6 +931,42 @@ impl Batcher {
         REVERTED_BLOCKS.increment(1);
         Ok(())
     }
+
+    // Returns the proposal commitment of the previous height.
+    // NOTE: Assumes that the previous height was committed to the storage.
+    fn get_parent_proposal_commitment(
+        &mut self,
+        height: BlockNumber,
+    ) -> BatcherResult<Option<ProposalCommitment>> {
+        let Some(prev_height) = height.prev() else {
+            // This is the first block, so there is no parent proposal commitment.
+            return Ok(None);
+        };
+
+        match self.prev_proposal_commitment {
+            Some((h, commitment)) => {
+                assert_eq!(h, prev_height, "Unexpected height of parent_proposal_commitment.");
+                Ok(Some(commitment))
+            }
+            None => {
+                // Parent proposal commitment is not cached. Compute it from the stored state diff.
+                let state_diff = self
+                    .storage_reader
+                    .get_state_diff(prev_height)
+                    .map_err(|err| {
+                        error!(
+                            "Failed to read state diff for previous height {prev_height}: {}",
+                            err
+                        );
+                        BatcherError::InternalError
+                    })?
+                    .expect("Missing state diff for previous height.");
+                Ok(Some(ProposalCommitment {
+                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                }))
+            }
+        }
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -1008,11 +1056,23 @@ pub fn create_batcher(
 pub trait BatcherStorageReaderTrait: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+
+    fn get_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<ThinStateDiff>>;
 }
 
 impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn get_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<ThinStateDiff>> {
+        self.begin_ro_txn()?.get_state_diff(height)
     }
 }
 
