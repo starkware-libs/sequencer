@@ -2,7 +2,6 @@
 mod cende_test;
 mod central_objects;
 
-use std::future::ready;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
@@ -32,7 +31,7 @@ use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, RequestBuilder};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -46,7 +45,7 @@ use url::Url;
 use crate::fee_market::FeeMarketInfo;
 use crate::metrics::{
     record_write_failure,
-    CendeWriteFailureReason,
+    CendeWritePrevHeightFailureReason,
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
     CENDE_WRITE_BLOB_SUCCESS,
@@ -105,14 +104,24 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    get_latest_blob_url: Url,
+    write_blob_url: Url,
     client: ClientWithMiddleware,
-    skip_write_height: Option<BlockNumber>,
     class_manager: SharedClassManagerClient,
 }
 
 /// The path to write blob in the Recorder.
 pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
+
+pub const RECORDER_GET_LATEST_BLOB_PATH: &str = "/cende_recorder/get_latest_blob";
+
+#[derive(Debug, Deserialize, Serialize)]
+struct GetLatestBlobResponse {
+    height: BlockNumber,
+    #[allow(dead_code)]
+    // Curerntly unused but sent as part of the response from Cende.
+    proposal_commitment: String,
+}
 
 impl CendeAmbassador {
     pub fn new(cende_config: CendeConfig, class_manager: SharedClassManagerClient) -> Self {
@@ -122,15 +131,61 @@ impl CendeAmbassador {
             .build_with_total_retry_duration(cende_config.max_retry_duration_secs);
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
-            url: cende_config
+            get_latest_blob_url: cende_config
+                .recorder_url
+                .join(RECORDER_GET_LATEST_BLOB_PATH)
+                .expect("Failed to join `RECORDER_GET_LATEST_BLOB_PATH` with the Recorder URL"),
+            write_blob_url: cende_config
                 .recorder_url
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
-            skip_write_height: cende_config.skip_write_height,
             class_manager,
+        }
+    }
+}
+
+async fn is_block_available_in_cende(
+    height: BlockNumber,
+    get_latest_blob_request_builder: RequestBuilder,
+) -> bool {
+    match get_latest_blob_request_builder.send().await {
+        Err(err) => {
+            warn!("CENDE_FAILURE: Failed to get latest blob from the recorder. Error: {err}");
+            record_write_failure(CendeWritePrevHeightFailureReason::CommunicationError);
+            false
+        }
+
+        Ok(response) => {
+            if !response.status().is_success() {
+                warn!(
+                    "CENDE_FAILURE: CENDE_FAILURE: Failed to get latest blob from the recorder. \
+                     Status code: {}.  Response: {}",
+                    response.status(),
+                    response.text().await.unwrap_or("Unparsable response".to_owned()),
+                );
+                record_write_failure(CendeWritePrevHeightFailureReason::CendeRecorderError);
+                return false;
+            }
+
+            let GetLatestBlobResponse { height: latest_blob_height, proposal_commitment: _ } =
+                response.json().await.unwrap();
+            // TODO(guy.f): Pass through the current block's commitment and compare it to the latest
+            // blob's commitment.
+            if latest_blob_height >= height {
+                info!("Previous height blob is already available in Cende, No need to write it.");
+                record_write_failure(CendeWritePrevHeightFailureReason::SkipWriteHeight);
+                true
+            } else {
+                warn!(
+                    "CENDE_FAILURE: Latest blob in cende is below the previous height. Cannot \
+                     continue. Previous height: {height}, Latest blob height: {latest_blob_height}"
+                );
+                record_write_failure(CendeWritePrevHeightFailureReason::BlobNotAvailable);
+                false
+            }
         }
     }
 }
@@ -140,33 +195,37 @@ impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
-        // TODO(dvir): consider returning a future that will be spawned in the context instead.
-        if self.skip_write_height == Some(current_height) {
-            info!(
-                "Height {current_height} is configured as the `skip_write_height`, meaning \
-                 consensus can send a proposal without writing to Aerospike. The blob that should \
-                 have been written here in a normal flow, should already be written to Aerospike. \
-                 Not writing to Aerospike previous height blob!!!.",
-            );
-            record_write_failure(CendeWriteFailureReason::SkipWriteHeight);
-            return tokio::spawn(ready(true));
-        }
-
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone());
+        let write_blob_request_builder = self.client.post(self.write_blob_url.clone());
+        let get_latest_blob_request_builder = self.client.get(self.get_latest_blob_url.clone());
 
-        task::spawn(
+        let handle = task::spawn(
             async move {
-                // TODO(dvir): consider extracting the "should write blob" logic to a function.
-                let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    // This case happens when restarting the node, `prev_height_blob` initial value
-                    // is `None`.
-                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
-                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
-                    return false;
+                let Some(ref prev_blob): Option<AerospikeBlob> = *prev_height_blob.lock().await
+                else {
+                    // No previous blob stored.
+
+                    let prev_height = current_height.prev();
+                    if prev_height.is_none() {
+                        info!(
+                            "No previous blob, but current height is 0 so this is expected. \
+                             Skipping write."
+                        );
+                        record_write_failure(CendeWritePrevHeightFailureReason::SkipWriteHeight);
+                        return true;
+                    }
+
+                    info!(
+                        "No previous blob, checking if the latest blob is available in Aerospike."
+                    );
+                    return is_block_available_in_cende(
+                        prev_height.expect("Previous height should be Some. Already checked above"),
+                        get_latest_blob_request_builder,
+                    )
+                    .await;
                 };
 
-                if blob.block_number.0 >= current_height.0 {
+                if prev_blob.block_number.0 >= current_height.0 {
                     panic!(
                         "Blob block number is greater than or equal to the current height. That \
                          means cende has a blob of height that hasn't reached a consensus."
@@ -175,21 +234,23 @@ impl CendeContext for CendeAmbassador {
 
                 // Can happen in case the consensus got a block from the state sync and due to that
                 // did not update the cende ambassador in `decision_reached` function.
-                if blob.block_number.0 + 1 != current_height.0 {
+                if prev_blob.block_number.0 + 1 != current_height.0 {
                     warn!(
                         "CENDE_FAILURE: Mismatch blob block number and height, can't write blob \
                          to Aerospike. Blob block number {}, height {current_height}",
-                        blob.block_number
+                        prev_blob.block_number
                     );
-                    record_write_failure(CendeWriteFailureReason::HeightMismatch);
+                    record_write_failure(CendeWritePrevHeightFailureReason::HeightMismatch);
                     return false;
                 }
 
                 info!("Writing blob to Aerospike.");
-                return send_write_blob(request_builder, blob).await;
+                return send_write_blob(write_blob_request_builder, prev_blob).await;
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
-        )
+        );
+
+        handle
     }
 
     #[sequencer_latency_histogram(CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, false)]
@@ -235,14 +296,14 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     response.status(),
                     response.text().await.unwrap_or("Unparsable response".to_owned()),
                 );
-                record_write_failure(CendeWriteFailureReason::CendeRecorderError);
+                record_write_failure(CendeWritePrevHeightFailureReason::CendeRecorderError);
                 false
             }
         }
         Err(err) => {
             // TODO(dvir): try to test this case.
             warn!("CENDE_FAILURE: Failed to send a request to the recorder. Error: {err}");
-            record_write_failure(CendeWriteFailureReason::CommunicationError);
+            record_write_failure(CendeWritePrevHeightFailureReason::CommunicationError);
             false
         }
     }
