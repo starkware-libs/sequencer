@@ -4,6 +4,7 @@ mod local_request_prioritization;
 mod remote_component_client_server_test;
 mod server_metrics_test;
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
@@ -25,6 +26,7 @@ use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
+use crate::component_server::RemoteServerConfig;
 use crate::metrics::{
     LocalClientMetrics,
     LocalServerMetrics,
@@ -334,5 +336,13 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
                 ComponentBResponse::BSetValue
             }
         }
+    }
+}
+
+fn dummy_remote_server_config(ip: IpAddr) -> RemoteServerConfig {
+    RemoteServerConfig {
+        bind_ip: ip,
+        // arbitrary value
+        max_streams_per_connection: 5,
     }
 }

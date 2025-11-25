@@ -33,6 +33,7 @@ use crate::component_server::{
     RemoteComponentServer,
 };
 use crate::tests::{
+    dummy_remote_server_config,
     AVAILABLE_PORTS,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
@@ -177,10 +178,9 @@ async fn setup_remote_server_test(
 
     let mut remote_server = RemoteComponentServer::new(
         local_client.clone(),
-        socket.ip(),
+        dummy_remote_server_config(socket.ip()),
         socket.port(),
         max_concurrency,
-        None,
         &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move {
