@@ -19,6 +19,13 @@ pub struct ServerConfig {
     enable: bool,
 }
 
+impl ServerConfig {
+    /// Creates a new server configuration.
+    pub fn new(socket: SocketAddr, max_concurrency: usize, enable: bool) -> Self {
+        Self { socket, max_concurrency, enable }
+    }
+}
+
 #[async_trait]
 /// Handler trait for processing storage reader requests.
 pub trait StorageReaderServerHandler<Request, Response> {
