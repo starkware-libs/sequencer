@@ -1,9 +1,16 @@
+use std::io;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::post;
+use axum::{Json, Router};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use tracing::{error, info};
 
 use crate::{StorageError, StorageReader};
 
@@ -86,8 +93,74 @@ where
         Self { app_state, config }
     }
 
-    /// Starts the server to handle incoming requests.
-    pub fn start(&mut self) {
-        unimplemented!()
+    /// Creates the axum router with configured routes and state.
+    pub fn app(&self) -> Router
+    where
+        RequestHandler: Send + Sync + 'static,
+        Request: Send + Sync + 'static,
+        Response: Send + Sync + 'static,
+    {
+        Router::new()
+            .route(
+                "/storage/query",
+                post(handle_request_endpoint::<RequestHandler, Request, Response>),
+            )
+            .with_state(self.app_state.clone())
+    }
+
+    /// Runs the server to handle incoming requests.
+    pub async fn run(self) -> Result<(), StorageError>
+    where
+        RequestHandler: Send + Sync + 'static,
+        Request: Send + Sync + 'static,
+        Response: Send + Sync + 'static,
+    {
+        if !self.config.enable {
+            info!("Storage reader server is disabled, not starting");
+            return Ok(());
+        }
+        info!("Starting storage reader server on {}", self.config.socket);
+        let app = self.app();
+        info!("Storage reader server listening on {}", self.config.socket);
+
+        // Start the server
+        axum::Server::bind(&self.config.socket).serve(app.into_make_service()).await.map_err(|e| {
+            error!("Storage reader server error: {}", e);
+            StorageError::IOError(io::Error::other(e))
+        })
+    }
+}
+
+/// Axum handler for storage query requests.
+async fn handle_request_endpoint<RequestHandler, Request, Response>(
+    State(app_state): State<AppState<RequestHandler, Request, Response>>,
+    Json(request): Json<Request>,
+) -> Result<Json<Response>, StorageServerError>
+where
+    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    Request: Send + Sync + 'static,
+    Response: Send + Sync + 'static,
+{
+    let response =
+        app_state.request_handler.handle_request(&app_state.storage_reader, request).await?;
+
+    Ok(Json(response))
+}
+
+/// Error type for HTTP responses.
+#[derive(Debug)]
+struct StorageServerError(StorageError);
+
+impl From<StorageError> for StorageServerError {
+    fn from(error: StorageError) -> Self {
+        StorageServerError(error)
+    }
+}
+
+impl IntoResponse for StorageServerError {
+    fn into_response(self) -> Response {
+        let error_message = format!("Storage error: {}", self.0);
+        error!("{}", error_message);
+        (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
     }
 }
