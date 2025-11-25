@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import logging
 import requests
-
-logger = logging.getLogger(__name__)
 
 
 class L1Client:
@@ -19,7 +17,6 @@ class L1Client:
     )
     # Taken from ethereum_base_layer_contracts.rs
     STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
-    RETRIES_COUNT = 2
 
     @dataclass(frozen=True)
     class Log:
@@ -38,16 +35,55 @@ class L1Client:
         removed: bool
         block_timestamp: int
 
-    @staticmethod
-    def get_logs(from_block: int, to_block: int, api_key: str) -> List["L1Client.Log"]:
+    def __init__(
+        self,
+        api_key: str,
+        logger: logging.Logger,
+        timeout: int = 10,
+        retries_count: int = 2,
+    ):
+        self.api_key = api_key
+        self.logger = logger
+        self.timeout = timeout
+        self.retries_count = retries_count
+        self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
+        self.data_api_url = self.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
+
+    def _run_request_with_retry(
+        self,
+        request_func: Callable[[], Dict],
+        method_name_for_logs: str,
+        additional_log_context: Dict[str, Any],
+    ) -> Optional[Dict]:
+        for attempt in range(self.retries_count):
+            try:
+                result = request_func()
+                self.logger.debug(
+                    f"{method_name_for_logs} succeeded on attempt {attempt + 1}",
+                    extra=additional_log_context,
+                )
+                return result
+            except (requests.RequestException, ValueError):
+                self.logger.debug(
+                    f"{method_name_for_logs} attempt {attempt + 1}/{self.retries_count} failed",
+                    extra=additional_log_context,
+                    exc_info=True,
+                )
+
+        self.logger.error(
+            f"{method_name_for_logs} failed after {self.retries_count} attempts, returning None",
+            extra=additional_log_context,
+        )
+
+        return None
+
+    def get_logs(self, from_block: int, to_block: int) -> List["L1Client.Log"]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
-        Tries up to RETRIES_COUNT times. On failure, logs an error and returns [].
+        Tries up to retries_count times. On failure, logs an error and returns [].
         """
         if from_block > to_block:
             raise ValueError("from_block must be less than or equal to to_block")
-
-        rpc_url = L1Client.L1_MAINNET_URL.format(api_key=api_key)
 
         payload = {
             "jsonrpc": "2.0",
@@ -56,34 +92,25 @@ class L1Client:
                 {
                     "fromBlock": hex(from_block),
                     "toBlock": hex(to_block),
-                    "address": L1Client.STARKNET_L1_CONTRACT_ADDRESS,
-                    "topics": [L1Client.LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
+                    "address": self.STARKNET_L1_CONTRACT_ADDRESS,
+                    "topics": [self.LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
                 }
             ],
             "id": 1,
         }
 
-        for attempt in range(L1Client.RETRIES_COUNT):
-            try:
-                response = requests.post(rpc_url, json=payload, timeout=10)
-                response.raise_for_status()
-                data = response.json()
-                logger.debug(
-                    f"get_logs succeeded on attempt {attempt + 1}",
-                    extra={"url": rpc_url, "from_block": from_block, "to_block": to_block},
-                )
-                break
-            except (requests.RequestException, ValueError):
-                logger.debug(
-                    f"get_logs attempt {attempt + 1}/{L1Client.RETRIES_COUNT} failed",
-                    extra={"url": rpc_url, "from_block": from_block, "to_block": to_block},
-                    exc_info=True,
-                )
-        else:
-            logger.error(
-                f"get_logs failed after {L1Client.RETRIES_COUNT} attempts, returning []",
-                extra={"url": rpc_url, "from_block": from_block, "to_block": to_block},
-            )
+        def request_func():
+            response = requests.post(self.rpc_url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+
+        data = self._run_request_with_retry(
+            request_func=request_func,
+            method_name_for_logs="get_logs",
+            additional_log_context={"url": self.rpc_url, "from_block": from_block, "to_block": to_block},
+        )
+
+        if data is None:
             return []
 
         results = data.get("result", [])
@@ -104,14 +131,11 @@ class L1Client:
             for result in results
         ]
 
-    @staticmethod
-    def get_timestamp_of_block(block_number: int, api_key: str) -> Optional[int]:
+    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
-        Tries up to RETRIES_COUNT times. On failure, logs an error and returns None.
+        Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        rpc_url = L1Client.L1_MAINNET_URL.format(api_key=api_key)
-
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
@@ -119,28 +143,18 @@ class L1Client:
             "id": 1,
         }
 
-        for attempt in range(L1Client.RETRIES_COUNT):
-            try:
-                response = requests.post(rpc_url, json=payload, timeout=10)
-                response.raise_for_status()
-                result = response.json()
-                logger.debug(
-                    f"get_timestamp_of_block succeeded on attempt {attempt + 1}",
-                    extra={"url": rpc_url, "block_number": block_number},
-                )
-                break  # success -> exit loop
-            except (requests.RequestException, ValueError) as exc:
-                logger.debug(
-                    f"get_timestamp_of_block attempt {attempt + 1}/{L1Client.RETRIES_COUNT} failed",
-                    extra={"url": rpc_url, "block_number": block_number},
-                    exc_info=True,
-                )
+        def request_func():
+            response = requests.post(self.rpc_url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
 
-        else:
-            logger.error(
-                f"get_timestamp_of_block failed after {L1Client.RETRIES_COUNT} attempts, returning None",
-                extra={"url": rpc_url, "block_number": block_number},
-            )
+        result = self._run_request_with_retry(
+            request_func=request_func,
+            method_name_for_logs="get_timestamp_of_block",
+            additional_log_context={"url": self.rpc_url, "block_number": block_number},
+        )
+
+        if result is None:
             return None
 
         block = result.get("result")
@@ -151,14 +165,11 @@ class L1Client:
         # Timestamp is hex string, convert to int.
         return int(block["timestamp"], 16)
 
-    @staticmethod
-    def get_block_number_by_timestamp(timestamp: int, api_key: str) -> Optional[int]:
+    def get_block_number_by_timestamp(self, timestamp: int) -> Optional[int]:
         """
         Get the block number at/after a given timestamp using blocks-by-timestamp API.
-        Tries up to RETRIES_COUNT times. On failure, logs an error and returns None.
+        Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        rpc_url = L1Client.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
-
         timestamp_iso = (
             datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
         )
@@ -169,27 +180,18 @@ class L1Client:
             "direction": "AFTER",
         }
 
-        for attempt in range(L1Client.RETRIES_COUNT):
-            try:
-                response = requests.get(rpc_url, params=params, timeout=10)
-                response.raise_for_status()
-                data = response.json()
-                logger.debug(
-                    f"get_block_number_by_timestamp succeeded on attempt {attempt + 1}",
-                    extra={"url": rpc_url, "timestamp": timestamp},
-                )
-                break  # success -> exit loop
-            except (requests.RequestException, ValueError) as exc:
-                logger.debug(
-                    f"get_block_number_by_timestamp attempt {attempt + 1}/{L1Client.RETRIES_COUNT} failed",
-                    extra={"url": rpc_url, "timestamp": timestamp},
-                    exc_info=True,
-                )
-        else:
-            logger.error(
-                f"get_block_number_by_timestamp failed after {L1Client.RETRIES_COUNT} attempts, returning None",
-                extra={"url": rpc_url, "timestamp": timestamp},
-            )
+        def request_func():
+            response = requests.get(self.data_api_url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+
+        data = self._run_request_with_retry(
+            request_func=request_func,
+            method_name_for_logs="get_block_number_by_timestamp",
+            additional_log_context={"url": self.data_api_url, "timestamp": timestamp},
+        )
+
+        if data is None:
             return None
 
         items = data.get("data", [])
