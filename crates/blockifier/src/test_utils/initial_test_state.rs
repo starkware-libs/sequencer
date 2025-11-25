@@ -200,12 +200,12 @@ pub fn test_state_inner_with_contract_manager(
 }
 
 pub fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasses>(
-    reader: Reader,
-    manager: ContractClassManager,
+    state_reader: Reader,
+    contract_class_manager: ContractClassManager,
 ) -> StateReaderAndContractManager<Reader> {
-    StateReaderAndContractManager {
-        state_reader: reader,
-        contract_class_manager: manager,
-        class_cache_metrics: BLOCKIFIER_CLASS_CACHE_METRICS,
-    }
+    StateReaderAndContractManager::new(
+        state_reader,
+        contract_class_manager,
+        BLOCKIFIER_CLASS_CACHE_METRICS,
+    )
 }
