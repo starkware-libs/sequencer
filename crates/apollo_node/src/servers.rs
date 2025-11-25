@@ -130,45 +130,19 @@ pub struct SequencerNodeServers {
 /// Returns a remote server if the component is configured with Remote execution mode; otherwise,
 /// returns None.
 ///
-/// # Arguments
-///
-/// * `$execution_mode` - Component execution mode reference.
-/// * `$local_client_getter` - Local client getter function, used for the remote server
-///   initialization if needed.
-/// * `$ip` - Remote component server binding address, default "0.0.0.0".
-/// * `$port` - Remote component server listening port.
-/// * `$max_concurrency` - the maximum number of concurrent connections the server will handle.
-///
 /// # Returns
 ///
 /// An `Option<Box<RemoteComponentServer<LocalClientType, RequestType, ResponseType>>>` containing
 /// the remote server if the execution mode is Remote, or None if the execution mode is Disabled,
 /// LocalExecutionWithRemoteEnabled, or LocalExecutionWithRemoteDisabled.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let batcher_remote_server = create_remote_server!(
-///     &config.components.batcher.execution_mode,
-///     || {clients.get_gateway_local_client()},
-///     config.components.batcher.ip,
-///     config.components.batcher.port,
-///     config.components.batcher.max_concurrency
-/// );
-/// match batcher_remote_server {
-///     Some(server) => println!("Remote server created: {:?}", server),
-///     None => println!("Remote server not created because the execution mode is not remote."),
-/// }
-/// ```
 #[macro_export]
 macro_rules! create_remote_server {
     (
         $execution_mode:expr,
         $local_client_getter:expr,
-        $url:expr,
+        $remote_server_config:expr,
         $port:expr,
         $max_concurrency:expr,
-        $max_streams_per_connection:expr,
         $metrics:expr
     ) => {
         match *$execution_mode {
@@ -178,13 +152,15 @@ macro_rules! create_remote_server {
 
                 Some(Box::new(RemoteComponentServer::new(
                     local_client,
-                    $url,
+                    $remote_server_config
+                        .clone()
+                        .expect("Should have remote server config for inbound remote connections"),
                     $port,
                     $max_concurrency,
-                    $max_streams_per_connection,
                     $metrics,
                 )))
             }
+
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
             | ReactiveComponentExecutionMode::Disabled => None,
@@ -543,110 +519,99 @@ pub fn create_remote_servers(
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
-        config.components.batcher.ip,
+        config.components.batcher.remote_server_config,
         config.components.batcher.port,
         config.components.batcher.max_concurrency,
-        config.components.batcher.max_streams_per_connection,
         BATCHER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let class_manager_server = create_remote_server!(
         &config.components.class_manager.execution_mode,
         || { clients.get_class_manager_local_client() },
-        config.components.class_manager.ip,
+        config.components.class_manager.remote_server_config,
         config.components.class_manager.port,
         config.components.class_manager.max_concurrency,
-        config.components.class_manager.max_streams_per_connection,
         CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
-        config.components.gateway.ip,
+        config.components.gateway.remote_server_config,
         config.components.gateway.port,
         config.components.gateway.max_concurrency,
-        config.components.gateway.max_streams_per_connection,
         GATEWAY_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_endpoint_monitor_server = create_remote_server!(
         &config.components.l1_endpoint_monitor.execution_mode,
         || { clients.get_l1_endpoint_monitor_local_client() },
-        config.components.l1_endpoint_monitor.ip,
+        config.components.l1_endpoint_monitor.remote_server_config,
         config.components.l1_endpoint_monitor.port,
         config.components.l1_endpoint_monitor.max_concurrency,
-        config.components.l1_endpoint_monitor.max_streams_per_connection,
         L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.ip,
+        config.components.l1_provider.remote_server_config,
         config.components.l1_provider.port,
         config.components.l1_provider.max_concurrency,
-        config.components.l1_provider.max_streams_per_connection,
         L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_gas_price_provider_server = create_remote_server!(
         &config.components.l1_gas_price_provider.execution_mode,
         || { clients.get_l1_gas_price_provider_local_client() },
-        config.components.l1_gas_price_provider.ip,
+        config.components.l1_gas_price_provider.remote_server_config,
         config.components.l1_gas_price_provider.port,
         config.components.l1_gas_price_provider.max_concurrency,
-        config.components.l1_gas_price_provider.max_streams_per_connection,
         L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
-        config.components.mempool.ip,
+        config.components.mempool.remote_server_config,
         config.components.mempool.port,
         config.components.mempool.max_concurrency,
-        config.components.mempool.max_streams_per_connection,
         MEMPOOL_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
-        config.components.mempool_p2p.ip,
+        config.components.mempool_p2p.remote_server_config,
         config.components.mempool_p2p.port,
         config.components.mempool_p2p.max_concurrency,
-        config.components.mempool_p2p.max_streams_per_connection,
         MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let sierra_compiler_server = create_remote_server!(
         &config.components.sierra_compiler.execution_mode,
         || { clients.get_sierra_compiler_local_client() },
-        config.components.sierra_compiler.ip,
+        config.components.sierra_compiler.remote_server_config,
         config.components.sierra_compiler.port,
         config.components.sierra_compiler.max_concurrency,
-        config.components.sierra_compiler.max_streams_per_connection,
         SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let signature_manager_server = create_remote_server!(
         &config.components.signature_manager.execution_mode,
         || { clients.get_signature_manager_local_client() },
-        config.components.signature_manager.ip,
+        config.components.signature_manager.remote_server_config,
         config.components.signature_manager.port,
         config.components.signature_manager.max_concurrency,
-        config.components.state_sync.max_streams_per_connection,
         SIGNATURE_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
-        config.components.state_sync.ip,
+        config.components.state_sync.remote_server_config,
         config.components.state_sync.port,
         config.components.state_sync.max_concurrency,
-        config.components.state_sync.max_streams_per_connection,
         STATE_SYNC_INFRA_METRICS.get_remote_server_metrics()
     );
 

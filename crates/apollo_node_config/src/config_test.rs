@@ -1,8 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr};
-
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
-use apollo_infra::component_server::LocalServerConfig;
+use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use rstest::rstest;
 use validator::Validate;
@@ -29,60 +27,51 @@ const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled;
 
 const VALID_URL: &str = "www.google.com";
-const VALID_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const VALID_PORT: u16 = 8080;
 
 /// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(
-    ReactiveComponentExecutionMode::Disabled,
-    None,
-    None,
-    VALID_URL,
-    VALID_IP,
-    VALID_PORT
-)]
+#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, None, VALID_URL, VALID_PORT)]
 #[case::local(
     ReactiveComponentExecutionMode::Remote,
     None,
+    None,
     Some(RemoteClientConfig::default()),
     VALID_URL,
-    VALID_IP,
     VALID_PORT
 )]
 #[case::local(
     LOCAL_EXECUTION_MODE,
     Some(LocalServerConfig::default()),
     None,
+    None,
     VALID_URL,
-    VALID_IP,
     VALID_PORT
 )]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
     Some(LocalServerConfig::default()),
+    Some(RemoteServerConfig::default()),
     None,
     VALID_URL,
-    VALID_IP,
     VALID_PORT
 )]
 fn valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
     #[case] local_server_config: Option<LocalServerConfig>,
+    #[case] remote_server_config: Option<RemoteServerConfig>,
     #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] url: &str,
-    #[case] ip: IpAddr,
     #[case] port: u16,
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {
         execution_mode,
         local_server_config,
+        remote_server_config,
         remote_client_config,
         max_concurrency: 1,
-        max_streams_per_connection: None,
         url: url.to_string(),
-        ip,
         port,
     };
     assert_eq!(component_exe_config.validate(), Ok(()));
