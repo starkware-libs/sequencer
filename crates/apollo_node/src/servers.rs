@@ -168,6 +168,7 @@ macro_rules! create_remote_server {
         $url:expr,
         $port:expr,
         $max_concurrency:expr,
+        $max_streams_per_connection:expr,
         $metrics:expr
     ) => {
         match *$execution_mode {
@@ -180,6 +181,7 @@ macro_rules! create_remote_server {
                     $url,
                     $port,
                     $max_concurrency,
+                    $max_streams_per_connection,
                     $metrics,
                 )))
             }
@@ -544,6 +546,7 @@ pub fn create_remote_servers(
         config.components.batcher.ip,
         config.components.batcher.port,
         config.components.batcher.max_concurrency,
+        config.components.batcher.max_streams_per_connection,
         BATCHER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -553,6 +556,7 @@ pub fn create_remote_servers(
         config.components.class_manager.ip,
         config.components.class_manager.port,
         config.components.class_manager.max_concurrency,
+        config.components.class_manager.max_streams_per_connection,
         CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -562,6 +566,7 @@ pub fn create_remote_servers(
         config.components.gateway.ip,
         config.components.gateway.port,
         config.components.gateway.max_concurrency,
+        config.components.gateway.max_streams_per_connection,
         GATEWAY_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -571,6 +576,7 @@ pub fn create_remote_servers(
         config.components.l1_endpoint_monitor.ip,
         config.components.l1_endpoint_monitor.port,
         config.components.l1_endpoint_monitor.max_concurrency,
+        config.components.l1_endpoint_monitor.max_streams_per_connection,
         L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -580,6 +586,7 @@ pub fn create_remote_servers(
         config.components.l1_provider.ip,
         config.components.l1_provider.port,
         config.components.l1_provider.max_concurrency,
+        config.components.l1_provider.max_streams_per_connection,
         L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -589,6 +596,7 @@ pub fn create_remote_servers(
         config.components.l1_gas_price_provider.ip,
         config.components.l1_gas_price_provider.port,
         config.components.l1_gas_price_provider.max_concurrency,
+        config.components.l1_gas_price_provider.max_streams_per_connection,
         L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -598,6 +606,7 @@ pub fn create_remote_servers(
         config.components.mempool.ip,
         config.components.mempool.port,
         config.components.mempool.max_concurrency,
+        config.components.mempool.max_streams_per_connection,
         MEMPOOL_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -607,6 +616,7 @@ pub fn create_remote_servers(
         config.components.mempool_p2p.ip,
         config.components.mempool_p2p.port,
         config.components.mempool_p2p.max_concurrency,
+        config.components.mempool_p2p.max_streams_per_connection,
         MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -616,6 +626,7 @@ pub fn create_remote_servers(
         config.components.sierra_compiler.ip,
         config.components.sierra_compiler.port,
         config.components.sierra_compiler.max_concurrency,
+        config.components.sierra_compiler.max_streams_per_connection,
         SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -625,6 +636,7 @@ pub fn create_remote_servers(
         config.components.signature_manager.ip,
         config.components.signature_manager.port,
         config.components.signature_manager.max_concurrency,
+        config.components.state_sync.max_streams_per_connection,
         SIGNATURE_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -634,6 +646,7 @@ pub fn create_remote_servers(
         config.components.state_sync.ip,
         config.components.state_sync.port,
         config.components.state_sync.max_concurrency,
+        config.components.state_sync.max_streams_per_connection,
         STATE_SYNC_INFRA_METRICS.get_remote_server_metrics()
     );
 

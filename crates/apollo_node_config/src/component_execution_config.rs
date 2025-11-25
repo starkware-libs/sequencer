@@ -1,7 +1,12 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
-use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    ser_optional_param,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
@@ -23,6 +28,7 @@ const DEFAULT_INVALID_PORT: u16 = 0;
 // TODO(Tsabary): rename this constant and config field to better reflect its purpose.
 
 pub const MAX_CONCURRENCY: usize = 128;
+pub const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 
 pub trait ExpectedComponentConfig {
     fn is_running_locally(&self) -> bool;
@@ -72,6 +78,7 @@ pub struct ReactiveComponentExecutionConfig {
     pub remote_client_config: Option<RemoteClientConfig>,
     #[validate(custom = "validate_max_concurrency")]
     pub max_concurrency: usize,
+    pub max_streams_per_connection: Option<u32>,
     pub url: String,
     pub ip: IpAddr,
     pub port: u16,
@@ -115,6 +122,13 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
             members,
             ser_optional_sub_config(&self.local_server_config, "local_server_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
+            ser_optional_param(
+                &self.max_streams_per_connection,
+                DEFAULT_MAX_STREAMS_PER_CONNECTION,
+                "max_streams_per_connection",
+                "The maximum number of streams per remote connection.",
+                ParamPrivacyInput::Public,
+            ),
         ]
         .into_iter()
         .flatten()
@@ -135,6 +149,7 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: None,
             remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
+            max_streams_per_connection: None,
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
             port: DEFAULT_INVALID_PORT,
@@ -146,6 +161,7 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Remote,
             local_server_config: None,
             max_concurrency: MAX_CONCURRENCY,
+            max_streams_per_connection: None,
             remote_client_config: Some(RemoteClientConfig::default()),
             url,
             ip,
@@ -159,6 +175,8 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
+            max_streams_per_connection: None,
+
             url,
             ip,
             port,
@@ -171,6 +189,7 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
+            max_streams_per_connection: Some(DEFAULT_MAX_STREAMS_PER_CONNECTION),
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
             port: DEFAULT_INVALID_PORT,
