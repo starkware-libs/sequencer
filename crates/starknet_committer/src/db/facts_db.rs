@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTree,
-    OriginalSkeletonTreeImpl,
-};
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
@@ -16,6 +13,10 @@ use crate::block_committer::input::{
     Config,
     ConfigImpl,
     StarknetStorageValue,
+};
+use crate::db::create_facts_tree::{
+    create_original_skeleton_tree,
+    create_original_skeleton_tree_and_get_previous_leaves,
 };
 use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
@@ -47,12 +48,12 @@ impl<S: Storage> FactsDb<S> {
         contracts_trie_root_hash: HashOutput,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
-        Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
+        Ok(create_original_skeleton_tree_and_get_previous_leaves(
             &mut self.storage,
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
-            &OriginalSkeletonContractsTrieConfig::new(),
             &HashMap::new(),
+            &OriginalSkeletonContractsTrieConfig::new(),
         )?)
     }
 
@@ -74,7 +75,7 @@ impl<S: Storage> FactsDb<S> {
             let config =
                 OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());
 
-            let original_skeleton = OriginalSkeletonTreeImpl::create(
+            let original_skeleton = create_original_skeleton_tree(
                 &mut self.storage,
                 contract_state.storage_root_hash,
                 *sorted_leaf_indices,
@@ -95,7 +96,7 @@ impl<S: Storage> FactsDb<S> {
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
         let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
 
-        Ok(OriginalSkeletonTreeImpl::create(
+        Ok(create_original_skeleton_tree(
             &mut self.storage,
             classes_trie_root_hash,
             contracts_trie_sorted_indices,

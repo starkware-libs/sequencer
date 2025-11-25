@@ -2,64 +2,20 @@ use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
-use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::generate_trie_config;
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::external_test_utils::{get_random_u256, MockLeaf};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::{Leaf, SkeletonLeaf};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
     TreeHashFunction,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-
-#[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
-pub struct MockLeaf(pub(crate) Felt);
-
-impl HasStaticPrefix for MockLeaf {
-    fn get_static_prefix() -> DbKeyPrefix {
-        DbKeyPrefix::new(&[0])
-    }
-}
-
-impl DBObject for MockLeaf {
-    fn serialize(&self) -> DbValue {
-        DbValue(self.0.to_bytes_be().to_vec())
-    }
-}
-
-impl Deserializable for MockLeaf {
-    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
-        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
-    }
-}
-
-impl Leaf for MockLeaf {
-    type Input = Felt;
-    type Output = String;
-
-    fn is_empty(&self) -> bool {
-        self.0 == Felt::ZERO
-    }
-
-    // Create a leaf with value equal to input. If input is `Felt::MAX`, returns an error.
-    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
-        if input == Felt::MAX {
-            return Err(LeafError::LeafComputationError("Leaf computation error".to_string()));
-        }
-        Ok((Self(input), input.to_hex_string()))
-    }
-}
 
 pub(crate) struct TestTreeHashFunction;
 
@@ -72,8 +28,6 @@ impl TreeHashFunction<MockLeaf> for TestTreeHashFunction {
         Self::compute_node_hash_with_inner_hash_function::<MockHashFunction>(node_data)
     }
 }
-
-generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
 
 pub(crate) type MockTrie = FilledTreeImpl<MockLeaf>;
 
@@ -111,10 +65,6 @@ pub(crate) fn random() -> ThreadRng {
     rand::thread_rng()
 }
 
-pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
-    NodeIndex::from_subtree_index(NodeIndex::new(index), height)
-}
-
 #[rstest]
 #[should_panic]
 #[case(U256::ZERO, U256::ZERO)]
@@ -148,13 +98,4 @@ pub(crate) fn get_initial_updated_skeleton(
             }))
             .collect(),
     }
-}
-
-pub(crate) fn as_fully_indexed(
-    subtree_height: u8,
-    indices: impl Iterator<Item = U256>,
-) -> Vec<NodeIndex> {
-    indices
-        .map(|index| small_tree_index_to_full(index, SubTreeHeight::new(subtree_height)))
-        .collect()
 }

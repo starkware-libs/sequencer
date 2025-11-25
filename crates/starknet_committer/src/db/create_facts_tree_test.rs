@@ -3,13 +3,7 @@ use std::collections::HashMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
-use starknet_types_core::felt::Felt;
-
-use super::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::external_test_utils::{
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_binary_entry_from_u128,
     create_binary_skeleton_node,
     create_edge_entry_from_u128,
@@ -18,12 +12,18 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
 };
-use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
+use starknet_types_core::felt::Felt;
+
+use crate::db::create_facts_tree::create_original_skeleton_tree;
 
 #[rstest]
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
@@ -210,7 +210,7 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
+    let skeleton_tree = create_original_skeleton_tree(
         &mut storage,
         root_hash,
         sorted_leaf_indices,

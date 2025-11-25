@@ -45,6 +45,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
@@ -57,7 +58,6 @@ use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_ha
 use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
@@ -251,13 +251,12 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         .collect();
 
     let sorted_class_leaf_indices = SortedLeafIndices::new(&mut class_leaf_indices);
-    let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> =
-        OriginalSkeletonTreeImpl::get_leaves(
-            commitments,
-            previous_state_roots.classes_trie_root_hash,
-            sorted_class_leaf_indices,
-        )
-        .unwrap();
+    let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> = get_leaves(
+        commitments,
+        previous_state_roots.classes_trie_root_hash,
+        sorted_class_leaf_indices,
+    )
+    .unwrap();
     let class_hash_to_compiled_class_hash = previous_class_leaves
         .into_iter()
         .map(|(idx, v)| {
@@ -278,13 +277,12 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             })
             .collect();
         let sorted_leaf_indices = SortedLeafIndices::new(&mut storage_keys_indices);
-        let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> =
-            OriginalSkeletonTreeImpl::get_leaves(
-                commitments,
-                address_to_previous_storage_root_hash[&address],
-                sorted_leaf_indices,
-            )
-            .unwrap();
+        let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> = get_leaves(
+            commitments,
+            address_to_previous_storage_root_hash[&address],
+            sorted_leaf_indices,
+        )
+        .unwrap();
         let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
             .into_iter()
             .map(|(idx, v)| (StorageKey(try_node_index_into_patricia_key(&idx).unwrap()), v.0))
@@ -367,19 +365,10 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
     // Get previous contract state leaves.
     let sorted_contract_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
     // Get the previous and the new contract states.
-    let previous_contract_states = OriginalSkeletonTreeImpl::get_leaves(
-        commitments,
-        previous_contract_trie_root,
-        sorted_contract_leaf_indices,
-    )
-    .unwrap();
+    let previous_contract_states =
+        get_leaves(commitments, previous_contract_trie_root, sorted_contract_leaf_indices).unwrap();
     let new_contract_states: HashMap<NodeIndex, ContractState> =
-        OriginalSkeletonTreeImpl::get_leaves(
-            commitments,
-            new_contract_trie_root,
-            sorted_contract_leaf_indices,
-        )
-        .unwrap();
+        get_leaves(commitments, new_contract_trie_root, sorted_contract_leaf_indices).unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
         .into_iter()
         .map(|(idx, contract_state)| {
