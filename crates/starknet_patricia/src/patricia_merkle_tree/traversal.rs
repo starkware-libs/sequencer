@@ -39,7 +39,7 @@ pub enum TraversalError {
 pub type TraversalResult<T> = Result<T, TraversalError>;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct SubTree<'a> {
+pub struct SubTree<'a> {
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
     pub root_index: NodeIndex,
     pub root_hash: HashOutput,
@@ -54,7 +54,7 @@ impl<'a> SubTree<'a> {
         split_leaves(&self.root_index, &self.sorted_leaf_indices)
     }
 
-    pub(crate) fn is_unmodified(&self) -> bool {
+    pub fn is_unmodified(&self) -> bool {
         self.sorted_leaf_indices.is_empty()
     }
 
@@ -69,7 +69,7 @@ impl<'a> SubTree<'a> {
     /// Returns the bottom subtree which is referred from `self` by the given path. When creating
     /// the bottom subtree some indices that were modified under `self` are not modified under the
     /// bottom subtree (leaves that were previously empty). These indices are returned as well.
-    pub(crate) fn get_bottom_subtree(
+    pub fn get_bottom_subtree(
         &self,
         path_to_bottom: &PathToBottom,
         bottom_hash: HashOutput,
@@ -98,7 +98,7 @@ impl<'a> SubTree<'a> {
         )
     }
 
-    pub(crate) fn get_children_subtrees(
+    pub fn get_children_subtrees(
         &self,
         left_hash: HashOutput,
         right_hash: HashOutput,
@@ -119,13 +119,13 @@ impl<'a> SubTree<'a> {
         )
     }
 
-    pub(crate) fn is_leaf(&self) -> bool {
+    pub fn is_leaf(&self) -> bool {
         self.root_index.is_leaf()
     }
 }
 
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
+pub fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[SubTree<'a>],
     storage: &mut impl Storage,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
