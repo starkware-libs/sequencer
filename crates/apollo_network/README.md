@@ -27,7 +27,7 @@ tokio = { version = "1.0", features = ["full"] }
 
 ```rust
 use apollo_network::{NetworkManager, NetworkConfig};
-use apollo_network::network_manager::metrics::NetworkMetrics;
+use apollo_network::metrics::NetworkMetrics;
 use starknet_api::core::ChainId;
 
 #[tokio::main]
@@ -342,7 +342,7 @@ async fn handle_network_errors() {
 The crate includes built-in metrics support:
 
 ```rust
-use apollo_network::network_manager::metrics::NetworkMetrics;
+use apollo_network::metrics::NetworkMetrics;
 
 // Initialize metrics
 let metrics = NetworkMetrics::new();

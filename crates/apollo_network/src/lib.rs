@@ -27,7 +27,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use apollo_network::network_manager::metrics::NetworkMetrics;
+//! use apollo_network::metrics::NetworkMetrics;
 //! use apollo_network::network_manager::NetworkManager;
 //! use apollo_network::NetworkConfig;
 //! use starknet_api::core::ChainId;
