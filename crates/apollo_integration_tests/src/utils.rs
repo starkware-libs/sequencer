@@ -376,7 +376,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             cende_config: CendeConfig {
-                skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
