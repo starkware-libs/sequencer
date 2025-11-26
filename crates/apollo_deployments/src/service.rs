@@ -20,7 +20,7 @@ use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
-use serde_json::{json, Map, Value};
+use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -341,7 +341,7 @@ impl NodeService {
 
                 // Parse it as a json
                 let map: Map<String, Value> =
-                    serde_json::from_str(&contents).expect("JSON should be an object");
+                    from_str(&contents).expect("JSON should be an object");
                 let original_app_config = Value::Object(map);
 
                 // Perform replacement
@@ -556,6 +556,51 @@ impl NodeType {
         self.dump_component_configs_with(ports, |map, path| {
             serialize_to_file_test(map, path, FIX_BINARY_NAME);
         });
+    }
+
+    #[cfg(test)]
+    pub fn test_all_replacers_are_accounted_for(&self) {
+        // Obtain the application config keys of each service.
+        let application_config_keys: HashSet<String> = self
+            .all_service_names()
+            .iter()
+            .flat_map(|node_service| {
+                // TODO(Tsabary): consider wrapping this logic with a fn; more relevant once we're
+                // done transitioning to the new deployment mechanism.
+                node_service
+                    .get_components_in_service()
+                    .into_iter()
+                    .flat_map(|c| c.get_component_config_file_paths())
+                    .collect::<HashSet<_>>()
+                    .iter()
+                    .flat_map(|src| {
+                        let src_path = Path::new(src);
+                        // Read the app config file
+                        let mut contents = String::new();
+                        File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
+
+                        // Extract keys
+                        from_str::<Map<String, Value>>(&contents)
+                            .expect("JSON should be an object")
+                            .into_iter()
+                            .map(|(k, _)| k)
+                            .collect::<HashSet<_>>()
+                    })
+                    .collect::<HashSet<_>>()
+            })
+            .collect::<HashSet<_>>();
+
+        let replacer_keys: HashSet<String> =
+            KEYS_TO_BE_REPLACED.iter().copied().map(|item| item.to_string()).collect();
+
+        let unreplaced_keys: HashSet<String> =
+            replacer_keys.difference(&application_config_keys).cloned().collect();
+
+        assert!(
+            unreplaced_keys.is_empty(),
+            "Some replacer keys are not part of the config: {unreplaced_keys:#?}
+            \nPlease update 'KEYS_TO_BE_REPLACED'"
+        );
     }
 }
 
