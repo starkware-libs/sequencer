@@ -6,11 +6,13 @@ use std::sync::{Arc, LazyLock};
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::contract_class_manager::ContractClassManager;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
@@ -64,6 +66,13 @@ pub fn contract_class_to_compiled_classes(
             ))
         }
     }
+}
+
+pub fn create_contract_class_manager() -> ContractClassManager {
+    let mut contract_class_manager_config = ContractClassManagerConfig::default();
+    contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+    contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
+    ContractClassManager::start(contract_class_manager_config)
 }
 
 /// Returns the fee token addresses of mainnet.
@@ -236,17 +245,19 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + Clone + 'static,
+    S: StateReader + Send + Sync + 'static,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
+    contract_class_manager: &ContractClassManager,
 ) -> Option<CachedState<S>> {
     let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
 
     let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
 
-    let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
+    let mut transaction_executor = consecutive_state_readers
+        .pre_process_and_create_executor(None, contract_class_manager)
+        .unwrap();
 
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
     // Verify all transactions executed successfully.
@@ -270,6 +281,7 @@ pub fn reexecute_block_for_testing(block_number: u64) {
 
     reexecute_and_verify_correctness(
         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+        &create_contract_class_manager(),
     );
 
     println!("Reexecution test for block {block_number} passed successfully.");
@@ -280,6 +292,7 @@ pub fn write_block_reexecution_data_to_file(
     full_file_path: String,
     node_url: String,
     chain_id: ChainId,
+    contract_class_manager: &ContractClassManager,
 ) {
     let config = RpcStateReaderConfig::from_url(node_url);
 
@@ -296,10 +309,16 @@ pub fn write_block_reexecution_data_to_file(
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
     // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
+    let block_state =
+        reexecute_and_verify_correctness(consecutive_state_readers, contract_class_manager)
+            .unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+        contract_class_mapping: block_state
+            .state
+            .state_reader
+            .get_contract_class_mapping_dumper()
+            .unwrap(),
     };
 
     // Write the reexecution data to a json file.
@@ -322,6 +341,7 @@ pub fn execute_single_transaction(
     node_url: String,
     chain_id: ChainId,
     tx_input: TransactionInput,
+    contract_class_manager: &ContractClassManager,
 ) -> ReexecutionResult<()> {
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
@@ -364,7 +384,7 @@ pub fn execute_single_transaction(
 
     // Create transaction executor.
     let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None)?;
+        consecutive_state_readers.pre_process_and_create_executor(None, contract_class_manager)?;
 
     // Execute transaction (should be single element).
     let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
