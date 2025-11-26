@@ -901,8 +901,8 @@ impl<
         // Safety: If buffer is too large, flush consecutive blocks to prevent OOM
         // But only if we have enough consecutive blocks to make it worthwhile (maintains batching benefits)
         let buffer_size = self.pending_compilations.len();
-        let max_buffer_size = batch_size * 20; // Allow up to 20 batches worth of buffering (20,000 blocks)
-        let min_partial_batch_size = batch_size / 10; // Only flush partial batches if we have at least 100 consecutive blocks
+        let max_buffer_size = batch_size * 20; // Allow up to 20 batches worth of buffering (2,000 blocks for batch_size=100)
+        let min_partial_batch_size = batch_size / 10; // Only flush partial batches if we have at least 10 consecutive blocks (for batch_size=100)
         
         if buffer_size > max_buffer_size {
             warn!(
@@ -959,7 +959,7 @@ impl<
                 );
             } else {
                 // Emergency fallback: If buffer is extremely large (1.5x threshold), flush whatever we have
-                let emergency_threshold = max_buffer_size + (max_buffer_size / 2); // 30,000 blocks
+                let emergency_threshold = max_buffer_size + (max_buffer_size / 2); // 3,000 blocks (for batch_size=100)
                 if buffer_size > emergency_threshold {
                     error!(
                         "EMERGENCY: Buffer size ({}) exceeds emergency threshold ({}). Flushing {} consecutive blocks to prevent OOM (batching degraded).",
