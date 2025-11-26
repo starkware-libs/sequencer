@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+use blockifier_reexecution::state_reader::online_state_reader::ConsecutiveOnlineStateReaders;
 use blockifier_reexecution::state_reader::utils::{
     create_contract_class_manager,
     execute_single_transaction_from_json,
@@ -207,7 +207,7 @@ async fn main() {
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 reexecute_and_verify_correctness(
-                    ConsecutiveTestStateReaders::new(
+                    ConsecutiveOnlineStateReaders::new(
                         BlockNumber(block_number - 1),
                         Some(rpc_state_reader_config),
                         rpc_args.parse_chain_id(),

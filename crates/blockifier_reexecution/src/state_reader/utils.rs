@@ -32,7 +32,7 @@ use crate::state_reader::reexecution_state_reader::{
     ReexecutionStateReader,
 };
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
-use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+use crate::state_reader::online_state_reader::ConsecutiveOnlineStateReaders;
 
 pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
 
@@ -283,7 +283,7 @@ pub fn write_block_reexecution_data_to_file(
 ) {
     let config = RpcStateReaderConfig::from_url(node_url);
 
-    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
+    let consecutive_state_readers = ConsecutiveOnlineStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
         chain_id.clone(),
@@ -346,8 +346,8 @@ pub fn execute_single_transaction_from_json(
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
 
-    // Create ConsecutiveTestStateReaders similar to RPC test (block_number - 1 for last block).
-    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
+    // Create ConsecutiveOnlineStateReaders similar to RPC test (block_number - 1 for last block).
+    let consecutive_state_readers = ConsecutiveOnlineStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
         chain_id,

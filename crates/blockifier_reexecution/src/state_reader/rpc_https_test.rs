@@ -28,11 +28,11 @@ use starknet_api::transaction::{
 };
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
-use super::test_state_reader::RetryConfig;
+use super::online_state_reader::RetryConfig;
 use super::utils::RPC_NODE_URL;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
-use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::online_state_reader::{ConsecutiveOnlineStateReaders, OnlineStateReader};
 use crate::state_reader::utils::guess_chain_id_from_node_url;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
@@ -93,8 +93,8 @@ pub fn get_test_rpc_config() -> RpcStateReaderConfig {
 }
 
 #[fixture]
-pub fn test_state_reader() -> TestStateReader {
-    TestStateReader {
+pub fn online_test_reader() -> OnlineStateReader {
+    OnlineStateReader {
         rpc_state_reader: RpcStateReader {
             config: get_test_rpc_config(),
             block_id: get_test_block_id(),
@@ -106,8 +106,8 @@ pub fn test_state_reader() -> TestStateReader {
 }
 
 #[fixture]
-pub fn test_block_number(test_state_reader: TestStateReader) -> BlockNumber {
-    test_state_reader.get_block_info().unwrap().block_number
+pub fn test_block_number(online_state_reader: OnlineStateReader) -> BlockNumber {
+    online_state_reader.get_block_info().unwrap().block_number
 }
 
 #[fixture]
@@ -116,31 +116,31 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 }
 
 #[fixture]
-pub fn test_state_readers_last_and_current_block(
+pub fn online_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
-) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
+) -> ConsecutiveOnlineStateReaders {
+    ConsecutiveOnlineStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
 }
 
 /// Test that the block info can be retrieved from the RPC server.
 #[rstest]
-pub fn test_get_block_info(test_state_reader: TestStateReader) {
-    assert_matches!(test_state_reader.get_block_info(), Ok(BlockInfo { .. }));
+pub fn test_get_block_info(online_state_reader: OnlineStateReader) {
+    assert_matches!(online_state_reader.get_block_info(), Ok(BlockInfo { .. }));
 }
 
 #[rstest]
-pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
-    test_state_reader.get_starknet_version().unwrap();
+pub fn test_get_starknet_version(online_state_reader: OnlineStateReader) {
+    online_state_reader.get_starknet_version().unwrap();
 }
 
 #[rstest]
-pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_number: BlockNumber) {
+pub fn test_get_contract_class(online_state_reader: OnlineStateReader, test_block_number: BlockNumber) {
     // An example of existing class hash in Mainnet.
     let class_hash = class_hash!(EXAMPLE_CONTACT_CLASS_HASH);
 
     // Test getting the contract class using RPC request.
     let deprecated_contract_class =
-        test_state_reader.get_contract_class(&class_hash).unwrap_or_else(|err| {
+        online_state_reader.get_contract_class(&class_hash).unwrap_or_else(|err| {
             panic!(
                 "Error retrieving deprecated contract class for class hash {class_hash}: \
                  {test_block_number}
@@ -160,15 +160,15 @@ pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_nu
 }
 
 #[rstest]
-pub fn test_get_tx_hashes(test_state_reader: TestStateReader) {
-    test_state_reader.get_tx_hashes().unwrap_or_else(|err| {
+pub fn test_get_tx_hashes(online_state_reader: OnlineStateReader) {
+    online_state_reader.get_tx_hashes().unwrap_or_else(|err| {
         panic!("Error retrieving txs hash: {err}");
     });
 }
 
 #[rstest]
-pub fn test_get_invoke_tx_by_hash(test_state_reader: TestStateReader) {
-    let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
+pub fn test_get_invoke_tx_by_hash(online_state_reader: OnlineStateReader) {
+    let actual_tx = online_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
 }
 
@@ -189,7 +189,7 @@ pub fn test_get_deploy_account_tx_by_hash(
     #[case] version: TransactionVersion,
 ) {
     // Create StateReader with block number that contain the deploy account tx.
-    let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
+    let state_reader = OnlineStateReader::new_for_testing(BlockNumber(block_number));
     let actual_tx = state_reader.get_tx_by_hash(tx_hash).unwrap();
     if version == TransactionVersion::ONE {
         assert_matches!(actual_tx, Transaction::DeployAccount(DeployAccountTransaction::V1(..)))
@@ -210,7 +210,7 @@ pub fn test_get_declare_tx_by_hash(
     #[case] expected_version: TransactionVersion,
 ) {
     // Create StateReader with block number that contain the declare tx.
-    let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
+    let state_reader = OnlineStateReader::new_for_testing(BlockNumber(block_number));
     let actual_tx = state_reader.get_tx_by_hash(tx_hash).unwrap();
     if expected_version == TransactionVersion::ONE {
         assert_matches!(actual_tx, Transaction::Declare(DeclareTransaction::V1(..)))
@@ -227,42 +227,42 @@ pub fn test_get_declare_tx_by_hash(
 pub fn test_get_l1_handler_tx_by_hash() {
     // Create StateReader with block number that contain the l1 handler tx.
     let state_reader =
-        TestStateReader::new_for_testing(BlockNumber(EXAMPLE_L1_HANDLER_BLOCK_NUMBER));
+        OnlineStateReader::new_for_testing(BlockNumber(EXAMPLE_L1_HANDLER_BLOCK_NUMBER));
     let actual_tx = state_reader.get_tx_by_hash(EXAMPLE_L1_HANDLER_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::L1Handler(..))
 }
 
 #[rstest]
-pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
-    assert!(test_state_reader.get_state_diff().is_ok());
+pub fn test_get_statediff_rpc(online_state_reader: OnlineStateReader) {
+    assert!(online_state_reader.get_state_diff().is_ok());
 }
 
 #[rstest]
-#[case(test_block_number(test_state_reader()).0)]
+#[case(test_block_number(online_state_reader()).0)]
 #[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
 pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
-    let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
+    let state_reader = OnlineStateReader::new_for_testing(BlockNumber(block_number));
     state_reader
         .api_txs_to_blockifier_txs_next_block(state_reader.get_all_txs_in_block().unwrap())
         .unwrap();
 }
 
 #[rstest]
-pub fn test_get_versioned_constants(test_state_reader: TestStateReader) {
-    test_state_reader.get_versioned_constants().unwrap();
+pub fn test_get_versioned_constants(online_state_reader: OnlineStateReader) {
+    online_state_reader.get_versioned_constants().unwrap();
 }
 
 #[rstest]
-pub fn test_get_block_context(test_state_reader: TestStateReader) {
-    test_state_reader.get_block_context().unwrap();
+pub fn test_get_block_context(online_state_reader: OnlineStateReader) {
+    online_state_reader.get_block_context().unwrap();
 }
 
 #[rstest]
 pub fn test_get_old_block_hash(
-    test_state_reader: TestStateReader,
+    online_state_reader: OnlineStateReader,
     last_constructed_block: BlockNumber,
 ) {
-    test_state_reader.get_old_block_hash(last_constructed_block).unwrap();
+    online_state_reader.get_old_block_hash(last_constructed_block).unwrap();
 }
