@@ -14,7 +14,8 @@ pub mod state_reader_and_contract_manager_test;
 pub trait FetchCompiledClasses: StateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses>;
 
-    /// Returns whether the given Cairo1 class is declared.
+    /// Returns whether the given class hash corresponds to a declared Cairo 1 class.
+    /// Cairo 0 classes always return `false`.
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
