@@ -56,8 +56,8 @@ pub type PreconfirmedTxSender = tokio::sync::mpsc::Sender<(
 /// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
 /// Cende client to communicate the updates to the Cende recorder.
-#[async_trait]
 #[cfg_attr(test, automock)]
+#[async_trait]
 pub trait PreconfirmedBlockWriterTrait: Send {
     async fn run(&mut self) -> BlockWriterResult<()>;
 }

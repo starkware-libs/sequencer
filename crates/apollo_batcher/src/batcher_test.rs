@@ -143,7 +143,7 @@ impl Default for MockDependencies {
             let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
-            mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
+            mock_writer.expect_run().returning(|| Ok(()));
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
