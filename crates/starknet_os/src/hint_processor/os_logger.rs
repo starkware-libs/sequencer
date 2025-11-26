@@ -479,7 +479,7 @@ impl OsLogger {
             os_program,
         )?);
         self.current_tx = Some(OsTransactionTrace::new(tx_type, tx_hash));
-        self.log(&format!("Entering {tx_type:?}: {tx_hash}."), true);
+        log::info!("Entering transaction: {tx_hash} (type: {tx_type:?})");
         Ok(())
     }
 
