@@ -256,6 +256,7 @@ impl ProcessTxBlockingTask {
     }
 
     fn process_tx(self) -> GatewayResult<Nonce> {
+        // TODO(Itamar): Remove this block_on by extracting the instantiation to the async path.
         let mut stateful_transaction_validator = self.runtime.block_on(
             self.stateful_tx_validator_factory.instantiate_validator(self.state_reader_factory),
         )?;
