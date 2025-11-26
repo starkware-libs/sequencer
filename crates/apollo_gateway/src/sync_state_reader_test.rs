@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::{
     ClassManagerClientResult,
@@ -12,7 +12,6 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_api_test_utils::assert_eq_state_result;
-use lazy_static::lazy_static;
 use mockall::predicate;
 use rstest::rstest;
 use starknet_api::block::{
@@ -32,6 +31,8 @@ use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::MempoolStateReader;
 use crate::sync_state_reader::SyncStateReader;
+
+static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
 
 #[tokio::test]
 async fn test_get_block_info() {
@@ -196,21 +197,16 @@ async fn test_get_class_hash_at() {
     assert_eq!(result, expected_result);
 }
 
-lazy_static! {
-    static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
-    static ref DUMMY_CONTRACT_CLASS: ContractClass = ContractClass::test_casm_contract_class();
-}
-
 #[rstest]
 #[case::class_declared(
-    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    Ok(Some(ContractClass::test_casm_contract_class())),
     1,
     Ok(true),
-    Ok(DUMMY_CONTRACT_CLASS.clone().try_into().unwrap()),
+    Ok(RunnableCompiledClass::test_casm_contract_class()),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared_but_in_class_manager(
-    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    Ok(Some(ContractClass::test_casm_contract_class())),
     0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),

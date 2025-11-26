@@ -1410,7 +1410,6 @@ dependencies = [
  "clap",
  "criterion",
  "futures",
- "lazy_static",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
