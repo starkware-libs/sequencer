@@ -2,6 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
+use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::cli::{
     parse_block_numbers_args,
     BlockifierReexecutionCliArgs,
@@ -57,7 +59,12 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let contract_class_manager =
+                ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
+                    cfg!(feature = "cairo_native"),
+                    cfg!(feature = "cairo_native"),
+                ));
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
@@ -65,9 +72,10 @@ async fn main() {
             tokio::task::spawn_blocking(move || {
                 reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
                     BlockNumber(block_number - 1),
-                    Some(config),
+                    Some(rpc_state_reader_config),
                     rpc_args.parse_chain_id(),
                     false,
+                    contract_class_manager,
                 ))
             })
             .await
@@ -92,11 +100,23 @@ async fn main() {
 
             let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
 
-            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
+            let contract_class_manager =
+                ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
+                    cfg!(feature = "cairo_native"),
+                    cfg!(feature = "cairo_native"),
+                ));
+
+            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction(BlockNumber(block_number), node_url, chain_id, tx_input)
+                execute_single_transaction(
+                    BlockNumber(block_number),
+                    node_url,
+                    chain_id,
+                    tx_input,
+                    contract_class_manager,
+                )
             })
             .await
             .unwrap()
@@ -111,10 +131,18 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Computing reexecution data for blocks {block_numbers:?}.");
 
+            let contract_class_manager =
+                ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
+                    cfg!(feature = "cairo_native"),
+                    cfg!(feature = "cairo_native"),
+                ));
+
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+                let contract_class_manager = contract_class_manager.clone();
+
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
@@ -126,6 +154,7 @@ async fn main() {
                             full_file_path,
                             node_url,
                             chain_id,
+                            contract_class_manager,
                         )
                     })
                     .await
@@ -141,12 +170,23 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Reexecuting blocks {block_numbers:?}.");
 
+            let contract_class_manager =
+                ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
+                    cfg!(feature = "cairo_native"),
+                    cfg!(feature = "cairo_native"),
+                ));
+
             let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
+                let contract_class_manager = contract_class_manager.clone();
                 task_set.spawn(async move {
                     reexecute_and_verify_correctness(
-                        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+                        OfflineConsecutiveStateReaders::new_from_file(
+                            &full_file_path,
+                            contract_class_manager,
+                        )
+                        .unwrap(),
                     );
                     println!("Reexecution test for block {block} passed successfully.");
                 });
