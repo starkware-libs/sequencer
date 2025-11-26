@@ -390,6 +390,9 @@
     "OsHint": "SetPreimageForCurrentCommitmentInfo"
   },
   {
+    "OsHint": "ShouldUseReadOptimizedPatriciaUpdate"
+  },
+  {
     "OsHint": "LoadEdge"
   },
   {
