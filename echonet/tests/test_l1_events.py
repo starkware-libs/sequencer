@@ -5,7 +5,13 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from l1_events import DecodedLogMessageToL2, decode_log
+from l1_events import (
+    DecodedLogMessageToL2,
+    L1Event,
+    L1HandlerTransaction,
+    decode_log,
+    parse_event,
+)
 
 
 class TestL1Events(unittest.TestCase):
@@ -76,6 +82,30 @@ class TestL1Events(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
             decode_log(log)
+
+    def test_parse_event_success(self):
+        result = parse_event(self.SAMPLE_LOG)
+
+        self.assertIsInstance(result, L1Event)
+        self.assertIsInstance(result.tx, L1HandlerTransaction)
+        self.assertEqual(
+            result.tx.contract_address,
+            0x07C76A71952CE3ACD1F953FD2A3FDA8564408B821FF367041C89F44526076633,
+        )
+        self.assertEqual(
+            result.tx.entry_point_selector,
+            0x02D757788A8D8D6F21D1CD40BCE38A8222D70654214E96FF95D8086E684FBEE5,
+        )
+        self.assertEqual(
+            result.tx.calldata[0],
+            0x001E220C4AC08B2F247D45721E08AF1B2D8D65B640CEA780534C8F20DC6EA981,
+        )
+        self.assertEqual(result.tx.nonce, 0x195C23)
+        self.assertEqual(result.fee, 1)
+        self.assertEqual(
+            result.l1_tx_hash, "0x66c2ef5ae6708ede5e47daaabfc4b54a53c423160ec27eac06524ea3cd939622"
+        )
+        self.assertEqual(result.block_timestamp, 1727673743)
 
 
 if __name__ == "__main__":

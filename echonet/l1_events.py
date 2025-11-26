@@ -21,6 +21,26 @@ class DecodedLogMessageToL2:
     block_timestamp: int
 
 
+@dataclass(frozen=True)
+class L1HandlerTransaction:
+    """Mirrors Rust starknet_api::transaction::L1HandlerTransaction"""
+
+    contract_address: int
+    entry_point_selector: int
+    calldata: List[int]
+    nonce: int
+
+
+@dataclass(frozen=True)
+class L1Event:
+    """Mirrors Rust papyrus_base_layer::events::L1Event"""
+
+    tx: L1HandlerTransaction
+    fee: int
+    l1_tx_hash: str
+    block_timestamp: int
+
+
 def decode_log(log: dict) -> DecodedLogMessageToL2:
     """
     Decodes Ethereum log from Starknet L1 contract into DecodedLogMessageToL2 event.
@@ -51,4 +71,22 @@ def decode_log(log: dict) -> DecodedLogMessageToL2:
         fee=fee,
         l1_tx_hash=log["transactionHash"],
         block_timestamp=int(log["blockTimestamp"], 16),
+    )
+
+
+def parse_event(log: dict) -> L1Event:
+    decoded = decode_log(log)
+
+    tx = L1HandlerTransaction(
+        contract_address=decoded.to_address,
+        entry_point_selector=decoded.selector,
+        calldata=decoded.payload,
+        nonce=decoded.nonce,
+    )
+
+    return L1Event(
+        tx=tx,
+        fee=decoded.fee,
+        l1_tx_hash=decoded.l1_tx_hash,
+        block_timestamp=decoded.block_timestamp,
     )
