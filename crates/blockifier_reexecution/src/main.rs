@@ -1,10 +1,12 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
+    create_contract_class_manager,
     execute_single_transaction_from_json,
     get_block_numbers_for_reexecution,
     guess_chain_id_from_node_url,
@@ -197,18 +199,22 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let contract_class_manager = create_contract_class_manager();
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
-                    BlockNumber(block_number - 1),
-                    Some(config),
-                    rpc_args.parse_chain_id(),
-                    false,
-                ))
+                reexecute_and_verify_correctness(
+                    ConsecutiveTestStateReaders::new(
+                        BlockNumber(block_number - 1),
+                        Some(rpc_state_reader_config),
+                        rpc_args.parse_chain_id(),
+                        false,
+                    ),
+                    &contract_class_manager,
+                )
             })
             .await
             .unwrap();
@@ -227,6 +233,8 @@ async fn main() {
 
             let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
 
+            let contract_class_manager = create_contract_class_manager();
+
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
@@ -236,6 +244,7 @@ async fn main() {
                     node_url,
                     chain_id,
                     transaction_path,
+                    &contract_class_manager,
                 )
             })
             .await
@@ -251,10 +260,14 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Computing reexecution data for blocks {block_numbers:?}.");
 
+            let contract_class_manager = Arc::new(create_contract_class_manager());
+
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+                let contract_class_manager_shared = Arc::clone(&contract_class_manager);
+
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
@@ -266,6 +279,7 @@ async fn main() {
                             full_file_path,
                             node_url,
                             chain_id,
+                            &contract_class_manager_shared,
                         )
                     })
                     .await
@@ -281,12 +295,16 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Reexecuting blocks {block_numbers:?}.");
 
+            let contract_class_manager = Arc::new(create_contract_class_manager());
+
             let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
+                let contract_class_manager_shared = Arc::clone(&contract_class_manager);
                 task_set.spawn(async move {
                     reexecute_and_verify_correctness(
                         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+                        &contract_class_manager_shared,
                     );
                     println!("Reexecution test for block {block} passed successfully.");
                 });
