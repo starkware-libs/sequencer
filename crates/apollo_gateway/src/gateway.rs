@@ -42,7 +42,11 @@ use crate::errors::{
     GatewayResult,
 };
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
-use crate::state_reader::StateReaderFactory;
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
     StatefulTransactionValidatorFactoryTrait,
@@ -154,7 +158,7 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let blocking_task =
+        let mut blocking_task =
             ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
                 .await
                 .map_err(|e| {
@@ -165,10 +169,22 @@ impl Gateway {
                     metric_counters.record_add_tx_failure(&e);
                     e
                 })?;
+
+        let state_reader = blocking_task.get_state_reader().await?;
+
+        let account_address = blocking_task.executable_tx.contract_address();
+        let account_nonce = state_reader
+            .get_account_nonce(account_address)
+            .await
+            .map_err(|e| StarknetError::internal_with_logging("Failed to get account nonce", e))?;
+
+        let stateful_tx_validator = blocking_task.create_stateful_validator(state_reader).await?;
+
         // Run the blocking task in the current span.
         let curr_span = Span::current();
-        let handle =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
+        let handle = tokio::task::spawn_blocking(move || {
+            curr_span.in_scope(|| blocking_task.process_tx(account_nonce, stateful_tx_validator))
+        });
         let handle_result = handle.await;
         let nonce = match handle_result {
             Ok(Ok(nonce)) => nonce,
@@ -243,7 +259,8 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateful_transaction_validator: Box<dyn StatefulTransactionValidatorTrait + Send>,
+    state_reader_factory: Arc<dyn StateReaderFactory>,
+    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
@@ -255,22 +272,54 @@ impl ProcessTxBlockingTask {
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
     ) -> GatewayResult<Self> {
-        // TODO(Itamar): Extract creating validator to a separate function.
-        let stateful_transaction_validator = gateway
-            .stateful_tx_validator_factory
-            .instantiate_validator(gateway.state_reader_factory.clone())
-            .await?;
         Ok(Self {
-            stateful_transaction_validator,
+            state_reader_factory: gateway.state_reader_factory.clone(),
+            stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             executable_tx,
             runtime,
         })
     }
 
-    fn process_tx(mut self) -> GatewayResult<Nonce> {
-        let nonce = self.stateful_transaction_validator.extract_state_nonce_and_run_validations(
+    pub async fn get_state_reader(
+        &self,
+    ) -> GatewayResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
+        let state_reader = self
+            .stateful_tx_validator_factory
+            .get_state_reader_for_validation(self.state_reader_factory.clone())
+            .await
+            .map_err(|e| {
+                StarknetError::internal_with_logging(
+                    "Failed to get state reader from latest block",
+                    e,
+                )
+            })?;
+        Ok(state_reader)
+    }
+
+    pub async fn create_stateful_validator(
+        &mut self,
+        state_reader: Box<dyn GatewayStateReaderWithCompiledClasses>,
+    ) -> GatewayResult<Box<dyn StatefulTransactionValidatorTrait>> {
+        self.stateful_tx_validator_factory
+            .create_validator_from_state_reader(state_reader)
+            .await
+            .map_err(|e| {
+                StarknetError::internal_with_logging(
+                    "Failed to create stateful validator from state reader",
+                    e,
+                )
+            })
+    }
+
+    fn process_tx(
+        self,
+        account_nonce: Nonce,
+        mut stateful_tx_validator: Box<dyn StatefulTransactionValidatorTrait>,
+    ) -> GatewayResult<Nonce> {
+        let nonce = stateful_tx_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
+            account_nonce,
             self.mempool_client,
             self.runtime,
         )?;

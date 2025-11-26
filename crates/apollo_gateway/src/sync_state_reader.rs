@@ -131,6 +131,18 @@ impl MempoolStateReader for SyncStateReader {
 
         Ok(block_info)
     }
+
+    async fn get_account_nonce(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        let res = self.state_sync_client.get_nonce_at(self.block_number, contract_address).await;
+
+        match res {
+            Ok(value) => Ok(value),
+            Err(StateSyncClientError::StateSyncError(StateSyncError::ContractNotFound(_))) => {
+                Ok(Nonce::default())
+            }
+            Err(e) => Err(StateError::StateReadError(e.to_string())),
+        }
+    }
 }
 
 impl FetchCompiledClasses for SyncStateReader {

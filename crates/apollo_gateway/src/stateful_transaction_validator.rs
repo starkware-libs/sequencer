@@ -57,11 +57,12 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
         state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 
+    // 1) Get a state reader for validation (async, uses the factory).
     async fn get_state_reader_for_validation(
         &self,
         state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn GatewayStateReaderWithCompiledClasses>>;
-
+    // 2) Create the validator from a provided state reader (async, uses ChainInfo/config).
     async fn create_validator_from_state_reader(
         &self,
         state_reader: Box<dyn GatewayStateReaderWithCompiledClasses>,
@@ -147,6 +148,7 @@ pub trait StatefulTransactionValidatorTrait: Send {
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce>;
@@ -168,11 +170,10 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTra
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
-        let address = executable_tx.contract_address();
-        let account_nonce = self.get_nonce(address)?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
     }

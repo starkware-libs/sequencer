@@ -117,6 +117,19 @@ impl MempoolStateReader for RpcStateReader {
         let block_info = block_header.try_into()?;
         Ok(block_info)
     }
+
+    async fn get_account_nonce(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        let get_nonce_params = GetNonceParams { block_id: self.block_id, contract_address };
+        let result = self.send_rpc_request("starknet_getNonce", get_nonce_params);
+        match result {
+            Ok(value) => {
+                let nonce: Nonce = serde_json::from_value(value).map_err(serde_err_to_state_err)?;
+                Ok(nonce)
+            }
+            Err(RPCStateReaderError::ContractAddressNotFound(_)) => Ok(Nonce::default()),
+            Err(e) => Err(e)?,
+        }
+    }
 }
 
 impl BlockifierStateReader for RpcStateReader {
