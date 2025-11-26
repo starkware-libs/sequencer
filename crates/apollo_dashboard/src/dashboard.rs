@@ -238,8 +238,11 @@ impl Panel {
         self
     }
 
-    #[allow(dead_code)] // TODO(Ron): use in panels
-    fn with_thresholds(mut self, mode: ThresholdMode, steps: Vec<(&str, Option<f64>)>) -> Self {
+    fn with_thresholds(
+        mut self,
+        mode: ThresholdMode,
+        steps: Vec<(impl ToString, Option<f64>)>,
+    ) -> Self {
         assert!(!steps.is_empty(), "thresholds must include at least one step");
         assert!(steps[0].1.is_none(), "first threshold step must have value=null");
         for w in steps.windows(2).skip(1) {
@@ -269,12 +272,11 @@ impl Panel {
     /// - Named: "green", "red": <https://developer.mozilla.org/en-US/docs/Web/CSS/named-color>.
     /// - Hex: "#FF0000", "#00ff00".
     /// - RGB/HSL: "rgb(255,0,0)", "hsl(120,100%,50%)", etc.
-    pub fn with_absolute_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+    pub fn with_absolute_thresholds(self, steps: Vec<(impl ToString, Option<f64>)>) -> Self {
         self.with_thresholds(ThresholdMode::Absolute, steps)
     }
 
-    #[allow(dead_code)] // TODO(Ron): use in panels
-    pub fn with_percentage_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+    pub fn with_percentage_thresholds(self, steps: Vec<(impl ToString, Option<f64>)>) -> Self {
         self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
