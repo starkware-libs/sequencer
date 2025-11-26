@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::{
     ClassManagerClientResult,
@@ -21,7 +21,6 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_api_test_utils::assert_eq_state_result;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::test_utils::initial_test_state::state_reader_and_contract_manager_for_testing;
-use lazy_static::lazy_static;
 use mockall::predicate;
 use rstest::rstest;
 use starknet_api::block::{
@@ -42,6 +41,8 @@ use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, MempoolStateReader};
 use crate::sync_state_reader::SyncStateReader;
+
+static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
 
 fn sync_state_reader_and_contract_manager(
     state_sync_client: SharedStateSyncClient,
@@ -150,28 +151,28 @@ const CACHED_EXPECTATION: GetCompiledClassTestExpectation = GetCompiledClassTest
 fn cairo_1_declared_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
-            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+            get_executable_result: Ok(Some(ContractClass::test_casm_contract_class())),
             n_calls_to_get_executable: 1,
             get_sierra_result: Ok(Some(SierraContractClass::default())),
             n_calls_to_get_sierra: 1,
             is_class_declared_at_result: Some(Ok(true)),
             is_cairo_1_class_declared_at_result: None,
         },
-        expected_result: Ok(DUMMY_COMPILED_CLASS.clone()),
+        expected_result: Ok(RunnableCompiledClass::test_casm_contract_class()),
     }
 }
 
 fn cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
-            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())),
+            get_executable_result: Ok(Some(ContractClass::test_deprecated_casm_contract_class())),
             n_calls_to_get_executable: 1,
             get_sierra_result: Ok(None), // Cairo 0 doesn't use Sierra.
             n_calls_to_get_sierra: 0,
             is_class_declared_at_result: Some(Ok(true)),
             is_cairo_1_class_declared_at_result: None,
         },
-        expected_result: Ok(DUMMY_COMPILED_CLASS_V0.clone()),
+        expected_result: Ok(RunnableCompiledClass::test_deprecated_casm_contract_class()),
     }
 }
 
@@ -195,7 +196,7 @@ fn cached_cairo_1_declared_scenario() -> GetCompiledClassTestScenario {
             is_cairo_1_class_declared_at_result: Some(Ok(true)), // Verification call.
             ..CACHED_EXPECTATION
         },
-        expected_result: Ok(DUMMY_COMPILED_CLASS.clone()),
+        expected_result: Ok(RunnableCompiledClass::test_casm_contract_class()),
     }
 }
 
@@ -205,7 +206,7 @@ fn cached_cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
             is_cairo_1_class_declared_at_result: None, // Not called for Cairo 0.
             ..CACHED_EXPECTATION
         },
-        expected_result: Ok(DUMMY_COMPILED_CLASS_V0.clone()),
+        expected_result: Ok(RunnableCompiledClass::test_deprecated_casm_contract_class()),
     }
 }
 
@@ -222,8 +223,8 @@ fn cached_but_verification_failed_after_reorg_scenario() -> GetCompiledClassTest
 fn not_declared_but_in_manager_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
-            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS.clone())), /* In manager but not
-                                                                            * declared. */
+            get_executable_result: Ok(Some(ContractClass::test_casm_contract_class())), /* In manager but not
+                                                                                         * declared. */
             n_calls_to_get_executable: 0, // Not called since not declared.
             get_sierra_result: Ok(Some(SierraContractClass::default())),
             n_calls_to_get_sierra: 0, // Not called since not declared.
@@ -418,17 +419,6 @@ async fn test_get_class_hash_at() {
     .unwrap()
     .unwrap();
     assert_eq!(result, expected_result);
-}
-
-lazy_static! {
-    static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
-    static ref DUMMY_CONTRACT_CLASS: ContractClass = ContractClass::test_casm_contract_class();
-    static ref DUMMY_CONTRACT_CLASS_V0: ContractClass =
-        ContractClass::test_deprecated_casm_contract_class();
-    static ref DUMMY_COMPILED_CLASS: RunnableCompiledClass =
-        DUMMY_CONTRACT_CLASS.clone().try_into().unwrap();
-    static ref DUMMY_COMPILED_CLASS_V0: RunnableCompiledClass =
-        DUMMY_CONTRACT_CLASS_V0.clone().try_into().unwrap();
 }
 
 // TODO(Arni): Check if any test cases here should move to the tests of
