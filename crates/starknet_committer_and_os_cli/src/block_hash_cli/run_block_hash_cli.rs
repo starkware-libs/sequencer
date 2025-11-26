@@ -50,10 +50,11 @@ pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
             info!("Successfully loaded block hash commitment input.");
             let commitments = calculate_block_commitments(
                 &commitments_input.transactions_data,
-                &commitments_input.state_diff,
+                commitments_input.state_diff,
                 commitments_input.l1_da_mode,
                 &commitments_input.starknet_version,
-            );
+            )
+            .await;
             write_to_file(&output_path, &commitments);
             info!("Successfully computed block hash commitment: \n{:?}", commitments);
         }
