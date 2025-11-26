@@ -14,10 +14,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
-use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
 use serde_json::{json, to_value};
@@ -285,14 +289,20 @@ impl TestStateReader {
         self,
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let old_block_hash = self.get_old_block_hash(old_block_number)?;
-        Ok(TransactionExecutor::<TestStateReader>::pre_process_and_create(
-            self,
+        let state_reader_and_contract_manager = StateReaderAndContractManager {
+            state_reader: self,
+            contract_class_manager: contract_class_manager.clone(),
+        };
+        Ok(TransactionExecutor::<StateReaderAndContractManager<TestStateReader>>::pre_process_and_create(
+            state_reader_and_contract_manager,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             transaction_executor_config.unwrap_or_default(),
@@ -453,14 +463,19 @@ impl ConsecutiveTestStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<TestStateReader>>
+    for ConsecutiveTestStateReaders
+{
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         self.last_block_state_reader.get_transaction_executor(
             self.next_block_state_reader.get_block_context()?,
             transaction_executor_config,
+            contract_class_manager,
         )
     }
 

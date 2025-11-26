@@ -2,6 +2,7 @@ use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -130,6 +131,7 @@ pub trait ConsecutiveReexecutionStateReaders<S: StateReader> {
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
+        contract_class_manager: &ContractClassManager,
     ) -> ReexecutionResult<TransactionExecutor<S>>;
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
