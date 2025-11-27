@@ -13,7 +13,7 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use super::SingleHeightConsensus;
-use crate::single_height_consensus::{ShcReturn, ShcTask};
+use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensusArgs};
 use crate::state_machine::StateMachineEvent;
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
@@ -105,15 +105,15 @@ async fn handle_proposal(
 async fn proposer() {
     let mut context = MockTestContext::new();
 
-    let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
-        false,
-        *PROPOSER_ID,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: BlockNumber(0),
+        is_observer: false,
+        validator_id: *PROPOSER_ID,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_build_proposal().times(1).returning(move |_, _| {
@@ -186,15 +186,15 @@ async fn validator(repeat_proposal: bool) {
     let mut context = MockTestContext::new();
 
     // Creation calls to `context.validators`.
-    let mut shc = SingleHeightConsensus::new(
-        HEIGHT,
-        false,
-        *VALIDATOR_ID_1,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: HEIGHT,
+        is_observer: false,
+        validator_id: *VALIDATOR_ID_1,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
@@ -268,15 +268,15 @@ async fn vote_twice(same_vote: bool) {
 
     let mut context = MockTestContext::new();
 
-    let mut shc = SingleHeightConsensus::new(
-        HEIGHT,
-        false,
-        *VALIDATOR_ID_1,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: HEIGHT,
+        is_observer: false,
+        validator_id: *VALIDATOR_ID_1,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
@@ -347,15 +347,15 @@ async fn vote_twice(same_vote: bool) {
 async fn rebroadcast_votes() {
     let mut context = MockTestContext::new();
 
-    let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
-        false,
-        *PROPOSER_ID,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: BlockNumber(0),
+        is_observer: false,
+        validator_id: *PROPOSER_ID,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_build_proposal().times(1).returning(move |_, _| {
@@ -456,15 +456,15 @@ async fn rebroadcast_votes() {
 async fn repropose() {
     let mut context = MockTestContext::new();
 
-    let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
-        false,
-        *PROPOSER_ID,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: BlockNumber(0),
+        is_observer: false,
+        validator_id: *PROPOSER_ID,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_build_proposal().times(1).returning(move |_, _| {
@@ -567,15 +567,15 @@ async fn writes_voted_height_to_storage() {
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| Ok(()));
 
-    let mut shc = SingleHeightConsensus::new(
-        HEIGHT,
-        false,
-        *VALIDATOR_ID_1,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        mock_storage.clone(),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: HEIGHT,
+        is_observer: false,
+        validator_id: *VALIDATOR_ID_1,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: TIMEOUTS.clone(),
+        height_voted_storage: mock_storage.clone(),
+    });
 
     let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
     assert_eq!(
@@ -655,15 +655,15 @@ async fn shc_applies_proposal_timeouts_across_rounds() {
         ),
     );
 
-    let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
-        false,
-        *PROPOSER_ID,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        timeouts.clone(),
-        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
+        height: BlockNumber(0),
+        is_observer: false,
+        validator_id: *PROPOSER_ID,
+        validators: VALIDATORS.to_vec(),
+        quorum_type: QuorumType::Byzantine,
+        timeouts: timeouts.clone(),
+        height_voted_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    });
     // context expectations.
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| ());

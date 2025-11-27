@@ -10,6 +10,7 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -36,7 +37,7 @@ use crate::metrics::{
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_RECEIVED,
 };
-use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus, SingleHeightConsensusArgs};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
@@ -312,15 +313,15 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             height, is_observer, validators,
         );
 
-        let mut shc = SingleHeightConsensus::new(
+        let mut shc = SingleHeightConsensus::new(SingleHeightConsensusArgs {
             height,
             is_observer,
-            self.consensus_config.dynamic_config.validator_id,
+            validator_id: self.consensus_config.dynamic_config.validator_id,
             validators,
-            self.quorum_type,
-            self.consensus_config.dynamic_config.timeouts.clone(),
-            self.voted_height_storage.clone(),
-        );
+            quorum_type: self.quorum_type,
+            timeouts: self.consensus_config.dynamic_config.timeouts.clone(),
+            height_voted_storage: self.voted_height_storage.clone(),
+        });
         let mut shc_events = FuturesUnordered::new();
 
         match self.start_height(context, height, &mut shc).await? {
