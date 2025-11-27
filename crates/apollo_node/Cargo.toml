@@ -47,6 +47,7 @@ apollo_state_sync.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 futures.workspace = true
+metrics-exporter-prometheus.workspace = true
 papyrus_base_layer.workspace = true
 tikv-jemallocator.workspace = true
 tokio-util = { workspace = true, optional = true, features = ["rt"] }
