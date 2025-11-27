@@ -94,6 +94,51 @@ pub(crate) fn get_http_server_avg_add_tx_latency_alert_vec() -> Vec<Alert> {
     ]
 }
 
+/// Triggers if the latency of all `add_tx` calls, across all HTTP servers, exceeds 1 second
+/// over a 2-minute window.
+fn get_http_server_min_add_tx_latency_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    let bucket_metric =
+        HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filer_and_additional_fields("le=\"1.0\"");
+    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
+    Alert::new(
+        "http_server_min_add_tx_latency",
+        "High HTTP server minimal add_tx latency",
+        AlertGroup::HttpServer,
+        // If the count of observations in the 2-minute window is larger than 0, and the count of
+        // observations in the le="1.0" bucket is < 1, then the latency of all `add_tx`
+        // calls exceeds 1 second.
+        format!(
+            "(sum(increase({count_metric}[2m])) > 0) * (sum(increase({bucket_metric}[2m])) < 1)"
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        ObserverApplicability::NotApplicable,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_http_server_min_add_tx_latency_alert_vec() -> Vec<Alert> {
+    vec![
+        get_http_server_min_add_tx_latency_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_http_server_min_add_tx_latency_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
 /// Triggers when the slowest 5% of transactions for a specific HTTP server are taking longer than 2
 /// seconds over a 5-minute window.
 fn get_http_server_p95_add_tx_latency_alert(
