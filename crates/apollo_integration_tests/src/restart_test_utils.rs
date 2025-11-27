@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use tokio::time::{sleep, Instant};
@@ -14,6 +14,7 @@ pub async fn poll_running_nodes_received_more_txs(
     curr_txs: &mut HashMap<usize, usize>,
     integration_test_manager: &IntegrationTestManager,
     timeout: Duration,
+    node_indices: HashSet<usize>,
 ) {
     let prev_txs = curr_txs.clone();
 
@@ -21,14 +22,16 @@ pub async fn poll_running_nodes_received_more_txs(
     let mut done: bool = false;
     while start.elapsed() < timeout && !done {
         sleep(Duration::from_secs(1)).await;
-        done = update_processed_txs(integration_test_manager, curr_txs, &prev_txs).await;
+        done = update_processed_txs(integration_test_manager, curr_txs, &prev_txs, &node_indices)
+            .await;
     }
 
     info!(
         "Verifying running nodes received more transactions finished in {} seconds",
         start.elapsed().as_secs()
     );
-    for (node_idx, curr_n_processed) in curr_txs {
+    for node_idx in &node_indices {
+        let curr_n_processed = curr_txs.get(node_idx).expect("Num txs not found");
         let prev_n_processed = prev_txs.get(node_idx).expect("Num txs not found");
         info!(
             "Node {} processed {} -> {} transactions",
@@ -38,21 +41,33 @@ pub async fn poll_running_nodes_received_more_txs(
 
     if !done {
         panic!(
-            "Not all running nodes processed more transactions in the last {} seconds",
+            "Not all specified running nodes processed more transactions in the last {} seconds",
             timeout.as_secs()
         );
     }
 }
 
-// Checks if all running nodes have processed more transactions than before and updates the current
-// transactions mapping with the latest values. Returns true if every running node's transaction
-// count has increased, and false otherwise.
+pub async fn poll_all_running_nodes_received_more_txs(
+    curr_txs: &mut HashMap<usize, usize>,
+    integration_test_manager: &IntegrationTestManager,
+    timeout: Duration,
+) {
+    let node_indices = integration_test_manager.get_running_node_indices();
+    poll_running_nodes_received_more_txs(curr_txs, integration_test_manager, timeout, node_indices)
+        .await;
+}
+
+// Checks if all specified running nodes have processed more transactions than before and updates
+// the current transactions mapping with the latest values. Returns true if every specified running
+// node's transaction count has increased, and false otherwise.
 async fn update_processed_txs(
     integration_test_manager: &IntegrationTestManager,
     curr_processed_txs: &mut HashMap<usize, usize>,
     prev_txs: &HashMap<usize, usize>,
+    node_indices: &HashSet<usize>,
 ) -> bool {
-    let curr_txs = integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
+    let curr_txs =
+        integration_test_manager.get_num_accepted_txs_on_running_nodes(node_indices.clone()).await;
     for (node_idx, curr_n_processed) in curr_txs {
         curr_processed_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
 

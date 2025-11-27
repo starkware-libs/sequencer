@@ -9,8 +9,8 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::restart_test_utils::{
+    poll_all_running_nodes_received_more_txs,
     poll_node_reaches_consensus_decisions_after_restart,
-    poll_running_nodes_received_more_txs,
 };
 use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK};
 use strum::IntoEnumIterator;
@@ -96,7 +96,7 @@ async fn main() {
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
         info!("Awaiting transactions while all nodes are up");
-        poll_running_nodes_received_more_txs(
+        poll_all_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
             TIMEOUT,
@@ -105,7 +105,7 @@ async fn main() {
 
         integration_test_manager.shutdown_nodes([RESTART_NODE].into());
         info!("Awaiting transactions while node {RESTART_NODE} is down");
-        poll_running_nodes_received_more_txs(
+        poll_all_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
             TIMEOUT,
@@ -127,7 +127,7 @@ async fn main() {
         )
         .await;
 
-        poll_running_nodes_received_more_txs(
+        poll_all_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
             TIMEOUT,
@@ -144,7 +144,7 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        poll_running_nodes_received_more_txs(
+        poll_all_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
             LONG_TIMEOUT,
