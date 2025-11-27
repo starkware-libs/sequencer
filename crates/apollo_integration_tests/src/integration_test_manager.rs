@@ -214,15 +214,18 @@ impl NodeSetup {
 
     pub fn run(self) -> RunningNode {
         let executable_handles = self
-            .get_executables()
-            .map(|executable| {
-                info!("Running {}.", executable.node_execution_id);
-                spawn_run_node(
-                    vec![executable.node_config_path.clone()],
-                    executable.node_execution_id.into(),
+            .executables
+            .iter()
+            .map(|(service, executable)| {
+                (
+                    *service,
+                    spawn_run_node(
+                        vec![executable.node_config_path.clone()],
+                        executable.node_execution_id.into(),
+                    ),
                 )
             })
-            .collect::<Vec<_>>();
+            .collect::<HashMap<NodeService, AbortOnDropHandle<()>>>();
 
         RunningNode { node_setup: self, executable_handles }
     }
@@ -246,7 +249,7 @@ impl NodeSetup {
 
 pub struct RunningNode {
     node_setup: NodeSetup,
-    executable_handles: Vec<AbortOnDropHandle<()>>,
+    executable_handles: HashMap<NodeService, AbortOnDropHandle<()>>,
 }
 
 impl RunningNode {
@@ -263,7 +266,7 @@ impl RunningNode {
     }
 
     fn propagate_executable_panic(&self) {
-        for handle in &self.executable_handles {
+        for handle in self.executable_handles.values() {
             // A finished handle implies a running node executable has panicked.
             if handle.is_finished() {
                 // Panic, dropping all other handles, which should drop.
@@ -478,7 +481,7 @@ impl IntegrationTestManager {
                 .running_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
-            running_node.executable_handles.iter().for_each(|handle| {
+            running_node.executable_handles.values().for_each(|handle| {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
             });
