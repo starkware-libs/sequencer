@@ -9,7 +9,7 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 
 pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 600;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompiledClasses {
     V0(CompiledClassV0),
     V1(CompiledClassV1, Arc<SierraContractClass>),
@@ -56,7 +56,7 @@ impl CompiledClasses {
 pub type RawClassCache = GlobalContractCache<CompiledClasses>;
 
 #[cfg(feature = "cairo_native")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum CachedCairoNative {
     Compiled(NativeCompiledClassV1),
