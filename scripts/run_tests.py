@@ -24,6 +24,7 @@ NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
     "integration_test_restart_flow",
     "integration_test_restart_service_multiple_nodes_flow",
+    "integration_test_restart_service_single_node_flow",
     "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
