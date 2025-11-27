@@ -16,6 +16,9 @@ testing = [
   "blockifier/testing",
   "blockifier_test_utils",
 ]
+cairo_native = [
+  "blockifier/cairo_native",
+]
 
 [dependencies]
 apollo_class_manager_types.workspace = true
@@ -50,6 +53,7 @@ tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }

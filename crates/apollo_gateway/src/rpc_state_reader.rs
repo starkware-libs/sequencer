@@ -10,10 +10,12 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
+use indexmap::IndexMap;
 use reqwest::blocking::Client as BlockingClient;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -39,6 +41,42 @@ use crate::state_reader::{
     MempoolStateReader,
     StateReaderFactory,
 };
+
+pub fn hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+) -> RPCStateReaderResult<IndexMap<K, V>> {
+    Ok(vec_to_hashmap::<K, V>(
+        serde_json::from_value(raw_object[vec_str].clone())?,
+        key_str,
+        value_str,
+    ))
+}
+
+pub fn vec_to_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+) -> IndexMap<K, V> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone())
+                    .expect("Key string doesn't match expected."),
+                serde_json::from_value(element[value_str].clone())
+                    .expect("Value string doesn't match expected."),
+            )
+        })
+        .collect()
+}
 
 #[derive(Clone)]
 pub struct RpcStateReader {
@@ -97,6 +135,23 @@ impl RpcStateReader {
             },
         }
     }
+
+    // Helper function to compute compiled class hash from RunnableCompiledClass.
+    pub fn compute_compiled_class_hash(
+        &self,
+        class_hash: ClassHash,
+        hash_version: HashVersion,
+    ) -> StateResult<CompiledClassHash> {
+        let compiled_class = self.get_compiled_class(class_hash)?;
+        match compiled_class {
+            RunnableCompiledClass::V0(_) => {
+                Err(StateError::StateReadError("Class hash is deprecated".to_string()))
+            }
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&hash_version)),
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(class) => Ok(class.casm().hash(&hash_version)),
+        }
+    }
 }
 
 impl MempoolStateReader for RpcStateReader {
@@ -150,7 +205,6 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let get_compiled_class_params =
             GetCompiledClassParams { class_hash, block_id: self.block_id };
-
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
         let (contract_class, sierra_version): (CompiledContractClass, SierraVersion) =
@@ -182,8 +236,32 @@ impl BlockifierStateReader for RpcStateReader {
         }
     }
 
-    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        todo!()
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        let raw_state_diff = &self.send_rpc_request(
+            "starknet_getStateUpdate",
+            GetBlockWithTxHashesParams { block_id: self.block_id },
+        )?["state_diff"];
+        let migrated_compiled_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+            raw_state_diff,
+            "migrated_compiled_classes",
+            "class_hash",
+            "compiled_class_hash",
+        )?;
+
+        let hash_version = if migrated_compiled_classes.contains_key(&class_hash) {
+            HashVersion::V2
+        } else {
+            HashVersion::V1
+        };
+        self.compute_compiled_class_hash(class_hash, hash_version)
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.compute_compiled_class_hash(class_hash, HashVersion::V2)
     }
 }
 
