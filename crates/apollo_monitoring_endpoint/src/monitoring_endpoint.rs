@@ -1,14 +1,12 @@
 use std::net::SocketAddr;
 
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra::metrics::MetricsConfig;
-use apollo_infra::tokio_metrics::setup_tokio_metrics;
+use apollo_infra::metrics::{initialize_metrics_recorder, MetricsConfig};
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
-use apollo_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use axum::extract::Path;
 use axum::http::StatusCode;
@@ -16,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use metrics_exporter_prometheus::PrometheusHandle;
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info, instrument};
 
@@ -34,11 +32,6 @@ pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
 pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
 pub(crate) const LOG_LEVEL: &str = "logLevel";
 
-pub const HISTOGRAM_BUCKETS: &[f64] = &[
-    0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
-    100.0, 250.0,
-];
-
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
     version: &'static str,
@@ -51,28 +44,10 @@ impl MonitoringEndpoint {
     pub fn new(
         config: MonitoringEndpointConfig,
         version: &'static str,
-        metrics_config: MetricsConfig,
+        prometheus_handle: Option<PrometheusHandle>,
         mempool_client: Option<SharedMempoolClient>,
         l1_provider_client: Option<SharedL1ProviderClient>,
     ) -> Self {
-        // TODO(Tsabary): consider error handling
-        let prometheus_handle = if metrics_config.collect_metrics {
-            // TODO(Lev): add tests that show the metrics are collected / not collected based on the
-            // config value.
-            COLLECT_SEQUENCER_PROFILING_METRICS
-                .set(metrics_config.collect_profiling_metrics)
-                .expect("Should be able to set profiling metrics collection.");
-
-            Some(
-                PrometheusBuilder::new()
-                    .set_buckets(HISTOGRAM_BUCKETS)
-                    .expect("Should be able to set buckets")
-                    .install_recorder()
-                    .expect("should be able to build the recorder and install it globally"),
-            )
-        } else {
-            None
-        };
         MonitoringEndpoint {
             config,
             version,
@@ -141,8 +116,6 @@ impl MonitoringEndpoint {
     }
 }
 
-// TODO(tsabary): finalize the separation of the metrics recorder initialization and the monitoring
-// endpoint setup
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
@@ -150,15 +123,8 @@ pub fn create_monitoring_endpoint(
     mempool_client: Option<SharedMempoolClient>,
     l1_provider_client: Option<SharedL1ProviderClient>,
 ) -> MonitoringEndpoint {
-    let result = MonitoringEndpoint::new(
-        config,
-        version,
-        metrics_config,
-        mempool_client,
-        l1_provider_client,
-    );
-    setup_tokio_metrics();
-    result
+    let prometheus_handle = initialize_metrics_recorder(metrics_config);
+    MonitoringEndpoint::new(config, version, prometheus_handle, mempool_client, l1_provider_client)
 }
 
 #[async_trait]

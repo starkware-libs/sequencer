@@ -26,7 +26,7 @@ define_metrics!(
 
 /// Start the tokio runtime metrics reporter to automatically collect and export tokio runtime
 /// metrics
-pub fn setup_tokio_metrics() {
+pub(crate) fn setup_tokio_metrics() {
     tokio::spawn(
         RuntimeMetricsReporterBuilder::default()
             .with_interval(Duration::from_secs(TOKIO_REPORTING_INTERVAL_SECONDS))
