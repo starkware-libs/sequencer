@@ -121,6 +121,15 @@ impl ShcTask {
     }
 }
 
+pub(crate) struct SingleHeightConsensusArgs {
+    pub height: BlockNumber,
+    pub is_observer: bool,
+    pub validator_id: ValidatorId,
+    pub validators: Vec<ValidatorId>,
+    pub quorum_type: QuorumType,
+    pub timeouts: TimeoutsConfig,
+    pub height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+}
 /// Represents a single height of consensus. It is responsible for mapping between the idealized
 /// view of consensus represented in the StateMachine and the real world implementation.
 ///
@@ -143,25 +152,23 @@ pub(crate) struct SingleHeightConsensus {
 }
 
 impl SingleHeightConsensus {
-    pub(crate) fn new(
-        height: BlockNumber,
-        is_observer: bool,
-        id: ValidatorId,
-        validators: Vec<ValidatorId>,
-        quorum_type: QuorumType,
-        timeouts: TimeoutsConfig,
-        height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
-    ) -> Self {
+    pub(crate) fn new(args: SingleHeightConsensusArgs) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
-        let n_validators =
-            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
+        let n_validators = u64::try_from(args.validators.len())
+            .expect("Should have way less than u64::MAX validators");
+        let state_machine = StateMachine::new(
+            args.height,
+            args.validator_id,
+            n_validators,
+            args.is_observer,
+            args.quorum_type,
+        );
         Self {
-            validators,
-            timeouts,
+            validators: args.validators,
+            timeouts: args.timeouts,
             state_machine,
             pending_validation_rounds: HashSet::new(),
-            height_voted_storage,
+            height_voted_storage: args.height_voted_storage,
         }
     }
 
