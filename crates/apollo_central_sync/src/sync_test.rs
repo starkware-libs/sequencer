@@ -195,6 +195,8 @@ async fn store_base_layer_block_test() {
         writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
         class_manager_client: None,
+        middle_queue: futures_util::stream::FuturesOrdered::new(),
+        batch_queue: Vec::new(),
     };
 
     // Trying to store a block without a header in the storage.
