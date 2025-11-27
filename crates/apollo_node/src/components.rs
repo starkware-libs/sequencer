@@ -10,6 +10,7 @@ use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
+use apollo_infra::metrics::MetricsConfig;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
@@ -324,6 +325,7 @@ pub async fn create_node_components(
             Some(create_monitoring_endpoint(
                 monitoring_endpoint_config.clone(),
                 VERSION_FULL,
+                MetricsConfig::enabled(),
                 mempool_client,
                 l1_provider_client,
             ))
