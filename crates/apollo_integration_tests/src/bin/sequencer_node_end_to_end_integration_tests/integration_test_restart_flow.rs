@@ -10,9 +10,9 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::monitoring_utils::get_consensus_decisions_reached;
-use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK};
+use apollo_integration_tests::utils::ConsensusTxs;
 use strum::IntoEnumIterator;
-use tokio::join;
+use tokio::select;
 use tokio::time::{sleep, Instant};
 use tracing::info;
 
@@ -149,25 +149,17 @@ async fn main() {
             LONG_TIMEOUT,
         )
         .await;
-
-        // The expected accepted number of transactions is the total number of invoke transactions
-        // sent + the number of transactions sent during the bootstrap phase.
-        let expected_n_accepted_txs = N_TXS_IN_FIRST_BLOCK
-            + TryInto::<usize>::try_into(TOTAL_INVOKE_TXS)
-                .expect("Failed to convert TOTAL_INVOKE_TXS to usize");
-        // TODO(lev): We need to find a way to stop sending transactions after the test is done and
-        // not to wait till all transactions are sent and processed.
-
-        info!(
-            "Verifying that all running nodes processed all transactions - \
-             {expected_n_accepted_txs}"
-        );
-        integration_test_manager
-            .await_txs_accepted_on_all_running_nodes(expected_n_accepted_txs)
-            .await;
     };
 
-    let _ = join!(tx_sending_task, await_and_restart_nodes_task);
+    select! {
+        _ = tx_sending_task => {
+            panic!("Tx sending task should not complete before the await and restart nodes task");
+        }
+        _ = await_and_restart_nodes_task => {
+            // If await_and_restart_nodes_task completes normally, it finished successfully.
+            // If it panicked, the panic would have already propagated.
+        }
+    }
 
     integration_test_manager.shutdown_nodes(node_indices);
     info!("Restart flow integration test completed successfully!");
