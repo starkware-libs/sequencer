@@ -298,7 +298,7 @@ impl FlowSequencerSetup {
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } =
+        let HttpServerConfig { ip, port, .. } =
             node_config.http_server_config.as_ref().unwrap().to_owned();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
