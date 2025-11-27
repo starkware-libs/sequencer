@@ -4,8 +4,30 @@ use apollo_metrics::metrics::{
     MetricGauge,
     MetricHistogram,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::requests::LABEL_NAME_REQUEST_VARIANT;
+
+/// Configuration for metrics collection.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct MetricsConfig {
+    /// Whether to collect metrics at all.
+    pub collect_metrics: bool,
+    /// Whether to collect profiling metrics.
+    pub collect_profiling_metrics: bool,
+}
+
+impl MetricsConfig {
+    /// Returns a config with all metrics collection enabled.
+    pub const fn enabled() -> Self {
+        Self { collect_metrics: true, collect_profiling_metrics: true }
+    }
+
+    /// Returns a config with all metrics collection disabled.
+    pub const fn disabled() -> Self {
+        Self { collect_metrics: false, collect_profiling_metrics: false }
+    }
+}
 
 /// Metrics of a local client.
 #[derive(Clone)]

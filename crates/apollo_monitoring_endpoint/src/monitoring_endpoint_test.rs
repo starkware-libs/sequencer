@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 
+use apollo_infra::metrics::MetricsConfig;
 use apollo_l1_provider_types::{L1ProviderSnapshot, MockL1ProviderClient};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::{
@@ -49,13 +50,14 @@ const TEST_VERSION: &str = "1.2.3-dev";
 const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig = MonitoringEndpointConfig {
     ip: MONITORING_ENDPOINT_DEFAULT_IP,
     port: MONITORING_ENDPOINT_DEFAULT_PORT,
-    collect_metrics: false,
-    collect_profiling_metrics: false,
 };
+
+const METRICS_CONFIG_DISABLED: MetricsConfig =
+    MetricsConfig { collect_metrics: false, collect_profiling_metrics: false };
 
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
     let config = config.unwrap_or(CONFIG_WITHOUT_METRICS);
-    create_monitoring_endpoint(config, TEST_VERSION, None, None)
+    create_monitoring_endpoint(config, TEST_VERSION, METRICS_CONFIG_DISABLED, None, None)
 }
 
 async fn request_app(app: Router, method: &str) -> Response {
@@ -109,8 +111,9 @@ async fn set_log_level_invalid_level() {
 
 #[tokio::test]
 async fn with_metrics() {
-    let config = MonitoringEndpointConfig { collect_metrics: true, ..Default::default() };
-    let app = setup_monitoring_endpoint(Some(config)).app();
+    let config = MonitoringEndpointConfig::default();
+    let metrics_config = MetricsConfig { collect_metrics: true, collect_profiling_metrics: false };
+    let app = create_monitoring_endpoint(config, TEST_VERSION, metrics_config, None, None).app();
 
     // Register a metric.
     let metric_name = "metric_name";
@@ -163,6 +166,7 @@ fn setup_monitoring_endpoint_with_mempool_client() -> MonitoringEndpoint {
     create_monitoring_endpoint(
         CONFIG_WITHOUT_METRICS,
         TEST_VERSION,
+        METRICS_CONFIG_DISABLED,
         Some(shared_mock_mempool_client),
         None,
     )
@@ -225,6 +229,7 @@ fn setup_monitoring_endpoint_with_l1_provider_client() -> MonitoringEndpoint {
     create_monitoring_endpoint(
         CONFIG_WITHOUT_METRICS,
         TEST_VERSION,
+        METRICS_CONFIG_DISABLED,
         None,
         Some(shared_mock_l1_provider_client),
     )
