@@ -66,6 +66,12 @@ impl<T> Sensitive<T> {
     }
 }
 
+impl<T> From<T> for Sensitive<T> {
+    fn from(value: T) -> Self {
+        Sensitive::new(value)
+    }
+}
+
 // TODO(Tsabary): consider if AsRef and AsMut are needed.
 impl<T> AsRef<T> for Sensitive<T> {
     fn as_ref(&self) -> &T {
