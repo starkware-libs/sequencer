@@ -44,6 +44,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
+use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
@@ -230,13 +231,19 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
+        skip_write_prev_height_blob: bool,
     ) -> oneshot::Receiver<ProposalCommitment> {
-        // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce transactions
-        // finality time. Use this option only for one special sequencer that is the same cluster as
-        // the recorder.
-        let cende_write_success = AbortOnDropHandle::new(
-            self.deps.cende_ambassador.write_prev_height_blob(proposal_init.height),
-        );
+        let cende_write_success = if skip_write_prev_height_blob {
+            AbortOnDropHandle::new(tokio::spawn(ready(true)))
+        } else {
+            // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
+            // transactions finality time. Use this option only for one special
+            // sequencer that is the same cluster as the recorder.
+            AbortOnDropHandle::new(
+                self.deps.cende_ambassador.write_prev_height_blob(proposal_init.height),
+            )
+        };
+
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
         assert!(
@@ -589,6 +596,16 @@ impl ConsensusContext for SequencerConsensusContext {
             });
         self.previous_block_info = Some(block_info);
         Ok(())
+    }
+
+    async fn get_latest_sync_height(&self) -> Option<BlockNumber> {
+        match self.deps.state_sync_client.get_latest_block_number().await {
+            Ok(height) => height,
+            Err(e) => {
+                error!("Failed to get latest sync height: {e:?}");
+                None
+            }
+        }
     }
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
