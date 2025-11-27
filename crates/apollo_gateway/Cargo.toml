@@ -9,6 +9,9 @@ version.workspace = true
 workspace = true
 
 [features]
+cairo_native = [
+  "blockifier/cairo_native",
+]
 testing = [
   "apollo_class_manager_types/testing",
   "apollo_gateway_config/testing",
@@ -36,6 +39,7 @@ blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 clap.workspace = true
 futures.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 lazy_static.workspace = true
 mempool_test_utils.workspace = true
 num-rational.workspace = true

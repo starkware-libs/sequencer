@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
 use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
-use apollo_gateway::rpc_state_reader::RpcStateReader;
+use apollo_gateway::rpc_state_reader::{hashmap_from_raw, RpcStateReader};
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
@@ -47,7 +47,6 @@ use crate::state_reader::reexecution_state_reader::{
 };
 use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
-    hashmap_from_raw,
     nested_hashmap_from_raw,
 };
 use crate::state_reader::utils::{
@@ -150,6 +149,14 @@ impl StateReader for TestStateReader {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.rpc_state_reader.get_compiled_class_hash_v2(class_hash, _compiled_class)
     }
 }
 
