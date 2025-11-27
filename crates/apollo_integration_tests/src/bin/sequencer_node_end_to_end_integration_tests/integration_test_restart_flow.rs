@@ -89,11 +89,11 @@ async fn main() {
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
         info!("Awaiting transactions while all nodes are up");
-        integration_test_manager.poll_running_nodes_received_more_txs(TIMEOUT).await;
+        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
         integration_test_manager.shutdown_nodes([RESTART_NODE].into());
         info!("Awaiting transactions while node {RESTART_NODE} is down");
-        integration_test_manager.poll_running_nodes_received_more_txs(TIMEOUT).await;
+        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
         // We want the restarted node to rejoin the network while its building blocks to check the
         // catch-up mechanism.
@@ -107,7 +107,7 @@ async fn main() {
             .poll_node_reaches_consensus_decisions_after_restart(RESTART_NODE, LONG_TIMEOUT)
             .await;
 
-        integration_test_manager.poll_running_nodes_received_more_txs(TIMEOUT).await;
+        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
         // Shutdown a second node to test that the restarted node has joined consensus (the network
         // can't reach consensus without the restarted node if the second node is down).
@@ -119,7 +119,7 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        integration_test_manager.poll_running_nodes_received_more_txs(LONG_TIMEOUT).await;
+        integration_test_manager.poll_all_running_nodes_received_more_txs(LONG_TIMEOUT).await;
 
         // The expected accepted number of transactions is the total number of invoke transactions
         // sent + the number of transactions sent during the bootstrap phase.
