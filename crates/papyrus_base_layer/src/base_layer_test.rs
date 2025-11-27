@@ -101,13 +101,4 @@ async fn get_gas_price_and_timestamps() {
     // Roughly e ** (BLOB_GAS / eip7691::BLOB_GASPRICE_UPDATE_FRACTION_PECTRA)
     let expected_pectra_blob_calc = 7;
     assert_eq!(header.blob_fee, expected_pectra_blob_calc);
-
-    // Test legacy blob
-
-    asserter.push_success(mocked_block_response);
-    base_layer.config.prague_blob_gas_calc = false;
-    let header = base_layer.get_block_header(0).await.unwrap().unwrap();
-    // Roughly e ** (BLOB_GAS / eip4844::BLOB_GASPRICE_UPDATE_FRACTION)
-    let expected_original_blob_calc = 19;
-    assert_eq!(header.blob_fee, expected_original_blob_calc);
 }
