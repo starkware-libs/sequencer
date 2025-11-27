@@ -142,7 +142,7 @@ impl NodeSetup {
         .as_ref()
         .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
-        let HttpServerConfig { ip, port } = http_server_config;
+        let HttpServerConfig { ip, port, .. } = http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
         Self { node_type, executables, add_tx_http_client, storage_handles }

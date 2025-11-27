@@ -23,6 +23,7 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use blockifier_reexecution::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
+use once_cell::sync::OnceCell;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
@@ -49,6 +50,8 @@ pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
 const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
+pub static MAX_SIERRA_PROGRAM_SIZE: OnceCell<usize> = OnceCell::new();
+
 pub struct HttpServer {
     pub config: HttpServerConfig,
     app_state: AppState,
@@ -61,6 +64,8 @@ pub struct AppState {
 
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
+        // Initialize the global MAX_SIERRA_PROGRAM_SIZE from the config
+        let _ = MAX_SIERRA_PROGRAM_SIZE.set(config.max_sierra_program_size);
         let app_state = AppState { gateway_client };
         HttpServer { config, app_state }
     }
@@ -69,7 +74,7 @@ impl HttpServer {
         init_metrics();
 
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
-        let HttpServerConfig { ip, port } = self.config;
+        let HttpServerConfig { ip, port, max_sierra_program_size: _ } = self.config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
