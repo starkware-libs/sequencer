@@ -1208,12 +1208,12 @@
       "name": "http_server_avg_add_tx_latency",
       "title": "High HTTP server average add_tx latency",
       "ruleGroup": "http_server",
-      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]), 1/120)",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]), 1/300)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              2.0
+              15.0
             ],
             "type": "gt"
           },
@@ -1229,7 +1229,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "p3",
       "observer_applicable": "false"
     },
     {
