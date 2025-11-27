@@ -77,15 +77,18 @@
 //! [`libmdbx`]: https://docs.rs/libmdbx/latest/libmdbx/
 
 pub mod base_layer;
+pub mod block_hash;
+pub mod block_hash_marker;
 pub mod body;
 pub mod class;
 pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
-#[cfg(feature = "document_calls")]
-pub mod document_calls;
+pub mod consensus;
 #[allow(missing_docs)]
 pub mod metrics;
+pub mod partial_block_hash;
+pub mod state_roots;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -101,6 +104,9 @@ mod deprecated;
 
 #[cfg(test)]
 mod test_instances;
+
+#[cfg(test)]
+mod open_storage_test;
 
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
@@ -130,9 +136,11 @@ use mmap_file::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::hash::StateRoots;
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
@@ -140,6 +148,7 @@ use validator::Validate;
 use version::{StorageVersionError, Version};
 
 use crate::body::TransactionIndex;
+use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
     open_env,
@@ -209,12 +218,17 @@ fn open_storage_internal(
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
         headers: db_writer.create_simple_table("headers")?,
+        last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
         nonces: db_writer.create_common_prefix_table("nonces")?,
         file_offsets: db_writer.create_simple_table("file_offsets")?,
         state_diffs: db_writer.create_simple_table("state_diffs")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
+        block_hashes: db_writer.create_simple_table("block_hashes")?,
+        state_roots: db_writer.create_simple_table("state_roots")?,
+        partial_block_hashes_components: db_writer
+            .create_simple_table("partial_block_hashes_components")?,
 
         // Version tables.
         starknet_version: db_writer.create_simple_table("starknet_version")?,
@@ -587,6 +601,7 @@ pub fn table_names() -> &'static [&'static str] {
 }
 
 struct_field_names! {
+    // When adding a new table you need to update the MAX_DBS.
     struct Tables {
         block_hash_to_number: TableIdentifier<BlockHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         block_signatures: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockSignature>, SimpleTable>,
@@ -601,14 +616,19 @@ struct_field_names! {
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
+        // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
+        last_voted_marker: TableIdentifier<(), NoVersionValueWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
+        partial_block_hashes_components: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHashComponents>, SimpleTable>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
+        block_hashes: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockHash>, SimpleTable>,
+        state_roots: TableIdentifier<BlockNumber, NoVersionValueWrapper<StateRoots>, SimpleTable>,
 
         // Version tables
         starknet_version: TableIdentifier<BlockNumber, VersionZeroWrapper<StarknetVersion>, SimpleTable>,
@@ -745,6 +765,7 @@ pub(crate) enum MarkerKind {
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
+    BlockHash,
 }
 
 pub(crate) type MarkersTable<'env> =
@@ -964,18 +985,4 @@ pub enum OffsetKind {
     TransactionOutput,
     /// A transaction file.
     Transaction,
-}
-
-/// A storage query. Used for benchmarking in the storage_benchmark binary.
-// TODO(dvir): add more queries (especially get casm).
-// TODO(dvir): consider move this, maybe to test_utils.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StorageQuery {
-    /// Get the class hash at a given state number.
-    GetClassHashAt(StateNumber, ContractAddress),
-    /// Get the nonce at a given state number.
-    GetNonceAt(StateNumber, ContractAddress),
-    /// Get the storage at a given state number.
-    GetStorageAt(StateNumber, ContractAddress, StorageKey),
 }

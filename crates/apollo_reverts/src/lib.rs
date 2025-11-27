@@ -3,11 +3,15 @@ use std::future::Future;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_metrics::metrics::MetricGauge;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
+use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
+use apollo_storage::state_roots::StateRootsStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
 use futures::never::Never;
@@ -54,11 +58,16 @@ impl SerializeConfig for RevertConfig {
     }
 }
 
+pub struct RevertComponentData {
+    pub name: &'static str,
+    pub revert_metric: MetricGauge,
+}
+
 pub async fn revert_blocks_and_eternal_pending<Fut>(
     mut storage_height_marker: BlockNumber,
     revert_up_to_and_including: BlockNumber,
     mut revert_block_fn: impl FnMut(BlockNumber) -> Fut,
-    component_name: &str,
+    component: &RevertComponentData,
 ) -> Never
 where
     Fut: Future<Output = ()>,
@@ -66,6 +75,7 @@ where
     // If we revert all blocks up to height X (including), the new height marker will be X.
     let target_height_marker = revert_up_to_and_including;
 
+    let RevertComponentData { name: component_name, revert_metric } = component;
     if storage_height_marker <= target_height_marker {
         info!(
             "{component_name}'s storage height marker {storage_height_marker} is not larger than \
@@ -84,6 +94,7 @@ where
         );
         info!("Reverting {component_name}'s storage to height marker {storage_height_marker}.");
         revert_block_fn(storage_height_marker).await;
+        revert_metric.set_lossy(storage_height_marker.0);
         info!(
             "Successfully reverted {component_name}'s storage to height marker \
              {storage_height_marker}."
@@ -121,6 +132,12 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .try_revert_class_manager_marker(target_block_marker)
         .unwrap()
         .try_revert_base_layer_marker(target_block_marker)
+        .unwrap()
+        .revert_partial_block_hash_components(&target_block_marker)
+        .unwrap()
+        .revert_block_hash(&target_block_marker)
+        .unwrap()
+        .revert_state_roots(&target_block_marker)
         .unwrap()
         .commit()
         .unwrap();

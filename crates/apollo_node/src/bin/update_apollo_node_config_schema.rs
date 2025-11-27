@@ -15,5 +15,5 @@ fn main() {
         .dump_to_file(&CONFIG_POINTERS, &CONFIG_NON_POINTERS_WHITELIST, CONFIG_SCHEMA_PATH)
         .expect("dump to file error");
 
-    serialize_to_file(private_parameters(), CONFIG_SECRETS_SCHEMA_PATH);
+    serialize_to_file(&private_parameters(), CONFIG_SECRETS_SCHEMA_PATH);
 }

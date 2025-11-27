@@ -2,8 +2,7 @@ use alloy::primitives::{I256, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol_types::SolEventInterface;
-use apollo_integration_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
-use assert_matches::assert_matches;
+use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
 use papyrus_base_layer::BaseLayerContract;
 use pretty_assertions::assert_eq;
@@ -11,13 +10,13 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 
 #[tokio::test]
 async fn test_mocked_starknet_state_update() {
-    let base_layer = AnvilBaseLayer::new().await;
+    let base_layer = AnvilBaseLayer::new(None).await;
 
     // Check that the contract was initialized (during the construction above).
-    let no_finality = 0;
     let genesis_block_number = 1;
     let genesis_block_hash = 0;
-    let initial_state = base_layer.latest_proved_block(no_finality).await.unwrap().unwrap();
+    let latest_l1_block_number = base_layer.latest_l1_block_number().await.unwrap();
+    let initial_state = base_layer.get_proved_block_at(latest_l1_block_number).await.unwrap();
     assert_eq!(
         initial_state.number,
         BlockNumber(genesis_block_number),
@@ -38,9 +37,11 @@ async fn test_mocked_starknet_state_update() {
             prev_block_hash: genesis_block_hash,
         })
         .await;
-    assert_matches!(
-        &incorrect_new_block_number_result.unwrap_err(),
-        e if e.to_string().contains("INVALID_PREV_BLOCK_NUMBER")
+    assert!(
+        incorrect_new_block_number_result
+            .unwrap_err()
+            .to_string()
+            .contains("INVALID_PREV_BLOCK_NUMBER")
     );
 
     // Happy flow.
@@ -55,8 +56,10 @@ async fn test_mocked_starknet_state_update() {
         .await
         .unwrap();
 
+    // New block has been added, need to update the latest L1 block number.
+    let latest_l1_block_number = base_layer.latest_l1_block_number().await.unwrap();
     let updated_block_number_and_hash =
-        base_layer.latest_proved_block(no_finality).await.unwrap().unwrap();
+        base_layer.get_proved_block_at(latest_l1_block_number).await.unwrap();
     assert_eq!(
         updated_block_number_and_hash,
         BlockHashAndNumber {
@@ -76,7 +79,7 @@ async fn test_mocked_starknet_state_update() {
         .unwrap();
     let event = event.first().unwrap();
 
-    match Starknet::StarknetEvents::decode_log(&event.inner, true).unwrap().data {
+    match Starknet::StarknetEvents::decode_log(&event.inner).unwrap().data {
         Starknet::StarknetEvents::LogStateUpdate(state_update) => {
             assert_eq!(
                 state_update.blockNumber,

@@ -74,7 +74,10 @@ pub enum L1ProviderRequest {
         n_txs: usize,
         height: BlockNumber,
     },
-    Initialize(Vec<Event>),
+    Initialize {
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    },
     StartBlock {
         state: SessionState,
         height: BlockNumber,
@@ -84,6 +87,7 @@ pub enum L1ProviderRequest {
         height: BlockNumber,
     },
     GetL1ProviderSnapshot,
+    GetProviderState,
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
 impl_labeled_request!(L1ProviderRequest, L1ProviderRequestLabelValue);
@@ -98,6 +102,7 @@ pub enum L1ProviderResponse {
     StartBlock(L1ProviderResult<()>),
     Validate(L1ProviderResult<ValidationStatus>),
     GetL1ProviderSnapshot(L1ProviderResult<L1ProviderSnapshot>),
+    GetProviderState(L1ProviderResult<ProviderState>),
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderResponse);
 
@@ -132,8 +137,13 @@ pub trait L1ProviderClient: Send + Sync {
     ) -> L1ProviderClientResult<()>;
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
-    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    ) -> L1ProviderClientResult<()>;
     async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot>;
+    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState>;
 }
 
 #[async_trait]
@@ -217,8 +227,12 @@ where
         )
     }
 
-    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::Initialize(events);
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    ) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::Initialize { historic_l2_height, events };
         handle_all_response_variants!(
             L1ProviderResponse,
             Initialize,
@@ -233,6 +247,17 @@ where
         handle_all_response_variants!(
             L1ProviderResponse,
             GetL1ProviderSnapshot,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
+    }
+
+    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState> {
+        let request = L1ProviderRequest::GetProviderState;
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            GetProviderState,
             L1ProviderClientError,
             L1ProviderError,
             Direct
@@ -348,6 +373,58 @@ impl Display for Event {
     }
 }
 
+/// Current state of the provider, where pending means: idle, between proposal/validation cycles.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ProviderState {
+    /// Provider has not been initialized yet, needs to do bootstrapping at least once.
+    Uninitialized,
+    // TODO(guyn): in a upcoming PR, bootstrap will be available not only on startup.
+    /// Provider is catching up using sync. Only happens on startup.
+    Bootstrap,
+    /// Provider is not ready for proposing or validating. Use start_block to transition to Propose
+    /// or Validate.
+    Pending,
+    /// Provider is ready for proposing. Use get_txs to get what you need for a new proposal. Use
+    /// commit_block to finish and return to Pending.
+    Propose,
+    /// Provider is ready for validating. Use validate to validate a transaction. Use commit_block
+    /// to finish and return to Pending.
+    Validate,
+}
+
+impl ProviderState {
+    pub fn is_uninitialized(&self) -> bool {
+        *self == ProviderState::Uninitialized
+    }
+
+    pub fn is_bootstrapping(&self) -> bool {
+        *self == ProviderState::Bootstrap
+    }
+
+    pub fn transition_to_pending(&self) -> ProviderState {
+        assert!(
+            !self.is_bootstrapping(),
+            "Transitioning from bootstrapping should be done manually by the L1Provider."
+        );
+        ProviderState::Pending
+    }
+}
+
+impl From<SessionState> for ProviderState {
+    fn from(state: SessionState) -> Self {
+        match state {
+            SessionState::Propose => ProviderState::Propose,
+            SessionState::Validate => ProviderState::Validate,
+        }
+    }
+}
+
+impl std::fmt::Display for ProviderState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SessionState {
     Propose,
@@ -361,8 +438,12 @@ pub struct L1ProviderSnapshot {
     pub rejected_transactions: Vec<TransactionHash>,
     pub rejected_staged_transactions: Vec<TransactionHash>,
     pub committed_transactions: Vec<TransactionHash>,
+    pub cancellation_started_on_l2: Vec<TransactionHash>,
+    pub cancelled_on_l2: Vec<TransactionHash>,
+    pub consumed: Vec<TransactionHash>,
     pub l1_provider_state: String,
     pub current_height: BlockNumber,
+    pub number_of_txs_in_records: usize,
 }
 
 generate_permutation_labels! {

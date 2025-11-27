@@ -173,7 +173,7 @@ pub trait SerializeConfig {
     ) -> Result<(), ConfigError> {
         let combined_map =
             combine_config_map_and_pointers(self.dump(), config_pointers, non_pointer_params)?;
-        serialize_to_file(combined_map, file_path);
+        serialize_to_file(&combined_map, file_path);
         Ok(())
     }
 }
@@ -421,7 +421,7 @@ fn verify_pointing_params_by_name(
                     serialized_param.content
                         == SerializedContent::PointerTarget(target_param.to_owned()),
                     "The target param {param_path} should point to {target_param}, or to be \
-                     whitelisted."
+                     whitelisted. You can use set_pointing_param_paths to point it to a value."
                 );
             };
         }

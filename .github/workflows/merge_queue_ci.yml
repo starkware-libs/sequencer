@@ -7,7 +7,15 @@ on:
 
 env:
   CI: 1
+<<<<<<< HEAD
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+||||||| 1463c3667e
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: -D warnings -C link-arg=-fuse-ld=lld
+=======
+  RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: -D warnings
+>>>>>>> origin/main-v0.14.1-committer
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:

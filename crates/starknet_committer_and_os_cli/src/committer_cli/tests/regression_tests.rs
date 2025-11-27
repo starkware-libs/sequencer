@@ -5,9 +5,9 @@ use clap::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
 use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_committer::db::external_test_utils::single_tree_flow_test;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;

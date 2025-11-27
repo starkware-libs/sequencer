@@ -39,6 +39,7 @@ use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
+use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::{test_state, test_state_inner};
@@ -152,6 +153,10 @@ fn test_nested_library_call() {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
     };
+    let storage_entry_point_syscalls_usage = HashMap::from([
+        (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
+        (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
+    ]);
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
@@ -162,6 +167,7 @@ fn test_nested_library_call() {
             ..Default::default()
         },
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
+        syscalls_usage: storage_entry_point_syscalls_usage.clone(),
         ..Default::default()
     };
     let mut library_call_resources =
@@ -178,6 +184,10 @@ fn test_nested_library_call() {
         resources: library_call_resources.clone(),
         inner_calls: vec![nested_storage_call_info],
         builtin_counters: HashMap::from([(BuiltinName::range_check, 19)]),
+        syscalls_usage: HashMap::from([(
+            SyscallSelector::LibraryCall,
+            SyscallUsage::with_call_count(1),
+        )]),
         ..Default::default()
     };
     let storage_call_info = CallInfo {
@@ -190,6 +200,7 @@ fn test_nested_library_call() {
             ..Default::default()
         },
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
+        syscalls_usage: storage_entry_point_syscalls_usage.clone(),
         ..Default::default()
     };
 
@@ -208,6 +219,10 @@ fn test_nested_library_call() {
         resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
         builtin_counters: HashMap::from([(BuiltinName::range_check, 37)]),
+        syscalls_usage: HashMap::from([(
+            SyscallSelector::LibraryCall,
+            SyscallUsage::with_call_count(2),
+        )]),
         ..Default::default()
     };
 
@@ -309,6 +324,10 @@ fn test_call_contract() {
             ..Default::default()
         },
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
+        syscalls_usage: HashMap::from([
+            (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
+            (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
+        ]),
         ..Default::default()
     };
     let expected_call_info = CallInfo {
@@ -327,6 +346,10 @@ fn test_call_contract() {
                 builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
             },
         builtin_counters: HashMap::from([(BuiltinName::range_check, 19)]),
+        syscalls_usage: HashMap::from([(
+            SyscallSelector::CallContract,
+            SyscallUsage::with_call_count(1),
+        )]),
         ..Default::default()
     };
 

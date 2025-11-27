@@ -1,0 +1,18 @@
+[package]
+name = "apollo_committer"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+testing = []
+
+[dependencies]
+apollo_committer_types.workspace = true
+apollo_infra.workspace = true
+apollo_metrics.workspace = true
+async-trait.workspace = true
+
+[lints]
+workspace = true

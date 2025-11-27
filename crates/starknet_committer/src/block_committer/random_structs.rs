@@ -13,8 +13,8 @@ use starknet_api::core::{
     PatriciaKey,
     PATRICIA_KEY_UPPER_BOUND,
 };
+use starknet_api::hash::HashOutput;
 use starknet_patricia::felt::u256_from_felt;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     get_random_u256,
     u256_try_into_felt,

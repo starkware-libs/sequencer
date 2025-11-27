@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::hash::HashOutput;
 use starknet_patricia::generate_trie_config;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
-use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
+use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::storage_trait::Storage;
 
@@ -14,6 +14,7 @@ use crate::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
 };
+use crate::db::traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,

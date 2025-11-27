@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use ethnum::U256;
+use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{
     EdgePathError,
     PathToBottomError,
@@ -163,7 +163,7 @@ impl PathToBottom {
     pub(crate) const RIGHT_CHILD: Self =
         Self { path: EdgePath(U256::ONE), length: EdgePathLength(1), _fake_field: () };
 
-    pub(crate) fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
+    pub fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
         NodeIndex::compute_bottom_index(root_index, self)
     }
 
@@ -261,20 +261,4 @@ impl TryFrom<&Vec<Felt>> for Preimage {
             _ => Err(PreimageError::InvalidRawPreimage(raw_preimage.clone())),
         }
     }
-}
-
-#[cfg(test)]
-pub(crate) fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
-    raw_preimages
-        .into_iter()
-        .map(|(hash, raw_preimage)| {
-            (
-                HashOutput(Felt::from(hash)),
-                Preimage::try_from(
-                    &raw_preimage.into_iter().map(Felt::from).collect::<Vec<Felt>>(),
-                )
-                .unwrap(),
-            )
-        })
-        .collect()
 }

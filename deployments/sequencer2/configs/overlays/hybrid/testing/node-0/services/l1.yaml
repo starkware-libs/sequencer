@@ -1,0 +1,32 @@
+name: l1
+
+replicas: 1
+
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
+  sequencerConfig:
+    components_batcher_port: 55000
+    components_batcher_url: sequencer-core-service
+    components_l1_gas_price_provider_port: 55003
+    components_l1_gas_price_provider_url: sequencer-l1-service
+    components_l1_provider_port: 55004
+    components_l1_provider_url: sequencer-l1-service
+    components_state_sync_port: 55009
+    components_state_sync_url: sequencer-core-service
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: l1-endpoint-monitoring
+    port: 55005
+    targetPort: 55005
+    protocol: TCP
+  - name: l1-gas-price-provider
+    port: 55003
+    targetPort: 55003
+    protocol: TCP
+  - name: l1-provider
+    port: 55004
+    targetPort: 55004
+    protocol: TCP

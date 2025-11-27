@@ -104,25 +104,6 @@ class GitSubmodulesCheck(ExternalCommandCheck):
         super().__init__(commands=[["git", "submodule", "status"]])
 
 
-class CommitLintCheck(ExternalCommandCheck):
-    def __init__(self, from_commit_hash: str, to_commit_hash: str):
-        assert from_commit_hash, "from_commit_hash is required for commit lint check."
-        assert to_commit_hash, "to_commit_hash is required for commit lint check."
-        super().__init__(
-            commands=[["commitlint"] + ["--from", from_commit_hash] + ["--to", to_commit_hash]]
-        )
-
-    @classmethod
-    def required_args(cls: type[TCheck]) -> set[PresubmitArg]:
-        return {PresubmitArg.FROM_COMMIT_HASH, PresubmitArg.TO_COMMIT_HASH}
-
-    @classmethod
-    def from_args(cls, args: argparse.Namespace):
-        return CommitLintCheck(
-            from_commit_hash=args.from_commit_hash, to_commit_hash=args.to_commit_hash
-        )
-
-
 class TodosCheck(Check):
     def __init__(self, from_commit_hash: str):
         assert from_commit_hash, "from_commit_hash is required for TODOs check."
@@ -224,7 +205,6 @@ def get_checks_to_run(args: argparse.Namespace, all_checks: dict[str, type[Check
 
 def main():
     all_check_classes = [
-        CommitLintCheck,
         GitSubmodulesCheck,
         TodosCheck,
         CargoLockCheck,

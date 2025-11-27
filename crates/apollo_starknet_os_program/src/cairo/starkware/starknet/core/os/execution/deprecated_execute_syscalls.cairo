@@ -9,6 +9,8 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.segments import relocate_segment
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import ExecutionInfo
+from starkware.cairo.common.math import assert_not_equal
+from starkware.starknet.core.os.constants import EXECUTE_ENTRY_POINT_SELECTOR
 from starkware.starknet.common.syscalls import (
     CALL_CONTRACT_SELECTOR,
     DELEGATE_CALL_SELECTOR,
@@ -530,6 +532,8 @@ func execute_deprecated_syscalls{
         // entries before this point belong to the caller.
         assert [revert_log] = RevertLogEntry(selector=CHANGE_CONTRACT_ENTRY, value=caller_address);
         let revert_log = &revert_log[1];
+        // It is forbidded to call the `__execute__` function.
+        assert_not_equal(call_contract_syscall.request.selector, EXECUTE_ENTRY_POINT_SELECTOR);
         execute_contract_call_syscall(
             block_context=block_context,
             contract_address=callee_address,

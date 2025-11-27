@@ -1,11 +1,10 @@
 use ethnum::U256;
-use serde::{Deserialize, Serialize};
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -38,13 +37,6 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
             PatriciaPrefix::Leaf(prefix) => prefix,
         }
     }
-}
-
-/// Temporary struct to serialize the leaf CompiledClass.
-/// Required to comply to existing storage layout.
-#[derive(Serialize, Deserialize)]
-pub(crate) struct LeafCompiledClassToSerialize {
-    pub(crate) compiled_class_hash: Felt,
 }
 
 impl<L: Leaf> FilledNode<L> {

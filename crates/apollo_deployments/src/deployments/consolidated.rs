@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use apollo_infra::component_client::remote_component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
@@ -6,7 +6,6 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use indexmap::IndexMap;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
@@ -47,8 +46,8 @@ impl From<ConsolidatedNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let mut component_config_map = IndexMap::new();
+    fn get_component_configs(_ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
+        let mut component_config_map = HashMap::new();
         component_config_map.insert(
             NodeService::Consolidated(ConsolidatedNodeServiceName::Node),
             get_consolidated_config(),

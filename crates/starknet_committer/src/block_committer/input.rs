@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::state::StorageKey;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
+use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
@@ -39,7 +41,7 @@ pub fn contract_address_into_node_index(address: &ContractAddress) -> NodeIndex 
     NodeIndex::from_leaf_felt(&address.0)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash, Serialize)]
 // TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
 // available.
 pub struct StarknetStorageKey(pub StorageKey);
@@ -50,17 +52,70 @@ impl From<&StarknetStorageKey> for NodeIndex {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
+impl From<PatriciaKey> for StarknetStorageKey {
+    fn from(key: PatriciaKey) -> Self {
+        Self(StorageKey(key))
+    }
+}
+
+impl TryFrom<Felt> for StarknetStorageKey {
+    type Error = StarknetApiError;
+    fn try_from(felt: Felt) -> Result<Self, Self::Error> {
+        Ok(Self::from(PatriciaKey::try_from(felt)?))
+    }
+}
+
+impl From<u128> for StarknetStorageKey {
+    fn from(val: u128) -> Self {
+        Self::try_from(Felt::from(val)).expect("u128 is a valid patricia key.")
+    }
+}
+
+#[derive(Clone, Copy, Default, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StarknetStorageValue(pub Felt);
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
     pub storage_updates:
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+}
+
+impl From<ThinStateDiff> for StateDiff {
+    fn from(
+        ThinStateDiff {
+            class_hash_to_compiled_class_hash,
+            deployed_contracts,
+            storage_diffs,
+            nonces,
+            ..
+        }: ThinStateDiff,
+    ) -> Self {
+        Self {
+            address_to_class_hash: deployed_contracts.into_iter().collect(),
+            address_to_nonce: nonces.into_iter().collect(),
+            class_hash_to_compiled_class_hash: class_hash_to_compiled_class_hash
+                .into_iter()
+                .map(|(k, v)| (k, CompiledClassHash(v.0)))
+                .collect(),
+            storage_updates: storage_diffs
+                .into_iter()
+                .map(|(address, updates)| {
+                    (
+                        address,
+                        updates
+                            .into_iter()
+                            .map(|(key, value)| {
+                                (StarknetStorageKey(key), StarknetStorageValue(value))
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
 }
 
 /// Trait contains all optional configurations of the committer.
@@ -74,7 +129,7 @@ pub trait Config: Debug + Eq + PartialEq {
     fn logger_level(&self) -> LevelFilter;
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigImpl {
     warn_on_trivial_modifications: bool,
     log_level: LevelFilter,

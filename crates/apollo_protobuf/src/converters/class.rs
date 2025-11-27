@@ -9,7 +9,7 @@ use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::python_json::PythonJsonFormatter;
 use prost::Message;
 use serde::Serialize;
-use starknet_api::compression_utils::{compress_and_encode, decode_and_decompress};
+use starknet_api::compression_utils::{compress_and_encode, decode_and_decompress_with_size_limit};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -129,7 +129,10 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
             );
         }
         let abi = serde_json::from_str(&value.abi)?;
-        let program = decode_and_decompress(&value.program)?;
+        // TODO(dan): use config for this.
+        const MAX_CAIRO0_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
+        let program =
+            decode_and_decompress_with_size_limit(&value.program, MAX_CAIRO0_PROGRAM_SIZE)?;
 
         Ok(Self { program, entry_points_by_type, abi })
     }

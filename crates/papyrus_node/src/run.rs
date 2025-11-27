@@ -13,7 +13,6 @@ use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::StateSync as CentralStateSync;
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig as CentralSyncConfig};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::config_validate;
 use apollo_network::network_manager::NetworkManager;
 use apollo_network::{network_manager, NetworkConfig};
@@ -33,7 +32,6 @@ use futures::StreamExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_monitoring_gateway::MonitoringServer;
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
@@ -79,7 +77,6 @@ pub struct PapyrusTaskHandles {
     pub storage_metrics_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub rpc_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub sync_client_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    pub monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub network_handle: Option<JoinHandle<anyhow::Result<()>>>,
 }
@@ -163,22 +160,6 @@ async fn spawn_rpc_server(
     _storage_reader: StorageReader,
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     Ok(tokio::spawn(future::pending()))
-}
-
-fn spawn_monitoring_server(
-    storage_reader: StorageReader,
-    local_peer_id: String,
-    config: &NodeConfig,
-) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    let monitoring_server = MonitoringServer::new(
-        config.monitoring_gateway.clone(),
-        get_config_presentation(config, true)?,
-        get_config_presentation(config, false)?,
-        storage_reader,
-        VERSION_FULL,
-        local_peer_id,
-    )?;
-    Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
 }
 
 async fn run_sync(
@@ -317,20 +298,10 @@ async fn run_threads(
         handle
     } else {
         spawn_storage_metrics_collector(
-            config.monitoring_gateway.collect_metrics,
+            config.collect_profiling_metrics,
             resources.storage_reader.clone(),
             STORAGE_METRICS_UPDATE_INTERVAL,
         )
-    };
-    // Monitoring server.
-    let monitoring_server_handle = if let Some(handle) = tasks.monitoring_server_handle {
-        handle
-    } else {
-        spawn_monitoring_server(
-            resources.storage_reader.clone(),
-            resources.local_peer_id.clone(),
-            &config,
-        )?
     };
 
     // JSON-RPC server.
@@ -391,10 +362,6 @@ async fn run_threads(
         }
         res = rpc_server_handle => {
             error!("RPC server stopped.");
-            res??
-        }
-        res = monitoring_server_handle => {
-            error!("Monitoring server stopped.");
             res??
         }
         res = sync_client_handle => {

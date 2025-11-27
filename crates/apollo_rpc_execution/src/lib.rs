@@ -62,7 +62,6 @@ use starknet_api::block::{
 };
 use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -364,15 +363,11 @@ fn create_block_context(
     };
     let ten_blocks_ago = get_10_blocks_ago(&block_context_number, cached_state)?;
 
-    let use_kzg_da = if override_kzg_da_to_false {
-        false
-    } else {
-        match l1_da_mode {
-            L1DataAvailabilityMode::Calldata => false,
-            L1DataAvailabilityMode::Blob => true,
-        }
-    };
-
+    let use_kzg_da = if override_kzg_da_to_false { false } else { l1_da_mode.is_use_kzg_da() };
+    let starknet_version = storage_reader
+        .begin_ro_txn()?
+        .get_starknet_version(block_number)?
+        .unwrap_or(StarknetVersion::LATEST);
     let block_info = BlockInfo {
         block_timestamp,
         sequencer_address: sequencer_address.0,
@@ -387,6 +382,7 @@ fn create_block_context(
             NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
         ),
+        starknet_version,
     };
     let chain_info = ChainInfo {
         chain_id,
@@ -396,10 +392,6 @@ fn create_block_context(
         },
         is_l3: false,
     };
-    let starknet_version = storage_reader
-        .begin_ro_txn()?
-        .get_starknet_version(block_number)?
-        .unwrap_or(StarknetVersion::LATEST);
     let versioned_constants = VersionedConstants::get(&starknet_version)?;
 
     let block_context = BlockContext::new(

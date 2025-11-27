@@ -11,7 +11,7 @@ pub(crate) fn get_node_height(index: &NodeIndex) -> SubTreeHeight {
 
 /// Splits leaf_indices into two arrays according to the given root: the left child leaves and
 /// the right child leaves. Assumes that all leaves are descendants of the root.
-pub(crate) fn split_leaves<'a>(
+pub fn split_leaves<'a>(
     root_index: &NodeIndex,
     leaf_indices: &SortedLeafIndices<'a>,
 ) -> [SortedLeafIndices<'a>; 2] {

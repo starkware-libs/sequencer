@@ -21,10 +21,11 @@ async fn main() {
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
 
     const N_INVOKE_TXS: usize = 50;
-    // TODO(Arni): handle L1 handlers in this scenario.
-    const N_L1_HANDLER_TXS: usize = 0;
+    const N_L1_HANDLER_TXS: usize = 5;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 5;
+    /// The number of hybrid sequencers that participate in the test.
+    const N_HYBRID_SEQUENCERS: usize = 0;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
@@ -36,6 +37,7 @@ async fn main() {
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
+        N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
     )
@@ -194,10 +196,5 @@ fn modify_height_configs_idle_nodes(
             node_start_height;
         config.consensus_manager_config.as_mut().unwrap().cende_config.skip_write_height =
             Some(node_start_height);
-        // TODO(Gilad): remove once we add support to updating the StarknetContract on Anvil.
-        // This will require mocking the required permissions in the contract that typically
-        // forbid one from updating the state through an API call.
-        config.l1_provider_config.as_mut().unwrap().provider_startup_height_override =
-            Some(BlockNumber(1));
     });
 }

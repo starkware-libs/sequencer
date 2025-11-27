@@ -1,4 +1,6 @@
+use std::cmp::min;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
@@ -9,6 +11,7 @@ use apollo_state_sync_types::communication::{
     StateSyncClientResult,
 };
 use apollo_state_sync_types::errors::StateSyncError;
+use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
@@ -24,7 +27,6 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
@@ -50,8 +52,9 @@ pub(crate) struct GasPriceParams {
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
     pub l1_gas_tip_wei: GasPrice,
-    pub override_l1_gas_price: Option<GasPrice>,
-    pub override_l1_data_gas_price: Option<GasPrice>,
+    pub override_l1_gas_price_wei: Option<GasPrice>,
+    pub override_l1_data_gas_price_wei: Option<GasPrice>,
+    pub override_eth_to_fri_rate: Option<u128>,
 }
 
 impl From<StateSyncClientError> for BuildProposalError {
@@ -98,7 +101,10 @@ pub(crate) async fn get_oracle_rate_and_prices(
 
     if let (Ok(eth_to_strk_rate), Ok(mut price_info)) = (eth_to_strk_rate, price_info) {
         // Both L1 prices and rate are Ok, so we can use them.
-        info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
+        info!(
+            "raw eth_to_strk_rate (from oracle): {eth_to_strk_rate}, raw l1 gas price wei (from \
+             provider): {price_info:?}"
+        );
         apply_fee_transformations(&mut price_info, gas_price_params);
         return_values = (eth_to_strk_rate, price_info);
     } else {
@@ -132,13 +138,18 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
 
     // If there is an override to L1 gas price or data gas price, apply it here:
-    if let Some(override_value) = gas_price_params.override_l1_gas_price {
-        info!("Overriding L1 gas price to {override_value}");
+    if let Some(override_value) = gas_price_params.override_l1_gas_price_wei {
+        info!("Overriding L1 gas price to {override_value} wei");
         return_values.1.base_fee_per_gas = override_value;
     }
-    if let Some(override_value) = gas_price_params.override_l1_data_gas_price {
-        info!("Overriding L1 data gas price to {override_value}");
+    if let Some(override_value) = gas_price_params.override_l1_data_gas_price_wei {
+        info!("Overriding L1 data gas price to {override_value} wei");
         return_values.1.blob_fee = override_value;
+    }
+
+    if let Some(override_value) = gas_price_params.override_eth_to_fri_rate {
+        info!("Overriding conversion rate to {override_value}");
+        return_values.0 = override_value;
     }
 
     return_values
@@ -189,7 +200,9 @@ pub(crate) fn convert_to_sn_api_block_info(
                 l2_gas_price: l2_gas_price_wei,
             },
         },
-        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
+        use_kzg_da: block_info.l1_da_mode.is_use_kzg_da(),
+        // TODO(Shahak): Add starknet_version to ConsensusBlockInfo and pass it through here.
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
     })
 }
 
@@ -212,6 +225,49 @@ pub(crate) async fn retrospective_block_hash(
             Ok(None)
         }
     }
+}
+
+pub(crate) async fn wait_for_retrospective_block_hash(
+    state_sync_client: Arc<dyn StateSyncClient>,
+    block_info: &ConsensusBlockInfo,
+    clock: &dyn Clock,
+    deadline: DateTime,
+    retry_interval: Duration,
+) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+    let mut attempts = 0;
+    let start_time = clock.now();
+    let result = loop {
+        attempts += 1;
+        let result = retrospective_block_hash(state_sync_client.clone(), block_info).await;
+
+        // If the block is not found, try again after the retry interval. In any other case, return
+        // the result.
+        match result {
+            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+                let effective_retry_interval = min(
+                    retry_interval,
+                    (deadline - clock.now()).to_std().unwrap_or(Duration::ZERO),
+                );
+
+                if effective_retry_interval == Duration::ZERO {
+                    break result;
+                }
+
+                tokio::time::sleep(effective_retry_interval).await;
+            }
+            _ => break result,
+        }
+    };
+
+    if attempts > 1 {
+        let elapsed_time = clock.now().signed_duration_since(start_time).as_seconds_f32();
+        warn!(
+            "Multiple attempts ({attempts}) to fetch retrospective block hash. Total time spent: \
+             {elapsed_time:.2}s. Last result: {result:?}"
+        );
+    }
+
+    result
 }
 
 pub(crate) fn truncate_to_executed_txs(
@@ -245,7 +301,8 @@ pub(crate) fn make_gas_price_params(config: &ContextConfig) -> GasPriceParams {
         max_l1_data_gas_price_wei: GasPrice(config.max_l1_data_gas_price_wei),
         l1_data_gas_price_multiplier: Ratio::new(config.l1_data_gas_price_multiplier_ppt, 1000),
         l1_gas_tip_wei: GasPrice(config.l1_gas_tip_wei),
-        override_l1_gas_price: config.override_l1_gas_price.map(GasPrice),
-        override_l1_data_gas_price: config.override_l1_data_gas_price.map(GasPrice),
+        override_l1_gas_price_wei: config.override_l1_gas_price_wei.map(GasPrice),
+        override_l1_data_gas_price_wei: config.override_l1_data_gas_price_wei.map(GasPrice),
+        override_eth_to_fri_rate: config.override_eth_to_fri_rate,
     }
 }

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
+use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
@@ -58,7 +59,7 @@ sol!(
 
 /// An interface that plays the role of the starknet L1 contract. It is able to create messages to
 /// L2 from this contract, which appear on the corresponding base layer.
-pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
+pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>;
 
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
@@ -78,6 +79,7 @@ impl EthereumBaseLayerContract {
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
 
+    /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
         &self,
@@ -92,26 +94,14 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             call_state_block_hash.call_raw().into_future()
         )?;
 
-        let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number)
             .inspect_err(|err| error!("{err}: {state_block_number}"))?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash)
             .inspect_err(|err| error!("{err}: {state_block_hash}"))?;
         Ok(BlockHashAndNumber {
             number: BlockNumber(block_number),
             hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
         })
-    }
-
-    /// Returns the latest proved block on Ethereum, where finality determines how many
-    /// blocks back (0 = latest).
-    #[instrument(skip(self), err)]
-    async fn latest_proved_block(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<Option<BlockHashAndNumber>> {
-        let ethereum_block_number = self.latest_l1_block_number(finality).await?;
-        self.get_proved_block_at(ethereum_block_number).await.map(Some)
     }
 
     #[instrument(skip(self), err)]
@@ -124,13 +114,11 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             .select(block_range.clone())
             .events(events)
             .address(self.config.starknet_contract_address);
-
         let matching_logs = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_logs(&filter),
         )
         .await??;
-
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
@@ -147,31 +135,13 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     #[instrument(skip(self), err)]
-    async fn latest_l1_block_number(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<L1BlockNumber> {
+    async fn latest_l1_block_number(&self) -> EthereumBaseLayerResult<L1BlockNumber> {
         let block_number = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_number(),
         )
         .await??;
-        let Some(block_number) = block_number.checked_sub(finality) else {
-            return Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(
-                block_number,
-                finality,
-            ));
-        };
         Ok(block_number)
-    }
-
-    #[instrument(skip(self), err)]
-    async fn latest_l1_block(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
-        let block_number = self.latest_l1_block_number(finality).await?;
-        Ok(self.l1_block_at(block_number).await?)
     }
 
     #[instrument(skip(self), err)]
@@ -257,8 +227,6 @@ pub enum EthereumBaseLayerError {
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy::primitives::Log),
-    #[error("Block number is too low: {0}, finality: {1}")]
-    LatestBlockNumberReturnedTooLow(u64, u64),
 }
 
 impl PartialEq for EthereumBaseLayerError {
@@ -327,7 +295,7 @@ fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
     node_url: Url,
 ) -> StarknetL1Contract {
-    let l1_client = ProviderBuilder::default().on_http(node_url);
+    let l1_client = ProviderBuilder::default().connect_http(node_url);
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)

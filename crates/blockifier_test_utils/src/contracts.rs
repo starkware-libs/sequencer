@@ -14,7 +14,7 @@ use starknet_api::{class_hash, contract_address, felt};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
+use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts, LibfuncArg};
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";
@@ -59,10 +59,14 @@ const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
+const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
+const TX_INFO_WRITER_CONTRACT_BASE: u32 = 16 * CLASS_HASH_BASE;
+const BLOCK_INFO_TEST_CONTRACT_BASE: u32 = 17 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
 const ACCOUNT_WITHOUT_VALIDATIONS_NAME: &str = "account_with_dummy_validate";
+const BLOCK_INFO_TEST_CONTRACT_NAME: &str = "block_info_test_contract";
 const DELEGATE_PROXY_NAME: &str = "delegate_proxy";
 const EMPTY_CONTRACT_NAME: &str = "empty_contract";
 const FAULTY_ACCOUNT_NAME: &str = "account_faulty";
@@ -75,6 +79,8 @@ const EXECUTION_INFO_V1_CONTRACT_NAME: &str = "test_contract_execution_info_v1";
 const EMPTY_ACCOUNT_NAME: &str = "empty_account";
 const META_TX_CONTRACT_NAME: &str = "meta_tx_test_contract";
 const MOCK_STAKING_CONTRACT_NAME: &str = "mock_staking";
+const EXPERIMENTAL_CONTRACT_NAME: &str = "experimental_contract";
+const TX_INFO_WRITER_CONTRACT_NAME: &str = "tx_info_writer";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -109,6 +115,11 @@ const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
 const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x63508c449d5e584fb0e4fac90e3cc6c46fbfbe8a7215e7f74b13391ab3a3071"];
 
+const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x552616f711be96ee49c1284da676b288fdbe8ed00296677abf3e9259e3a1255"];
+const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x2382bf2abcf5317f7aee94d938dacf19ec456b5148e50b6313526d8dd29f534"];
+
 const ERC20_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x266f53b3f6cc2367c334b75ea86aff748ca27aa321019778af81be69d549159"];
 const ERC20_COMPILED_CLASS_HASH_V2: expect_test::Expect =
@@ -118,6 +129,11 @@ const EMPTY_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x317d3ac2cf840e487b6d0014a75f0cf507dff0bc143c710388e323487089bfa"];
 const EMPTY_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x6ee46561691e785d643a8296b9bf08008e432df405a1a4beb6ed784541b571c"];
+
+const EXPERIMENTAL_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x3e72aadba820fb1ec7cf27240d4b4279a9e7e947d6f387d44b5688599bd6988"];
+const EXPERIMENTAL_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x50902d0815548ad1af6b4d95908f822b634f731ca28f5f436f8a03d3324749e"];
 
 const FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0xfdb78bea47a0b1464f38b2d29997edac084bbed4e63e1eef240ffb86a34ab2"];
@@ -130,9 +146,9 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x6d9f03fde30543af9a457c4fcc13aced0ce27ef4e5a498a143d483b23711f32"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x28edb095528b9d888678d3a3160d32acb481a3b9160407a7577a765097eaed5"];
+    expect!["0x2428f56dc1e8068dfc4fd068accb05129f57d723cf3d710cab82519c29fef98"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x2833c37e53489206582153747f19c4385079c6a72d8252483c1b6e043ab8b5d"];
+    expect!["0x91e3522ed578796cf3e0505d4d69edad04effae3e997c7b079755b275ebc10"];
 
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x728a998871aed1335e5a7757119cdd88785e4ce9cc90bbf90075f39b34b22e5"];
@@ -157,10 +173,12 @@ pub type CairoVersionString = String;
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),
+    BlockInfoTestContract(CairoVersion),
     DelegateProxy,
     EmptyAccount(RunnableCairo1),
     ERC20(CairoVersion),
     Empty(CairoVersion),
+    Experimental,
     FaultyAccount(CairoVersion),
     LegacyTestContract,
     SecurityTests,
@@ -170,6 +188,7 @@ pub enum FeatureContract {
     SierraExecutionInfoV1Contract(RunnableCairo1),
     MetaTx(RunnableCairo1),
     MockStakingContract(RunnableCairo1),
+    TxInfoWriter,
 }
 
 impl FeatureContract {
@@ -177,12 +196,16 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(version)
             | Self::AccountWithoutValidations(version)
+            | Self::BlockInfoTestContract(version)
             | Self::Empty(version)
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
-            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => CairoVersion::Cairo0,
-            Self::LegacyTestContract | Self::CairoStepsTestContract => {
+            Self::DelegateProxy
+            | Self::SecurityTests
+            | Self::TestContract2
+            | Self::TxInfoWriter => CairoVersion::Cairo0,
+            Self::LegacyTestContract | Self::CairoStepsTestContract | Self::Experimental => {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
             Self::SierraExecutionInfoV1Contract(runnable_version)
@@ -198,6 +221,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(v)
             | Self::AccountWithoutValidations(v)
+            | Self::BlockInfoTestContract(v)
             | Self::Empty(v)
             | Self::FaultyAccount(v)
             | Self::TestContract(v)
@@ -213,7 +237,9 @@ impl FeatureContract {
             | Self::SecurityTests
             | Self::TestContract2
             | Self::CairoStepsTestContract
-            | Self::LegacyTestContract => {
+            | Self::Experimental
+            | Self::LegacyTestContract
+            | Self::TxInfoWriter => {
                 panic!("{self:?} contract has no configurable version.")
             }
         }
@@ -237,14 +263,24 @@ impl FeatureContract {
                 ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V1,
                 ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V2,
             ),
+            Self::BlockInfoTestContract(_) => (
+                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1,
+                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2,
+            ),
             Self::Empty(_) => (EMPTY_COMPILED_CLASS_HASH_V1, EMPTY_COMPILED_CLASS_HASH_V2),
+            Self::Experimental => {
+                (EXPERIMENTAL_COMPILED_CLASS_HASH_V1, EXPERIMENTAL_COMPILED_CLASS_HASH_V2)
+            }
             Self::FaultyAccount(_) => {
                 (FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1, FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V2)
             }
             Self::LegacyTestContract => {
                 (LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1, LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2)
             }
-            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => {
+            Self::DelegateProxy
+            | Self::SecurityTests
+            | Self::TestContract2
+            | Self::TxInfoWriter => {
                 panic!("{self:?} has no compiled class hash.")
             }
             Self::TestContract(_) => {
@@ -354,10 +390,12 @@ impl FeatureContract {
             + match self {
                 Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
                 Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
+                Self::BlockInfoTestContract(_) => BLOCK_INFO_TEST_CONTRACT_BASE,
                 Self::DelegateProxy => DELEGATE_PROXY_BASE,
                 Self::TestContract2 => TEST_CONTRACT2_BASE,
                 Self::Empty(_) => EMPTY_CONTRACT_BASE,
                 Self::ERC20(_) => ERC20_CONTRACT_BASE,
+                Self::Experimental => EXPERIMENTAL_CONTRACT_BASE,
                 Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
                 Self::LegacyTestContract => LEGACY_CONTRACT_BASE,
                 Self::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
@@ -367,6 +405,7 @@ impl FeatureContract {
                 Self::EmptyAccount(_) => EMPTY_ACCOUNT_BASE,
                 Self::MetaTx(_) => META_TX_CONTRACT_BASE,
                 Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_BASE,
+                Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_BASE,
             }
     }
 
@@ -374,7 +413,9 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
+            Self::BlockInfoTestContract(_) => BLOCK_INFO_TEST_CONTRACT_NAME,
             Self::DelegateProxy => DELEGATE_PROXY_NAME,
+            Self::Experimental => EXPERIMENTAL_CONTRACT_NAME,
             Self::TestContract2 => TEST_CONTRACT2_NAME,
             Self::Empty(_) => EMPTY_CONTRACT_NAME,
             Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
@@ -386,6 +427,7 @@ impl FeatureContract {
             Self::EmptyAccount(_) => EMPTY_ACCOUNT_NAME,
             Self::MetaTx(_) => META_TX_CONTRACT_NAME,
             Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_NAME,
+            Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -469,7 +511,9 @@ impl FeatureContract {
                     // Account contracts require the account_contract flag.
                     FeatureContract::AccountWithLongValidate(_)
                     | FeatureContract::AccountWithoutValidations(_)
-                    | FeatureContract::FaultyAccount(_) => Some("--account_contract".into()),
+                    | FeatureContract::BlockInfoTestContract(_)
+                    | FeatureContract::FaultyAccount(_)
+                    | FeatureContract::TxInfoWriter => Some("--account_contract".into()),
                     FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
                     FeatureContract::DelegateProxy
                     | FeatureContract::Empty(_)
@@ -481,11 +525,19 @@ impl FeatureContract {
                     | FeatureContract::EmptyAccount(_)
                     | FeatureContract::MetaTx(_)
                     | FeatureContract::MockStakingContract(_) => None,
-                    FeatureContract::ERC20(_) => unreachable!(),
+                    FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
-            CairoVersion::Cairo1(_) => cairo1_compile(self.get_source_path(), self.fixed_version()),
+            CairoVersion::Cairo1(_) => {
+                let libfunc_list_arg = match self {
+                    Self::Experimental => {
+                        LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+                    }
+                    _ => LibfuncArg::ListName("all".to_string()),
+                };
+                cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
+            }
         }
     }
 
@@ -504,6 +556,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(_)
             | Self::AccountWithoutValidations(_)
+            | Self::BlockInfoTestContract(_)
             | Self::Empty(_)
             | Self::FaultyAccount(_)
             | Self::TestContract(_)
@@ -540,8 +593,10 @@ impl FeatureContract {
             Self::DelegateProxy
             | Self::LegacyTestContract
             | Self::CairoStepsTestContract
+            | Self::Experimental
             | Self::TestContract2
-            | Self::SecurityTests => {
+            | Self::SecurityTests
+            | Self::TxInfoWriter => {
                 vec![*self]
             }
         }

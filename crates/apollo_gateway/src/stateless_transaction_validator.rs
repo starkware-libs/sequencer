@@ -70,7 +70,9 @@ impl StatelessTransactionValidator {
             });
         }
 
-        if resource_bounds.l2_gas.max_amount.0 > self.config.max_l2_gas_amount {
+        // TODO(Arni): Consider adding a validation for max_l2_gas_amount for declare.
+        if let RpcTransaction::Declare(_) = tx {
+        } else if resource_bounds.l2_gas.max_amount.0 > self.config.max_l2_gas_amount {
             return Err(StatelessTransactionValidatorError::MaxGasAmountTooHigh {
                 gas_amount: resource_bounds.l2_gas.max_amount,
                 max_gas_amount: self.config.max_l2_gas_amount,

@@ -12,6 +12,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -22,6 +23,13 @@ use crate::ValidatorId;
 pub struct ConsensusDynamicConfig {
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
+    /// Timeouts configuration for consensus.
+    pub timeouts: TimeoutsConfig,
+    /// The duration (seconds) between sync attempts.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub sync_retry_interval: Duration,
+    /// Future message limits configuration.
+    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -30,13 +38,8 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-    /// Timeouts configuration for consensus.
-    pub timeouts: TimeoutsConfig,
-    /// The duration (seconds) between sync attempts.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub sync_retry_interval: Duration,
-    /// Future message limits configuration.
-    pub future_msg_limit: FutureMsgLimitsConfig,
+    /// Config for the storage used to write/read consensus state.
+    pub storage_config: StorageConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -50,22 +53,11 @@ pub struct ConsensusConfig {
 
 impl SerializeConfig for ConsensusDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "validator_id",
-            &self.validator_id,
-            "The validator id of the node.",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
-impl SerializeConfig for ConsensusStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
             ser_param(
-                "startup_delay",
-                &self.startup_delay.as_secs(),
-                "Delay (seconds) before starting consensus to give time for network peering.",
+                "validator_id",
+                &self.validator_id,
+                "The validator id of the node.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -81,6 +73,19 @@ impl SerializeConfig for ConsensusStaticConfig {
     }
 }
 
+impl SerializeConfig for ConsensusStaticConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::from_iter([ser_param(
+            "startup_delay",
+            &self.startup_delay.as_secs(),
+            "Delay (seconds) before starting consensus to give time for network peering.",
+            ParamPrivacyInput::Public,
+        )]);
+        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config
+    }
+}
+
 impl SerializeConfig for ConsensusConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::new();
@@ -92,7 +97,12 @@ impl SerializeConfig for ConsensusConfig {
 
 impl Default for ConsensusDynamicConfig {
     fn default() -> Self {
-        Self { validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID) }
+        Self {
+            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            timeouts: TimeoutsConfig::default(),
+            sync_retry_interval: Duration::from_secs_f64(1.0),
+            future_msg_limit: FutureMsgLimitsConfig::default(),
+        }
     }
 }
 
@@ -100,9 +110,15 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-            future_msg_limit: FutureMsgLimitsConfig::default(),
+            storage_config: StorageConfig {
+                db_config: apollo_storage::db::DbConfig {
+                    path_prefix: "/data/consensus".into(),
+                    enforce_file_exists: false,
+                    ..Default::default()
+                },
+                scope: apollo_storage::StorageScope::StateOnly,
+                ..Default::default()
+            },
         }
     }
 }
@@ -123,52 +139,123 @@ impl Default for ConsensusConfig {
     }
 }
 
-/// Configuration for consensus timeouts.
+/// A single timeout definition with base, per-round delta, and a maximum duration.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct TimeoutsConfig {
-    /// The timeout for a proposal.
+pub struct Timeout {
+    /// The base timeout (seconds).
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout: Duration,
-    /// The timeout for a prevote.
+    base: Duration,
+    /// The per-round delta added to the timeout (seconds).
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout: Duration,
-    /// The timeout for a precommit.
+    delta: Duration,
+    /// The maximum timeout duration (seconds).
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout: Duration,
+    max: Duration,
 }
 
-impl SerializeConfig for TimeoutsConfig {
+impl Timeout {
+    pub fn new(base: Duration, delta: Duration, max: Duration) -> Self {
+        Self { base, delta, max }
+    }
+    /// Scale the timeout by the given factor.
+    fn scale_by(&mut self, factor: f64) {
+        self.base = self.base.mul_f64(factor);
+        self.delta = self.delta.mul_f64(factor);
+        self.max = self.max.mul_f64(factor);
+    }
+
+    /// Compute the timeout for the given round: min(base + round * delta, max).
+    fn get_timeout(&self, round: u32) -> Duration {
+        (self.base + round * self.delta).min(self.max)
+    }
+}
+
+impl SerializeConfig for Timeout {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "proposal_timeout",
-                &self.proposal_timeout.as_secs_f64(),
-                "The timeout (seconds) for a proposal.",
+                "base",
+                &self.base.as_secs_f64(),
+                "The base timeout (seconds).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "prevote_timeout",
-                &self.prevote_timeout.as_secs_f64(),
-                "The timeout (seconds) for a prevote.",
+                "delta",
+                &self.delta.as_secs_f64(),
+                "The per-round timeout delta (seconds).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "precommit_timeout",
-                &self.precommit_timeout.as_secs_f64(),
-                "The timeout (seconds) for a precommit.",
+                "max",
+                &self.max.as_secs_f64(),
+                "The maximum timeout (seconds).",
                 ParamPrivacyInput::Public,
             ),
         ])
     }
 }
 
+/// Configuration for consensus timeouts.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TimeoutsConfig {
+    /// Proposal timeout configuration.
+    proposal: Timeout,
+    /// Prevote timeout configuration.
+    prevote: Timeout,
+    /// Precommit timeout configuration.
+    precommit: Timeout,
+}
+
 impl Default for TimeoutsConfig {
     fn default() -> Self {
         Self {
-            proposal_timeout: Duration::from_secs_f64(3.0),
-            prevote_timeout: Duration::from_secs_f64(1.0),
-            precommit_timeout: Duration::from_secs_f64(1.0),
+            proposal: Timeout {
+                base: Duration::from_secs_f64(9.1),
+                delta: Duration::from_secs_f64(0.0),
+                max: Duration::from_secs_f64(15.0),
+            },
+            prevote: Timeout {
+                base: Duration::from_secs_f64(0.3),
+                delta: Duration::from_secs_f64(0.1),
+                max: Duration::from_secs_f64(1.0),
+            },
+            precommit: Timeout {
+                base: Duration::from_secs_f64(1.0),
+                delta: Duration::from_secs_f64(0.5),
+                max: Duration::from_secs_f64(5.0),
+            },
         }
+    }
+}
+
+impl SerializeConfig for TimeoutsConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.proposal.dump(), "proposal"));
+        config.extend(prepend_sub_config_name(self.prevote.dump(), "prevote"));
+        config.extend(prepend_sub_config_name(self.precommit.dump(), "precommit"));
+        config
+    }
+}
+
+impl TimeoutsConfig {
+    pub fn new(proposal: Timeout, prevote: Timeout, precommit: Timeout) -> Self {
+        Self { proposal, prevote, precommit }
+    }
+    /// Scale all timeouts by the given factor.
+    pub fn scale_by(&mut self, factor: f64) {
+        self.proposal.scale_by(factor);
+        self.prevote.scale_by(factor);
+        self.precommit.scale_by(factor);
+    }
+    pub fn get_proposal_timeout(&self, round: u32) -> Duration {
+        self.proposal.get_timeout(round)
+    }
+    pub fn get_prevote_timeout(&self, round: u32) -> Duration {
+        self.prevote.get_timeout(round)
+    }
+    pub fn get_precommit_timeout(&self, round: u32) -> Duration {
+        self.precommit.get_timeout(round)
     }
 }
 
@@ -181,6 +268,12 @@ pub struct FutureMsgLimitsConfig {
     pub future_round_limit: u32,
     /// How many rounds should we cache for future heights.
     pub future_height_round_limit: u32,
+}
+
+impl Default for FutureMsgLimitsConfig {
+    fn default() -> Self {
+        Self { future_height_limit: 10, future_round_limit: 10, future_height_round_limit: 1 }
+    }
 }
 
 impl SerializeConfig for FutureMsgLimitsConfig {
@@ -205,12 +298,6 @@ impl SerializeConfig for FutureMsgLimitsConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
-    }
-}
-
-impl Default for FutureMsgLimitsConfig {
-    fn default() -> Self {
-        Self { future_height_limit: 10, future_round_limit: 10, future_height_round_limit: 1 }
     }
 }
 

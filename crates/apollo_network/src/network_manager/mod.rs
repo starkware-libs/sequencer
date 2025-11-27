@@ -1,4 +1,3 @@
-pub mod metrics;
 mod swarm_trait;
 #[cfg(test)]
 mod test;
@@ -22,14 +21,13 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::NetworkMetrics;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
+use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
-use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
@@ -714,6 +712,8 @@ impl NetworkManager {
             peer_manager_config,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
+            prune_dead_connections_ping_interval,
+            prune_dead_connections_ping_timeout,
         } = config;
 
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
@@ -738,10 +738,14 @@ impl NetworkManager {
                 peer_manager_config,
                 metrics.as_mut()
                     .and_then(|m| m.event_metrics.take()),
+                metrics.as_mut()
+                    .and_then(|m| m.latency_metrics.take()),
                 key.clone(),
                 bootstrap_peer_multiaddr,
                 chain_id,
-                node_version
+                node_version,
+                prune_dead_connections_ping_interval,
+                prune_dead_connections_ping_timeout,
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))

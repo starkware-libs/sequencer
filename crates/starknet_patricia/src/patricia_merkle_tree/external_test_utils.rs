@@ -3,25 +3,63 @@ use std::collections::HashMap;
 use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
-use serde_json::json;
-use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
+use starknet_api::hash::HashOutput;
+use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
 use super::filled_tree::node_serde::PatriciaPrefix;
-use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
-use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
-use super::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use super::node_data::leaf::Leaf;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
-use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
-use super::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use super::updated_skeleton_tree::hash_function::TreeHashFunction;
-use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
+use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
-use crate::hash::hash_trait::HashOutput;
+use crate::generate_trie_config;
 use crate::patricia_merkle_tree::errors::TypesError;
+use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+
+#[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
+pub struct MockLeaf(pub Felt);
+
+impl HasStaticPrefix for MockLeaf {
+    fn get_static_prefix() -> DbKeyPrefix {
+        DbKeyPrefix::new(&[0])
+    }
+}
+
+impl DBObject for MockLeaf {
+    fn serialize(&self) -> DbValue {
+        DbValue(self.0.to_bytes_be().to_vec())
+    }
+}
+
+impl Deserializable for MockLeaf {
+    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
+        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+    }
+}
+
+impl Leaf for MockLeaf {
+    type Input = Felt;
+    type Output = String;
+
+    fn is_empty(&self) -> bool {
+        self.0 == Felt::ZERO
+    }
+
+    // Create a leaf with value equal to input. If input is `Felt::MAX`, returns an error.
+    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
+        if input == Felt::MAX {
+            return Err(LeafError::LeafComputationError("Leaf computation error".to_string()));
+        }
+        Ok((Self(input), input.to_hex_string()))
+    }
+}
+
+generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
 
 pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
     if *value > u256_from_felt(&Felt::MAX) {
@@ -44,76 +82,6 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     let mut padded_rand = [0u8; 32];
     padded_rand[32 - rand.len()..].copy_from_slice(&rand);
     low + U256::from_be_bytes(padded_rand)
-}
-
-pub async fn tree_computation_flow<L, TH>(
-    leaf_modifications: LeafModifications<L>,
-    storage: &mut MapStorage,
-    root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
-) -> FilledTreeImpl<L>
-where
-    TH: TreeHashFunction<L> + 'static,
-    L: Leaf + 'static,
-{
-    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-    let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton = OriginalSkeletonTreeImpl::create(
-        storage,
-        root_hash,
-        sorted_leaf_indices,
-        &config,
-        &leaf_modifications,
-    )
-    .expect("Failed to create the original skeleton tree");
-
-    let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
-        &mut original_skeleton,
-        &leaf_modifications
-            .iter()
-            .map(|(index, data)| {
-                (
-                    *index,
-                    match data.is_empty() {
-                        true => SkeletonLeaf::Zero,
-                        false => SkeletonLeaf::NonZero,
-                    },
-                )
-            })
-            .collect(),
-    )
-    .expect("Failed to create the updated skeleton tree");
-
-    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
-        .await
-        .expect("Failed to create the filled tree")
-}
-
-pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
-    leaf_modifications: LeafModifications<L>,
-    storage: &mut MapStorage,
-    root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
-) -> String {
-    // Move from leaf number to actual index.
-    let leaf_modifications = leaf_modifications
-        .into_iter()
-        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<LeafModifications<L>>();
-
-    let filled_tree =
-        tree_computation_flow::<L, TH>(leaf_modifications, storage, root_hash, config).await;
-
-    let hash_result = filled_tree.get_root_hash();
-
-    let mut result_map = HashMap::new();
-    // Serialize the hash result.
-    let json_hash = &json!(hash_result.0.to_hex_string());
-    result_map.insert("root_hash", json_hash);
-    // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize());
-    result_map.insert("storage_changes", json_storage);
-    serde_json::to_string(&result_map).expect("serialization failed")
 }
 
 pub struct AdditionHash;
@@ -258,4 +226,14 @@ impl NodeIndex {
         let offset = (NodeIndex::ROOT << height_diff) - 1.into();
         subtree_index + (offset << (subtree_index.bit_length() - 1))
     }
+}
+
+pub fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
+    NodeIndex::from_subtree_index(NodeIndex::new(index), height)
+}
+
+pub fn as_fully_indexed(subtree_height: u8, indices: impl Iterator<Item = U256>) -> Vec<NodeIndex> {
+    indices
+        .map(|index| small_tree_index_to_full(index, SubTreeHeight::new(subtree_height)))
+        .collect()
 }

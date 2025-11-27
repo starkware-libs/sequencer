@@ -17,8 +17,8 @@ on:
 
 env:
   CI: 1
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
-  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: "-D warnings"
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
@@ -130,10 +130,6 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
-      # anvil, remove.
-      - run: npm install -g ganache@7.4.3
-
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
@@ -171,10 +167,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
-
-      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
-      # anvil, remove.
-      - run: npm install -g ganache@7.4.3
 
       - name: "Run integration tests pull request"
         if: github.event_name == 'pull_request'

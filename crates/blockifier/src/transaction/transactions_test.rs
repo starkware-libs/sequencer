@@ -18,13 +18,14 @@ use starknet_api::abi::abi_utils::{
     selector_from_name,
 };
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::block::{FeeType, GasPriceVector};
+use starknet_api::block::{BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
+    InvokeTransaction,
     TransactionType,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -35,7 +36,7 @@ use starknet_api::test_utils::deploy_account::{
     executable_deploy_account_tx,
     DeployAccountTxArgs,
 };
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
     CHAIN_ID_FOR_TESTS,
@@ -43,9 +44,6 @@ use starknet_api::test_utils::{
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
@@ -69,9 +67,9 @@ use starknet_api::transaction::{
     EventContent,
     EventData,
     EventKey,
+    InvokeTransaction as ApiInvokeTransaction,
     L2ToL1Payload,
     TransactionVersion,
-    QUERY_VERSION_BASE,
 };
 use starknet_api::{
     calldata,
@@ -111,7 +109,7 @@ use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
-use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
@@ -132,7 +130,11 @@ use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::l1_handler::{l1_handler_set_value_and_revert, l1handler_tx};
+use crate::test_utils::l1_handler::{
+    l1_handler_set_value_and_revert,
+    l1handler_tx,
+    L1_HANDLER_SET_VALUE_ENTRY_POINT_SELECTOR,
+};
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
@@ -168,6 +170,7 @@ use crate::transaction::test_utils::{
     invoke_tx_with_default_flags,
     l1_resource_bounds,
     versioned_constants,
+    ExpectedExecutionInfo,
     FaultyAccountTxCreatorArgs,
     TestInitData,
     CALL_CONTRACT,
@@ -434,6 +437,23 @@ fn expected_fee_transfer_call_info(
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
         CairoVersion::Cairo1(_) => ExecutionResources::default(),
     };
+    let mut syscalls_usage = HashMap::from([
+        (SyscallSelector::StorageRead, SyscallUsage::with_call_count(4)),
+        (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(4)),
+        (SyscallSelector::EmitEvent, SyscallUsage::with_call_count(1)),
+    ]);
+
+    match cairo_version {
+        CairoVersion::Cairo0 => {
+            syscalls_usage
+                .insert(SyscallSelector::GetCallerAddress, SyscallUsage::with_call_count(1));
+        }
+        CairoVersion::Cairo1(_) => {
+            syscalls_usage
+                .insert(SyscallSelector::GetExecutionInfo, SyscallUsage::with_call_count(1));
+        }
+    }
+
     Some(CallInfo {
         call: expected_fee_transfer_call,
         execution: CallExecution {
@@ -457,6 +477,7 @@ fn expected_fee_transfer_call_info(
         },
         tracked_resource: expected_tracked_resource,
         builtin_counters,
+        syscalls_usage,
         ..Default::default()
     })
 }
@@ -691,6 +712,16 @@ fn test_invoke_tx(
         CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 19)]),
         CairoVersion::Cairo1(_) => HashMap::from([(BuiltinName::range_check, 27)]),
     };
+    let syscalls_usage = match account_cairo_version {
+        CairoVersion::Cairo0 => HashMap::from([(
+            SyscallSelector::CallContract,
+            SyscallUsage { call_count: 1, linear_factor: 0 },
+        )]),
+        CairoVersion::Cairo1(_) => HashMap::from([
+            (SyscallSelector::GetExecutionInfo, SyscallUsage { call_count: 1, linear_factor: 0 }),
+            (SyscallSelector::CallContract, SyscallUsage { call_count: 1, linear_factor: 0 }),
+        ]),
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
@@ -703,6 +734,7 @@ fn test_invoke_tx(
         inner_calls: expected_inner_calls,
         tracked_resource,
         builtin_counters,
+        syscalls_usage,
         ..Default::default()
     });
 
@@ -1789,7 +1821,7 @@ fn test_declare_redeposit_amount_regression() {
 #[apply(cairo_version)]
 #[case(TransactionVersion::ZERO, CairoVersion::Cairo0, None)]
 #[case(TransactionVersion::ONE, CairoVersion::Cairo0, None)]
-#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), None)]
+#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), Some(HashVersion::V2))]
 #[case(
     TransactionVersion::THREE,
     CairoVersion::Cairo1(RunnableCairo1::Casm),
@@ -2601,83 +2633,48 @@ fn test_only_query_flag(
         &block_context.chain_info,
         CairoVersion::Cairo1(RunnableCairo1::Casm),
     );
-    let mut version = Felt::from(3_u8);
-    if only_query {
-        version += *QUERY_VERSION_BASE;
-    }
-    let expected_tx_info = vec![
-        version,                              // Transaction version.
-        *account_address.0.key(),             // Account address.
-        Felt::ZERO,                           // Max fee.
-        Felt::ZERO,                           // Signature.
-        Felt::ZERO,                           // Transaction hash.
-        felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
-        Felt::ZERO,                           // Nonce.
-    ];
-
-    let expected_resource_bounds = vec![
-        Felt::THREE,                                   // Length of ResourceBounds array.
-        felt!(L1Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L1_GAS_AMOUNT.0),                // Max amount.
-        felt!(DEFAULT_STRK_L1_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L2Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L2_GAS_MAX_AMOUNT.0),            // Max amount.
-        felt!(DEFAULT_STRK_L2_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L1DataGas.to_hex()),                     // Resource.
-        felt!(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0),       // Max amount.
-        felt!(DEFAULT_STRK_L1_DATA_GAS_PRICE.get().0), // Max price per unit.
-    ];
-
-    let expected_unsupported_fields = vec![
-        Felt::ZERO, // Tip.
-        Felt::ZERO, // Paymaster data.
-        Felt::ZERO, // Nonce DA.
-        Felt::ZERO, // Fee DA.
-        Felt::ZERO, // Account data.
-    ];
-
     let entry_point_selector = selector_from_name("test_get_execution_info");
-    let expected_call_info = vec![
-        *account_address.0.key(),  // Caller address.
-        *contract_address.0.key(), // Storage address.
-        entry_point_selector.0,    // Entry point selector.
-    ];
-    let expected_block_info = [
-        felt!(CURRENT_BLOCK_NUMBER),    // Block number.
-        felt!(CURRENT_BLOCK_TIMESTAMP), // Block timestamp.
-        felt!(TEST_SEQUENCER_ADDRESS),  // Sequencer address.
-    ];
-    let calldata_len = expected_block_info.len()
-        + expected_tx_info.len()
-        + expected_resource_bounds.len()
-        + expected_unsupported_fields.len()
-        + expected_call_info.len();
+    let expected_execution_info = ExpectedExecutionInfo::new(
+        only_query,
+        account_address,
+        account_address,
+        contract_address,
+        CHAIN_ID_FOR_TESTS.clone(),
+        entry_point_selector,
+        BlockNumber(CURRENT_BLOCK_NUMBER),
+        BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+        ContractAddress(felt!(TEST_SEQUENCER_ADDRESS).try_into().unwrap()),
+        default_all_resource_bounds,
+        Nonce::default(),
+    )
+    .to_syscall_result();
     let execute_calldata = vec![
         *contract_address.0.key(), // Contract address.
         entry_point_selector.0,    // EP selector.
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
         // works.
-        felt!(u64::try_from(calldata_len).expect("Failed to convert usize to u64.")), /* Calldata length. */
+        felt!(
+            u64::try_from(expected_execution_info.len()).expect("Failed to convert usize to u64.")
+        ), // Calldata length.
     ];
-    let execute_calldata = Calldata(
-        [
-            execute_calldata,
-            expected_block_info.clone().to_vec(),
-            expected_tx_info,
-            expected_resource_bounds,
-            expected_unsupported_fields,
-            expected_call_info,
-        ]
-        .concat()
-        .into(),
-    );
-    let tx = executable_invoke_tx(invoke_tx_args! {
+    let execute_calldata = Calldata([execute_calldata, expected_execution_info].concat().into());
+    let invoke_args = invoke_tx_args! {
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
         sender_address: account_address,
-    });
+    };
+    let invoke_tx =
+        InvokeTransaction::create(invoke_tx(invoke_args), &block_context.chain_info.chain_id)
+            .unwrap();
+    let tx_hash = invoke_tx.tx_hash;
+    let ApiInvokeTransaction::V3(mut tx) = invoke_tx.tx else {
+        panic!("Expected V3 transaction");
+    };
+    tx.signature = TransactionSignature(Arc::new(vec![tx_hash.0]));
+    let invoke_tx = InvokeTransaction { tx: ApiInvokeTransaction::V3(tx), tx_hash };
     let execution_flags = ExecutionFlags { only_query, ..Default::default() };
-    let invoke_tx = AccountTransaction { tx, execution_flags };
+    let invoke_tx =
+        AccountTransaction { tx: ApiExecutableTransaction::Invoke(invoke_tx), execution_flags };
 
     let tx_execution_info = invoke_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.revert_error, None);
@@ -2706,7 +2703,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             class_hash: Some(test_contract.get_class_hash()),
             code_address: None,
             entry_point_type: EntryPointType::L1Handler,
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
+            entry_point_selector: *L1_HANDLER_SET_VALUE_ENTRY_POINT_SELECTOR,
             calldata: calldata.clone(),
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
@@ -2731,6 +2728,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         builtin_counters: HashMap::from([(BuiltinName::range_check, 6)]),
+        syscalls_usage: HashMap::from([(
+            SyscallSelector::StorageWrite,
+            SyscallUsage { call_count: 1, linear_factor: 0 },
+        )]),
         ..Default::default()
     };
 
