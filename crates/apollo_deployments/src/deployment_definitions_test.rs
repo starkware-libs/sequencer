@@ -44,6 +44,17 @@ fn deployment_files_are_up_to_date() {
     }
 }
 
+/// Test that the deployment file is up to date.
+#[test]
+fn replacer_config_entries_are_in_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    for node_type in NodeType::iter() {
+        node_type.test_all_replacers_are_accounted_for();
+    }
+}
+
 // Test that each service config files constitute a valid config.
 #[test]
 fn load_and_process_service_config_files() {
