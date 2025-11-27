@@ -92,8 +92,7 @@ async fn test_get_block_info() {
     );
 
     let client = RpcStateReader::from_latest(&config);
-    let result =
-        tokio::task::spawn_blocking(move || client.get_block_info()).await.unwrap().unwrap();
+    let result = client.get_block_info().await.unwrap();
     assert_eq!(result, expected_result);
     mock.assert_async().await;
 }
