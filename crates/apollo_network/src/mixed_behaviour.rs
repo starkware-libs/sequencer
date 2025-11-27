@@ -101,7 +101,6 @@ impl MixedBehaviour {
                 source_string.extend_from_slice(&message.data[0..16]);
                 gossipsub::MessageId::from(source_string)
             })
-
             
             // .max_messages_per_rpc(Some(1))
             .history_length(5)
