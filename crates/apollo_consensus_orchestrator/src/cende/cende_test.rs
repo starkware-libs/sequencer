@@ -31,7 +31,6 @@ struct ExpectedMetrics {
     failure_no_prev_blob: usize,
     failure_block_height_mismatch: usize,
     failure_recorder_error: usize,
-    failure_skip_write_height: usize,
 }
 
 impl ExpectedMetrics {
@@ -52,11 +51,6 @@ impl ExpectedMetrics {
     }
 
     fn verify_metrics(&self, metrics: &str) {
-        CENDE_WRITE_BLOB_FAILURE.assert_eq(
-            metrics,
-            self.failure_skip_write_height,
-            &[(LABEL_CENDE_FAILURE_REASON, CendeWriteFailureReason::SkipWriteHeight.into())],
-        );
         CENDE_WRITE_BLOB_FAILURE.assert_eq(
             metrics,
             self.failure_no_prev_blob,
@@ -178,32 +172,4 @@ async fn prepare_blob_for_next_height() {
     );
 
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.assert_eq(&recorder.handle().render(), HEIGHT_TO_WRITE.0);
-}
-
-#[tokio::test]
-async fn no_write_at_skipped_height() {
-    let recorder = PrometheusBuilder::new().build_recorder();
-    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    register_metrics();
-
-    const SKIP_WRITE_HEIGHT: BlockNumber = HEIGHT_TO_WRITE;
-    let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { skip_write_height: Some(SKIP_WRITE_HEIGHT), ..Default::default() },
-        Arc::new(MockClassManagerClient::new()),
-    );
-
-    // Returns false since the blob is missing and the height is different than skip_write_height.
-    assert!(
-        !cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE.unchecked_next()).await.unwrap()
-    );
-
-    assert!(cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE).await.unwrap());
-
-    // Verify metrics.
-    let expected_metrics = ExpectedMetrics {
-        failure_no_prev_blob: 1,
-        failure_skip_write_height: 1,
-        ..Default::default()
-    };
-    expected_metrics.verify_metrics(&recorder.handle().render());
 }
