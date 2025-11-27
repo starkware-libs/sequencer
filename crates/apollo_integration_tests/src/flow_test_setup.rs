@@ -6,6 +6,7 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
+use apollo_infra::metrics::MetricsConfig;
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -259,12 +260,8 @@ impl FlowSequencerSetup {
 
         let component_config = ComponentConfig::default();
 
-        // Explicitly avoid collecting metrics in the monitoring endpoint; metrics are collected
-        // using a global recorder, which fails when being set multiple times in the same
-        // process, as in this test.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
             port: available_ports.get_next_port(),
-            collect_metrics: false,
             ..Default::default()
         };
 
@@ -292,7 +289,10 @@ impl FlowSequencerSetup {
             num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (clients, servers) = create_node_modules(&node_config, vec![]).await;
+        // Pass MetricsConfig::default() (disabled) to avoid conflicts when running multiple
+        // sequencers in the same process (metrics recorder can only be installed once globally).
+        let (clients, servers) =
+            create_node_modules(&node_config, MetricsConfig::default(), vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();

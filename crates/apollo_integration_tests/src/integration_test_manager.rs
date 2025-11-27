@@ -1020,7 +1020,6 @@ async fn get_sequencer_setup_configs(
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
-                collect_metrics: true,
                 ..Default::default()
             };
 

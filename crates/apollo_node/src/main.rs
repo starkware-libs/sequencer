@@ -1,5 +1,6 @@
 use std::env::args;
 
+use apollo_infra::metrics::MetricsConfig;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;
@@ -29,7 +30,9 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config, cli_args).await;
+    // TODO(Nadin): Move metrics initialization to main.
+    let (_clients, servers) =
+        create_node_modules(&config, MetricsConfig::enabled(), cli_args).await;
 
     info!("START_UP: Starting components!");
     run_component_servers(servers).await;

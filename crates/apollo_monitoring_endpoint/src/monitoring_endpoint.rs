@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::metrics::MetricsConfig;
 use apollo_infra::tokio_metrics::setup_tokio_metrics;
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
@@ -50,15 +51,16 @@ impl MonitoringEndpoint {
     pub fn new(
         config: MonitoringEndpointConfig,
         version: &'static str,
+        metrics_config: MetricsConfig,
         mempool_client: Option<SharedMempoolClient>,
         l1_provider_client: Option<SharedL1ProviderClient>,
     ) -> Self {
         // TODO(Tsabary): consider error handling
-        let prometheus_handle = if config.collect_metrics {
+        let prometheus_handle = if metrics_config.collect_metrics {
             // TODO(Lev): add tests that show the metrics are collected / not collected based on the
             // config value.
             COLLECT_SEQUENCER_PROFILING_METRICS
-                .set(config.collect_profiling_metrics)
+                .set(metrics_config.collect_profiling_metrics)
                 .expect("Should be able to set profiling metrics collection.");
 
             Some(
@@ -144,10 +146,17 @@ impl MonitoringEndpoint {
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
+    metrics_config: MetricsConfig,
     mempool_client: Option<SharedMempoolClient>,
     l1_provider_client: Option<SharedL1ProviderClient>,
 ) -> MonitoringEndpoint {
-    let result = MonitoringEndpoint::new(config, version, mempool_client, l1_provider_client);
+    let result = MonitoringEndpoint::new(
+        config,
+        version,
+        metrics_config,
+        mempool_client,
+        l1_provider_client,
+    );
     setup_tokio_metrics();
     result
 }
