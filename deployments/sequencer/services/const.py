@@ -44,7 +44,7 @@ BACKEND_CONFIG_HEADERS = [
     "X-Client-CityLatLong:{client_city_lat_long}",
 ]
 
-PVC_STORAGE_CLASS_NAME = "premium-rwo"
+PVC_STORAGE_CLASS_NAME = "hyperdisk-balanced"
 PVC_VOLUME_MODE = "Filesystem"
 PVC_ACCESS_MODE = ["ReadWriteOnce"]
 

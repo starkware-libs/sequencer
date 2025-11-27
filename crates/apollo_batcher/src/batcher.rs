@@ -43,6 +43,7 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -586,6 +587,22 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+
+        let mut fixed_state_diff = state_diff.clone();
+        fixed_state_diff.deprecated_declared_classes = Vec::new();
+        let state_diff_commitment = calculate_state_diff_hash(&fixed_state_diff);
+        info!(
+            "add_sync_block: block number {block_number} has state_diff_commitment: \
+             {state_diff_commitment:?}"
+        );
+        let n_deprecated_declared_classes = state_diff.deprecated_declared_classes.len();
+        if n_deprecated_declared_classes > 0 {
+            info!(
+                "add_sync_block: block number {block_number} has {n_deprecated_declared_classes} \
+                 deprecated declared classes."
+            )
+        }
+
         self.commit_proposal_and_block(
             height,
             state_diff,
