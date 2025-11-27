@@ -3321,6 +3321,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
@@ -3335,6 +3352,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
@@ -3349,6 +3383,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
@@ -3363,6 +3414,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
@@ -3377,6 +3445,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
@@ -3391,6 +3476,23 @@
           ],
           "extra_params": {
             "unit": "percentunit",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            },
             "legends": [
               "{{pod}}"
             ]
