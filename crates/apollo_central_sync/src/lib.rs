@@ -898,111 +898,47 @@ impl<
     async fn try_flush_consecutive_batch(&mut self) -> StateSyncResult {
         let batch_size = self.config.block_batch_size;
         
-        // Safety: If buffer is too large, flush consecutive blocks to prevent OOM
-        // But only if we have enough consecutive blocks to make it worthwhile (maintains batching benefits)
+        // Safety monitoring: Log warning if buffer is very large
+        // Since blocks arrive in order from FuturesOrdered, we should always have consecutive blocks
+        // to flush in normal batches. Only intervene in extreme cases.
         let buffer_size = self.pending_compilations.len();
-        let max_buffer_size = batch_size * 20; // Allow up to 20 batches worth of buffering (2,000 blocks for batch_size=100)
-        let min_partial_batch_size = batch_size / 10; // Only flush partial batches if we have at least 10 consecutive blocks (for batch_size=100)
         
-        if buffer_size > max_buffer_size {
-            warn!(
-                "Buffer size ({}) exceeds safety limit ({}). Checking for flushable consecutive blocks...",
-                buffer_size,
-                max_buffer_size
+        // Extreme emergency: Only if buffer exceeds 50,000 blocks (should never happen with ordered arrival)
+        if buffer_size > 50000 {
+            error!(
+                "CRITICAL: Buffer size ({}) is extremely large! This indicates a serious problem with block ordering or flush logic.",
+                buffer_size
             );
             
-            // Count how many consecutive blocks we have starting from next_expected
+            // Count consecutive blocks
             let mut consecutive_count = 0;
             let mut check_block = self.next_expected_compilation_block;
-            while consecutive_count < batch_size {
-                if self.pending_compilations.contains_key(&check_block) {
-                    consecutive_count += 1;
-                    check_block = check_block.unchecked_next();
-                } else {
-                    break;
+            while self.pending_compilations.contains_key(&check_block) {
+                consecutive_count += 1;
+                check_block = check_block.unchecked_next();
+                if consecutive_count >= batch_size {
+                    break; // We have a full batch, normal flush will handle it
                 }
             }
             
-            // Only flush if we have a meaningful batch (at least min_partial_batch_size)
-            if consecutive_count >= min_partial_batch_size {
+            // If we have a full batch, let normal flush handle it
+            if consecutive_count >= batch_size {
                 warn!(
-                    "Flushing {} consecutive blocks (minimum {} required) to prevent OOM while maintaining batching benefits.",
-                    consecutive_count,
-                    min_partial_batch_size
+                    "Buffer size ({}) is large, but we have {} consecutive blocks for normal batch flush.",
+                    buffer_size,
+                    consecutive_count
                 );
-                
-                // Collect and flush the consecutive blocks
-                let mut consecutive_blocks = Vec::new();
-                let mut current_block = self.next_expected_compilation_block;
-                for _ in 0..consecutive_count {
-                    if let Some(compiled_block) = self.pending_compilations.remove(&current_block) {
-                        consecutive_blocks.push(compiled_block);
-                        current_block = current_block.unchecked_next();
-                    }
-                }
-                
-                let first_block = consecutive_blocks.first().map(|(bn, _, _, _, _, _)| *bn);
-                let last_block = consecutive_blocks.last().map(|(bn, _, _, _, _, _)| *bn);
-                info!(
-                    "Flushing partial consecutive batch of {} blocks ({:?} to {:?}) due to buffer size limit...",
-                    consecutive_blocks.len(),
-                    first_block,
-                    last_block
-                );
-                
-                self.write_compiled_batch(consecutive_blocks).await?;
-                self.next_expected_compilation_block = current_block;
-                
-                info!(
-                    "Successfully flushed batch. Next expected block: {}",
-                    self.next_expected_compilation_block
-                );
+                // Fall through to normal batch flush logic below
             } else {
-                // Emergency fallback: If buffer is extremely large (1.5x threshold), flush whatever we have
-                let emergency_threshold = max_buffer_size + (max_buffer_size / 2); // 3,000 blocks (for batch_size=100)
-                if buffer_size > emergency_threshold {
-                    error!(
-                        "EMERGENCY: Buffer size ({}) exceeds emergency threshold ({}). Flushing {} consecutive blocks to prevent OOM (batching degraded).",
-                        buffer_size,
-                        emergency_threshold,
-                        consecutive_count
-                    );
-                    
-                    // Flush whatever consecutive blocks we have (even if < min_partial_batch_size)
-                    let mut consecutive_blocks = Vec::new();
-                    let mut current_block = self.next_expected_compilation_block;
-                    for _ in 0..consecutive_count {
-                        if let Some(compiled_block) = self.pending_compilations.remove(&current_block) {
-                            consecutive_blocks.push(compiled_block);
-                            current_block = current_block.unchecked_next();
-                        }
-                    }
-                    
-                    if !consecutive_blocks.is_empty() {
-                        let first_block = consecutive_blocks.first().map(|(bn, _, _, _, _, _)| *bn);
-                        let last_block = consecutive_blocks.last().map(|(bn, _, _, _, _, _)| *bn);
-                        info!(
-                            "EMERGENCY flush of {} blocks ({:?} to {:?})",
-                            consecutive_blocks.len(),
-                            first_block,
-                            last_block
-                        );
-                        
-                        self.write_compiled_batch(consecutive_blocks).await?;
-                        self.next_expected_compilation_block = current_block;
-                    }
-                } else {
-                    warn!(
-                        "Buffer size ({}) exceeds limit ({}), but only {} consecutive blocks available (minimum {} required). Waiting for more consecutive blocks to maintain batching benefits.",
-                        buffer_size,
-                        max_buffer_size,
-                        consecutive_count,
-                        min_partial_batch_size
-                    );
-                }
+                // This should never happen with FuturesOrdered - blocks arrive in order!
+                error!(
+                    "CRITICAL: Buffer has {} blocks but only {} consecutive! This indicates FuturesOrdered is not working as expected.",
+                    buffer_size,
+                    consecutive_count
+                );
+                // Don't flush - something is fundamentally wrong
+                return Ok(());
             }
-            
-            return Ok(());
         }
         
         // Normal case: CHECK if we have a full consecutive batch (don't remove yet)
