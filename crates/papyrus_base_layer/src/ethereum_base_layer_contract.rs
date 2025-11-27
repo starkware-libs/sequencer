@@ -179,13 +179,23 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             return Ok(None);
         };
         let blob_fee = match block.header.excess_blob_gas {
-            Some(excess_blob_gas) if self.config.prague_blob_gas_calc => {
-                // Pectra update.
-                eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
-            }
             Some(excess_blob_gas) => {
-                // EIP 4844 - original blob pricing.
-                eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
+                if self.config.fusaka_no_bpo_start_block_number <= block.header.number {
+                    // Fusaka update.
+                    eip7840::BlobParams::osaka().calc_blob_fee(excess_blob_gas)
+                } else if self.config.bpo1_start_block_number <= block.header.number {
+                    // Fusaka BPO1 update.
+                    eip7840::BlobParams::bpo1().calc_blob_fee(excess_blob_gas)
+                } else if self.config.bpo2_start_block_number <= block.header.number {
+                    // Fusaka BPO2 update.
+                    eip7840::BlobParams::bpo2().calc_blob_fee(excess_blob_gas)
+                } else if self.config.prague_blob_gas_calc {
+                    // Pectra update.
+                    eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
+                } else {
+                    // EIP 4844 - original blob pricing.
+                    eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
+                }
             }
             None => 0,
         };
