@@ -58,6 +58,7 @@ pub trait ConsensusContext {
         &mut self,
         init: ProposalInit,
         timeout: Duration,
+        skip_write_prev_height_blob: bool,
     ) -> oneshot::Receiver<ProposalCommitment>;
 
     /// This function is called by consensus to validate a block. It expects that this call will
@@ -111,6 +112,9 @@ pub trait ConsensusContext {
         block: ProposalCommitment,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
+
+    /// Get the latest height we received from sync.
+    async fn get_latest_sync_height(&self) -> Option<BlockNumber>;
 
     /// Attempt to learn of a decision from the sync protocol.
     /// Returns true if a decision was learned so consensus can proceed.
