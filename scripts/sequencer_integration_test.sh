@@ -7,7 +7,8 @@
 # If no argument is provided, the default test "positive" is run.
 # You can also pass:
 #   - "positive" to run the positive flow test,
-#   - "restart" to run the restart flow test, or
+#   - "restart" to run the restart flow test,
+#   - "restart_single_node" to run the restart flow test with a single node,
 #   - "revert" to run the revert flow test,
 #   - "sync" to run the central and p2p sync flow test,
 #   - "all" to run all tests.
@@ -20,6 +21,7 @@
 declare -A TEST_ALIASES=(
   [positive]="integration_test_positive_flow"
   [restart]="integration_test_restart_flow"
+  [restart_single_node]="integration_test_restart_service_single_node_flow"
   [revert]="integration_test_revert_flow"
   [sync]="integration_test_central_and_p2p_sync_flow"
 )

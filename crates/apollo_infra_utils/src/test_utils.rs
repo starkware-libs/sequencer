@@ -35,6 +35,7 @@ pub enum TestIdentifier {
     InfraUnitTests,
     PositiveFlowIntegrationTest,
     RestartFlowIntegrationTest,
+    RestartServiceSingleNodeFlowIntegrationTest,
     RevertFlowIntegrationTest,
     SystemTestDumpSingleNodeConfig,
     HttpServerUnitTests,
