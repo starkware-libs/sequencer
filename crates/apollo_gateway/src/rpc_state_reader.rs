@@ -14,6 +14,7 @@ use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -60,6 +61,7 @@ impl RpcStateReader {
         method: &str,
         params: impl Serialize,
     ) -> RPCStateReaderResult<Value> {
+        println!("Sending RPC request: {}", method);
         let request_body = json!({
             "jsonrpc": self.config.json_rpc_version,
             "id": 0,
@@ -150,7 +152,6 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let get_compiled_class_params =
             GetCompiledClassParams { class_hash, block_id: self.block_id };
-
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
         let (contract_class, sierra_version): (CompiledContractClass, SierraVersion) =
@@ -184,6 +185,19 @@ impl BlockifierStateReader for RpcStateReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        let compiled_class = self.get_compiled_class(class_hash)?;
+        match compiled_class {
+            RunnableCompiledClass::V0(_) => Err(StateError::MissingCompiledClassHashV2(class_hash)),
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&HashVersion::V2)),
+            RunnableCompiledClass::V1Native(class) => Ok(class.casm().hash(&HashVersion::V2)),
+        }
     }
 }
 
