@@ -79,6 +79,7 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     max_retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
     attempts_per_log: 1,
+    connection_timeout_ms: 500,
     set_tcp_nodelay: true,
 };
 
