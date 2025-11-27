@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
@@ -6,6 +7,7 @@ use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use tokio::select;
 use tokio::time::sleep;
 use tracing::info;
 use url::Url;
@@ -115,6 +117,26 @@ impl SequencerSimulator {
 
             sleep(SLEEP_DURATION).await;
             i += 1;
+        }
+    }
+
+    pub async fn run_test_with_nonstop_tx_sending(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        sender_account: AccountId,
+        test_future: impl Future<Output = ()>,
+    ) {
+        // TODO(noamsp/itay): Try to refactor this to spawn threads for each task instead of using
+        // select!
+        let simulation_task = self.run_simulation(tx_generator, true, sender_account);
+        select! {
+            _ = simulation_task => {
+                panic!("Simulation task should not complete before the test task");
+            }
+            _ = test_future => {
+                // If test_future completes normally, it finished successfully.
+                // If it panicked, the panic would have already propagated.
+            }
         }
     }
 }
