@@ -278,13 +278,13 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        // TODO(guyn): this message is misleading, it checks start_height, not current_height.
-        // TODO(guyn): maybe we should indeed ignore all blocks below current_height?
-        // See other todo in bootstrap().
         if self.is_historical_height(height) {
             debug!(
-                "Skipping commit block for historical height: {}, current height is higher: {}",
-                height, self.current_height
+                "Skipping commit block for height: {height}, it is lower than start height is \
+                 higher: {}. Current height is {}.",
+                self.start_height
+                    .expect("is_historic_height returns false if start_height is not set"),
+                self.current_height
             );
             return Ok(());
         }
