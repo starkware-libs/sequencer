@@ -8890,7 +8890,6 @@ name = "native_blockifier"
 version = "0.16.0-rc.1"
 dependencies = [
  "apollo_compile_to_native_types",
- "apollo_metrics",
  "apollo_state_reader",
  "apollo_storage",
  "blockifier",

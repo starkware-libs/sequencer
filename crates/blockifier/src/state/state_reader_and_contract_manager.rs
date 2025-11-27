@@ -22,14 +22,14 @@ pub trait FetchCompiledClasses: StateReader {
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
     contract_class_manager: ContractClassManager,
-    class_cache_metrics: CacheMetrics,
+    class_cache_metrics: Option<CacheMetrics>,
 }
 
 impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
     pub fn new(
         state_reader: S,
         contract_class_manager: ContractClassManager,
-        class_cache_metrics: CacheMetrics,
+        class_cache_metrics: Option<CacheMetrics>,
     ) -> Self {
         Self { state_reader, contract_class_manager, class_cache_metrics }
     }
@@ -52,11 +52,11 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
                     }
                 }
             }
-            self.class_cache_metrics.increment_hit();
+            self.increment_hit();
             self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
-        self.class_cache_metrics.increment_miss();
+        self.increment_miss();
 
         let compiled_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, compiled_class.clone());
@@ -70,6 +70,18 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
             });
         self.update_native_metrics(&runnable_class);
         Ok(runnable_class)
+    }
+
+    fn increment_hit(&self) {
+        if let Some(ref class_cache_metrics) = self.class_cache_metrics {
+            class_cache_metrics.increment_hit();
+        }
+    }
+
+    fn increment_miss(&self) {
+        if let Some(ref class_cache_metrics) = self.class_cache_metrics {
+            class_cache_metrics.increment_miss();
+        }
     }
 
     fn update_native_metrics(&self, _runnable_class: &RunnableCompiledClass) {
