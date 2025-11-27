@@ -728,7 +728,7 @@ impl BlockBuilderFactory {
         let state_reader = StateReaderAndContractManager::new(
             apollo_reader,
             self.contract_class_manager.clone(),
-            BATCHER_CLASS_CACHE_METRICS,
+            Some(BATCHER_CLASS_CACHE_METRICS),
         );
 
         let executor = ConcurrentTransactionExecutor::start_block(

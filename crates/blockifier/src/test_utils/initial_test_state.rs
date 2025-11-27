@@ -1,4 +1,3 @@
-use apollo_metrics::metrics::{MetricCounter, MetricScope};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -11,7 +10,6 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
-use crate::metrics::CacheMetrics;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::{
@@ -20,22 +18,6 @@ use crate::state::state_reader_and_contract_manager::{
 };
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
-
-/// Placeholder class cache metrics. The metrics are not tested in the blockifier's context.
-const BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics::new(
-    MetricCounter::new(
-        MetricScope::Blockifier,
-        "Class Cache Misses in Blockifier",
-        "Counter of the number of times that the class cache was missed",
-        0,
-    ),
-    MetricCounter::new(
-        MetricScope::Blockifier,
-        "Class Cache Misses in Blockifier",
-        "Counter of the number of times that the class cache was hit",
-        0,
-    ),
-);
 
 /// Utility to fund an account.
 pub fn fund_account(
@@ -203,9 +185,5 @@ pub fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasse
     state_reader: Reader,
     contract_class_manager: ContractClassManager,
 ) -> StateReaderAndContractManager<Reader> {
-    StateReaderAndContractManager::new(
-        state_reader,
-        contract_class_manager,
-        BLOCKIFIER_CLASS_CACHE_METRICS,
-    )
+    StateReaderAndContractManager::new(state_reader, contract_class_manager, None)
 }

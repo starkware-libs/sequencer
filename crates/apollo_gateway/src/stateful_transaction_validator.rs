@@ -85,7 +85,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
             state_reader,
             self.contract_class_manager.clone(),
-            GATEWAY_CLASS_CACHE_METRICS,
+            Some(GATEWAY_CLASS_CACHE_METRICS),
         );
 
         let state = CachedState::new(state_reader_and_contract_manager);
