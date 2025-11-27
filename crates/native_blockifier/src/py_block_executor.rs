@@ -234,6 +234,7 @@ impl PyBlockExecutor {
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
+            ..
         } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
@@ -337,6 +338,11 @@ impl PyBlockExecutor {
     #[pyo3(signature = (enable_casm_hash_migration))]
     pub fn set_enable_casm_hash_migration_in_vc(&mut self, enable_casm_hash_migration: bool) {
         self.versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
+    }
+
+    #[pyo3(signature = (block_casm_hash_v1_declares))]
+    pub fn set_block_casm_hash_v1_declares_in_vc(&mut self, block_casm_hash_v1_declares: bool) {
+        self.versioned_constants.block_casm_hash_v1_declares = block_casm_hash_v1_declares;
     }
 
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version, enable_casm_hash_migration))]

@@ -5,9 +5,9 @@ mod block_test;
 use std::fmt::Display;
 use std::ops::Deref;
 
+use apollo_sizeof::SizeOf;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
@@ -211,6 +211,7 @@ pub struct BlockHeader {
     pub receipt_commitment: Option<ReceiptCommitment>,
 }
 
+// TODO(Nimrod): Consider deleting this struct or move it to the CLI crate.
 /// The header of a [Block](`crate::block::Block`) without hashing.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct BlockHeaderWithoutHash {
@@ -596,6 +597,26 @@ impl GasPrices {
             FeeType::Eth => &self.eth_gas_prices,
         }
     }
+    pub fn l1_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l1_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l1_gas_price.get(),
+        }
+    }
+
+    pub fn l1_data_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l1_data_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l1_data_gas_price.get(),
+        }
+    }
+
+    pub fn l2_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l2_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l2_gas_price.get(),
+        }
+    }
 }
 
 // TODO(Arni): replace all relevant instances of `u64` with UnixTimestamp.
@@ -645,6 +666,7 @@ impl Display for BlockTimestamp {
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
+    pub starknet_version: StarknetVersion,
 
     // Fee-related.
     pub sequencer_address: ContractAddress,

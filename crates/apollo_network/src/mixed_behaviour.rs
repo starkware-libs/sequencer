@@ -1,6 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
 use std::convert::Infallible;
+use std::time::Duration;
 
 use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
@@ -15,9 +16,9 @@ use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PR
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
-use crate::network_manager::metrics::EventMetrics;
+use crate::metrics::{EventMetrics, LatencyMetrics};
 use crate::peer_manager::PeerManagerConfig;
-use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
+use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
@@ -31,6 +32,7 @@ pub struct MixedBehaviour {
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
+    pub prune_dead_connections: prune_dead_connections::Behaviour,
     pub event_tracker_metrics: Toggle<EventMetricsTracker>,
 }
 
@@ -69,11 +71,14 @@ impl MixedBehaviour {
         discovery_config: DiscoveryConfig,
         peer_manager_config: PeerManagerConfig,
         event_metrics: Option<EventMetrics>,
+        latency_metrics: Option<LatencyMetrics>,
         keypair: Keypair,
         // TODO(AndrewL): consider making this non optional
         bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
         chain_id: ChainId,
         node_version: Option<String>,
+        prune_dead_connections_ping_interval: Duration,
+        prune_dead_connections_ping_timeout: Duration,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -127,6 +132,7 @@ impl MixedBehaviour {
                 gossipsub::ConfigBuilder::default()
                     // TODO(shahak): try to reduce this bound.
                     .max_transmit_size(1 << 34)
+                    .connection_handler_queue_len(20_000)
                     .build()
                     .expect("Failed to build gossipsub config"),
             )
@@ -135,6 +141,11 @@ impl MixedBehaviour {
                     "Failed creating gossipsub behaviour due to the following error: {err_string}"
                 )
             }),
+            prune_dead_connections: prune_dead_connections::Behaviour::new(
+                prune_dead_connections_ping_interval,
+                prune_dead_connections_ping_timeout,
+                latency_metrics,
+            ),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }

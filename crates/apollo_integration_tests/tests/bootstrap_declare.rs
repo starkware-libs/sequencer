@@ -2,7 +2,7 @@ use apollo_infra_utils::test_utils::TestIdentifier;
 use mempool_test_utils::starknet_api_test_utils::generate_bootstrap_declare;
 use starknet_api::execution_resources::GasAmount;
 
-use crate::common::{end_to_end_flow, test_single_tx, TestScenario};
+use crate::common::{end_to_end_flow, test_single_tx, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -21,11 +21,12 @@ fn create_bootstrap_declare_scenario() -> Vec<TestScenario> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn bootstrap_declare() {
     end_to_end_flow(
-        TestIdentifier::EndToEndFlowTestBootstrapDeclare,
-        create_bootstrap_declare_scenario(),
-        GasAmount(29000000),
-        false,
-        true,
+        EndToEndFlowArgs::new(
+            TestIdentifier::EndToEndFlowTestBootstrapDeclare,
+            create_bootstrap_declare_scenario(),
+            GasAmount(29000000),
+        )
+        .allow_bootstrap_txs(),
     )
     .await
 }

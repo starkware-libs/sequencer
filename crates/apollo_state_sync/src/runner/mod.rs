@@ -13,13 +13,13 @@ use apollo_central_sync::{
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
-use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientError};
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
-use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
+use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlock,
@@ -35,6 +35,7 @@ use apollo_state_sync_metrics::metrics::{
     P2P_SYNC_NUM_BLACKLISTED_PEERS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
     STATE_SYNC_REVERTED_TRANSACTIONS,
+    STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
@@ -183,6 +184,10 @@ impl StateSyncRunner {
                 async {}
             };
 
+            const STATE_SYNC_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
+                name: "State Sync",
+                revert_metric: STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING,
+            };
             return (
                 Self {
                     network_future: pending().boxed(),
@@ -190,7 +195,7 @@ impl StateSyncRunner {
                         current_header_marker,
                         revert_up_to_and_including,
                         revert_block_fn,
-                        "State Sync",
+                        &STATE_SYNC_REVERT_COMPONENT_DATA,
                     )
                     .map(|_never| unreachable!("Never should never be constructed"))
                     .boxed(),
@@ -214,6 +219,7 @@ impl StateSyncRunner {
                     num_active_outbound_sessions: P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
                 }),
                 event_metrics: None,
+                latency_metrics: None,
             });
             NetworkManager::new(
                 network_config.clone(),

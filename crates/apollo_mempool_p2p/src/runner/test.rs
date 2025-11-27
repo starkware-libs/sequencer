@@ -33,12 +33,14 @@ use starknet_api::transaction::TransactionHash;
 use super::MempoolP2pRunner;
 
 const MAX_TRANSACTION_BATCH_RATE: Duration = Duration::MAX;
+const MAX_CONCURRENT_GATEWAY_REQUESTS: usize = 10000;
 
 fn setup(
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     gateway_client: Arc<dyn GatewayClient>,
     mempool_p2p_propagator_client: Arc<dyn MempoolP2pPropagatorClient>,
     transaction_batch_rate_millis: Duration,
+    max_concurrent_gateway_requests: usize,
 ) -> (MempoolP2pRunner, BroadcastNetworkMock<RpcTransactionBatch>) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
@@ -51,6 +53,7 @@ fn setup(
         gateway_client,
         mempool_p2p_propagator_client,
         transaction_batch_rate_millis,
+        max_concurrent_gateway_requests,
     );
     (mempool_p2p_runner, mock_network)
 }
@@ -65,6 +68,7 @@ fn run_panics_when_network_future_returns() {
         gateway_client,
         Arc::new(MockMempoolP2pPropagatorClient::new()),
         MAX_TRANSACTION_BATCH_RATE,
+        MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
     mempool_p2p_runner.start().now_or_never().unwrap();
 }
@@ -80,6 +84,7 @@ fn run_panics_when_network_future_returns_error() {
         gateway_client,
         Arc::new(MockMempoolP2pPropagatorClient::new()),
         MAX_TRANSACTION_BATCH_RATE,
+        MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
     mempool_p2p_runner.start().now_or_never().unwrap();
 }
@@ -112,6 +117,7 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
         Arc::new(mock_gateway_client),
         Arc::new(MockMempoolP2pPropagatorClient::new()),
         MAX_TRANSACTION_BATCH_RATE,
+        MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
 
     let BroadcastNetworkMock {
@@ -168,6 +174,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         Arc::new(mock_gateway_client),
         Arc::new(MockMempoolP2pPropagatorClient::new()),
         MAX_TRANSACTION_BATCH_RATE,
+        MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
 
     let BroadcastNetworkMock {
@@ -223,6 +230,7 @@ async fn send_broadcast_queued_transactions_request_after_transaction_batch_rate
         gateway_client,
         Arc::new(mempool_p2p_propagator_client),
         transaction_batch_rate_millis,
+        MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
 
     tokio::time::pause();
@@ -244,4 +252,87 @@ async fn send_broadcast_queued_transactions_request_after_transaction_batch_rate
     assert!(broadcast_queued_tx_indicator_receiver.try_recv().unwrap().is_some());
 
     handle.abort();
+}
+
+#[tokio::test]
+async fn reject_transaction_due_to_backpressure() {
+    const NUM_CONCURRENT_GATEWAY_REQUESTS: usize = 1;
+    // Because of the backpressure, the second transaction in this batch should be rejected.
+    let rng = &mut get_rng();
+    let rpc_transaction_batch_1 = RpcTransactionBatch(vec![
+        RpcTransaction::get_test_instance(rng),
+        RpcTransaction::get_test_instance(rng),
+    ]);
+    let rpc_transaction_batch_2 = RpcTransactionBatch(vec![RpcTransaction::get_test_instance(rng)]);
+
+    let message_metadata = BroadcastedMessageMetadata::get_test_instance(rng);
+
+    let gateway_input_1 = GatewayInput {
+        rpc_tx: rpc_transaction_batch_1.0.first().unwrap().clone(),
+        message_metadata: Some(message_metadata.clone()),
+    };
+    let gateway_input_2 = GatewayInput {
+        rpc_tx: rpc_transaction_batch_2.0.first().unwrap().clone(),
+        message_metadata: Some(message_metadata.clone()),
+    };
+
+    let mut mock_gateway_client = MockGatewayClient::new();
+
+    let message_metadata_clone = message_metadata.clone();
+    // We return an error here so we can ensure the gateway client's response was received by the
+    // mempool p2p runner before sending the second tx batch.
+    mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input_1)).return_once(
+        move |_| {
+            Err(GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+                source: StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::DuplicatedTransaction,
+                    ),
+                    message: "Mock error".to_string(),
+                },
+                p2p_message_metadata: Some(message_metadata_clone),
+            }))
+        },
+    );
+    let (add_tx_indicator_sender, add_tx_indicator_receiver) = futures::channel::oneshot::channel();
+    mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input_2)).return_once(
+        move |_| {
+            add_tx_indicator_sender.send(()).unwrap();
+            Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
+        },
+    );
+
+    let (mut mempool_p2p_runner, mock_network) = setup(
+        pending().boxed(),
+        Arc::new(mock_gateway_client),
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        MAX_TRANSACTION_BATCH_RATE,
+        NUM_CONCURRENT_GATEWAY_REQUESTS,
+    );
+    let runner_handle = tokio::spawn(async move {
+        mempool_p2p_runner.start().await;
+    });
+    let BroadcastNetworkMock {
+        broadcasted_messages_sender: mut mock_broadcasted_messages_sender,
+        reported_messages_receiver: mut mock_reported_messages_receiver,
+        ..
+    } = mock_network;
+
+    tokio::time::timeout(Duration::from_secs(5), async move {
+        mock_broadcasted_messages_sender
+            .send((rpc_transaction_batch_1.clone(), message_metadata.clone()))
+            .await
+            .expect("Failed to send message");
+        mock_reported_messages_receiver.next().await.expect("Failed to receive report");
+
+        mock_broadcasted_messages_sender
+            .send((rpc_transaction_batch_2.clone(), message_metadata.clone()))
+            .await
+            .expect("Failed to send message");
+        add_tx_indicator_receiver.await.expect("add_tx_indicator_sender dropped");
+    })
+    .await
+    .expect("Timeout waiting for transactions to be added to the gateway client");
+
+    runner_handle.abort();
 }

@@ -21,7 +21,6 @@ runs:
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
-        RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
     # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged

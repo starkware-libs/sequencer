@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
+use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -14,6 +14,7 @@ use validator::ValidationError;
 use crate::definitions::ConfigPointersMap;
 use crate::node_config::{
     SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
     POINTER_TARGET_VALUE,
@@ -158,16 +159,11 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
     config_pointers_map: ConfigPointersMap,
-    non_pointer_params: Pointers,
 }
 
 impl DeploymentBaseAppConfig {
-    pub fn new(
-        config: SequencerNodeConfig,
-        config_pointers_map: ConfigPointersMap,
-        non_pointer_params: Pointers,
-    ) -> Self {
-        Self { config, config_pointers_map, non_pointer_params }
+    pub fn new(config: SequencerNodeConfig, config_pointers_map: ConfigPointersMap) -> Self {
+        Self { config, config_pointers_map }
     }
 
     pub fn get_config(&self) -> &SequencerNodeConfig {
@@ -198,7 +194,7 @@ impl DeploymentBaseAppConfig {
             self.config.dump(),
             // TODO(Tsabary): avoid the cloning here
             &self.config_pointers_map.clone().into(),
-            &self.non_pointer_params,
+            &CONFIG_NON_POINTERS_WHITELIST,
         )
         .unwrap();
 
@@ -213,30 +209,35 @@ impl DeploymentBaseAppConfig {
     pub fn dump_config_file(&self, config_path: &Path) {
         let value = self.as_value();
         serialize_to_file(
-            value,
+            &value,
             config_path.to_str().expect("Should be able to convert path to string"),
         );
     }
 }
 
-pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+pub fn load_and_validate_config(
+    args: Vec<String>,
+    log_enabled: bool,
+) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
     let loaded_config =
         config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
-    info!("Finished loading configuration.");
-
+    if log_enabled {
+        info!("Finished loading configuration.");
+    }
     if let Err(error) = loaded_config.validate_node_config() {
         panic!("Config validation failed: {error}");
     }
-    info!("Finished validating configuration.");
-
-    info!("Config map:");
-    info!(
-        "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
-            .expect("Should be able to get representation.")
-    );
-    info!("Finished dumping configuration.");
+    if log_enabled {
+        info!("Finished validating configuration.");
+        info!("Config map:");
+        info!(
+            "{:#?}",
+            get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
+                .expect("Should be able to get representation.")
+        );
+        info!("Finished dumping configuration.");
+    }
 
     Ok(loaded_config)
 }

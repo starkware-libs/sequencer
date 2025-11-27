@@ -11,7 +11,12 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
 };
 use starknet_api::transaction::fields::{AccountDeploymentData, Calldata};
-use starknet_api::transaction::{constants, DeclareTransactionV2, DeclareTransactionV3};
+use starknet_api::transaction::{
+    constants,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    TransactionVersion,
+};
 
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
@@ -175,7 +180,14 @@ impl<S: State> Executable<S> for DeclareTransaction {
             | starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
                 compiled_class_hash,
                 ..
-            }) => try_declare(self, state, class_hash, Some(*compiled_class_hash))?,
+            }) => {
+                if context.tx_context.block_context.versioned_constants.block_casm_hash_v1_declares
+                    && self.version() >= TransactionVersion::THREE
+                {
+                    self.check_compile_class_hash_v2_declaration()?
+                }
+                try_declare(self, state, class_hash, Some(*compiled_class_hash))?
+            }
         }
         Ok(None)
     }

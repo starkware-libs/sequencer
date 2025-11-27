@@ -6,13 +6,13 @@ use strum::IntoEnumIterator;
 
 /// Creates the dashboard and alerts json files.
 fn main() {
-    serialize_to_file(get_apollo_dashboard(), DEV_JSON_PATH);
+    serialize_to_file(&get_apollo_dashboard(), DEV_JSON_PATH);
     for alert_env_filtering in AlertEnvFiltering::iter() {
         if alert_env_filtering == AlertEnvFiltering::All {
             continue; // Skip the 'All' variant, as it used to cover all other options.
         }
         serialize_to_file(
-            get_apollo_alerts(alert_env_filtering),
+            &get_apollo_alerts(alert_env_filtering),
             &get_dev_alerts_json_path(alert_env_filtering),
         );
     }

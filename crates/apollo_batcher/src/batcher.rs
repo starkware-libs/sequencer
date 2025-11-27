@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
@@ -33,6 +34,7 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -42,6 +44,7 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -68,9 +71,11 @@ use crate::metrics::{
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
     NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    SIERRA_GAS_IN_LAST_BLOCK,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -245,7 +250,8 @@ impl Batcher {
                 BATCHER_L1_PROVIDER_ERRORS.increment(1);
             });
 
-        let start_phase = if self.proposals_counter % self.config.propose_l1_txs_every == 0 {
+        let start_phase = if self.proposals_counter.is_multiple_of(self.config.propose_l1_txs_every)
+        {
             TxProviderPhase::L1
         } else {
             TxProviderPhase::Mempool
@@ -279,6 +285,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(propose_block_input.deadline)?,
                     is_validator: false,
+                    proposer_idle_detection_delay: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
@@ -362,6 +372,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(validate_block_input.deadline)?,
                     is_validator: true,
+                    proposer_idle_detection_delay: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 None,
@@ -581,6 +595,7 @@ impl Batcher {
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
+            None,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -614,27 +629,38 @@ impl Batcher {
         let n_reverted_count = u64::try_from(
             block_execution_artifacts
                 .execution_data
-                .execution_infos
+                .execution_infos_and_signatures
                 .values()
-                .filter(|info| info.revert_error.is_some())
+                .filter(|(info, _)| info.revert_error.is_some())
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
+        let partial_block_hash_components =
+            block_execution_artifacts.partial_block_hash_components();
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
+            Some(partial_block_hash_components),
         )
         .await?;
-        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
+        let execution_infos = block_execution_artifacts
+            .execution_data
+            .execution_infos_and_signatures
+            .into_iter()
+            .map(|(tx_hash, (info, _))| (tx_hash, info))
+            .collect();
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
         NUM_TRANSACTION_IN_BLOCK.record_lossy(n_txs);
+        SIERRA_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.bouncer_weights.sierra_gas.0);
+        PROVING_GAS_IN_LAST_BLOCK
+            .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
 
         Ok(DecisionReachedResponse {
             state_diff,
@@ -653,6 +679,8 @@ impl Batcher {
         })
     }
 
+    // The `partial_block_hash_components` is optional as it's not needed for blocks coming from
+    // sync as they contain the full block hash.
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
@@ -660,6 +688,7 @@ impl Batcher {
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -668,10 +697,12 @@ impl Batcher {
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage.
-        self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
-            error!("Failed to commit proposal to storage: {}", err);
-            BatcherError::InternalError
-        })?;
+        self.storage_writer
+            .commit_proposal(height, state_diff, partial_block_hash_components)
+            .map_err(|err| {
+                error!("Failed to commit proposal to storage: {}", err);
+                BatcherError::InternalError
+            })?;
         info!("Successfully committed proposal for block {} to storage.", height);
 
         // Notify the L1 provider of the new block.
@@ -911,25 +942,40 @@ fn log_txs_execution_result(
     proposal_id: ProposalId,
     result: &Result<BlockExecutionArtifacts, Arc<BlockBuilderError>>,
 ) {
-    // Constructing log message.
     if let Ok(block_artifacts) = result {
-        let mut log_msg = format!(
+        let execution_infos = block_artifacts
+            .execution_data
+            .execution_infos_and_signatures
+            .iter()
+            .map(|(tx_hash, (info, _sig))| (tx_hash, info));
+        let rejected_hashes = &block_artifacts.execution_data.rejected_tx_hashes;
+
+        // Estimate capacity: base message + (hash + status) per transaction
+        // TransactionHash is 66 chars (0x + 64 hex), status is ~12 chars, separator is 4 chars
+        // Total per transaction: ~82 chars
+        const CHARS_PER_TX: usize = 82;
+        const BASE_CAPACITY: usize = 80; // Base message length
+        let total_txs = execution_infos.len() + rejected_hashes.len();
+        let estimated_capacity = BASE_CAPACITY + total_txs * CHARS_PER_TX;
+
+        let mut log_msg = String::with_capacity(estimated_capacity);
+        let _ = write!(
+            &mut log_msg,
             "Finished generating proposal {} with {} transactions",
             proposal_id,
-            block_artifacts.execution_data.execution_infos.len(),
+            execution_infos.len(),
         );
-        block_artifacts.execution_data.execution_infos.iter().for_each(|(tx_hash, info)| {
-            log_msg.push_str(&format!(", {tx_hash}:"));
-            if info.revert_error.is_some() {
-                log_msg.push_str(" Reverted");
-            } else {
-                log_msg.push_str(" Successful");
-            }
-        });
-        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
-            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
-        });
-        info!(log_msg);
+
+        for (tx_hash, info) in execution_infos {
+            let status = if info.revert_error.is_some() { "Reverted" } else { "Successful" };
+            let _ = write!(&mut log_msg, ", {tx_hash}: {status}");
+        }
+
+        for tx_hash in rejected_hashes {
+            let _ = write!(&mut log_msg, ", {tx_hash}: Rejected");
+        }
+
+        info!("{}", log_msg);
     }
 }
 
@@ -996,6 +1042,7 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1006,9 +1053,14 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
+        if let Some(ref components) = partial_block_hash_components {
+            txn = txn.set_partial_block_hash_components(&height, components)?;
+        }
+        txn.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.

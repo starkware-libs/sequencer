@@ -49,6 +49,10 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
@@ -86,7 +90,7 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::hash::{HashOutput, PoseidonHash, StarkHash, StateRoots};
 use starknet_api::rpc_transaction::{
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
@@ -453,6 +457,13 @@ auto_impl_get_test_instance! {
         pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: StarknetVersion,
     }
+    pub struct BlockHeaderCommitments {
+        pub transaction_commitment: TransactionCommitment,
+        pub event_commitment: EventCommitment,
+        pub receipt_commitment: ReceiptCommitment,
+        pub state_diff_commitment: StateDiffCommitment,
+        pub concatenated_counts: Felt,
+    }
     pub struct BlockNumber(pub u64);
     pub struct BlockSignature(pub Signature);
     pub enum BlockStatus {
@@ -506,6 +517,10 @@ auto_impl_get_test_instance! {
 
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
+    pub struct StateRoots {
+        pub contracts_trie_root_hash: HashOutput,
+        pub classes_trie_root_hash: HashOutput,
+    }
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ContractAddressSalt(pub StarkHash);
     pub enum ConsensusTransaction {
@@ -672,6 +687,7 @@ auto_impl_get_test_instance! {
         pub price_in_wei: GasPrice,
     }
     pub struct GlobalRoot(pub StarkHash);
+    pub struct HashOutput(pub Felt);
     pub enum InvokeTransaction {
         V0(InvokeTransactionV0) = 0,
         V1(InvokeTransactionV1) = 1,
@@ -741,6 +757,16 @@ auto_impl_get_test_instance! {
     }
     pub struct Nonce(pub Felt);
     pub struct TransactionCommitment(pub StarkHash);
+    pub struct PartialBlockHashComponents {
+        pub header_commitments: BlockHeaderCommitments,
+        pub block_number: BlockNumber,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
+        pub sequencer: SequencerContractAddress,
+        pub timestamp: BlockTimestamp,
+        pub starknet_version: StarknetVersion,
+    }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
     pub struct Program {

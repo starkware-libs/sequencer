@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
 
 use ark_bls12_381::Fr;
-use c_kzg::{KzgCommitment, BYTES_PER_FIELD_ELEMENT};
+use ark_ff::{BigInteger, PrimeField};
+use c_kzg::{KzgCommitment, BYTES_PER_BLOB};
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
@@ -9,6 +10,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
+    decode_blobs,
     deserialize_blob,
     polynomial_coefficients_to_blob,
     serialize_blob,
@@ -24,7 +26,6 @@ static BLOB_SUBGROUP_GENERATOR: LazyLock<BigUint> = LazyLock::new(|| {
     )
     .unwrap()
 });
-const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT;
 
 static FFT_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("fft_regression_input.json"))
@@ -33,8 +34,12 @@ static FFT_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
         .map(|s| Fr::from(BigUint::from_str_radix(&s, 10).unwrap()))
         .collect()
 });
-static FFT_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
-    LazyLock::new(|| serde_json::from_str(include_str!("fft_regression_output.json")).unwrap());
+static FFT_REGRESSION_OUTPUT: LazyLock<[u8; BYTES_PER_BLOB]> = LazyLock::new(|| {
+    serde_json::from_str::<Vec<u8>>(include_str!("fft_regression_output.json"))
+        .unwrap()
+        .try_into()
+        .unwrap()
+});
 static BLOB_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("blob_regression_input.json"))
         .unwrap()
@@ -42,8 +47,12 @@ static BLOB_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
         .map(|s| Fr::from(BigUint::from_str_radix(&s, 10).unwrap()))
         .collect()
 });
-static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
-    LazyLock::new(|| serde_json::from_str(include_str!("blob_regression_output.json")).unwrap());
+static BLOB_REGRESSION_OUTPUT: LazyLock<[u8; BYTES_PER_BLOB]> = LazyLock::new(|| {
+    serde_json::from_str::<Vec<u8>>(include_str!("blob_regression_output.json"))
+        .unwrap()
+        .try_into()
+        .unwrap()
+});
 
 fn generate(generator: &BigUint) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
@@ -59,9 +68,7 @@ fn generate(generator: &BigUint) -> Vec<BigUint> {
 
 #[test]
 fn test_blob_bytes_serde() {
-    let serded_blob =
-        deserialize_blob(&serialize_blob(&BLOB_REGRESSION_INPUT).unwrap().try_into().unwrap())
-            .unwrap();
+    let serded_blob = deserialize_blob(&serialize_blob(&BLOB_REGRESSION_INPUT).unwrap());
     assert_eq!(*BLOB_REGRESSION_INPUT, serded_blob);
 }
 
@@ -98,9 +105,14 @@ fn test_split_commitment_function(
 }
 
 #[rstest]
-#[case::zero(vec![Fr::zero()], &vec![0u8; BYTES_PER_BLOB])]
+#[case::zero(vec![Fr::zero()], &[0u8; BYTES_PER_BLOB])]
 #[case::one(
-    vec![Fr::one()], &(0..BYTES_PER_BLOB).map(|i| if (i + 1) % 32 == 0 { 1 } else { 0 }).collect()
+    vec![Fr::one()],
+    &(0..BYTES_PER_BLOB)
+        .map(|i| if (i + 1).is_multiple_of(32) { 1 } else { 0 })
+        .collect::<Vec<u8>>()
+        .try_into()
+        .unwrap()
 )]
 #[case::degree_one(
     vec![Fr::zero(), Fr::from(10_u8)],
@@ -113,7 +125,42 @@ fn test_split_commitment_function(
 )]
 #[case::original(BLOB_REGRESSION_INPUT.to_vec(), &BLOB_REGRESSION_OUTPUT)]
 #[case::generated(FFT_REGRESSION_INPUT.to_vec(), &FFT_REGRESSION_OUTPUT)]
-fn test_fft_blob_regression(#[case] input: Vec<Fr>, #[case] expected_output: &Vec<u8>) {
+fn test_fft_blob_regression(
+    #[case] input: Vec<Fr>,
+    #[case] expected_output: &[u8; BYTES_PER_BLOB],
+) {
     let bytes = polynomial_coefficients_to_blob(input).unwrap();
     assert_eq!(&bytes, expected_output);
+}
+
+#[rstest]
+fn test_serialize_deserialize_blob() {
+    let blob: [Fr; FIELD_ELEMENTS_PER_BLOB] = (1..=FIELD_ELEMENTS_PER_BLOB)
+        .map(|i| Fr::from(BigUint::from(i)))
+        .collect::<Vec<Fr>>()
+        .try_into()
+        .unwrap();
+    let bytes = serialize_blob(&blob).unwrap();
+    let deserialized_blob = deserialize_blob(&bytes);
+    assert_eq!(deserialized_blob, blob);
+}
+
+#[rstest]
+#[case::simple(vec![Fr::from(1_u8), Fr::from(2_u8), Fr::from(3_u8)])]
+#[case::zero(vec![Fr::zero()])]
+#[case::one(vec![Fr::one()])]
+#[case::regression(BLOB_REGRESSION_INPUT.to_vec())]
+fn test_decode_blobs(#[case] coefficients: Vec<Fr>) {
+    let raw_blob = polynomial_coefficients_to_blob(coefficients.clone()).unwrap();
+    let decoded = decode_blobs(vec![raw_blob]).unwrap();
+    let mut expected = coefficients.clone();
+    expected.resize(FIELD_ELEMENTS_PER_BLOB, Fr::zero());
+    let expected_felt: Vec<Felt> = expected
+        .iter()
+        .map(|fr| {
+            let bytes = fr.into_bigint().to_bytes_be();
+            Felt::from_bytes_be_slice(&bytes)
+        })
+        .collect();
+    assert_eq!(decoded, expected_felt);
 }

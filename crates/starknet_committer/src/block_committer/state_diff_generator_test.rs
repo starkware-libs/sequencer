@@ -21,7 +21,7 @@ fn rng() -> SmallRng {
 
 #[rstest]
 fn generate_random_state_diff_test(mut rng: impl Rng) {
-    let state_diff = generate_random_state_diff(&mut rng, N_STORAGE_UPDATES);
+    let state_diff = generate_random_state_diff(&mut rng, N_STORAGE_UPDATES, None);
     let contract = state_diff
         .storage_updates
         .get(&ContractAddress::from(RANDOM_STATE_DIFF_CONTRACT_ADDRESS))
@@ -34,7 +34,7 @@ fn key_distribution_test(mut rng: impl Rng) {
     let n_iterations = N_STORAGE_UPDATES * 100;
     let mut storage_updates = HashMap::with_capacity(n_iterations);
     for _ in 0..n_iterations {
-        let (key, value) = generate_random_storage_entry(&mut rng);
+        let (key, value) = generate_random_storage_entry(&mut rng, None);
         storage_updates.insert(key, value);
     }
     assert!(storage_updates.len() >= (n_iterations * 99 / 100), "Key distribution is limited");

@@ -35,6 +35,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::{CairoStruct, Const};
+use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -50,32 +51,33 @@ use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoO
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_V1_HASH: expect_test::Expect =
-    expect!["1157029714422828969510047191872039648898471579517702575855872001769107009237"];
+    expect!["1022226894906162365713319044993767664641073541336588844297819698704827805592"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 11224"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["134274"];
+    expect!["poseidon_builtin: 12894"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["153834"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 350, range_check_builtin: 174"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["10469"];
+    expect!["poseidon_builtin: 393, range_check_builtin: 192"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["11767"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 87;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
 const EXPECTED_V2_HASH: expect_test::Expect =
-    expect!["1136498274368501956247557789562970166798281498174788902401163669885946661725"];
+    expect!["257761736461396021318905856799957297966572549172937998488616883475953138704"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 22856"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["436616"];
+    expect!["range_check_builtin: 26241"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["498773"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 992"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["42265"];
+    expect!["range_check_builtin: 1111"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["47574"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
+const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
 
 const CLASS_HASH_WITH_SEGMENTATION: &str =
     "0x5517AD8471C9AA4D1ADD31837240DEAD9DC6653854169E489A813DB4376BE9C";
@@ -99,12 +101,20 @@ trait HashVersionTestSpec {
     fn expected_hash(&self) -> Expect;
     /// The allowed margin for the number of steps.
     fn allowed_margin_n_steps(&self) -> usize;
+    /// The allowed margin for the number of Blake opcodes.
+    fn allowed_margin_blake_opcode_count(&self) -> usize;
     /// Estimates the execution resources for the compiled class hash function.
     fn estimate_execution_resources(
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources;
+    /// Estimates the number of Blake opcodes used for the compiled class hash function.
+    fn estimated_blake_opcode_count(
+        &self,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> usize;
 }
 
 impl HashVersionTestSpec for HashVersion {
@@ -167,6 +177,12 @@ impl HashVersionTestSpec for HashVersion {
             HashVersion::V2 => ALLOWED_MARGIN_BLAKE_N_STEPS,
         }
     }
+    fn allowed_margin_blake_opcode_count(&self) -> usize {
+        match self {
+            HashVersion::V1 => 0,
+            HashVersion::V2 => ALLOWED_MARGIN_BLAKE_OPCODE_COUNT,
+        }
+    }
     fn estimate_execution_resources(
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
@@ -186,6 +202,22 @@ impl HashVersionTestSpec for HashVersion {
                     entry_points_by_type,
                 )
                 .resources()
+            }
+        }
+    }
+    fn estimated_blake_opcode_count(
+        &self,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> usize {
+        match self {
+            HashVersion::V1 => 0,
+            HashVersion::V2 => {
+                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    entry_points_by_type,
+                )
+                .blake_count()
             }
         }
     }
@@ -246,11 +278,11 @@ fn run_compiled_class_hash_entry_point(
     load_full_contract: bool,
     accessed_segments_indicator: &AccessSegmentsIndicator,
     hash_version: &HashVersion,
-) -> Cairo0EntryPointRunnerResult<(ExecutionResources, Felt)> {
+) -> Cairo0EntryPointRunnerResult<(ExecutionResources, OpcodeInstanceCounts, Felt)> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
-        trace_enabled: false,
+        trace_enabled: true,
         verify_secure: false,
         proof_mode: false,
         add_main_prefix_to_entrypoint: false, // Set to false since we're using full path.
@@ -338,7 +370,7 @@ fn run_compiled_class_hash_entry_point(
 
     // Get the actual execution resources, and compare with expected values.
     let actual_execution_resources = runner.get_execution_resources().unwrap();
-
+    let opcode_instances = get_opcode_instances(&runner);
     // Get the hash result from the explicit return values.
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_cairo))) =
         explicit_return_values[0]
@@ -346,7 +378,7 @@ fn run_compiled_class_hash_entry_point(
         panic!("Expected a single felt return value");
     };
 
-    Ok((actual_execution_resources, hash_computed_by_cairo))
+    Ok((actual_execution_resources, opcode_instances, hash_computed_by_cairo))
 }
 
 #[rstest]
@@ -364,7 +396,7 @@ fn test_compiled_class_hash_basic(
     let load_full_contract = false;
     let accessed_segments_indicator = AccessSegmentsIndicator::All;
 
-    let (resources, compiled_class_hash) = run_compiled_class_hash_entry_point(
+    let (resources, _, compiled_class_hash) = run_compiled_class_hash_entry_point(
         &get_dummy_compiled_class(segmentation),
         load_full_contract,
         &accessed_segments_indicator,
@@ -401,7 +433,7 @@ fn test_compiled_class_hash_visited_pcs(
         &accessed_segments_indicator,
         &HashVersion::V1,
     ) {
-        Ok((resources, compiled_class_hash)) => {
+        Ok((resources, _, compiled_class_hash)) => {
             assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(CLASS_HASH_WITH_SEGMENTATION));
             assert_eq!(
                 *resources.builtin_instance_counter.get(&BuiltinName::poseidon).unwrap(),
@@ -431,13 +463,14 @@ fn test_compiled_class_hash(
         _ => panic!("Expected ContractClass::V1"),
     };
     // Run the compiled class hash entry point.
-    let (actual_execution_resources, hash_computed_by_cairo) = run_compiled_class_hash_entry_point(
-        &contract_class,
-        load_full_contract,
-        &accessed_segments_indicator,
-        &hash_version,
-    )
-    .unwrap();
+    let (actual_execution_resources, _, hash_computed_by_cairo) =
+        run_compiled_class_hash_entry_point(
+            &contract_class,
+            load_full_contract,
+            &accessed_segments_indicator,
+            &hash_version,
+        )
+        .unwrap();
 
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
@@ -536,13 +569,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     // Run the compiled class hash entry point with full contract loading.
     let load_full_contract = true;
     let accessed_segments_indicator = AccessSegmentsIndicator::none();
-    let (actual_execution_resources, _) = run_compiled_class_hash_entry_point(
-        &contract_class,
-        load_full_contract,
-        &accessed_segments_indicator,
-        hash_version,
-    )
-    .unwrap();
+    let (actual_execution_resources, actual_opcode_instances, _) =
+        run_compiled_class_hash_entry_point(
+            &contract_class,
+            load_full_contract,
+            &accessed_segments_indicator,
+            hash_version,
+        )
+        .unwrap();
 
     let bytecode_segments = NestedFeltCounts::new(
         &contract_class.get_bytecode_segment_lengths(),
@@ -552,7 +586,7 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     // Estimate resources.
     let execution_resources_estimation = hash_version.estimate_execution_resources(
         &bytecode_segments,
-        &contract_class.entry_points_by_type.into(),
+        &contract_class.entry_points_by_type.clone().into(),
     );
 
     // Compare n_steps.
@@ -570,5 +604,19 @@ fn compare_estimated_vs_actual_casm_hash_resources(
         execution_resources_estimation.builtin_instance_counter,
         actual_execution_resources.filter_unused_builtins().builtin_instance_counter,
         "{contract_name}: Estimated builtins do not match actual builtins"
+    );
+
+    // Compare Blake opcode count.
+    let estimated_blake_opcode_count = hash_version.estimated_blake_opcode_count(
+        &bytecode_segments,
+        &contract_class.entry_points_by_type.into(),
+    );
+    let blake_opcode_count_margin =
+        estimated_blake_opcode_count.abs_diff(actual_opcode_instances.blake_opcode_count);
+    let allowed_blake_opcode_count_margin = hash_version.allowed_margin_blake_opcode_count();
+    assert!(
+        blake_opcode_count_margin <= allowed_blake_opcode_count_margin,
+        "{contract_name}: Estimated Blake opcode count differs from actual by more than \
+         {allowed_blake_opcode_count_margin}. Margin: {blake_opcode_count_margin}"
     );
 }

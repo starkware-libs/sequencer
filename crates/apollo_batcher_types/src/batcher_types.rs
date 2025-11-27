@@ -72,7 +72,6 @@ pub enum GetProposalContent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-// TODO(Dan): Consider unifying with BuildProposalInput as they have the same fields.
 pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,

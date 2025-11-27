@@ -2,11 +2,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::primitives::U256;
-use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
+use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
+use mockall::predicate::eq;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
@@ -18,18 +19,10 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 #[tokio::test]
 async fn scraper_end_to_end() {
-    if !in_ci() {
-        return;
-    }
-
     // Setup.
-    let base_layer = AnvilBaseLayer::new().await;
+    let base_layer = AnvilBaseLayer::new(None).await;
     let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
 
@@ -136,23 +129,13 @@ async fn scraper_end_to_end() {
         cancellation_request_timestamp: cancel_timestamp,
     };
 
-    let expected_events = vec![first_expected_log, second_expected_log, expected_cancel_message];
-
     let mut sequence = Sequence::new();
     // Expect first call to return all the events defined further down.
     l1_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .withf(move |events| {
-            if events.len() != expected_events.len() {
-                return false;
-            }
-            for (event, expected_event) in events.iter().zip(expected_events.iter()) {
-                event.assert_event_almost_eq(expected_event);
-            }
-            true
-        })
+        .with(eq(vec![first_expected_log, second_expected_log, expected_cancel_message]))
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.
@@ -163,16 +146,18 @@ async fn scraper_end_to_end() {
         startup_rewind_time_seconds: Duration::from_secs(100),
         ..Default::default()
     };
-    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client),
         base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),
-        l1_start_block,
     )
     .await
     .unwrap();
+
+    // Make sure to initialize the scraper with the start block.
+    let start_block = scraper.fetch_start_block().await.unwrap();
+    scraper.scrape_from_this_l1_block = Some(start_block);
 
     // Test.
     scraper.send_events_to_l1_provider().await.unwrap();

@@ -7,7 +7,14 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    NonzeroGasPrice,
+    StarknetVersion,
+};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 
@@ -144,6 +151,7 @@ pub struct PyBlockInfo {
     pub l2_gas_price: PyResourcePrice,
     pub sequencer_address: PyFelt,
     pub use_kzg_da: bool,
+    pub starknet_version: String,
 }
 
 /// Block info cannot have gas prices set to zero; implement `Default` explicitly.
@@ -170,6 +178,7 @@ impl Default for PyBlockInfo {
             },
             sequencer_address: PyFelt::default(),
             use_kzg_da: bool::default(),
+            starknet_version: StarknetVersion::default().to_string(),
         }
     }
 }
@@ -231,6 +240,7 @@ impl TryFrom<PyBlockInfo> for BlockInfo {
                 })?,
             ),
             use_kzg_da: block_info.use_kzg_da,
+            starknet_version: block_info.starknet_version.try_into().unwrap_or_default(),
         })
     }
 }

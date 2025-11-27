@@ -9,6 +9,7 @@ use serde::Serialize;
 use starknet_os::hint_processor::os_logger::OsTransactionTrace;
 use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::metrics::{AggregatorMetrics, OsMetrics, ProgramRunInfo};
+use starknet_os::opcode_instances::OpcodeInstanceCounts;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -135,6 +136,7 @@ pub(crate) struct OsCliMetrics {
     pub deprecated_syscall_usages: Vec<SyscallUsageMap>,
     pub run_info: OsCliRunInfo,
     pub execution_resources: ExecutionResources,
+    pub opcode_instances: OpcodeInstanceCounts,
 }
 
 impl From<OsMetrics> for OsCliMetrics {
@@ -144,6 +146,7 @@ impl From<OsMetrics> for OsCliMetrics {
             deprecated_syscall_usages: metrics.deprecated_syscall_usages,
             run_info: metrics.run_info.into(),
             execution_resources: metrics.execution_resources,
+            opcode_instances: metrics.opcode_instances,
         }
     }
 }

@@ -5,7 +5,7 @@ use std::time::Instant;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
-use starknet_api::block::BlockHashAndNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::core::CompiledClassHash;
 use thiserror::Error;
 
@@ -24,7 +24,6 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
-
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
 pub mod transaction_executor_test;
@@ -61,6 +60,7 @@ pub struct BlockExecutionSummary {
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
+    pub block_info: BlockInfo,
 }
 
 /// A transaction executor, used for building a single block.
@@ -241,6 +241,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         block_context.block_info.block_number,
         bouncer.get_bouncer_weights()
     );
+
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
@@ -252,10 +253,14 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     let mut bouncer = bouncer;
     let class_hashes_to_migrate = mem::take(bouncer.get_mut_class_hashes_to_migrate());
-    log::trace!(
-        "Class hashes to migrate (key = class_hash, value = (compiled_class_hash_v2, \
-         compiled_class_hash_v1)): {class_hashes_to_migrate:#?}"
-    );
+    #[cfg(any(test, feature = "testing"))]
+    if !class_hashes_to_migrate.is_empty() {
+        log::info!(
+            "Class hashes to migrate (key = class_hash, value = (compiled_class_hash_v2, \
+             compiled_class_hash_v1)): {class_hashes_to_migrate:#?}"
+        );
+    }
+
     if !block_context.versioned_constants.enable_casm_hash_migration {
         assert!(
             class_hashes_to_migrate.is_empty(),
@@ -297,6 +302,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
         compiled_class_hashes_for_migration: class_hashes_to_migrate.into_values().collect(),
+        block_info: block_context.block_info.clone(),
     })
 }
 

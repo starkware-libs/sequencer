@@ -43,7 +43,7 @@ pub fn flatten_cairo_dict(
 }
 
 pub fn parse_squashed_cairo_dict(squashed_dict: &[Felt]) -> HashMap<Felt, Felt> {
-    assert!(squashed_dict.len() % DICT_ACCESS_SIZE == 0, "Invalid squashed dict length");
+    assert!(squashed_dict.len().is_multiple_of(DICT_ACCESS_SIZE), "Invalid squashed dict length");
     let key_offset = 0;
     let new_val_offset = 2;
     squashed_dict
@@ -98,7 +98,7 @@ pub fn parse_contract_changes(
         .into_iter()
         .map(|item| item.unwrap().into_owned())
         .collect();
-    assert!(flat_outer_dict.len() % DICT_ACCESS_SIZE == 0, "Invalid outer dict length");
+    assert!(flat_outer_dict.len().is_multiple_of(DICT_ACCESS_SIZE), "Invalid outer dict length");
     flat_outer_dict
         .chunks_exact(DICT_ACCESS_SIZE)
         .map(|chunk| {

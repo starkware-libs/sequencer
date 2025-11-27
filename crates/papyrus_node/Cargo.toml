@@ -37,7 +37,6 @@ lazy_static.workspace = true
 once_cell.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
-papyrus_monitoring_gateway.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }

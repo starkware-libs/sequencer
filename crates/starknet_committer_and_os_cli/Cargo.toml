@@ -36,6 +36,7 @@ rand_distr.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_repr.workspace = true
+shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 # The testing feature is needed for the python tests.

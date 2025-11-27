@@ -69,6 +69,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.chain_id",
                 "batcher_config.storage.db_config.chain_id",
+                "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
                 "consensus_manager_config.context_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
@@ -292,6 +293,16 @@ pub struct NodeDynamicConfig {
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+}
+
+impl SerializeConfig for NodeDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let sub_configs = [
+            ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+        ];
+        sub_configs.into_iter().flatten().collect()
+    }
 }
 
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {

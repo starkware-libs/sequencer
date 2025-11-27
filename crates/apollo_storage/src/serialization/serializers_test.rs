@@ -15,6 +15,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::TransactionOffsetInBlock;
 
+use crate::consensus::LastVotedMarker;
 use crate::db::serialization::StorageSerde;
 pub trait StorageSerdeTest: StorageSerde {
     fn storage_serde_test();
@@ -34,8 +35,7 @@ impl<T: StorageSerde + GetTestInstance + Eq + Debug> StorageSerdeTest for T {
     }
 }
 
-// Tests all types that implement the [`StorageSerde`] trait
-// via the [`auto_storage_serde`] macro.
+// Tests all types that implement the [`StorageSerde`] trait.
 macro_rules! create_storage_serde_test {
     ($name:ident) => {
         paste::paste! {
@@ -48,13 +48,9 @@ macro_rules! create_storage_serde_test {
 }
 pub(crate) use create_storage_serde_test;
 
-////////////////////////////////////////////////////////////////////////
-// Implements the [`GetTestInstance`] trait for types not supported
-// by the macro [`impl_get_test_instance`] and calls the [`create_test`]
-// macro to create the tests for them.
-////////////////////////////////////////////////////////////////////////
 create_storage_serde_test!(bool);
 create_storage_serde_test!(ContractAddress);
+create_storage_serde_test!(LastVotedMarker);
 create_storage_serde_test!(StarkHash);
 create_storage_serde_test!(StorageKey);
 create_storage_serde_test!(u8);

@@ -1,4 +1,5 @@
-use crate::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
+
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 

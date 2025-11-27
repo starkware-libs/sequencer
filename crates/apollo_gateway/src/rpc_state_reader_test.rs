@@ -6,7 +6,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken};
+use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
@@ -70,8 +70,10 @@ async fn test_get_block_info() {
     );
 
     let block_number = BlockNumber(100);
+    let starknet_version = StarknetVersion::LATEST;
 
-    let expected_result = BlockInfo { block_number, gas_prices, ..Default::default() };
+    let expected_result =
+        BlockInfo { block_number, gas_prices, starknet_version, ..Default::default() };
 
     let mock = mock_rpc_interaction(
         &mut server,
@@ -84,6 +86,7 @@ async fn test_get_block_info() {
                 l1_gas_price,
                 l1_data_gas_price,
                 l2_gas_price,
+                starknet_version: starknet_version.to_string(),
                 ..Default::default()
             })
             .unwrap(),

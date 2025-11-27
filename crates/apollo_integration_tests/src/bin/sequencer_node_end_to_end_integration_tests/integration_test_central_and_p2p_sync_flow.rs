@@ -18,12 +18,14 @@ async fn main() {
     const N_CONSOLIDATED_SEQUENCERS: usize = 2;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-
+    /// The number of hybrid sequencers that participate in the test.
+    const N_HYBRID_SEQUENCERS: usize = 0;
     const CENTRAL_SYNC_NODE: usize = 1;
 
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
+        N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::SyncFlowIntegrationTest,
     )

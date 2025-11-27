@@ -59,17 +59,7 @@ pub trait BaseLayerContract {
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error>;
 
-    /// Get the latest Starknet block that is proved on the base layer with minimum number of
-    /// confirmations (for no confirmations, pass `0`).
-    async fn latest_proved_block(
-        &self,
-        finality: u64,
-    ) -> Result<Option<BlockHashAndNumber>, Self::Error>;
-
-    async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error>;
-
-    async fn latest_l1_block(&self, finality: u64)
-    -> Result<Option<L1BlockReference>, Self::Error>;
+    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error>;
 
     async fn l1_block_at(
         &self,

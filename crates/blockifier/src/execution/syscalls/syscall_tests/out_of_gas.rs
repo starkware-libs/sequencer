@@ -18,9 +18,9 @@ use crate::test_utils::trivial_external_entry_point_new;
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_out_of_gas(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let (mut state, block_number, _block_hash) = initialize_state(test_contract);
+    let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
-    let calldata = calldata![block_number];
+    let calldata = calldata![block_number, block_hash];
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_get_block_hash"),
         calldata,

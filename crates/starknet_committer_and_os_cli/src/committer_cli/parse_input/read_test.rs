@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
     Input,
@@ -11,7 +12,6 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};

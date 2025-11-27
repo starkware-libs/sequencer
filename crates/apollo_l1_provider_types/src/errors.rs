@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
 
-use crate::Event;
-
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1ProviderError {
     #[error("`get_txs` while in `Validate` state")]
@@ -26,8 +24,6 @@ pub enum L1ProviderError {
     UnexpectedHeight { expected_height: BlockNumber, got: BlockNumber },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
-    #[error("L1 event not supported: {0}")]
-    UnsupportedL1Event(String),
     #[error("`validate` called while in `Propose` state")]
     ValidateTransactionConsensusBug,
 }
@@ -35,10 +31,6 @@ pub enum L1ProviderError {
 impl L1ProviderError {
     pub fn unexpected_transition(from: impl ToString, to: impl ToString) -> Self {
         Self::UnexpectedProviderStateTransition { from: from.to_string(), to: to.to_string() }
-    }
-
-    pub fn unsupported_l1_event(event: Event) -> Self {
-        Self::UnsupportedL1Event(event.to_string())
     }
 }
 
