@@ -64,7 +64,6 @@ async fn get_gas_price_and_timestamps() {
     // Test legacy blob
 
     asserter.push_success(mocked_block_response);
-    base_layer.config.prague_blob_gas_calc = false;
     let header = base_layer.get_block_header(0).await.unwrap().unwrap();
     // Roughly e ** (BLOB_GAS / eip4844::BLOB_GASPRICE_UPDATE_FRACTION)
     let expected_original_blob_calc = 19;
