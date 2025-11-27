@@ -51,6 +51,7 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
@@ -64,11 +65,12 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
-            .get_state_reader_from_latest_block()
+        let state_reader = runtime
+            .block_on(state_reader_factory.get_state_reader_from_latest_block())
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
             })
