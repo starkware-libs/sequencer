@@ -113,10 +113,11 @@ async fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -194,6 +195,7 @@ async fn validator(repeat_proposal: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -276,6 +278,7 @@ async fn vote_twice(same_vote: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -355,10 +358,11 @@ async fn rebroadcast_votes() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -419,10 +423,11 @@ async fn repropose() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -530,6 +535,7 @@ async fn writes_voted_height_to_storage() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         mock_storage.clone(),
+        false,
     );
 
     let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
@@ -618,6 +624,7 @@ async fn shc_applies_proposal_timeouts_across_rounds() {
         QuorumType::Byzantine,
         timeouts.clone(),
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        false,
     );
     // context expectations.
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);

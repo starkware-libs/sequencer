@@ -156,6 +156,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let mut context = MockTestContext::new();
     // Run the manager for height 1.
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -220,6 +221,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         .times(1)
         .returning(|_| true);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
 
     // Send messages for height 2.
     send_proposal(
@@ -282,6 +284,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
 
     let (timeout_send, timeout_receive) = oneshot::channel();
     // Node handled Timeout events and responded with NIL vote.
@@ -423,6 +426,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -540,6 +544,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
     expect_validate_proposal(&mut context, Felt::ONE, 2);
     context
@@ -645,14 +650,15 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     });
     context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // In this test, build_proposal should be called only when the dynamic config returns that we
     // are the proposer, which happens at H2.
     context
         .expect_build_proposal()
-        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
-        .returning(move |_, _| {
+        .withf(move |init, _, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .returning(move |_, _, _| {
             let (sender, receiver) = oneshot::channel();
             sender.send(ProposalCommitment(Felt::TWO)).unwrap();
             receiver
@@ -782,6 +788,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // Sync will never succeed so we will proceed to run consensus (during which try_sync is called
     // periodically regardless of last voted height functionality).
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);

@@ -144,6 +144,7 @@ pub(crate) struct SingleHeightConsensus {
     last_prevote: Option<Vote>,
     last_precommit: Option<Vote>,
     height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    skip_write_prev_height_blob: bool,
 }
 
 impl SingleHeightConsensus {
@@ -155,6 +156,7 @@ impl SingleHeightConsensus {
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
         height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+        skip_write_prev_height_blob: bool,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
@@ -170,6 +172,7 @@ impl SingleHeightConsensus {
             last_prevote: None,
             last_precommit: None,
             height_voted_storage,
+            skip_write_prev_height_blob,
         }
     }
 
@@ -464,7 +467,8 @@ impl SingleHeightConsensus {
         // timeout for building to avoid giving the Batcher more time when proposal time is
         // extended for consensus.
         let build_timeout = self.timeouts.get_proposal_timeout(0);
-        let fin_receiver = context.build_proposal(init, build_timeout).await;
+        let fin_receiver =
+            context.build_proposal(init, build_timeout, self.skip_write_prev_height_blob).await;
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
 

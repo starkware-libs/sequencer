@@ -21,6 +21,8 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
+use apollo_state_sync_types::communication::StateSyncClientError;
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -61,7 +63,7 @@ async fn cancelled_proposal_aborts() {
     deps.batcher.expect_start_height().times(1).return_const(Ok(()));
 
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
 
     // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -288,7 +290,7 @@ async fn build_proposal() {
     let (mut deps, mut network) = create_test_and_network_deps();
     deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
@@ -329,7 +331,7 @@ async fn build_proposal_cende_failure() {
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
 
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
@@ -345,7 +347,7 @@ async fn build_proposal_cende_incomplete() {
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
 
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
@@ -372,7 +374,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
-        let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+        let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
         let (mut content_sender, content_receiver) =
@@ -398,7 +400,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     deps.setup_deps_for_build(BlockNumber(0), transactions.len(), 1);
     let mut context = deps.build_context();
     // Build proposal.
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
     let _init = receiver.next().await.unwrap();
@@ -563,7 +565,7 @@ async fn decision_reached_sends_correct_values() {
     let mut context = deps.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
-    let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
+    let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await.await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
     let vote = Vote {
@@ -620,7 +622,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     let init = ProposalInit::default();
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+    let fin_receiver = context.build_proposal(init, TIMEOUT, false).await;
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
@@ -759,7 +761,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Build proposal for block number 1.
     let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+    let fin_receiver = context.build_proposal(init, TIMEOUT, false).await;
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
@@ -894,7 +896,7 @@ async fn override_prices_behavior(
     apply_fee_transformations(&mut expected_l1_prices, &gas_price_params);
 
     // Run proposal and decision logic.
-    let fin_result = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
+    let fin_result = context.build_proposal(ProposalInit::default(), TIMEOUT, false).await.await;
 
     // In cases where we expect the batcher to fail the block build.
     if !build_success {
@@ -975,4 +977,32 @@ async fn override_prices_behavior(
             actual_conversion_rate, ETH_TO_FRI_RATE
         );
     }
+}
+
+#[tokio::test]
+async fn get_latest_sync_height_returns_height() {
+    const RETURNED_MAX_HEIGHT: BlockNumber = BlockNumber(123);
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Ok(Some(RETURNED_MAX_HEIGHT)));
+
+    let context = deps.build_context();
+    let latest_sync_height = context.get_latest_sync_height().await;
+
+    assert_eq!(latest_sync_height, Some(RETURNED_MAX_HEIGHT));
+}
+
+#[tokio::test]
+async fn get_latest_sync_height_returns_none_on_error() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Err(StateSyncClientError::StateSyncError(StateSyncError::EmptyState)));
+
+    let context = deps.build_context();
+    let latest_sync_height = context.get_latest_sync_height().await;
+
+    assert_eq!(latest_sync_height, None);
 }

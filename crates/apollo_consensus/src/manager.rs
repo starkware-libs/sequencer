@@ -260,6 +260,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    async fn can_skip_write_prev_height_blob(
+        &self,
+        height: BlockNumber,
+        context: &ContextT,
+    ) -> bool {
+        if height == BlockNumber(0) {
+            return true;
+        }
+        match context.get_latest_sync_height().await {
+            Some(latest_sync_height) => {
+                latest_sync_height
+                    >= height.prev().expect("Height should be greater than 0. Checked above.")
+            }
+            None => false,
+        }
+    }
+
     /// Continiously attempts to sync to the given height and waits until it succeeds.
     async fn wait_until_sync_reaches_height(
         &mut self,
@@ -320,6 +337,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
             self.voted_height_storage.clone(),
+            self.can_skip_write_prev_height_blob(height, context).await,
         );
         let mut shc_events = FuturesUnordered::new();
 
