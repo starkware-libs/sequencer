@@ -98,7 +98,7 @@ pub fn parse_contract_changes(
         .into_iter()
         .map(|item| item.unwrap().into_owned())
         .collect();
-    assert!(flat_outer_dict.len() % DICT_ACCESS_SIZE == 0, "Invalid outer dict length");
+    assert!(flat_outer_dict.len().is_multiple_of(DICT_ACCESS_SIZE), "Invalid outer dict length");
     flat_outer_dict
         .chunks_exact(DICT_ACCESS_SIZE)
         .map(|chunk| {
