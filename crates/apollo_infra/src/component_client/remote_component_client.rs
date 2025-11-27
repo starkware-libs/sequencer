@@ -7,6 +7,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use hyper::body::{to_bytes, Bytes};
+use hyper::client::connect::HttpConnector;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
@@ -39,6 +40,7 @@ pub struct RemoteClientConfig {
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
+    pub set_tcp_nodelay: bool,
 }
 
 impl Default for RemoteClientConfig {
@@ -50,6 +52,7 @@ impl Default for RemoteClientConfig {
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
+            set_tcp_nodelay: true,
         }
     }
 }
@@ -78,19 +81,25 @@ impl SerializeConfig for RemoteClientConfig {
             ser_param(
                 "initial_retry_delay_ms",
                 &self.initial_retry_delay_ms,
-                "Initial delay before first retry in milliseconds",
+                "Initial delay before first retry in milliseconds.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "attempts_per_log",
                 &self.attempts_per_log,
-                "Number of attempts between failure log messages",
+                "Number of attempts between failure log messages.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_retry_interval_ms",
                 &self.max_retry_interval_ms,
                 "The maximal duration in milliseconds to wait between remote connection retries.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "set_tcp_nodelay",
+                &self.set_tcp_nodelay,
+                "Whether to set TCP_NODELAY on the client requests.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -130,12 +139,16 @@ where
         metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
+        let mut connector = HttpConnector::new();
+        connector.set_nodelay(config.set_tcp_nodelay);
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
-            .build_http();
+            .build(connector);
+
         debug!("RemoteComponentClient created with URI: {uri:?}");
+
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 

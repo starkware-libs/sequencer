@@ -86,6 +86,7 @@
   "components.sierra_compiler.remote_server_config.#is_none": false,
   "components.sierra_compiler.remote_server_config.bind_ip": "0.0.0.0",
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": 8,
+  "components.sierra_compiler.remote_server_config.set_tcp_nodelay": true,
   "components.sierra_compiler.url": "$$$_COMPONENTS-SIERRA_COMPILER-URL_$$$",
   "components.signature_manager.execution_mode": "Disabled",
   "components.signature_manager.local_server_config.#is_none": true,
