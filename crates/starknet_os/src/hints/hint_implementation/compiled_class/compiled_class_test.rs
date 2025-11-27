@@ -34,14 +34,8 @@ use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
-<<<<<<< HEAD
 use crate::hints::vars::{CairoStruct, Const};
-||||||| 1463c3667e
-use crate::hints::vars::Const;
-=======
-use crate::hints::vars::Const;
 use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
->>>>>>> origin/main-v0.14.1-committer
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -284,13 +278,7 @@ fn run_compiled_class_hash_entry_point(
     load_full_contract: bool,
     accessed_segments_indicator: &AccessSegmentsIndicator,
     hash_version: &HashVersion,
-<<<<<<< HEAD
-) -> Cairo0EntryPointRunnerResult<(ExecutionResources, Felt)> {
-||||||| 1463c3667e
-) -> (ExecutionResources, Felt) {
-=======
-) -> (ExecutionResources, OpcodeInstanceCounts, Felt) {
->>>>>>> origin/main-v0.14.1-committer
+) -> Cairo0EntryPointRunnerResult<(ExecutionResources, OpcodeInstanceCounts, Felt)> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -390,8 +378,7 @@ fn run_compiled_class_hash_entry_point(
         panic!("Expected a single felt return value");
     };
 
-<<<<<<< HEAD
-    Ok((actual_execution_resources, hash_computed_by_cairo))
+    Ok((actual_execution_resources, opcode_instances, hash_computed_by_cairo))
 }
 
 #[rstest]
@@ -409,7 +396,7 @@ fn test_compiled_class_hash_basic(
     let load_full_contract = false;
     let accessed_segments_indicator = AccessSegmentsIndicator::All;
 
-    let (resources, compiled_class_hash) = run_compiled_class_hash_entry_point(
+    let (resources, _, compiled_class_hash) = run_compiled_class_hash_entry_point(
         &get_dummy_compiled_class(segmentation),
         load_full_contract,
         &accessed_segments_indicator,
@@ -446,7 +433,7 @@ fn test_compiled_class_hash_visited_pcs(
         &accessed_segments_indicator,
         &HashVersion::V1,
     ) {
-        Ok((resources, compiled_class_hash)) => {
+        Ok((resources, _, compiled_class_hash)) => {
             assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(CLASS_HASH_WITH_SEGMENTATION));
             assert_eq!(
                 *resources.builtin_instance_counter.get(&BuiltinName::poseidon).unwrap(),
@@ -459,11 +446,6 @@ fn test_compiled_class_hash_visited_pcs(
             assert!(error.to_string().contains(expected_error_message));
         }
     }
-||||||| 1463c3667e
-    (actual_execution_resources, hash_computed_by_cairo)
-=======
-    (actual_execution_resources, opcode_instances, hash_computed_by_cairo)
->>>>>>> origin/main-v0.14.1-committer
 }
 
 #[rstest]
@@ -481,21 +463,14 @@ fn test_compiled_class_hash(
         _ => panic!("Expected ContractClass::V1"),
     };
     // Run the compiled class hash entry point.
-<<<<<<< HEAD
-    let (actual_execution_resources, hash_computed_by_cairo) = run_compiled_class_hash_entry_point(
-        &contract_class,
-        load_full_contract,
-        &accessed_segments_indicator,
-        &hash_version,
-    )
-    .unwrap();
-||||||| 1463c3667e
-    let (actual_execution_resources, hash_computed_by_cairo) =
-        run_compiled_class_hash_entry_point(&contract_class, load_full_contract, &hash_version);
-=======
     let (actual_execution_resources, _, hash_computed_by_cairo) =
-        run_compiled_class_hash_entry_point(&contract_class, load_full_contract, &hash_version);
->>>>>>> origin/main-v0.14.1-committer
+        run_compiled_class_hash_entry_point(
+            &contract_class,
+            load_full_contract,
+            &accessed_segments_indicator,
+            &hash_version,
+        )
+        .unwrap();
 
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
@@ -592,23 +567,16 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     hash_version: &HashVersion,
 ) {
     // Run the compiled class hash entry point with full contract loading.
-<<<<<<< HEAD
     let load_full_contract = true;
     let accessed_segments_indicator = AccessSegmentsIndicator::none();
-    let (actual_execution_resources, _) = run_compiled_class_hash_entry_point(
-        &contract_class,
-        load_full_contract,
-        &accessed_segments_indicator,
-        hash_version,
-    )
-    .unwrap();
-||||||| 1463c3667e
-    let (actual_execution_resources, _) =
-        run_compiled_class_hash_entry_point(&contract_class, true, hash_version);
-=======
     let (actual_execution_resources, actual_opcode_instances, _) =
-        run_compiled_class_hash_entry_point(&contract_class, true, hash_version);
->>>>>>> origin/main-v0.14.1-committer
+        run_compiled_class_hash_entry_point(
+            &contract_class,
+            load_full_contract,
+            &accessed_segments_indicator,
+            hash_version,
+        )
+        .unwrap();
 
     let bytecode_segments = NestedFeltCounts::new(
         &contract_class.get_bytecode_segment_lengths(),
