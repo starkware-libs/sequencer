@@ -25,6 +25,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
 tower = { workspace = true, features = ["limit", "util"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
