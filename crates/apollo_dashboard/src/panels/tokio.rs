@@ -1,5 +1,4 @@
-use apollo_metrics::metrics::{MetricDetails, MetricQueryName};
-use apollo_monitoring_endpoint::tokio_metrics::{
+use apollo_infra::tokio_metrics::{
     TOKIO_GLOBAL_QUEUE_DEPTH,
     TOKIO_MAX_BUSY_DURATION_MICROS,
     TOKIO_MAX_PARK_COUNT,
@@ -9,6 +8,7 @@ use apollo_monitoring_endpoint::tokio_metrics::{
     TOKIO_TOTAL_PARK_COUNT,
     TOKIO_WORKERS_COUNT,
 };
+use apollo_metrics::metrics::{MetricDetails, MetricQueryName};
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::infra_panels::POD_LEGEND;
