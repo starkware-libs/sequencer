@@ -136,7 +136,12 @@ impl SwarmTrait for MockSwarm {
         Ok(())
     }
 
-    fn send_query(&mut self, query: Vec<u8>, _protocol: StreamProtocol) -> OutboundSessionId {
+    fn send_query(
+        &mut self,
+        query: Vec<u8>,
+        _protocol: StreamProtocol,
+        _peer_id: Option<PeerId>,
+    ) -> OutboundSessionId {
         let outbound_session_id = OutboundSessionId { value: self.next_outbound_session_id };
         self.create_response_events_for_query_each_num_becomes_response(
             query,

@@ -70,6 +70,7 @@ fn start_query_and_update_map(
     let outbound_session_id = outbound_swarm.behaviour_mut().start_query(
         get_bytes_from_query_indices(outbound_peer_id, inbound_peer_id),
         PROTOCOL_NAME,
+        None,
     );
     outbound_session_id_to_peer_id.insert((outbound_peer_id, outbound_session_id), inbound_peer_id);
 }
