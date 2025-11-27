@@ -10,6 +10,7 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -36,7 +37,7 @@ use crate::metrics::{
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_RECEIVED,
 };
-use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus, SingleHeightConsensusArgs};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
@@ -162,6 +163,20 @@ pub enum RunHeightRes {
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
+#[cfg_attr(any(test, feature = "testing"), mockall::automock)]
+pub(crate) trait SingleHeightConsensusFactoryTrait: Debug + Send + Sync {
+    fn new_instance(&self, args: SingleHeightConsensusArgs) -> SingleHeightConsensus;
+}
+
+#[derive(Debug)]
+struct SingleHeightConsensusFactoryImpl;
+
+impl SingleHeightConsensusFactoryTrait for SingleHeightConsensusFactoryImpl {
+    fn new_instance(&self, args: SingleHeightConsensusArgs) -> SingleHeightConsensus {
+        SingleHeightConsensus::new(args)
+    }
+}
+
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug)]
@@ -178,6 +193,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // TODO(guy.f): Remove in the following PR.
     #[allow(dead_code)]
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    single_height_consensus_factory: Box<dyn SingleHeightConsensusFactoryTrait>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
@@ -186,6 +202,20 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         consensus_config: ConsensusConfig,
         quorum_type: QuorumType,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    ) -> Self {
+        Self::new_with_single_height_consensus_factory(
+            consensus_config,
+            quorum_type,
+            voted_height_storage,
+            Box::new(SingleHeightConsensusFactoryImpl),
+        )
+    }
+
+    fn new_with_single_height_consensus_factory(
+        consensus_config: ConsensusConfig,
+        quorum_type: QuorumType,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+        single_height_consensus_factory: Box<dyn SingleHeightConsensusFactoryTrait>,
     ) -> Self {
         let last_voted_height_at_initialization = voted_height_storage
             .lock()
@@ -199,6 +229,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             cached_proposals: BTreeMap::new(),
             last_voted_height_at_initialization,
             voted_height_storage,
+            single_height_consensus_factory,
         }
     }
 
@@ -258,6 +289,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    async fn can_skip_write_prev_height_blob(
+        &self,
+        height: BlockNumber,
+        context: &ContextT,
+    ) -> bool {
+        if height == BlockNumber(0) {
+            return true;
+        }
+        match context.get_latest_sync_height().await {
+            Some(latest_sync_height) => {
+                latest_sync_height
+                    >= height.prev().expect("Height should be greater than 0. Checked above.")
+            }
+            None => false,
+        }
+    }
+
     /// Continiously attempts to sync to the given height and waits until it succeeds.
     async fn wait_until_sync_reaches_height(
         &mut self,
@@ -312,15 +360,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             height, is_observer, validators,
         );
 
-        let mut shc = SingleHeightConsensus::new(
-            height,
-            is_observer,
-            self.consensus_config.dynamic_config.validator_id,
-            validators,
-            self.quorum_type,
-            self.consensus_config.dynamic_config.timeouts.clone(),
-            self.voted_height_storage.clone(),
-        );
+        let mut shc =
+            self.single_height_consensus_factory.new_instance(SingleHeightConsensusArgs {
+                height,
+                is_observer,
+                validator_id: self.consensus_config.dynamic_config.validator_id,
+                validators,
+                quorum_type: self.quorum_type,
+                timeouts: self.consensus_config.dynamic_config.timeouts.clone(),
+                height_voted_storage: self.voted_height_storage.clone(),
+                skip_cende_write: self.can_skip_write_prev_height_blob(height, context).await,
+            });
         let mut shc_events = FuturesUnordered::new();
 
         match self.start_height(context, height, &mut shc).await? {
