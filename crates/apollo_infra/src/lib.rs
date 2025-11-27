@@ -6,4 +6,7 @@ pub mod requests;
 pub mod serde_utils;
 #[cfg(test)]
 pub mod tests;
+pub mod tokio_metrics;
+#[cfg(test)]
+pub mod tokio_metrics_tests;
 pub mod trace_util;
