@@ -1,6 +1,6 @@
 use std::env::args;
 
-use apollo_infra::metrics::MetricsConfig;
+use apollo_infra::metrics::{initialize_metrics_recorder, MetricsConfig};
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;
@@ -23,6 +23,8 @@ fn set_exit_process_on_panic() {
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
 
+    let prometheus_handle = initialize_metrics_recorder(MetricsConfig::enabled());
+
     set_exit_process_on_panic();
 
     let cli_args: Vec<String> = args().collect();
@@ -30,9 +32,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
-    // TODO(Nadin): Move metrics initialization to main.
-    let (_clients, servers) =
-        create_node_modules(&config, MetricsConfig::enabled(), cli_args).await;
+    let (_clients, servers) = create_node_modules(&config, prometheus_handle, cli_args).await;
 
     info!("START_UP: Starting components!");
     run_component_servers(servers).await;

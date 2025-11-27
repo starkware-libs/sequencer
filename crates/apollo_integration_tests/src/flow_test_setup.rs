@@ -6,7 +6,7 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
-use apollo_infra::metrics::MetricsConfig;
+use apollo_infra::metrics::{initialize_metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -289,10 +289,8 @@ impl FlowSequencerSetup {
             num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
-        // Pass MetricsConfig::default() (disabled) to avoid conflicts when running multiple
-        // sequencers in the same process (metrics recorder can only be installed once globally).
-        let (clients, servers) =
-            create_node_modules(&node_config, MetricsConfig::default(), vec![]).await;
+        let prometheus_handle = initialize_metrics_recorder(MetricsConfig::default());
+        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
