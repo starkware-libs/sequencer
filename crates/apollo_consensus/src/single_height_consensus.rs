@@ -121,6 +121,16 @@ impl ShcTask {
     }
 }
 
+pub(crate) struct SingleHeightConsensusArgs {
+    pub height: BlockNumber,
+    pub is_observer: bool,
+    pub id: ValidatorId,
+    pub validators: Vec<ValidatorId>,
+    pub quorum_type: QuorumType,
+    pub timeouts: TimeoutsConfig,
+    pub height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    pub skip_cende_write: bool,
+}
 /// Represents a single height of consensus. It is responsible for mapping between the idealized
 /// view of consensus represented in the StateMachine and the real world implementation.
 ///
@@ -140,28 +150,28 @@ pub(crate) struct SingleHeightConsensus {
     // Tracks rounds for which we started validating a proposal to avoid duplicate validations.
     pending_validation_rounds: HashSet<Round>,
     height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    skip_cende_write: bool,
 }
 
 impl SingleHeightConsensus {
-    pub(crate) fn new(
-        height: BlockNumber,
-        is_observer: bool,
-        id: ValidatorId,
-        validators: Vec<ValidatorId>,
-        quorum_type: QuorumType,
-        timeouts: TimeoutsConfig,
-        height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
-    ) -> Self {
+    pub(crate) fn new(args: SingleHeightConsensusArgs) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
-        let n_validators =
-            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
+        let n_validators = u64::try_from(args.validators.len())
+            .expect("Should have way less than u64::MAX validators");
+        let state_machine = StateMachine::new(
+            args.height,
+            args.id,
+            n_validators,
+            args.is_observer,
+            args.quorum_type,
+        );
         Self {
-            validators,
-            timeouts,
+            validators: args.validators,
+            timeouts: args.timeouts,
             state_machine,
             pending_validation_rounds: HashSet::new(),
-            height_voted_storage,
+            height_voted_storage: args.height_voted_storage,
+            skip_cende_write: args.skip_cende_write,
         }
     }
 
@@ -458,7 +468,8 @@ impl SingleHeightConsensus {
         // timeout for building to avoid giving the Batcher more time when proposal time is
         // extended for consensus.
         let build_timeout = self.timeouts.get_proposal_timeout(0);
-        let fin_receiver = context.build_proposal(init, build_timeout).await;
+        let fin_receiver: oneshot::Receiver<ProposalCommitment> =
+            context.build_proposal(init, build_timeout, self.skip_cende_write).await;
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
 

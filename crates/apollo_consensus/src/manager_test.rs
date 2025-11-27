@@ -29,6 +29,8 @@ use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use crate::manager::MockSingleHeightConsensusFactoryTrait;
+use crate::single_height_consensus::{SingleHeightConsensus, SingleHeightConsensusArgs};
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
     precommit,
@@ -156,6 +158,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let mut context = MockTestContext::new();
     // Run the manager for height 1.
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -220,6 +223,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         .times(1)
         .returning(|_| true);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
 
     // Send messages for height 2.
     send_proposal(
@@ -282,6 +286,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
 
     let (timeout_send, timeout_receive) = oneshot::channel();
     // Node handled Timeout events and responded with NIL vote.
@@ -423,6 +428,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -540,6 +546,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
     expect_validate_proposal(&mut context, Felt::ONE, 2);
     context
@@ -645,14 +652,15 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     });
     context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // In this test, build_proposal should be called only when the dynamic config returns that we
     // are the proposer, which happens at H2.
     context
         .expect_build_proposal()
-        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
-        .returning(move |_, _| {
+        .withf(move |init, _, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .returning(move |_, _, _| {
             let (sender, receiver) = oneshot::channel();
             sender.send(ProposalCommitment(Felt::TWO)).unwrap();
             receiver
@@ -782,6 +790,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // Sync will never succeed so we will proceed to run consensus (during which try_sync is called
     // periodically regardless of last voted height functionality).
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
+    context.expect_get_latest_sync_height().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -856,4 +865,126 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
         .unwrap();
 
     assert_eq!(decision, RunHeightRes::Sync);
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_tells_single_height_consensus_to_skip_writing_previous_height_blob(
+    consensus_config: ConsensusConfig,
+) {
+    const CURRENT_HEIGHT: BlockNumber = BlockNumber(123);
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT.0, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // We see that the previous height is already written.
+    context.expect_get_latest_sync_height().returning(|| Some(CURRENT_HEIGHT.prev().unwrap()));
+
+    // Since the previous height is already written, we expect the single height consensus instance
+    // to be told to skip writing it.
+    let mut mock_single_height_consensus_factory = MockSingleHeightConsensusFactoryTrait::new();
+    mock_single_height_consensus_factory
+        .expect_new_instance()
+        .withf(move |args: &SingleHeightConsensusArgs| args.skip_cende_write)
+        .returning(move |args: SingleHeightConsensusArgs| SingleHeightConsensus::new(args));
+
+    // Run consensus to make sure the single height consensus instance is created with skipping
+    // writing the previous height blob.
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+    manager
+        .run_height(
+            &mut context,
+            CURRENT_HEIGHT,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_tells_single_height_consensus_to_not_skip_writing_previous_height_blob(
+    consensus_config: ConsensusConfig,
+) {
+    const CURRENT_HEIGHT: BlockNumber = BlockNumber(123);
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT.0, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // We see that the previous height was not previously written.
+    context
+        .expect_get_latest_sync_height()
+        .returning(|| Some(CURRENT_HEIGHT.prev().unwrap().prev().unwrap()));
+
+    // Since the previous height wasn't, we expect the single height consensus instance
+    // to be told to not skip writing it.
+    let mut mock_single_height_consensus_factory = MockSingleHeightConsensusFactoryTrait::new();
+    mock_single_height_consensus_factory
+        .expect_new_instance()
+        .withf(move |args: &SingleHeightConsensusArgs| !args.skip_cende_write)
+        .returning(move |args: SingleHeightConsensusArgs| SingleHeightConsensus::new(args));
+
+    // Run consensus to make sure the single height consensus instance is created with skipping
+    // writing the previous height blob.
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+    manager
+        .run_height(
+            &mut context,
+            CURRENT_HEIGHT,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
 }
