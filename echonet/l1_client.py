@@ -6,6 +6,7 @@ import functools
 import inspect
 import logging
 import requests
+from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE, STARKNET_L1_CONTRACT_ADDRESS
 
 
 class L1Client:
@@ -13,12 +14,6 @@ class L1Client:
     DATA_BLOCKS_BY_TIMESTAMP_URL_FMT = (
         "https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
     )
-    # Taken from apollo_l1_provider/src/lib.rs
-    LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
-        "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
-    )
-    # Taken from ethereum_base_layer_contracts.rs
-    STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
 
     @dataclass(frozen=True)
     class Log:
@@ -96,8 +91,8 @@ class L1Client:
                 {
                     "fromBlock": hex(from_block),
                     "toBlock": hex(to_block),
-                    "address": self.STARKNET_L1_CONTRACT_ADDRESS,
-                    "topics": [self.LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
+                    "address": STARKNET_L1_CONTRACT_ADDRESS,
+                    "topics": [LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
                 }
             ],
             "id": 1,
