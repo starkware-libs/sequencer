@@ -16,7 +16,7 @@ pub struct ConsensusManagerConfig {
     pub consensus_manager_config: ConsensusConfig,
     pub context_config: ContextConfig,
     pub stream_handler_config: StreamHandlerConfig,
-    #[validate]
+    #[validate(nested)]
     pub network_config: NetworkConfig,
     pub cende_config: CendeConfig,
     pub revert_config: RevertConfig,

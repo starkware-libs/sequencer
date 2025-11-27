@@ -70,7 +70,7 @@ pub struct ReactiveComponentExecutionConfig {
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
-    #[validate(custom = "validate_max_concurrency")]
+    #[validate(custom(function = "validate_max_concurrency"))]
     pub max_concurrency: usize,
     pub url: String,
     pub port: u16,
