@@ -24,7 +24,7 @@ use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
 use tracing::{debug, error, instrument};
 use url::Url;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::eth_events::parse_event;
 use crate::{
@@ -258,7 +258,7 @@ impl PartialEq for EthereumBaseLayerError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
     pub starknet_contract_address: EthereumContractAddress,
     // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
@@ -272,6 +272,28 @@ pub struct EthereumBaseLayerConfig {
     pub prague_blob_gas_calc: bool,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
+}
+
+impl Validate for EthereumBaseLayerConfig {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        let mut errors = validator::ValidationErrors::new();
+
+        if self.fusaka_no_bpo_start_block_number > self.bpo1_start_block_number {
+            let mut error = ValidationError::new("block_numbers_not_ordered");
+            error.message =
+                Some("fusaka_no_bpo_start_block_number must be <= bpo1_start_block_number".into());
+            errors.add("fusaka_no_bpo_start_block_number", error);
+        }
+
+        if self.bpo1_start_block_number > self.bpo2_start_block_number {
+            let mut error = ValidationError::new("block_numbers_not_ordered");
+            error.message =
+                Some("bpo1_start_block_number must be <= bpo2_start_block_number".into());
+            errors.add("bpo1_start_block_number", error);
+        }
+
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
+    }
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
