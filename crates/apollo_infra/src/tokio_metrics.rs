@@ -3,9 +3,11 @@ use std::time::Duration;
 use apollo_metrics::define_metrics;
 use tokio_metrics::RuntimeMetricsReporterBuilder;
 
-const TOKIO_REPORTING_INTERVAL_SECONDS: u64 = 10;
+#[cfg(test)]
+#[path = "tokio_metrics_tests.rs"]
+mod tokio_metrics_tests;
 
-// TODO(Tsabary): these metrics do not belong here, move them to a more appropriate crate.
+const TOKIO_REPORTING_INTERVAL_SECONDS: u64 = 10;
 
 define_metrics!(
     Tokio => {
@@ -24,7 +26,7 @@ define_metrics!(
 
 /// Start the tokio runtime metrics reporter to automatically collect and export tokio runtime
 /// metrics
-pub(crate) fn setup_tokio_metrics() {
+pub fn setup_tokio_metrics() {
     tokio::spawn(
         RuntimeMetricsReporterBuilder::default()
             .with_interval(Duration::from_secs(TOKIO_REPORTING_INTERVAL_SECONDS))

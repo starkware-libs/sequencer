@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::tokio_metrics::setup_tokio_metrics;
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
@@ -17,8 +18,6 @@ use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info, instrument};
-
-use crate::tokio_metrics::setup_tokio_metrics;
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
