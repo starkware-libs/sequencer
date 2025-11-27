@@ -193,13 +193,9 @@ impl BaseLayerContract for EthereumBaseLayerContract {
                 // Fusaka update.
                 eip7840::BlobParams::osaka().calc_blob_fee(excess_blob_gas)
             }
-            Some(excess_blob_gas) if self.config.prague_blob_gas_calc => {
+            Some(excess_blob_gas) => {
                 // Pectra update.
                 eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
-            }
-            Some(excess_blob_gas) => {
-                // EIP 4844 - original blob pricing.
-                eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
             }
             None => 0,
         };
@@ -269,7 +265,6 @@ pub struct EthereumBaseLayerConfig {
     pub bpo1_start_block_number: L1BlockNumber,
     // The block number at which BPO2 update was deployed.
     pub bpo2_start_block_number: L1BlockNumber,
-    pub prague_blob_gas_calc: bool,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
 }
@@ -325,13 +320,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "prague_blob_gas_calc",
-                &self.prague_blob_gas_calc,
-                "If true use the blob gas calculcation from the Pectra upgrade. If false use the \
-                 EIP 4844 calculation.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "timeout_millis",
                 &self.timeout_millis.as_millis(),
                 "The timeout (milliseconds) for a query of the L1 base layer",
@@ -351,7 +339,6 @@ impl Default for EthereumBaseLayerConfig {
             fusaka_no_bpo_start_block_number: 0,
             bpo1_start_block_number: 0,
             bpo2_start_block_number: 0,
-            prague_blob_gas_calc: true,
             timeout_millis: Duration::from_millis(1000),
         }
     }
