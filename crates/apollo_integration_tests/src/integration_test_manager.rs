@@ -530,6 +530,10 @@ impl IntegrationTestManager {
         self.node_indices.clone()
     }
 
+    pub fn get_running_node_indices(&self) -> HashSet<usize> {
+        self.running_nodes.keys().cloned().collect()
+    }
+
     pub fn shutdown_node_services(
         &mut self,
         node_services_to_shutdown: HashMap<usize, Vec<NodeService>>,
@@ -872,17 +876,29 @@ impl IntegrationTestManager {
         unreachable!("No executable with a set batcher.")
     }
 
-    /// This function returns the number of accepted transactions on all running nodes.
+    /// This function returns the number of accepted transactions on the running nodes specified by
+    /// the given node indices.
     /// It queries the state sync monitoring client to get the latest value of the processed txs
     /// metric.
-    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+    pub async fn get_num_accepted_txs_on_running_nodes(
+        &self,
+        node_indices: HashSet<usize>,
+    ) -> HashMap<usize, usize> {
         let mut result = HashMap::new();
-        for (index, running_node) in self.running_nodes.iter() {
+        for node_idx in node_indices {
+            let running_node =
+                self.running_nodes.get(&node_idx).expect("Running node should exist");
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
             let num_accepted = sequencer_num_accepted_txs(monitoring_client).await;
-            result.insert(*index, num_accepted);
+            result.insert(node_idx, num_accepted);
         }
         result
+    }
+
+    /// This function returns the number of accepted transactions on all running nodes.
+    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+        self.get_num_accepted_txs_on_running_nodes(self.running_nodes.keys().cloned().collect())
+            .await
     }
 
     pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
@@ -893,39 +909,47 @@ impl IntegrationTestManager {
         .await;
     }
 
-    // Verifies that all running nodes processed more transactions since the last check.
+    // Verifies that all specified running nodes processed more transactions since the last check.
     // Takes a mutable reference to a mapping of the number of transactions processed by each node
     // at the previous check, and updates it with the current number of transactions.
-    pub async fn poll_running_nodes_received_more_txs(&self, timeout: Duration) {
-        let prev_txs = self.get_num_accepted_txs_on_all_running_nodes().await;
+    pub async fn poll_running_nodes_received_more_txs(
+        &self,
+        timeout: Duration,
+        node_indices: HashSet<usize>,
+    ) {
+        let prev_txs = self.get_num_accepted_txs_on_running_nodes(node_indices.clone()).await;
 
         let start = Instant::now();
         let mut done: bool = false;
         while start.elapsed() < timeout && !done {
             sleep(Duration::from_secs(1)).await;
-            done = self.check_running_nodes_received_more_txs(&prev_txs).await;
+            done = self.check_running_nodes_received_more_txs(&prev_txs, &node_indices).await;
         }
 
         if !done {
             panic!(
-                "Not all running nodes processed more transactions in the last {} seconds",
+                "Not all specified running nodes processed more transactions in the last {} \
+                 seconds",
                 timeout.as_secs()
             );
         }
     }
 
-    /// Checks if all running nodes have processed more transactions than before.
+    /// Verifies that all running nodes processed more transactions since the last check.
+    pub async fn poll_all_running_nodes_received_more_txs(&self, timeout: Duration) {
+        let node_indices = self.get_running_node_indices();
+        self.poll_running_nodes_received_more_txs(timeout, node_indices).await;
+    }
+
+    /// Checks if all specified running nodes have processed more transactions than before.
     async fn check_running_nodes_received_more_txs(
         &self,
         prev_txs: &HashMap<usize, usize>,
+        node_indices: &HashSet<usize>,
     ) -> bool {
-        let curr_txs = self.get_num_accepted_txs_on_all_running_nodes().await;
+        let curr_txs = self.get_num_accepted_txs_on_running_nodes(node_indices.clone()).await;
         for (node_idx, curr_n_processed) in curr_txs {
-            let prev_n_processed = prev_txs
-                .get(&node_idx)
-                .expect("Node index not found in previous transactions mapping");
-
-            if curr_n_processed <= *prev_n_processed {
+            if curr_n_processed <= *prev_txs.get(&node_idx).expect("Num txs not found") {
                 return false;
             }
         }
