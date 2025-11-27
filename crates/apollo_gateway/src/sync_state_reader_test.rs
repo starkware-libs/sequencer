@@ -11,6 +11,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_api_test_utils::assert_eq_state_result;
 use lazy_static::lazy_static;
 use mockall::predicate;
 use rstest::rstest;
@@ -198,19 +199,6 @@ async fn test_get_class_hash_at() {
 lazy_static! {
     static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
     static ref DUMMY_CONTRACT_CLASS: ContractClass = ContractClass::test_casm_contract_class();
-}
-
-fn assert_eq_state_result(
-    a: &StateResult<RunnableCompiledClass>,
-    b: &StateResult<RunnableCompiledClass>,
-) {
-    match (a, b) {
-        (Ok(a), Ok(b)) => assert_eq!(a, b),
-        (Err(StateError::UndeclaredClassHash(a)), Err(StateError::UndeclaredClassHash(b))) => {
-            assert_eq!(a, b)
-        }
-        _ => panic!("StateResult mismatch (or unsupported comparison): {a:?} vs {b:?}"),
-    }
 }
 
 #[rstest]
