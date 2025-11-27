@@ -63,8 +63,7 @@ fn fs_storage() {
 
     // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     let executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
     storage
         .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
@@ -96,8 +95,7 @@ fn fs_storage_deprecated_class_api() {
     assert_eq!(storage.get_deprecated_class(class_id), Ok(None));
 
     // Add new class.
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     storage.set_deprecated_class(class_id, executable_class.clone()).unwrap();
 
     // Get class.
@@ -123,8 +121,7 @@ fn temp_dir_location_and_atomic_write_layout() {
 
     // Create tmp dir via the atomic writer and ensure it resides under parent_dir.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     storage.write_class_atomically(class_id, class.clone(), executable_class.clone()).unwrap();
 
     // After atomic write and rename, the persistent dir should exist and contain the files.
@@ -147,8 +144,7 @@ fn fs_storage_nonexistent_persistent_root_is_created() {
     // Write a new class, which should create the persistent root directories as needed.
     let class_id = ClassHash(felt!("0x1234"));
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     let executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
     storage
         .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
@@ -192,8 +188,7 @@ fn fs_storage_partial_write_no_atomic_marker() {
     // Fully write class files, without atomic marker.
     let class_id = ClassHash(felt!("0x1234"));
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     storage.write_class_atomically(class_id, class, executable_class).unwrap();
     assert_eq!(storage.get_executable_class_hash_v2(class_id), Ok(None));
 
@@ -248,8 +243,7 @@ fn cached_storage_cairo1_get_executable_and_hash() {
 
     let class_id = ClassHash(felt!("0x1111"));
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let executable_class =
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
     let executable_class_hash_v2 = CompiledClassHash(felt!("0x2222"));
 
     fs_storage

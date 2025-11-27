@@ -23,6 +23,8 @@ use thiserror::Error;
 #[cfg(test)]
 #[path = "test.rs"]
 pub mod test;
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 pub type SierraCompilerClientResult<T> = Result<T, SierraCompilerClientError>;
