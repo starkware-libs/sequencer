@@ -1514,16 +1514,6 @@
     "pointer_target": "recorder_url",
     "privacy": "Private"
   },
-  "consensus_manager_config.cende_config.skip_write_height": {
-    "description": "A height that the consensus can skip writing to Aerospike. Needed for booting up (no previous height blob to write) or to handle extreme cases (all the nodes failed).",
-    "privacy": "Public",
-    "value": 0
-  },
-  "consensus_manager_config.cende_config.skip_write_height.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",

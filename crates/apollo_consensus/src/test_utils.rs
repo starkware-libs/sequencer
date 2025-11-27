@@ -68,6 +68,7 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
+            skip_write_prev_height_blob: bool,
         ) -> oneshot::Receiver<ProposalCommitment>;
 
         async fn validate_proposal(
@@ -94,6 +95,8 @@ mock! {
             block: ProposalCommitment,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
+
+        async fn get_latest_sync_height(&self) -> Option<BlockNumber>;
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;
 
