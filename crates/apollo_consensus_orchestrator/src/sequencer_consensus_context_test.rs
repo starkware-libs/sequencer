@@ -21,6 +21,8 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
+use apollo_state_sync_types::communication::StateSyncClientError;
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -975,4 +977,32 @@ async fn override_prices_behavior(
             actual_conversion_rate, ETH_TO_FRI_RATE
         );
     }
+}
+
+#[tokio::test]
+async fn get_latest_sync_height_returns_height() {
+    const RETURNED_MAX_HEIGHT: BlockNumber = BlockNumber(123);
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Ok(Some(RETURNED_MAX_HEIGHT)));
+
+    let context = deps.build_context();
+    let latest_sync_height = context.get_latest_sync_height().await;
+
+    assert_eq!(latest_sync_height, Some(RETURNED_MAX_HEIGHT));
+}
+
+#[tokio::test]
+async fn get_latest_sync_height_returns_none_on_error() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Err(StateSyncClientError::StateSyncError(StateSyncError::EmptyState)));
+
+    let context = deps.build_context();
+    let latest_sync_height = context.get_latest_sync_height().await;
+
+    assert_eq!(latest_sync_height, None);
 }
