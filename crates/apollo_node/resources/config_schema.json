@@ -27,7 +27,7 @@
   "batcher_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
-    "value": 6320
+    "value": 3750
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -97,7 +97,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 5723
+    "value": 4000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
