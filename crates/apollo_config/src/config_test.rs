@@ -79,7 +79,7 @@ impl SerializeConfig for InnerConfig {
 struct OuterConfig {
     opt_elem: Option<usize>,
     opt_config: Option<InnerConfig>,
-    #[validate]
+    #[validate(nested)]
     inner_config: InnerConfig,
 }
 

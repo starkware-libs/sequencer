@@ -61,7 +61,7 @@ pub struct NetworkConfig {
     #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
-    #[validate(custom = "validate_vec_u256")]
+    #[validate(custom(function = "validate_vec_u256"))]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub secret_key: Option<Vec<u8>>,
     pub advertised_multiaddr: Option<Multiaddr>,

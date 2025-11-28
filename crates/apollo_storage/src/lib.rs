@@ -703,9 +703,9 @@ pub type StorageResult<V> = std::result::Result<V, StorageError>;
 #[allow(missing_docs)]
 #[derive(Serialize, Debug, Default, Deserialize, Clone, PartialEq, Validate)]
 pub struct StorageConfig {
-    #[validate]
+    #[validate(nested)]
     pub db_config: DbConfig,
-    #[validate]
+    #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
 }
