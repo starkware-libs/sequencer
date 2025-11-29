@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -185,6 +186,7 @@ async fn store_base_layer_block_test() {
 
     let mut gen_state_sync = GenericStateSync {
         config: SyncConfig::default(),
+        pending_blocks: HashMap::new(),
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),
         central_source: Arc::new(MockCentralSourceTrait::new()),

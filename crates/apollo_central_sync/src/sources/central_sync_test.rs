@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -127,6 +128,7 @@ async fn run_sync(
     pending_source.expect_get_pending_data().returning(|| Ok(PendingData::default()));
 
     let state_sync = GenericStateSync {
+        pending_blocks: HashMap::new(),
         config,
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),
