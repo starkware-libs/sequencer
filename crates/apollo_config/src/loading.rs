@@ -204,6 +204,26 @@ pub(crate) fn update_config_map_by_pointers(
     pointers_map: &BTreeMap<ParamPath, ParamPath>,
 ) -> Result<(), ConfigError> {
     for (param_path, target_param_path) in pointers_map {
+        // 1) Resolve flags first: these populate "<prefix>.#is_none" into the config_map.
+        if param_path.ends_with(&format!("{FIELD_SEPARATOR}{IS_NONE_MARK}")) {
+            let Some(target_value) = config_map.get(target_param_path) else {
+                return Err(ConfigError::PointerTargetNotFound {
+                    target_param: target_param_path.to_owned(),
+                });
+            };
+            config_map.insert(param_path.to_owned(), target_value.clone());
+            continue;
+        }
+
+        // 2) If the optional prefix is already marked as disabled, skip resolving nested pointers.
+        if let Some((prefix, _)) = param_path.rsplit_once('.') {
+            if config_map.get(&format!("{prefix}{FIELD_SEPARATOR}{IS_NONE_MARK}"))
+                == Some(&json!(true))
+            {
+                continue;
+            }
+        }
+
         let Some(target_value) = config_map.get(target_param_path) else {
             return Err(ConfigError::PointerTargetNotFound {
                 target_param: target_param_path.to_owned(),

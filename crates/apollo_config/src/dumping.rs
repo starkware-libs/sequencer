@@ -86,6 +86,37 @@ pub fn generate_struct_pointer<T: SerializeConfig>(
     res
 }
 
+/// Generates pointers for an optional struct:
+/// - All fields under `target_prefix` (using `default_instance.dump()`), pointed to by each prefix
+///   in `pointer_prefixes`.
+/// - The optional flag `<target_prefix>.#is_none`, pointed to by `<prefix>.#is_none` for each
+///   prefix in `pointer_prefixes`.
+pub fn generate_optional_struct_pointer<T: SerializeConfig>(
+    target_prefix: ParamPath,
+    default_instance: &T,
+    pointer_prefixes: HashSet<ParamPath>,
+    is_none_default: bool,
+    is_none_description: &str,
+) -> ConfigPointers {
+    let mut res =
+        generate_struct_pointer(target_prefix.clone(), default_instance, pointer_prefixes.clone());
+
+    // Add a pointer target and pointing params for the optional flag.
+    let target_is_none_param = format!("{target_prefix}{FIELD_SEPARATOR}{IS_NONE_MARK}");
+    let pointer_target = ser_pointer_target_param(
+        target_is_none_param.as_str(),
+        &is_none_default,
+        is_none_description,
+    );
+    let pointing_params: Pointers = pointer_prefixes
+        .into_iter()
+        .map(|prefix| format!("{prefix}{FIELD_SEPARATOR}{IS_NONE_MARK}"))
+        .collect();
+    res.push((pointer_target, pointing_params));
+
+    res
+}
+
 // Converts a serialized param to a pointer target.
 fn serialized_param_to_pointer_target(
     target_prefix: ParamPath,
