@@ -995,7 +995,7 @@ impl<
     }
 
     // Flush a batch of processed blocks (from ALL streams) to storage
-    async fn flush_processed_batch(&mut self, batch: ProcessedBatchData) -> StateSyncResult {
+    async fn flush_processed_batch(&mut self, mut batch: ProcessedBatchData) -> StateSyncResult {
         if batch.is_empty() {
             return Ok(());
         }
@@ -1003,7 +1003,19 @@ impl<
         info!("Flushing batch of {} items to database...", batch.len());
         let batch_start = Instant::now();
 
-        // Process each item in the batch sequentially (maintaining order)
+        // Sort batch by block number AND type to ensure correct storage order
+        // 1. Headers must be stored before state diffs for same block number
+        // 2. Different streams can be at different block numbers
+        batch.sort_by_key(|item| match item {
+            ProcessedBlockData::Block { block_number, .. } => (*block_number, 0), // Headers first
+            ProcessedBlockData::StateDiff { block_number, .. } => (*block_number, 1), // State diffs after headers
+            ProcessedBlockData::BaseLayerBlock { block_number, .. } => (*block_number, 2), // Base layer after state
+            ProcessedBlockData::CompiledClass { .. } => (BlockNumber(u64::MAX), 3), // Classes go last
+        });
+
+        info!("Batch sorted by block number. Processing {} items in order...", batch.len());
+
+        // Process each item in the batch sequentially (in sorted order)
         for processed_block in batch {
             match processed_block {
                 ProcessedBlockData::Block { block_number, block, signature } => {
