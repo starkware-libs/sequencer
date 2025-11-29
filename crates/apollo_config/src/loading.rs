@@ -203,14 +203,55 @@ pub(crate) fn update_config_map_by_pointers(
     config_map: &mut BTreeMap<ParamPath, Value>,
     pointers_map: &BTreeMap<ParamPath, ParamPath>,
 ) -> Result<(), ConfigError> {
+    let optional_param_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+
+    // Phase 1: Resolve only the optional flags and compute none entries (prefixes marked as None).
+    let mut none_entries = Vec::new();
     for (param_path, target_param_path) in pointers_map {
-        let Some(target_value) = config_map.get(target_param_path) else {
-            return Err(ConfigError::PointerTargetNotFound {
-                target_param: target_param_path.to_owned(),
-            });
-        };
-        config_map.insert(param_path.to_owned(), target_value.clone());
+        if let Some(prefix) = param_path.strip_suffix(optional_param_suffix.as_str()) {
+            let target_value = match config_map.get(target_param_path) {
+                Some(v) => v.clone(),
+                None => {
+                    return Err(ConfigError::PointerTargetNotFound {
+                        target_param: target_param_path.to_owned(),
+                    });
+                }
+            };
+            // Record the value
+            config_map.insert(param_path.to_owned(), target_value.clone());
+            // Record none entries where the flag is true
+            if target_value == json!(true) {
+                none_entries.push(prefix.to_owned());
+            }
+        }
     }
+
+    // Phase 2: Resolve pointers for non-optional-flag params, skipping any pointer under
+    // optional-flag entries.
+    for (param_path, target_param_path) in pointers_map {
+        if param_path.ends_with(optional_param_suffix.as_str()) {
+            continue;
+        }
+
+        // Check if param_path is under any none entry.
+        let is_under_none_entry = none_entries
+            .iter()
+            .any(|prefix| param_path.starts_with(format!("{prefix}{FIELD_SEPARATOR}").as_str()));
+        if is_under_none_entry {
+            continue;
+        }
+
+        let target_value = match config_map.get(target_param_path) {
+            Some(v) => v.clone(),
+            None => {
+                return Err(ConfigError::PointerTargetNotFound {
+                    target_param: target_param_path.to_owned(),
+                });
+            }
+        };
+        config_map.insert(param_path.to_owned(), target_value);
+    }
+
     Ok(())
 }
 
