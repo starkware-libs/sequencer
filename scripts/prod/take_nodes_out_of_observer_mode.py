@@ -7,7 +7,7 @@ from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service, pr
 from restarter_lib import ServiceRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
-    ConstConfigValuesUpdater,
+    ConfigValuesUpdater,
     get_configmap,
     get_current_block_number,
     get_logs_explorer_url,
@@ -43,15 +43,14 @@ def get_validator_id(namespace: str, context: Optional[str]) -> str:
     return config_data["validator_id"]
 
 
-class NodeValidatorIdCompositeUpdater(ConstConfigValuesUpdater):
-    def __init__(self, config_overrides: dict[str, any], validator_id_start_from: int):
-        super().__init__(config_overrides)
+class NodeValidatorIdUpdater(ConfigValuesUpdater):
+    def __init__(self, validator_id_start_from: int):
         self.validator_id_start_from = validator_id_start_from
 
     def get_updated_config_for_instance(
         self, config_data: dict[str, any], instance_index: int
     ) -> dict[str, any]:
-        updated_config = super().get_updated_config_for_instance(config_data, instance_index)
+        updated_config = config_data.copy()
         validator_id_as_hex = hex(self.validator_id_start_from + instance_index)
         updated_config["validator_id"] = validator_id_as_hex
         return updated_config
@@ -105,8 +104,9 @@ Examples:
 
     args_builder.add_argument(
         "--validator-id-start-from",
+        required=True,
         type=int,
-        help="If set, also update the validator ID config to this value + index of the instance being restarted. Value is in decimal format.",
+        help="Update the validator ID config to this value + index of the instance being restarted. Value is in decimal format.",
     )
 
     args = args_builder.build()
@@ -117,11 +117,6 @@ Examples:
 
     print_colored(f"Current block number: {current_block_number}")
     print_colored(f"Next block number: {next_block_number}")
-
-    config_overrides = {
-        "consensus_manager_config.cende_config.skip_write_height": next_block_number,
-        "consensus_manager_config.immediate_active_height": next_block_number,
-    }
 
     namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
     context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
@@ -152,14 +147,8 @@ Examples:
         Service.Core,
     )
 
-    updater = (
-        NodeValidatorIdCompositeUpdater(config_overrides, args.validator_id_start_from)
-        if args.validator_id_start_from
-        else ConstConfigValuesUpdater(config_overrides)
-    )
-
     update_config_and_restart_nodes(
-        updater,
+        NodeValidatorIdUpdater(args.validator_id_start_from),
         namespace_and_instruction_args,
         Service.Core,
         restarter,
