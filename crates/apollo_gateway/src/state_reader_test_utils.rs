@@ -2,7 +2,6 @@ use apollo_state_sync_types::communication::StateSyncClientResult;
 use axum::async_trait;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
-use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
@@ -17,23 +16,13 @@ use starknet_api::test_utils::VALID_ACCOUNT_BALANCE;
 use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::fixed_block_state_reader::FixedBlockSyncStateReader;
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[derive(Clone)]
 pub struct TestStateReader {
     pub block_info: BlockInfo,
     pub blockifier_state_reader: DictStateReader,
-}
-
-#[async_trait]
-impl MempoolStateReader for TestStateReader {
-    async fn get_block_info(&self) -> Result<BlockInfo, StateError> {
-        Ok(self.block_info.clone())
-    }
 }
 
 impl FetchCompiledClasses for TestStateReader {
@@ -74,16 +63,45 @@ impl BlockifierStateReader for TestStateReader {
     }
 }
 
+#[async_trait]
+impl FixedBlockSyncStateReader for TestStateReader {
+    async fn get_block_info(&self) -> StateResult<BlockInfo> {
+        Ok(self.block_info.clone())
+    }
+}
+
+pub struct TestFixedBlockStateSyncClient {
+    pub block_info: BlockInfo,
+}
+
+impl TestFixedBlockStateSyncClient {
+    pub fn new(block_info: BlockInfo) -> Self {
+        Self { block_info }
+    }
+}
+
+#[async_trait]
+impl FixedBlockSyncStateReader for TestFixedBlockStateSyncClient {
+    async fn get_block_info(&self) -> StateResult<BlockInfo> {
+        Ok(self.block_info.clone())
+    }
+}
+
 pub struct TestStateReaderFactory {
     pub state_reader: TestStateReader,
 }
 
 #[async_trait]
 impl StateReaderFactory for TestStateReaderFactory {
-    async fn get_state_reader_from_latest_block(
+    async fn get_state_reader_and_fixed_client_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
-        Ok(Box::new(self.state_reader.clone()))
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn FixedBlockSyncStateReader>,
+    )> {
+        let info = self.state_reader.block_info.clone();
+        let fixed_block_state_sync_client = TestFixedBlockStateSyncClient::new(info);
+        Ok((Box::new(self.state_reader.clone()), Box::new(fixed_block_state_sync_client)))
     }
 }
 

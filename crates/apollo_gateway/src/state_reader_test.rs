@@ -39,7 +39,8 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
-use crate::state_reader::{GatewayStateReaderWithCompiledClasses, MempoolStateReader};
+use crate::fixed_block_state_reader::{FixedBlockSyncStateClient, FixedBlockSyncStateReader};
+use crate::state_reader::GatewayStateReaderWithCompiledClasses;
 use crate::sync_state_reader::SyncStateReader;
 
 static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
@@ -252,8 +253,6 @@ fn declared_but_not_in_manager_scenario() -> GetCompiledClassTestScenario {
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
-    let mock_class_manager_client = MockClassManagerClient::new();
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
     let block_number = BlockNumber(1);
     let block_timestamp = BlockTimestamp(2);
     let sequencer_address = contract_address!("0x3");
@@ -283,14 +282,9 @@ async fn test_get_block_info() {
         },
     );
 
-    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
-        Arc::new(mock_state_sync_client),
-        Arc::new(mock_class_manager_client),
-        contract_class_manager.clone(),
-        block_number,
-        tokio::runtime::Handle::current(),
-    );
-    let result = state_reader_and_contract_manager.get_block_info().await.unwrap();
+    let fixed_block_state_reader_client =
+        FixedBlockSyncStateClient::new(Arc::new(mock_state_sync_client), block_number);
+    let result = fixed_block_state_reader_client.get_block_info().await.unwrap();
 
     assert_eq!(
         result,
