@@ -1,7 +1,7 @@
 {
-  "base_layer_config.fusaka_no_bpo_start_block_number": 9408577,
-  "base_layer_config.bpo1_start_block_number": 9456501,
-  "base_layer_config.bpo2_start_block_number": 9504747,
+  "base_layer_config.bpo1_start_block_number": 23973546,
+  "base_layer_config.bpo2_start_block_number": 24168146,
+  "base_layer_config.fusaka_no_bpo_start_block_number": 23934586,
   "base_layer_config.prague_blob_gas_calc": true,
   "base_layer_config.timeout_millis": 1000
 }
