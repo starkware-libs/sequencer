@@ -1,4 +1,5 @@
 use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_types::deprecated_gateway_error::StarknetError;
 use apollo_rpc::CompiledContractClass;
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use async_trait::async_trait;
@@ -21,6 +22,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
+use crate::fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::rpc_objects::{
     BlockHeader,
     BlockId,
@@ -35,11 +37,7 @@ use crate::rpc_objects::{
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
     RPC_ERROR_INVALID_PARAMS,
 };
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[derive(Clone)]
 pub struct RpcStateReader {
@@ -97,25 +95,6 @@ impl RpcStateReader {
                 _ => Err(RPCStateReaderError::UnexpectedErrorCode(rpc_error_response.error.code)),
             },
         }
-    }
-}
-
-#[async_trait]
-impl MempoolStateReader for RpcStateReader {
-    async fn get_block_info(&self) -> StateResult<BlockInfo> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
-        let reader = self.clone();
-
-        let get_block_with_tx_hashes_result = tokio::task::spawn_blocking(move || {
-            reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)
-        })
-        .await
-        .map_err(|e| StateError::StateReadError(format!("JoinError: {e}")))??;
-
-        let block_header: BlockHeader = serde_json::from_value(get_block_with_tx_hashes_result)
-            .map_err(serde_err_to_state_err)?;
-        let block_info = block_header.try_into()?;
-        Ok(block_info)
     }
 }
 
@@ -209,11 +188,40 @@ impl FetchCompiledClasses for RpcStateReader {
 
 impl GatewayStateReaderWithCompiledClasses for RpcStateReader {}
 
+// An alternative impl to get the synced state, not via the state-sync component. To be removed in
+// the future.
+#[async_trait]
+impl GatewayFixedBlockStateReader for RpcStateReader {
+    async fn get_block_info(&self) -> Result<BlockInfo, StarknetError> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
+        let reader = self.clone();
+
+        let get_block_with_tx_hashes_result = tokio::task::spawn_blocking(move || {
+            reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)
+        })
+        .await
+        .map_err(|e| StarknetError::internal_with_logging("JoinError", e))?
+        .map_err(|e| StarknetError::internal_with_logging("RPC error", e))?;
+
+        let block_header: BlockHeader = serde_json::from_value(get_block_with_tx_hashes_result)
+            .map_err(|e| StarknetError::internal_with_logging("Failed to parse block header", e))?;
+        let block_info = block_header.try_into().map_err(|e| {
+            StarknetError::internal_with_logging("Failed to convert block header to BlockInfo", e)
+        })?;
+        Ok(block_info)
+    }
+}
+
 #[async_trait]
 impl StateReaderFactory for RpcStateReaderFactory {
-    async fn get_state_reader_from_latest_block(
+    async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
-        Ok(Box::new(RpcStateReader::from_latest(&self.config)))
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn GatewayFixedBlockStateReader>,
+    )> {
+        let reader = RpcStateReader::from_latest(&self.config);
+        let fixed_client = RpcStateReader::from_latest(&self.config);
+        Ok((Box::new(reader), Box::new(fixed_client)))
     }
 }

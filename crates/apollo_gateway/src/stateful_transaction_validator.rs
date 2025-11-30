@@ -23,7 +23,7 @@ use blockifier::state::state_reader_and_contract_manager::StateReaderAndContract
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
-use starknet_api::block::{BlockInfo, NonzeroGasPrice};
+use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
@@ -35,11 +35,7 @@ use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -72,8 +68,8 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
-            .get_state_reader_from_latest_block()
+        let (blockifier_state_reader, fixed_block_state_sync_client) = state_reader_factory
+            .get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block()
             .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
@@ -84,10 +80,10 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader).await?;
+        let latest_block_info = fixed_block_state_sync_client.get_block_info().await?;
 
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
-            state_reader,
+            blockifier_state_reader,
             self.contract_class_manager.clone(),
             GATEWAY_CLASS_CACHE_METRICS,
         );
@@ -186,6 +182,9 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         // Skip this validation during the systems bootstrap phase.
         if self.config.validate_resource_bounds {
             // TODO(Arni): getnext_l2_gas_price from the block header.
+            // TODO(Itamar): Replace usage of `blockifier_stateful_tx_validator.block_info()` with
+            // the GW fixed-block provider and then remove `block_info()` from
+            // blockifier::{StatefulValidatorTrait, StatefulValidator}.
             let previous_block_l2_gas_price = self
                 .blockifier_stateful_tx_validator
                 .block_info()
@@ -351,13 +350,4 @@ fn skip_stateful_validations(
     }
 
     Ok(false)
-}
-
-async fn get_latest_block_info(
-    state_reader: &dyn MempoolStateReader,
-) -> StatefulTransactionValidatorResult<BlockInfo> {
-    state_reader
-        .get_block_info()
-        .await
-        .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }
