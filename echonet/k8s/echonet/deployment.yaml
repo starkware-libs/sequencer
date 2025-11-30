@@ -1,0 +1,126 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: echonet-controller-sa
+  # optional: set a namespace explicitly if you’re not using "default"
+  # namespace: your-namespace
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: echonet-controller-role
+  # This namespace should be the one where the *target* ConfigMap/Deployment live
+  # If echonet and the target live in the same namespace, you can keep it the same
+  # namespace: your-namespace
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale", "statefulsets", "statefulsets/scale"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: echonet-controller-binding
+  # same namespace as the Role
+  # namespace: your-namespace
+subjects:
+  - kind: ServiceAccount
+    name: echonet-controller-sa
+    # namespace where the echonet Deployment runs
+    # namespace: your-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: echonet-controller-role
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echonet
+  # namespace: your-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echonet
+      role: flask
+  template:
+    metadata:
+      labels:
+        app: echonet
+        role: flask
+    spec:
+      # use the ServiceAccount that has RBAC permissions
+      serviceAccountName: echonet-controller-sa
+
+      # initContainer to install kubectl into a shared volume
+      initContainers:
+        - name: install-kubectl
+          image: bitnami/kubectl:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              cp "$(which kubectl)" /tools/kubectl && \
+              chmod +x /tools/kubectl
+          volumeMounts:
+            - name: tools
+              mountPath: /tools
+
+      containers:
+        - name: app
+          image: python:3.11-slim
+          ports:
+            - containerPort: 80
+          env:
+            - { name: PYTHONUNBUFFERED, value: "1" }
+            - { name: BLOCKS_DIR, value: "/data/blocks" }
+            - { name: ECHONET_LOG_DIR, value: "/data/echonet" }
+          command: ["bash","-lc"]
+          args:
+            - >
+              export PATH=/tools:$PATH &&
+              pip install --no-cache-dir flask gunicorn requests aiohttp kubernetes eth_abi>/dev/null &&
+              echo "[FLASK] starting gunicorn on :80" &&
+              gunicorn -w 1 -b 0.0.0.0:80 echo_center:app --timeout 0 --access-logfile -
+          workingDir: /app
+          volumeMounts:
+            - { name: app-src, mountPath: /app }
+            - { name: data-dir, mountPath: /data }
+            - { name: tools, mountPath: /tools }
+
+      volumes:
+        - name: app-src
+          configMap:
+            name: echonet-app
+            items:
+              - { key: echo_center.py, path: echo_center.py }
+              - { key: transaction_sender.py, path: transaction_sender.py }
+              - { key: reports.py, path: reports.py }
+              - { key: consts.py, path: consts.py }
+              - { key: feeder_client.py, path: feeder_client.py }
+              - { key: shared_context.py, path: shared_context.py }
+              - { key: l1_client.py, path: l1_client.py }
+              - { key: manage_sequencer.py, path: manage_sequencer.py }
+              - { key: l1_manager.py, path: l1_manager.py }
+              - { key: l1_block_finder.py, path: l1_block_finder.py }
+              - { key: l1_blocks.py, path: l1_blocks.py }
+              - { key: l1_utils.py, path: l1_utils.py }
+              - { key: logger.py, path: logger.py }
+        - name: data-dir
+          emptyDir: {}
+
+        - name: tools
+          emptyDir: {}
