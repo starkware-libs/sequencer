@@ -2,6 +2,5 @@
   "base_layer_config.bpo1_start_block_number": "$$$_BASE_LAYER_CONFIG-BPO1_START_BLOCK_NUMBER_$$$",
   "base_layer_config.bpo2_start_block_number": "$$$_BASE_LAYER_CONFIG-BPO2_START_BLOCK_NUMBER_$$$",
   "base_layer_config.fusaka_no_bpo_start_block_number": "$$$_BASE_LAYER_CONFIG-FUSAKA_NO_BPO_START_BLOCK_NUMBER_$$$",
-  "base_layer_config.prague_blob_gas_calc": true,
   "base_layer_config.timeout_millis": 1000
 }
