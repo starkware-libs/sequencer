@@ -10,11 +10,6 @@ default = ["rpc"]
 rpc = ["apollo_rpc"]
 testing = []
 
-[[bin]]
-name = "central_source_integration_test"
-path = "src/bin/central_source_integration_test.rs"
-required-features = ["futures-util", "tokio-stream"]
-
 [dependencies]
 anyhow.workspace = true
 apollo_central_sync.workspace = true
@@ -45,10 +40,6 @@ tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 validator = { workspace = true, features = ["derive"] }
-
-# Binaries dependencies
-futures-util = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true }
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }

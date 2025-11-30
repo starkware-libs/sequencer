@@ -243,6 +243,20 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             return Ok(None);
         };
         let blob_fee = match block.header.excess_blob_gas {
+            Some(excess_blob_gas) if self.config.bpo2_start_block_number <= block.header.number => {
+                // Fusaka BPO2 update.
+                eip7840::BlobParams::bpo2().calc_blob_fee(excess_blob_gas)
+            }
+            Some(excess_blob_gas) if self.config.bpo1_start_block_number <= block.header.number => {
+                // Fusaka BPO1 update.
+                eip7840::BlobParams::bpo1().calc_blob_fee(excess_blob_gas)
+            }
+            Some(excess_blob_gas)
+                if self.config.fusaka_no_bpo_start_block_number <= block.header.number =>
+            {
+                // Fusaka update.
+                eip7840::BlobParams::osaka().calc_blob_fee(excess_blob_gas)
+            }
             Some(excess_blob_gas) if self.config.prague_blob_gas_calc => {
                 // Pectra update.
                 eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
@@ -310,6 +324,14 @@ impl PartialEq for EthereumBaseLayerError {
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
+    // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
+    // Note 2: make sure to calculate the block number as activation epoch x32.
+    // The block number at which the Fusaka upgrade was deployed (not including any BPO updates).
+    pub fusaka_no_bpo_start_block_number: L1BlockNumber,
+    // The block number at which BPO1 update was deployed.
+    pub bpo1_start_block_number: L1BlockNumber,
+    // The block number at which BPO2 update was deployed.
+    pub bpo2_start_block_number: L1BlockNumber,
     pub prague_blob_gas_calc: bool,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
@@ -330,6 +352,25 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "starknet_contract_address",
                 &self.starknet_contract_address.to_string(),
                 "Starknet contract address in ethereum.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "fusaka_no_bpo_start_block_number",
+                &self.fusaka_no_bpo_start_block_number,
+                "The block number at which the Fusaka upgrade was deployed (not including any BPO \
+                 updates).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bpo1_start_block_number",
+                &self.bpo1_start_block_number,
+                "The block number at which BPO1 update was deployed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bpo2_start_block_number",
+                &self.bpo2_start_block_number,
+                "The block number at which BPO2 update was deployed.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -356,6 +397,9 @@ impl Default for EthereumBaseLayerConfig {
         Self {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
+            fusaka_no_bpo_start_block_number: 0,
+            bpo1_start_block_number: 0,
+            bpo2_start_block_number: 0,
             prague_blob_gas_calc: true,
             timeout_millis: Duration::from_millis(1000),
         }
