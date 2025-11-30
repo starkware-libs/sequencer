@@ -28,7 +28,7 @@ const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
-const DEFAULT_ATTEMPTS_PER_LOG: usize = 10;
+const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
 const DEFAULT_CONNECTION_TIMEOUT_MS: u64 = 500;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.

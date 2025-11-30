@@ -477,7 +477,7 @@
   "components.batcher.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.batcher.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -587,7 +587,7 @@
   "components.class_manager.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.class_manager.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -697,7 +697,7 @@
   "components.config_manager.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.config_manager.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -812,7 +812,7 @@
   "components.gateway.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.gateway.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -927,7 +927,7 @@
   "components.l1_endpoint_monitor.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.l1_endpoint_monitor.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1037,7 +1037,7 @@
   "components.l1_gas_price_provider.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.l1_gas_price_provider.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1152,7 +1152,7 @@
   "components.l1_provider.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.l1_provider.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1267,7 +1267,7 @@
   "components.mempool.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.mempool.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1377,7 +1377,7 @@
   "components.mempool_p2p.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.mempool_p2p.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1492,7 +1492,7 @@
   "components.sierra_compiler.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.sierra_compiler.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1602,7 +1602,7 @@
   "components.signature_manager.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.signature_manager.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -1712,7 +1712,7 @@
   "components.state_sync.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
   },
   "components.state_sync.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
