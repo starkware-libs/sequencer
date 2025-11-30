@@ -14,7 +14,7 @@
   "components.class_manager.max_concurrency": 128,
   "components.class_manager.port": "$$$_COMPONENTS-CLASS_MANAGER-PORT_$$$",
   "components.class_manager.remote_client_config.#is_none": false,
-  "components.class_manager.remote_client_config.attempts_per_log": 10,
+  "components.class_manager.remote_client_config.attempts_per_log": 1,
   "components.class_manager.remote_client_config.connection_timeout_ms": 500,
   "components.class_manager.remote_client_config.idle_connections": 10,
   "components.class_manager.remote_client_config.idle_timeout_ms": 30000,
