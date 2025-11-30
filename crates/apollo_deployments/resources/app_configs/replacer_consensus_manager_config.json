@@ -53,7 +53,6 @@
   "consensus_manager_config.context_config.retrospective_block_hash_retry_interval_millis": 500,
   "consensus_manager_config.context_config.validate_proposal_margin_millis": 10000,
   "consensus_manager_config.context_config.validator_ids.#is_none": true,
-  "consensus_manager_config.immediate_active_height": 1,
   "consensus_manager_config.network_config.broadcasted_message_metadata_buffer_size": 100000,
   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,

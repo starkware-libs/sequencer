@@ -7,7 +7,6 @@ use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
 use apollo_network::NetworkConfig;
 use apollo_reverts::RevertConfig;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
 use validator::Validate;
 
 /// The consensus manager related configuration.
@@ -23,7 +22,6 @@ pub struct ConsensusManagerConfig {
     pub votes_topic: String,
     pub proposals_topic: String,
     pub broadcast_buffer_size: usize,
-    pub immediate_active_height: BlockNumber,
     // Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!
     pub assume_no_malicious_validators: bool,
 }
@@ -47,12 +45,6 @@ impl SerializeConfig for ConsensusManagerConfig {
                 "broadcast_buffer_size",
                 &self.broadcast_buffer_size,
                 "The buffer size for the broadcast channel.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "immediate_active_height",
-                &self.immediate_active_height,
-                "The height at which the node may actively participate in consensus.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -91,7 +83,6 @@ impl Default for ConsensusManagerConfig {
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
             broadcast_buffer_size: 10000,
-            immediate_active_height: BlockNumber::default(),
             assume_no_malicious_validators: false,
         }
     }

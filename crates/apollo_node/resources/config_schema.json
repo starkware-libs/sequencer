@@ -2099,11 +2099,6 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.immediate_active_height": {
-    "description": "The height at which the node may actively participate in consensus.",
-    "privacy": "Public",
-    "value": 0
-  },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
     "privacy": "Public",
