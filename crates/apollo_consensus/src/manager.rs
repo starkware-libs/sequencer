@@ -38,7 +38,7 @@ use crate::metrics::{
     CONSENSUS_REPROPOSALS,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
-use crate::state_machine::{SMRequest, StateMachineEvent};
+use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
     BroadcastVoteChannel,
@@ -768,29 +768,24 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 .boxed();
                 Ok(Some(fut))
             }
-            SMRequest::ScheduleTimeoutPropose(round) => {
-                let duration = timeouts.get_proposal_timeout(round);
+            SMRequest::ScheduleTimeout(step, round) => {
+                let (duration, event) = match step {
+                    Step::Propose => (
+                        timeouts.get_proposal_timeout(round),
+                        StateMachineEvent::TimeoutPropose(round),
+                    ),
+                    Step::Prevote => (
+                        timeouts.get_prevote_timeout(round),
+                        StateMachineEvent::TimeoutPrevote(round),
+                    ),
+                    Step::Precommit => (
+                        timeouts.get_precommit_timeout(round),
+                        StateMachineEvent::TimeoutPrecommit(round),
+                    ),
+                };
                 let fut = async move {
                     tokio::time::sleep(duration).await;
-                    StateMachineEvent::TimeoutPropose(round)
-                }
-                .boxed();
-                Ok(Some(fut))
-            }
-            SMRequest::ScheduleTimeoutPrevote(round) => {
-                let duration = timeouts.get_prevote_timeout(round);
-                let fut = async move {
-                    tokio::time::sleep(duration).await;
-                    StateMachineEvent::TimeoutPrevote(round)
-                }
-                .boxed();
-                Ok(Some(fut))
-            }
-            SMRequest::ScheduleTimeoutPrecommit(round) => {
-                let duration = timeouts.get_precommit_timeout(round);
-                let fut = async move {
-                    tokio::time::sleep(duration).await;
-                    StateMachineEvent::TimeoutPrecommit(round)
+                    event
                 }
                 .boxed();
                 Ok(Some(fut))
