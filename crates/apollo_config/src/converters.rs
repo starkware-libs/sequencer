@@ -33,6 +33,8 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
+use crate::secrets::Sensitive;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -89,6 +91,17 @@ where
         map.insert(split[0].to_string(), split[1].to_string());
     }
     Ok(Some(map))
+}
+
+/// Deserializes a sensitive map from "k1:v1 k2:v2" string structure.
+pub fn deserialize_optional_sensitive_map<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<HashMap<String, String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_map = deserialize_optional_map(de)?;
+    Ok(optional_map.map(Sensitive::new))
 }
 
 /// A struct containing a URL and its associated headers.
