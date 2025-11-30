@@ -130,13 +130,20 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
         block_number: BlockNumber,
         sync_block: SyncBlock,
     ) -> SignedBlockHeader {
+        let header_commitments = sync_block
+            .block_header_commitments
+            .expect("Block header commitments should be present from starknet version 0.13.2.");
         SignedBlockHeader {
             block_header: BlockHeader {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
                 block_header_without_hash: sync_block.block_header_without_hash,
+                state_diff_commitment: Some(header_commitments.state_diff_commitment),
                 state_diff_length: Some(sync_block.state_diff.len()),
+                transaction_commitment: Some(header_commitments.transaction_commitment),
+                event_commitment: Some(header_commitments.event_commitment),
                 n_transactions: sync_block.account_transaction_hashes.len()
                     + sync_block.l1_transaction_hashes.len(),
+                receipt_commitment: Some(header_commitments.receipt_commitment),
                 ..Default::default()
             },
             signatures: vec![BlockSignature::default()],
