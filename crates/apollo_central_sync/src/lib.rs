@@ -8,7 +8,7 @@ pub mod sources;
 mod sync_test;
 
 use std::cmp::min;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashSet};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -32,7 +32,7 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_STATE_MARKER,
 };
 use apollo_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
-use apollo_storage::body::{BodyStorageReader, BodyStorageWriter};
+use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::{ClassStorageReader, ClassStorageWriter};
 use apollo_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use apollo_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
@@ -53,7 +53,6 @@ use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
 use starknet_api::block::{
     Block,
-    BlockBody,
     BlockHash,
     BlockHashAndNumber,
     BlockNumber,
@@ -89,15 +88,20 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 // will compile them, in a backward-compatible manner.
 const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
 
-// Unified data type for ALL blocks from ALL streams
+// Unified data type for ALL items from ALL streams
+// Each item goes into middle_queue as a separate future
 #[derive(Debug)]
 enum ProcessedBlockData {
-    // COMPLETE block: header + state diff processed together (NEW UNIFIED DESIGN)
-    // This ensures ONE future per block number in middle_queue
-    CompleteBlock {
+    // From BlockAvailable stream - header + body + signature
+    Block {
         block_number: BlockNumber,
         block: Block,
         signature: BlockSignature,
+    },
+    // From StateDiffAvailable stream - state diff (after compilation if needed)
+    StateDiff {
+        block_number: BlockNumber,
+        block_hash: BlockHash,
         thin_state_diff: ThinStateDiff,
         classes: IndexMap<ClassHash, SierraContractClass>,
         deprecated_classes: IndexMap<ClassHash, DeprecatedContractClass>,
@@ -273,16 +277,23 @@ pub struct GenericStateSync<
     writer: Arc<Mutex<StorageWriter>>,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
-    // Temporary buffer for headers waiting for their corresponding state diff
-    // Key: block_number, Value: (Block, BlockSignature)
-    pending_blocks: HashMap<BlockNumber, (Block, BlockSignature)>,
-    // Middle queue: FuturesOrdered containing ONE future per block number
-    // Each future processes the COMPLETE block (header + state diff + compilation if needed)
-    // This queue maintains ordering while allowing concurrent compilation
+    // Middle queue: FuturesOrdered containing ALL incoming items from feeder gateway
+    // Each event (BlockAvailable, StateDiffAvailable, etc.) creates a future
+    // Futures are immediate for headers, async for state diff compilation
+    // FuturesOrdered maintains ORDER: items come out in the order they went in
     middle_queue: FuturesOrdered<ProcessingTask>,
-    // Batch queue: Final queue for ready-to-flush blocks
-    // When this fills up to batch_size, we flush it to the database in a single transaction
+    // Batch queue: accumulates ready items from middle_queue before flushing
+    // When this reaches config.block_batch_size, we flush all items in ONE DB transaction
     batch_queue: Vec<ProcessedBlockData>,
+    // Deduplication sets: track items already in queue to prevent duplicate processing
+    // This is critical for performance: streams re-fetch same data until DB markers update
+    // Without dedup, ~90% of batch items would be duplicates!
+    queued_blocks: HashSet<BlockNumber>,
+    queued_state_diffs: HashSet<BlockNumber>,
+    queued_compiled_classes: HashSet<ClassHash>,
+    queued_base_layer_blocks: HashSet<BlockNumber>,
+    // Counters for skipped duplicates (for logging/monitoring)
+    duplicates_skipped: usize,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -523,18 +534,16 @@ impl<
                 Some(result) = self.middle_queue.next(), if !self.middle_queue.is_empty() => {
                     match result {
                         Ok(processed_block) => {
-                            let block_number = match &processed_block {
-                                ProcessedBlockData::CompleteBlock { block_number, .. } => *block_number,
-                                ProcessedBlockData::CompiledClass { .. } => {
-                                    debug!("Compiled class ready from middle_queue.");
-                                    BlockNumber(0) // Placeholder for logging
-                                },
-                                ProcessedBlockData::BaseLayerBlock { block_number, .. } => *block_number,
+                            let item_desc = match &processed_block {
+                                ProcessedBlockData::Block { block_number, .. } => format!("Block {} (header)", block_number),
+                                ProcessedBlockData::StateDiff { block_number, .. } => format!("Block {} (state diff)", block_number),
+                                ProcessedBlockData::CompiledClass { .. } => "Compiled class".to_string(),
+                                ProcessedBlockData::BaseLayerBlock { block_number, .. } => format!("Base layer block {}", block_number),
                             };
                             
-                            info!(
-                                "Block {} (COMPLETE) ready from middle_queue. Adding to batch_queue ({}/{})...",
-                                block_number,
+                            debug!(
+                                "{} ready from middle_queue. Adding to batch_queue ({}/{})...",
+                                item_desc,
                                 self.batch_queue.len() + 1,
                                 self.config.block_batch_size
                             );
@@ -550,6 +559,11 @@ impl<
                                 );
                                 let batch = std::mem::take(&mut self.batch_queue);
                                 self.flush_processed_batch(batch).await?;
+                                
+                                // Clean up deduplication sets after successful flush
+                                // Remove entries that are now in DB (below current markers)
+                                self.cleanup_dedup_sets_after_flush().await?;
+                                
                                 info!("Batch successfully flushed. Batch queue cleared.");
                             }
                         }
@@ -592,17 +606,35 @@ impl<
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
                 if self.config.enable_block_batching {
-                    // CRITICAL: Write header to DB immediately so state_diff_stream can progress!
-                    // Otherwise state_diff_stream waits for header marker and never delivers StateDiffAvailable
-                    self.store_block(block_number, block.clone(), signature.clone()).await?;
+                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
+                    if self.queued_blocks.contains(&block_number) {
+                        self.duplicates_skipped += 1;
+                        trace!("Skipping duplicate block {} (already in queue)", block_number);
+                        return Ok(());
+                    }
                     
-                    // ALSO store in pending_blocks for combining with state diff later
-                    self.pending_blocks.insert(block_number, (block, signature));
+                    // Mark as queued BEFORE adding to prevent races
+                    self.queued_blocks.insert(block_number);
                     
+                    // Create an immediate future that returns the Block data
+                    // No async work needed - just wrap the data
+                    let block_future: ProcessingTask = Box::pin(async move {
+                        Ok(ProcessedBlockData::Block {
+                            block_number,
+                            block,
+                            signature,
+                        })
+                    });
+
+                    // Push to middle_queue (FuturesOrdered maintains order)
+                    self.middle_queue.push_back(block_future);
+
                     debug!(
-                        "Block {} header written to DB and stored in pending_blocks. Pending: {}",
+                        "Block {} (header) added to middle_queue. Queue size: {}, Batch queue: {}/{}",
                         block_number,
-                        self.pending_blocks.len()
+                        self.middle_queue.len(),
+                        self.batch_queue.len(),
+                        self.config.block_batch_size
                     );
 
                     Ok(())
@@ -617,58 +649,21 @@ impl<
                 deployed_contract_class_definitions,
             } => {
                 if self.config.enable_block_batching {
-                    // Get the header for this block from pending_blocks, or fetch from DB
-                    let (block, signature) = if let Some(header) = self.pending_blocks.remove(&block_number) {
-                        header
-                    } else {
-                        // Header not in pending_blocks - fetch from DB
-                        // This can happen if we're resuming from a previous run
-                        let txn = self.reader.begin_ro_txn()?;
-                        let header = txn.get_block_header(block_number)?
-                            .ok_or_else(|| StorageError::DBInconsistency {
-                                msg: format!("State diff arrived for block {} but header not found in DB or pending_blocks", block_number)
-                            })?;
-                        let signature = txn.get_block_signature(block_number)?
-                            .ok_or_else(|| StorageError::DBInconsistency {
-                                msg: format!("State diff arrived for block {} but signature not found in DB", block_number)
-                            })?;
-                        let transactions = txn.get_block_transactions(block_number)?
-                            .ok_or_else(|| StorageError::DBInconsistency {
-                                msg: format!("State diff arrived for block {} but transactions not found in DB", block_number)
-                            })?;
-                        let transaction_outputs = txn.get_block_transaction_outputs(block_number)?
-                            .ok_or_else(|| StorageError::DBInconsistency {
-                                msg: format!("State diff arrived for block {} but transaction outputs not found in DB", block_number)
-                            })?;
-                        let transaction_hashes = txn.get_block_transaction_hashes(block_number)?
-                            .ok_or_else(|| StorageError::DBInconsistency {
-                                msg: format!("State diff arrived for block {} but transaction hashes not found in DB", block_number)
-                            })?;
-                        drop(txn);
-                        
-                        let block = Block {
-                            header,
-                            body: BlockBody {
-                                transactions,
-                                transaction_outputs,
-                                transaction_hashes,
-                            },
-                        };
-                        
-                        debug!(
-                            "Block {} fetched from DB (not in pending_blocks). Pending: {}",
-                            block_number,
-                            self.pending_blocks.len()
-                        );
-                        
-                        (block, signature)
-                    };
-
-                    // Create ONE future that processes the COMPLETE block (header + state diff)
+                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
+                    if self.queued_state_diffs.contains(&block_number) {
+                        self.duplicates_skipped += 1;
+                        trace!("Skipping duplicate state diff {} (already in queue)", block_number);
+                        return Ok(());
+                    }
+                    
+                    // Mark as queued BEFORE adding to prevent races
+                    self.queued_state_diffs.insert(block_number);
+                    
+                    // Create an async future that processes (compiles) the state diff
                     let class_manager_client = self.class_manager_client.clone();
                     let reader = self.reader.clone();
 
-                    let complete_block_future: ProcessingTask = Box::pin(async move {
+                    let state_diff_future: ProcessingTask = Box::pin(async move {
                         // Process state diff (with compilation if needed)
                         let (thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes) = 
                             Self::process_state_diff(
@@ -679,11 +674,10 @@ impl<
                                 deployed_contract_class_definitions,
                             ).await?;
 
-                        // Return complete block data with BOTH header and state diff
-                        Ok(ProcessedBlockData::CompleteBlock {
+                        // Return state diff data only (header was already added separately)
+                        Ok(ProcessedBlockData::StateDiff {
                             block_number,
-                            block,
-                            signature,
+                            block_hash,
                             thin_state_diff,
                             classes,
                             deprecated_classes,
@@ -692,16 +686,15 @@ impl<
                         })
                     });
 
-                    // Add to middle_queue - ONE future per block number
-                    self.middle_queue.push_back(complete_block_future);
+                    // Add to middle_queue
+                    self.middle_queue.push_back(state_diff_future);
 
-                    info!(
-                        "Block {} (COMPLETE: header + state diff) added to middle_queue. Queue size: {}, Batch queue: {}/{}, Pending headers: {}",
+                    debug!(
+                        "Block {} (state diff) added to middle_queue. Queue size: {}, Batch queue: {}/{}",
                         block_number,
                         self.middle_queue.len(),
                         self.batch_queue.len(),
-                        self.config.block_batch_size,
-                        self.pending_blocks.len()
+                        self.config.block_batch_size
                     );
 
                     Ok(())
@@ -723,6 +716,16 @@ impl<
                 is_compiler_backward_compatible,
             } => {
                 if self.config.enable_block_batching {
+                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
+                    if self.queued_compiled_classes.contains(&class_hash) {
+                        self.duplicates_skipped += 1;
+                        trace!("Skipping duplicate compiled class {:?} (already in queue)", class_hash);
+                        return Ok(());
+                    }
+                    
+                    // Mark as queued BEFORE adding to prevent races
+                    self.queued_compiled_classes.insert(class_hash);
+                    
                     // Create immediate future for compiled class (no compilation needed)
                     let class_future: ProcessingTask = Box::pin(async move {
                         Ok(ProcessedBlockData::CompiledClass {
@@ -736,7 +739,7 @@ impl<
                     // Add to middle_queue - will be immediately ready
                     self.middle_queue.push_back(class_future);
 
-                    info!(
+                    debug!(
                         "Compiled class {:?} added to middle_queue. Queue size: {}, Batch queue: {}/{}",
                         class_hash,
                         self.middle_queue.len(),
@@ -757,6 +760,16 @@ impl<
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 if self.config.enable_block_batching {
+                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
+                    if self.queued_base_layer_blocks.contains(&block_number) {
+                        self.duplicates_skipped += 1;
+                        trace!("Skipping duplicate base layer block {} (already in queue)", block_number);
+                        return Ok(());
+                    }
+                    
+                    // Mark as queued BEFORE adding to prevent races
+                    self.queued_base_layer_blocks.insert(block_number);
+                    
                     // Create immediate future for base layer block (no compilation needed)
                     let base_layer_future: ProcessingTask = Box::pin(async move {
                         Ok(ProcessedBlockData::BaseLayerBlock {
@@ -768,7 +781,7 @@ impl<
                     // Add to middle_queue - will be immediately ready
                     self.middle_queue.push_back(base_layer_future);
 
-                    info!(
+                    debug!(
                         "Base layer block {} added to middle_queue. Queue size: {}, Batch queue: {}/{}",
                         block_number,
                         self.middle_queue.len(),
@@ -1065,7 +1078,8 @@ impl<
         let mut highest_block = BlockNumber(0);
         
         // Separate lists for different item types
-        let mut complete_blocks_to_write = Vec::new();
+        let mut blocks_to_write = Vec::new();
+        let mut state_diffs_to_write = Vec::new();
         let mut casms_to_write = Vec::new();
         let mut base_layer_blocks = Vec::new();
         let mut compiled_classes_for_class_manager = Vec::new();
@@ -1075,12 +1089,27 @@ impl<
         let mut max_block = BlockNumber(0);
         
         // Separate items by type
-        for processed_block in batch {
-            match processed_block {
-                ProcessedBlockData::CompleteBlock {
+        for processed_item in batch {
+            match processed_item {
+                ProcessedBlockData::Block {
                     block_number,
                     block,
                     signature,
+                } => {
+                    if block_number > highest_block {
+                        highest_block = block_number;
+                    }
+                    if block_number < min_block {
+                        min_block = block_number;
+                    }
+                    if block_number > max_block {
+                        max_block = block_number;
+                    }
+                    blocks_to_write.push((block_number, block, signature));
+                }
+                ProcessedBlockData::StateDiff {
+                    block_number,
+                    block_hash,
                     thin_state_diff,
                     classes,
                     deprecated_classes,
@@ -1096,10 +1125,9 @@ impl<
                     if block_number > max_block {
                         max_block = block_number;
                     }
-                    complete_blocks_to_write.push((
+                    state_diffs_to_write.push((
                         block_number,
-                        block,
-                        signature,
+                        block_hash,
                         thin_state_diff,
                         classes,
                         deprecated_classes,
@@ -1126,9 +1154,21 @@ impl<
             }
         }
 
+        // Sort and deduplicate to handle stream retries and out-of-order events
+        blocks_to_write.sort_by_key(|(bn, _, _)| *bn);
+        blocks_to_write.dedup_by_key(|(bn, _, _)| *bn);
+        
+        state_diffs_to_write.sort_by_key(|(bn, ..)| *bn);
+        state_diffs_to_write.dedup_by_key(|(bn, ..)| *bn);
+        
+        // Deduplicate compiled classes by class_hash to prevent duplicate key errors
+        casms_to_write.sort_by_key(|(ch, _)| *ch);
+        casms_to_write.dedup_by_key(|(ch, _)| *ch);
+
         info!(
-            "Batch separated: {} complete blocks ({} to {}), {} casms, {} base layer. Writing in ONE transaction...",
-            complete_blocks_to_write.len(),
+            "Batch separated: {} blocks, {} state diffs ({} to {}), {} casms, {} base layer. Writing in ONE transaction...",
+            blocks_to_write.len(),
+            state_diffs_to_write.len(),
             min_block,
             max_block,
             casms_to_write.len(),
@@ -1142,30 +1182,22 @@ impl<
             let mut txn = writer.begin_rw_txn()?;
             info!("BATCH_STORAGE_TIMING: Single txn begin took {:?}", txn_start.elapsed());
 
-            // Get current state marker to skip already-written blocks (for crash recovery)
+            // Get current markers to skip already-written blocks (handles duplicates/retries)
+            let current_header_marker = txn.get_header_marker()?;
             let current_state_marker = txn.get_state_marker()?;
-            info!("BATCH_STORAGE_TIMING: Current state marker is {:?}. Will skip blocks < this.", current_state_marker);
+            info!("BATCH_STORAGE_TIMING: Current markers - Header: {:?}, State: {:?}", current_header_marker, current_state_marker);
 
-            let mut blocks_written = 0;
-            let mut blocks_skipped = 0;
-
-            // Write all complete blocks (STATE DIFFS only - headers already written individually)
-            // Headers were written immediately when BlockAvailable arrived (to prevent deadlock)
-            for (block_number, block, signature, thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes) in complete_blocks_to_write {
-                // Skip blocks that are already written (for crash recovery)
-                if block_number < current_state_marker {
-                    debug!("Skipping block {} (already written, marker at {})", block_number, current_state_marker);
-                    blocks_skipped += 1;
+            // Write all HEADERS first (they MUST come before state diffs for state_diff_stream to work)
+            for (block_number, block, signature) in &blocks_to_write {
+                // Skip if already written (handles duplicates from stream retries)
+                if *block_number < current_header_marker {
+                    debug!("Skipping header {} (already in DB, header_marker: {})", block_number, current_header_marker);
                     continue;
                 }
                 
-                blocks_written += 1;
-                if blocks_written == 1 {
-                    info!("BATCH_STORAGE_TIMING: First block to write: {}", block_number);
-                }
-                
-                // NOTE: Headers/bodies/signatures already written in BlockAvailable event handler!
-                // We only write state diffs and classes here
+                txn = txn.append_header(*block_number, &block.header)?;
+                txn = txn.append_block_signature(*block_number, signature)?;
+                txn = txn.append_body(*block_number, block.body.clone())?;
                 
                 if block.header.block_header_without_hash.starknet_version
                     < STARKNET_VERSION_TO_COMPILE_FROM
@@ -1174,20 +1206,30 @@ impl<
                         &block_number.unchecked_next(),
                     )?;
                 }
+            }
+            
+            info!("BATCH_STORAGE_TIMING: Wrote {} headers", blocks_to_write.len());
 
-                // Write state diff (headers already in DB)
+            // Write all STATE DIFFS (after headers are written)
+            for (block_number, _block_hash, thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes) in &state_diffs_to_write {
+                // Skip if already written (handles duplicates from stream retries)
+                if *block_number < current_state_marker {
+                    debug!("Skipping state diff {} (already in DB, state_marker: {})", block_number, current_state_marker);
+                    continue;
+                }
+                
                 // Update class manager marker if needed
                 if has_class_manager {
                     txn = txn.update_class_manager_block_marker(&block_number.unchecked_next())?;
                 }
                 
                 // Write state diff
-                txn = txn.append_state_diff(block_number, thin_state_diff)?;
+                txn = txn.append_state_diff(*block_number, thin_state_diff.clone())?;
                 
                 // Write classes if needed
-                if store_sierras_and_casms || block_contains_old_classes {
+                if store_sierras_and_casms || *block_contains_old_classes {
                     txn = txn.append_classes(
-                        block_number,
+                        *block_number,
                         &classes
                             .iter()
                             .map(|(class_hash, class)| (*class_hash, class))
@@ -1200,16 +1242,27 @@ impl<
                     )?;
                 }
             }
+            
+            info!("BATCH_STORAGE_TIMING: Wrote {} state diffs", state_diffs_to_write.len());
 
-            info!(
-                "BATCH_STORAGE_TIMING: Wrote {} state diffs, skipped {} (already in DB)",
-                blocks_written,
-                blocks_skipped
-            );
-
-            // Write all compiled classes
+            // Write all compiled classes (skip if already in DB for crash recovery)
+            let mut casms_written = 0;
+            let mut casms_skipped = 0;
             for (class_hash, compiled_class) in casms_to_write {
+                // Check if CASM already exists in DB (crash recovery scenario)
+                if txn.get_casm(&class_hash)?.is_some() {
+                    debug!("Skipping CASM {} (already in DB)", class_hash);
+                    casms_skipped += 1;
+                    continue;
+                }
                 txn = txn.append_casm(&class_hash, &compiled_class)?;
+                casms_written += 1;
+            }
+            
+            if casms_skipped > 0 {
+                info!("BATCH_STORAGE_TIMING: Wrote {} casms, skipped {} duplicates", casms_written, casms_skipped);
+            } else {
+                info!("BATCH_STORAGE_TIMING: Wrote {} casms", casms_written);
             }
 
             // Commit ONCE for entire batch
@@ -1270,6 +1323,50 @@ impl<
             batch_start.elapsed()
         );
 
+        Ok(())
+    }
+
+    /// Cleans up deduplication sets after a successful flush.
+    /// Removes entries that are now below DB markers (already written).
+    /// Keeps entries that are still pending in the queue.
+    async fn cleanup_dedup_sets_after_flush(&mut self) -> StateSyncResult {
+        let txn = self.reader.begin_ro_txn()?;
+        let header_marker = txn.get_header_marker()?;
+        let state_marker = txn.get_state_marker()?;
+        let compiled_class_marker = txn.get_compiled_class_marker()?;
+        let base_layer_marker = txn.get_base_layer_block_marker()?;
+        drop(txn);
+        
+        // Remove blocks that have been written (block_number < header_marker)
+        let before_blocks = self.queued_blocks.len();
+        self.queued_blocks.retain(|&bn| bn >= header_marker);
+        
+        // Remove state diffs that have been written (block_number < state_marker)
+        let before_state_diffs = self.queued_state_diffs.len();
+        self.queued_state_diffs.retain(|&bn| bn >= state_marker);
+        
+        // For compiled classes, we clear all since we don't have a simple way to track by block
+        // They're already deduplicated by class_hash in the flush
+        let before_compiled = self.queued_compiled_classes.len();
+        self.queued_compiled_classes.clear();
+        
+        // Remove base layer blocks that have been written
+        let before_base_layer = self.queued_base_layer_blocks.len();
+        self.queued_base_layer_blocks.retain(|&bn| bn >= base_layer_marker);
+        
+        info!(
+            "DEDUP_STATS: Skipped {} duplicates this batch. Cleanup: blocks {}->{}, state_diffs {}->{}, compiled {}->{}, base_layer {}->{}. Markers: header={}, state={}, casm={}, base={}",
+            self.duplicates_skipped,
+            before_blocks, self.queued_blocks.len(),
+            before_state_diffs, self.queued_state_diffs.len(),
+            before_compiled, self.queued_compiled_classes.len(),
+            before_base_layer, self.queued_base_layer_blocks.len(),
+            header_marker, state_marker, compiled_class_marker, base_layer_marker
+        );
+        
+        // Reset counter for next batch
+        self.duplicates_skipped = 0;
+        
         Ok(())
     }
 
@@ -1819,9 +1916,13 @@ impl StateSync {
             writer: Arc::new(Mutex::new(writer)),
             sequencer_pub_key: None,
             class_manager_client,
-            pending_blocks: HashMap::new(),
             middle_queue: FuturesOrdered::new(),
             batch_queue: Vec::new(),
+            queued_blocks: HashSet::new(),
+            queued_state_diffs: HashSet::new(),
+            queued_compiled_classes: HashSet::new(),
+            queued_base_layer_blocks: HashSet::new(),
+            duplicates_skipped: 0,
         }
     }
 }
