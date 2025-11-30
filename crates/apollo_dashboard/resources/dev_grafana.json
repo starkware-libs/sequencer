@@ -66,55 +66,6 @@
       ],
       "collapsed": false
     },
-    "For Upgrade": {
-      "panels": [
-        {
-          "title": "Consensus Height",
-          "description": "The block height the node is currently working on",
-          "type": "stat",
-          "exprs": [
-            "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start validating proposal\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
-          }
-        },
-        {
-          "title": "Consensus Decisions Reached As Proposer Counter",
-          "description": "The number of rounds with decision reached where this node is the proposer, from last restart",
-          "type": "stat",
-          "exprs": [
-            "consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
-          }
-        },
-        {
-          "title": "HTTP Server Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the HTTP Server (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Seconds since last received transaction",
-          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
-          "type": "timeseries",
-          "exprs": [
-            "time() - max_over_time((timestamp(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h])) != 0)[12h:])"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        }
-      ],
-      "collapsed": true
-    },
     "Consensus": {
       "panels": [
         {
@@ -832,6 +783,55 @@
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "For Upgrade": {
+      "panels": [
+        {
+          "title": "Consensus Height",
+          "description": "The block height the node is currently working on",
+          "type": "stat",
+          "exprs": [
+            "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start validating proposal\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
+          "title": "Consensus Decisions Reached As Proposer Counter",
+          "description": "The number of rounds with decision reached where this node is the proposer, from last restart",
+          "type": "stat",
+          "exprs": [
+            "consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
+          "title": "HTTP Server Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the HTTP Server (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Seconds since last received transaction",
+          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
+          "type": "timeseries",
+          "exprs": [
+            "time() - max_over_time((timestamp(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h])) != 0)[12h:])"
           ],
           "extra_params": {
             "unit": "s"
