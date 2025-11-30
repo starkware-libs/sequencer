@@ -10,6 +10,7 @@ use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
+use crate::fixed_block_state_reader::FixedBlockStateReaderClient;
 use crate::rpc_objects::{
     BlockHeader,
     BlockId,
@@ -22,7 +23,6 @@ use crate::rpc_objects::{
     RpcSuccessResponse,
 };
 use crate::rpc_state_reader::RpcStateReader;
-use crate::state_reader::MempoolStateReader;
 
 async fn run_rpc_server() -> mockito::ServerGuard {
     mockito::Server::new_async().await

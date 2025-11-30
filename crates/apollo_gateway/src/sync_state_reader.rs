@@ -31,15 +31,12 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
+use crate::fixed_block_state_reader::{FixedBlockStateReaderClient, FixedBlockStateSyncClient};
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
@@ -98,7 +95,7 @@ impl SyncStateReader {
 }
 
 #[async_trait]
-impl MempoolStateReader for SyncStateReader {
+impl FixedBlockStateReaderClient for SyncStateReader {
     async fn get_block_info(&self) -> StateResult<BlockInfo> {
         let block = self
             .state_sync_client
@@ -376,5 +373,30 @@ impl StateReaderFactory for SyncStateReaderFactory {
             latest_block_number,
             self.runtime.clone(),
         )))
+    }
+
+    async fn get_state_reader_and_fixed_client_from_latest_block(
+        &self,
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn FixedBlockStateReaderClient>,
+    )> {
+        let latest_block_number = self
+            .shared_state_sync_client
+            .get_latest_block_number()
+            .await?
+            .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
+
+        let reader = Box::new(SyncStateReader::from_number(
+            self.shared_state_sync_client.clone(),
+            self.class_manager_client.clone(),
+            latest_block_number,
+            self.runtime.clone(),
+        ));
+        let fixed_block_state_sync_client = FixedBlockStateSyncClient::new(
+            self.shared_state_sync_client.clone(),
+            latest_block_number,
+        );
+        Ok((reader, Box::new(fixed_block_state_sync_client)))
     }
 }

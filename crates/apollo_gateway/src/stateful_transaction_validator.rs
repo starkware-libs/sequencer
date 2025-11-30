@@ -34,12 +34,9 @@ use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
+use crate::fixed_block_state_reader::FixedBlockStateReaderClient;
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -72,8 +69,8 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
-            .get_state_reader_from_latest_block()
+        let (state_reader, fixed_block_state_sync_client) = state_reader_factory
+            .get_state_reader_and_fixed_client_from_latest_block()
             .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
@@ -84,7 +81,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader).await?;
+        let latest_block_info = get_latest_block_info(fixed_block_state_sync_client).await?;
 
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
             state_reader,
@@ -354,9 +351,10 @@ fn skip_stateful_validations(
 }
 
 async fn get_latest_block_info(
-    state_reader: &dyn MempoolStateReader,
+    fixed_block_state_sync_client: Box<dyn FixedBlockStateReaderClient>,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    state_reader
+    fixed_block_state_sync_client
+        .as_ref()
         .get_block_info()
         .await
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))

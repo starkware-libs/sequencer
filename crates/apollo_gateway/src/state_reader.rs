@@ -3,31 +3,33 @@ use async_trait::async_trait;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
-use blockifier::state::state_reader_and_contract_manager::{
-    FetchCompiledClasses,
-    StateReaderAndContractManager,
-};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::BlockInfo;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-#[async_trait]
-pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
-    async fn get_block_info(&self) -> StateResult<BlockInfo>;
-}
-
+use crate::fixed_block_state_reader::FixedBlockStateReaderClient;
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait StateReaderFactory: Send + Sync {
     async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>>;
+
+    async fn get_state_reader_and_fixed_client_from_latest_block(
+        &self,
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn FixedBlockStateReaderClient>,
+    )>;
 }
 
-pub trait GatewayStateReaderWithCompiledClasses: MempoolStateReader + FetchCompiledClasses {}
+pub trait GatewayStateReaderWithCompiledClasses:
+    BlockifierStateReader + FetchCompiledClasses + Send + Sync
+{
+}
 
 impl BlockifierStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
     fn get_storage_at(
@@ -62,27 +64,5 @@ impl FetchCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
         self.as_ref().is_declared(class_hash)
-    }
-}
-
-// By default, a Box<dyn Trait> does not implement the trait of the object it contains.
-// Therefore, for using the Box<dyn GatewayStateReaderWithCompiledClasses>, that the
-// StateReaderFactory creates, we need to implement the MempoolStateReader trait for
-// Box<dyn GatewayStateReaderWithCompiledClasses>.
-#[async_trait]
-impl MempoolStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
-    async fn get_block_info(&self) -> StateResult<BlockInfo> {
-        self.as_ref().get_block_info().await
-    }
-}
-
-impl GatewayStateReaderWithCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {}
-
-#[async_trait]
-impl MempoolStateReader
-    for StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>
-{
-    async fn get_block_info(&self) -> StateResult<BlockInfo> {
-        self.state_reader.get_block_info().await
     }
 }

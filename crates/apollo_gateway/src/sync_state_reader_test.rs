@@ -29,7 +29,7 @@ use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
-use crate::state_reader::MempoolStateReader;
+use crate::fixed_block_state_reader::FixedBlockStateReaderClient;
 use crate::sync_state_reader::SyncStateReader;
 
 static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
