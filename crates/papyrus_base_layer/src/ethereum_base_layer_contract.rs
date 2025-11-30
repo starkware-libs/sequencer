@@ -39,6 +39,10 @@ use crate::{
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 pub type EthereumContractAddress = Address;
 
+#[cfg(test)]
+#[path = "ethereum_base_layer_contract_test.rs"]
+pub mod ethereum_base_layer_contract_test;
+
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
 
