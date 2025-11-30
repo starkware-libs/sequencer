@@ -9,7 +9,14 @@ use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
-use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
+use crate::block::{
+    BlockHash,
+    BlockHeader,
+    BlockNumber,
+    BlockTimestamp,
+    GasPricePerToken,
+    StarknetVersion,
+};
 use crate::core::{
     ascii_as_felt,
     EventCommitment,
@@ -109,6 +116,52 @@ pub struct BlockHeaderCommitments {
     pub receipt_commitment: ReceiptCommitment,
     pub state_diff_commitment: StateDiffCommitment,
     pub concatenated_counts: Felt,
+}
+
+impl TryFrom<&BlockHeader> for Option<BlockHeaderCommitments> {
+    type Error = StarknetApiError;
+    fn try_from(block_header: &BlockHeader) -> Result<Self, Self::Error> {
+        match (
+            block_header.state_diff_commitment,
+            block_header.transaction_commitment,
+            block_header.event_commitment,
+            block_header.receipt_commitment,
+            block_header.state_diff_length,
+        ) {
+            (
+                Some(state_diff_commitment),
+                Some(transaction_commitment),
+                Some(event_commitment),
+                Some(receipt_commitment),
+                Some(state_diff_length),
+            ) => Ok(Some(BlockHeaderCommitments {
+                transaction_commitment,
+                event_commitment,
+                receipt_commitment,
+                state_diff_commitment,
+                concatenated_counts: concat_counts(
+                    block_header.n_transactions,
+                    block_header.n_events,
+                    state_diff_length,
+                    block_header.block_header_without_hash.l1_da_mode,
+                ),
+            })),
+            _ => {
+                if block_header
+                    .block_header_without_hash
+                    .starknet_version
+                    .has_partial_block_hash_components()
+                {
+                    Err(StarknetApiError::MissingHeaderCommitments {
+                        block_number: block_header.block_header_without_hash.block_number,
+                        version: block_header.block_header_without_hash.starknet_version,
+                    })
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -243,7 +296,7 @@ pub async fn calculate_block_commitments(
 //     transaction_count (64 bits) | event_count (64 bits) | state_diff_length (64 bits)
 //     | L1 data availability mode: 0 for calldata, 1 for blob (1 bit) | 0 ...
 // ].
-fn concat_counts(
+pub(crate) fn concat_counts(
     transaction_count: usize,
     event_count: usize,
     state_diff_length: usize,
