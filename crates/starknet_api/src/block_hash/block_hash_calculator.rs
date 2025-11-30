@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
+use tokio::task::spawn_blocking;
 
 use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
@@ -171,9 +172,9 @@ pub fn calculate_block_hash(
 }
 
 /// Calculates the commitments of the transactions data for the block hash.
-pub fn calculate_block_commitments(
+pub async fn calculate_block_commitments(
     transactions_data: &[TransactionHashingData],
-    state_diff: &ThinStateDiff,
+    state_diff: ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
     starknet_version: &StarknetVersion,
 ) -> BlockHeaderCommitments {
@@ -190,8 +191,6 @@ pub fn calculate_block_commitments(
             tx_leaf_element
         })
         .collect();
-    let transaction_commitment =
-        calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements);
 
     let event_leaf_elements: Vec<EventLeafElement> = transactions_data
         .iter()
@@ -202,18 +201,35 @@ pub fn calculate_block_commitments(
             })
         })
         .collect();
-    let event_commitment = calculate_event_commitment::<Poseidon>(&event_leaf_elements);
 
     let receipt_elements: Vec<ReceiptElement> =
         transactions_data.iter().map(ReceiptElement::from).collect();
-    let receipt_commitment = calculate_receipt_commitment::<Poseidon>(&receipt_elements);
-    let state_diff_commitment = calculate_state_diff_hash(state_diff);
+
     let concatenated_counts = concat_counts(
         transactions_data.len(),
         event_leaf_elements.len(),
         state_diff.len(),
         l1_da_mode,
     );
+
+    // Spawn tasks for parallel execution
+    let transaction_task = spawn_blocking(move || {
+        calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements)
+    });
+
+    let event_task =
+        spawn_blocking(move || calculate_event_commitment::<Poseidon>(&event_leaf_elements));
+
+    let receipt_task =
+        spawn_blocking(move || calculate_receipt_commitment::<Poseidon>(&receipt_elements));
+
+    let state_diff_task = spawn_blocking(move || calculate_state_diff_hash(&state_diff));
+
+    // Wait for all tasks to complete.
+    let (transaction_commitment, event_commitment, receipt_commitment, state_diff_commitment) =
+        tokio::try_join!(transaction_task, event_task, receipt_task, state_diff_task)
+            .expect("Failed to join block commitments tasks.");
+
     BlockHeaderCommitments {
         transaction_commitment,
         event_commitment,

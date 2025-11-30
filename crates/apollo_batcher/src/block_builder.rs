@@ -162,17 +162,18 @@ impl BlockExecutionArtifacts {
 
     // TODO(Nimrod): Consider caching this method.
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
-    pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
+    pub async fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
         let starknet_version = self.block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
         let header_commitments = calculate_block_commitments(
             &transactions_data,
-            &self.thin_state_diff(),
+            self.thin_state_diff(),
             l1_da_mode,
             &starknet_version,
-        );
+        )
+        .await;
         PartialBlockHashComponents {
             header_commitments,
             block_number: self.block_info.block_number,

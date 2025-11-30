@@ -1095,6 +1095,7 @@ async fn decision_reached() {
         .with(eq(IndexSet::new()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
+    let expected_partial_block_hash = expected_artifacts.partial_block_hash_components().await;
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
@@ -1102,7 +1103,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(Some(expected_artifacts.partial_block_hash_components())),
+            eq(Some(expected_partial_block_hash)),
         )
         .returning(|_, _, _| Ok(()));
 

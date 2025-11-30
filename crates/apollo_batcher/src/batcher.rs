@@ -636,7 +636,7 @@ impl Batcher {
         )
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
-            block_execution_artifacts.partial_block_hash_components();
+            block_execution_artifacts.partial_block_hash_components().await;
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
