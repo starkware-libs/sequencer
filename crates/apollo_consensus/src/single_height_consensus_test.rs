@@ -133,7 +133,7 @@ async fn proposer() {
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0),]))
     );
 
-    let precommits = vec![
+    let precommits = [
         precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
         precommit(Some(Felt::TWO), 0, 0, *VALIDATOR_ID_3),
         precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
@@ -218,7 +218,7 @@ async fn validator(repeat_proposal: bool) {
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0)]))
     );
 
-    let precommits = vec![
+    let precommits = [
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
@@ -413,7 +413,7 @@ async fn repropose() {
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0),]))
     );
     // Advance to the next round.
-    let precommits = vec![
+    let precommits = [
         precommit(None, 0, 0, *VALIDATOR_ID_1),
         precommit(None, 0, 0, *VALIDATOR_ID_2),
         precommit(None, 0, 0, *VALIDATOR_ID_3),
@@ -433,7 +433,7 @@ async fn repropose() {
     shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap();
     shc.handle_event(&mut context, StateMachineEvent::TimeoutPrecommit(0)).await.unwrap();
 
-    let precommits = vec![
+    let precommits = [
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2),
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3),
