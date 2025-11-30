@@ -235,7 +235,6 @@ fn not_declared_scenario() -> GetCompiledClassTestScenario {
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 #[rstest]
 #[case::cairo_0_declared_and_cached(cairo_0_declared_scenario(), cairo_0_cached_scenario())]
 #[case::cairo_1_declared_and_cached(cairo_1_declared_scenario(), cairo_1_cached_scenario())]
@@ -248,10 +247,11 @@ fn not_declared_scenario() -> GetCompiledClassTestScenario {
 fn test_get_compiled_class_caching_scenarios(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
+    #[values(true, false)] wait_on_native_compilation: bool,
 ) {
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
+            wait_on_native_compilation,
             ..Default::default()
         },
         ..Default::default()
