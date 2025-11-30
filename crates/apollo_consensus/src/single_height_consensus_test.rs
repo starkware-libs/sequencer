@@ -7,7 +7,7 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::single_height_consensus::ShcReturn;
-use crate::state_machine::{SMRequest, StateMachineEvent};
+use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::{precommit, prevote, TestBlock};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
@@ -70,7 +70,7 @@ fn proposer() {
         ShcReturn::Requests(r) => r,
         _ => panic!("expected requests"),
     };
-    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote { .. })));
+    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, _))));
     assert!(matches!(
         reqs.pop_front(),
         Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit
@@ -143,7 +143,7 @@ fn validator(repeat_proposal: bool) {
         ShcReturn::Requests(r) => r,
         _ => panic!("expected requests"),
     };
-    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote { .. })));
+    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, _))));
     assert!(
         matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit)
     );
@@ -191,7 +191,7 @@ fn vote_twice(same_vote: bool) {
         ShcReturn::Requests(r) => r,
         _ => panic!("expected requests"),
     };
-    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote { .. })));
+    assert!(matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, _))));
     assert!(matches!(
         reqs.pop_front(),
         Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit
@@ -350,7 +350,9 @@ fn repropose() {
     // Expect ScheduleTimeoutPrevote{round:0} and BroadcastVote(Precommit).
     match ret {
         ShcReturn::Requests(reqs) => {
-            assert!(reqs.iter().any(|req| matches!(req, SMRequest::ScheduleTimeoutPrevote(0))));
+            assert!(
+                reqs.iter().any(|req| matches!(req, SMRequest::ScheduleTimeout(Step::Prevote, 0)))
+            );
             assert!(reqs.iter().any(|req| matches!(
                 req,
                 SMRequest::BroadcastVote(v) if v.vote_type == VoteType::Precommit && v.round == 0
@@ -365,7 +367,10 @@ fn repropose() {
     // assert that ret is ScheduleTimeoutPrecommit
     match ret {
         ShcReturn::Requests(reqs) => {
-            assert!(reqs.iter().any(|req| matches!(req, SMRequest::ScheduleTimeoutPrecommit(0))));
+            assert!(
+                reqs.iter()
+                    .any(|req| matches!(req, SMRequest::ScheduleTimeout(Step::Precommit, 0)))
+            );
         }
         _ => panic!("expected requests"),
     }
