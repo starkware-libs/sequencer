@@ -37,7 +37,6 @@ pub const LABEL_CENDE_FAILURE_REASON: &str = "cende_write_failure_reason";
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum CendeWriteFailureReason {
-    SkipWriteHeight,
     CommunicationError,
     CendeRecorderError,
     BlobNotAvailable,
