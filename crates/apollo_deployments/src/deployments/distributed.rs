@@ -745,7 +745,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::L1 => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::ConfigManager
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
@@ -755,8 +756,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::BaseLayer
-                        | ComponentConfigInService::Batcher
+                        ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
