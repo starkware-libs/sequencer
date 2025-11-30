@@ -106,6 +106,7 @@ const AllowedScopes = ['apollo_base_layer_tests',
     'starknet_patricia',
     'starknet_patricia_storage',
     'time',
+    'workspace',
     'workspace_tests',
 ];
 
