@@ -46,6 +46,7 @@ async fn main() {
         );
         block_marker = block_marker.unchecked_next();
     }
+    // Why does this fail?
     assert!(block_marker == last_block_number);
 
     let mut state_marker = initial_block_number;
