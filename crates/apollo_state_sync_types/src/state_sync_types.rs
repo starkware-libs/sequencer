@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -19,6 +20,10 @@ pub struct SyncBlock {
     pub account_transaction_hashes: Vec<TransactionHash>,
     pub l1_transaction_hashes: Vec<TransactionHash>,
     pub block_header_without_hash: BlockHeaderWithoutHash,
+    /// The commitments are required to calculate the partial block hash.
+    /// In Starknet versions prior to 0.13.2, the commitments are not included in the block header.
+    /// Therefore, it is optional.
+    pub block_header_commitments: Option<BlockHeaderCommitments>,
 }
 
 impl SyncBlock {
