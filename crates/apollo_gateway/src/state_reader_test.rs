@@ -11,8 +11,6 @@ use apollo_state_sync_types::communication::{
     SharedStateSyncClient,
     StateSyncClientResult,
 };
-use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -23,23 +21,13 @@ use blockifier::state::state_reader_and_contract_manager::StateReaderAndContract
 use blockifier::test_utils::initial_test_state::state_reader_and_contract_manager_for_testing;
 use mockall::predicate;
 use rstest::rstest;
-use starknet_api::block::{
-    BlockHeaderWithoutHash,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPricePerToken,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
-};
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ClassHash, SequencerContractAddress};
-use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
-use crate::state_reader::{GatewayStateReaderWithCompiledClasses, MempoolStateReader};
+use crate::state_reader::GatewayStateReaderWithCompiledClasses;
 use crate::sync_state_reader::SyncStateReader;
 
 static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
@@ -247,79 +235,6 @@ fn declared_but_not_in_manager_scenario() -> GetCompiledClassTestScenario {
         },
         expected_result: Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), /* Should panic, not return error */
     }
-}
-
-#[tokio::test]
-async fn test_get_block_info() {
-    let mut mock_state_sync_client = MockStateSyncClient::new();
-    let mock_class_manager_client = MockClassManagerClient::new();
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
-    let block_number = BlockNumber(1);
-    let block_timestamp = BlockTimestamp(2);
-    let sequencer_address = contract_address!("0x3");
-    let l1_gas_price = GasPricePerToken { price_in_wei: 4_u8.into(), price_in_fri: 5_u8.into() };
-    let l1_data_gas_price =
-        GasPricePerToken { price_in_wei: 6_u8.into(), price_in_fri: 7_u8.into() };
-    let l2_gas_price = GasPricePerToken { price_in_wei: 8_u8.into(), price_in_fri: 9_u8.into() };
-    let l1_da_mode = L1DataAvailabilityMode::get_test_instance(&mut get_rng());
-
-    mock_state_sync_client.expect_get_block().times(1).with(predicate::eq(block_number)).returning(
-        move |_| {
-            Ok(SyncBlock {
-                state_diff: Default::default(),
-                account_transaction_hashes: Default::default(),
-                l1_transaction_hashes: Default::default(),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number,
-                    l1_gas_price,
-                    l1_data_gas_price,
-                    l2_gas_price,
-                    sequencer: SequencerContractAddress(sequencer_address),
-                    timestamp: block_timestamp,
-                    l1_da_mode,
-                    ..Default::default()
-                },
-            })
-        },
-    );
-
-    let state_reader_and_contract_manager = sync_state_reader_and_contract_manager(
-        Arc::new(mock_state_sync_client),
-        Arc::new(mock_class_manager_client),
-        contract_class_manager.clone(),
-        block_number,
-        tokio::runtime::Handle::current(),
-    );
-    let result = state_reader_and_contract_manager.get_block_info().await.unwrap();
-
-    assert_eq!(
-        result,
-        BlockInfo {
-            block_number,
-            block_timestamp,
-            sequencer_address,
-            gas_prices: GasPrices {
-                eth_gas_prices: GasPriceVector {
-                    l1_gas_price: NonzeroGasPrice::new_unchecked(l1_gas_price.price_in_wei),
-                    l1_data_gas_price: NonzeroGasPrice::new_unchecked(
-                        l1_data_gas_price.price_in_wei
-                    ),
-                    l2_gas_price: NonzeroGasPrice::new_unchecked(l2_gas_price.price_in_wei),
-                },
-                strk_gas_prices: GasPriceVector {
-                    l1_gas_price: NonzeroGasPrice::new_unchecked(l1_gas_price.price_in_fri),
-                    l1_data_gas_price: NonzeroGasPrice::new_unchecked(
-                        l1_data_gas_price.price_in_fri
-                    ),
-                    l2_gas_price: NonzeroGasPrice::new_unchecked(l2_gas_price.price_in_fri),
-                },
-            },
-            use_kzg_da: match l1_da_mode {
-                L1DataAvailabilityMode::Blob => true,
-                L1DataAvailabilityMode::Calldata => false,
-            },
-        }
-    );
 }
 
 #[tokio::test]
