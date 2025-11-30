@@ -55,6 +55,9 @@ use crate::update_strategy::UpdateStrategy;
 const SERVICES_DIR_NAME: &str = "services/";
 
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
+    "base_layer_config.bpo1_start_block_number",
+    "base_layer_config.bpo2_start_block_number",
+    "base_layer_config.fusaka_no_bpo_start_block_number",
     "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
