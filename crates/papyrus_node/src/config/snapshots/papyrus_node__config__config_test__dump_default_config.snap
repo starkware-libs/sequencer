@@ -3,6 +3,27 @@ source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
 ---
 {
+  "base_layer.bpo1_start_block_number": {
+    "description": "The block number at which BPO1 update was deployed.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "base_layer.bpo2_start_block_number": {
+    "description": "The block number at which BPO2 update was deployed.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "base_layer.fusaka_no_bpo_start_block_number": {
+    "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
   "base_layer.node_url": {
     "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
     "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E",
