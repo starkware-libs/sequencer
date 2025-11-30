@@ -1409,7 +1409,6 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "clap",
  "criterion",
- "lazy_static",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
