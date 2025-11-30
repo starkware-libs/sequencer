@@ -38,19 +38,6 @@ class TestL1Client(unittest.TestCase):
         "blockTimestamp": hex(1_727_673_743),
     }
 
-    EXPECTED_LOG_SAMPLE = L1Client.Log(
-        address=RPC_LOG_RESULT_SAMPLE["address"],
-        topics=RPC_LOG_RESULT_SAMPLE["topics"],
-        data=RPC_LOG_RESULT_SAMPLE["data"],
-        block_number=BLOCK_NUMBER_SAMPLE,
-        block_hash=RPC_LOG_RESULT_SAMPLE["blockHash"],
-        transaction_hash=RPC_LOG_RESULT_SAMPLE["transactionHash"],
-        transaction_index=int(RPC_LOG_RESULT_SAMPLE["transactionIndex"], 16),
-        log_index=int(RPC_LOG_RESULT_SAMPLE["logIndex"], 16),
-        removed=RPC_LOG_RESULT_SAMPLE["removed"],
-        block_timestamp=int(RPC_LOG_RESULT_SAMPLE["blockTimestamp"], 16),
-    )
-
     @patch("l1_client.requests.post")
     def test_get_logs_retries_after_exception_and_succeeds_on_second_attempt(self, mock_post):
         request_exception = requests.RequestException("some error")
@@ -68,7 +55,7 @@ class TestL1Client(unittest.TestCase):
         )
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(logs, [self.EXPECTED_LOG_SAMPLE])
+        self.assertEqual(logs, [self.RPC_LOG_RESULT_SAMPLE])
 
     def test_get_logs_raises_on_invalid_block_range(self):
         client = L1Client(api_key="api_key")
@@ -83,36 +70,35 @@ class TestL1Client(unittest.TestCase):
 
     @patch("l1_client.requests.post")
     def test_get_logs_parses_several_results(self, mock_post):
+        json_results = [
+            {
+                "address": "0x1",
+                "topics": [],
+                "data": "0x01",
+                "blockNumber": "0x1",
+                "blockHash": "0xaa",
+                "transactionHash": "0xa1",
+                "transactionIndex": "0x0",
+                "logIndex": "0x0",
+                "removed": False,
+                "blockTimestamp": "0x10",
+            },
+            {
+                "address": "0x2",
+                "topics": ["0xdead"],
+                "data": "0x02",
+                "blockNumber": "0x2",
+                "blockHash": "0xbb",
+                "transactionHash": "0xb2",
+                "transactionIndex": "0x1",
+                "logIndex": "0x1",
+                "removed": False,
+                "blockTimestamp": "0x20",
+            },
+        ]
         response_ok = Mock()
         response_ok.raise_for_status.return_value = None
-        response_ok.json.return_value = {
-            "result": [
-                {
-                    "address": "0x1",
-                    "topics": [],
-                    "data": "0x01",
-                    "blockNumber": "0x1",
-                    "blockHash": "0xaa",
-                    "transactionHash": "0xa1",
-                    "transactionIndex": "0x0",
-                    "logIndex": "0x0",
-                    "removed": False,
-                    "blockTimestamp": "0x10",
-                },
-                {
-                    "address": "0x2",
-                    "topics": ["0xdead"],
-                    "data": "0x02",
-                    "blockNumber": "0x2",
-                    "blockHash": "0xbb",
-                    "transactionHash": "0xb2",
-                    "transactionIndex": "0x1",
-                    "logIndex": "0x1",
-                    "removed": False,
-                    "blockTimestamp": "0x20",
-                },
-            ]
-        }
+        response_ok.json.return_value = {"result": json_results}
 
         mock_post.return_value = response_ok
 
@@ -124,34 +110,7 @@ class TestL1Client(unittest.TestCase):
 
         self.assertEqual(mock_post.call_count, 1)
 
-        expected_logs = [
-            L1Client.Log(
-                address="0x1",
-                topics=[],
-                data="0x01",
-                block_number=1,
-                block_hash="0xaa",
-                transaction_hash="0xa1",
-                transaction_index=0,
-                log_index=0,
-                removed=False,
-                block_timestamp=0x10,
-            ),
-            L1Client.Log(
-                address="0x2",
-                topics=["0xdead"],
-                data="0x02",
-                block_number=2,
-                block_hash="0xbb",
-                transaction_hash="0xb2",
-                transaction_index=1,
-                log_index=1,
-                removed=False,
-                block_timestamp=0x20,
-            ),
-        ]
-
-        self.assertEqual(logs, expected_logs)
+        self.assertEqual(logs, json_results)
 
     @patch("l1_client.requests.post")
     def test_get_logs_when_rpc_result_is_empty(self, mock_post):

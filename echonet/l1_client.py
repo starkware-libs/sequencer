@@ -76,7 +76,7 @@ class L1Client:
 
         return None
 
-    def get_logs(self, from_block: int, to_block: int) -> List["L1Client.Log"]:
+    def get_logs(self, from_block: int, to_block: int) -> List[dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
         Tries up to retries_count times. On failure, logs an error and returns [].
@@ -113,21 +113,7 @@ class L1Client:
 
         results = data.get("result", [])
 
-        return [
-            L1Client.Log(
-                address=result["address"],
-                topics=result["topics"],
-                data=result["data"],
-                block_number=int(result["blockNumber"], 16),
-                block_hash=result["blockHash"],
-                transaction_hash=result["transactionHash"],
-                transaction_index=int(result["transactionIndex"], 16),
-                log_index=int(result["logIndex"], 16),
-                removed=result["removed"],
-                block_timestamp=int(result["blockTimestamp"], 16),
-            )
-            for result in results
-        ]
+        return results
 
     def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
