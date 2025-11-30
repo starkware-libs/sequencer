@@ -18,7 +18,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{ping, Multiaddr, PeerId};
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::metrics::LatencyMetrics;
 
@@ -124,6 +124,11 @@ impl NetworkBehaviour for Behaviour {
                         }
                     }
                     ping::Event { peer, connection, result: Err(failure) } => {
+                        if let ping::Failure::Unsupported = failure {
+                            debug!(?peer, ?connection, ?failure, "Ping unsupported");
+                            continue;
+                        }
+
                         warn!(?peer, ?connection, ?failure, "Ping failed, closing connection.");
                         self.pending_close_connections.push_back((peer, connection));
                     }
