@@ -35,7 +35,7 @@
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.l1_data_gas_price_multiplier_ppt": 135,
   "consensus_manager_config.context_config.l1_gas_tip_wei": 1000000000,
-  "consensus_manager_config.context_config.max_l1_data_gas_price_wei": 1000000000000,
+  "consensus_manager_config.context_config.max_l1_data_gas_price_wei": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-MAX_L1_DATA_GAS_PRICE_WEI_$$$",
   "consensus_manager_config.context_config.max_l1_gas_price_wei": 1000000000000,
   "consensus_manager_config.context_config.min_l1_data_gas_price_wei": 1,
   "consensus_manager_config.context_config.min_l1_gas_price_wei": 1000000000,
