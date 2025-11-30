@@ -1,5 +1,6 @@
 pub mod communication;
 pub mod errors;
+pub mod fixed_block_state_reader;
 pub mod gateway;
 pub mod metrics;
 pub mod rpc_objects;

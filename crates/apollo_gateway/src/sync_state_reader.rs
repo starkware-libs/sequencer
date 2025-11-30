@@ -23,23 +23,19 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
+use crate::fixed_block_state_reader::{FixedBlockSyncStateClient, FixedBlockSyncStateReader};
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
@@ -94,42 +90,6 @@ impl SyncStateReader {
             );
 
         Ok(contract_class)
-    }
-}
-
-#[async_trait]
-impl MempoolStateReader for SyncStateReader {
-    async fn get_block_info(&self) -> StateResult<BlockInfo> {
-        let block = self
-            .state_sync_client
-            .get_block(self.block_number)
-            .await
-            .map_err(|e| StateError::StateReadError(e.to_string()))?;
-
-        let block_header = block.block_header_without_hash;
-        let block_info = BlockInfo {
-            block_number: block_header.block_number,
-            block_timestamp: block_header.timestamp,
-            sequencer_address: block_header.sequencer.0,
-            gas_prices: GasPrices {
-                eth_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_wei.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_wei.try_into()?,
-                },
-                strk_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_fri.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
-                },
-            },
-            use_kzg_da: match block_header.l1_da_mode {
-                L1DataAvailabilityMode::Blob => true,
-                L1DataAvailabilityMode::Calldata => false,
-            },
-        };
-
-        Ok(block_info)
     }
 }
 
@@ -361,20 +321,28 @@ impl StateReaderFactory for SyncStateReaderFactory {
     // TODO(guy.f): The call to `get_latest_block_number()` is not counted in the storage metrics as
     // it is done prior to the creation of SharedStateSyncClientMetricWrapper, directly via the
     // SharedStateSyncClient.
-    async fn get_state_reader_from_latest_block(
+    async fn get_state_reader_and_fixed_client_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn FixedBlockSyncStateReader>,
+    )> {
         let latest_block_number = self
             .shared_state_sync_client
             .get_latest_block_number()
             .await?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
-        Ok(Box::new(SyncStateReader::from_number(
+        let reader = Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
             latest_block_number,
             self.runtime.clone(),
-        )))
+        ));
+        let fixed_block_state_sync_client = FixedBlockSyncStateClient::new(
+            self.shared_state_sync_client.clone(),
+            latest_block_number,
+        );
+        Ok((reader, Box::new(fixed_block_state_sync_client)))
     }
 }
