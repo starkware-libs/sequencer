@@ -1,4 +1,5 @@
 [
+  "crates/apollo_deployments/resources/app_configs/replacer_base_layer_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_revert_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_versioned_constants_overrides_config.json",
