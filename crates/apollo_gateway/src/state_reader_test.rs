@@ -282,6 +282,7 @@ async fn test_get_block_info() {
                     starknet_version,
                     ..Default::default()
                 },
+                block_header_commitments: Default::default(),
             })
         },
     );
