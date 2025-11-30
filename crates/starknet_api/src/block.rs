@@ -13,6 +13,7 @@ use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
 use time::OffsetDateTime;
 
+use crate::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use crate::core::{
     ContractAddress,
     EventCommitment,
@@ -216,6 +217,39 @@ pub struct BlockHeader {
     pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
+}
+
+impl BlockHeader {
+    pub fn get_block_header_commitments(
+        &self,
+        l1_da_mode: L1DataAvailabilityMode,
+    ) -> Option<BlockHeaderCommitments> {
+        match (
+            self.state_diff_commitment,
+            self.transaction_commitment,
+            self.event_commitment,
+            self.receipt_commitment,
+        ) {
+            (
+                Some(state_diff_commitment),
+                Some(transaction_commitment),
+                Some(event_commitment),
+                Some(receipt_commitment),
+            ) => Some(BlockHeaderCommitments {
+                transaction_commitment,
+                event_commitment,
+                receipt_commitment,
+                state_diff_commitment,
+                concatenated_counts: concat_counts(
+                    self.n_transactions,
+                    self.n_events,
+                    self.state_diff_length.unwrap(),
+                    l1_da_mode,
+                ),
+            }),
+            _ => None,
+        }
+    }
 }
 
 // TODO(Nimrod): Consider deleting this struct or move it to the CLI crate.
