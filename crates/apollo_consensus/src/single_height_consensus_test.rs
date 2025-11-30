@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::single_height_consensus::ShcReturn;
-use crate::state_machine::{SMRequest, StateMachineEvent};
+use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::{precommit, prevote, TestBlock};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
@@ -63,7 +63,7 @@ fn proposer() {
         shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
     // Expect a precommit broadcast request present.
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit);
         assert!(reqs.is_empty());
     });
@@ -125,7 +125,7 @@ fn validator(repeat_proposal: bool) {
         shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_3)).unwrap();
     // Expect a precommit broadcast request present.
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit);
         assert!(reqs.is_empty());
     });
@@ -169,7 +169,7 @@ fn vote_twice(same_vote: bool) {
         .unwrap();
     // On quorum of prevotes, expect a precommit broadcast request.
     assert_matches!(res, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit);
         assert!(reqs.is_empty());
     });
@@ -227,7 +227,7 @@ fn rebroadcast_votes() {
         shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
     // Expect a precommit broadcast at round 0.
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit && v.round == 0);
         assert!(reqs.is_empty());
     });
@@ -250,7 +250,7 @@ fn rebroadcast_votes() {
     let ret =
         shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3)).unwrap();
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(1)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 1)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit && v.round == 1);
         assert!(reqs.is_empty());
     });
@@ -303,9 +303,9 @@ fn repropose() {
     // and schedule a prevote timeout for round 0.
     let ret =
         shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
-    // Expect ScheduleTimeoutPrevote{round:0} and BroadcastVote(Precommit).
+    // Expect ScheduleTimeout(Step::Prevote, 0) and BroadcastVote(Precommit).
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrevote(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit && v.round == 0);
         assert!(reqs.is_empty());
     });
@@ -315,7 +315,7 @@ fn repropose() {
     let ret = shc.handle_vote(&leader_fn, precommit(None, 0, 0, *VALIDATOR_ID_2)).unwrap();
     // assert that ret is ScheduleTimeoutPrecommit
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeoutPrecommit(0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Precommit, 0)));
         assert!(reqs.is_empty());
     });
     // No precommit quorum is reached. On TimeoutPrecommit(0) the proposer advances to round 1 with
