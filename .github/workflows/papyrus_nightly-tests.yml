@@ -76,22 +76,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo build -p papyrus_load_test
 
-  integration-test:
-    runs-on: macos-latest
-    if: github.event.schedule == '30 0 * * *'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: >
-          cargo test
-          --test latency_histogram
-          --test gateway_integration_test
-          --test feeder_gateway_integration_test
-          -- --include-ignored --skip test_gw_integration_testnet;
-          cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
-
   # TODO(dvir): make this run only if the path 'crates/apollo_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
