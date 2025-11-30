@@ -52,8 +52,8 @@ pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
     ]
 }
 
-/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 2 seconds
-/// over a 2-minute window.
+/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 15 seconds
+/// over a 5-minute window.
 fn get_http_server_avg_add_tx_latency_alert(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
@@ -66,11 +66,11 @@ fn get_http_server_avg_add_tx_latency_alert(
         "High HTTP server average add_tx latency",
         AlertGroup::HttpServer,
         // The clamp_min is used to avoid division by zero, and the minimal value
-        // is 1/120, which is the minimum value of a valid count rate over a 2-minute window.
-        format!("rate({sum_metric}[2m]) / clamp_min(rate({count_metric}[2m]), 1/120)"),
+        // is 1/300, which is the minimum value of a valid count rate over a 5-minute window.
+        format!("rate({sum_metric}[5m]) / clamp_min(rate({count_metric}[5m]), 1/300)"),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
+            comparison_value: 15.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
@@ -85,7 +85,7 @@ pub(crate) fn get_http_server_avg_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![
         get_http_server_avg_add_tx_latency_alert(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::DayOnly,
         ),
         get_http_server_avg_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
