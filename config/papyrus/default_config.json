@@ -2,17 +2,17 @@
   "base_layer.fusaka_no_bpo_start_block_number": {
     "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
     "privacy": "Public",
-    "value": 1000000000000000000
+    "value": 0
   },
   "base_layer.bpo1_start_block_number": {
     "description": "The block number at which BPO1 update was deployed.",
     "privacy": "Public",
-    "value": 1000000000000000000
+    "value": 0
   },
   "base_layer.bpo2_start_block_number": {
     "description": "The block number at which BPO2 update was deployed.",
     "privacy": "Public",
-    "value": 1000000000000000000
+    "value": 0
   },
   "base_layer.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
