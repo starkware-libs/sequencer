@@ -33,7 +33,7 @@
   "components.gateway.max_concurrency": 128,
   "components.gateway.port": "$$$_COMPONENTS-GATEWAY-PORT_$$$",
   "components.gateway.remote_client_config.#is_none": false,
-  "components.gateway.remote_client_config.attempts_per_log": 10,
+  "components.gateway.remote_client_config.attempts_per_log": 1,
   "components.gateway.remote_client_config.connection_timeout_ms": 500,
   "components.gateway.remote_client_config.idle_connections": 0,
   "components.gateway.remote_client_config.idle_timeout_ms": 30000,
