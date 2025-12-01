@@ -272,12 +272,12 @@ impl SierraContractClass {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ContractClassComponentHashes {
-    contract_class_version: Felt,
-    external_functions_hash: PoseidonHash,
-    l1_handlers_hash: PoseidonHash,
-    constructors_hash: PoseidonHash,
-    abi_hash: Felt,
-    sierra_program_hash: Felt,
+    pub contract_class_version: Felt,
+    pub external_functions_hash: PoseidonHash,
+    pub l1_handlers_hash: PoseidonHash,
+    pub constructors_hash: PoseidonHash,
+    pub abi_hash: Felt,
+    pub sierra_program_hash: Felt,
 }
 
 impl ContractClassComponentHashes {
