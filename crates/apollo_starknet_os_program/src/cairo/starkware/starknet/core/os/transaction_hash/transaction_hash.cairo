@@ -188,6 +188,8 @@ func compute_invoke_transaction_hash{range_check_ptr, poseidon_ptr: PoseidonBuil
     execution_context: ExecutionContext*,
     account_deployment_data_size: felt,
     account_deployment_data: felt*,
+    privacy_facts_size: felt,
+    privacy_facts: felt*,
 ) -> felt {
     alloc_locals;
 
@@ -202,6 +204,9 @@ func compute_invoke_transaction_hash{range_check_ptr, poseidon_ptr: PoseidonBuil
         hash_tx_common_fields(common_fields=common_fields);
         poseidon_hash_update_with_nested_hash(
             data_ptr=account_deployment_data, data_length=account_deployment_data_size
+        );
+        poseidon_hash_update_with_nested_hash(
+            data_ptr=privacy_facts, data_length=privacy_facts_size
         );
         poseidon_hash_update_with_nested_hash(
             data_ptr=execution_context.calldata, data_length=execution_context.calldata_size

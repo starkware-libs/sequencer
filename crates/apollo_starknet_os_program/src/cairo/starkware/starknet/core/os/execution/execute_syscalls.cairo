@@ -703,6 +703,8 @@ func execute_meta_tx_v0{
         fee_data_availability_mode=0,
         account_deployment_data_start=cast(0, felt*),
         account_deployment_data_end=cast(0, felt*),
+        privacy_facts_start=cast(0, felt*),
+        privacy_facts_end=cast(0, felt*),
     );
 
     tempvar execution_context: ExecutionContext* = new ExecutionContext(
@@ -1182,6 +1184,8 @@ func execute_get_execution_info{range_check_ptr, syscall_ptr: felt*}(
             fee_data_availability_mode=tx_info.fee_data_availability_mode,
             account_deployment_data_start=tx_info.account_deployment_data_start,
             account_deployment_data_end=tx_info.account_deployment_data_end,
+            privacy_facts_start=tx_info.privacy_facts_start,
+            privacy_facts_end=tx_info.privacy_facts_end,
         );
 
         static_assert GetExecutionInfoResponse.SIZE == 1;
@@ -1220,6 +1224,8 @@ func execute_get_execution_info{range_check_ptr, syscall_ptr: felt*}(
             fee_data_availability_mode=tx_info.fee_data_availability_mode,
             account_deployment_data_start=tx_info.account_deployment_data_start,
             account_deployment_data_end=tx_info.account_deployment_data_end,
+            privacy_facts_start=tx_info.privacy_facts_start,
+            privacy_facts_end=tx_info.privacy_facts_end,
         );
 
         static_assert GetExecutionInfoResponse.SIZE == 1;

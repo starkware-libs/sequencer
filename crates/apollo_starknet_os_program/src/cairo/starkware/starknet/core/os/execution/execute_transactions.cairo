@@ -408,6 +408,8 @@ func fill_account_tx_info{range_check_ptr}(
     common_tx_fields: CommonTxFields*,
     account_deployment_data_size: felt,
     account_deployment_data: felt*,
+    privacy_facts_size: felt,
+    privacy_facts: felt*,
     tx_info_dst: TxInfo*,
     deprecated_tx_info_dst: DeprecatedTxInfo*,
 ) {
@@ -438,6 +440,8 @@ func fill_account_tx_info{range_check_ptr}(
         fee_data_availability_mode=common_tx_fields.fee_data_availability_mode,
         account_deployment_data_start=account_deployment_data,
         account_deployment_data_end=&account_deployment_data[account_deployment_data_size],
+        privacy_facts_start=privacy_facts,
+        privacy_facts_end=&privacy_facts[privacy_facts_size],
     );
     fill_deprecated_tx_info(tx_info=tx_info_dst, dst=deprecated_tx_info_dst);
     assert_deprecated_tx_fields_consistency(tx_info=tx_info_dst);
@@ -479,12 +483,15 @@ func execute_invoke_function_transaction{
         nondet %{ segments.gen_arg(tx.account_deployment_data) %}, felt*
     );
     let poseidon_ptr = builtin_ptrs.selectable.poseidon;
+    // TODO(Meshi) use the invoke transaction privacy facts once implemented.
     with poseidon_ptr {
         let transaction_hash = compute_invoke_transaction_hash(
             common_fields=common_tx_fields,
             execution_context=tx_execution_context,
             account_deployment_data_size=account_deployment_data_size,
             account_deployment_data=account_deployment_data,
+            privacy_facts_size=0,
+            privacy_facts=cast(0, felt*),
         );
     }
     update_poseidon_in_builtin_ptrs(poseidon_ptr=poseidon_ptr);
@@ -497,11 +504,14 @@ func execute_invoke_function_transaction{
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
+    // TODO(Meshi) use the invoke transaction privacy facts once implemented.
     fill_account_tx_info(
         transaction_hash=transaction_hash,
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=account_deployment_data_size,
         account_deployment_data=account_deployment_data,
+        privacy_facts_size=0,
+        privacy_facts=cast(0, felt*),
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=tx_execution_context.deprecated_tx_info,
     );
@@ -621,6 +631,8 @@ func execute_l1_handler_transaction{
         fee_data_availability_mode=0,
         account_deployment_data_start=cast(0, felt*),
         account_deployment_data_end=cast(0, felt*),
+        privacy_facts_start=cast(0, felt*),
+        privacy_facts_end=cast(0, felt*),
     );
     fill_deprecated_tx_info(tx_info=tx_info, dst=tx_execution_context.deprecated_tx_info);
     assert_deprecated_tx_fields_consistency(tx_info=tx_info);
@@ -817,6 +829,8 @@ func execute_deploy_account_transaction{
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=0,
         account_deployment_data=cast(0, felt*),
+        privacy_facts_size=0,
+        privacy_facts=cast(0, felt*),
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=deprecated_tx_info,
     );
@@ -959,6 +973,8 @@ func execute_declare_transaction{
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=account_deployment_data_size,
         account_deployment_data=account_deployment_data,
+        privacy_facts_size=0,
+        privacy_facts=cast(0, felt*),
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=deprecated_tx_info,
     );
