@@ -1520,6 +1520,7 @@ dependencies = [
  "apollo_metrics",
  "assert_matches",
  "async-trait",
+ "chrono",
  "hyper 0.14.32",
  "metrics",
  "metrics-exporter-prometheus",
