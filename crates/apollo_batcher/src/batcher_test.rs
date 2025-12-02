@@ -37,6 +37,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -926,12 +927,17 @@ async fn add_sync_block() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
     let mut mock_dependencies = MockDependencies::default();
+    let partial_block_hash_components = PartialBlockHashComponents {
+        header_commitments: Default::default(),
+        block_number: INITIAL_HEIGHT,
+        ..Default::default()
+    };
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(Some(partial_block_hash_components)))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -962,6 +968,7 @@ async fn add_sync_block() {
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
+        block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
