@@ -72,6 +72,13 @@ impl L1Provider {
             start_height: None,
         }
     }
+    pub fn reset_bootstrapper(&mut self) {
+        self.bootstrapper = Bootstrapper::new(
+            self.bootstrapper.l1_provider_client.clone(),
+            self.bootstrapper.sync_client.clone(),
+            self.config.startup_sync_sleep_retry_interval_seconds,
+        );
+    }
     // Functions Called by the scraper.
 
     // Start the provider, get first-scrape events, start L2 sync.
@@ -437,6 +444,7 @@ impl L1Provider {
             );
 
             self.state = ProviderState::Pending;
+            self.reset_bootstrapper();
         }
 
         Ok(())
