@@ -63,6 +63,14 @@ macro_rules! starknet_version_enum {
 
         impl StarknetVersion {
             pub const LATEST: Self = Self::$latest;
+
+            pub fn has_partial_block_hash_components(&self) -> bool {
+                if self < &Self::V0_13_2 {
+                    false
+                } else {
+                    true
+                }
+            }
         }
 
         impl From<&StarknetVersion> for Vec<u8> {
