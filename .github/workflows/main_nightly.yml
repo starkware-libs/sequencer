@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Define branches for nightly run.
         id: branches
-        run: echo 'branches=["main", "main-v0.14.0"]' >> "$GITHUB_OUTPUT"
+        run: echo 'branches=["main", "main-v0.14.1-committer"]' >> "$GITHUB_OUTPUT"
 
   codecov:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
