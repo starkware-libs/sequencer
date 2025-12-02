@@ -494,7 +494,6 @@ impl ConsensusContext for SequencerConsensusContext {
         let transactions;
         let block_info;
         {
-            let height = BlockNumber(height);
             let mut proposals = self.valid_proposals.lock().unwrap();
             (block_info, transactions, proposal_id) =
                 proposals.get_proposal(&height, &block).clone();
@@ -549,7 +548,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let sequencer = SequencerContractAddress(block_info.builder);
 
         let block_header_without_hash = BlockHeaderWithoutHash {
-            block_number: BlockNumber(height),
+            block_number: height,
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price,
