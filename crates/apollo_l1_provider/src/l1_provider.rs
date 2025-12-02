@@ -122,15 +122,7 @@ impl L1Provider {
                     block_timestamp,
                     scrape_timestamp,
                 } => {
-                    let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted =
-                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
-                    if !successfully_inserted {
-                        debug!(
-                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
-                             known or committed."
-                        );
-                    }
+                    self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
                 }
                 Event::TransactionCancellationStarted {
                     tx_hash,

@@ -209,6 +209,21 @@ fn process_events_committed_txs() {
 }
 
 #[test]
+fn add_tx_double_scraped_doesnt_update_scrape_timestamp() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([(l1_handler(1), 1)])
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    let expected_l1_provider = l1_provider.clone();
+
+    // Test: double scrape doesn't update the scrape timestamp.
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(1), 2.into())]).unwrap();
+    assert_eq!(l1_provider, expected_l1_provider);
+}
+
+#[test]
 fn pending_state_returns_error() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
