@@ -207,10 +207,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
                         Some(Toleration::ApolloCoreService)
                     }
-                    CloudK8sEnvironment::Mainnet
-                    | CloudK8sEnvironment::SepoliaTestnet
-                    | CloudK8sEnvironment::StressTest => Some(Toleration::ApolloCoreServiceC2D56),
-                    CloudK8sEnvironment::PotcMock => Some(Toleration::Batcher864),
+                    CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => {
+                        Some(Toleration::ApolloCoreServiceC2D56)
+                    }
                 },
                 HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
@@ -276,31 +275,29 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::PotcMock
-                | CloudK8sEnvironment::SepoliaIntegration
-                | CloudK8sEnvironment::UpgradeTest => match self {
-                    HybridNodeServiceName::Core => {
-                        Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
+                    match self {
+                        HybridNodeServiceName::Core => {
+                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                        }
+                        HybridNodeServiceName::HttpServer => {
+                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                        }
+                        HybridNodeServiceName::Gateway => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::L1 => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::Mempool => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::SierraCompiler => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
                     }
-                    HybridNodeServiceName::HttpServer => {
-                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                    }
-                    HybridNodeServiceName::Gateway => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::L1 => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                },
-                CloudK8sEnvironment::Mainnet
-                | CloudK8sEnvironment::SepoliaTestnet
-                | CloudK8sEnvironment::StressTest => match self {
+                }
+                CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => match self {
                     HybridNodeServiceName::Core => {
                         Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                     }
