@@ -34,10 +34,6 @@ pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
-// TODO(guyn): make this a config parameter
-// Sensible lower bound.
-const L1_BLOCK_TIME: u64 = 12;
-
 pub struct L1Scraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1ScraperConfig,
     pub base_layer: BaseLayerType,
@@ -140,7 +136,8 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         debug!("Latest L1 block number: {latest_l1_block_number:?}");
 
         // Estimate the number of blocks in the interval, to rewind from the latest block.
-        let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+        let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs()
+            / self.config.l1_block_time_seconds.as_secs();
         debug!("Blocks in interval: {blocks_in_interval}");
 
         // Add 50% safety margin.
