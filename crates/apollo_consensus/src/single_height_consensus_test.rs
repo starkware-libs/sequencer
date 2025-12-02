@@ -62,9 +62,12 @@ fn proposer() {
     ));
 
     // Receive two prevotes from other validators to reach prevote quorum.
-    let _ = shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).unwrap();
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_1))
+        .unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
     // Expect a precommit broadcast request present.
     let mut reqs = match ret {
         ShcReturn::Requests(r) => r,
@@ -77,10 +80,12 @@ fn proposer() {
     ));
 
     // Now provide precommit votes to reach decision.
-    let _ =
-        shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).unwrap();
-    let decision =
-        shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_1))
+        .unwrap();
+    let decision = shc
+        .handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
     match decision {
         ShcReturn::Decision(d) => assert_eq!(d.block, BLOCK.id),
         _ => panic!("expected decision"),
@@ -135,9 +140,12 @@ fn validator(repeat_proposal: bool) {
     }
 
     // Reach prevote quorum with two other validators.
-    let _ = shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_3)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_3))
+        .unwrap();
     // Expect a precommit broadcast request present.
     let mut reqs = match ret {
         ShcReturn::Requests(r) => r,
@@ -149,9 +157,12 @@ fn validator(repeat_proposal: bool) {
     );
 
     // Now provide precommit votes to reach decision.
-    let _ = shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).unwrap();
-    let decision =
-        shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), BlockNumber(0), 0, *PROPOSER_ID))
+        .unwrap();
+    let decision = shc
+        .handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
     match decision {
         ShcReturn::Decision(d) => assert_eq!(d.block, BLOCK.id),
         _ => panic!("expected decision"),
@@ -182,10 +193,9 @@ fn vote_twice(same_vote: bool) {
 
     // Duplicate prevote should be ignored.
     let _ =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).unwrap();
-    let res = shc
-        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
-        .unwrap();
+        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), HEIGHT, 0, *PROPOSER_ID)).unwrap();
+    let res =
+        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), HEIGHT, 0, *VALIDATOR_ID_2)).unwrap();
     // On quorum of prevotes, expect a precommit broadcast request.
     let mut reqs = match res {
         ShcReturn::Requests(r) => r,
@@ -198,16 +208,16 @@ fn vote_twice(same_vote: bool) {
     ));
 
     // Precommit handling towards decision.
-    let first_vote = precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID);
+    let first_vote = precommit(Some(BLOCK.id.0), HEIGHT, 0, *PROPOSER_ID);
     let _ = shc.handle_vote(&leader_fn, first_vote.clone()).unwrap();
     let second_vote = if same_vote {
         first_vote.clone()
     } else {
-        precommit(Some(Felt::TWO), HEIGHT.0, 0, *PROPOSER_ID)
+        precommit(Some(Felt::TWO), HEIGHT, 0, *PROPOSER_ID)
     };
     let _ = shc.handle_vote(&leader_fn, second_vote.clone()).unwrap();
     let decision =
-        shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_3));
+        shc.handle_vote(&leader_fn, precommit(Some(BLOCK.id.0), HEIGHT, 0, *VALIDATOR_ID_3));
     match decision {
         Ok(ShcReturn::Decision(d)) => assert_eq!(d.block, BLOCK.id),
         _ => panic!("Expected decision"),
@@ -241,9 +251,12 @@ fn rebroadcast_votes() {
     ));
 
     // Receive two prevotes from other validators to reach prevote quorum at round 0.
-    let _ = shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).unwrap();
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_1))
+        .unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
     // Expect a precommit broadcast at round 0.
     let reqs = match ret {
         ShcReturn::Requests(r) => r,
@@ -256,8 +269,10 @@ fn rebroadcast_votes() {
 
     // Advance with NIL precommits from peers (no decision) -> expect scheduling of precommit
     // timeout.
-    let _ = shc.handle_vote(&leader_fn, precommit(None, 0, 0, *VALIDATOR_ID_1)).unwrap();
-    let _ = shc.handle_vote(&leader_fn, precommit(None, 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ =
+        shc.handle_vote(&leader_fn, precommit(None, BlockNumber(0), 0, *VALIDATOR_ID_1)).unwrap();
+    let _ =
+        shc.handle_vote(&leader_fn, precommit(None, BlockNumber(0), 0, *VALIDATOR_ID_2)).unwrap();
 
     // Timeout at precommit(0) -> expect a prevote broadcast for round 1.
     let ret = shc.handle_event(&leader_fn, StateMachineEvent::TimeoutPrecommit(0)).unwrap();
@@ -271,9 +286,12 @@ fn rebroadcast_votes() {
     )));
 
     // Reach prevote quorum at round 1 with two other validators.
-    let _ = shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2)).unwrap();
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3)).unwrap();
+    let _ = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 1, *VALIDATOR_ID_2))
+        .unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 1, *VALIDATOR_ID_3))
+        .unwrap();
     let reqs = match ret {
         ShcReturn::Requests(r) => r,
         _ => panic!("expected requests"),
@@ -286,7 +304,12 @@ fn rebroadcast_votes() {
     // Rebroadcast with older vote (round 0) - should be ignored (no broadcast, no task).
     let ret = shc.handle_event(
         &leader_fn,
-        StateMachineEvent::VoteBroadcasted(precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)),
+        StateMachineEvent::VoteBroadcasted(precommit(
+            Some(BLOCK.id.0),
+            BlockNumber(0),
+            0,
+            *PROPOSER_ID,
+        )),
     );
     match ret.unwrap() {
         ShcReturn::Requests(r) => assert!(r.is_empty()),
@@ -294,7 +317,7 @@ fn rebroadcast_votes() {
     }
 
     // Rebroadcast with current round (round 1) - should broadcast.
-    let rebroadcast_vote = precommit(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID);
+    let rebroadcast_vote = precommit(Some(BLOCK.id.0), BlockNumber(0), 1, *PROPOSER_ID);
     let ret = shc
         .handle_event(&leader_fn, StateMachineEvent::VoteBroadcasted(rebroadcast_vote.clone()))
         .unwrap();
@@ -336,8 +359,9 @@ fn repropose() {
         _ => panic!("expected requests"),
     }
     // A single prevote from another validator does not yet cause quorum.
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_1))
+        .unwrap();
     // No new requests are expected at this point.
     match ret {
         ShcReturn::Requests(reqs) => assert!(reqs.is_empty()),
@@ -345,8 +369,9 @@ fn repropose() {
     }
     // Reaching prevote quorum with a second external prevote; proposer will broadcast a precommit
     // and schedule a prevote timeout for round 0.
-    let ret =
-        shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let ret = shc
+        .handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), BlockNumber(0), 0, *VALIDATOR_ID_2))
+        .unwrap();
     // Expect ScheduleTimeoutPrevote{round:0} and BroadcastVote(Precommit).
     match ret {
         ShcReturn::Requests(reqs) => {
@@ -362,8 +387,10 @@ fn repropose() {
     }
     // receiving Nil precommit requests and then decision on new round; just assert no panic and
     // decisions arrive after quorum.
-    let _ = shc.handle_vote(&leader_fn, precommit(None, 0, 0, *VALIDATOR_ID_1)).unwrap();
-    let ret = shc.handle_vote(&leader_fn, precommit(None, 0, 0, *VALIDATOR_ID_2)).unwrap();
+    let _ =
+        shc.handle_vote(&leader_fn, precommit(None, BlockNumber(0), 0, *VALIDATOR_ID_1)).unwrap();
+    let ret =
+        shc.handle_vote(&leader_fn, precommit(None, BlockNumber(0), 0, *VALIDATOR_ID_2)).unwrap();
     // assert that ret is ScheduleTimeoutPrecommit
     match ret {
         ShcReturn::Requests(reqs) => {
