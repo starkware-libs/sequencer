@@ -663,6 +663,7 @@ impl Batcher {
                     .casm_hash_computation_data_proving_gas,
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
+                parent_proposal_commitment: None,
             },
         })
     }

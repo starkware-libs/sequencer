@@ -5,6 +5,7 @@ mod central_objects;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
@@ -81,6 +82,8 @@ pub(crate) struct AerospikeBlob {
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
     casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
     compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
+    proposal_commitment: ProposalCommitment,
+    parent_proposal_commitment: Option<ProposalCommitment>,
 }
 
 #[cfg_attr(test, automock)]
@@ -257,6 +260,8 @@ pub struct BlobParameters {
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
     pub(crate) compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
+    pub(crate) proposal_commitment: ProposalCommitment,
+    pub(crate) parent_proposal_commitment: Option<ProposalCommitment>,
 }
 
 impl AerospikeBlob {
@@ -301,6 +306,8 @@ impl AerospikeBlob {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: blob_parameters
                 .compiled_class_hashes_for_migration,
+            proposal_commitment: blob_parameters.proposal_commitment,
+            parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
         })
     }
 }
