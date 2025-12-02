@@ -24,6 +24,8 @@ pub enum BatcherError {
     InternalError,
     #[error("Invalid block number. The active height is {active_height}, got {block_number}.")]
     InvalidBlockNumber { active_height: BlockNumber, block_number: BlockNumber },
+    #[error("Missing header commitments for block number {block_number}.")]
+    MissingHeaderCommitments { block_number: BlockNumber },
     #[error("Missing retrospective block hash.")]
     MissingRetrospectiveBlockHash,
     #[error("Attempt to start proposal with no active height.")]

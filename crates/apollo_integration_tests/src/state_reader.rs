@@ -30,7 +30,16 @@ use starknet_api::block::{
 };
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::core::{
+    ClassHash,
+    ContractAddress,
+    EventCommitment,
+    Nonce,
+    ReceiptCommitment,
+    SequencerContractAddress,
+    StateDiffCommitment,
+    TransactionCommitment,
+};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::test_utils::{
@@ -362,7 +371,7 @@ fn write_state_to_apollo_storage(
     classes: &TestClasses,
 ) {
     let block_number = BlockNumber(0);
-    let block_header = test_block_header(block_number);
+    let block_header = test_block_header(block_number, state_diff.len());
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
     let cairo0_contract_classes: Vec<_> =
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
@@ -388,7 +397,7 @@ fn write_state_to_apollo_storage(
         .unwrap();
 }
 
-fn test_block_header(block_number: BlockNumber) -> BlockHeader {
+fn test_block_header(block_number: BlockNumber, state_diff_length: usize) -> BlockHeader {
     BlockHeader {
         block_header_without_hash: BlockHeaderWithoutHash {
             block_number,
@@ -410,6 +419,11 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()
         },
+        transaction_commitment: Some(TransactionCommitment::default()),
+        event_commitment: Some(EventCommitment::default()),
+        receipt_commitment: Some(ReceiptCommitment::default()),
+        state_diff_commitment: Some(StateDiffCommitment::default()),
+        state_diff_length: Some(state_diff_length),
         ..Default::default()
     }
 }
