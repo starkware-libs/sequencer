@@ -371,6 +371,7 @@ async fn commit_block_backlog() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper.clone())
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])
+        .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
@@ -431,6 +432,7 @@ async fn bootstrap_commit_block_received_twice_no_error() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
+        .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
@@ -452,6 +454,7 @@ async fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
+        .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
@@ -1058,8 +1061,10 @@ async fn commit_block_historical_height_short_circuits_bootstrap() {
 
     let batcher_height_old = 4;
     let bootstrapper = make_bootstrapper!(backlog: []);
-    let l1_provider_builder =
-        L1ProviderContentBuilder::new().with_bootstrapper(bootstrapper).with_txs([l1_handler(1)]);
+    let l1_provider_builder = L1ProviderContentBuilder::new()
+        .with_bootstrapper(bootstrapper)
+        .with_state(ProviderState::Uninitialized)
+        .with_txs([l1_handler(1)]);
     let l1_provider_builder_clone = l1_provider_builder.clone();
     let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
@@ -1400,7 +1405,9 @@ fn consuming_multiple_txs_selective_deletion_after_timelock() {
 #[test]
 fn bootstrap_commit_block_received_while_uninitialized() {
     // Setup.
-    let mut l1_provider = L1ProviderContentBuilder::new().build_into_l1_provider();
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Uninitialized)
+        .build_into_l1_provider();
 
     // Test.
     let result = l1_provider.commit_block([].into(), [].into(), BlockNumber(1));
@@ -1725,4 +1732,25 @@ async fn test_stuck_sync() {
         receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));
         tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
+}
+
+#[tokio::test]
+async fn provider_initialized_in_pending_is_same_as_uninitialized_after_getting_initialize() {
+    // Setup.
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(2);
+    let mut provider_starts_uninitialized = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Uninitialized)
+        .build_into_l1_provider();
+    assert!(provider_starts_uninitialized.state.is_uninitialized());
+
+    let provider_starts_pending =
+        L1ProviderContentBuilder::new().with_height(STARTUP_HEIGHT).build_into_l1_provider();
+    assert_eq!(provider_starts_pending.state, ProviderState::Pending);
+
+    // Test.
+    provider_starts_uninitialized.initialize(STARTUP_HEIGHT, Default::default()).await.unwrap();
+    assert_eq!(provider_starts_uninitialized.state, ProviderState::Pending);
+
+    // Assert.
+    assert_eq!(provider_starts_uninitialized, provider_starts_pending);
 }
