@@ -62,15 +62,17 @@ mod connection;
 mod hole_punching;
 mod provider;
 mod transport;
+pub mod unlimited_congestion;
 
 use std::net::SocketAddr;
 
-pub use config::Config;
+pub use config::{Config, CongestionController};
 pub use connection::{Connecting, Connection, Stream};
 #[cfg(feature = "tokio")]
 pub use provider::tokio;
 pub use provider::Provider;
 pub use transport::GenTransport;
+pub use unlimited_congestion::UnlimitedCongestionConfig;
 
 /// Errors that may happen on the [`GenTransport`] or a single [`Connection`].
 #[derive(Debug, thiserror::Error)]

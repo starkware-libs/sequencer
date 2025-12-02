@@ -23,7 +23,34 @@ use std::time::Duration;
 
 use libp2p::tls;
 use quinn::crypto::rustls::{QuicClientConfig, QuicServerConfig};
-use quinn::{MtuDiscoveryConfig, VarInt};
+use quinn::{congestion, MtuDiscoveryConfig, VarInt};
+
+/// Congestion controller algorithm selection.
+#[derive(Clone, Debug)]
+pub enum CongestionController {
+    /// NewReno congestion controller (default, more conservative).
+    NewReno,
+    /// BBR congestion controller (optimized for high throughput and bandwidth delay product
+    /// networks).
+    Bbr {
+        /// Initial congestion window size in bytes.
+        initial_window: Option<u64>,
+    },
+    /// Unlimited congestion controller - behaves like UDP with NO congestion control.
+    ///
+    /// ⚠️ WARNING: This ignores all packet loss and congestion signals.
+    /// Use only in controlled environments. Can be unfair to other network traffic.
+    Unlimited {
+        /// Initial (and maximum) congestion window size in bytes.
+        window: u64,
+    },
+}
+
+impl Default for CongestionController {
+    fn default() -> Self {
+        CongestionController::NewReno
+    }
+}
 
 /// Config for the transport.
 #[derive(Clone)]
@@ -50,6 +77,13 @@ pub struct Config {
     /// Max unacknowledged data in bytes that may be sent in total on all streams
     /// of a connection.
     pub max_connection_data: u32,
+
+    /// Maximum stream send window size in bytes.
+    /// Controls how much data can be in flight on a single stream.
+    pub send_window: Option<u64>,
+
+    /// Congestion controller algorithm to use.
+    pub congestion_controller: CongestionController,
 
     /// Support QUIC version draft-29 for dialing and listening.
     ///
@@ -95,9 +129,35 @@ impl Config {
 
             // Ensure that one stream is not consuming the whole connection.
             max_stream_data: 10_000_000,
+            send_window: None,
+            congestion_controller: CongestionController::default(),
             keypair: keypair.clone(),
             mtu_discovery_config: Some(Default::default()),
         }
+    }
+
+    /// Set the send window size for streams.
+    pub fn with_send_window(mut self, send_window: u64) -> Self {
+        self.send_window = Some(send_window);
+        self
+    }
+
+    /// Set the congestion controller algorithm.
+    pub fn with_congestion_controller(mut self, controller: CongestionController) -> Self {
+        self.congestion_controller = controller;
+        self
+    }
+
+    /// Set the maximum data per stream in bytes.
+    pub fn with_max_stream_data(mut self, max_stream_data: u32) -> Self {
+        self.max_stream_data = max_stream_data;
+        self
+    }
+
+    /// Set the maximum data per connection in bytes.
+    pub fn with_max_connection_data(mut self, max_connection_data: u32) -> Self {
+        self.max_connection_data = max_connection_data;
+        self
     }
 
     /// Set the upper bound to the max UDP payload size that MTU discovery will search for.
@@ -132,6 +192,8 @@ impl From<Config> for QuinnConfig {
             keep_alive_interval,
             max_connection_data,
             max_stream_data,
+            send_window,
+            congestion_controller,
             support_draft_29,
             handshake_timeout: _,
             keypair,
@@ -149,6 +211,37 @@ impl From<Config> for QuinnConfig {
         transport.stream_receive_window(max_stream_data.into());
         transport.receive_window(max_connection_data.into());
         transport.mtu_discovery_config(mtu_discovery_config);
+
+        // transport.persistent_congestion_threshold(u32::MAX);
+        // transport.time_threshold(100.0);
+        // transport.packet_threshold(u32::MAX);
+
+        // Configure send window if specified
+        if let Some(window) = send_window {
+            transport.send_window(window);
+        }
+
+        // Configure congestion controller
+        match congestion_controller {
+            CongestionController::NewReno => {
+                transport
+                    .congestion_controller_factory(Arc::new(congestion::NewRenoConfig::default()));
+            }
+            CongestionController::Bbr { initial_window } => {
+                let mut bbr_config = congestion::BbrConfig::default();
+                if let Some(window) = initial_window {
+                    bbr_config.initial_window(window);
+                }
+                transport.congestion_controller_factory(Arc::new(bbr_config));
+            }
+            CongestionController::Unlimited { window } => {
+                let unlimited_config =
+                    crate::unlimited_congestion::UnlimitedCongestionConfig::new()
+                        .initial_window(window);
+                transport.congestion_controller_factory(Arc::new(unlimited_config));
+            }
+        }
+
         let transport = Arc::new(transport);
 
         let mut server_config = quinn::ServerConfig::with_crypto(server_tls_config);
