@@ -2,7 +2,6 @@
 
 use std::str::FromStr;
 
-use apollo_metrics::metrics::{MetricCounter, MetricScope};
 use apollo_state_reader::apollo_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
@@ -13,7 +12,6 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::metrics::CacheMetrics;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::AccountTransaction;
@@ -54,22 +52,6 @@ use crate::storage::{
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub type ApolloStateReaderAndContractManager = StateReaderAndContractManager<ApolloReader>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
-
-/// Placeholder class cache metrics. There are not metrics on the native blockifier.
-const NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS: CacheMetrics = CacheMetrics::new(
-    MetricCounter::new(
-        MetricScope::Blockifier,
-        "Class Cache Misses in Native Blockifier",
-        "Counter of the number of times that the class cache was missed",
-        0,
-    ),
-    MetricCounter::new(
-        MetricScope::Blockifier,
-        "Class Cache Misses in Native Blockifier",
-        "Counter of the number of times that the class cache was hit",
-        0,
-    ),
-);
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
 /// computation data.
@@ -429,11 +411,7 @@ impl PyBlockExecutor {
         self.storage.validate_aligned(next_block_number.0);
         let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
 
-        StateReaderAndContractManager::new(
-            apollo_reader,
-            self.contract_class_manager.clone(),
-            NATIVE_BLOCKIFIER_CLASS_CACHE_METRICS,
-        )
+        StateReaderAndContractManager::new(apollo_reader, self.contract_class_manager.clone(), None)
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
