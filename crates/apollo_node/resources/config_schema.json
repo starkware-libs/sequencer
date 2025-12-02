@@ -2594,6 +2594,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "l1_scraper_config.l1_block_time_seconds": {
+    "description": "The time it takes for a new L1 block to be created.",
+    "privacy": "Public",
+    "value": 12
+  },
   "l1_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
