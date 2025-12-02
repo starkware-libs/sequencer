@@ -5,7 +5,7 @@ use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -39,7 +39,7 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+impl<L: Leaf> FactDbFilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
     }
@@ -49,7 +49,7 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
-impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+impl<L: Leaf> HasDynamicPrefix for FactDbFilledNode<L> {
     fn get_prefix(&self) -> DbKeyPrefix {
         match &self.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
@@ -59,7 +59,7 @@ impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
     }
 }
 
-impl<L: Leaf> DBObject for FilledNode<L> {
+impl<L: Leaf> DBObject for FactDbFilledNode<L> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
@@ -93,7 +93,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+impl<L: Leaf> FactDbFilledNode<L> {
     /// Deserializes filled nodes.
     pub fn deserialize(
         node_hash: HashOutput,
