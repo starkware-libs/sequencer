@@ -130,16 +130,12 @@ where
         metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
-        let mut connector = hyper::client::connect::HttpConnector::new();
-        connector.set_nodelay(true);
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
-            .build(connector);
-
+            .build_http();
         debug!("RemoteComponentClient created with URI: {uri:?}");
-
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
