@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
+use apollo_deployments::service::NodeType;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
@@ -38,15 +39,7 @@ async fn main() {
     .await;
 
     // Assert that RESTART_NODE is a hybrid node.
-    assert_eq!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&RESTART_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        HybridNodeServiceName::iter().count()
-    );
+    assert_eq!(integration_test_manager.get_node_type(RESTART_NODE), NodeType::Hybrid);
 
     let node_indices = integration_test_manager.get_node_indices();
     integration_test_manager.run_nodes(node_indices.clone()).await;
