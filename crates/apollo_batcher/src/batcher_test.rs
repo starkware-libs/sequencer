@@ -36,7 +36,8 @@ use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -933,18 +934,28 @@ async fn proposal_startup_failure_allows_new_proposals() {
 }
 
 #[rstest]
+#[case::new_sync_block(Some(PartialBlockHashComponents {
+    block_number: INITIAL_HEIGHT,
+    ..Default::default()
+}))]
+#[case::old_sync_block(None)]
 #[tokio::test]
-async fn add_sync_block() {
+async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlockHashComponents>) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
     let mut mock_dependencies = MockDependencies::default();
+    let (starknet_version, block_header_commitments) = if partial_block_hash_components.is_some() {
+        (StarknetVersion::LATEST, Some(Default::default()))
+    } else {
+        (StarknetVersion::V0_13_1, None)
+    };
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(partial_block_hash_components))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -971,12 +982,13 @@ async fn add_sync_block() {
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
             block_number: INITIAL_HEIGHT,
+            starknet_version,
             ..Default::default()
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         account_transaction_hashes: Default::default(),
-        block_header_commitments: None,
+        block_header_commitments,
     };
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
@@ -1008,7 +1020,7 @@ async fn add_sync_block_mismatch_block_number() {
         state_diff: Default::default(),
         account_transaction_hashes: Default::default(),
         l1_transaction_hashes: Default::default(),
-        block_header_commitments: None,
+        block_header_commitments: Some(Default::default()),
     };
     let result = batcher.add_sync_block(sync_block).await;
     assert_eq!(
@@ -1018,6 +1030,26 @@ async fn add_sync_block_mismatch_block_number() {
             requested_height: BlockNumber(4)
         })
     )
+}
+
+#[rstest]
+#[tokio::test]
+async fn add_sync_block_missing_block_header_commitments() {
+    let mut batcher = create_batcher(MockDependencies::default()).await;
+
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: INITIAL_HEIGHT,
+            starknet_version: StarknetVersion::LATEST,
+            ..Default::default()
+        },
+        state_diff: Default::default(),
+        account_transaction_hashes: Default::default(),
+        l1_transaction_hashes: Default::default(),
+        block_header_commitments: None,
+    };
+    let result = batcher.add_sync_block(sync_block).await;
+    assert_eq!(result, Err(BatcherError::MissingHeaderCommitments { block_number: INITIAL_HEIGHT }))
 }
 
 #[tokio::test]
