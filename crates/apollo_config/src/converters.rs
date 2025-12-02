@@ -93,6 +93,17 @@ where
     Ok(Some(map))
 }
 
+/// Deserializes a sensitive map from "k1:v1 k2:v2" string structure.
+pub fn deserialize_optional_sensitive_map<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<HashMap<String, String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_map = deserialize_optional_map(de)?;
+    Ok(optional_map.map(Sensitive::new))
+}
+
 /// A struct containing a URL and its associated headers.
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 pub struct UrlAndHeaders {
