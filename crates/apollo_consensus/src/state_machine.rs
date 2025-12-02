@@ -48,11 +48,11 @@ pub(crate) enum StateMachineEvent {
     Prevote(Vote),
     /// Precommit message, sent from the SHC to the state machine.
     Precommit(Vote),
-    /// TimeoutPropose event, sent from the state machine to the SHC.
+    /// TimeoutPropose event, sent from the SHC to the state machine.
     TimeoutPropose(Round),
-    /// TimeoutPrevote event, sent from the state machine to the SHC.
+    /// TimeoutPrevote event, sent from the SHC to the state machine.
     TimeoutPrevote(Round),
-    /// TimeoutPrecommit event, sent from the state machine to the SHC.
+    /// TimeoutPrecommit event, sent from the SHC to the state machine.
     TimeoutPrecommit(Round),
     /// Used by the SHC to rebroadcast a self-vote.
     RebroadcastVote(Vote),
