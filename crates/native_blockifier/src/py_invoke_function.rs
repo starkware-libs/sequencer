@@ -81,6 +81,7 @@ struct PyInvokeTransactionV3 {
     pub fee_data_availability_mode: PyDataAvailabilityMode,
     pub paymaster_data: Vec<PyFelt>,
     pub account_deployment_data: Vec<PyFelt>,
+    pub proof_facts: Vec<PyFelt>,
 }
 
 impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
@@ -101,6 +102,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
             account_deployment_data: AccountDeploymentData(from_py_felts(
                 tx.account_deployment_data,
             )),
+            proof_facts: from_py_felts(tx.proof_facts),
         })
     }
 }

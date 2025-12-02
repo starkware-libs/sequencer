@@ -57,6 +57,7 @@
             "account_deployment_data":[
 
             ],
+            "proof_facts": [],
             "type":"INVOKE_FUNCTION"
         },
         {
@@ -105,6 +106,7 @@
             "account_deployment_data":[
 
             ],
+            "proof_facts": [],
             "type":"INVOKE_FUNCTION"
         }
     ],
