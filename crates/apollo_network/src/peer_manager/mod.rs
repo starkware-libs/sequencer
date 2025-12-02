@@ -226,9 +226,9 @@ impl PeerManager {
                     }
                 }
                 ReputationModifier::Unstable => {
-                    self.pending_events.push(ToSwarm::GenerateEvent(
-                        ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
-                    ));
+                    // self.pending_events.push(ToSwarm::GenerateEvent(
+                    //     ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
+                    // ));
                     peer.blacklist_peer(self.config.unstable_timeout_millis);
                 }
             }
