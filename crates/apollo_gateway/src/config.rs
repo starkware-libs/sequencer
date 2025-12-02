@@ -38,7 +38,7 @@ impl Default for GatewayConfig {
             chain_info: ChainInfo::default(),
             block_declare: false,
             authorized_declarer_accounts: None,
-            class_cache_size: 250,
+            class_cache_size: 50,
         }
     }
 }
