@@ -21,7 +21,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::bootstrapper::Bootstrapper;
+use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
 use crate::L1ProviderConfig;
 
@@ -71,6 +71,13 @@ impl L1Provider {
             clock: clock.unwrap_or_else(|| Arc::new(DefaultClock)),
             start_height: None,
         }
+    }
+    pub fn reset_bootstrapper(&mut self) {
+        self.bootstrapper = Bootstrapper::new(
+            self.bootstrapper.l1_provider_client.clone(),
+            self.bootstrapper.sync_client.clone(),
+            self.config.startup_sync_sleep_retry_interval_seconds,
+        );
     }
     // Functions Called by the scraper.
 
@@ -437,6 +444,7 @@ impl L1Provider {
             );
 
             self.state = ProviderState::Pending;
+            self.reset_bootstrapper();
         }
 
         Ok(())
