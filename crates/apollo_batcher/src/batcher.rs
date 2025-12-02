@@ -643,7 +643,7 @@ impl Batcher {
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
-            Some(partial_block_hash_components),
+            Some(partial_block_hash_components.clone()),
         )
         .await?;
         let execution_infos = block_execution_artifacts
@@ -676,6 +676,7 @@ impl Batcher {
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
             },
+            partial_block_hash_components,
         })
     }
 
