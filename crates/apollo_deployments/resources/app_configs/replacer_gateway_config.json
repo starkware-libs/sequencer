@@ -10,7 +10,7 @@
   "gateway_config.contract_class_manager_config.contract_cache_size": 300,
   "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": "",
   "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": true,
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": 600,
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": "$$$_GATEWAY_CONFIG-CONTRACT_CLASS_MANAGER_CONFIG-NATIVE_COMPILER_CONFIG-MAX_CPU_TIME_$$$",
   "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": false,
   "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": 52428800,
   "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": false,
