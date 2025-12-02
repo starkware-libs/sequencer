@@ -2,6 +2,10 @@ use apollo_network::network_manager::{
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
+    PropellerClient,
+    PropellerClientTrait,
+    PropellerMessageServer,
+    ReceivedPropellerMessage,
     SqmrClientSender,
     SqmrServerReceiver,
 };
@@ -16,6 +20,26 @@ pub enum MessageSender {
     Gossipsub(BroadcastTopicClient<TopicType>),
     Sqmr(SqmrClientSender<TopicType, TopicType>),
     ReveresedSqmr(ReveresedSqmrSender),
+    Propeller(PropellerSender),
+}
+
+/// Wrapper for Propeller client that handles message ID generation
+pub struct PropellerSender {
+    client: PropellerClient<TopicType>,
+}
+
+impl PropellerSender {
+    pub fn new(client: PropellerClient<TopicType>) -> Self {
+        Self { client }
+    }
+
+    async fn send_message(&mut self, message: TopicType) {
+        if let Err(e) = self.client.send_message(message).await {
+            error!("Failed to send Propeller message: {:?}", e);
+        } else {
+            trace!("Sent Propeller message");
+        }
+    }
 }
 
 /// Wrapper for ReveresedSqmr that maintains the last active query
@@ -88,6 +112,9 @@ impl MessageSender {
                 // Then broadcast the message to all active queries
                 sender.broadcast_to_queries(message).await;
             }
+            MessageSender::Propeller(sender) => {
+                sender.send_message(message).await;
+            }
         }
     }
 }
@@ -96,6 +123,7 @@ pub enum MessageReceiver {
     Gossipsub(BroadcastTopicServer<TopicType>),
     Sqmr(SqmrServerReceiver<TopicType, TopicType>),
     ReveresedSqmr(SqmrClientSender<TopicType, TopicType>),
+    Propeller(PropellerMessageServer<TopicType>),
 }
 
 impl MessageReceiver {
@@ -147,6 +175,24 @@ impl MessageReceiver {
                     }
                 }
             },
+            MessageReceiver::Propeller(receiver) => receiver
+                .for_each(
+                    |(sender, message_root, result): ReceivedPropellerMessage<TopicType>| async move {
+                        match result {
+                            Ok(message) => {
+                                trace!("Received Propeller message with ID: {}", message_root);
+                                f(message, Some(sender));
+                            }
+                            Err(e) => {
+                                error!(
+                                    "Failed to deserialize Propeller message {}: {:?}",
+                                    message_root, e
+                                );
+                            }
+                        }
+                    },
+                )
+                .await,
         }
     }
 }

@@ -208,6 +208,17 @@ impl SwarmTrait for MockSwarm {
     fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
+
+    fn set_propeller_peers(
+        &mut self,
+        _peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError> {
+        Ok(())
+    }
+
+    fn propeller_broadcast(&mut self, _message: Bytes) {
+        unimplemented!()
+    }
 }
 
 const BUFFER_SIZE: usize = 100;

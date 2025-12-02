@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package propeller.pb;
+
+message PropellerUnit {
+    uint32 channel = 1;
+    bytes publisher = 2;
+    bytes root = 3;
+    bytes signature = 4;
+    uint32 index = 5;
+    bytes shard = 6;
+    bytes proof = 7;
+}
+
+message PropellerUnitBatch {
+    repeated PropellerUnit batch = 1;
+}
+
+// auto-generate struct using `pb-rs --dont_use_cow propeller.proto`

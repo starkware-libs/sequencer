@@ -174,6 +174,7 @@ impl ConsensusManager {
             sqmr_metrics: None,
             event_metrics: Some(EventMetrics { event_counter: CONSENSUS_NETWORK_EVENTS }),
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
+            propeller_metrics: None,
         });
 
         NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics)

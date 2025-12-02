@@ -3,6 +3,8 @@
 use std::convert::Infallible;
 use std::time::Duration;
 
+use apollo_propeller::metrics::PropellerMetrics;
+use apollo_propeller::{self as propeller};
 use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
@@ -18,7 +20,14 @@ use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
 use crate::metrics::{EventMetrics, LatencyMetrics};
 use crate::peer_manager::PeerManagerConfig;
-use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
+use crate::{
+    discovery,
+    gossipsub_impl,
+    peer_manager,
+    propeller_impl,
+    prune_dead_connections,
+    sqmr,
+};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
@@ -33,6 +42,7 @@ pub struct MixedBehaviour {
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
     pub prune_dead_connections: prune_dead_connections::Behaviour,
+    pub propeller: propeller::Behaviour,
     pub event_tracker_metrics: Toggle<EventMetricsTracker>,
 }
 
@@ -46,6 +56,7 @@ pub enum Event {
 pub enum ExternalEvent {
     Sqmr(sqmr::behaviour::ExternalEvent),
     GossipSub(gossipsub_impl::ExternalEvent),
+    Propeller(propeller_impl::ExternalEvent),
 }
 
 #[derive(Debug)]
@@ -72,6 +83,7 @@ impl MixedBehaviour {
         peer_manager_config: PeerManagerConfig,
         event_metrics: Option<EventMetrics>,
         latency_metrics: Option<LatencyMetrics>,
+        propeller_metrics: Option<PropellerMetrics>,
         keypair: Keypair,
         // TODO(AndrewL): consider making this non optional
         bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
@@ -128,7 +140,7 @@ impl MixedBehaviour {
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair),
+                gossipsub::MessageAuthenticity::Signed(keypair.clone()),
                 gossipsub::ConfigBuilder::default()
                     // TODO(shahak): try to reduce this bound.
                     .max_transmit_size(1 << 34)
@@ -145,6 +157,11 @@ impl MixedBehaviour {
                 prune_dead_connections_ping_interval,
                 prune_dead_connections_ping_timeout,
                 latency_metrics,
+            ),
+            propeller: propeller::Behaviour::new_with_metrics(
+                propeller::MessageAuthenticity::Signed(keypair),
+                propeller::ConfigBuilder::default().build(),
+                propeller_metrics,
             ),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
