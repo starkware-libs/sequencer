@@ -15,6 +15,7 @@ config:
     components_state_sync_url: sequencer-core-service
     gateway_config_authorized_declarer_accounts: ""
     gateway_config_authorized_declarer_accounts_is_none: true
+    gateway_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
     gateway_config_stateful_tx_validator_config_max_allowed_nonce_gap: 200
     gateway_config_stateless_tx_validator_config_min_gas_price: 3000000000
 
