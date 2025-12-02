@@ -71,6 +71,9 @@ lazy_static! {
 }
 
 const CHANNEL_SIZE: usize = 10;
+const HEIGHT_0: BlockNumber = BlockNumber(0);
+const HEIGHT_1: BlockNumber = BlockNumber(1);
+const HEIGHT_2: BlockNumber = BlockNumber(2);
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 #[fixture]
@@ -140,19 +143,19 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     // Send messages for height 2 followed by those for height 1.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     // Run the manager for height 1.
@@ -172,7 +175,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let decision = manager
         .run_height(
             &mut context,
-            BlockNumber(1),
+            HEIGHT_1,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -185,7 +188,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let decision = manager
         .run_height(
             &mut context,
-            BlockNumber(2),
+            HEIGHT_2,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -210,32 +213,30 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |block, votes| *block == ProposalCommitment(Felt::TWO) && votes[0].height == 2)
+        .withf(move |block, votes| {
+            *block == ProposalCommitment(Felt::TWO) && votes[0].height == HEIGHT_2
+        })
         .return_once(move |_, _| {
             decision_tx.send(()).unwrap();
             Ok(())
         });
-    context
-        .expect_try_sync()
-        .withf(move |height| *height == BlockNumber(1))
-        .times(1)
-        .returning(|_| true);
+    context.expect_try_sync().withf(move |height| *height == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
 
     // Send messages for height 2.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, 0, *PROPOSER_ID))],
     )
     .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut network_sender = mock_network.broadcasted_messages_sender;
-    send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, prevote(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
     let run_consensus_args = RunConsensusArguments {
         consensus_config,
-        start_active_height: BlockNumber(1),
+        start_active_height: HEIGHT_1,
         quorum_type: QuorumType::Byzantine,
         config_manager_client: None,
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
@@ -267,13 +268,13 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
-    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_3)).await;
-    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
+    send(&mut sender, prevote(None, HEIGHT_1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(None, HEIGHT_1, 0, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(None, HEIGHT_1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, HEIGHT_1, 0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| ());
@@ -289,7 +290,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(None, 1, 1, *VALIDATOR_ID))
+        .withf(move |msg: &Vote| msg == &prevote(None, HEIGHT_1, 1, *VALIDATOR_ID))
         .return_once(move |_| {
             timeout_send.send(()).unwrap();
             Ok(())
@@ -306,7 +307,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         let decision = manager
             .run_height(
                 &mut context,
-                BlockNumber(1),
+                HEIGHT_1,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
             )
@@ -321,14 +322,14 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     // reach a decision.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 1, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_3)).await;
 
     manager_handle.await.unwrap();
 }
@@ -344,7 +345,9 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Send messages
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(0);
     let (mut content_sender, content_receiver) = mpsc::channel(0);
-    content_sender.try_send(TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))).unwrap();
+    content_sender
+        .try_send(TestProposalPart::Init(proposal_init(HEIGHT_1, 0, *PROPOSER_ID)))
+        .unwrap();
     proposal_receiver_sender.try_send(content_receiver).unwrap();
 
     // Fill up the sender.
@@ -353,7 +356,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     let mut subscriber_channels = subscriber_channels.into();
     let mut vote_sender = mock_network.broadcasted_messages_sender;
     let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    let vote = prevote(Some(Felt::TWO), 1, 0, *PROPOSER_ID);
+    let vote = prevote(Some(Felt::TWO), HEIGHT_1, 0, *PROPOSER_ID);
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
@@ -365,7 +368,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     let res = manager
         .run_height(
             &mut context,
-            BlockNumber(1),
+            HEIGHT_1,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -398,29 +401,29 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 2 (should be dropped when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::TWO), HEIGHT_2, 0, *PROPOSER_ID)).await;
 
     // Send proposal and votes for height 1 (should be cached when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 0, *PROPOSER_ID)).await;
 
     // Send proposal and votes for height 0 (current height - needed to reach consensus).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(0, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_0, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ZERO), HEIGHT_0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ZERO), HEIGHT_0, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
@@ -434,7 +437,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
     context
         .expect_broadcast()
-        .withf(move |vote: &Vote| vote.height == 2 && vote.proposal_commitment.is_none())
+        .withf(move |vote: &Vote| vote.height == HEIGHT_2 && vote.proposal_commitment.is_none())
         .times(1)
         .return_once(move |_| {
             height2_nil_vote_trigger.send(()).unwrap();
@@ -454,7 +457,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     let decision = manager
         .run_height(
             &mut context,
-            BlockNumber(0),
+            HEIGHT_0,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -466,7 +469,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     let decision = manager
         .run_height(
             &mut context,
-            BlockNumber(1),
+            HEIGHT_1,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -479,7 +482,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         manager
             .run_height(
                 &mut context,
-                BlockNumber(2),
+                HEIGHT_2,
                 &mut subscriber_channels,
                 &mut proposal_receiver_receiver,
             )
@@ -517,27 +520,27 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     // Send proposals for rounds 0 and 1, proposal for round 1 should be dropped.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 0, *PROPOSER_ID))],
     )
     .await;
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 1, *PROPOSER_ID))],
     )
     .await;
 
     // Send votes for round 1. These should be dropped because when state machine is in round 0,
     // round 1 > current_round(0) + future_round_limit(0).
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
 
     // Send Nil votes for round 0 (current round).
-    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
-    send(&mut sender, prevote(None, 1, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(None, 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(None, HEIGHT_1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(None, HEIGHT_1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(None, HEIGHT_1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, HEIGHT_1, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| false);
@@ -555,14 +558,14 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
 
     context
         .expect_set_height_and_round()
-        .withf(|height, round| *height == BlockNumber(1) && *round == 1)
+        .withf(|height, round| *height == HEIGHT_1 && *round == 1)
         .times(1)
         .return_once(|_, _| {
             round1_trigger.send(()).unwrap();
         });
     context
         .expect_set_height_and_round()
-        .withf(|height, round| *height == BlockNumber(1) && *round == 2)
+        .withf(|height, round| *height == HEIGHT_1 && *round == 2)
         .times(1)
         .return_once(|_, _| {
             round2_trigger.send(()).unwrap();
@@ -582,10 +585,10 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     tokio::spawn(async move {
         round1_wait.await.unwrap();
         // Send Nil votes from other nodes for round 1.
-        send(&mut sender_clone1, prevote(None, 1, 1, *VALIDATOR_ID_2)).await;
-        send(&mut sender_clone1, prevote(None, 1, 1, *PROPOSER_ID)).await;
-        send(&mut sender_clone1, precommit(None, 1, 1, *VALIDATOR_ID_2)).await;
-        send(&mut sender_clone1, precommit(None, 1, 1, *PROPOSER_ID)).await;
+        send(&mut sender_clone1, prevote(None, HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, prevote(None, HEIGHT_1, 1, *PROPOSER_ID)).await;
+        send(&mut sender_clone1, precommit(None, HEIGHT_1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, precommit(None, HEIGHT_1, 1, *PROPOSER_ID)).await;
     });
 
     let mut sender_clone2 = sender.clone();
@@ -595,14 +598,14 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         // Send proposal for round 2.
         send_proposal(
             &mut proposal_sender_clone,
-            vec![TestProposalPart::Init(proposal_init(1, 2, *PROPOSER_ID))],
+            vec![TestProposalPart::Init(proposal_init(HEIGHT_1, 2, *PROPOSER_ID))],
         )
         .await;
         // Send votes for round 2.
-        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
-        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
-        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
-        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), HEIGHT_1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), HEIGHT_1, 2, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), HEIGHT_1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), HEIGHT_1, 2, *VALIDATOR_ID_2)).await;
     });
 
     // Run height 1 - should reach consensus in round 2 because:
@@ -614,7 +617,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     let decision = manager
         .run_height(
             &mut context,
-            BlockNumber(1),
+            HEIGHT_1,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -639,12 +642,14 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_validators().returning(move |h: BlockNumber| {
-        if h == BlockNumber(1) { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
+        if h == HEIGHT_1 { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
     });
-    context.expect_proposer().returning(move |h: BlockNumber, _| {
-        if h == BlockNumber(1) { *VALIDATOR_ID } else { *PROPOSER_ID }
-    });
-    context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
+    context.expect_proposer().returning(
+        move |h: BlockNumber, _| {
+            if h == HEIGHT_1 { *VALIDATOR_ID } else { *PROPOSER_ID }
+        },
+    );
+    context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
     context.expect_broadcast().returning(move |_| Ok(()));
 
@@ -652,7 +657,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     // are the proposer, which happens at H2.
     context
         .expect_build_proposal()
-        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .withf(move |init, _| init.height == HEIGHT_2 && init.proposer == *PROPOSER_ID)
         .returning(move |_, _| {
             let (sender, receiver) = oneshot::channel();
             sender.send(ProposalCommitment(Felt::TWO)).unwrap();
@@ -663,7 +668,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let (decision_tx, decision_rx) = oneshot::channel();
     context
         .expect_decision_reached()
-        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(2))
+        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(HEIGHT_2))
         .return_once(move |_, _| {
             let _ = decision_tx.send(());
             Ok(())
@@ -679,7 +684,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
 
     let run_consensus_args = RunConsensusArguments {
-        start_active_height: BlockNumber(1),
+        start_active_height: HEIGHT_1,
         consensus_config,
         quorum_type: QuorumType::Byzantine,
         config_manager_client: Some(Arc::new(mock_client)),
@@ -704,7 +709,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
 async fn manager_successfully_syncs_when_higher_than_last_voted_height(
     consensus_config: ConsensusConfig,
 ) {
-    const LAST_VOTED_HEIGHT: BlockNumber = BlockNumber(1);
+    const LAST_VOTED_HEIGHT: BlockNumber = HEIGHT_1;
     const CURRENT_HEIGHT: BlockNumber = BlockNumber(LAST_VOTED_HEIGHT.0 + 1);
 
     let TestSubscriberChannels {
@@ -748,7 +753,7 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
 async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     consensus_config: ConsensusConfig,
 ) {
-    const LAST_VOTED_HEIGHT: BlockNumber = BlockNumber(1);
+    const LAST_VOTED_HEIGHT: BlockNumber = HEIGHT_1;
     const CURRENT_HEIGHT: BlockNumber = BlockNumber(LAST_VOTED_HEIGHT.0 + 1);
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -773,11 +778,11 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT.0, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), CURRENT_HEIGHT.0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), CURRENT_HEIGHT, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     // Sync will never succeed so we will proceed to run consensus (during which try_sync is called
@@ -811,7 +816,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
 #[rstest]
 #[tokio::test]
 async fn manager_waits_until_height_passes_last_voted_height(consensus_config: ConsensusConfig) {
-    const LAST_VOTED_HEIGHT: BlockNumber = BlockNumber(1);
+    const LAST_VOTED_HEIGHT: BlockNumber = HEIGHT_1;
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
@@ -828,11 +833,11 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(LAST_VOTED_HEIGHT.0, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(LAST_VOTED_HEIGHT, 0, *PROPOSER_ID))],
     )
     .await;
-    send(&mut sender, prevote(Some(Felt::ONE), LAST_VOTED_HEIGHT.0, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), LAST_VOTED_HEIGHT.0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), LAST_VOTED_HEIGHT, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), LAST_VOTED_HEIGHT, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     // At the last voted height we expect the manager to halt until it can get the last voted height
@@ -904,7 +909,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(block_id.0), HEIGHT.0, 0, *VALIDATOR_ID))
+        .withf(move |msg: &Vote| msg == &prevote(Some(block_id.0), HEIGHT, 0, *VALIDATOR_ID))
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
             if let Some(tx) = prevote_tx_for_callback.lock().unwrap().take() {
@@ -929,7 +934,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(block_id.0), HEIGHT.0, 0, *VALIDATOR_ID))
+        .withf(move |msg: &Vote| msg == &precommit(Some(block_id.0), HEIGHT, 0, *VALIDATOR_ID))
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
             if let Some(tx) = precommit_tx_for_callback.lock().unwrap().take() {
@@ -948,7 +953,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Send proposal first
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT.0, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT, 0, *PROPOSER_ID))],
     )
     .await;
 
@@ -967,24 +972,20 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         prevote_rx.await.unwrap();
 
         // Now send other prevotes to reach quorum
-        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *PROPOSER_ID))
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT, 0, *PROPOSER_ID)).await;
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT, 0, *VALIDATOR_ID_2))
             .await;
-        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
-            .await;
-        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_3))
+        send(&mut sender_clone, prevote(Some(block_id_for_votes.0), HEIGHT, 0, *VALIDATOR_ID_3))
             .await;
 
         // Wait for validator to broadcast precommit after reaching prevote quorum
         precommit_rx.await.unwrap();
 
         // Now send other precommits to reach decision
-        send(&mut sender_clone, precommit(Some(block_id_for_votes.0), HEIGHT.0, 0, *PROPOSER_ID))
+        send(&mut sender_clone, precommit(Some(block_id_for_votes.0), HEIGHT, 0, *PROPOSER_ID))
             .await;
-        send(
-            &mut sender_clone,
-            precommit(Some(block_id_for_votes.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
-        )
-        .await;
+        send(&mut sender_clone, precommit(Some(block_id_for_votes.0), HEIGHT, 0, *VALIDATOR_ID_2))
+            .await;
     });
 
     // Run height - this should trigger storage writes before broadcasts
