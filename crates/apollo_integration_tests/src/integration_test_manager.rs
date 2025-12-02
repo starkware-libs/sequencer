@@ -372,6 +372,15 @@ impl IntegrationTestManager {
         &self.idle_nodes
     }
 
+    pub fn get_node_type(&self, node_idx: usize) -> NodeType {
+        let node_setup = self
+            .idle_nodes
+            .get(&node_idx)
+            .or_else(|| self.running_nodes.get(&node_idx).map(|node| &node.node_setup))
+            .expect("Node {node_idx} does not exist in idle or running nodes.");
+        node_setup.node_type
+    }
+
     pub fn tx_generator(&self) -> &MultiAccountTransactionGenerator {
         &self.tx_generator
     }

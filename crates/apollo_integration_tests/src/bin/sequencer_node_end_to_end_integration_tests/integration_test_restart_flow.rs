@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use apollo_deployments::deployments::consolidated::ConsolidatedNodeServiceName;
-use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
+use apollo_deployments::service::NodeType;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
@@ -9,7 +8,6 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK};
-use strum::IntoEnumIterator;
 use tokio::join;
 use tracing::info;
 
@@ -41,25 +39,9 @@ async fn main() {
     .await;
 
     // Assert that RESTART_NODE is a hybrid node.
-    assert_eq!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&RESTART_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        HybridNodeServiceName::iter().count()
-    );
+    assert_eq!(integration_test_manager.get_node_type(RESTART_NODE), NodeType::Hybrid);
     // Assert that SHUTDOWN_NODE is not a consolidated node.
-    assert_ne!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&SHUTDOWN_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        ConsolidatedNodeServiceName::iter().count()
-    );
+    assert_ne!(integration_test_manager.get_node_type(SHUTDOWN_NODE), NodeType::Consolidated);
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
