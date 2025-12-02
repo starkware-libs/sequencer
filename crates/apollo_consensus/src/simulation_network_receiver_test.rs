@@ -6,6 +6,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::Vote;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::{SinkExt, StreamExt};
+use starknet_api::block::BlockNumber;
 use test_case::test_case;
 
 use super::NetworkReceiver;
@@ -31,7 +32,10 @@ async fn test_invalid(distinct_messages: bool) {
     let mut invalid_messages = 0;
 
     for height in 0..1000 {
-        let msg = Vote { height: if distinct_messages { height } else { 0 }, ..Default::default() };
+        let msg = Vote {
+            height: if distinct_messages { BlockNumber(height) } else { BlockNumber(0) },
+            ..Default::default()
+        };
         let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
@@ -62,7 +66,10 @@ async fn test_drops(distinct_messages: bool) {
     let mut num_received = 0;
 
     for height in 0..1000 {
-        let msg = Vote { height: if distinct_messages { height } else { 0 }, ..Default::default() };
+        let msg = Vote {
+            height: if distinct_messages { BlockNumber(height) } else { BlockNumber(0) },
+            ..Default::default()
+        };
         let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network

@@ -71,7 +71,7 @@ impl TryFrom<protobuf::Vote> for Vote {
     fn try_from(value: protobuf::Vote) -> Result<Self, Self::Error> {
         let vote_type = protobuf::vote::VoteType::try_from(value.vote_type)?.try_into()?;
 
-        let height = value.height;
+        let height = BlockNumber(value.height);
         let round = value.round;
         let proposal_commitment: Option<ProposalCommitment> = value
             .proposal_commitment
@@ -93,7 +93,7 @@ impl From<Vote> for protobuf::Vote {
 
         protobuf::Vote {
             vote_type: i32::from(vote_type),
-            height: value.height,
+            height: value.height.0,
             round: value.round,
             proposal_commitment: value.proposal_commitment.map(|commitment| commitment.0.into()),
             voter: Some(value.voter.into()),

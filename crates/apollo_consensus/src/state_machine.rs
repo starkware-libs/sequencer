@@ -198,7 +198,7 @@ impl StateMachine {
     ) -> VecDeque<SMRequest> {
         let vote = Vote {
             vote_type,
-            height: self.height.0,
+            height: self.height,
             round: self.round,
             proposal_commitment,
             voter: self.id,
