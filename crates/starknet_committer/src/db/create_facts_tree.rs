@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::ops::Deref;
 
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -23,17 +22,33 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
+use crate::db::db_utils::{
+    handle_empty_subtree,
+    log_trivial_modification,
+    log_warning_for_empty_leaves,
+};
 use crate::db::traversal::calculate_subtrees_roots;
 
 #[cfg(test)]
 #[path = "create_facts_tree_test.rs"]
 pub mod create_facts_tree_test;
 
-/// Logs out a warning of a trivial modification.
-macro_rules! log_trivial_modification {
-    ($index:expr, $value:expr) => {
-        warn!("Encountered a trivial modification at index {:?}, with value {:?}", $index, $value);
-    };
+pub struct FactsSubTree<'a> {
+    subtree: SubTree<'a>,
+    pub root_hash: HashOutput,
+}
+
+impl<'a> FactsSubTree<'a> {
+    pub(crate) fn new(subtree: SubTree<'a>, root_hash: HashOutput) -> Self {
+        Self { subtree, root_hash }
+    }
+}
+
+impl<'a> Deref for FactsSubTree<'a> {
+    type Target = SubTree<'a>;
+    fn deref(&self) -> &SubTree<'a> {
+        &self.subtree
+    }
 }
 
 /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
@@ -42,7 +57,7 @@ macro_rules! log_trivial_modification {
 /// encountering a trivial modification. Fills the previous leaf values if it is not none.
 fn fetch_nodes<'a, L: Leaf>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    subtrees: Vec<SubTree<'a>>,
+    subtrees: Vec<FactsSubTree<'a>>,
     storage: &mut impl Storage,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
@@ -66,8 +81,9 @@ fn fetch_nodes<'a, L: Leaf>(
                         continue;
                     }
                     skeleton_tree.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
-                    let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash);
+                    let (left_subtree, right_subtree) = subtree.get_children_subtrees();
+                    let left_subtree = FactsSubTree::new(left_subtree, left_hash);
+                    let right_subtree = FactsSubTree::new(right_subtree, right_hash);
 
                     handle_subtree(
                         skeleton_tree,
@@ -96,7 +112,8 @@ fn fetch_nodes<'a, L: Leaf>(
                     }
                     // Parse bottom.
                     let (bottom_subtree, previously_empty_leaves_indices) =
-                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
+                        subtree.get_bottom_subtree(&path_to_bottom);
+                    let bottom_subtree = FactsSubTree::new(bottom_subtree, bottom_hash);
                     if let Some(ref mut leaves) = previous_leaves {
                         leaves.extend(
                             previously_empty_leaves_indices
@@ -154,14 +171,10 @@ pub fn create_original_skeleton_tree<'a, L: Leaf>(
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        log_warning_for_empty_leaves(
-            sorted_leaf_indices.get_indices(),
-            leaf_modifications,
-            config,
-        )?;
-        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
+        return Ok(handle_empty_subtree::<L>(sorted_leaf_indices).0);
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
+    let main_subtree = FactsSubTree::new(main_subtree, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     fetch_nodes::<L>(
         &mut skeleton_tree,
@@ -186,12 +199,10 @@ pub fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
         return Ok((unmodified, HashMap::new()));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        return Ok((
-            OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices),
-            sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
-        ));
+        return Ok(handle_empty_subtree::<L>(sorted_leaf_indices));
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
+    let main_subtree = FactsSubTree::new(main_subtree, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     let mut leaves = HashMap::new();
     fetch_nodes::<L>(
@@ -226,8 +237,8 @@ pub fn get_leaves<'a, L: Leaf>(
 /// referred subtree or not.
 fn handle_subtree<'a>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    next_subtrees: &mut Vec<SubTree<'a>>,
-    subtree: SubTree<'a>,
+    next_subtrees: &mut Vec<FactsSubTree<'a>>,
+    subtree: FactsSubTree<'a>,
     should_fetch_modified_leaves: bool,
 ) {
     if !subtree.is_leaf() || (should_fetch_modified_leaves && !subtree.is_unmodified()) {
@@ -238,24 +249,4 @@ fn handle_subtree<'a>(
             .nodes
             .insert(subtree.root_index, OriginalSkeletonNode::UnmodifiedSubTree(subtree.root_hash));
     }
-}
-
-/// Given leaf indices that were previously empty leaves, logs out a warning for trivial
-/// modification if a leaf is modified to an empty leaf.
-/// If this check is suppressed by configuration, does nothing.
-fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug>(
-    leaf_indices: &[T],
-    leaf_modifications: &LeafModifications<L>,
-    config: &impl OriginalSkeletonTreeConfig<L>,
-) -> OriginalSkeletonTreeResult<()> {
-    if !config.compare_modified_leaves() {
-        return Ok(());
-    }
-    let empty_leaf = L::default();
-    for leaf_index in leaf_indices {
-        if L::compare(leaf_modifications, leaf_index.borrow(), &empty_leaf)? {
-            log_trivial_modification!(leaf_index, empty_leaf);
-        }
-    }
-    Ok(())
 }

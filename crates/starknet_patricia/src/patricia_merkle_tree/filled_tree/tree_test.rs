@@ -5,7 +5,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::external_test_utils::MockLeaf;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::TestTreeHashFunction;
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
@@ -312,7 +312,7 @@ fn get_small_tree_updated_skeleton_and_leaf_modifications()
 }
 
 fn get_small_tree_expected_filled_tree_map_and_root_hash()
--> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
+-> (HashMap<NodeIndex, FactDbFilledNode<MockLeaf>>, HashOutput) {
     let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
     let expected_filled_tree_map = HashMap::from([
         create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),
@@ -366,10 +366,10 @@ fn create_mock_binary_entry_for_testing(
     hash: &str,
     left_hash: &str,
     right_hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Binary(BinaryData {
                 left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
@@ -385,10 +385,10 @@ fn create_mock_edge_entry_for_testing(
     path: u128,
     length: u8,
     bottom_hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Edge(EdgeData {
                 bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
@@ -405,10 +405,10 @@ fn create_mock_edge_entry_for_testing(
 fn create_mock_leaf_entry_for_testing(
     index: u128,
     hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
         },
