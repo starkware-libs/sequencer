@@ -2104,7 +2104,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
- "unsigned-varint 0.8.0",
+ "unsigned-varint",
  "validator",
  "void",
  "waker-fn",
@@ -2330,7 +2330,7 @@ dependencies = [
  "libp2p-swarm-test",
  "lru_time_cache",
  "quick-protobuf",
- "quick-protobuf-codec",
+ "quick-protobuf-codec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -6928,11 +6928,11 @@ dependencies = [
 
 [[package]]
 name = "hashlink"
-version = "0.9.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
+checksum = "7382cf6263419f2d8df38c55d7da83da5c18aef87fc7a7fc1fb1e344edfe14c1"
 dependencies = [
- "hashbrown 0.14.5",
+ "hashbrown 0.15.5",
 ]
 
 [[package]]
@@ -8170,9 +8170,8 @@ dependencies = [
 
 [[package]]
 name = "libp2p"
-version = "0.56.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce71348bf5838e46449ae240631117b487073d5f347c06d434caddcb91dceb5a"
+version = "0.56.1"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "bytes",
  "either",
@@ -8206,8 +8205,7 @@ dependencies = [
 [[package]]
 name = "libp2p-allow-block-list"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d16ccf824ee859ca83df301e1c0205270206223fd4b1f2e512a693e1912a8f4a"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "libp2p-core",
  "libp2p-identity",
@@ -8217,8 +8215,7 @@ dependencies = [
 [[package]]
 name = "libp2p-connection-limits"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a18b8b607cf3bfa2f8c57db9c7d8569a315d5cc0a282e6bfd5ebfc0a9840b2a0"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "libp2p-core",
  "libp2p-identity",
@@ -8228,8 +8225,7 @@ dependencies = [
 [[package]]
 name = "libp2p-core"
 version = "0.43.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d28e2d2def7c344170f5c6450c0dbe3dfef655610dbfde2f6ac28a527abbe36"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "either",
  "fnv",
@@ -8246,15 +8242,14 @@ dependencies = [
  "rw-stream-sink",
  "thiserror 2.0.17",
  "tracing",
- "unsigned-varint 0.8.0",
+ "unsigned-varint",
  "web-time",
 ]
 
 [[package]]
 name = "libp2p-dns"
 version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b770c1c8476736ca98c578cba4b505104ff8e842c2876b528925f9766379f9a"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "async-trait",
  "futures",
@@ -8268,9 +8263,8 @@ dependencies = [
 
 [[package]]
 name = "libp2p-gossipsub"
-version = "0.49.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f58e37d8d6848e5c4c9e3c35c6f61133235bff2960c9c00a663b0849301221"
+version = "0.50.0"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "async-channel",
  "asynchronous-codec",
@@ -8288,7 +8282,7 @@ dependencies = [
  "libp2p-identity",
  "libp2p-swarm",
  "quick-protobuf",
- "quick-protobuf-codec",
+ "quick-protobuf-codec 0.3.1 (git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters)",
  "rand 0.8.5",
  "regex",
  "serde",
@@ -8300,8 +8294,7 @@ dependencies = [
 [[package]]
 name = "libp2p-identify"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ab792a8b68fdef443a62155b01970c81c3aadab5e659621b063ef252a8e65e8"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "asynchronous-codec",
  "either",
@@ -8312,7 +8305,7 @@ dependencies = [
  "libp2p-identity",
  "libp2p-swarm",
  "quick-protobuf",
- "quick-protobuf-codec",
+ "quick-protobuf-codec 0.3.1 (git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters)",
  "smallvec",
  "thiserror 2.0.17",
  "tracing",
@@ -8339,9 +8332,8 @@ dependencies = [
 
 [[package]]
 name = "libp2p-kad"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d3fd632a5872ec804d37e7413ceea20588f69d027a0fa3c46f82574f4dee60"
+version = "0.49.0"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "asynchronous-codec",
  "bytes",
@@ -8354,7 +8346,7 @@ dependencies = [
  "libp2p-identity",
  "libp2p-swarm",
  "quick-protobuf",
- "quick-protobuf-codec",
+ "quick-protobuf-codec 0.3.1 (git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters)",
  "rand 0.8.5",
  "serde",
  "sha2 0.10.9",
@@ -8368,8 +8360,7 @@ dependencies = [
 [[package]]
 name = "libp2p-mdns"
 version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c66872d0f1ffcded2788683f76931be1c52e27f343edb93bc6d0bcd8887be443"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "hickory-proto",
@@ -8379,16 +8370,15 @@ dependencies = [
  "libp2p-swarm",
  "rand 0.8.5",
  "smallvec",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "libp2p-metrics"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "805a555148522cb3414493a5153451910cb1a146c53ffbf4385708349baf62b7"
+version = "0.17.1"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "libp2p-core",
@@ -8406,8 +8396,7 @@ dependencies = [
 [[package]]
 name = "libp2p-noise"
 version = "0.46.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc73eacbe6462a0eb92a6527cac6e63f02026e5407f8831bde8293f19217bfbf"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "asynchronous-codec",
  "bytes",
@@ -8429,8 +8418,7 @@ dependencies = [
 [[package]]
 name = "libp2p-ping"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74bb7fcdfd9fead4144a3859da0b49576f171a8c8c7c0bfc7c541921d25e60d3"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "futures-timer",
@@ -8445,8 +8433,7 @@ dependencies = [
 [[package]]
 name = "libp2p-plaintext"
 version = "0.43.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e659439578fc6d305da8303834beb9d62f155f40e7f5b9d81c9f2b2c69d1926"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "asynchronous-codec",
  "bytes",
@@ -8454,15 +8441,14 @@ dependencies = [
  "libp2p-core",
  "libp2p-identity",
  "quick-protobuf",
- "quick-protobuf-codec",
+ "quick-protobuf-codec 0.3.1 (git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters)",
  "tracing",
 ]
 
 [[package]]
 name = "libp2p-quic"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dc448b2de9f4745784e3751fe8bc6c473d01b8317edd5ababcb0dec803d843f"
+version = "0.14.0"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "futures-timer",
@@ -8471,10 +8457,11 @@ dependencies = [
  "libp2p-identity",
  "libp2p-tls",
  "quinn",
+ "quinn-proto",
  "rand 0.8.5",
  "ring 0.17.14",
  "rustls 0.23.35",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -8483,17 +8470,16 @@ dependencies = [
 [[package]]
 name = "libp2p-swarm"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aa762e5215919a34e31c35d4b18bf2e18566ecab7f8a3d39535f4a3068f8b62"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "either",
  "fnv",
  "futures",
  "futures-timer",
+ "hashlink",
  "libp2p-core",
  "libp2p-identity",
  "libp2p-swarm-derive",
- "lru 0.12.5",
  "multistream-select",
  "rand 0.8.5",
  "smallvec",
@@ -8505,8 +8491,7 @@ dependencies = [
 [[package]]
 name = "libp2p-swarm-derive"
 version = "0.35.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd297cf53f0cb3dee4d2620bb319ae47ef27c702684309f682bdb7e55a18ae9c"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "heck 0.5.0",
  "quote",
@@ -8516,8 +8501,7 @@ dependencies = [
 [[package]]
 name = "libp2p-swarm-test"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b149112570d507efe305838c7130835955a0b1147aa8051c1c3867a83175cf6"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "async-trait",
  "futures",
@@ -8534,15 +8518,14 @@ dependencies = [
 [[package]]
 name = "libp2p-tcp"
 version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65b4e030c52c46c8d01559b2b8ca9b7c4185f10576016853129ca1fe5cd1a644"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "futures-timer",
  "if-watch",
  "libc",
  "libp2p-core",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tokio",
  "tracing",
 ]
@@ -8550,8 +8533,7 @@ dependencies = [
 [[package]]
 name = "libp2p-tls"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96ff65a82e35375cbc31ebb99cacbbf28cb6c4fefe26bf13756ddcf708d40080"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "futures-rustls",
@@ -8568,9 +8550,8 @@ dependencies = [
 
 [[package]]
 name = "libp2p-upnp"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4757e65fe69399c1a243bbb90ec1ae5a2114b907467bf09f3575e899815bb8d3"
+version = "0.6.0"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "futures-timer",
@@ -8584,8 +8565,7 @@ dependencies = [
 [[package]]
 name = "libp2p-yamux"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f15df094914eb4af272acf9adaa9e287baa269943f32ea348ba29cfb9bfc60d8"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "either",
  "futures",
@@ -9075,7 +9055,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "static_assertions",
- "unsigned-varint 0.8.0",
+ "unsigned-varint",
  "url",
 ]
 
@@ -9099,7 +9079,7 @@ checksum = "6b430e7953c29dd6a09afc29ff0bb69c6e306329ee6794700aee27b76a1aea8d"
 dependencies = [
  "core2",
  "serde",
- "unsigned-varint 0.8.0",
+ "unsigned-varint",
 ]
 
 [[package]]
@@ -9111,15 +9091,14 @@ checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 [[package]]
 name = "multistream-select"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea0df8e5eec2298a62b326ee4f0d7fe1a6b90a09dfcf9df37b38f947a8c42f19"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "bytes",
  "futures",
- "log",
  "pin-project",
  "smallvec",
- "unsigned-varint 0.7.2",
+ "tracing",
+ "unsigned-varint",
 ]
 
 [[package]]
@@ -10445,9 +10424,9 @@ dependencies = [
 
 [[package]]
 name = "prometheus-client"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
+checksum = "e4500adecd7af8e0e9f4dbce15cfee07ce913fbf6ad605cc468b83f2d531ee94"
 dependencies = [
  "dtoa",
  "itoa",
@@ -10457,9 +10436,9 @@ dependencies = [
 
 [[package]]
 name = "prometheus-client-derive-encode"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
+checksum = "9adf1691c04c0a5ff46ff8f262b58beb07b0dbb61f96f9f54f6cbd82106ed87f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10688,7 +10667,19 @@ dependencies = [
  "bytes",
  "quick-protobuf",
  "thiserror 1.0.69",
- "unsigned-varint 0.8.0",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "quick-protobuf-codec"
+version = "0.3.1"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
+dependencies = [
+ "asynchronous-codec",
+ "bytes",
+ "quick-protobuf",
+ "thiserror 2.0.17",
+ "unsigned-varint",
 ]
 
 [[package]]
@@ -11615,8 +11606,7 @@ dependencies = [
 [[package]]
 name = "rw-stream-sink"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8c9026ff5d2f23da5e45bbc283f156383001bfb09c4e44256d02c1a685fe9a1"
+source = "git+https://github.com/sirandreww-starkware/rust-libp2p.git?branch=2025-oct-15-quic-config-parameters#0159837a50cab9897be12c53c2621b2a3ca6cdd1"
 dependencies = [
  "futures",
  "pin-project",
@@ -13799,12 +13789,6 @@ dependencies = [
  "crypto-common",
  "subtle",
 ]
-
-[[package]]
-name = "unsigned-varint"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6889a77d49f1f013504cec6bf97a2c730394adedaeb1deb5ea08949a50541105"
 
 [[package]]
 name = "unsigned-varint"
