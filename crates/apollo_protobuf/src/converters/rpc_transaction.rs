@@ -113,16 +113,26 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
 impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
+        let proof = value.proof.clone();
         let snapi_invoke: InvokeTransactionV3 = value.try_into()?;
         // This conversion can fail only if the resource_bounds are not AllResources.
-        snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)
+        let mut rpc_invoke: RpcInvokeTransactionV3 =
+            snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)?;
+        // Restore proof field from protobuf (it was dropped in the conversion)
+        // TODO(AvivG): should it not be dropped?
+        rpc_invoke.proof = proof;
+        Ok(rpc_invoke)
     }
 }
 
 impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
     fn from(value: RpcInvokeTransactionV3) -> Self {
-        let snapi_invoke: InvokeTransactionV3 = value.into();
-        snapi_invoke.into()
+        let snapi_invoke: InvokeTransactionV3 = value.clone().into();
+        let mut proto_invoke: protobuf::InvokeV3 = snapi_invoke.into();
+        // Restore proof field from RpcInvokeTransactionV3 (it was dropped in the conversion)
+        // TODO(AvivG): should it not be dropped?
+        proto_invoke.proof = value.proof;
+        proto_invoke
     }
 }
 

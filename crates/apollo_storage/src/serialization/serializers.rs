@@ -1292,6 +1292,7 @@ auto_storage_serde_conditionally_compressed! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
+        pub proof_facts: Vec<Felt>,
     }
 
     pub struct L1HandlerTransaction {

@@ -725,6 +725,7 @@ auto_impl_get_test_instance! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
+        pub proof_facts: Vec<Felt>,
     }
     pub enum L1DataAvailabilityMode {
         Calldata = 0,
@@ -867,6 +868,8 @@ auto_impl_get_test_instance! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
+        pub proof: Vec<u32>,
+        pub proof_facts: Vec<Felt>,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {

@@ -60,6 +60,8 @@ message InvokeV3 {
     VolitionDomain nonce_data_availability_mode = 8;
     VolitionDomain fee_data_availability_mode = 9;
     Felt252 nonce = 10;
+    repeated uint32 proof = 11;
+    repeated Felt252 proof_facts = 12;
 }
 
 // see https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x29fd7881f14380842414cdfdd8d6c0b1f2174f8916edcfeb1ede1eb26ac3ef0

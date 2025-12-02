@@ -117,6 +117,7 @@ auto_impl_get_test_instance! {
         pub account_deployment_data: Option<AccountDeploymentData>,
         pub transaction_hash: TransactionHash,
         pub version: TransactionVersion,
+        pub proof_facts: Vec<Felt>,
     }
     pub struct L1HandlerTransaction {
         pub transaction_hash: TransactionHash,

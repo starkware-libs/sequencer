@@ -636,6 +636,9 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
+        let proof_facts =
+            value.proof_facts.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
         Ok(Self {
             resource_bounds,
             tip,
@@ -647,6 +650,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
             fee_data_availability_mode,
             paymaster_data,
             account_deployment_data,
+            proof_facts,
         })
     }
 }
@@ -680,6 +684,9 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
                 .iter()
                 .map(|account_deployment_data| (*account_deployment_data).into())
                 .collect(),
+            // TODO(AvivG): not sure 'proof' is needed here. where used?
+            proof: vec![],
+            proof_facts: value.proof_facts.iter().map(|f| (*f).into()).collect(),
         }
     }
 }

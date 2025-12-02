@@ -18,7 +18,7 @@
             },
             "L1_DATA_GAS": {
                 "max_amount": "0x3",
-                "max_price_per_unit": "0x3" 
+                "max_price_per_unit": "0x3"
             }
         },
         "tip": "0x1",
@@ -28,7 +28,8 @@
             "0x1"
         ],
         "account_deployment_data": [],
-        "type": "INVOKE_FUNCTION"
+        "type": "INVOKE_FUNCTION",
+        "proof_facts": []
     },
     "time_created": 1734601615
 }

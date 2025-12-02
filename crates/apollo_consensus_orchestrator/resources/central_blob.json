@@ -171,7 +171,8 @@
         "fee_data_availability_mode": 0,
         "paymaster_data": [],
         "account_deployment_data": [],
-        "hash_value": "0x2"
+        "hash_value": "0x2",
+        "proof_facts": []
       },
       "time_created": 6
     },

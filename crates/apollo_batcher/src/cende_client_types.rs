@@ -58,6 +58,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+use starknet_types_core::felt::Felt;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct L1ToL2Nonce(pub StarkHash);
@@ -505,6 +506,7 @@ pub struct IntermediateInvokeTransaction {
     pub account_deployment_data: Option<AccountDeploymentData>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
+    pub proof_facts: Vec<Felt>,
 }
 
 impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
@@ -584,6 +586,7 @@ impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
                     // Irrelevant for V3 invoke transactions.
                     entry_point_selector: None,
                     max_fee: None,
+                    proof_facts: tx.proof_facts,
                 })
             }
         }

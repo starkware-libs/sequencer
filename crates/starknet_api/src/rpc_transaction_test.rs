@@ -137,9 +137,11 @@ fn test_invoke_tx_size_of() {
         // + tx_v3.fee_data_availability_mode.dynamic_size()
         // + tx_v3.paymaster_data.dynamic_size()
         // + tx_v3.account_deployment_data.dynamic_size();
+        // + tx_v3.proof_facts.dynamic_size();
+        // + tx_v3.proof.dynamic_size() = 0 (not used in the hash calculation);
 
         // Check the size of the V3 invoke transaction.
-        assert_eq!(tx_v3.size_bytes(), 448);
+        assert_eq!(tx_v3.size_bytes(), 496);
     } else {
         panic!("Expected RpcTransaction::Invoke");
     }
