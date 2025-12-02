@@ -33,6 +33,8 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
+use crate::secrets::Sensitive;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -309,4 +311,15 @@ where
         return Ok(None);
     }
     Ok(Some(output))
+}
+
+/// Deserializes a sensitive `Vec<u8>` from hex string structure.
+pub fn deserialize_optional_sensitive_vec_u8<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<Vec<u8>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_vec = deserialize_optional_vec_u8(de)?;
+    Ok(optional_vec.map(Sensitive::new))
 }

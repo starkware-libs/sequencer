@@ -83,7 +83,7 @@ impl TestConfig {
         let _ = TestConfig {
             network_config: NetworkConfig {
                 port: 10000,
-                secret_key: Some(secret_key),
+                secret_key: Some(secret_key.into()),
                 ..Default::default()
             },
             ..Default::default()
