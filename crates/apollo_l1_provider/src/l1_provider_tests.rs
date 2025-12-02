@@ -224,6 +224,23 @@ fn add_tx_double_scraped_doesnt_update_scrape_timestamp() {
 }
 
 #[test]
+#[should_panic(expected = "Only Pending transactions should be in the proposable index.")]
+fn get_txs_panics_if_transaction_on_proposable_index_is_not_pending() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_wrongly_committing_txs_in_proposable_index()
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    // Put the provider in the right mood for a proposal.
+    l1_provider.start_block(BlockNumber(0), ProposeSession).unwrap();
+
+    // Test.
+    l1_provider.get_txs(1, BlockNumber(0)).unwrap();
+}
+
+#[test]
 fn pending_state_returns_error() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
