@@ -51,7 +51,7 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -586,9 +586,10 @@ impl Batcher {
             state_diff,
             account_transaction_hashes,
             l1_transaction_hashes,
-            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
-            ..
+            block_header_without_hash,
+            block_header_commitments,
         } = sync_block;
+        let block_number = block_header_without_hash.block_number;
 
         let height = self.get_height_from_storage()?;
         if height != block_number {
@@ -604,13 +605,31 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        let partial_block_hash_components =
+            if block_header_without_hash.starknet_version.has_partial_block_hash_components() {
+                match block_header_commitments {
+                    Some(header_commitments) => Some(PartialBlockHashComponents {
+                        header_commitments,
+                        block_number,
+                        l1_gas_price: block_header_without_hash.l1_gas_price,
+                        l1_data_gas_price: block_header_without_hash.l1_data_gas_price,
+                        l2_gas_price: block_header_without_hash.l2_gas_price,
+                        sequencer: block_header_without_hash.sequencer,
+                        timestamp: block_header_without_hash.timestamp,
+                        starknet_version: block_header_without_hash.starknet_version,
+                    }),
+                    None => return Err(BatcherError::MissingHeaderCommitments { block_number }),
+                }
+            } else {
+                None
+            };
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
-            None,
+            partial_block_hash_components,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -699,8 +718,8 @@ impl Batcher {
         })
     }
 
-    // The `partial_block_hash_components` is optional as it's not needed for blocks coming from
-    // sync as they contain the full block hash.
+    // The `partial_block_hash_components` is optional as it doesn't exist for old blocks coming
+    // from sync.
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
