@@ -7,7 +7,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 use crate::transaction_record::{
     Records,
@@ -161,14 +161,31 @@ impl TransactionManager {
         tx: L1HandlerTransaction,
         block_timestamp: BlockTimestamp,
         scrape_timestamp: UnixTimestamp,
-    ) -> bool {
+    ) {
         let tx_hash = tx.tx_hash;
+        // If exists, return false and do nothing. If not, create the record as a HashOnly payload.
         let is_new_record = self.create_record_if_not_exist(tx_hash);
-        self.with_record(tx_hash, move |record| {
-            record.tx.set(tx, block_timestamp, scrape_timestamp);
+        // Replace a HashOnly payload with a Full payload. If a full payload already exists, do not
+        // update it, since updating it should not happen (i.e., a double scrape, and may cause the
+        // tx to be re-added to the proposable index).
+        self.with_record(tx_hash, move |record| match &record.tx {
+            TransactionPayload::HashOnly(_) => {
+                if !is_new_record {
+                    info!(
+                        "Transaction {tx_hash} already exists as a HashOnly payload. It was \
+                         probably gotten via sync, and is now updated with a Full payload."
+                    );
+                }
+                record.tx.set(tx, block_timestamp, scrape_timestamp);
+            }
+            TransactionPayload::Full { tx: _, created_at_block_timestamp: _, scrape_timestamp } => {
+                warn!(
+                    "Transaction {tx_hash} already exists as a Full payload, scraped at \
+                     {scrape_timestamp}. This could indicate a double scrape. Ignoring the new \
+                     transaction."
+                );
+            }
         });
-
-        is_new_record
     }
 
     pub fn request_cancellation(
