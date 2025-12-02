@@ -92,26 +92,42 @@ fn test_get_compiled_class_without_native_in_cache(
 }
 
 #[cfg(feature = "cairo_native")]
-#[rstest]
-fn test_get_compiled_class_when_native_is_cached() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
-    let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
+mod native_tests {
+    use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+    use rstest::rstest;
 
-    let state_reader =
-        build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
+    use crate::blockifier::config::ContractClassManagerConfig;
+    use crate::execution::contract_class::RunnableCompiledClass;
+    use crate::state::global_cache::{CachedCairoNative, CompiledClasses};
+    use crate::test_utils::contracts::FeatureContract;
 
-    if let RunnableCompiledClass::V1Native(native_compiled_class) =
-        test_contract.get_runnable_class()
-    {
-        state_reader.contract_class_manager.set_and_compile(
-            test_class_hash,
-            CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
-        );
-    } else {
-        panic!("Expected NativeCompiledClassV1");
+    #[rstest]
+    fn test_get_compiled_class_when_native_is_cached() {
+        let test_contract =
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
+        let test_class_hash = test_contract.get_class_hash();
+        let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
+
+        let state_reader =
+            build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
+
+        if let RunnableCompiledClass::V1Native(native_compiled_class) =
+            test_contract.get_runnable_class()
+        {
+            state_reader.contract_class_manager.set_and_compile(
+                test_class_hash,
+                CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
+            );
+        } else {
+            panic!("Expected NativeCompiledClassV1");
+        }
+
+        let compiled_class = state_reader.get_compiled_class(test_class_hash).unwrap();
+        assert_matches!(compiled_class, RunnableCompiledClass::V1Native(_));
     }
+}
 
-    let compiled_class = state_reader.get_compiled_class(test_class_hash).unwrap();
-    assert_matches!(compiled_class, RunnableCompiledClass::V1Native(_));
+#[cfg(not(feature = "cairo_native"))]
+mod non_native_tests {
+    // TODO(Arni): Add tests for state reader and contract manager when native is not enabled.
 }
