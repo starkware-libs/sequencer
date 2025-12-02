@@ -503,7 +503,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
+        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects, .. } =
             self.batcher_decision_reached(proposal_id).await;
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
