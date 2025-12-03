@@ -11,6 +11,7 @@ apollo_config.workspace = true
 apollo_storage.workspace = true
 blockifier.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
 url.workspace = true
 validator.workspace = true
 
