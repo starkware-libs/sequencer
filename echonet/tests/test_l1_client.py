@@ -3,10 +3,11 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import requests
 import unittest
-from l1_client import L1Client
 from unittest.mock import Mock, patch
+
+import requests
+from l1_client import L1Client
 
 
 class TestL1Client(unittest.TestCase):

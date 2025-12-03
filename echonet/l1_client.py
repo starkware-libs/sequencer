@@ -1,10 +1,10 @@
+import functools
+import inspect
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
-import functools
-import inspect
-import logging
 import requests
 from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE, STARKNET_L1_CONTRACT_ADDRESS
 

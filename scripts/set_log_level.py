@@ -1,12 +1,12 @@
 import argparse
+import signal
+import socket
 import subprocess
 import sys
 import time
 from typing import List
 
 import requests
-import signal
-import socket
 
 SLEEP_INTERVAL = 0.4
 
