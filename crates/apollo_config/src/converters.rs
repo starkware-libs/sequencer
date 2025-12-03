@@ -327,10 +327,10 @@ where
 /// Deserializes a sensitive `Vec<u8>` from hex string structure.
 pub fn deserialize_optional_sensitive_vec_u8<'de, D>(
     de: D,
-) -> Result<Option<Sensitive<Vec<u8>>>, D::Error>
+) -> Result<Option<Vec<Sensitive<u8>>>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let optional_vec = deserialize_optional_vec_u8(de)?;
-    Ok(optional_vec.map(Sensitive::new))
+    Ok(optional_vec.map(|vec| vec.into_iter().map(Sensitive::new).collect()))
 }

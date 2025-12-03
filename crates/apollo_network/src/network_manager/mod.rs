@@ -716,8 +716,10 @@ impl NetworkManager {
         debug!("Creating swarm with listen address: {listen_address:?}");
 
         let key_pair = match secret_key {
-            Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.as_ref().clone())
-                .expect("Error while parsing secret key"), // TODO(victork): make sure we're
+            Some(secret_key) => Keypair::ed25519_from_bytes(
+                secret_key.iter().map(|s| *s.as_ref()).collect::<Vec<u8>>(),
+            )
+            .expect("Error while parsing secret key"), // TODO(victork): make sure we're
             // allowed to expose the secret key
             // here
             None => Keypair::generate_ed25519(),

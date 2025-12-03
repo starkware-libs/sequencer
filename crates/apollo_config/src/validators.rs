@@ -37,9 +37,9 @@ pub fn validate_vec_u256(vec: &[u8]) -> Result<(), ValidationError> {
 
 /// Validates a sensitive `Vec<u8>` to ensure it's 32 bytes.
 pub fn validate_optional_sensitive_vec_u256(
-    secret_key: &Sensitive<Vec<u8>>,
+    secret_key: &Vec<Sensitive<u8>>,
 ) -> Result<(), ValidationError> {
-    validate_vec_u256(secret_key.as_ref())
+    validate_vec_u256(secret_key.iter().map(|s| *s.as_ref()).collect::<Vec<u8>>().as_slice())
 }
 
 /// Struct for parsing a validation error.
