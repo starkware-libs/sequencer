@@ -103,9 +103,9 @@ impl SerializeConfig for ClassHashDbConfig {
 /// Configuration for class hash storage.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct ClassHashStorageConfig {
-    #[validate]
+    #[validate(nested)]
     pub class_hash_db_config: ClassHashDbConfig,
-    #[validate]
+    #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
 }

@@ -182,44 +182,44 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
     // Infra related configs.
-    #[validate]
+    #[validate(nested)]
     pub components: ComponentConfig,
-    #[validate]
+    #[validate(nested)]
     pub config_manager_config: Option<ConfigManagerConfig>,
-    #[validate]
+    #[validate(nested)]
     pub monitoring_config: MonitoringConfig,
     // Business-logic component configs.
-    #[validate]
+    #[validate(nested)]
     pub base_layer_config: Option<EthereumBaseLayerConfig>,
-    #[validate]
+    #[validate(nested)]
     pub batcher_config: Option<BatcherConfig>,
-    #[validate]
+    #[validate(nested)]
     pub class_manager_config: Option<FsClassManagerConfig>,
-    #[validate]
+    #[validate(nested)]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
-    #[validate]
+    #[validate(nested)]
     pub gateway_config: Option<GatewayConfig>,
-    #[validate]
+    #[validate(nested)]
     pub http_server_config: Option<HttpServerConfig>,
-    #[validate]
+    #[validate(nested)]
     pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
-    #[validate]
+    #[validate(nested)]
     pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
-    #[validate]
+    #[validate(nested)]
     pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
-    #[validate]
+    #[validate(nested)]
     pub l1_provider_config: Option<L1ProviderConfig>,
-    #[validate]
+    #[validate(nested)]
     pub l1_scraper_config: Option<L1ScraperConfig>,
-    #[validate]
+    #[validate(nested)]
     pub mempool_config: Option<MempoolConfig>,
-    #[validate]
+    #[validate(nested)]
     pub mempool_p2p_config: Option<MempoolP2pConfig>,
-    #[validate]
+    #[validate(nested)]
     pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
-    #[validate]
+    #[validate(nested)]
     pub sierra_compiler_config: Option<SierraCompilationConfig>,
-    #[validate]
+    #[validate(nested)]
     pub state_sync_config: Option<StateSyncConfig>,
 }
 
@@ -289,9 +289,9 @@ impl Default for SequencerNodeConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct NodeDynamicConfig {
-    #[validate]
+    #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
-    #[validate]
+    #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 

@@ -13,7 +13,7 @@ use validator::Validate;
 pub struct L1ScraperConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_rewind_time_seconds: Duration,
-    #[validate(custom = "validate_ascii")]
+    #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]

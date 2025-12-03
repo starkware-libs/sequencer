@@ -12,7 +12,6 @@ apollo_consensus_orchestrator_config.workspace = true
 apollo_network.workspace = true
 apollo_reverts.workspace = true
 serde = { workspace = true, features = ["derive"] }
-starknet_api.workspace = true
 validator.workspace = true
 
 [lints]

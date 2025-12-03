@@ -12,7 +12,7 @@ const MEMPOOL_PORT: u16 = 11111;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolP2pConfig {
-    #[validate]
+    #[validate(nested)]
     pub network_config: NetworkConfig,
     pub network_buffer_size: usize,
     pub max_transaction_batch_size: usize,

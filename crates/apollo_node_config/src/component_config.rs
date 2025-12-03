@@ -17,41 +17,41 @@ use crate::component_execution_config::{
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
     // Reactive component configs.
-    #[validate]
+    #[validate(nested)]
     pub batcher: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub class_manager: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub config_manager: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub gateway: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub l1_endpoint_monitor: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub l1_provider: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub l1_gas_price_provider: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub mempool: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub sierra_compiler: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub signature_manager: ReactiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub state_sync: ReactiveComponentExecutionConfig,
 
     // Active component configs.
-    #[validate]
+    #[validate(nested)]
     pub consensus_manager: ActiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub http_server: ActiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub l1_scraper: ActiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub l1_gas_price_scraper: ActiveComponentExecutionConfig,
-    #[validate]
+    #[validate(nested)]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 

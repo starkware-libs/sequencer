@@ -59,9 +59,9 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use blockifier::blockifier::config::WorkerPoolConfig;
 #[cfg(feature = "cairo_native")]
-use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use blockifier::blockifier::config::CairoNativeRunConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -179,7 +179,7 @@ pub fn create_node_config(
     chain_info: ChainInfo,
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
-    consensus_manager_config: ConsensusManagerConfig,
+    mut consensus_manager_config: ConsensusManagerConfig,
     eth_to_strk_oracle_config: EthToStrkOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
@@ -234,6 +234,9 @@ pub fn create_node_config(
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+
+    consensus_manager_config.consensus_manager_config.static_config.storage_config =
+        storage_config.consensus_storage_config.clone();
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
     let sierra_compiler_config = SierraCompilationConfig::default();
@@ -349,7 +352,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
             network_config,
-            immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
                 dynamic_config: ConsensusDynamicConfig {
                     timeouts: timeouts.clone(),
@@ -373,7 +375,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             cende_config: CendeConfig {
-                skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
@@ -630,10 +631,12 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         ..Default::default()
     };
+    let contract_class_manager_config = ContractClassManagerConfig::default();
 
     GatewayConfig {
         stateless_tx_validator_config,
         stateful_tx_validator_config,
+        contract_class_manager_config,
         chain_info,
         block_declare: false,
         authorized_declarer_accounts: None,

@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use apollo_l1_provider_types::errors::L1ProviderError;
@@ -121,13 +122,13 @@ async fn latest_block_number_goes_down() {
 
     let initial_block_reference = L1BlockReference { number: 0, hash: L1_BLOCK_HASH };
 
-    let latest_l1_block_number_response = Arc::new(Mutex::new(L1_LATEST_BLOCK_NUMBER));
+    let latest_l1_block_number_response = Arc::new(AtomicU64::new(L1_LATEST_BLOCK_NUMBER));
     let latest_l1_block_number_response_clone = latest_l1_block_number_response.clone();
 
     dummy_base_layer
         .expect_latest_l1_block_number()
         .times(2)
-        .returning(move || Ok(*latest_l1_block_number_response_clone.lock().unwrap()));
+        .returning(move || Ok(latest_l1_block_number_response_clone.load(Ordering::Relaxed)));
 
     dummy_base_layer.expect_events().times(1).returning(|_, _| Ok(vec![]));
 
@@ -145,7 +146,7 @@ async fn latest_block_number_goes_down() {
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
     // Simulate a base layer returning a lower block number.
-    *latest_l1_block_number_response.lock().unwrap() = L1_BAD_LATEST_NUMBER;
+    latest_l1_block_number_response.store(L1_BAD_LATEST_NUMBER, Ordering::Relaxed);
 
     // Make sure we don't hit the reorg error in this scenario.
     scraper.assert_no_l1_reorgs().await.unwrap();

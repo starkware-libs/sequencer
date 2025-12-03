@@ -8,6 +8,7 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::state::StorageKey;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::{OsConstants, VersionedConstants};

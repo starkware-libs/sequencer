@@ -31,7 +31,8 @@ const DEFAULT_INBOUND_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_HIGH_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_NORMAL_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_PROCESSING_TIME_WARNING_THRESHOLD_MS: u128 = 3_000;
-// The communication configuration of the local component.
+
+// The communication configuration of a local component server.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct LocalServerConfig {
     pub inbound_requests_channel_capacity: usize,

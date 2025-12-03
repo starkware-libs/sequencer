@@ -22,13 +22,17 @@ use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
     get_consensus_row,
+    get_panel_consensus_block_number,
     get_panel_consensus_block_number_diff_from_sync,
+    get_panel_consensus_decisions_reached_as_proposer_counter,
     get_panel_consensus_round,
 };
 use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};
 use crate::panels::http_server::{
     get_http_server_row,
     get_panel_http_server_added_transactions_success_rate,
+    get_panel_http_server_seconds_since_last_transaction,
+    get_panel_http_server_transactions_received_rate,
 };
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
 use crate::panels::l1_provider::get_l1_provider_row;
@@ -62,6 +66,18 @@ fn get_overview_row() -> Row {
     .expand()
 }
 
+fn get_upgrade_row() -> Row {
+    Row::new(
+        "For Upgrade",
+        vec![
+            get_panel_consensus_block_number(),
+            get_panel_consensus_decisions_reached_as_proposer_counter(),
+            get_panel_http_server_transactions_received_rate(),
+            get_panel_http_server_seconds_since_last_transaction(),
+        ],
+    )
+}
+
 pub fn get_apollo_dashboard() -> Dashboard {
     Dashboard::new(
         "Sequencer Node Dashboard",
@@ -74,6 +90,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_http_server_row(),
             get_gateway_row(),
             get_mempool_row(),
+            get_upgrade_row(),
             get_l1_provider_row(),
             get_l1_gas_price_row(),
             get_blockifier_row(),

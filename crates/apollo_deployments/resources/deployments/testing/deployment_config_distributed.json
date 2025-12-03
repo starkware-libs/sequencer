@@ -206,6 +206,7 @@
       "name": "L1",
       "controller": "Deployment",
       "config_paths": [
+        "app_configs/base_layer_config.json",
         "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",

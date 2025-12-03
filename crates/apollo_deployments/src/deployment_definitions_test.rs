@@ -30,6 +30,9 @@ fn deployment_files_are_up_to_date() {
 
     for node_type in NodeType::iter() {
         node_type.test_dump_service_component_configs(None);
+        for node_service in node_type.all_service_names() {
+            node_service.test_dump_node_service_replacer_app_config_files();
+        }
     }
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
@@ -38,6 +41,17 @@ fn deployment_files_are_up_to_date() {
             FIX_BINARY_NAME,
         );
         deployment.test_dump_config_override_files();
+    }
+}
+
+/// Test that the deployment file is up to date.
+#[test]
+fn replacer_config_entries_are_in_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    for node_type in NodeType::iter() {
+        node_type.test_all_replacers_are_accounted_for();
     }
 }
 

@@ -26,6 +26,7 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::executable_transaction::AccountTransaction as ExecTx;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -49,6 +50,7 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
+pub type ApolloStateReaderAndContractManager = StateReaderAndContractManager<ApolloReader>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
@@ -79,7 +81,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<ApolloReader>>>,
+    pub tx_executor: Option<TransactionExecutor<ApolloStateReaderAndContractManager>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -101,8 +103,9 @@ impl PyBlockExecutor {
         log::debug!("Initializing Block Executor...");
         let storage =
             PapyrusStorage::new(target_storage_config).expect("Failed to initialize storage.");
-        let versioned_constants =
-            VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
+        let versioned_constants = VersionedConstants::get_versioned_constants(Some(
+            py_versioned_constants_overrides.into(),
+        ));
         log::debug!("Initialized Block Executor.");
 
         Self {
@@ -398,24 +401,19 @@ impl PyBlockExecutor {
 }
 
 impl PyBlockExecutor {
-    pub fn tx_executor(
-        &mut self,
-    ) -> &mut TransactionExecutor<StateReaderAndContractManager<ApolloReader>> {
+    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<ApolloStateReaderAndContractManager> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
     fn get_aligned_reader(
         &self,
         next_block_number: BlockNumber,
-    ) -> StateReaderAndContractManager<ApolloReader> {
+    ) -> ApolloStateReaderAndContractManager {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
         let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
 
-        StateReaderAndContractManager {
-            state_reader: apollo_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-        }
+        StateReaderAndContractManager::new(apollo_reader, self.contract_class_manager.clone(), None)
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {

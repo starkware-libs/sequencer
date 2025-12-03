@@ -96,7 +96,6 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
-  "crates/papyrus_node",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
@@ -276,6 +275,7 @@ indoc = "2.0.5"
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"
+json-patch = "4.1.0"
 jsonrpsee = "0.20.3"
 jsonschema = "0.17.0"
 keccak = "0.1.3"
@@ -305,7 +305,6 @@ os_info = "3.6.0"
 page_size = "0.6.0"
 papyrus_base_layer.path = "crates/papyrus_base_layer"
 papyrus_common.path = "crates/papyrus_common"
-papyrus_node.path = "crates/papyrus_node"
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
@@ -384,7 +383,7 @@ tracing-test = "0.2"
 trybuild = "1.0.105"
 unsigned-varint = "0.8.0"
 url = "2.5.0"
-validator = "0.12"
+validator = "0.20"
 void = "1.0.2"
 waker-fn = "1.2.0"
 workspace_tests.path = "workspace_tests"
