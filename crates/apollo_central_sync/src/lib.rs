@@ -437,7 +437,7 @@ impl<
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
-        mut state_diff: StateDiff,
+        state_diff: StateDiff,
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
@@ -447,17 +447,17 @@ impl<
              {deployed_contract_class_definitions:#?}"
         );
 
+        // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
+        // classes.
+        let (thin_state_diff, classes, mut deprecated_classes) =
+            ThinStateDiff::from_state_diff(state_diff);
+
         // TODO(noamsp): describe why we do this.
-        state_diff.deprecated_declared_classes.extend(
+        deprecated_classes.extend(
             deployed_contract_class_definitions
                 .iter()
                 .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class.clone())),
         );
-
-        // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
-        // classes.
-        let (thin_state_diff, classes, deprecated_classes) =
-            ThinStateDiff::from_state_diff(state_diff);
 
         let mut block_contains_non_backwards_compatible_classes = false;
         // Sending to class manager before updating the storage so that if the class manager send
