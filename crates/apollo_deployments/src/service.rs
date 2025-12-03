@@ -63,6 +63,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.block_builder_config.execute_config.n_workers",
     "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
+    "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist",
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
