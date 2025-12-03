@@ -12442,6 +12442,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_os_runner"
+version = "0.0.0"
+
+[[package]]
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
