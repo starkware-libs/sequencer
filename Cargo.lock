@@ -2542,6 +2542,7 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
+ "axum",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
