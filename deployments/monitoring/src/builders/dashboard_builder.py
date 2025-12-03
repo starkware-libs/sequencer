@@ -7,15 +7,7 @@ from urllib.parse import quote
 
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
-<<<<<<< HEAD
-from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
-||||||| d8037b916e
-from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
-from urllib.parse import quote
-=======
 from common.helpers import EnvironmentName, get_logger
-from urllib.parse import quote
->>>>>>> origin/main-v0.14.1
 
 MAX_ALLOWED_JSON_SIZE = 1024 * 1024  # 1MB
 
