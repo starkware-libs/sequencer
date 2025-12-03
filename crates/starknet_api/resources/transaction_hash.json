@@ -70,7 +70,7 @@
   {
     "block_number": 636864,
     "chain_id": "SN_MAIN",
-    "only_query_transaction_hash": "0x63548034064bb4bc4aff845f0350e286e695225480627c1048d3216735bc9af",
+    "only_query_transaction_hash": "0x16070c8b26cf95744624fdcddee2936f8cc217b146ca65ba195df691a039069",
     "transaction": {
       "Invoke": {
         "V3": {
@@ -103,11 +103,12 @@
             "0x1c3a868705399362140bf5ae33f955f1c946a8f836d4c052f2aff397bcfe80a",
             "0x78163ce5979e2bc8a944ba353a63c194ca4f63d393bbaaa95857daa9223e93c"
           ],
-          "tip": "0x0"
+          "tip": "0x0",
+          "proof_facts": []
         }
       }
     },
-    "transaction_hash": "0x1d4735f4ba73a67be2f648d9b21cab3783383b8c229566b46b027c46012219"
+    "transaction_hash": "0x3b364f339826ed6fc36eee08eb9a2812156b3f165eb473c08420625c144deeb"
   },
   {
     "block_number": 2700,

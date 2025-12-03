@@ -8,6 +8,7 @@ use apollo_test_utils::{
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_types_core::felt::Felt;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -120,6 +121,7 @@ auto_impl_get_test_instance! {
         pub account_deployment_data: AccountDeploymentData,
         pub nonce_data_availability_mode: DataAvailabilityMode,
         pub fee_data_availability_mode: DataAvailabilityMode,
+        pub proof_facts: Vec<Felt>,
     }
     pub enum TransactionVersion0 {
         Version0 = 0,

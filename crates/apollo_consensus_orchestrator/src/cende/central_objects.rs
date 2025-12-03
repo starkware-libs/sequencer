@@ -184,6 +184,7 @@ struct CentralInvokeTransactionV3 {
     paymaster_data: PaymasterData,
     account_deployment_data: AccountDeploymentData,
     hash_value: TransactionHash,
+    proof_facts: Vec<Felt>,
 }
 
 impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV3 {
@@ -203,6 +204,7 @@ impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV
             nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
             fee_data_availability_mode: tx.fee_data_availability_mode.into(),
             hash_value,
+            proof_facts: tx.proof_facts,
         }
     }
 }
