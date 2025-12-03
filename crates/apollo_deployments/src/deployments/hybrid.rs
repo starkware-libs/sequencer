@@ -60,6 +60,76 @@ const TEST_CORE_STORAGE: usize = 1;
 const COMMITTER_STORAGE: usize = 512;
 const TEST_COMMITTER_STORAGE: usize = 32;
 
+const TEST_COMMITTER_CPU_REQUESTS: usize = 2;
+const TEST_COMMITTER_CPU_LIMITS: usize = 7;
+const TEST_COMMITTER_MEMORY_REQUESTS: usize = 4;
+const TEST_COMMITTER_MEMORY_LIMITS: usize = 14;
+
+const TEST_CORE_CPU_REQUESTS: usize = 2;
+const TEST_CORE_CPU_LIMITS: usize = 7;
+const TEST_CORE_MEMORY_REQUESTS: usize = 4;
+const TEST_CORE_MEMORY_LIMITS: usize = 14;
+
+const TEST_HTTP_SERVER_CPU_REQUESTS: usize = 1;
+const TEST_HTTP_SERVER_CPU_LIMITS: usize = 4;
+const TEST_HTTP_SERVER_MEMORY_REQUESTS: usize = 2;
+const TEST_HTTP_SERVER_MEMORY_LIMITS: usize = 8;
+
+const TEST_GATEWAY_CPU_REQUESTS: usize = 1;
+const TEST_GATEWAY_CPU_LIMITS: usize = 2;
+const TEST_GATEWAY_MEMORY_REQUESTS: usize = 2;
+const TEST_GATEWAY_MEMORY_LIMITS: usize = 4;
+
+const TEST_L1_CPU_REQUESTS: usize = 1;
+const TEST_L1_CPU_LIMITS: usize = 2;
+const TEST_L1_MEMORY_REQUESTS: usize = 2;
+const TEST_L1_MEMORY_LIMITS: usize = 4;
+
+const TEST_MEMPOOL_CPU_REQUESTS: usize = 1;
+const TEST_MEMPOOL_CPU_LIMITS: usize = 2;
+const TEST_MEMPOOL_MEMORY_REQUESTS: usize = 2;
+const TEST_MEMPOOL_MEMORY_LIMITS: usize = 4;
+
+const TEST_SIERRA_COMPILER_CPU_REQUESTS: usize = 1;
+const TEST_SIERRA_COMPILER_CPU_LIMITS: usize = 2;
+const TEST_SIERRA_COMPILER_MEMORY_REQUESTS: usize = 2;
+const TEST_SIERRA_COMPILER_MEMORY_LIMITS: usize = 4;
+
+const PROD_COMMITTER_CPU_REQUESTS: usize = 20;
+const PROD_COMMITTER_CPU_LIMITS: usize = 20;
+const PROD_COMMITTER_MEMORY_REQUESTS: usize = 256;
+const PROD_COMMITTER_MEMORY_LIMITS: usize = 256;
+
+const PROD_CORE_CPU_REQUESTS: usize = 50;
+const PROD_CORE_CPU_LIMITS: usize = 50;
+const PROD_CORE_MEMORY_REQUESTS: usize = 200;
+const PROD_CORE_MEMORY_LIMITS: usize = 220;
+
+const PROD_HTTP_SERVER_CPU_REQUESTS: usize = 1;
+const PROD_HTTP_SERVER_CPU_LIMITS: usize = 4;
+const PROD_HTTP_SERVER_MEMORY_REQUESTS: usize = 2;
+const PROD_HTTP_SERVER_MEMORY_LIMITS: usize = 8;
+
+const PROD_GATEWAY_CPU_REQUESTS: usize = 1;
+const PROD_GATEWAY_CPU_LIMITS: usize = 2;
+const PROD_GATEWAY_MEMORY_REQUESTS: usize = 2;
+const PROD_GATEWAY_MEMORY_LIMITS: usize = 4;
+
+const PROD_L1_CPU_REQUESTS: usize = 2;
+const PROD_L1_CPU_LIMITS: usize = 3;
+const PROD_L1_MEMORY_REQUESTS: usize = 4;
+const PROD_L1_MEMORY_LIMITS: usize = 12;
+
+const PROD_MEMPOOL_CPU_REQUESTS: usize = 2;
+const PROD_MEMPOOL_CPU_LIMITS: usize = 3;
+const PROD_MEMPOOL_MEMORY_REQUESTS: usize = 4;
+const PROD_MEMPOOL_MEMORY_LIMITS: usize = 12;
+
+const PROD_SIERRA_COMPILER_CPU_REQUESTS: usize = 1;
+const PROD_SIERRA_COMPILER_CPU_LIMITS: usize = 2;
+const PROD_SIERRA_COMPILER_MEMORY_REQUESTS: usize = 2;
+const PROD_SIERRA_COMPILER_MEMORY_LIMITS: usize = 4;
+
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
@@ -290,30 +360,84 @@ impl ServiceNameInner for HybridNodeServiceName {
                 CloudK8sEnvironment::PotcMock
                 | CloudK8sEnvironment::SepoliaIntegration
                 | CloudK8sEnvironment::UpgradeTest => match self {
-                    Self::Committer => Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
-                    Self::Core => Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
-                    Self::HttpServer => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Self::Gateway => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::L1 => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::Mempool => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
+                    Self::Committer => Resources::new(
+                        Resource::new(TEST_COMMITTER_CPU_REQUESTS, TEST_COMMITTER_MEMORY_REQUESTS),
+                        Resource::new(TEST_COMMITTER_CPU_LIMITS, TEST_COMMITTER_MEMORY_LIMITS),
+                    ),
+                    Self::Core => Resources::new(
+                        Resource::new(TEST_CORE_CPU_REQUESTS, TEST_CORE_MEMORY_REQUESTS),
+                        Resource::new(TEST_CORE_CPU_LIMITS, TEST_CORE_MEMORY_LIMITS),
+                    ),
+                    Self::HttpServer => Resources::new(
+                        Resource::new(
+                            TEST_HTTP_SERVER_CPU_REQUESTS,
+                            TEST_HTTP_SERVER_MEMORY_REQUESTS,
+                        ),
+                        Resource::new(TEST_HTTP_SERVER_CPU_LIMITS, TEST_HTTP_SERVER_MEMORY_LIMITS),
+                    ),
+                    Self::Gateway => Resources::new(
+                        Resource::new(TEST_GATEWAY_CPU_REQUESTS, TEST_GATEWAY_MEMORY_REQUESTS),
+                        Resource::new(TEST_GATEWAY_CPU_LIMITS, TEST_GATEWAY_MEMORY_LIMITS),
+                    ),
+                    Self::L1 => Resources::new(
+                        Resource::new(TEST_L1_CPU_REQUESTS, TEST_L1_MEMORY_REQUESTS),
+                        Resource::new(TEST_L1_CPU_LIMITS, TEST_L1_MEMORY_LIMITS),
+                    ),
+                    Self::Mempool => Resources::new(
+                        Resource::new(TEST_MEMPOOL_CPU_REQUESTS, TEST_MEMPOOL_MEMORY_REQUESTS),
+                        Resource::new(TEST_MEMPOOL_CPU_LIMITS, TEST_MEMPOOL_MEMORY_LIMITS),
+                    ),
+                    Self::SierraCompiler => Resources::new(
+                        Resource::new(
+                            TEST_SIERRA_COMPILER_CPU_REQUESTS,
+                            TEST_SIERRA_COMPILER_MEMORY_REQUESTS,
+                        ),
+                        Resource::new(
+                            TEST_SIERRA_COMPILER_CPU_LIMITS,
+                            TEST_SIERRA_COMPILER_MEMORY_LIMITS,
+                        ),
+                    ),
                 },
                 CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
-                    Self::Committer => {
-                        Resources::new(Resource::new(20, 256), Resource::new(20, 256))
-                    }
-                    Self::Core => Resources::new(Resource::new(50, 200), Resource::new(50, 220)),
-                    Self::HttpServer => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Self::Gateway => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::L1 => Resources::new(Resource::new(2, 4), Resource::new(3, 12)),
-                    Self::Mempool => Resources::new(Resource::new(2, 4), Resource::new(3, 12)),
-                    Self::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
+                    Self::Committer => Resources::new(
+                        Resource::new(PROD_COMMITTER_CPU_REQUESTS, PROD_COMMITTER_MEMORY_REQUESTS),
+                        Resource::new(PROD_COMMITTER_CPU_LIMITS, PROD_COMMITTER_MEMORY_LIMITS),
+                    ),
+                    Self::Core => Resources::new(
+                        Resource::new(PROD_CORE_CPU_REQUESTS, PROD_CORE_MEMORY_REQUESTS),
+                        Resource::new(PROD_CORE_CPU_LIMITS, PROD_CORE_MEMORY_LIMITS),
+                    ),
+                    Self::HttpServer => Resources::new(
+                        Resource::new(
+                            PROD_HTTP_SERVER_CPU_REQUESTS,
+                            PROD_HTTP_SERVER_MEMORY_REQUESTS,
+                        ),
+                        Resource::new(PROD_HTTP_SERVER_CPU_LIMITS, PROD_HTTP_SERVER_MEMORY_LIMITS),
+                    ),
+                    Self::Gateway => Resources::new(
+                        Resource::new(PROD_GATEWAY_CPU_REQUESTS, PROD_GATEWAY_MEMORY_REQUESTS),
+                        Resource::new(PROD_GATEWAY_CPU_LIMITS, PROD_GATEWAY_MEMORY_LIMITS),
+                    ),
+                    Self::L1 => Resources::new(
+                        Resource::new(PROD_L1_CPU_REQUESTS, PROD_L1_MEMORY_REQUESTS),
+                        Resource::new(PROD_L1_CPU_LIMITS, PROD_L1_MEMORY_LIMITS),
+                    ),
+                    Self::Mempool => Resources::new(
+                        Resource::new(PROD_MEMPOOL_CPU_REQUESTS, PROD_MEMPOOL_MEMORY_REQUESTS),
+                        Resource::new(PROD_MEMPOOL_CPU_LIMITS, PROD_MEMPOOL_MEMORY_LIMITS),
+                    ),
+                    Self::SierraCompiler => Resources::new(
+                        Resource::new(
+                            PROD_SIERRA_COMPILER_CPU_REQUESTS,
+                            PROD_SIERRA_COMPILER_MEMORY_REQUESTS,
+                        ),
+                        Resource::new(
+                            PROD_SIERRA_COMPILER_CPU_LIMITS,
+                            PROD_SIERRA_COMPILER_MEMORY_LIMITS,
+                        ),
+                    ),
                 },
             },
             Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
