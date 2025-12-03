@@ -8,7 +8,6 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_integration_tests::utils::ConsensusTxs;
 use strum::IntoEnumIterator;
 use tokio::select;
 use tracing::info;
@@ -75,12 +74,11 @@ async fn main() {
     // Create a simulator for sustained transaction sending.
     let simulator = integration_test_manager.create_simulator();
     let mut tx_generator = integration_test_manager.tx_generator().snapshot();
-    let test_scenario = ConsensusTxs { n_invoke_txs: 1, n_l1_handler_txs: 0 };
     // TODO(noamsp/itay): Try to refactor this test to spawn threads for each task instead of using
     // select!
     // Task that sends sustained transactions without ever finishing.
     let continuous_tx_sending_task =
-        simulator.send_txs_continuously(&mut tx_generator, &test_scenario, DEFAULT_SENDER_ACCOUNT);
+        simulator.run_simulation(&mut tx_generator, true, DEFAULT_SENDER_ACCOUNT);
 
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
