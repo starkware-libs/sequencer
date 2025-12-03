@@ -2,6 +2,7 @@ use alloy::network::TransactionBuilder;
 use alloy::primitives::{address as ethereum_address, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
+use apollo_config::secrets::Sensitive;
 use starknet_api::hash::StarkHash;
 use tracing::debug;
 use url::Url;
@@ -37,11 +38,11 @@ pub async fn make_block_history_on_anvil(
     sender_address: EthereumContractAddress,
     receiver_address: EthereumContractAddress,
     base_layer_config: EthereumBaseLayerConfig,
-    url: &Url,
+    url: &Sensitive<Url>,
     num_blocks: usize,
 ) {
     let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
-    let provider = base_layer.contract.provider();
+    let provider: &alloy::providers::RootProvider = base_layer.contract.provider();
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();
     for _ in 0..num_blocks {
@@ -75,7 +76,7 @@ pub async fn make_block_history_on_anvil(
 pub async fn anvil_mine_blocks(
     base_layer_config: EthereumBaseLayerConfig,
     num_blocks: u64,
-    url: &Url,
+    url: &Sensitive<Url>,
 ) {
     let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
     let provider = base_layer.contract.provider();
