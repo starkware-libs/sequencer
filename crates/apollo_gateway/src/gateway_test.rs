@@ -32,7 +32,7 @@ use apollo_mempool_types::communication::{
     MockMempoolClient,
 };
 use apollo_mempool_types::errors::MempoolError;
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -165,6 +165,10 @@ impl MockDependencies {
     fn expect_add_tx(&mut self, args: AddTransactionArgsWrapper, result: MempoolClientResult<()>) {
         self.mock_mempool_client.expect_add_tx().once().with(eq(args)).return_once(|_| result);
     }
+
+    fn expect_validate_tx(&mut self, args: ValidationArgs, result: MempoolClientResult<()>) {
+        self.mock_mempool_client.expect_validate_tx().once().with(eq(args)).return_once(|_| result);
+    }
 }
 
 fn account_contract() -> FeatureContract {
@@ -283,6 +287,7 @@ async fn setup_mock_state(
         tx: expected_internal_tx.clone(),
         account_state: AccountState { address, nonce: *input_tx.nonce() },
     };
+    let validation_args = ValidationArgs::from(&mempool_add_tx_args);
     mock_dependencies.expect_add_tx(
         AddTransactionArgsWrapper {
             args: mempool_add_tx_args,
@@ -290,6 +295,8 @@ async fn setup_mock_state(
         },
         expected_mempool_result,
     );
+
+    mock_dependencies.expect_validate_tx(validation_args, Ok(()))
 }
 
 struct AddTxResults {
