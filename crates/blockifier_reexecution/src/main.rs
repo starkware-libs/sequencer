@@ -32,6 +32,17 @@ const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
 async fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
+    // Set log level to debug.
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{filter, fmt, reload};
+    let (global_filter, _global_filter_handle) = reload::Layer::new(filter::LevelFilter::INFO);
+    let layer = fmt::Layer::default()
+        .with_ansi(false)
+        .with_target(false)
+        .with_file(true)
+        .with_line_number(true);
+    tracing_subscriber::registry().with(global_filter).with(layer).init();
+
     // Lambda functions for single point of truth.
     let block_dir = |block_number| format!("/block_{block_number}");
     let block_data_file = |block_number| block_dir(block_number) + FILE_NAME;
@@ -107,7 +118,7 @@ async fn main() {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Computing reexecution data for blocks {block_numbers:?}.");
+            tracing::info!("Computing reexecution data for blocks {block_numbers:?}.");
 
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
@@ -118,7 +129,7 @@ async fn main() {
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
                 task_set.spawn(async move {
-                    println!("Computing reexecution data for block {block_number}.");
+                    tracing::info!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
                         write_block_reexecution_data_to_file(
                             block_number,
@@ -130,7 +141,7 @@ async fn main() {
                     .await
                 });
             }
-            println!("Waiting for all blocks to be processed.");
+            tracing::info!("Waiting for all blocks to be processed.");
             task_set.join_all().await;
         }
 

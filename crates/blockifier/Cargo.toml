@@ -70,6 +70,7 @@ starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 dashmap.workspace = true
 
 [dev-dependencies]

@@ -218,12 +218,12 @@ pub fn reexecute_and_verify_correctness<
     consecutive_state_readers: T,
 ) -> Option<CachedState<S>> {
     let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
-
+    tracing::info!("Got expected state diff");
     let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
-
+    tracing::info!("Got all txs in next block");
     let mut transaction_executor =
         consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
-
+    tracing::info!("Created transaction executor");
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
     // Verify all transactions executed successfully.
     for res in execution_results.iter() {
@@ -257,7 +257,9 @@ pub fn write_block_reexecution_data_to_file(
     node_url: String,
     chain_id: ChainId,
 ) {
+    tracing::info!("Writing reexecution data to file for block {block_number}");
     let config = RpcStateReaderConfig::from_url(node_url);
+    tracing::info!("Got RPC state reader config");
 
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
@@ -266,9 +268,11 @@ pub fn write_block_reexecution_data_to_file(
         true,
     );
 
+    tracing::info!("Got consecutive state readers");
+
     let serializable_data_next_block =
         consecutive_state_readers.get_serializable_data_next_block().unwrap();
-
+    tracing::info!("Got serializable data next block");
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
     // Run the reexecution test and get the state maps and contract class mapping.

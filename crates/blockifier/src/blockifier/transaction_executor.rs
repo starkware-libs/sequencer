@@ -185,13 +185,14 @@ impl<S: StateReader> TransactionExecutor<S> {
         execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
-        for tx in txs {
+        for (i, tx) in txs.iter().enumerate() {
             if let Some(deadline) = execution_deadline {
                 if Instant::now() > deadline {
                     log::debug!("Execution timed out.");
                     break;
                 }
             }
+            tracing::info!("Executing transaction {i}.");
             match self.execute(tx) {
                 Ok((tx_execution_info, state_diff)) => {
                     results.push(Ok((tx_execution_info, state_diff)))
@@ -324,9 +325,11 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
+            tracing::info!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs, execution_deadline)
         } else {
             log::debug!("Executing transactions concurrently.");
+            tracing::info!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
             let n_workers = self.config.concurrency_config.n_workers;
             assert!(

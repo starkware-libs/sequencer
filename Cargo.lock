@@ -3600,6 +3600,7 @@ dependencies = [
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
+ "tracing",
 ]
 
 [[package]]
@@ -3630,6 +3631,8 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -32,6 +32,8 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing-subscriber.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
