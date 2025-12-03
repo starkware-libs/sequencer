@@ -115,6 +115,8 @@ fn create_callinfo(
         tracked_resource: TrackedResource::SierraGas,
         builtin_counters,
         syscalls_usage: syscall_handler.base.syscalls_usage,
+        time: std::time::Duration::default(),
+        call_counter: Default::default(),
     })
 }
 

@@ -237,6 +237,8 @@ pub struct CallInfo {
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
+    pub time: std::time::Duration,
+    pub call_counter: usize,
     pub storage_access_tracker: StorageAccessTracker,
     // Tracks how many times each builtin was called during execution (excluding inner calls).
     // Used by the bouncer to decide when to close a block.
