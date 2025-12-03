@@ -1,6 +1,7 @@
 use std::fs::read_to_string;
 
 use alloy::primitives::{Address as EthereumContractAddress, Address};
+use apollo_config::secrets::Sensitive;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
@@ -101,7 +102,8 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
         sender_address, receiver_address
     );
 
-    let (base_layer_config, base_layer_url) = build_base_layer_config_for_testing();
+    let (base_layer_config, url) = build_base_layer_config_for_testing();
+    let base_layer_url = Sensitive::new(url);
 
     let ethereum_base_layer_contract =
         EthereumBaseLayerContract::new(base_layer_config.clone(), base_layer_url.clone());
