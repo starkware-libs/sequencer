@@ -4,7 +4,6 @@ mod central_objects;
 
 use std::sync::Arc;
 
-use apollo_batcher::utils::append_route_to_sensitive_url;
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_config::secrets::Sensitive;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
@@ -126,7 +125,7 @@ impl CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: {
                 let mut recorder_url = cende_config.recorder_url;
-                append_route_to_sensitive_url(&mut recorder_url, RECORDER_WRITE_BLOB_PATH);
+                recorder_url.append_route(RECORDER_WRITE_BLOB_PATH);
                 recorder_url
             },
             client: ClientBuilder::new(reqwest::Client::new())
