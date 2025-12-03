@@ -21,7 +21,7 @@ use futures::future::join_all;
 use futures::StreamExt;
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::Multiaddr;
-use metrics::{counter, gauge};
+// use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
 use tracing::{info, trace, Level};
@@ -30,6 +30,7 @@ use tracing::{info, trace, Level};
 mod converters_test;
 
 mod converters;
+pub mod metrics;
 mod utils;
 
 lazy_static::lazy_static! {
@@ -94,7 +95,7 @@ async fn send_stress_test_messages(
         message.metadata.message_index = i;
         broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
         trace!("Sent message {i}: {:?}", message);
-        counter!("sent_messages").increment(1);
+        // counter!("sent_messages").increment(1);
         tokio::time::sleep(duration).await;
     }
 }
@@ -112,24 +113,25 @@ fn receive_stress_test_message(
         Err(_) => panic!("Got a negative duration, the clocks are not synced!"),
     };
 
-    let delay_seconds = duration.as_secs_f64();
-    let delay_micros = duration.as_micros().try_into().unwrap();
+    let _delay_seconds = duration.as_secs_f64();
+    // let delay_micros = duration.as_micros().try_into().unwrap();
 
     // TODO(AndrewL): Concentrate all string metrics to constants in a different file
-    counter!("message_received").increment(1);
-    counter!(format!("message_received_from_{}", received_message.metadata.sender_id)).increment(1);
+    // counter!("message_received").increment(1);
+    // counter!(format!("message_received_from_{}",
+    // received_message.metadata.sender_id)).increment(1);
 
     // TODO(AndrewL): This should be a historgram
-    gauge!("message_received_delay_seconds").set(delay_seconds);
-    gauge!(format!("message_received_delay_seconds_from_{}", received_message.metadata.sender_id))
-        .set(delay_seconds);
+    // gauge!("message_received_delay_seconds").set(delay_seconds);
+    //  gauge!(format!("message_received_delay_seconds_from_{}",
+    // received_message.metadata.sender_id)) .set(delay_seconds);
 
-    counter!("message_received_delay_micros_sum").increment(delay_micros);
-    counter!(format!(
-        "message_received_delay_micros_sum_from_{}",
-        received_message.metadata.sender_id
-    ))
-    .increment(delay_micros);
+    // counter!("message_received_delay_micros_sum").increment(delay_micros);
+    // counter!(format!(
+    //     "message_received_delay_micros_sum_from_{}",
+    //     received_message.metadata.sender_id
+    // ))
+    // .increment(delay_micros);
     // TODO(AndrewL): Figure out what to log here
 }
 
