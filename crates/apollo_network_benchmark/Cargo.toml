@@ -1,0 +1,19 @@
+[package]
+name = "apollo_network_benchmark"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = []
+
+[dependencies]
+tokio = { workspace = true, features = ["full", "sync"] }
+
+
+[dev-dependencies]
+
+
+[lints]
+workspace = true
