@@ -10,6 +10,7 @@ config:
     batcher_config_block_builder_config_execute_config_n_workers: 28
     batcher_config_block_builder_config_proposer_idle_detection_delay_millis: 2000
     batcher_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    batcher_config_contract_class_manager_config_cairo_native_run_config_native_classes_whitelist: "All"
     class_manager_config_class_manager_config_max_compiled_contract_class_object_size: 4089446
     components_batcher_port: 55000
     components_batcher_url: sequencer-core-service
