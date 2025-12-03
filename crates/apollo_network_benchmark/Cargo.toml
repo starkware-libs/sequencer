@@ -1,0 +1,37 @@
+[package]
+name = "apollo_network_benchmark"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = []
+
+[[bin]]
+name = "broadcast_network_stress_test_node"
+path = "bin/broadcast_network_stress_test_node/main.rs"
+
+[dependencies]
+apollo_metrics.workspace = true
+apollo_network.workspace = true
+clap = { workspace = true, features = ["derive"] }
+futures.workspace = true
+lazy_static.workspace = true
+libp2p = { workspace = true, features = ["identify"] }
+metrics-exporter-prometheus.workspace = true
+sysinfo.workspace = true
+tokio = { workspace = true, features = ["full", "sync"] }
+tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+
+[dev-dependencies]
+assert_matches.workspace = true
+rstest.workspace = true
+tokio = { workspace = true, features = ["full", "sync", "test-util"] }
+tokio-stream.workspace = true
+
+[lints]
+workspace = true
