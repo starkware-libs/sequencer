@@ -25,7 +25,6 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -33,10 +32,6 @@ use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::MempoolStateReader;
 use crate::sync_state_reader::{SyncStateReader, OLD_DEPLOY_CLASS_HASH_WHITELIST};
-
-fn create_test_class_cache() -> GlobalContractCache<RunnableCompiledClass> {
-    GlobalContractCache::new(1)
-}
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
@@ -73,7 +68,6 @@ async fn test_get_block_info() {
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
-        create_test_class_cache(),
         block_number,
         tokio::runtime::Handle::current(),
     );
@@ -130,7 +124,6 @@ async fn test_get_storage_at() {
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
-        create_test_class_cache(),
         block_number,
         tokio::runtime::Handle::current(),
     );
@@ -161,7 +154,6 @@ async fn test_get_nonce_at() {
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
-        create_test_class_cache(),
         block_number,
         tokio::runtime::Handle::current(),
     );
@@ -191,7 +183,6 @@ async fn test_get_class_hash_at() {
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
-        create_test_class_cache(),
         block_number,
         tokio::runtime::Handle::current(),
     );
@@ -286,7 +277,6 @@ async fn test_get_compiled_class(
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
-        create_test_class_cache(),
         block_number,
         tokio::runtime::Handle::current(),
     );

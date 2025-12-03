@@ -7,7 +7,6 @@ use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
-use hyper::server::conn::AddrIncoming;
 use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
@@ -176,10 +175,10 @@ where
                                 // Return a 503 Service Unavailable response to indicate that the server is
                                 // busy, which should indicate the load balancer to divert the request to
                                 // another server.
-                                .status(StatusCode::SERVICE_UNAVAILABLE)
-                                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                                .body(Body::from(body))
-                                .expect("Should be able to construct server http response.");
+                                    .status(StatusCode::SERVICE_UNAVAILABLE)
+                                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                    .body(Body::from(body))
+                                    .expect("Should be able to construct server http response.");
                             // Explicitly mention the type, helping the Rust compiler avoid
                             // Error type ambiguity.
                             let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
@@ -200,12 +199,7 @@ where
             }
         });
 
-        let mut incoming = AddrIncoming::bind(&self.socket).unwrap_or_else(|e| {
-            panic!("Failed to bind remote component server socket {:#?}: {e}", self.socket)
-        });
-        incoming.set_nodelay(true);
-
-        Server::builder(incoming)
+        Server::bind(&self.socket)
             .serve(make_svc)
             .await
             .unwrap_or_else(|e| panic!("Remote component server start error: {}", e));

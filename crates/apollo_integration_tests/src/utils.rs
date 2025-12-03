@@ -625,7 +625,6 @@ pub fn create_gateway_config(
         chain_info,
         block_declare: false,
         authorized_declarer_accounts: None,
-        class_cache_size: 1,
     }
 }
 

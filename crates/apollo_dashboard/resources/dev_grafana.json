@@ -630,17 +630,6 @@
             "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {}
-        },
-        {
-          "title": "gateway_class_cache_miss_ratio",
-          "description": "The ratio of cache misses when requesting compiled classes from the Gateway State Reader",
-          "type": "timeseries",
-          "exprs": [
-            "(increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(gateway_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
         }
       ],
       "collapsed": true
