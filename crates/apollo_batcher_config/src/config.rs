@@ -130,7 +130,8 @@ impl SerializeConfig for PreconfirmedCendeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([ser_param(
             "recorder_url",
-            &self.recorder_url,
+            // TODO(victork): make sure we're allowed to expose the recorder URL here
+            self.recorder_url.as_ref(),
             "The URL of the Pythonic cende_recorder",
             ParamPrivacyInput::Private,
         )])
