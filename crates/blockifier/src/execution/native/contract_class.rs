@@ -10,6 +10,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, NestedFeltCounts};
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
+use crate::execution::native::executor::ContractExecutor;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
 impl Deref for NativeCompiledClassV1 {
@@ -31,6 +32,11 @@ impl NativeCompiledClassV1 {
     /// sierra_contract_class.
     pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
         let contract = NativeCompiledClassV1Inner::new(executor, casm);
+
+        Self(Arc::new(contract))
+    }
+    pub fn new_2(executor: ContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new_2(executor, casm);
 
         Self(Arc::new(contract))
     }
@@ -71,12 +77,16 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
-    pub executor: AotContractExecutor,
+    pub executor: ContractExecutor,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
     fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
+        let executor = executor.into();
+        NativeCompiledClassV1Inner { executor, casm }
+    }
+    fn new_2(executor: ContractExecutor, casm: CompiledClassV1) -> Self {
         NativeCompiledClassV1Inner { executor, casm }
     }
 }
