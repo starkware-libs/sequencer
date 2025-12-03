@@ -55,6 +55,18 @@ impl SequencerSimulator {
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
+    /// Sends transactions continuously without ever finishing.
+    pub async fn send_txs_continuously(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        test_scenario: &impl TestScenario,
+        sender_account: AccountId,
+    ) {
+        loop {
+            self.send_txs(tx_generator, test_scenario, sender_account).await;
+        }
+    }
+
     pub async fn await_txs_accepted(&self, sequencer_idx: usize, target_n_batched_txs: usize) {
         monitoring_utils::await_txs_accepted(
             &self.monitoring_client,
