@@ -499,6 +499,14 @@ async fn handle_proposal_part(
                     ));
                 }
             };
+            for tx in &txs {
+                if let Err(e) = validate_transaction_proof(tx) {
+                    return HandledProposalPart::Failed(format!(
+                        "Transaction proof validation failed for tx {}: {e}",
+                        tx.tx_hash()
+                    ));
+                }
+            }
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
                 txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
@@ -542,6 +550,18 @@ async fn handle_proposal_part(
             HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
+    }
+}
+
+/// TODO(Einat): Replace with actual proof validation logic once the proof field is added to
+/// transactions.
+fn validate_transaction_proof(tx: &InternalConsensusTransaction) -> Result<(), String> {
+    match tx {
+        InternalConsensusTransaction::RpcTransaction(_rpc_tx) => {
+            // TODO(Einat): Implement proof validation for RpcTransaction.
+            Ok(())
+        }
+        InternalConsensusTransaction::L1Handler(_l1_handler_tx) => Ok(()),
     }
 }
 
