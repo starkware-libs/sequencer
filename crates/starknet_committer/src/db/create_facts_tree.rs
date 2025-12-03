@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -24,6 +23,11 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
+use crate::db::db_utils::{
+    handle_empty_subtree,
+    log_trivial_modification,
+    log_warning_for_empty_leaves,
+};
 use crate::db::traversal::calculate_subtrees_roots;
 
 #[cfg(test)]
@@ -175,12 +179,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        log_warning_for_empty_leaves(
-            sorted_leaf_indices.get_indices(),
-            leaf_modifications,
-            config,
-        )?;
-        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
+        return Ok(handle_empty_subtree::<L>(sorted_leaf_indices).0);
     }
     let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
     let main_subtree = FactsSubTree::new(main_subtree, root_hash);
@@ -209,10 +208,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
         return Ok((unmodified, HashMap::new()));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        return Ok((
-            OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices),
-            sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
-        ));
+        return Ok(handle_empty_subtree::<L>(sorted_leaf_indices));
     }
     let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
     let main_subtree = FactsSubTree::new(main_subtree, root_hash);
@@ -264,24 +260,4 @@ fn handle_subtree<'a>(
             .nodes
             .insert(subtree.root_index, OriginalSkeletonNode::UnmodifiedSubTree(subtree.root_hash));
     }
-}
-
-/// Given leaf indices that were previously empty leaves, logs out a warning for trivial
-/// modification if a leaf is modified to an empty leaf.
-/// If this check is suppressed by configuration, does nothing.
-fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug>(
-    leaf_indices: &[T],
-    leaf_modifications: &LeafModifications<L>,
-    config: &impl OriginalSkeletonTreeConfig<L>,
-) -> OriginalSkeletonTreeResult<()> {
-    if !config.compare_modified_leaves() {
-        return Ok(());
-    }
-    let empty_leaf = L::default();
-    for leaf_index in leaf_indices {
-        if L::compare(leaf_modifications, leaf_index.borrow(), &empty_leaf)? {
-            log_trivial_modification!(leaf_index, empty_leaf);
-        }
-    }
-    Ok(())
 }
