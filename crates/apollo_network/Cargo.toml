@@ -15,7 +15,6 @@ apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
-clap = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
@@ -33,8 +32,6 @@ libp2p = { workspace = true, features = [
   "tokio",
   "yamux",
 ] }
-metrics.workspace = true
-metrics-exporter-prometheus.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
@@ -44,7 +41,6 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-retry.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
 
@@ -55,12 +51,10 @@ assert_matches.workspace = true
 deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
 libp2p-swarm-test.workspace = true
-mockall.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
-void.workspace = true
 waker-fn.workspace = true
 
 [lints]
