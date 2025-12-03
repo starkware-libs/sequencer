@@ -10,8 +10,20 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::index_db::db_types::IndexLayoutLeaf;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
+
+#[derive(Debug)]
+pub struct IndexLayoutLeafDeserializationError(&'static str);
+
+impl std::fmt::Display for IndexLayoutLeafDeserializationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for IndexLayoutLeafDeserializationError {}
 
 #[derive(Clone, Debug)]
 pub enum CommitterLeafPrefix {
@@ -30,10 +42,42 @@ impl From<CommitterLeafPrefix> for DbKeyPrefix {
     }
 }
 
+impl IndexLayoutLeaf for StarknetStorageValue {
+    fn serialize_index_layout(&self) -> DbValue {
+        let mut buffer = Vec::new();
+        self.0.serialize(&mut buffer).unwrap();
+        DbValue(buffer)
+    }
+
+    fn deserialize_index_layout(value: &DbValue) -> Result<Self, DeserializationError> {
+        Felt::deserialize(&mut &value.0[..]).map(|value| StarknetStorageValue(value)).ok_or(
+            DeserializationError::ValueError(Box::new(IndexLayoutLeafDeserializationError(
+                "failed to deserialize StarknetStorageValue from index DB",
+            ))),
+        )
+    }
+}
+
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
+    }
+}
+
+impl IndexLayoutLeaf for CompiledClassHash {
+    fn serialize_index_layout(&self) -> DbValue {
+        let mut buffer = Vec::new();
+        self.0.serialize(&mut buffer).unwrap();
+        DbValue(buffer)
+    }
+
+    fn deserialize_index_layout(value: &DbValue) -> Result<Self, DeserializationError> {
+        Ok(CompiledClassHash(Felt::deserialize(&mut &value.0[..]).ok_or(
+            DeserializationError::ValueError(Box::new(IndexLayoutLeafDeserializationError(
+                "failed to deserialize CompiledClassHash from index DB",
+            ))),
+        )?))
     }
 }
 
@@ -42,6 +86,36 @@ impl DBObject for CompiledClassHash {
     fn serialize(&self) -> DbValue {
         let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
         DbValue(json_string.into_bytes())
+    }
+}
+
+impl IndexLayoutLeaf for ContractState {
+    fn serialize_index_layout(&self) -> DbValue {
+        let mut buffer = Vec::new();
+        self.class_hash.0.serialize(&mut buffer).unwrap();
+        self.storage_root_hash.0.serialize(&mut buffer).unwrap();
+        self.nonce.0.serialize(&mut buffer).unwrap();
+        DbValue(buffer)
+    }
+
+    fn deserialize_index_layout(value: &DbValue) -> Result<Self, DeserializationError> {
+        let mut cursor: &[u8] = &value.0;
+        let error_msg = "failed to deserialize ContractState from index DB";
+        let class_hash = Felt::deserialize(&mut cursor).ok_or(DeserializationError::ValueError(
+            Box::new(IndexLayoutLeafDeserializationError(error_msg)),
+        ))?;
+        let storage_root_hash =
+            Felt::deserialize(&mut cursor).ok_or(DeserializationError::ValueError(Box::new(
+                IndexLayoutLeafDeserializationError(error_msg),
+            )))?;
+        let nonce = Felt::deserialize(&mut cursor).ok_or(DeserializationError::ValueError(
+            Box::new(IndexLayoutLeafDeserializationError(error_msg)),
+        ))?;
+        Ok(ContractState {
+            class_hash: ClassHash(class_hash),
+            storage_root_hash: HashOutput(storage_root_hash),
+            nonce: Nonce(nonce),
+        })
     }
 }
 
