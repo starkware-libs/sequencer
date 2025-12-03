@@ -64,6 +64,7 @@ use starknet_api::transaction::{
     MessageToL1,
     TransactionVersion,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{
     calldata,
     contract_address,

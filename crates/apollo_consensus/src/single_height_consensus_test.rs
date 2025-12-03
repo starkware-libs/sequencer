@@ -633,7 +633,7 @@ async fn writes_voted_height_to_storage() {
         ]))
     );
 
-    let precommits = vec![
+    let precommits = [
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
         precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
