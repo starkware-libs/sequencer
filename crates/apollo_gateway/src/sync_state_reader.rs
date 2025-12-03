@@ -26,15 +26,7 @@ use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-<<<<<<< HEAD
-use starknet_api::state::StorageKey;
-||||||| d8037b916e
-use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::state::StorageKey;
-=======
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::{SierraContractClass, StorageKey};
->>>>>>> origin/main-v0.14.1
 use starknet_types_core::felt::Felt;
 use tracing::error;
 

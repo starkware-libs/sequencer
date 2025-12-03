@@ -271,13 +271,8 @@ impl ConsensusManager {
         } else {
             QuorumType::Byzantine
         };
-<<<<<<< HEAD
         // TODO(Asmaa): refactor to pass entire consensus_manager_config instead of extracting
         // each field, and handle non-config params.
-||||||| d8037b916e
-=======
-
->>>>>>> origin/main-v0.14.1
         apollo_consensus::RunConsensusArguments {
             consensus_config: self.config.consensus_manager_config.clone(),
             start_active_height: observer_height,
