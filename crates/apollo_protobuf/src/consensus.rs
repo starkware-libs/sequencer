@@ -37,7 +37,7 @@ impl<T> IntoFromProto for T where
 {
 }
 
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Hash, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum VoteType {
     Prevote,
     #[default]

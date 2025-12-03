@@ -7,7 +7,15 @@ from urllib.parse import quote
 
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
+<<<<<<< HEAD
 from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
+||||||| d8037b916e
+from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
+from urllib.parse import quote
+=======
+from common.helpers import EnvironmentName, get_logger
+from urllib.parse import quote
+>>>>>>> origin/main-v0.14.1
 
 MAX_ALLOWED_JSON_SIZE = 1024 * 1024  # 1MB
 
@@ -141,18 +149,9 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
     return f"{out_dir}/{file_name}.json"
 
 
-def make_gcp_project_var(gcp_project_value: str) -> dict:
-    return {
-        "type": "constant",
-        "name": "gcp_project",
-        "query": gcp_project_value,
-    }
-
-
 def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentName) -> dict:
     dashboard = empty_dashboard.copy()
     templating = templating_object.copy()
-    templating["list"].append(make_gcp_project_var(env_to_gcp_project_name(env)))
     panel_id = 1
     x_position = 0
     y_position = 0

@@ -7,11 +7,13 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::stateful_validator::{
     MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
 };
 use blockifier::context::ChainInfo;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -154,10 +156,12 @@ async fn test_extract_state_nonce_and_run_validations(
 }
 
 #[rstest]
-fn test_instantiate_validator() {
+#[tokio::test(flavor = "multi_thread")]
+async fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
@@ -165,12 +169,16 @@ fn test_instantiate_validator() {
     let mut mock_state_reader_factory = MockStateReaderFactory::new();
 
     // Make sure stateful_validator uses the latest block in the initial call.
-    let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block();
+    let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block().await;
     mock_state_reader_factory
         .expect_get_state_reader_from_latest_block()
-        .return_once(|| latest_state_reader);
+        .return_once(move || latest_state_reader);
 
-    let validator = stateful_validator_factory.instantiate_validator(&mock_state_reader_factory);
+    // TODO(Itamar): Remove using runtime when instantiate_validator is async.
+    let validator = tokio::task::block_in_place(|| {
+        stateful_validator_factory
+            .instantiate_validator(&mock_state_reader_factory, tokio::runtime::Handle::current())
+    });
     assert!(validator.is_ok());
 }
 

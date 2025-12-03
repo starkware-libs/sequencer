@@ -452,7 +452,7 @@ fn test_bouncer_try_update_n_txs(
             ),
             n_txs: 20,
             proving_gas: GasAmount(
-                527266,
+                403210,
             ),
         }
     "#
@@ -670,8 +670,8 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     add_maps(&mut tx_builtin_counters, &os_vm_resources.builtin_instance_counter);
     add_maps(&mut tx_builtin_counters, &additional_os_resources);
 
-    // Compute expected gas delta from builtin delta (Stwo - Stone).
-    let expected_builtin_gas_delta = tx_builtin_counters
+    // Compute expected gas delta from builtin delta (absolute difference between Stwo and Stone).
+    let (total_stwo_gas, total_stone_gas) = tx_builtin_counters
         .iter()
         .map(|(name, count)| {
             let stwo_gas = block_context
@@ -690,18 +690,19 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
 
             let stwo_total = stwo_gas.checked_mul(u64_from_usize(*count)).expect("overflow");
             let stone_total = u64_from_usize(*count).checked_mul(stone_gas).expect("overflow");
-
-            // This assumes that the Stone gas is always less than or equal to Stwo gas.
-            stwo_total.checked_sub(stone_total).expect("underflow")
+            (stwo_total, stone_total)
         })
-        // Sum the deltas.
-        .try_fold(0u64, |acc, val| acc.checked_add(val))
+        // Sum stwo and stone gas separately.
+        .try_fold((0u64, 0u64), |(acc_stwo, acc_stone), (stwo, stone)| {
+            Some((acc_stwo.checked_add(stwo)?, acc_stone.checked_add(stone)?))
+        })
         .expect("overflow in sum");
+    let expected_builtin_gas_delta = total_stwo_gas.abs_diff(total_stone_gas);
 
     assert_eq!(
-        result.bouncer_weights.proving_gas.0 - result.bouncer_weights.sierra_gas.0,
+        result.bouncer_weights.proving_gas.0.abs_diff(result.bouncer_weights.sierra_gas.0),
         expected_builtin_gas_delta,
-        "Proving gas: {} - Sierra gas: {} ≠ builtins gap: {}",
+        "|Proving gas: {} - Sierra gas: {}| ≠ builtins gap: {}",
         result.bouncer_weights.proving_gas.0,
         result.bouncer_weights.sierra_gas.0,
         expected_builtin_gas_delta
@@ -776,11 +777,23 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
+<<<<<<< HEAD
             110442016
+||||||| d8037b916e
+            89883372
+=======
+            80595392
+>>>>>>> origin/main-v0.14.1
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
+<<<<<<< HEAD
             269014080
+||||||| d8037b916e
+            218272460
+=======
+            208984480
+>>>>>>> origin/main-v0.14.1
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

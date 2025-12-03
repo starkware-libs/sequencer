@@ -1,12 +1,12 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::panic;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
+use apollo_deployments::service::{NodeService, NodeType};
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -27,7 +27,6 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     AccountId,
@@ -42,6 +41,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
+use tokio::time::{sleep, Instant};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
@@ -52,6 +52,7 @@ use crate::monitoring_utils::{
     await_block,
     await_sync_block,
     await_txs_accepted,
+    get_consensus_decisions_reached,
     sequencer_num_accepted_txs,
     verify_txs_accepted,
 };
@@ -95,7 +96,8 @@ fn block_max_capacity_gas() -> GasAmount {
 }
 
 pub struct NodeSetup {
-    executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    node_type: NodeType,
+    executables: HashMap<NodeService, ExecutableSetup>,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -108,35 +110,44 @@ pub struct NodeSetup {
 }
 
 fn get_executable_by_component(
-    executables: &IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    node_type: NodeType,
+    executables: &HashMap<NodeService, ExecutableSetup>,
     component: ComponentConfigInService,
 ) -> &ExecutableSetup {
     executables
-        .iter()
-        .find(|(components, _)| components.contains(&component))
-        .map(|(_, executable)| executable)
-        .unwrap_or_else(|| {
-            panic!("Expected at least one executable with component {:?}", component)
-        })
+        .get(
+            &node_type
+                .get_services_of_components(component.clone())
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| {
+                    panic!("Expected at least one executable with component {:?}", component)
+                }),
+        )
+        .unwrap()
 }
 
 impl NodeSetup {
     pub fn new(
-        executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+        node_type: NodeType,
+        executables: HashMap<NodeService, ExecutableSetup>,
         storage_handles: StorageTestHandles,
     ) -> Self {
-        let http_server_config =
-            get_executable_by_component(&executables, ComponentConfigInService::HttpServer)
-                .base_app_config
-                .get_config()
-                .http_server_config
-                .as_ref()
-                .unwrap_or_else(|| panic!("Http server config should be set for this node"));
+        let http_server_config = get_executable_by_component(
+            node_type,
+            &executables,
+            ComponentConfigInService::HttpServer,
+        )
+        .base_app_config
+        .get_config()
+        .http_server_config
+        .as_ref()
+        .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
         let HttpServerConfig { ip, port } = http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
-        Self { executables, add_tx_http_client, storage_handles }
+        Self { node_type, executables, add_tx_http_client, storage_handles }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -155,25 +166,18 @@ impl NodeSetup {
         &self.get_consensus_manager().monitoring_client
     }
 
+    pub fn get_executable_by_service(&self, service: NodeService) -> &ExecutableSetup {
+        self.executables
+            .get(&service)
+            .unwrap_or_else(|| panic!("Executable service {service:?} does not exist."))
+    }
+
     pub fn get_executables(&self) -> impl ExactSizeIterator<Item = &ExecutableSetup> {
         self.executables.values()
     }
 
     fn get_executables_mut(&mut self) -> impl ExactSizeIterator<Item = &mut ExecutableSetup> {
         self.executables.values_mut()
-    }
-
-    pub fn set_executable_config_path(
-        &mut self,
-        index: usize,
-        new_path: PathBuf,
-    ) -> Result<(), &'static str> {
-        if let Some(exec) = self.executables.get_index_mut(index) {
-            exec.1.node_config_path = new_path;
-            Ok(())
-        } else {
-            panic!("Invalid executable index")
-        }
     }
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
@@ -185,32 +189,59 @@ impl NodeSetup {
     }
 
     pub fn get_batcher(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::Batcher)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::Batcher,
+        )
     }
 
     pub fn get_http_server(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::HttpServer)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::HttpServer,
+        )
     }
 
     pub fn get_state_sync(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::StateSync)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::StateSync,
+        )
     }
 
     pub fn get_consensus_manager(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::Consensus)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::Consensus,
+        )
+    }
+
+    pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
+        let executable_setup = self.get_executable_by_service(service);
+        spawn_run_node(
+            vec![executable_setup.node_config_path.clone()],
+            executable_setup.node_execution_id.into(),
+        )
     }
 
     pub fn run(self) -> RunningNode {
         let executable_handles = self
-            .get_executables()
-            .map(|executable| {
-                info!("Running {}.", executable.node_execution_id);
-                spawn_run_node(
-                    vec![executable.node_config_path.clone()],
-                    executable.node_execution_id.into(),
+            .executables
+            .iter()
+            .map(|(service, executable)| {
+                (
+                    *service,
+                    spawn_run_node(
+                        vec![executable.node_config_path.clone()],
+                        executable.node_execution_id.into(),
+                    ),
                 )
             })
-            .collect::<Vec<_>>();
+            .collect::<HashMap<NodeService, AbortOnDropHandle<()>>>();
 
         RunningNode { node_setup: self, executable_handles }
     }
@@ -234,7 +265,7 @@ impl NodeSetup {
 
 pub struct RunningNode {
     node_setup: NodeSetup,
-    executable_handles: Vec<AbortOnDropHandle<()>>,
+    executable_handles: HashMap<NodeService, AbortOnDropHandle<()>>,
 }
 
 impl RunningNode {
@@ -251,13 +282,31 @@ impl RunningNode {
     }
 
     fn propagate_executable_panic(&self) {
-        for handle in &self.executable_handles {
+        for handle in self.executable_handles.values() {
             // A finished handle implies a running node executable has panicked.
             if handle.is_finished() {
                 // Panic, dropping all other handles, which should drop.
                 panic!("A running node executable has unexpectedly panicked.");
             }
         }
+    }
+
+    pub fn shutdown_service(&mut self, service: NodeService) {
+        let handle = self
+            .executable_handles
+            .remove(&service)
+            .expect("Service {service:?} does not exist in the running executables map.");
+        assert!(!handle.is_finished(), "Handle should still be running.");
+        handle.abort();
+    }
+
+    pub fn run_service(&mut self, service: NodeService) {
+        assert!(
+            !self.executable_handles.contains_key(&service),
+            "Service {service:?} is already running."
+        );
+        let handle = self.node_setup.run_service(service);
+        self.executable_handles.insert(service, handle);
     }
 }
 
@@ -351,6 +400,27 @@ impl IntegrationTestManager {
         });
 
         // Wait for the nodes to start
+        self.await_alive(5000, 50).await;
+    }
+
+    pub async fn run_node_services(
+        &mut self,
+        nodes_services_to_run: HashMap<usize, Vec<NodeService>>,
+    ) {
+        get_node_executable_path();
+        info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
+        nodes_services_to_run.into_iter().for_each(|(node_index, services)| {
+            let running_node = self
+                .running_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
+
+            for service in services {
+                running_node.run_service(service);
+            }
+        });
+
+        // Wait for the rerun executables to start
         self.await_alive(5000, 50).await;
     }
 
@@ -460,13 +530,34 @@ impl IntegrationTestManager {
         self.node_indices.clone()
     }
 
+    pub fn get_running_node_indices(&self) -> HashSet<usize> {
+        self.running_nodes.keys().cloned().collect()
+    }
+
+    pub fn shutdown_node_services(
+        &mut self,
+        node_services_to_shutdown: HashMap<usize, Vec<NodeService>>,
+    ) {
+        node_services_to_shutdown.into_iter().for_each(|(node_index, node_services)| {
+            let running_node = self
+                .running_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
+
+            for service in node_services {
+                running_node.shutdown_service(service);
+                info!("Node {node_index} service {service:?} has been shut down.");
+            }
+        });
+    }
+
     pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
         nodes_to_shutdown.into_iter().for_each(|index| {
             let running_node = self
                 .running_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
-            running_node.executable_handles.iter().for_each(|handle| {
+            running_node.executable_handles.values().for_each(|handle| {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
             });
@@ -785,17 +876,28 @@ impl IntegrationTestManager {
         unreachable!("No executable with a set batcher.")
     }
 
-    /// This function returns the number of accepted transactions on all running nodes.
+    /// This function returns the number of accepted transactions on the running nodes specified by
+    /// the given node indices.
     /// It queries the state sync monitoring client to get the latest value of the processed txs
     /// metric.
-    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+    // TODO(noamsp): await on multiple nodes instead of a loop.
+    pub async fn get_num_accepted_txs_on_running_nodes(
+        &self,
+        node_indices: &HashSet<usize>,
+    ) -> HashMap<usize, usize> {
         let mut result = HashMap::new();
-        for (index, running_node) in self.running_nodes.iter() {
+        for node_idx in node_indices {
+            let running_node = self.running_nodes.get(node_idx).expect("Running node should exist");
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
             let num_accepted = sequencer_num_accepted_txs(monitoring_client).await;
-            result.insert(*index, num_accepted);
+            result.insert(*node_idx, num_accepted);
         }
         result
+    }
+
+    /// This function returns the number of accepted transactions on all running nodes.
+    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+        self.get_num_accepted_txs_on_running_nodes(&self.get_running_node_indices()).await
     }
 
     pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
@@ -804,6 +906,101 @@ impl IntegrationTestManager {
             assert_no_reverted_txs(monitoring_client, sequencer_idx).await;
         })
         .await;
+    }
+
+    // Verifies that all specified running nodes processed more transactions since the last check.
+    // Takes a mutable reference to a mapping of the number of transactions processed by each node
+    // at the previous check, and updates it with the current number of transactions.
+    // TODO(lev): Use the run_until util fn instead of the loop.
+    // TODO(lev): rename to assert/await instead of poll.
+    pub async fn poll_running_nodes_received_more_txs(
+        &self,
+        timeout: Duration,
+        node_indices: &HashSet<usize>,
+    ) {
+        let prev_txs = self.get_num_accepted_txs_on_running_nodes(node_indices).await;
+
+        let start = Instant::now();
+        let mut done: bool = false;
+        // TODO(lev): remove the done variable by returning if the condition is met, and panicking
+        // if timeout is reached.
+        while start.elapsed() < timeout && !done {
+            sleep(Duration::from_secs(1)).await;
+            done = self.check_running_nodes_received_more_txs(&prev_txs, node_indices).await;
+        }
+
+        if !done {
+            panic!(
+                "Not all specified running nodes processed more transactions in the last {} \
+                 seconds",
+                timeout.as_secs()
+            );
+        }
+    }
+
+    /// Verifies that all running nodes processed more transactions since the last check.
+    // TODO(lev): rename to assert/await instead of poll.
+    pub async fn poll_all_running_nodes_received_more_txs(&self, timeout: Duration) {
+        let node_indices = self.get_running_node_indices();
+        self.poll_running_nodes_received_more_txs(timeout, &node_indices).await;
+    }
+
+    /// Checks if all specified running nodes have processed more transactions than before.
+    async fn check_running_nodes_received_more_txs(
+        &self,
+        prev_txs: &HashMap<usize, usize>,
+        node_indices: &HashSet<usize>,
+    ) -> bool {
+        let curr_txs = self.get_num_accepted_txs_on_running_nodes(node_indices).await;
+        for (node_idx, curr_n_processed) in curr_txs {
+            if curr_n_processed <= *prev_txs.get(&node_idx).expect("Num txs not found") {
+                return false;
+            }
+        }
+        true
+    }
+
+    // TODO(lev): Make a polling function that receives as args a condition function and a timeout.
+    // Then we can use it in both poll_... functions.
+
+    /// Verifies that the node with the given index reaches consensus decisions after being
+    /// restarted.
+    pub async fn poll_node_reaches_consensus_decisions_after_restart(
+        &self,
+        node_idx: usize,
+        timeout: Duration,
+    ) {
+        let consensus_monitoring_client =
+            self.get_consensus_manager_monitoring_client_for_running_node(node_idx).await;
+        let prev_decisions_reached =
+            get_consensus_decisions_reached(consensus_monitoring_client).await;
+        let mut curr_decisions_reached = prev_decisions_reached;
+        let start = Instant::now();
+        while start.elapsed() < timeout {
+            sleep(Duration::from_secs(1)).await;
+            // TODO(lev): We should use a more efficient metrics to be sure that restarted node
+            // integrated back in reaching consensus.
+            curr_decisions_reached =
+                get_consensus_decisions_reached(consensus_monitoring_client).await;
+            // TODO(lev): Use as_secs_f64 instead of as_secs.
+            if curr_decisions_reached > prev_decisions_reached + 1 {
+                info!(
+                    "Verifying node is reaching consensus decisions after restart finished in {} \
+                     seconds",
+                    start.elapsed().as_secs()
+                );
+                return;
+            }
+        }
+        info!(
+            "Consensus decisions reached: previous - {}, current - {}",
+            prev_decisions_reached, curr_decisions_reached
+        );
+        panic!(
+            "Node {node_idx} did not reach consensus decisions after restart in the last {} \
+             seconds",
+            timeout.as_secs()
+        );
     }
 }
 
@@ -828,15 +1025,20 @@ async fn get_sequencer_setup_configs(
         num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
     );
     for _ in 0..num_of_consolidated_nodes {
-        node_component_configs.push(create_consolidated_component_configs());
+        node_component_configs
+            .push((create_consolidated_component_configs(), NodeType::Consolidated));
     }
     for _ in 0..num_of_hybrid_nodes {
-        node_component_configs
-            .push(create_hybrid_component_configs(&mut available_ports_generator));
+        node_component_configs.push((
+            create_hybrid_component_configs(&mut available_ports_generator),
+            NodeType::Hybrid,
+        ));
     }
     for _ in 0..num_of_distributed_nodes {
-        node_component_configs
-            .push(create_distributed_component_configs(&mut available_ports_generator));
+        node_component_configs.push((
+            create_distributed_component_configs(&mut available_ports_generator),
+            NodeType::Distributed,
+        ));
     }
 
     info!("Creating node configurations.");
@@ -900,8 +1102,10 @@ async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for node configs");
 
     // Create nodes.
-    for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
-        let mut executables = IndexMap::new();
+    for (node_index, (node_component_config, node_type)) in
+        node_component_configs.into_iter().enumerate()
+    {
+        let mut executables = HashMap::new();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -924,9 +1128,7 @@ async fn get_sequencer_setup_configs(
         );
 
         // Per node, create the executables constituting it.
-        for (component_set, executable_component_config) in node_component_config.into_iter() {
-            let component_set = component_set.get_components_in_service();
-
+        for (node_service, executable_component_config) in node_component_config.into_iter() {
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
@@ -958,12 +1160,12 @@ async fn get_sequencer_setup_configs(
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
             executables.insert(
-                component_set,
+                node_service,
                 ExecutableSetup::new(base_app_config, node_execution_id, exec_config_path).await,
             );
         }
 
-        nodes.push(NodeSetup::new(executables, storage_setup.storage_handles));
+        nodes.push(NodeSetup::new(node_type, executables, storage_setup.storage_handles));
     }
 
     (nodes, node_indices)

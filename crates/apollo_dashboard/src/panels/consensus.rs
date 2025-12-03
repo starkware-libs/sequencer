@@ -58,7 +58,7 @@ const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
      \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \
      \"Broadcasting\"";
 
-fn get_panel_consensus_block_number() -> Panel {
+pub(crate) fn get_panel_consensus_block_number() -> Panel {
     Panel::new(
         "Consensus Height",
         "The block height the node is currently working on",
@@ -447,6 +447,18 @@ fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
         ),
         increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, DEFAULT_DURATION),
         PanelType::TimeSeries,
+    )
+    .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+
+pub(crate) fn get_panel_consensus_decisions_reached_as_proposer_counter() -> Panel {
+    Panel::new(
+        "Consensus Decisions Reached As Proposer Counter",
+        "The number of rounds with decision reached where this node is the proposer, from last \
+         restart",
+        CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.get_name_with_filter().to_string(),
+        PanelType::Stat,
     )
     .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)

@@ -45,6 +45,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;

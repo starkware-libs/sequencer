@@ -1,20 +1,27 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
+use axum::async_trait;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::VALID_ACCOUNT_BALANCE;
 use starknet_api::block::BlockInfo;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::VALID_ACCOUNT_BALANCE;
 use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 #[derive(Clone)]
 pub struct TestStateReader {
@@ -22,11 +29,24 @@ pub struct TestStateReader {
     pub blockifier_state_reader: DictStateReader,
 }
 
+#[async_trait]
 impl MempoolStateReader for TestStateReader {
-    fn get_block_info(&self) -> Result<BlockInfo, StateError> {
+    async fn get_block_info(&self) -> Result<BlockInfo, StateError> {
         Ok(self.block_info.clone())
     }
 }
+
+impl FetchCompiledClasses for TestStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.blockifier_state_reader.get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.blockifier_state_reader.is_declared(class_hash)
+    }
+}
+
+impl GatewayStateReaderWithCompiledClasses for TestStateReader {}
 
 impl BlockifierStateReader for TestStateReader {
     fn get_storage_at(
@@ -58,10 +78,11 @@ pub struct TestStateReaderFactory {
     pub state_reader: TestStateReader,
 }
 
+#[async_trait]
 impl StateReaderFactory for TestStateReaderFactory {
-    fn get_state_reader_from_latest_block(
+    async fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
         Ok(Box::new(self.state_reader.clone()))
     }
 }

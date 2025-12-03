@@ -42,5 +42,6 @@ mod state_machine;
 #[allow(missing_docs)]
 pub mod votes_threshold;
 
-#[cfg(test)]
-pub(crate) mod test_utils;
+#[cfg(any(test, feature = "testing"))]
+#[allow(missing_docs)]
+pub mod test_utils;
