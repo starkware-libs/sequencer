@@ -13,6 +13,7 @@ use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -50,15 +51,17 @@ pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId
 }
 
 /// Returns the fee token addresses of mainnet.
-pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
-    match chain_id {
-        // Mainnet, testnet and integration systems have the same fee token addresses.
-        ChainId::Mainnet | ChainId::Sepolia | ChainId::IntegrationSepolia => FeeTokenAddresses {
-            strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
-            eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
-        },
-        unknown_chain => unimplemented!("Unknown chain ID {unknown_chain}."),
-    }
+pub fn get_fee_token_addresses(_chain_id: &ChainId) -> FeeTokenAddresses {
+    let x = contract_address!("0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7");
+    FeeTokenAddresses { strk_fee_token_address: x, eth_fee_token_address: x }
+    // match chain_id {
+    //     // Mainnet, testnet and integration systems have the same fee token addresses.
+    //     ChainId::Mainnet | ChainId::Sepolia | ChainId::IntegrationSepolia => FeeTokenAddresses {
+    //         strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
+    //         eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
+    //     },
+    //     unknown_chain => unimplemented!("Unknown chain ID {unknown_chain}."),
+    // }
 }
 
 /// Returns the RPC state reader configuration with the constant RPC_NODE_URL.

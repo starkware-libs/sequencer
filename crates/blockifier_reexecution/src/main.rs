@@ -16,6 +16,8 @@ use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
+use num_bigint::BigUint;
+use num_traits::Num;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 
@@ -40,6 +42,7 @@ enum SupportedChainId {
     Mainnet,
     Testnet,
     Integration,
+    P,
 }
 
 impl From<SupportedChainId> for ChainId {
@@ -48,6 +51,15 @@ impl From<SupportedChainId> for ChainId {
             SupportedChainId::Mainnet => Self::Mainnet,
             SupportedChainId::Testnet => Self::Sepolia,
             SupportedChainId::Integration => Self::IntegrationSepolia,
+            SupportedChainId::P => {
+                let p_cid = "505249564154455f534e5f504f54435f4d4f434b5f5345504f4c4941";
+                Self::Other(
+                    String::from_utf8_lossy(
+                        &BigUint::from_str_radix(p_cid, 16).unwrap().to_bytes_be(),
+                    )
+                    .into(),
+                )
+            }
         }
     }
 }
@@ -210,7 +222,8 @@ async fn main() {
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
-                let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+                let (node_url, chain_id) =
+                    (rpc_args.node_url.clone(), rpc_args.chain_id.clone().unwrap().into());
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the entire function.
