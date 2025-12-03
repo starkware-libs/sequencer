@@ -64,7 +64,7 @@ pub struct NetworkConfig {
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
     #[validate(custom(function = "validate_optional_sensitive_vec_u256"))]
     #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
-    pub secret_key: Option<Sensitive<Vec<u8>>>,
+    pub secret_key: Option<Vec<Sensitive<u8>>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
@@ -139,9 +139,13 @@ impl SerializeConfig for NetworkConfig {
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
         ));
+        let secret_key_vec = self
+            .secret_key
+            .as_ref()
+            .map(|sk| sk.iter().map(|s| s.as_ref().clone()).collect::<Vec<u8>>());
         config.extend([ser_param(
             "secret_key",
-            &serialize_optional_vec_u8(&self.secret_key.as_ref().map(|s| s.as_ref().clone())),
+            &serialize_optional_vec_u8(&secret_key_vec),
             "The secret key used for building the peer id. If it's an empty string a random one \
              will be used.",
             ParamPrivacyInput::Private,
