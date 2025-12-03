@@ -12,6 +12,8 @@ class ServiceConstruct(BaseConstruct):
         service_config,
         labels,
         monitoring_endpoint_port,
+        service_name_suffix: str | None = None,
+        service_spec=None,
     ):
         super().__init__(
             scope,
@@ -20,15 +22,31 @@ class ServiceConstruct(BaseConstruct):
             labels,
             monitoring_endpoint_port,
         )
+        self.service_name_suffix = service_name_suffix
+        self.service_spec_override = service_spec
 
         self.service = self._create_service()
 
     def _create_service(self) -> k8s.KubeService:
-        service_spec = self.service_config.service
+        # Use override if provided (for extra services), otherwise use primary service
+        service_spec = self.service_spec_override if self.service_spec_override is not None else self.service_config.service
+        
+        if service_spec is None:
+            raise ValueError(
+                f"Service spec is required for service {self.service_config.name}. "
+                f"Please define service.ports or provide a valid service spec."
+            )
+        
+        # Generate service name
+        service_name = f"sequencer-{self.service_config.name}-service"
+        if self.service_name_suffix:
+            service_name = f"sequencer-{self.service_config.name}-{self.service_name_suffix}-service"
+        
         return k8s.KubeService(
             self,
             "service",
             metadata=k8s.ObjectMeta(
+                name=service_name,
                 labels=self.labels,
                 annotations=self._get_service_annotations(service_spec),
             ),
