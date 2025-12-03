@@ -10,11 +10,14 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
+with-libfunc-profiling = [ "cairo_native", "cairo-native/with-libfunc-profiling" ]
+with-trace-dump = [ "cairo_native", "cairo-native/with-trace-dump" ]
 cairo_native = [
   "blockifier_test_utils/cairo_native",
   "dep:apollo_compilation_utils",
   "dep:apollo_compile_to_native",
   "dep:cairo-native",
+  "dep:sierra-emu",
 ]
 mocks = []
 native_blockifier = []
@@ -23,6 +26,7 @@ reexecution = ["transaction_serde"]
 testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 tracing = []
 transaction_serde = []
+only-native = ["cairo_native"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -44,7 +48,9 @@ cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-lang-sierra.workspace = true
 cairo-native = { workspace = true, optional = true }
+sierra-emu = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true

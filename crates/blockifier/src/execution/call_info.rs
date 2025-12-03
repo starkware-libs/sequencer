@@ -96,6 +96,7 @@ impl EventSummary {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, derive_more::AddAssign, PartialEq)]
 pub struct CallSummary {
     pub n_calls: u64,
@@ -104,6 +105,7 @@ pub struct CallSummary {
 
 pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -237,6 +239,8 @@ pub struct CallInfo {
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
+    pub time: std::time::Duration,
+    pub call_counter: usize,
     pub storage_access_tracker: StorageAccessTracker,
     // Tracks how many times each builtin was called during execution (excluding inner calls).
     // Used by the bouncer to decide when to close a block.
