@@ -162,7 +162,7 @@ fn test_max_memory_usage() {
         audited_libfuncs_only: false,
     });
     let compilation_result = compiler.compile(contract_class);
-    let expected_error_pattern = Regex::new(r"memory allocation .* fail").unwrap();
+    let expected_error_pattern = Regex::new(r"memory allocation .*fail").unwrap();
     assert_matches!(compilation_result, Err(CompilationUtilError::CompilationError(string))
         if expected_error_pattern.is_match(&string)
     );
