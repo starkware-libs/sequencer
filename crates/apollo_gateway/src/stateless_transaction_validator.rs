@@ -41,6 +41,7 @@ impl StatelessTransactionValidator {
         self.validate_tx_size(tx)?;
         self.validate_nonce_data_availability_mode(tx)?;
         self.validate_fee_data_availability_mode(tx)?;
+        self.validate_proof(tx)?;
 
         if let RpcTransaction::Declare(declare_tx) = tx {
             self.validate_declare_tx(declare_tx)?;
@@ -215,6 +216,11 @@ impl StatelessTransactionValidator {
             });
         };
 
+        Ok(())
+    }
+
+    fn validate_proof(&self, _: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+        // TODO(Einat): Implement proof validation.
         Ok(())
     }
 
