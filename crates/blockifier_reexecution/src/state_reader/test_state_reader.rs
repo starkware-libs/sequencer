@@ -111,7 +111,12 @@ impl Default for TestStateReader {
 
 impl StateReader for TestStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        retry_request!(self.retry_config, || self.rpc_state_reader.get_nonce_at(contract_address))
+        tracing::info!("Getting nonce at {contract_address}");
+        let nonce = retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_nonce_at(contract_address))?;
+        tracing::info!("Got nonce at {contract_address}: {nonce}");
+        Ok(nonce)
     }
 
     fn get_storage_at(
@@ -119,23 +124,30 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        retry_request!(self.retry_config, || self
+        tracing::info!("Getting storage at {contract_address} {key:?}");
+        let storage = retry_request!(self.retry_config, || self
             .rpc_state_reader
-            .get_storage_at(contract_address, key))
+            .get_storage_at(contract_address, key))?;
+        tracing::info!("Got storage at {contract_address} {key:?}: {storage}");
+        Ok(storage)
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        retry_request!(self.retry_config, || self
+        tracing::info!("Getting class hash at {contract_address}");
+        let class_hash = retry_request!(self.retry_config, || self
             .rpc_state_reader
-            .get_class_hash_at(contract_address))
+            .get_class_hash_at(contract_address))?;
+        tracing::info!("Got class hash at {contract_address}: {class_hash}");
+        Ok(class_hash)
     }
 
     /// Returns the contract class of the given class hash.
     /// Compile the contract class if it is Sierra.
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        tracing::info!("Getting compiled class for {class_hash}");
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
-
+        tracing::info!("Got compiled class for {class_hash}.");
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
                 let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
@@ -148,7 +160,12 @@ impl StateReader for TestStateReader {
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.rpc_state_reader.get_compiled_class_hash(class_hash)
+        tracing::info!("Getting compiled class hash for {class_hash}");
+        let compiled_class_hash = retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_compiled_class_hash(class_hash))?;
+        tracing::info!("Got compiled class hash for {class_hash}: {compiled_class_hash}");
+        Ok(compiled_class_hash)
     }
 }
 
@@ -221,6 +238,7 @@ impl TestStateReader {
     /// Get all transaction hashes in the current block.
     #[allow(clippy::result_large_err)]
     pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
+        tracing::info!("Getting tx hashes");
         let raw_tx_hashes = serde_json::from_value(
             retry_request!(self.retry_config, || {
                 self.rpc_state_reader.send_rpc_request(
@@ -230,6 +248,7 @@ impl TestStateReader {
             })?["transactions"]
                 .clone(),
         )?;
+        tracing::info!("Got tx hashes");
         Ok(serde_json::from_value(raw_tx_hashes)?)
     }
 
@@ -414,9 +433,11 @@ impl ConsecutiveTestStateReaders {
 
     #[allow(clippy::result_large_err)]
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
+        tracing::info!("Getting serializable data next block");
         let (transactions_next_block, declared_classes) =
             self.get_next_block_starknet_api_txs_and_declared_classes()?;
         assert_matches!(self.get_next_block_txs(), Ok(_));
+        tracing::info!("Got transactions next block and declared classes");
         Ok(SerializableDataNextBlock {
             block_info_next_block: self.next_block_state_reader.get_block_info()?,
             starknet_version: self.next_block_state_reader.get_starknet_version()?,
@@ -439,9 +460,12 @@ impl ConsecutiveTestStateReaders {
         &self,
     ) -> ReexecutionResult<(Vec<(Transaction, TransactionHash)>, StarknetContractClassMapping)>
     {
+        tracing::info!("Getting all txs in next block and declared classes");
         let transactions_next_block = self.next_block_state_reader.get_all_txs_in_block()?;
+        tracing::info!("Got all txs in next block");
         self.next_block_state_reader
             .api_txs_to_blockifier_txs_next_block(transactions_next_block.clone())?;
+        tracing::info!("Converted txs to blockifier txs");
         Ok((
             transactions_next_block,
             self.next_block_state_reader.get_contract_class_mapping_dumper().ok_or(
