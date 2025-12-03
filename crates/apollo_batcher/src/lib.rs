@@ -17,7 +17,7 @@ mod transaction_executor;
 mod transaction_provider;
 #[cfg(test)]
 mod transaction_provider_test;
-mod utils;
+pub mod utils;
 
 // Re-export so it can be used in the general config of the sequencer node without depending on
 // blockifier.

@@ -11,7 +11,6 @@ use core::fmt;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
-use url::Url;
 
 #[cfg(test)]
 #[path = "secrets_test.rs"]
@@ -121,14 +120,5 @@ impl<T> fmt::Display for Sensitive<T> {
 impl<T> Serialize for Sensitive<T> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&self.redact())
-    }
-}
-
-impl Sensitive<Url> {
-    /// Appends a route to a sensitive url.
-    pub fn append_route(&mut self, suffix: &str) {
-        self.modify_in_place(|url: &mut Url| {
-            *url = url.join(suffix).expect("Failed to construct URL")
-        });
     }
 }

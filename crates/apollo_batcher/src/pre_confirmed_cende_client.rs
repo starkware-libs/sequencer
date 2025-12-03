@@ -11,6 +11,7 @@ use url::Url;
 
 use crate::cende_client_types::CendePreconfirmedBlock;
 use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
+use crate::utils::append_route_to_sensitive_url;
 
 #[derive(Debug, Error)]
 pub enum PreconfirmedCendeClientError {
@@ -53,7 +54,7 @@ pub const RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH: &str =
 impl PreconfirmedCendeClient {
     pub fn new(config: PreconfirmedCendeConfig) -> Self {
         let mut recorder_url = config.recorder_url;
-        recorder_url.append_route(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH);
+        append_route_to_sensitive_url(&mut recorder_url, RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH);
         Self { write_pre_confirmed_block_url: recorder_url, client: Client::new() }
     }
 }
