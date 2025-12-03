@@ -128,10 +128,10 @@ class L1Client:
             )
             for result in results
         ]
-
-    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
+    
+    def get_block_by_number(self, block_number: int) -> Optional[Dict]:
         """
-        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Get block details by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
         payload = {
@@ -150,7 +150,14 @@ class L1Client:
         if result is None:
             return None
 
-        block = result.get("result")
+        return result.get("result")
+    
+    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
+        """
+        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Tries up to retries_count times. On failure, logs an error and returns None.
+        """
+        block = self.get_block_by_number(block_number)
         if block is None:
             # Block not found
             return None
