@@ -23,12 +23,12 @@
       "toleration": "apollo-general-service",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 20,
+          "memory": 256
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 20,
+          "memory": 256
         }
       },
       "external_secret": {
@@ -66,12 +66,12 @@
       "toleration": "batcher-8-64",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 50,
+          "memory": 200
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 50,
+          "memory": 220
         }
       },
       "external_secret": {
@@ -208,12 +208,12 @@
       "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
           "cpu": 2,
           "memory": 4
+        },
+        "limits": {
+          "cpu": 3,
+          "memory": 12
         }
       },
       "external_secret": {
@@ -251,12 +251,12 @@
       "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
           "cpu": 2,
           "memory": 4
+        },
+        "limits": {
+          "cpu": 3,
+          "memory": 12
         }
       },
       "external_secret": {

@@ -286,20 +286,25 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::PotcMock
-                | CloudK8sEnvironment::SepoliaIntegration
-                | CloudK8sEnvironment::UpgradeTest => match self {
-                    Self::Committer => Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
-                    Self::Core => Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
-                    Self::HttpServer => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Self::Gateway => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::L1 => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::Mempool => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Self::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
+                    match self {
+                        Self::Committer => {
+                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                        }
+                        Self::Core => Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
+                        Self::HttpServer => {
+                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                        }
+                        Self::Gateway => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
+                        Self::L1 => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
+                        Self::Mempool => Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
+                        Self::SierraCompiler => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
                     }
-                },
+                }
                 CloudK8sEnvironment::Mainnet
+                | CloudK8sEnvironment::PotcMock
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
                     Self::Committer => {
