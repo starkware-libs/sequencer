@@ -259,6 +259,21 @@
     "privacy": "Public",
     "value": 2
   },
+  "batcher_config.first_block_with_partial_block_hash.block_hash": {
+    "description": "The hash of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.first_block_with_partial_block_hash.block_number": {
+    "description": "The number of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": {
+    "description": "The hash of the parent block of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",

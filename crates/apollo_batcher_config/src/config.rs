@@ -10,6 +10,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::{BlockHash, BlockNumber};
 use url::Url;
 use validator::{Validate, ValidationError};
 
@@ -137,6 +138,39 @@ impl SerializeConfig for PreconfirmedCendeConfig {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct FirstBlockWithPartialBlockHash {
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
+    pub parent_block_hash: BlockHash,
+}
+
+impl SerializeConfig for FirstBlockWithPartialBlockHash {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "block_number",
+                &self.block_number,
+                "The number of the first block with a partial block hash components.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "block_hash",
+                &self.block_hash,
+                "The hash of the first block with a partial block hash components.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "parent_block_hash",
+                &self.parent_block_hash,
+                "The hash of the parent block of the first block with a partial block hash \
+                 components.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 /// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_config"))]
@@ -150,6 +184,7 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
+    pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -199,6 +234,10 @@ impl SerializeConfig for BatcherConfig {
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.first_block_with_partial_block_hash.dump(),
+            "first_block_with_partial_block_hash",
+        ));
         dump
     }
 }
@@ -224,6 +263,8 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
+            // TODO(Rotem): set a more reasonable default value.
+            first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
         }
     }
 }
