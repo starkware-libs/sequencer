@@ -3,17 +3,13 @@ use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::cli::{
+    BlockifierReexecutionCliArgs, Command, FULL_RESOURCES_DIR, TransactionInput,
     parse_block_numbers_args,
-    BlockifierReexecutionCliArgs,
-    Command,
-    TransactionInput,
-    FULL_RESOURCES_DIR,
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
-    execute_single_transaction,
-    reexecute_and_verify_correctness,
+    execute_single_transaction, reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
 };
 use clap::Parser;
@@ -21,6 +17,8 @@ use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
+use num_bigint::BigUint;
+use num_traits::Num;
 use starknet_api::block::BlockNumber;
 
 const BUCKET: &str = "reexecution_artifacts";
@@ -114,8 +112,9 @@ async fn main() {
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
-                let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
-                // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
+                let (node_url, chain_id) =
+                    (rpc_args.node_url.clone(), rpc_args.chain_id.clone().unwrap().into());
+                // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
                 task_set.spawn(async move {

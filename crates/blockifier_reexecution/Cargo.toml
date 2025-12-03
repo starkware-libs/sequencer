@@ -21,6 +21,8 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
 google-cloud-storage.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+num-bigint.workspace = true
+num-traits.workspace = true
 pretty_assertions.workspace = true
 retry.workspace = true
 serde.workspace = true

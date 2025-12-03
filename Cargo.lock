@@ -3618,6 +3618,8 @@ dependencies = [
  "flate2",
  "google-cloud-storage",
  "indexmap 2.12.0",
+ "num-bigint 0.4.6",
+ "num-traits",
  "pretty_assertions",
  "retry",
  "rstest",
