@@ -48,10 +48,8 @@ impl From<ConsolidatedNodeServiceName> for NodeService {
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
     fn get_component_configs(_ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
         let mut component_config_map = HashMap::new();
-        component_config_map.insert(
-            NodeService::Consolidated(ConsolidatedNodeServiceName::Node),
-            get_consolidated_config(),
-        );
+        component_config_map
+            .insert(NodeService::Consolidated(Self::Node), get_consolidated_config());
         component_config_map
     }
 }
@@ -59,13 +57,13 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_controller(&self) -> Controller {
         match self {
-            ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
+            Self::Node => Controller::StatefulSet,
         }
     }
 
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            ConsolidatedNodeServiceName::Node => ScalePolicy::StaticallyScaled,
+            Self::Node => ScalePolicy::StaticallyScaled,
         }
     }
 
@@ -154,13 +152,13 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         match self {
-            ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+            Self::Node => ComponentConfigInService::iter().collect(),
         }
     }
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
-            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
+            Self::Node => UpdateStrategy::RollingUpdate,
         }
     }
 }
