@@ -96,6 +96,7 @@ impl EventSummary {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, derive_more::AddAssign, PartialEq)]
 pub struct CallSummary {
     pub n_calls: u64,
@@ -104,6 +105,7 @@ pub struct CallSummary {
 
 pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
