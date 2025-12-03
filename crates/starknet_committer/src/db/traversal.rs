@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     Preimage,
@@ -35,7 +35,11 @@ pub async fn calculate_subtrees_roots<'a, L: Leaf>(
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
+        subtrees_roots.push(FactDbFilledNode::deserialize(
+            subtree.root_hash,
+            val,
+            subtree.is_leaf(),
+        )?)
     }
     Ok(subtrees_roots)
 }
