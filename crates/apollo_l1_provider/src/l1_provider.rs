@@ -107,7 +107,7 @@ impl L1Provider {
     /// Accept new events from the scraper.
     #[instrument(skip_all, err)]
     pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
+        if self.state.is_uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -183,7 +183,7 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
-        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
+        if self.state.is_uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -202,7 +202,7 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
-        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
+        if self.state.is_uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -238,7 +238,7 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
-        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
+        if self.state.is_uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -266,7 +266,7 @@ impl L1Provider {
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         info!("Committing block to L1 provider at height {}.", height);
-        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
+        if self.state.is_uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
