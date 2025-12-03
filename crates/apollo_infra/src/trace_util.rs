@@ -53,6 +53,7 @@ pub async fn configure_tracing() -> ReloadHandle {
                 .with_line_number(true)
                 .flatten_event(true);
 
+<<<<<<< HEAD
             let level_filter_layer = QUIET_LIBS.iter().fold(
                 EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy(),
                 |layer, lib| layer.add_directive(format!("{lib}=info").parse().unwrap()),
@@ -60,6 +61,48 @@ pub async fn configure_tracing() -> ReloadHandle {
 
             // Wrap the EnvFilter in a reloadable layer so that it can be updated at runtime.
             let (filtered_layer, reload_handle) = reload::Layer::new(level_filter_layer);
+||||||| 255e39c113
+            let level_filter_layer = EnvFilter::builder()
+                .with_default_directive(DEFAULT_LEVEL.into())
+                .from_env_lossy()
+                .add_directive("alloy_provider=info".parse().unwrap())
+                .add_directive("alloy_transport_http=info".parse().unwrap())
+                .add_directive("alloy_rpc_client=info".parse().unwrap())
+                .add_directive("futures-util=info".parse().unwrap())
+                .add_directive("hickory-proto=info".parse().unwrap())
+                .add_directive("hyper=info".parse().unwrap())
+                .add_directive("hyper_util=info".parse().unwrap())
+                .add_directive("h2=info".parse().unwrap())
+                .add_directive("libp2p=info".parse().unwrap())
+                .add_directive("libp2p-gossipsub=info".parse().unwrap())
+                .add_directive("multistream_select=info".parse().unwrap())
+                .add_directive("netlink_proto=info".parse().unwrap())
+                .add_directive("reqwest=info".parse().unwrap())
+                .add_directive("yamux=info".parse().unwrap());
+=======
+            let level_filter_layer = EnvFilter::builder()
+                .with_default_directive(DEFAULT_LEVEL.into())
+                .from_env_lossy()
+                .add_directive("alloy_provider=info".parse().unwrap())
+                .add_directive("alloy_transport_http=info".parse().unwrap())
+                .add_directive("alloy_rpc_client=info".parse().unwrap())
+                .add_directive("futures-util=info".parse().unwrap())
+                // TODO(shahak): understand if we need - or _ and erase the one we don't need.
+                .add_directive("hickory-proto=info".parse().unwrap())
+                .add_directive("hickory_proto=info".parse().unwrap())
+                // TODO(shahak): understand if we need - or _ and erase the one we don't need.
+                .add_directive("hickory-resolver=info".parse().unwrap())
+                .add_directive("hickory_resolver=info".parse().unwrap())
+                .add_directive("hyper=info".parse().unwrap())
+                .add_directive("hyper_util=info".parse().unwrap())
+                .add_directive("h2=info".parse().unwrap())
+                .add_directive("libp2p=info".parse().unwrap())
+                .add_directive("libp2p-gossipsub=info".parse().unwrap())
+                .add_directive("multistream_select=info".parse().unwrap())
+                .add_directive("netlink_proto=info".parse().unwrap())
+                .add_directive("reqwest=info".parse().unwrap())
+                .add_directive("yamux=info".parse().unwrap());
+>>>>>>> origin/main-v0.14.0
 
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
