@@ -1,8 +1,6 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::hash::HashOutput;
-use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::external_test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
@@ -175,11 +173,10 @@ fn test_get_bottom_subtree(
     );
 
     // Create the input Subtree.
-    let tree = SubTree { sorted_leaf_indices, root_index, root_hash: HashOutput(Felt::ONE) };
+    let tree = SubTree { sorted_leaf_indices, root_index };
 
     // Get the bottom subtree.
-    let (subtree, previously_empty_leaf_indices) =
-        tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
+    let (subtree, previously_empty_leaf_indices) = tree.get_bottom_subtree(&path_to_bottom);
 
     let expected_root_index = small_tree_index_to_full(expected_root_index, height);
 
@@ -187,7 +184,6 @@ fn test_get_bottom_subtree(
     let expected_subtree = SubTree {
         sorted_leaf_indices: expected_sorted_leaf_indices,
         root_index: expected_root_index,
-        root_hash: HashOutput(Felt::TWO),
     };
     assert_eq!(previously_empty_leaf_indices, expected_previously_empty_leaf_indices);
     assert_eq!(subtree, expected_subtree);

@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -36,13 +37,31 @@ macro_rules! log_trivial_modification {
     };
 }
 
+pub struct FactsSubTree<'a> {
+    subtree: SubTree<'a>,
+    pub root_hash: HashOutput,
+}
+
+impl<'a> FactsSubTree<'a> {
+    pub(crate) fn new(subtree: SubTree<'a>, root_hash: HashOutput) -> Self {
+        Self { subtree, root_hash }
+    }
+}
+
+impl<'a> Deref for FactsSubTree<'a> {
+    type Target = SubTree<'a>;
+    fn deref(&self) -> &SubTree<'a> {
+        &self.subtree
+    }
+}
+
 /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
 /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
 /// encountering a trivial modification. Fills the previous leaf values if it is not none.
 async fn fetch_nodes<'a, L: Leaf>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    subtrees: Vec<SubTree<'a>>,
+    subtrees: Vec<FactsSubTree<'a>>,
     storage: &mut impl Storage,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
@@ -66,8 +85,9 @@ async fn fetch_nodes<'a, L: Leaf>(
                         continue;
                     }
                     skeleton_tree.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
-                    let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash);
+                    let (left_subtree, right_subtree) = subtree.get_children_subtrees();
+                    let left_subtree = FactsSubTree::new(left_subtree, left_hash);
+                    let right_subtree = FactsSubTree::new(right_subtree, right_hash);
 
                     handle_subtree(
                         skeleton_tree,
@@ -96,7 +116,8 @@ async fn fetch_nodes<'a, L: Leaf>(
                     }
                     // Parse bottom.
                     let (bottom_subtree, previously_empty_leaves_indices) =
-                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
+                        subtree.get_bottom_subtree(&path_to_bottom);
+                    let bottom_subtree = FactsSubTree::new(bottom_subtree, bottom_hash);
                     if let Some(ref mut leaves) = previous_leaves {
                         leaves.extend(
                             previously_empty_leaves_indices
@@ -161,7 +182,8 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
         )?;
         return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
+    let main_subtree = FactsSubTree::new(main_subtree, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     fetch_nodes::<L>(
         &mut skeleton_tree,
@@ -192,7 +214,8 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
             sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
         ));
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
+    let main_subtree = FactsSubTree::new(main_subtree, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     let mut leaves = HashMap::new();
     fetch_nodes::<L>(
@@ -229,8 +252,8 @@ pub async fn get_leaves<'a, L: Leaf>(
 /// referred subtree or not.
 fn handle_subtree<'a>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    next_subtrees: &mut Vec<SubTree<'a>>,
-    subtree: SubTree<'a>,
+    next_subtrees: &mut Vec<FactsSubTree<'a>>,
+    subtree: FactsSubTree<'a>,
     should_fetch_modified_leaves: bool,
 ) {
     if !subtree.is_leaf() || (should_fetch_modified_leaves && !subtree.is_unmodified()) {
