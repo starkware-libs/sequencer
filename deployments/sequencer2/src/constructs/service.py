@@ -29,19 +29,25 @@ class ServiceConstruct(BaseConstruct):
 
     def _create_service(self) -> k8s.KubeService:
         # Use override if provided (for extra services), otherwise use primary service
-        service_spec = self.service_spec_override if self.service_spec_override is not None else self.service_config.service
-        
+        service_spec = (
+            self.service_spec_override
+            if self.service_spec_override is not None
+            else self.service_config.service
+        )
+
         if service_spec is None:
             raise ValueError(
                 f"Service spec is required for service {self.service_config.name}. "
                 f"Please define service.ports or provide a valid service spec."
             )
-        
+
         # Generate service name
         service_name = f"sequencer-{self.service_config.name}-service"
         if self.service_name_suffix:
-            service_name = f"sequencer-{self.service_config.name}-{self.service_name_suffix}-service"
-        
+            service_name = (
+                f"sequencer-{self.service_config.name}-{self.service_name_suffix}-service"
+            )
+
         return k8s.KubeService(
             self,
             "service",

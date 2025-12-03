@@ -412,7 +412,9 @@ class ServiceConfig(StrictBaseModel):
     securityContext: Optional[SecurityContext] = None
     resources: Optional[Resources] = None
     service: Optional[Service] = None
-    extraServices: List[Service] = Field(default_factory=list)  # Additional services for the same deployment
+    extraServices: List[Service] = Field(
+        default_factory=list
+    )  # Additional services for the same deployment
     ingress: Optional[Ingress] = None
     updateStrategy: UpdateStrategy = Field(default_factory=UpdateStrategy)
     tolerations: List[AnyDict] = Field(default_factory=list)
