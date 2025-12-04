@@ -1158,6 +1158,18 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Votes Sent Message Size MB/sec",
+          "description": "The rate of MB per second sent by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_votes_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_votes_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
           "title": "Consensus Votes Number of Received Messages",
           "description": "The increase in the number of vote messages received by consensus p2p (over the selected time range)",
           "type": "stat",
@@ -1167,6 +1179,18 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Votes Received Message Size MB/sec",
+          "description": "The rate of MB per second received by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_votes_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_votes_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
           "title": "Consensus Votes Dropped Messages By Reason",
           "description": "The number of dropped consensus votes messages, by reason (over the selected time range)",
           "type": "stat",
@@ -1174,6 +1198,18 @@
             "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Consensus Votes Dropped Message Size Bytes/sec",
+          "description": "The rate of MB per second dropped by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_votes_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_votes_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
         },
         {
           "title": "Consensus Conflicting Votes",
@@ -1194,6 +1230,18 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Proposals Sent Message Size MB/sec",
+          "description": "The rate of MB per second sent by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
           "title": "Consensus Proposals Number of Received Messages",
           "description": "The increase in the number of proposal messages received by consensus p2p (over the selected time range)",
           "type": "stat",
@@ -1203,6 +1251,18 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Proposals Received Message Size MB/sec",
+          "description": "The rate of MB per second received by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
           "title": "Consensus Proposals Dropped Messages By Reason",
           "description": "The number of dropped consensus proposals messages, by reason (over the selected time range)",
           "type": "stat",
@@ -1210,6 +1270,18 @@
             "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Consensus Proposals Dropped Message Size MB/sec",
+          "description": "The rate of MB per second dropped by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
         },
         {
           "title": "Consensus Network Events By Type",
@@ -1256,6 +1328,18 @@
           "extra_params": {}
         },
         {
+          "title": "Mempool P2p Sent Message Size MB/sec",
+          "description": "The rate of MB per second sent by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
           "title": "Number of received messages",
           "description": "Count of the received p2p messages (10m window)",
           "type": "timeseries",
@@ -1263,6 +1347,18 @@
             "increase(apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Mempool P2p Received Message Size MB/sec",
+          "description": "The rate of MB per second received by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
         },
         {
           "title": "Mempool P2p Broadcasted Transaction Batch Size",
@@ -1291,6 +1387,18 @@
             "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Mempool P2p Dropped Message Size MB/sec",
+          "description": "The rate of MB per second dropped by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
         },
         {
           "title": "Ping Latency",
