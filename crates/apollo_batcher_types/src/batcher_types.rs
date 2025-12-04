@@ -1,5 +1,9 @@
 use std::fmt::Debug;
 
+use apollo_storage::state::StateStorageReader;
+use apollo_storage::storage_reader_server::StorageReaderServerHandler;
+use apollo_storage::{StorageError, StorageReader};
+use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -7,7 +11,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockHeader, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
@@ -152,7 +156,7 @@ pub struct RevertBlockInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageRequest {
     /// Request to read data in Table1 for the given block height.
-    Table1Replacer(BlockNumber),
+    Height,
 }
 
 // TODO(Dean): Fill in with actual response types matching the request variants.
@@ -160,7 +164,27 @@ pub enum BatcherStorageRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageResponse {
     /// Table1 data for the requested operation.
-    Table1Replacer(BlockHeader),
+    Height(BlockNumber),
+}
+
+pub struct BatcherStorageReaderServerHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
+    for BatcherStorageReaderServerHandler
+{
+    async fn handle_request(
+        &self,
+        storage_reader: &StorageReader,
+        request: BatcherStorageRequest,
+    ) -> Result<BatcherStorageResponse, StorageError> {
+        match request {
+            BatcherStorageRequest::Height => {
+                let height = storage_reader.begin_ro_txn()?.get_state_marker()?;
+                Ok(BatcherStorageResponse::Height(height))
+            }
+        }
+    }
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;
