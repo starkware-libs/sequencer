@@ -1,7 +1,12 @@
 //! Runs a node that stress tests the p2p communication of the network.
 
 use clap::Parser;
+
+#[cfg(test)]
+mod message_test;
+
 mod args;
+mod message;
 
 use args::Args;
 
