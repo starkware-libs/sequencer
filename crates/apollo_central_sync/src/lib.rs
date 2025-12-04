@@ -8,7 +8,7 @@ pub mod sources;
 mod sync_test;
 
 use std::cmp::min;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -285,15 +285,13 @@ pub struct GenericStateSync<
     // Batch queue: accumulates ready items from middle_queue before flushing
     // When this reaches config.block_batch_size, we flush all items in ONE DB transaction
     batch_queue: Vec<ProcessedBlockData>,
-    // Deduplication sets: track items already in queue to prevent duplicate processing
-    // This is critical for performance: streams re-fetch same data until DB markers update
-    // Without dedup, ~90% of batch items would be duplicates!
-    queued_blocks: HashSet<BlockNumber>,
-    queued_state_diffs: HashSet<BlockNumber>,
-    queued_compiled_classes: HashSet<ClassHash>,
-    queued_base_layer_blocks: HashSet<BlockNumber>,
-    // Counters for skipped duplicates (for logging/monitoring)
-    duplicates_skipped: usize,
+    // Queue markers: track the highest block/class already queued (in-flight)
+    // Streams use max(db_marker, queue_marker) to know where to start fetching
+    // This prevents duplicate requests to FGW while batch is being filled
+    queue_header_marker: Arc<RwLock<BlockNumber>>,
+    queue_state_marker: Arc<RwLock<BlockNumber>>,
+    queue_compiled_class_marker: Arc<RwLock<BlockNumber>>,
+    queue_base_layer_marker: Arc<RwLock<BlockNumber>>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -482,6 +480,7 @@ impl<
             self.config.collect_pending_data,
             PENDING_SLEEP_DURATION,
             self.config.blocks_max_stream_size,
+            self.queue_header_marker.clone(),
         )
         .fuse();
         let state_diff_stream = stream_new_state_diffs(
@@ -490,6 +489,7 @@ impl<
             self.central_source.clone(),
             self.config.block_propagation_sleep_duration,
             self.config.state_updates_max_stream_size,
+            self.queue_state_marker.clone(),
         )
         .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
@@ -499,6 +499,7 @@ impl<
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
             self.config.store_sierras_and_casms,
+            self.queue_compiled_class_marker.clone(),
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -560,9 +561,11 @@ impl<
                                 let batch = std::mem::take(&mut self.batch_queue);
                                 self.flush_processed_batch(batch).await?;
                                 
-                                // Clean up deduplication sets after successful flush
-                                // Remove entries that are now in DB (below current markers)
-                                self.cleanup_dedup_sets_after_flush().await?;
+                                // NOTE: We do NOT reset queue markers here!
+                                // Queue markers track what we've REQUESTED from FGW, not what we've written.
+                                // middle_queue may still have items compiling (e.g., state diffs 500-999)
+                                // If we reset markers, streams would re-fetch those items (duplicates!)
+                                // Queue markers only advance, never reset.
                                 
                                 info!("Batch successfully flushed. Batch queue cleared.");
                             }
@@ -606,15 +609,11 @@ impl<
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
                 if self.config.enable_block_batching {
-                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
-                    if self.queued_blocks.contains(&block_number) {
-                        self.duplicates_skipped += 1;
-                        trace!("Skipping duplicate block {} (already in queue)", block_number);
-                        return Ok(());
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_header_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
                     }
-                    
-                    // Mark as queued BEFORE adding to prevent races
-                    self.queued_blocks.insert(block_number);
                     
                     // Create an immediate future that returns the Block data
                     // No async work needed - just wrap the data
@@ -649,15 +648,11 @@ impl<
                 deployed_contract_class_definitions,
             } => {
                 if self.config.enable_block_batching {
-                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
-                    if self.queued_state_diffs.contains(&block_number) {
-                        self.duplicates_skipped += 1;
-                        trace!("Skipping duplicate state diff {} (already in queue)", block_number);
-                        return Ok(());
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_state_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
                     }
-                    
-                    // Mark as queued BEFORE adding to prevent races
-                    self.queued_state_diffs.insert(block_number);
                     
                     // Create an async future that processes (compiles) the state diff
                     let class_manager_client = self.class_manager_client.clone();
@@ -716,16 +711,6 @@ impl<
                 is_compiler_backward_compatible,
             } => {
                 if self.config.enable_block_batching {
-                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
-                    if self.queued_compiled_classes.contains(&class_hash) {
-                        self.duplicates_skipped += 1;
-                        trace!("Skipping duplicate compiled class {:?} (already in queue)", class_hash);
-                        return Ok(());
-                    }
-                    
-                    // Mark as queued BEFORE adding to prevent races
-                    self.queued_compiled_classes.insert(class_hash);
-                    
                     // Create immediate future for compiled class (no compilation needed)
                     let class_future: ProcessingTask = Box::pin(async move {
                         Ok(ProcessedBlockData::CompiledClass {
@@ -760,15 +745,11 @@ impl<
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 if self.config.enable_block_batching {
-                    // DEDUPLICATION: Skip if already in queue (streams re-fetch until DB markers update)
-                    if self.queued_base_layer_blocks.contains(&block_number) {
-                        self.duplicates_skipped += 1;
-                        trace!("Skipping duplicate base layer block {} (already in queue)", block_number);
-                        return Ok(());
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_base_layer_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
                     }
-                    
-                    // Mark as queued BEFORE adding to prevent races
-                    self.queued_base_layer_blocks.insert(block_number);
                     
                     // Create immediate future for base layer block (no compilation needed)
                     let base_layer_future: ProcessingTask = Box::pin(async move {
@@ -1326,50 +1307,6 @@ impl<
         Ok(())
     }
 
-    /// Cleans up deduplication sets after a successful flush.
-    /// Removes entries that are now below DB markers (already written).
-    /// Keeps entries that are still pending in the queue.
-    async fn cleanup_dedup_sets_after_flush(&mut self) -> StateSyncResult {
-        let txn = self.reader.begin_ro_txn()?;
-        let header_marker = txn.get_header_marker()?;
-        let state_marker = txn.get_state_marker()?;
-        let compiled_class_marker = txn.get_compiled_class_marker()?;
-        let base_layer_marker = txn.get_base_layer_block_marker()?;
-        drop(txn);
-        
-        // Remove blocks that have been written (block_number < header_marker)
-        let before_blocks = self.queued_blocks.len();
-        self.queued_blocks.retain(|&bn| bn >= header_marker);
-        
-        // Remove state diffs that have been written (block_number < state_marker)
-        let before_state_diffs = self.queued_state_diffs.len();
-        self.queued_state_diffs.retain(|&bn| bn >= state_marker);
-        
-        // For compiled classes, we clear all since we don't have a simple way to track by block
-        // They're already deduplicated by class_hash in the flush
-        let before_compiled = self.queued_compiled_classes.len();
-        self.queued_compiled_classes.clear();
-        
-        // Remove base layer blocks that have been written
-        let before_base_layer = self.queued_base_layer_blocks.len();
-        self.queued_base_layer_blocks.retain(|&bn| bn >= base_layer_marker);
-        
-        info!(
-            "DEDUP_STATS: Skipped {} duplicates this batch. Cleanup: blocks {}->{}, state_diffs {}->{}, compiled {}->{}, base_layer {}->{}. Markers: header={}, state={}, casm={}, base={}",
-            self.duplicates_skipped,
-            before_blocks, self.queued_blocks.len(),
-            before_state_diffs, self.queued_state_diffs.len(),
-            before_compiled, self.queued_compiled_classes.len(),
-            before_base_layer, self.queued_base_layer_blocks.len(),
-            header_marker, state_marker, compiled_class_marker, base_layer_marker
-        );
-        
-        // Reset counter for next batch
-        self.duplicates_skipped = 0;
-        
-        Ok(())
-    }
-
     // Helper to store already-processed state diff
     async fn store_processed_state_diff(
         &mut self,
@@ -1790,10 +1727,14 @@ fn stream_new_blocks<
     collect_pending_data: bool,
     pending_sleep_duration: Duration,
     max_stream_size: u32,
+    queue_header_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
             loop {
-            let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            let db_header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            let queue_marker = *queue_header_marker.read().await;
+            // Use max of DB marker and queue marker to skip blocks already in-flight
+            let header_marker = db_header_marker.max(queue_marker);
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
@@ -1838,13 +1779,17 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
+    queue_state_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
             let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
+            let db_state_marker = txn.get_state_marker()?;
             let last_block_number = txn.get_header_marker()?;
             drop(txn);
+            let queue_marker = *queue_state_marker.read().await;
+            // Use max of DB marker and queue marker to skip state diffs already in-flight
+            let state_marker = db_state_marker.max(queue_marker);
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
@@ -1918,11 +1863,10 @@ impl StateSync {
             class_manager_client,
             middle_queue: FuturesOrdered::new(),
             batch_queue: Vec::new(),
-            queued_blocks: HashSet::new(),
-            queued_state_diffs: HashSet::new(),
-            queued_compiled_classes: HashSet::new(),
-            queued_base_layer_blocks: HashSet::new(),
-            duplicates_skipped: 0,
+            queue_header_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_state_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_compiled_class_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_base_layer_marker: Arc::new(RwLock::new(BlockNumber::default())),
         }
     }
 }
@@ -1933,11 +1877,15 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
     store_sierras_and_casms: bool,
+    queue_compiled_class_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
             let txn = reader.begin_ro_txn()?;
-            let mut from = txn.get_compiled_class_marker()?;
+            let db_compiled_class_marker = txn.get_compiled_class_marker()?;
+            let queue_marker = *queue_compiled_class_marker.read().await;
+            // Use max of DB marker and queue marker to skip compiled classes already in-flight
+            let mut from = db_compiled_class_marker.max(queue_marker);
             let state_marker = txn.get_state_marker()?;
             let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
             // Avoid starting streams from blocks without declared classes.
@@ -1976,6 +1924,10 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 pending::<()>().await;
                 continue;
             }
+
+            // Update queue marker BEFORE fetching to prevent duplicate requests
+            // This tells future iterations: "we're fetching up to block X, don't re-fetch it"
+            *queue_compiled_class_marker.write().await = up_to;
 
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
