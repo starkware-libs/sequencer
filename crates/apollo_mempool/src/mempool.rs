@@ -395,6 +395,18 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
+    #[instrument(
+        level = "debug",
+        skip(self, args),
+        fields( // Log subset of (informative) fields.
+            tx_nonce = %args.tx.nonce(),
+            tx_hash = %args.tx.tx_hash,
+            tx_tip = %args.tx.tip(),
+            tx_max_l2_gas_price = %args.tx.resource_bounds().l2_gas.max_price_per_unit,
+            account_state = %args.account_state
+        ),
+        err
+    )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         // First remove old transactions from the pool.
         let mut account_nonce_updates = self.remove_expired_txs();
