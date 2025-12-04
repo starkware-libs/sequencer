@@ -41,7 +41,8 @@ cleanup() {
 }
 
 # Set trap to cleanup on exit or interrupt
-trap cleanup EXIT INT TERM
+# DISABLED TO PROTECT TEST DATA - UNCOMMENT IF YOU WANT AUTO-CLEANUP
+# trap cleanup EXIT INT TERM
 
 # Function to check disk space
 check_disk_space() {

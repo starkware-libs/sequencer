@@ -107,6 +107,13 @@ pub(crate) trait Writer<V: ValueSerde> {
     /// Inserts an object to the file, returns the [`LocationInFile`] of the object.
     fn append(&mut self, val: &V::Value) -> LocationInFile;
 
+    /// Inserts multiple objects to the file in a batch, returns their [`LocationInFile`]s.
+    /// This is more efficient than calling `append` multiple times as it:
+    /// - Serializes all objects first
+    /// - Writes them all at once
+    /// - Performs a single flush operation for all objects
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile>;
+
     /// Flushes the mmap to the file.
     fn flush(&self);
 }
@@ -245,6 +252,58 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
         let location = LocationInFile { offset, len };
         self.grow_file_if_needed(location.next_offset());
         location
+    }
+
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile> {
+        if vals.is_empty() {
+            return Vec::new();
+        }
+
+        trace!("Batch inserting {} objects", vals.len());
+
+        // First, serialize all values
+        let mut serialized_vals = Vec::with_capacity(vals.len());
+        let mut total_len = 0;
+        for val in vals {
+            let serialized = V::serialize(val).expect("Should be able to serialize");
+            total_len += serialized.len();
+            serialized_vals.push(serialized);
+        }
+
+        // Then, write all at once and record locations
+        let mut locations = Vec::with_capacity(vals.len());
+        let start_offset;
+        {
+            let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+            start_offset = mmap_file.offset;
+            let mut current_offset = start_offset;
+
+            trace!("Batch inserting at starting offset: {}, total size: {}", start_offset, total_len);
+
+            for serialized in &serialized_vals {
+                let len = serialized.len();
+                let mmap_slice = &mut mmap_file.mmap[current_offset..];
+                mmap_slice[..len].copy_from_slice(serialized);
+                locations.push(LocationInFile { offset: current_offset, len });
+                current_offset += len;
+            }
+
+            // Single flush for all objects
+            mmap_file
+                .mmap
+                .flush_async_range(start_offset, total_len)
+                .expect("Failed to asynchronously flush the mmap after batch insert");
+            
+            mmap_file.offset = current_offset;
+            mmap_file.should_flush = true;
+        }
+
+        // Check if file needs to grow after all writes
+        let final_offset = start_offset + total_len;
+        self.grow_file_if_needed(final_offset);
+        
+        trace!("Batch insert complete. Wrote {} objects totaling {} bytes", vals.len(), total_len);
+        locations
     }
 
     fn flush(&self) {
