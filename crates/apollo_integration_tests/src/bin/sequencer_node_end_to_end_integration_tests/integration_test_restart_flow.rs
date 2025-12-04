@@ -9,7 +9,6 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use strum::IntoEnumIterator;
-use tokio::select;
 use tracing::info;
 
 #[tokio::main]
@@ -74,11 +73,6 @@ async fn main() {
     // Create a simulator for sustained transaction sending.
     let simulator = integration_test_manager.create_simulator();
     let mut tx_generator = integration_test_manager.tx_generator().snapshot();
-    // TODO(noamsp/itay): Try to refactor this test to spawn threads for each task instead of using
-    // select!
-    // Task that sends sustained transactions without ever finishing.
-    let continuous_tx_sending_task =
-        simulator.run_simulation(&mut tx_generator, true, DEFAULT_SENDER_ACCOUNT);
 
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
@@ -116,15 +110,13 @@ async fn main() {
         integration_test_manager.poll_all_running_nodes_received_more_txs(LONG_TIMEOUT).await;
     };
 
-    select! {
-        _ = continuous_tx_sending_task => {
-            panic!("This task should never complete");
-        }
-        _ = await_and_restart_nodes_task => {
-            // If await_and_restart_nodes_task completes normally, it finished successfully.
-            // If it panicked, the panic would have already propagated.
-        }
-    }
+    simulator
+        .run_test_with_nonstop_tx_sending(
+            &mut tx_generator,
+            DEFAULT_SENDER_ACCOUNT,
+            await_and_restart_nodes_task,
+        )
+        .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
     info!("Restart flow integration test completed successfully!");
