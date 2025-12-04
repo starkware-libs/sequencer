@@ -5,13 +5,12 @@ use clap::Parser;
 #[cfg(test)]
 mod message_test;
 
-mod args;
 mod message;
 
-use args::Args;
+use apollo_network_benchmark::node_args::NodeArgs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _args = Args::parse();
+    let _args = NodeArgs::parse();
     Ok(())
 }
