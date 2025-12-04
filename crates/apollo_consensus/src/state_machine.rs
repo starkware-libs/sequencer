@@ -67,12 +67,8 @@ pub(crate) enum SMRequest {
     StartValidateProposal(ProposalInit),
     /// Request to broadcast a Prevote or Precommit vote.
     BroadcastVote(Vote),
-    /// Request to schedule a TimeoutPropose.
-    ScheduleTimeoutPropose(Round),
-    /// Request to schedule a TimeoutPrevote.
-    ScheduleTimeoutPrevote(Round),
-    /// Request to schedule a TimeoutPrecommit.
-    ScheduleTimeoutPrecommit(Round),
+    /// Request to schedule a timeout for a specific step and round.
+    ScheduleTimeout(Step, Round),
     /// Decision reached for the given proposal and round.
     DecisionReached(ProposalCommitment, Round),
     /// Request to re-propose (sent by the leader after advancing to a new round
@@ -511,7 +507,7 @@ impl StateMachine {
             }
         } else {
             info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
-            VecDeque::from([SMRequest::ScheduleTimeoutPropose(self.round)])
+            VecDeque::from([SMRequest::ScheduleTimeout(Step::Propose, self.round)])
         };
         output.append(&mut self.current_round_upons());
         output
@@ -625,7 +621,7 @@ impl StateMachine {
         if !self.mixed_prevote_quorum.insert(self.round) {
             return VecDeque::new();
         }
-        VecDeque::from([SMRequest::ScheduleTimeoutPrevote(self.round)])
+        VecDeque::from([SMRequest::ScheduleTimeout(Step::Prevote, self.round)])
     }
 
     // LOC 36 in the paper.
@@ -684,7 +680,7 @@ impl StateMachine {
         if !self.mixed_precommit_quorum.insert(self.round) {
             return VecDeque::new();
         }
-        VecDeque::from([SMRequest::ScheduleTimeoutPrecommit(self.round)])
+        VecDeque::from([SMRequest::ScheduleTimeout(Step::Precommit, self.round)])
     }
 
     // LOC 49 in the paper.
