@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
@@ -14,23 +13,6 @@ class L1Client:
     DATA_BLOCKS_BY_TIMESTAMP_URL_FMT = (
         "https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
     )
-
-    @dataclass(frozen=True)
-    class Log:
-        """
-        Ethereum log entry
-        """
-
-        address: str
-        topics: List[str]
-        data: str
-        block_number: int
-        block_hash: str
-        transaction_hash: str
-        transaction_index: int
-        log_index: int
-        removed: bool
-        block_timestamp: int
 
     def __init__(
         self,
@@ -76,7 +58,7 @@ class L1Client:
 
         return None
 
-    def get_logs(self, from_block: int, to_block: int) -> List["L1Client.Log"]:
+    def get_logs(self, from_block: int, to_block: int) -> List[dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
         Tries up to retries_count times. On failure, logs an error and returns [].
@@ -112,22 +94,7 @@ class L1Client:
             return []
 
         results = data.get("result", [])
-
-        return [
-            L1Client.Log(
-                address=result["address"],
-                topics=result["topics"],
-                data=result["data"],
-                block_number=int(result["blockNumber"], 16),
-                block_hash=result["blockHash"],
-                transaction_hash=result["transactionHash"],
-                transaction_index=int(result["transactionIndex"], 16),
-                log_index=int(result["logIndex"], 16),
-                removed=result["removed"],
-                block_timestamp=int(result["blockTimestamp"], 16),
-            )
-            for result in results
-        ]
+        return results
 
     def get_block_by_number(self, block_number: int) -> Optional[Dict]:
         """
