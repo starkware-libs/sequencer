@@ -78,6 +78,9 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let batcher_config =
                 config.batcher_config.as_ref().expect("Batcher config should be set");
+            let committer_client = clients
+                .get_committer_shared_client()
+                .expect("Committer client should be available");
             let mempool_client =
                 clients.get_mempool_shared_client().expect("Mempool client should be available");
             let l1_provider_client = clients
@@ -91,6 +94,7 @@ pub async fn create_node_components(
             ));
             Some(create_batcher(
                 batcher_config.clone(),
+                committer_client,
                 mempool_client,
                 l1_provider_client,
                 class_manager_client,
