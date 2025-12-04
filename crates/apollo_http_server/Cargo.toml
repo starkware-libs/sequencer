@@ -30,7 +30,6 @@ blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
 hyper.workspace = true
 mempool_test_utils = { workspace = true, optional = true }
-once_cell.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
