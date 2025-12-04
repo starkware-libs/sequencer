@@ -76,6 +76,7 @@ async fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
+        &(),
     )
     .await?;
 
@@ -86,6 +87,7 @@ async fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
+        &(),
     )
     .await?;
 
@@ -105,6 +107,7 @@ async fn fetch_all_patricia_paths(
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
+            &(),
         )
         .await?;
         contracts_trie_storage_proofs.insert(
