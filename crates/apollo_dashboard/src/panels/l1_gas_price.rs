@@ -29,7 +29,7 @@ fn get_panel_eth_to_strk_error_count() -> Panel {
     )
 }
 
-fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
+pub(crate) fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
     Panel::new(
         "Seconds since last successful ETH→STRK rate update",
         "The number of seconds since the last successful ETH→STRK rate update (assuming there was \
@@ -110,7 +110,7 @@ fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
     )
 }
 
-fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Panel {
+pub(crate) fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
         "Seconds since last successful L1 gas price scrape",
         "The number of seconds since the last successful scrape of the L1 gas price scraper \

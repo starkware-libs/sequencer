@@ -38,7 +38,7 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
+pub(crate) fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
         "Seconds since last successful l1 event scrape",
         "The number of seconds since the last successful scrape of the L1 message scraper \
