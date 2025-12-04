@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -37,6 +38,7 @@ async fn receive_block_internally() {
         get_rng(),
     );
     let block_header_without_hash = sync_block.block_header_without_hash.clone();
+    let block_header_commitments = sync_block.block_header_commitments.clone().unwrap();
     let transaction_hashes = sync_block.get_all_transaction_hashes();
     let state_diff = sync_block.state_diff.clone();
 
@@ -76,7 +78,24 @@ async fn receive_block_internally() {
                         block_header.clone().unwrap().n_transactions
                             == Into::<usize>::into(transaction_hashes.len())
                     );
-                    assert!(block_header.unwrap().state_diff_length.unwrap() == 1);
+                    let block_header = block_header.clone().unwrap();
+                    assert!(block_header.state_diff_length.unwrap() == 1);
+                    assert_eq!(
+                        block_header.state_diff_commitment.unwrap(),
+                        block_header_commitments.state_diff_commitment
+                    );
+                    assert_eq!(
+                        block_header.transaction_commitment.unwrap(),
+                        block_header_commitments.transaction_commitment
+                    );
+                    assert_eq!(
+                        block_header.event_commitment.unwrap(),
+                        block_header_commitments.event_commitment
+                    );
+                    assert_eq!(
+                        block_header.receipt_commitment.unwrap(),
+                        block_header_commitments.receipt_commitment
+                    );
                     assert_eq!(
                         txn.get_block_header(BlockNumber(0))
                             .unwrap()
@@ -112,6 +131,7 @@ async fn receive_blocks_out_of_order() {
         rng.clone(),
     );
     let block_header_without_hash_0 = sync_block_0.block_header_without_hash.clone();
+    let block_header_commitments_0 = sync_block_0.block_header_commitments.clone().unwrap();
     let transaction_hashes_0 = sync_block_0.get_all_transaction_hashes();
     let state_diff_0 = sync_block_0.state_diff.clone();
 
@@ -126,6 +146,7 @@ async fn receive_blocks_out_of_order() {
         rng,
     );
     let block_header_without_hash_1 = sync_block_1.block_header_without_hash.clone();
+    let block_header_commitments_1 = sync_block_1.block_header_commitments.clone().unwrap();
     let transaction_hashes_1 = sync_block_1.get_all_transaction_hashes();
     let state_diff_1 = sync_block_1.state_diff.clone();
 
@@ -160,13 +181,27 @@ async fn receive_blocks_out_of_order() {
                         BlockNumber(2)
                     );
                     let txn = reader.begin_ro_txn().unwrap();
+                    let block_header_0 = txn.get_block_header(BlockNumber(0)).unwrap().unwrap();
                     // TODO(Eitan): test rest of data types
                     assert_eq!(
-                        txn.get_block_header(BlockNumber(0))
-                            .unwrap()
-                            .unwrap()
-                            .block_header_without_hash,
+                        block_header_0.block_header_without_hash,
                         block_header_without_hash_0
+                    );
+                    assert_eq!(
+                        block_header_0.state_diff_commitment.unwrap(),
+                        block_header_commitments_0.state_diff_commitment
+                    );
+                    assert_eq!(
+                        block_header_0.transaction_commitment.unwrap(),
+                        block_header_commitments_0.transaction_commitment
+                    );
+                    assert_eq!(
+                        block_header_0.event_commitment.unwrap(),
+                        block_header_commitments_0.event_commitment
+                    );
+                    assert_eq!(
+                        block_header_0.receipt_commitment.unwrap(),
+                        block_header_commitments_0.receipt_commitment
                     );
                     assert_eq!(txn.get_state_diff(BlockNumber(0)).unwrap().unwrap(), state_diff_0);
                     assert_eq!(
@@ -176,12 +211,26 @@ async fn receive_blocks_out_of_order() {
                             .as_slice(),
                         transaction_hashes_0.as_slice()
                     );
+                    let block_header_1 = txn.get_block_header(BlockNumber(1)).unwrap().unwrap();
                     assert_eq!(
-                        txn.get_block_header(BlockNumber(1))
-                            .unwrap()
-                            .unwrap()
-                            .block_header_without_hash,
+                        block_header_1.block_header_without_hash,
                         block_header_without_hash_1
+                    );
+                    assert_eq!(
+                        block_header_1.state_diff_commitment.unwrap(),
+                        block_header_commitments_1.state_diff_commitment
+                    );
+                    assert_eq!(
+                        block_header_1.transaction_commitment.unwrap(),
+                        block_header_commitments_1.transaction_commitment
+                    );
+                    assert_eq!(
+                        block_header_1.event_commitment.unwrap(),
+                        block_header_commitments_1.event_commitment
+                    );
+                    assert_eq!(
+                        block_header_1.receipt_commitment.unwrap(),
+                        block_header_commitments_1.receipt_commitment
                     );
                     assert_eq!(txn.get_state_diff(BlockNumber(1)).unwrap().unwrap(), state_diff_1);
                     assert_eq!(
@@ -311,12 +360,12 @@ fn create_random_sync_block(
         l1_da_mode,
         starknet_version,
     };
+    let block_header_commitments = BlockHeaderCommitments::get_test_instance(&mut rng);
     SyncBlock {
         state_diff,
         account_transaction_hashes,
         l1_transaction_hashes,
         block_header_without_hash,
-        // TODO(Rotem): Test the storage is updated correctly with block header commitments.
-        block_header_commitments: None,
+        block_header_commitments: Some(block_header_commitments),
     }
 }
