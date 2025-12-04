@@ -153,6 +153,14 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .await
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
+        self.get()
+            .await?
+            .cycle_provider_url()
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
 }
 
 impl<B: BaseLayerContract + Send + Sync + std::fmt::Debug> std::fmt::Debug

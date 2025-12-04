@@ -10,6 +10,7 @@ use alloy::sol_types::SolValue;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
+    CircularUrlIterator,
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
@@ -96,14 +97,13 @@ curl -L \
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config();
-        let url =
-            config.ordered_l1_endpoint_urls.first().expect("No endpoint URLs provided").clone();
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url },
+            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -229,10 +229,14 @@ impl BaseLayerContract for AnvilBaseLayer {
 
     // TODO(Arni): Consider deleting this function from the trait.
     async fn get_url(&self) -> Result<Url, Self::Error> {
-        Ok(self.ethereum_base_layer.url.clone())
+        Ok(self.ethereum_base_layer.url_iterator.get_current_url())
     }
 
     async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
+        unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
+    }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
 }
