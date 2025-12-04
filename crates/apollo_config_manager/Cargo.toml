@@ -24,6 +24,7 @@ async-trait.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+notify.workspace = true
 
 [dev-dependencies]
 apollo_config.workspace = true
