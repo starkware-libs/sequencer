@@ -16,6 +16,7 @@ use cairo_lang_starknet_classes::allowed_libfuncs::{
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use pretty_assertions::assert_eq;
+use regex::Regex;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
 
@@ -161,8 +162,9 @@ fn test_max_memory_usage() {
         audited_libfuncs_only: false,
     });
     let compilation_result = compiler.compile(contract_class);
+    let expected_error_pattern = Regex::new(r"memory allocation .*fail").unwrap();
     assert_matches!(compilation_result, Err(CompilationUtilError::CompilationError(string))
-        if string.contains("memory allocation failure")
+        if expected_error_pattern.is_match(&string)
     );
 }
 

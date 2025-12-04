@@ -812,6 +812,8 @@ name = "apollo_base_layer_tests"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
+ "apollo_infra_utils",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
@@ -1039,6 +1041,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "mempool_test_utils",
  "pretty_assertions",
+ "regex",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",

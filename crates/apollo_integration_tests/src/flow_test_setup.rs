@@ -9,7 +9,6 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_infra_utils::url::to_safe_string;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -235,7 +234,7 @@ impl FlowSequencerSetup {
         node_index: usize,
         chain_info: ChainInfo,
         base_layer_config: EthereumBaseLayerConfig,
-        base_layer_url: Url,
+        base_layer_url: Sensitive<Url>,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -279,7 +278,7 @@ impl FlowSequencerSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
-            Sensitive::new(base_layer_url).with_redactor(to_safe_string),
+            base_layer_url,
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
