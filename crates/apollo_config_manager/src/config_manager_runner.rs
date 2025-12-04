@@ -62,7 +62,7 @@ impl ConfigManagerRunner {
     }
 
     /// Watches CLI-supplied config files for modifications and triggers update_config on change.
-    async fn run_watcher_loop(&mut self) -> notify::Result<()> {
+    pub(crate) async fn run_watcher_loop(&mut self) -> notify::Result<()> {
         // Channel to receive events in async context.
         let (tx, mut rx) = mpsc::channel(FS_EVENT_CHANNEL_CAPACITY);
 
