@@ -69,7 +69,7 @@ impl ConfigManagerRunner {
     }
 
     /// Monitors config files for changes via file system events and periodic polling.
-    async fn run_watcher_loop(&mut self, mut update_interval: Interval) {
+    pub(crate) async fn run_watcher_loop(&mut self, mut update_interval: Interval) {
         // Channel to receive events in async context.
         let (tx, mut rx) = mpsc::channel(FS_EVENT_CHANNEL_CAPACITY);
 
