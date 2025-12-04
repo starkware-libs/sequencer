@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from l1_blocks import L1Blocks
 from l1_client import L1Client
+from l1_events import L1Events
 from test_utils import TestUtils
 
 
@@ -77,6 +78,32 @@ class TestFindL1BlockForTx(unittest.TestCase):
         result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertIsNone(result)
+
+    def test_matches_l1_handler_tx_success(self):
+        l1_event = TestUtils.L1_EVENT
+
+        feeder_tx = TestUtils.FEEDER_TX
+
+        self.assertTrue(L1Events.l1_event_matches_feeder_tx(l1_event, feeder_tx))
+
+    def test_matches_l1_handler_tx_mismatches(self):
+        l1_event = TestUtils.L1_EVENT
+
+        base_feeder_tx = TestUtils.FEEDER_TX
+
+        mismatch_cases = [
+            ("type", {"type": "INVOKE"}),
+            ("contract", {"contract_address": "0x1"}),
+            ("selector", {"entry_point_selector": "0x1"}),
+            ("nonce", {"nonce": "0x1"}),
+            ("calldata", {"calldata": ["0xabc"]}),
+        ]
+
+        for field_name, overrides in mismatch_cases:
+            with self.subTest(field=field_name):
+                # Builds a tx that is valid except for one mismatching field
+                feeder_tx = {**base_feeder_tx, **overrides}
+                self.assertFalse(L1Events.l1_event_matches_feeder_tx(l1_event, feeder_tx))
 
 
 if __name__ == "__main__":
