@@ -13,7 +13,7 @@ use papyrus_base_layer::{
     MockBaseLayerContract,
 };
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{EntryPointSelector, Nonce};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
@@ -45,8 +45,8 @@ async fn l1_handler_tx_consumed_txs() {
     let l1_handler_tx = L1HandlerTransaction {
         version: TransactionVersion::default(),
         nonce: Nonce::default(),
-        contract_address: L1_CONTRACT_ADDRESS.parse().unwrap(),
-        entry_point_selector: EntryPointSelector(Felt::from_hex_unchecked(L2_ENTRY_POINT)),
+        contract_address: ContractAddress::from(L1_CONTRACT_ADDRESS),
+        entry_point_selector: EntryPointSelector(Felt::from(L2_ENTRY_POINT)),
         calldata: Calldata(call_data.into()),
     };
 
