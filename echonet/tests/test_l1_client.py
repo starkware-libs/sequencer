@@ -204,40 +204,66 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 1)
         self.assertIsNone(result)
 
-    @patch("l1_client.requests.get")
-    def test_get_block_number_by_timestamp_retries_after_failure_and_succeeds(self, mock_get):
+    @patch("l1_client.requests.post")
+    def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
         successful_response.json.return_value = {
-            "data": [{"network": "string", "block": {"number": 123456, "timestamp": "string"}}]
+            "result": {
+                "number": hex(123456),
+                "timestamp": "0x5f5e100",
+            }
         }
 
-        mock_get.side_effect = [request_exception, successful_response]
+        mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_number_by_timestamp(
-            timestamp=1_600_000_000,
+        result = client.get_block_by_number(block_number=123456)
+
+        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(
+            result,
+            {
+                "number": hex(123456),
+                "timestamp": "0x5f5e100",
+            },
         )
 
-        self.assertEqual(mock_get.call_count, 2)
-        self.assertEqual(result, 123456)
-
-    @patch("l1_client.requests.get")
-    def test_get_block_number_by_timestamp_returns_none_when_rpc_result_is_empty(self, mock_get):
+    @patch("l1_client.requests.post")
+    def test_get_block_by_number_returns_none_when_rpc_result_is_empty(self, mock_post):
         response_ok = Mock()
         response_ok.raise_for_status.return_value = None
-        response_ok.json.return_value = {"data": []}
+        response_ok.json.return_value = {"result": None}
 
-        mock_get.return_value = response_ok
+        mock_post.return_value = response_ok
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_number_by_timestamp(
-            timestamp=1_600_000_000,
-        )
+        result = client.get_block_by_number(block_number=123456)
 
-        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(mock_post.call_count, 1)
+        self.assertIsNone(result)
+
+    @patch.object(L1Client, "get_block_by_number")
+    def test_get_timestamp_of_block_returns_int_timestamp(self, mock_get_block_by_number):
+        mock_get_block_by_number.return_value = {"timestamp": "0x5f5e100"}
+
+        client = L1Client(api_key="api_key")
+        result = client.get_timestamp_of_block(block_number=123456)
+
+        self.assertEqual(result, int("0x5f5e100", 16))
+        mock_get_block_by_number.assert_called_once_with(123456)
+
+    @patch.object(L1Client, "get_block_by_number")
+    def test_get_timestamp_of_block_returns_none_when_block_not_found(
+        self, mock_get_block_by_number
+    ):
+        mock_get_block_by_number.return_value = None
+
+        client = L1Client(api_key="api_key")
+        result = client.get_timestamp_of_block(block_number=123456)
+
         self.assertIsNone(result)
 
 
