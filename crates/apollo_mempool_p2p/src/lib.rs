@@ -13,7 +13,9 @@ use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
     EventMetrics,
+    LabeledMessageMetrics,
     LatencyMetrics,
+    MessageMetrics,
     NetworkMetrics,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
@@ -22,12 +24,15 @@ use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
 use tracing::{info_span, Instrument};
 
 use crate::metrics::{
+    MEMPOOL_P2P_DROPPED_MESSAGE_SIZE_BYTES,
     MEMPOOL_P2P_NETWORK_EVENTS,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
     MEMPOOL_P2P_PING_LATENCY,
+    MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE_BYTES,
+    MEMPOOL_P2P_SENT_MESSAGE_SIZE_BYTES,
 };
 use crate::propagator::MempoolP2pPropagator;
 use crate::runner::MempoolP2pRunner;
@@ -48,9 +53,18 @@ pub fn create_p2p_propagator_and_runner(
     broadcast_metrics_by_topic.insert(
         Topic::new(MEMPOOL_TOPIC).hash(),
         BroadcastNetworkMetrics {
-            num_sent_broadcast_messages: MEMPOOL_P2P_NUM_SENT_MESSAGES,
-            num_received_broadcast_messages: MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-            num_dropped_broadcast_messages: MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
+            sent_broadcast_message_metrics: MessageMetrics {
+                num_messages: MEMPOOL_P2P_NUM_SENT_MESSAGES,
+                message_size_bytes: Some(MEMPOOL_P2P_SENT_MESSAGE_SIZE_BYTES),
+            },
+            dropped_broadcast_message_metrics: LabeledMessageMetrics {
+                num_messages: MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
+                message_size_bytes: Some(MEMPOOL_P2P_DROPPED_MESSAGE_SIZE_BYTES),
+            },
+            received_broadcast_message_metrics: MessageMetrics {
+                num_messages: MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
+                message_size_bytes: Some(MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE_BYTES),
+            },
         },
     );
     let network_manager_metrics = Some(NetworkMetrics {
