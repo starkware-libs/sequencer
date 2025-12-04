@@ -39,10 +39,11 @@ class L1Blocks:
             l1_event = L1Events.parse_event(log)
 
             if L1Events.l1_event_matches_feeder_tx(l1_event, feeder_tx):
+                # TODO(Ayelet): Add blockNumber to L1Event.
                 logger.info(
-                    f"Found matching L1 block: {log.block_number} for L1 tx: {feeder_tx['transaction_hash']}"
+                    f"Found matching L1 block: {log['blockNumber']} for L1 tx: {feeder_tx['transaction_hash']}"
                 )
-                return log.block_number
+                return int(log["blockNumber"], 16)
 
         # Not found in this range
         logger.info(f"No matching L1 block found for L1 tx: {feeder_tx['transaction_hash']}")
