@@ -20,8 +20,8 @@ pub enum BatcherError {
     ExecutedProposalNotFound { proposal_id: ProposalId },
     #[error("Height is in progress.")]
     HeightInProgress,
-    #[error("Internal server error.")]
-    InternalError,
+    #[error("Internal server error: {0}")]
+    InternalError(String),
     #[error("Invalid block number. The active height is {active_height}, got {block_number}.")]
     InvalidBlockNumber { active_height: BlockNumber, block_number: BlockNumber },
     #[error("Missing retrospective block hash.")]
