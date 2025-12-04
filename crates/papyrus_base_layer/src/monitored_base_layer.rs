@@ -67,11 +67,11 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
 
                 let mut base_layer = self.base_layer.lock().await;
                 base_layer
-                    .set_provider_url(new_node_url.as_ref().clone())
+                    .set_provider_url(new_node_url.clone().expose_inner())
                     .await
                     .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))?;
 
-                *self.current_node_url.write().await = new_node_url.clone();
+                *self.current_node_url.write().await = new_node_url;
             }
             Ok(_) => (), // Noop; the current node URL is still operational.
             Err(L1EndpointMonitorClientError::L1EndpointMonitorError(err)) => Err(err)?,
