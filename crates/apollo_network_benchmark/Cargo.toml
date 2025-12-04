@@ -9,6 +9,7 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+clap = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full", "sync"] }
 
 
