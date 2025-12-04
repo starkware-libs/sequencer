@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra::metrics::{initialize_metrics_recorder, MetricsConfig};
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
@@ -119,11 +118,10 @@ impl MonitoringEndpoint {
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
-    metrics_config: MetricsConfig,
+    prometheus_handle: Option<PrometheusHandle>,
     mempool_client: Option<SharedMempoolClient>,
     l1_provider_client: Option<SharedL1ProviderClient>,
 ) -> MonitoringEndpoint {
-    let prometheus_handle = initialize_metrics_recorder(metrics_config);
     MonitoringEndpoint::new(config, version, prometheus_handle, mempool_client, l1_provider_client)
 }
 

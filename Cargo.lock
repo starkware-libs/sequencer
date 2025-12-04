@@ -2068,6 +2068,7 @@ dependencies = [
  "apollo_state_sync_metrics",
  "apollo_state_sync_types",
  "futures",
+ "metrics-exporter-prometheus",
  "papyrus_base_layer",
  "pretty_assertions",
  "tikv-jemallocator",
