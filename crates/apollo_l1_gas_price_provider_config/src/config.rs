@@ -77,7 +77,7 @@ impl Default for EthToStrkOracleConfig {
             }]),
             lag_interval_seconds: 1,
             max_cache_size: 100,
-            query_timeout_sec: 3,
+            query_timeout_sec: 10,
         }
     }
 }
