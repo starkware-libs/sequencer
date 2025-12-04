@@ -17,6 +17,10 @@ impl ComponentRequestHandler<CommitterRequest, CommitterResponse> for Committer 
                 // TODO(Yoav): Call the committer.
                 unimplemented!()
             }
+            CommitterRequest::RevertBlock(_) => {
+                // TODO(Yoav): Call the committer.
+                unimplemented!()
+            }
         }
     }
 }
