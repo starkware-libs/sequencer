@@ -7,6 +7,7 @@ use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionReceipt;
 use alloy::sol;
 use alloy::sol_types::SolValue;
+use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
@@ -124,7 +125,7 @@ curl -L \
     pub fn config() -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-            ordered_l1_endpoint_urls: vec![Self::url()],
+            ordered_l1_endpoint_urls: vec![Self::url().into()],
             ..Default::default()
         }
     }
@@ -235,7 +236,7 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     // TODO(Arni): Consider deleting this function from the trait.
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.ethereum_base_layer.url_iterator.get_current_url())
     }
 

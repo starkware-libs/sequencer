@@ -121,7 +121,7 @@ fn build_base_layer_config_for_testing() -> EthereumBaseLayerConfig {
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
     EthereumBaseLayerConfig {
-        ordered_l1_endpoint_urls: vec![node_url.clone()],
+        ordered_l1_endpoint_urls: vec![node_url.clone().into()],
         starknet_contract_address,
         ..Default::default()
     }

@@ -812,6 +812,7 @@ name = "apollo_base_layer_tests"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",

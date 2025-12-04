@@ -4,6 +4,7 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use alloy::primitives::FixedBytes;
+use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -83,7 +84,7 @@ pub trait BaseLayerContract {
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
 
-    async fn get_url(&self) -> Result<Url, Self::Error>;
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error>;
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error>;
 }
