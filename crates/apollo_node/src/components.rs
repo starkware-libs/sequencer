@@ -386,7 +386,7 @@ pub async fn create_node_components(
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer =
-                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
+                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url);
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 
@@ -485,7 +485,7 @@ pub async fn create_node_components(
                 .expect("L1 Endpoint Monitor config should be set");
             let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
             let base_layer =
-                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
+                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url);
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 

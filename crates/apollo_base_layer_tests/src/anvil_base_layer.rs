@@ -7,6 +7,8 @@ use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionReceipt;
 use alloy::sol;
 use alloy::sol_types::SolValue;
+use apollo_config::secrets::Sensitive;
+use apollo_infra_utils::url::to_safe_string;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
@@ -102,7 +104,11 @@ curl -L \
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url },
+            ethereum_base_layer: EthereumBaseLayerContract {
+                config,
+                contract,
+                url: Sensitive::new(url).with_redactor(to_safe_string),
+            },
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -226,7 +232,7 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     // TODO(Arni): Consider deleting this function from the trait.
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.ethereum_base_layer.url.clone())
     }
 

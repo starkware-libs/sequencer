@@ -812,6 +812,8 @@ name = "apollo_base_layer_tests"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
+ "apollo_infra_utils",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
@@ -1563,6 +1565,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -1647,6 +1650,7 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_config",
@@ -1664,6 +1668,7 @@ name = "apollo_l1_endpoint_monitor_config"
 version = "0.16.0-rc.2"
 dependencies = [
  "apollo_config",
+ "apollo_infra_utils",
  "serde",
  "url",
  "validator",
@@ -1673,6 +1678,7 @@ dependencies = [
 name = "apollo_l1_endpoint_monitor_types"
 version = "0.16.0-rc.2"
 dependencies = [
+ "apollo_config",
  "apollo_infra",
  "apollo_metrics",
  "apollo_proc_macros",
@@ -9548,6 +9554,7 @@ version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",

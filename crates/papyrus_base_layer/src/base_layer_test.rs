@@ -24,7 +24,7 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
     let base_layer = EthereumBaseLayerContract {
         contract,
         config: Default::default(),
-        url: Url::parse("http://dummy_url").unwrap(),
+        url: Url::parse("http://dummy_url").unwrap().into(),
     };
 
     (base_layer, asserter)

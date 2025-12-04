@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use apollo_config::secrets::Sensitive;
+use apollo_infra_utils::url::to_safe_string;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
@@ -22,8 +24,11 @@ async fn fusaka_blob_fee_sanity_check() {
     // It went on BPO2 on epoch 275712 (slot 8822784) which is about block 9504747
     let infura_api_key = std::env::var("INFURA_API_KEY")
         .expect("expected infura api key to be set in INFURA_API_KEY environment variable");
-    let url = Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
-        .expect("expected infura url to be valid");
+    let url = Sensitive::new(
+        Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
+            .expect("expected infura url to be valid"),
+    )
+    .with_redactor(to_safe_string);
     let mut base_layer = EthereumBaseLayerContract::new(config.clone(), url);
 
     // This is a known time when the data gas price was relatively high:
@@ -54,8 +59,11 @@ async fn fusaka_blob_fee_sanity_check() {
     // Choose a mainnet block number that is not yet on Fusaka (but has non-zero blob fee).
     // https://blobscan.com/block/23824000
     // The blob fee here is 31.042082881 Gwei.
-    let url = Url::parse(&format!("https://mainnet.infura.io/v3/{}", infura_api_key))
-        .expect("expected infura url to be valid");
+    let url = Sensitive::new(
+        Url::parse(&format!("https://mainnet.infura.io/v3/{}", infura_api_key))
+            .expect("expected infura url to be valid"),
+    )
+    .with_redactor(to_safe_string);
     let mut base_layer = EthereumBaseLayerContract::new(config, url);
     base_layer.config.fusaka_no_bpo_start_block_number = 100000000;
     base_layer.config.bpo1_start_block_number = 1000000000;

@@ -1,4 +1,6 @@
 use alloy::node_bindings::Anvil;
+use apollo_config::secrets::Sensitive;
+use apollo_infra_utils::url::to_safe_string;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -19,7 +21,10 @@ async fn anvil_starts_with_no_contract() {
         .expect("Anvil not installed, see anvil base layer for installation instructions.");
     let url = anvil.endpoint_url();
     let base_layer_config = EthereumBaseLayerConfig::default();
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
+    let base_layer = EthereumBaseLayerContract::new(
+        base_layer_config.clone(),
+        Sensitive::new(url.clone()).with_redactor(to_safe_string),
+    );
 
     let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
     let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -27,7 +32,7 @@ async fn anvil_starts_with_no_contract() {
         sender_address,
         receiver_address,
         base_layer_config.clone(),
-        &url,
+        &Sensitive::new(url.clone()).with_redactor(to_safe_string),
         NUM_L1_TRANSACTIONS,
     )
     .await;
