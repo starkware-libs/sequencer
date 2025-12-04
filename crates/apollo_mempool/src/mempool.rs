@@ -602,7 +602,7 @@ impl Mempool {
     /// actually removing the existing transaction. If `false`, removes the existing transaction
     /// when replacement is valid.
     /// Note: This method will **not** add the new incoming transaction.
-    #[instrument(level = "debug", skip(self), err)]
+    #[instrument(level = "debug", skip(self, incoming_tx_reference), err)]
     fn handle_fee_escalation(
         &mut self,
         incoming_tx_reference: TransactionReference,
