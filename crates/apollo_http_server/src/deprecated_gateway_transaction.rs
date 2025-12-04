@@ -26,6 +26,8 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
 };
 
+use crate::http_server::MAX_SIERRA_PROGRAM_SIZE;
+
 // TODO(Yael): remove the deprecated_gateway_transaction once we decide to support only transactions
 // in the Rpc spec format.
 
@@ -282,11 +284,11 @@ impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
     fn try_from(
         rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
     ) -> Result<Self, Self::Error> {
-        // TODO(dan): use config for this.
-        const MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
+        let max_size =
+            *MAX_SIERRA_PROGRAM_SIZE.get().expect("MAX_SIERRA_PROGRAM_SIZE should be initialized");
         let sierra_program = decode_and_decompress_with_size_limit(
             &rest_sierra_contract_class.sierra_program,
-            MAX_SIERRA_PROGRAM_SIZE,
+            max_size,
         )?;
         Ok(SierraContractClass {
             sierra_program,
