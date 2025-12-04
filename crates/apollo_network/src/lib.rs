@@ -216,7 +216,7 @@ use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_comma_separated_str,
-    deserialize_optional_vec_u8,
+    deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
     serialize_optional_vec_u8,
@@ -227,7 +227,8 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
-use apollo_config::validators::validate_vec_u256;
+use apollo_config::secrets::Sensitive;
+use apollo_config::validators::validate_optional_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -311,6 +312,7 @@ pub struct NetworkConfig {
     #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
+<<<<<<< HEAD
 
     /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
     /// If None, a random key is generated on each startup. Default: None
@@ -320,6 +322,15 @@ pub struct NetworkConfig {
 
     /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
     /// Default: None (automatic detection)
+||||||| 67d316390e
+    #[validate(custom = "validate_vec_u256")]
+    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
+    pub secret_key: Option<Vec<u8>>,
+=======
+    #[validate(custom(function = "validate_optional_sensitive_vec_u256"))]
+    #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
+    pub secret_key: Option<Sensitive<Vec<u8>>>,
+>>>>>>> origin/main-v0.14.1-committer
     pub advertised_multiaddr: Option<Multiaddr>,
 
     /// Starknet chain ID. Ensures connections only to peers on the same network.
@@ -407,7 +418,7 @@ impl SerializeConfig for NetworkConfig {
         ));
         config.extend([ser_param(
             "secret_key",
-            &serialize_optional_vec_u8(&self.secret_key),
+            &serialize_optional_vec_u8(&self.secret_key.as_ref().map(|s| s.as_ref().clone())),
             "The secret key used for building the peer id. If it's an empty string a random one \
              will be used.",
             ParamPrivacyInput::Private,

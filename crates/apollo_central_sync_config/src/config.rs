@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_optional_map,
+    deserialize_optional_sensitive_map,
     deserialize_seconds_to_duration,
     serialize_optional_map,
 };
@@ -11,7 +11,7 @@ use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::RetryConfig;
 use itertools::chain;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
 
@@ -189,15 +189,4 @@ impl Default for SyncConfig {
             store_sierras_and_casms: false,
         }
     }
-}
-
-// Deserializes a sensitive map from "k1:v1 k2:v2" string structure.
-fn deserialize_optional_sensitive_map<'de, D>(
-    de: D,
-) -> Result<Option<Sensitive<HashMap<String, String>>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let optional_map = deserialize_optional_map(de)?;
-    Ok(optional_map.map(Sensitive::new))
 }

@@ -4,10 +4,20 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "base_layer_config.prague_blob_gas_calc": {
-    "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
+  "base_layer_config.bpo1_start_block_number": {
+    "description": "The block number at which BPO1 update was deployed.",
     "privacy": "Public",
-    "value": true
+    "value": 0
+  },
+  "base_layer_config.bpo2_start_block_number": {
+    "description": "The block number at which BPO2 update was deployed.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "base_layer_config.fusaka_no_bpo_start_block_number": {
+    "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
+    "privacy": "Public",
+    "value": 0
   },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
@@ -27,7 +37,7 @@
   "batcher_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
-    "value": 6320
+    "value": 3750
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -97,7 +107,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 5723
+    "value": 4000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
@@ -424,11 +434,6 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.batcher.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
   "components.batcher.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -470,9 +475,14 @@
     "value": true
   },
   "components.batcher.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.batcher.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -485,7 +495,7 @@
     "value": 30000
   },
   "components.batcher.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -499,6 +509,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.batcher.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.batcher.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.batcher.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.batcher.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.batcher.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.batcher.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -508,11 +543,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.class_manager.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.class_manager.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -555,9 +585,14 @@
     "value": true
   },
   "components.class_manager.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.class_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -570,7 +605,7 @@
     "value": 30000
   },
   "components.class_manager.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -584,6 +619,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.class_manager.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.class_manager.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.class_manager.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.class_manager.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.class_manager.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.class_manager.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -593,11 +653,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.config_manager.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.config_manager.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -640,9 +695,14 @@
     "value": true
   },
   "components.config_manager.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.config_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.config_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -655,7 +715,7 @@
     "value": 30000
   },
   "components.config_manager.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -668,6 +728,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.config_manager.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.config_manager.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.config_manager.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.config_manager.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.config_manager.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.config_manager.url": {
     "description": "URL of the remote component server.",
@@ -683,11 +768,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.gateway.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.gateway.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -730,9 +810,14 @@
     "value": true
   },
   "components.gateway.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.gateway.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -745,7 +830,7 @@
     "value": 30000
   },
   "components.gateway.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -758,6 +843,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.gateway.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.gateway.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.gateway.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.gateway.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.gateway.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.gateway.url": {
     "description": "URL of the remote component server.",
@@ -773,11 +883,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_endpoint_monitor.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.l1_endpoint_monitor.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -820,9 +925,14 @@
     "value": true
   },
   "components.l1_endpoint_monitor.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.l1_endpoint_monitor.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -835,7 +945,7 @@
     "value": 30000
   },
   "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -849,6 +959,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.l1_endpoint_monitor.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.l1_endpoint_monitor.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.l1_endpoint_monitor.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_endpoint_monitor.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_endpoint_monitor.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.l1_endpoint_monitor.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -858,11 +993,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_gas_price_provider.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.l1_gas_price_provider.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -905,9 +1035,14 @@
     "value": true
   },
   "components.l1_gas_price_provider.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.l1_gas_price_provider.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.l1_gas_price_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -920,7 +1055,7 @@
     "value": 30000
   },
   "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -933,6 +1068,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.l1_gas_price_provider.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.l1_gas_price_provider.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.l1_gas_price_provider.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_gas_price_provider.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_gas_price_provider.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.l1_gas_price_provider.url": {
     "description": "URL of the remote component server.",
@@ -948,11 +1108,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_provider.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.l1_provider.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -995,9 +1150,14 @@
     "value": true
   },
   "components.l1_provider.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.l1_provider.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1010,7 +1170,7 @@
     "value": 30000
   },
   "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1023,6 +1183,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.l1_provider.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.l1_provider.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.l1_provider.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_provider.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_provider.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.l1_provider.url": {
     "description": "URL of the remote component server.",
@@ -1038,11 +1223,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.mempool.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.mempool.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1085,9 +1265,14 @@
     "value": true
   },
   "components.mempool.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.mempool.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1100,7 +1285,7 @@
     "value": 30000
   },
   "components.mempool.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1114,6 +1299,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.mempool.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.mempool.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.mempool.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.mempool.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.mempool.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.mempool.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -1123,11 +1333,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.mempool_p2p.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.mempool_p2p.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1170,9 +1375,14 @@
     "value": true
   },
   "components.mempool_p2p.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.mempool_p2p.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1185,7 +1395,7 @@
     "value": 30000
   },
   "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1198,6 +1408,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.mempool_p2p.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.mempool_p2p.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.mempool_p2p.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.mempool_p2p.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.mempool_p2p.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.mempool_p2p.url": {
     "description": "URL of the remote component server.",
@@ -1213,11 +1448,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.sierra_compiler.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.sierra_compiler.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1260,9 +1490,14 @@
     "value": true
   },
   "components.sierra_compiler.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.sierra_compiler.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1275,7 +1510,7 @@
     "value": 30000
   },
   "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1289,6 +1524,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.sierra_compiler.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.sierra_compiler.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.sierra_compiler.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.sierra_compiler.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.sierra_compiler.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.sierra_compiler.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -1298,11 +1558,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.signature_manager.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.signature_manager.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1345,9 +1600,14 @@
     "value": true
   },
   "components.signature_manager.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.signature_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1360,7 +1620,7 @@
     "value": 30000
   },
   "components.signature_manager.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1374,6 +1634,31 @@
     "privacy": "Public",
     "value": 150
   },
+  "components.signature_manager.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.signature_manager.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.signature_manager.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.signature_manager.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.signature_manager.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.signature_manager.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
@@ -1383,11 +1668,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.state_sync.ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
   },
   "components.state_sync.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1430,9 +1710,14 @@
     "value": true
   },
   "components.state_sync.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages",
+    "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
-    "value": 10
+    "value": 1
+  },
+  "components.state_sync.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1445,7 +1730,7 @@
     "value": 30000
   },
   "components.state_sync.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds",
+    "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
@@ -1458,6 +1743,31 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.state_sync.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.state_sync.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.state_sync.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.state_sync.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
   },
   "components.state_sync.url": {
     "description": "URL of the remote component server.",
@@ -1513,16 +1823,6 @@
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",
     "privacy": "Private"
-  },
-  "consensus_manager_config.cende_config.skip_write_height": {
-    "description": "A height that the consensus can skip writing to Aerospike. Needed for booting up (no previous height blob to write) or to handle extreme cases (all the nodes failed).",
-    "privacy": "Public",
-    "value": 0
-  },
-  "consensus_manager_config.cende_config.skip_write_height.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
@@ -1784,11 +2084,6 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.immediate_active_height": {
-    "description": "The height at which the node may actively participate in consensus.",
-    "privacy": "Public",
-    "value": 0
-  },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
     "privacy": "Public",
@@ -1954,6 +2249,81 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "privacy": "Public",
+    "value": "All"
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
+    "privacy": "Public",
+    "value": 300
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 600
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+    "description": "Limitation of compiled Cairo Native file size (bytes).",
+    "privacy": "Public",
+    "value": 52428800
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 16106127360
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
@@ -2042,7 +2412,7 @@
   "gateway_config.stateless_tx_validator_config.min_gas_price": {
     "description": "Minimum gas price for transactions.",
     "privacy": "Public",
-    "value": 3000000000
+    "value": 8000000000
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",

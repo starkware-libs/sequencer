@@ -22,7 +22,7 @@ use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs, MempoolSnapshot};
+use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs, MempoolSnapshot, ValidationArgs};
 
 pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
@@ -45,6 +45,7 @@ pub trait MempoolClient: Send + Sync {
     // TODO(AlonH): Add Option<BroadcastedMessageMetadata> as an argument for add_transaction
     // TODO(AlonH): Rename tx to transaction
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
+    async fn validate_tx(&self, args: ValidationArgs) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>>;
     async fn account_tx_in_pool_or_recent_block(
@@ -63,6 +64,7 @@ pub trait MempoolClient: Send + Sync {
 )]
 pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
+    ValidateTransaction(ValidationArgs),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
     AccountTxInPoolOrRecentBlock(ContractAddress),
@@ -79,6 +81,7 @@ impl PrioritizedRequest for MempoolRequest {
                 RequestPriority::High
             }
             MempoolRequest::AddTransaction(_)
+            | MempoolRequest::ValidateTransaction(_)
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
             | MempoolRequest::UpdateGasPrice(_)
             | MempoolRequest::GetMempoolSnapshot() => RequestPriority::Normal,
@@ -89,6 +92,7 @@ impl PrioritizedRequest for MempoolRequest {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
+    ValidateTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
@@ -115,6 +119,17 @@ where
         handle_all_response_variants!(
             MempoolResponse,
             AddTransaction,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn validate_tx(&self, args: ValidationArgs) -> MempoolClientResult<()> {
+        let request = MempoolRequest::ValidateTransaction(args);
+        handle_all_response_variants!(
+            MempoolResponse,
+            ValidateTransaction,
             MempoolClientError,
             MempoolError,
             Direct

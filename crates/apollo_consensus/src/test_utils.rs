@@ -1,13 +1,18 @@
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{ProposalCommitment, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
+use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
 use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
@@ -107,4 +112,36 @@ pub fn precommit(block_felt: Option<Felt>, height: u64, round: u32, voter: Valid
 }
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }
+}
+
+#[derive(Debug)]
+pub struct NoOpHeightVotedStorage;
+
+impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
+    fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
+        Ok(None)
+    }
+    fn set_prev_voted_height(
+        &mut self,
+        _height: BlockNumber,
+    ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+    fn revert_height(&mut self, _height: BlockNumber) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+}
+
+/// Returns a config for a new (i.e. empty) storage.
+pub fn get_new_storage_config() -> StorageConfig {
+    static DB_INDEX: AtomicUsize = AtomicUsize::new(0);
+    let db_file_path = format!(
+        "{}-{}",
+        tempfile::tempdir().unwrap().path().to_str().unwrap(),
+        DB_INDEX.fetch_add(1, Ordering::Relaxed)
+    );
+    StorageConfig {
+        db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
+        ..Default::default()
+    }
 }

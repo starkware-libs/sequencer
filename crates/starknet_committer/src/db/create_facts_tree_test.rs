@@ -25,6 +25,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::db::create_facts_tree::create_original_skeleton_tree;
 
+#[tokio::test]
 #[rstest]
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
 ///                 Old tree structure:
@@ -195,7 +196,7 @@ use crate::db::create_facts_tree::create_original_skeleton_tree;
     ),
     SubTreeHeight::new(4),
 )]
-fn test_create_tree(
+async fn test_create_tree(
     #[case] mut storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
@@ -217,6 +218,7 @@ fn test_create_tree(
         &config,
         &leaf_modifications,
     )
+    .await
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);
 }

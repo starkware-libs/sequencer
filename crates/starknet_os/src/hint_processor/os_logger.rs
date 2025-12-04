@@ -479,7 +479,9 @@ impl OsLogger {
             os_program,
         )?);
         self.current_tx = Some(OsTransactionTrace::new(tx_type, tx_hash));
-        self.log(&format!("Entering {tx_type:?}: {tx_hash}."), true);
+        log::info!("Entering transaction: {tx_hash} (type: {tx_type:?})");
+        // Increment tab_count to match the decrement in exit_tx's log call.
+        self.tab_count += 1;
         Ok(())
     }
 

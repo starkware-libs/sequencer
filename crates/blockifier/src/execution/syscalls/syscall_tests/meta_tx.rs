@@ -123,6 +123,8 @@ fn test_meta_tx_v0(
             2.into(),
             signature0,
             signature1,
+            // Should revert.
+            false.into(),
         ]
         .into(),
     );
@@ -174,7 +176,7 @@ fn test_meta_tx_v0(
         assert_eq!(call_info.execution.gas_consumed, 0);
         expect![[r#"
             DeterministicExecutionResources {
-                n_steps: 4481,
+                n_steps: 4515,
                 n_memory_holes: 30,
                 builtin_instance_counter: {
                     "pedersen_builtin": 12,
@@ -195,7 +197,7 @@ fn test_meta_tx_v0(
                 l2_to_l1_messages: [],
                 cairo_native: false,
                 failed: false,
-                gas_consumed: 512830,
+                gas_consumed: 516250,
             }
         "#]]
         .assert_debug_eq(&call_info.execution);

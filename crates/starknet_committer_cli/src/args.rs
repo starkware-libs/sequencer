@@ -1,9 +1,15 @@
 use std::fs;
+use std::future::Future;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use clap::{ArgAction, Args, Subcommand};
-use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
+use starknet_patricia_storage::aerospike_storage::{
+    AerospikeStorage,
+    AerospikeStorageConfig,
+    DEFAULT_PORT,
+};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
@@ -45,9 +51,10 @@ pub enum StorageType {
 }
 
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
+pub static DEFAULT_PORT_STRING: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
 
 pub trait StorageFromArgs: Args {
-    fn storage(&self) -> impl Storage;
+    fn storage(&self) -> impl Future<Output = impl Storage> + Send;
 }
 
 /// Key size, in bytes, for the short key storage.
@@ -201,9 +208,9 @@ pub struct CachedStorageArgs<A: StorageFromArgs> {
     pub cache_size: usize,
 }
 
-impl<A: StorageFromArgs> StorageFromArgs for CachedStorageArgs<A> {
-    fn storage(&self) -> impl Storage {
-        CachedStorage::new(self.storage_args.storage(), self.cached_storage_config())
+impl<A: StorageFromArgs + Sync> StorageFromArgs for CachedStorageArgs<A> {
+    async fn storage(&self) -> impl Storage {
+        CachedStorage::new(self.storage_args.storage().await, self.cached_storage_config())
     }
 }
 
@@ -228,7 +235,7 @@ pub struct MemoryArgs {
 }
 
 impl StorageFromArgs for MemoryArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         MapStorage::default()
     }
 }
@@ -244,7 +251,7 @@ pub struct MdbxArgs {
 }
 
 impl StorageFromArgs for MdbxArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         MdbxStorage::open(Path::new(
             &self.file_storage_args.initialize_storage_path(StorageType::Mdbx),
         ))
@@ -274,7 +281,7 @@ pub struct RocksdbArgs {
 }
 
 impl StorageFromArgs for RocksdbArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         RocksDbStorage::open(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
             self.rocksdb_options(),
@@ -303,28 +310,41 @@ pub struct AerospikeArgs {
     #[clap(long)]
     pub aeroset: String,
 
+    /// Aerospike port to use for hosts that do not specify a port.
+    #[clap(long, default_value = &*DEFAULT_PORT_STRING)]
+    pub port: u16,
+
     /// Aerospike namespace.
     #[clap(long)]
     pub namespace: String,
 
-    /// Aerospike hosts.
+    /// Aerospike hosts. A host string is of the form "host" or "host:port"; if no port is provided
+    /// the default is used. To provide multiple hosts, use "--host A --host B".
     #[clap(long)]
-    pub hosts: String,
+    pub host: Vec<String>,
 }
 
 impl StorageFromArgs for AerospikeArgs {
-    fn storage(&self) -> impl Storage {
-        AerospikeStorage::new(self.aerospike_storage_config()).unwrap()
+    async fn storage(&self) -> impl Storage {
+        AerospikeStorage::new(self.aerospike_storage_config()).await.unwrap()
     }
 }
 
 impl AerospikeArgs {
     pub fn aerospike_storage_config(&self) -> AerospikeStorageConfig {
-        AerospikeStorageConfig::new_default(
-            self.aeroset.clone(),
-            self.namespace.clone(),
-            self.hosts.clone(),
-        )
+        let hosts = self
+            .host
+            .iter()
+            .map(|host| {
+                if host.contains(':') {
+                    let (host, port) = host.split_once(':').unwrap();
+                    (host.to_string(), port.parse().unwrap())
+                } else {
+                    (host.to_string(), self.port)
+                }
+            })
+            .collect();
+        AerospikeStorageConfig::new_default(self.aeroset.clone(), self.namespace.clone(), hosts)
     }
 }
 
@@ -352,7 +372,7 @@ macro_rules! define_storage_benchmark_command {
                 match self {
                     $(
                         Self::$variant(args) => {
-                            let storage = args.storage();
+                            let storage = args.storage().await;
                             run_storage_benchmark_wrapper(self, storage).await;
                         }
                     )+

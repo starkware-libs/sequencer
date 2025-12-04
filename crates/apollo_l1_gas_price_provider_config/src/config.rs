@@ -93,7 +93,7 @@ pub struct L1GasPriceProviderConfig {
     pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
-    #[validate]
+    #[validate(nested)]
     pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
 }
 
@@ -158,7 +158,7 @@ pub struct L1GasPriceScraperConfig {
     /// If None, the node will start scraping from 2*number_of_blocks_for_mean before the tip of
     /// L1.
     pub starting_block: Option<u64>,
-    #[validate(custom = "validate_ascii")]
+    #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]

@@ -45,9 +45,9 @@ pub struct ConsensusStaticConfig {
 /// Configuration for consensus containing both static and dynamic configs.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusConfig {
-    #[validate]
+    #[validate(nested)]
     pub dynamic_config: ConsensusDynamicConfig,
-    #[validate]
+    #[validate(nested)]
     pub static_config: ConsensusStaticConfig,
 }
 

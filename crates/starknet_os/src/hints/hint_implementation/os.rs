@@ -136,11 +136,24 @@ pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
     )?;
     Ok(())
 }
-pub(crate) fn log_remaining_blocks(
+pub(crate) fn log_remaining_blocks<S: StateReader>(
+    hint_processor: &SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_blocks = get_integer_from_var_name(Ids::NBlocks.into(), vm, ids_data, ap_tracking)?;
-    log::info!("execute_blocks: {n_blocks} blocks remaining.");
+    match hint_processor.get_current_execution_helper() {
+        Ok(current_helper) => {
+            let block_number = current_helper.os_block_input.block_info.block_number;
+            log::info!(
+                "execute_blocks: finished executing block {block_number}, {n_blocks} blocks \
+                 remaining."
+            );
+        }
+        Err(_) => {
+            // First iteration - no previous block finished yet.
+            log::info!("execute_blocks: {n_blocks} blocks remaining.");
+        }
+    }
     Ok(())
 }
 

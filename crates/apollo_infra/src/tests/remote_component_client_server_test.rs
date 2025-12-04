@@ -41,6 +41,7 @@ use crate::component_server::{
 };
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
+    dummy_remote_server_config,
     test_a_b_functionality,
     ComponentA,
     ComponentAClientTrait,
@@ -78,6 +79,8 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     max_retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
     attempts_per_log: 1,
+    connection_timeout_ms: 500,
+    set_tcp_nodelay: true,
 };
 
 #[async_trait]
@@ -363,14 +366,14 @@ async fn setup_for_tests(
 
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
-        a_socket.ip(),
+        dummy_remote_server_config(a_socket.ip()),
         a_socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
     );
     let mut component_b_remote_server = RemoteComponentServer::new(
         b_local_client,
-        b_socket.ip(),
+        dummy_remote_server_config(b_socket.ip()),
         b_socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,

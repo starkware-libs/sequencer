@@ -16,6 +16,7 @@ const QUIET_LIBS: &[&str] = &[
     "alloy_rpc_client",
     "futures-util",
     "hickory-proto",
+    "hickory-resolver",
     "hyper",
     "hyper_util",
     "h2",

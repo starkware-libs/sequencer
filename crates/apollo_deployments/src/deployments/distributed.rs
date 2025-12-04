@@ -60,7 +60,7 @@ pub enum DistributedNodeServiceName {
 // Implement conversion from `DistributedNodeServiceName` to `NodeService`
 impl From<DistributedNodeServiceName> for NodeService {
     fn from(service: DistributedNodeServiceName) -> Self {
-        NodeService::Distributed(service)
+        Self::Distributed(service)
     }
 }
 
@@ -78,84 +78,80 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             }
             None => {
                 // Extract the service ports for all inner services of the distributed node.
-                for inner_service_name in DistributedNodeServiceName::iter() {
+                for inner_service_name in Self::iter() {
                     let inner_service_port = inner_service_name.get_infra_service_port_mapping();
                     service_ports.extend(inner_service_port);
                 }
             }
         };
 
-        let batcher = DistributedNodeServiceName::Batcher
-            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager = DistributedNodeServiceName::ClassManager
+        let batcher =
+            Self::Batcher.component_config_pair(service_ports[&InfraServicePort::Batcher]);
+        let class_manager = Self::ClassManager
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
-        let gateway = DistributedNodeServiceName::Gateway
-            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_endpoint_monitor = DistributedNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
-        let l1_gas_price_provider = DistributedNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
-        let l1_provider = DistributedNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let mempool = DistributedNodeServiceName::Mempool
-            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
-        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+        let gateway =
+            Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_endpoint_monitor =
+            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
+        let l1_gas_price_provider =
+            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider =
+            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool =
+            Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = Self::SierraCompiler
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
-        let signature_manager = DistributedNodeServiceName::SignatureManager
+        let signature_manager = Self::SignatureManager
             .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
-        let state_sync = DistributedNodeServiceName::StateSync
-            .component_config_pair(service_ports[&InfraServicePort::StateSync]);
+        let state_sync =
+            Self::StateSync.component_config_pair(service_ports[&InfraServicePort::StateSync]);
 
         let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
-        for inner_service_name in DistributedNodeServiceName::iter() {
+        for inner_service_name in Self::iter() {
             let component_config = match inner_service_name {
-                DistributedNodeServiceName::Batcher => get_batcher_component_config(
+                Self::Batcher => get_batcher_component_config(
                     batcher.local(),
                     class_manager.remote(),
                     l1_provider.remote(),
                     mempool.remote(),
                 ),
-                DistributedNodeServiceName::ClassManager => get_class_manager_component_config(
+                Self::ClassManager => get_class_manager_component_config(
                     class_manager.local(),
                     sierra_compiler.remote(),
                 ),
-                DistributedNodeServiceName::ConsensusManager => {
-                    get_consensus_manager_component_config(
-                        batcher.remote(),
-                        class_manager.remote(),
-                        l1_gas_price_provider.remote(),
-                        state_sync.remote(),
-                        signature_manager.remote(),
-                    )
-                }
-                DistributedNodeServiceName::HttpServer => {
-                    get_http_server_component_config(gateway.remote())
-                }
-                DistributedNodeServiceName::Gateway => get_gateway_component_config(
+                Self::ConsensusManager => get_consensus_manager_component_config(
+                    batcher.remote(),
+                    class_manager.remote(),
+                    l1_gas_price_provider.remote(),
+                    state_sync.remote(),
+                    signature_manager.remote(),
+                ),
+                Self::HttpServer => get_http_server_component_config(gateway.remote()),
+                Self::Gateway => get_gateway_component_config(
                     gateway.local(),
                     class_manager.remote(),
                     mempool.remote(),
                     state_sync.remote(),
                 ),
-                DistributedNodeServiceName::L1 => get_l1_component_config(
+                Self::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
                     l1_endpoint_monitor.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
-                DistributedNodeServiceName::Mempool => get_mempool_component_config(
+                Self::Mempool => get_mempool_component_config(
                     mempool.local(),
                     class_manager.remote(),
                     gateway.remote(),
                 ),
-                DistributedNodeServiceName::SierraCompiler => {
+                Self::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
                 }
-                DistributedNodeServiceName::SignatureManager => {
+                Self::SignatureManager => {
                     get_signature_manager_component_config(signature_manager.local())
                 }
-                DistributedNodeServiceName::StateSync => {
+                Self::StateSync => {
                     get_state_sync_component_config(state_sync.local(), class_manager.remote())
                 }
             };
@@ -170,33 +166,31 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 impl ServiceNameInner for DistributedNodeServiceName {
     fn get_controller(&self) -> Controller {
         match self {
-            DistributedNodeServiceName::Batcher => Controller::StatefulSet,
-            DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
-            DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
-            DistributedNodeServiceName::HttpServer => Controller::Deployment,
-            DistributedNodeServiceName::Gateway => Controller::Deployment,
-            DistributedNodeServiceName::L1 => Controller::Deployment,
-            DistributedNodeServiceName::Mempool => Controller::Deployment,
-            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
-            DistributedNodeServiceName::StateSync => Controller::StatefulSet,
+            Self::Batcher => Controller::StatefulSet,
+            Self::ClassManager => Controller::StatefulSet,
+            Self::ConsensusManager => Controller::StatefulSet,
+            Self::HttpServer => Controller::Deployment,
+            Self::Gateway => Controller::Deployment,
+            Self::L1 => Controller::Deployment,
+            Self::Mempool => Controller::Deployment,
+            Self::SierraCompiler => Controller::Deployment,
+            Self::StateSync => Controller::StatefulSet,
             // TODO(Nadin): Decide on controller for the SignatureManager.
-            DistributedNodeServiceName::SignatureManager => Controller::StatefulSet,
+            Self::SignatureManager => Controller::StatefulSet,
         }
     }
 
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            DistributedNodeServiceName::Batcher
-            | DistributedNodeServiceName::ClassManager
-            | DistributedNodeServiceName::ConsensusManager
-            | DistributedNodeServiceName::HttpServer
-            | DistributedNodeServiceName::L1
-            | DistributedNodeServiceName::Mempool
-            | DistributedNodeServiceName::StateSync
-            | DistributedNodeServiceName::SignatureManager => ScalePolicy::StaticallyScaled,
-            DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
-                ScalePolicy::AutoScaled
-            }
+            Self::Batcher
+            | Self::ClassManager
+            | Self::ConsensusManager
+            | Self::HttpServer
+            | Self::L1
+            | Self::Mempool
+            | Self::StateSync
+            | Self::SignatureManager => ScalePolicy::StaticallyScaled,
+            Self::Gateway | Self::SierraCompiler => ScalePolicy::AutoScaled,
         }
     }
 
@@ -218,20 +212,16 @@ impl ServiceNameInner for DistributedNodeServiceName {
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
             Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
-                DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
-                DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
-                DistributedNodeServiceName::SierraCompiler => {
-                    Some(Toleration::ApolloGeneralService)
-                }
-                DistributedNodeServiceName::SignatureManager => {
-                    Some(Toleration::ApolloGeneralService)
-                }
-                DistributedNodeServiceName::StateSync => Some(Toleration::ApolloGeneralService),
+                Self::Batcher => Some(Toleration::ApolloCoreService),
+                Self::ClassManager => Some(Toleration::ApolloGeneralService),
+                Self::ConsensusManager => Some(Toleration::ApolloCoreService),
+                Self::HttpServer => Some(Toleration::ApolloGeneralService),
+                Self::Gateway => Some(Toleration::ApolloGeneralService),
+                Self::L1 => Some(Toleration::ApolloL1Service),
+                Self::Mempool => Some(Toleration::ApolloMempoolService),
+                Self::SierraCompiler => Some(Toleration::ApolloGeneralService),
+                Self::SignatureManager => Some(Toleration::ApolloGeneralService),
+                Self::StateSync => Some(Toleration::ApolloGeneralService),
             },
             Environment::LocalK8s => None,
         }
@@ -243,49 +233,47 @@ impl ServiceNameInner for DistributedNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match self {
-            DistributedNodeServiceName::Batcher => None,
-            DistributedNodeServiceName::ClassManager => None,
-            DistributedNodeServiceName::ConsensusManager => None,
-            DistributedNodeServiceName::HttpServer => {
+            Self::Batcher => None,
+            Self::ClassManager => None,
+            Self::ConsensusManager => None,
+            Self::HttpServer => {
                 get_ingress(ingress_params, get_environment_ingress_internal(environment))
             }
-            DistributedNodeServiceName::Gateway => None,
-            DistributedNodeServiceName::L1 => None,
-            DistributedNodeServiceName::Mempool => None,
-            DistributedNodeServiceName::SierraCompiler => None,
-            DistributedNodeServiceName::SignatureManager => None,
-            DistributedNodeServiceName::StateSync => None,
+            Self::Gateway => None,
+            Self::L1 => None,
+            Self::Mempool => None,
+            Self::SierraCompiler => None,
+            Self::SignatureManager => None,
+            Self::StateSync => None,
         }
     }
 
     fn has_p2p_interface(&self) -> bool {
         match self {
-            DistributedNodeServiceName::ConsensusManager
-            | DistributedNodeServiceName::Mempool
-            | DistributedNodeServiceName::StateSync => true,
-            DistributedNodeServiceName::Batcher
-            | DistributedNodeServiceName::ClassManager
-            | DistributedNodeServiceName::HttpServer
-            | DistributedNodeServiceName::Gateway
-            | DistributedNodeServiceName::L1
-            | DistributedNodeServiceName::SierraCompiler
-            | DistributedNodeServiceName::SignatureManager => false,
+            Self::ConsensusManager | Self::Mempool | Self::StateSync => true,
+            Self::Batcher
+            | Self::ClassManager
+            | Self::HttpServer
+            | Self::Gateway
+            | Self::L1
+            | Self::SierraCompiler
+            | Self::SignatureManager => false,
         }
     }
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
-                DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
-                DistributedNodeServiceName::ConsensusManager => None,
-                DistributedNodeServiceName::HttpServer => None,
-                DistributedNodeServiceName::Gateway => None,
-                DistributedNodeServiceName::L1 => None,
-                DistributedNodeServiceName::Mempool => None,
-                DistributedNodeServiceName::SierraCompiler => None,
-                DistributedNodeServiceName::SignatureManager => None,
-                DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
+                Self::Batcher => Some(BATCHER_STORAGE),
+                Self::ClassManager => Some(CLASS_MANAGER_STORAGE),
+                Self::ConsensusManager => None,
+                Self::HttpServer => None,
+                Self::Gateway => None,
+                Self::L1 => None,
+                Self::Mempool => None,
+                Self::SierraCompiler => None,
+                Self::SignatureManager => None,
+                Self::StateSync => Some(STATE_SYNC_STORAGE),
             },
             Environment::LocalK8s => None,
         }
@@ -302,16 +290,16 @@ impl ServiceNameInner for DistributedNodeServiceName {
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
             Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => true,
-                DistributedNodeServiceName::ClassManager => false,
-                DistributedNodeServiceName::ConsensusManager => false,
-                DistributedNodeServiceName::HttpServer => false,
-                DistributedNodeServiceName::Gateway => false,
-                DistributedNodeServiceName::L1 => false,
-                DistributedNodeServiceName::Mempool => true,
-                DistributedNodeServiceName::SierraCompiler => false,
-                DistributedNodeServiceName::SignatureManager => false,
-                DistributedNodeServiceName::StateSync => false,
+                Self::Batcher => true,
+                Self::ClassManager => false,
+                Self::ConsensusManager => false,
+                Self::HttpServer => false,
+                Self::Gateway => false,
+                Self::L1 => false,
+                Self::Mempool => true,
+                Self::SierraCompiler => false,
+                Self::SignatureManager => false,
+                Self::StateSync => false,
             },
             Environment::LocalK8s => false,
         }
@@ -321,7 +309,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         let mut service_ports = BTreeSet::new();
 
         match self {
-            DistributedNodeServiceName::Batcher => {
+            Self::Batcher => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -349,7 +337,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::ClassManager => {
+            Self::ClassManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -377,7 +365,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::ConsensusManager => {
+            Self::ConsensusManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -403,7 +391,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::HttpServer => {
+            Self::HttpServer => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -430,7 +418,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 }
             }
 
-            DistributedNodeServiceName::Gateway => {
+            Self::Gateway => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -458,7 +446,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::L1 => {
+            Self::L1 => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -486,7 +474,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::Mempool => {
+            Self::Mempool => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -514,7 +502,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::SierraCompiler => {
+            Self::SierraCompiler => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -542,7 +530,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::SignatureManager => {
+            Self::SignatureManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -570,7 +558,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::StateSync => {
+            Self::StateSync => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
@@ -607,7 +595,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         let mut components = BTreeSet::new();
         match self {
-            DistributedNodeServiceName::Batcher => {
+            Self::Batcher => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
@@ -634,7 +622,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::ClassManager => {
+            Self::ClassManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ClassManager
@@ -661,7 +649,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::ConsensusManager => {
+            Self::ConsensusManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Consensus
@@ -688,7 +676,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::HttpServer => {
+            Self::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -715,7 +703,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::Gateway => {
+            Self::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -742,10 +730,11 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::L1 => {
+            Self::L1 => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::ConfigManager
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
@@ -755,8 +744,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::BaseLayer
-                        | ComponentConfigInService::Batcher
+                        ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
@@ -769,7 +757,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::Mempool => {
+            Self::Mempool => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -796,7 +784,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::SierraCompiler => {
+            Self::SierraCompiler => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -823,7 +811,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::SignatureManager => {
+            Self::SignatureManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -850,7 +838,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
-            DistributedNodeServiceName::StateSync => {
+            Self::StateSync => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
@@ -883,16 +871,16 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
-            DistributedNodeServiceName::Batcher => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::ClassManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::ConsensusManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Mempool => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::SignatureManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
+            Self::Batcher => UpdateStrategy::RollingUpdate,
+            Self::ClassManager => UpdateStrategy::Recreate,
+            Self::ConsensusManager => UpdateStrategy::Recreate,
+            Self::HttpServer => UpdateStrategy::RollingUpdate,
+            Self::Gateway => UpdateStrategy::RollingUpdate,
+            Self::L1 => UpdateStrategy::RollingUpdate,
+            Self::Mempool => UpdateStrategy::Recreate,
+            Self::SierraCompiler => UpdateStrategy::RollingUpdate,
+            Self::SignatureManager => UpdateStrategy::Recreate,
+            Self::StateSync => UpdateStrategy::Recreate,
         }
     }
 }
