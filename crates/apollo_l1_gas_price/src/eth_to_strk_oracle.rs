@@ -187,6 +187,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     #[instrument(skip(self))]
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
+        const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
         let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
             .checked_div(self.config.lag_interval_seconds)
             .expect("lag_interval_seconds should be non-zero");
@@ -204,7 +205,18 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .get_or_insert_mut(quantized_timestamp, || self.spawn_query(quantized_timestamp));
         // If the query is not finished, return an error.
         if !handle.is_finished() {
-            info!("Query not yet resolved: timestamp={timestamp}");
+            debug!("Query not yet resolved: timestamp={timestamp}");
+            // If the previous quantized timestamp is in the cache, use it.
+            if let Some(rate) = cache.get(&(quantized_timestamp - NUMBER_OF_TIMESTAMPS_BACK)) {
+                debug!(
+                    "Query not yet resolved: timestamp={timestamp}, using previous rate {rate} \
+                     from quantized timestamp={}",
+                    (quantized_timestamp - NUMBER_OF_TIMESTAMPS_BACK)
+                        * self.config.lag_interval_seconds
+                );
+                return Ok(*rate);
+            }
+            // If not, return a query not ready error.
             return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
         }
         let result = handle.now_or_never().expect("Handle must be finished if we got here");
