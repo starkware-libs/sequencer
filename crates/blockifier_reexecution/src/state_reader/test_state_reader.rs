@@ -27,6 +27,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -148,8 +149,45 @@ impl StateReader for TestStateReader {
         }
     }
 
+    /// Returns the compiled class hash of the given class hash.
+    /// When calling this function during the reexecution of a block, we need to know the hash of
+    /// the compiled class of before the execution of the reexecuted block. If the block was
+    /// migrated to v2 during the execution of the block, then the hash of it before was v1.
+    ///  Otherwise, we assume that it already has been migrated to v2 (as there was no need to
+    /// migrate it).
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.rpc_state_reader.get_compiled_class_hash(class_hash)
+        let raw_state_diff =
+            &retry_request!(self.retry_config, || self.rpc_state_reader.send_rpc_request(
+                "starknet_getStateUpdate",
+                GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id }
+            ))?["state_diff"];
+        let migrated_compiled_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+            raw_state_diff,
+            "migrated_compiled_classes",
+            "class_hash",
+            "compiled_class_hash",
+        )
+        .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        let hash_version = if migrated_compiled_classes.contains_key(&class_hash) {
+            HashVersion::V2
+        } else {
+            HashVersion::V1
+        };
+        let compiled_class = self.get_compiled_class(class_hash)?;
+        match compiled_class {
+            RunnableCompiledClass::V0(_) => Ok(CompiledClassHash::default()),
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&hash_version)),
+            RunnableCompiledClass::V1Native(class) => Ok(class.casm().hash(&hash_version)),
+        }
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.rpc_state_reader.get_compiled_class_hash_v2(class_hash, _compiled_class)
     }
 }
 
