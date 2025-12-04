@@ -11,6 +11,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use starknet_api::state::ThinStateDiff;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
@@ -22,6 +23,7 @@ use crate::batcher_types::{
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
+    ProposalId,
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
@@ -77,6 +79,11 @@ pub trait BatcherClient: Send + Sync {
         &self,
         input: DecisionReachedInput,
     ) -> BatcherClientResult<DecisionReachedResponse>;
+    /// Gets the state diff for a completed(?) proposal for debugging purposes.
+    async fn get_proposal_state_diff(
+        &self,
+        proposal_id: ProposalId,
+    ) -> BatcherClientResult<ThinStateDiff>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
