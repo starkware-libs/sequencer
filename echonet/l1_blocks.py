@@ -2,14 +2,13 @@ from typing import Optional
 
 import logging
 from l1_client import L1Client
-from l1_events import L1Events
 
 logger = logging.getLogger(__name__)
 
 
 class L1Blocks:
     @staticmethod
-    def l1_event_matches_feeder_tx(l1_event: L1Events.L1Event, feeder_tx: dict) -> bool:
+    def l1_event_matches_feeder_tx(l1_event: L1Client.L1Event, feeder_tx: dict) -> bool:
         """
         Compares L1Event with an L1_HANDLER feeder tx using only contract_address, entry_point_selector, nonce, and calldata.
         Transaction hashes are ignored.
@@ -63,7 +62,7 @@ class L1Blocks:
         logs = client.get_logs(start_block_data, end_block_data)
 
         for log in logs:
-            l1_event = L1Events.decode_log(log)
+            l1_event = L1Client.decode_log(log)
 
             if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):
                 logger.info(
