@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -210,7 +209,7 @@ fn process_events_committed_txs() {
 }
 
 #[test]
-fn pending_state_panics() {
+fn pending_state_returns_error() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_state(ProviderState::Pending)
@@ -218,11 +217,19 @@ fn pending_state_panics() {
         .build_into_l1_provider();
 
     // Test.
-    assert!(catch_unwind(AssertUnwindSafe(|| { l1_provider.get_txs(1, BlockNumber(0)) })).is_err());
-
-    assert!(
-        catch_unwind(AssertUnwindSafe(|| { l1_provider.validate(tx_hash!(1), BlockNumber(0)) }))
-            .is_err()
+    assert_eq!(
+        l1_provider.get_txs(1, BlockNumber(0)),
+        Err(L1ProviderError::UnexpectedProviderState {
+            expected: ProviderState::Propose,
+            found: ProviderState::Pending
+        })
+    );
+    assert_eq!(
+        l1_provider.validate(tx_hash!(1), BlockNumber(0)),
+        Err(L1ProviderError::UnexpectedProviderState {
+            expected: ProviderState::Validate,
+            found: ProviderState::Pending
+        })
     );
 }
 

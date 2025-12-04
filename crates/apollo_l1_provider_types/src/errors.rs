@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
 
+use crate::ProviderState;
+
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1ProviderError {
     #[error("`get_txs` while in `Validate` state")]
@@ -22,6 +24,8 @@ pub enum L1ProviderError {
     Uninitialized,
     #[error("Unexpected height: expected {expected_height}, got {got}")]
     UnexpectedHeight { expected_height: BlockNumber, got: BlockNumber },
+    #[error("Unexpected provider state: {expected}, got: {found}")]
+    UnexpectedProviderState { expected: ProviderState, found: ProviderState },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
     #[error("`validate` called while in `Propose` state")]
