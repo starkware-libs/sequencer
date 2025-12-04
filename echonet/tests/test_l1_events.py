@@ -36,23 +36,6 @@ class TestL1Events(unittest.TestCase):
         "removed": False,
     }
 
-    DECODED_LOG = L1Events.DecodedLogMessageToL2(
-        from_address="0xf5b6ee2caeb6769659f6c091d209dfdcaf3f69eb",
-        to_address="0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
-        selector=0x1B64B1B3B690B43B9B514FB81377518F4039CD3E4F4914D8A6BDF01D679FB19,
-        payload=[
-            0x04C46E830BB56CE22735D5D8FC9CB90309317D0F,
-            0xC50A951C4426760BA75C5253985A16196B342168,
-            0x11BF9DBEBDD770C31FF13808C96A1CB2DE15A240274DC527E7D809BB2BF38DF,
-            0x956DFDEAC59085EDC3,
-            0x0,
-        ],
-        nonce=0x19B255,
-        fee=0x1308ABA4ADE2,
-        l1_tx_hash="0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
-        block_timestamp=1764500447,
-    )
-
     L1_EVENT = L1Events.L1Event(
         tx=L1Events.L1HandlerTransaction(
             contract_address="0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
@@ -91,10 +74,10 @@ class TestL1Events(unittest.TestCase):
     }
 
     def test_decode_log_success(self):
-        decoded_log_result = L1Events.decode_log(self.RAW_JSON_LOG)
+        result = L1Events.decode_log(self.RAW_JSON_LOG)
 
-        self.assertIsInstance(decoded_log_result, L1Events.DecodedLogMessageToL2)
-        self.assertEqual(decoded_log_result, self.DECODED_LOG)
+        self.assertIsInstance(result, L1Events.L1Event)
+        self.assertEqual(result, self.L1_EVENT)
 
     def test_decode_log_invalid_topics_raises_error(self):
         with self.assertRaisesRegex(
@@ -109,12 +92,6 @@ class TestL1Events(unittest.TestCase):
         log["topics"][0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
         with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
             L1Events.decode_log(log)
-
-    def test_parse_event_success(self):
-        result = L1Events.parse_event(self.RAW_JSON_LOG)
-        self.assertIsInstance(result, L1Events.L1Event)
-
-        self.assertEqual(result, self.L1_EVENT)
 
     def test_matches_l1_handler_tx_success(self):
         l1_event = self.L1_EVENT
