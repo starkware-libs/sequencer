@@ -217,6 +217,17 @@ where
     Ok(Some(output))
 }
 
+/// Deserializes a sensitive list of UrlAndHeaders from a pipe-separated string structure.
+pub fn deserialize_optional_sensitive_list_with_url_and_headers<'de, D>(
+    de: D,
+) -> Result<Option<Vec<Sensitive<UrlAndHeaders>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_list = deserialize_optional_list_with_url_and_headers(de)?;
+    Ok(optional_list.map(|list| list.into_iter().map(Sensitive::new).collect()))
+}
+
 /// Serializes a vector to string structure. The vector is expected to be a hex string.
 pub fn serialize_optional_vec_u8(optional_vector: &Option<Vec<u8>>) -> String {
     match optional_vector {
