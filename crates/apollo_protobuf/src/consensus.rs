@@ -14,6 +14,9 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 
 use crate::converters::ProtobufConversionError;
+
+pub type Round = u32;
+
 #[derive(
     Debug,
     Default,
@@ -48,7 +51,7 @@ pub enum VoteType {
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: BlockNumber,
-    pub round: u32,
+    pub round: Round,
     pub proposal_commitment: Option<ProposalCommitment>,
     pub voter: ContractAddress,
 }
@@ -72,9 +75,9 @@ pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
     /// The current round of the consensus.
-    pub round: u32,
+    pub round: Round,
     /// The last round that was valid.
-    pub valid_round: Option<u32>,
+    pub valid_round: Option<Round>,
     /// Address of the one who proposed the block.
     pub proposer: ContractAddress,
 }

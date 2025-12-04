@@ -104,7 +104,7 @@ mock! {
 pub fn prevote(
     block_felt: Option<Felt>,
     height: BlockNumber,
-    round: u32,
+    round: Round,
     voter: ValidatorId,
 ) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
@@ -114,13 +114,14 @@ pub fn prevote(
 pub fn precommit(
     block_felt: Option<Felt>,
     height: BlockNumber,
-    round: u32,
+    round: Round,
     voter: ValidatorId,
 ) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
     Vote { vote_type: VoteType::Precommit, height, round, proposal_commitment, voter }
 }
-pub fn proposal_init(height: BlockNumber, round: u32, proposer: ValidatorId) -> ProposalInit {
+
+pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height, round, proposer, ..Default::default() }
 }
 
