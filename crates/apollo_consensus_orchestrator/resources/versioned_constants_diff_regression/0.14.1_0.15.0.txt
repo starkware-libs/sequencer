@@ -1,0 +1,3 @@
+~ /gas_target: 2000000000
+~ /max_block_size: 4000000000
+~ /min_gas_price: "0x186a0"

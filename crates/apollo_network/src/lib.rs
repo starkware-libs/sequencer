@@ -312,25 +312,15 @@ pub struct NetworkConfig {
     #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
-<<<<<<< HEAD
 
     /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
     /// If None, a random key is generated on each startup. Default: None
-    #[validate(custom = "validate_vec_u256")]
-    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub secret_key: Option<Vec<u8>>,
-
-    /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
-    /// Default: None (automatic detection)
-||||||| 67d316390e
-    #[validate(custom = "validate_vec_u256")]
-    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub secret_key: Option<Vec<u8>>,
-=======
     #[validate(custom(function = "validate_optional_sensitive_vec_u256"))]
     #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
     pub secret_key: Option<Sensitive<Vec<u8>>>,
->>>>>>> origin/main-v0.14.1-committer
+
+    /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
+    /// Default: None (automatic detection)
     pub advertised_multiaddr: Option<Multiaddr>,
 
     /// Starknet chain ID. Ensures connections only to peers on the same network.
