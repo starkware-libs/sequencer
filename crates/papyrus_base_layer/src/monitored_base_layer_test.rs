@@ -3,7 +3,7 @@ use std::sync::Arc;
 use apollo_l1_endpoint_monitor_types::MockL1EndpointMonitorClient;
 use url::Url;
 
-use crate::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::monitored_base_layer::MonitoredEthereumBaseLayer;
 
 #[tokio::test]
@@ -12,7 +12,9 @@ async fn switch_between_endpoints() {
     let url1 = Url::parse("http://first_endpoint").unwrap();
     let url2 = Url::parse("http://second_endpoint").unwrap();
     let urls = [url1.clone(), url2.clone()];
-    let base_layer = EthereumBaseLayerContract::new(Default::default(), url1.clone());
+    let config =
+        EthereumBaseLayerConfig { ordered_l1_endpoint_urls: urls.to_vec(), ..Default::default() };
+    let base_layer = EthereumBaseLayerContract::new(config);
     let mut l1_endpoint_monitor = MockL1EndpointMonitorClient::new();
     l1_endpoint_monitor
         .expect_get_active_l1_endpoint()

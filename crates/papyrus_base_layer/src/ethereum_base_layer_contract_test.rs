@@ -9,7 +9,7 @@ use crate::BaseLayerContract;
 #[ignore = "This test uses external dependencies, like Infura. But still it is a good \
             reference/sanity check."]
 async fn fusaka_blob_fee_sanity_check() {
-    let config = EthereumBaseLayerConfig {
+    let mut config = EthereumBaseLayerConfig {
         fusaka_no_bpo_start_block_number: 0,
         bpo1_start_block_number: 0,
         bpo2_start_block_number: 0,
@@ -24,7 +24,8 @@ async fn fusaka_blob_fee_sanity_check() {
         .expect("expected infura api key to be set in INFURA_API_KEY environment variable");
     let url = Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
         .expect("expected infura url to be valid");
-    let mut base_layer = EthereumBaseLayerContract::new(config.clone(), url);
+    config.ordered_l1_endpoint_urls = vec![url];
+    let mut base_layer = EthereumBaseLayerContract::new(config.clone());
 
     // This is a known time when the data gas price was relatively high:
     // https://sepolia.blobscan.com/block/9716185
@@ -56,7 +57,8 @@ async fn fusaka_blob_fee_sanity_check() {
     // The blob fee here is 31.042082881 Gwei.
     let url = Url::parse(&format!("https://mainnet.infura.io/v3/{}", infura_api_key))
         .expect("expected infura url to be valid");
-    let mut base_layer = EthereumBaseLayerContract::new(config, url);
+    config.ordered_l1_endpoint_urls = vec![url];
+    let mut base_layer = EthereumBaseLayerContract::new(config);
     base_layer.config.fusaka_no_bpo_start_block_number = 100000000;
     base_layer.config.bpo1_start_block_number = 1000000000;
     base_layer.config.bpo2_start_block_number = 1000000000;

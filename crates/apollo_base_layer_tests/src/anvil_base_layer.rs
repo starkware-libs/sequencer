@@ -96,7 +96,8 @@ curl -L \
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config();
-        let url = Self::url();
+        let url =
+            config.ordered_l1_endpoint_urls.first().expect("No endpoint URLs provided").clone();
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
@@ -123,6 +124,7 @@ curl -L \
     pub fn config() -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+            ordered_l1_endpoint_urls: vec![Self::url()],
             ..Default::default()
         }
     }

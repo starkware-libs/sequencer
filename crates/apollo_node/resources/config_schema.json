@@ -19,6 +19,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "base_layer_config.ordered_l1_endpoint_urls": {
+    "description": "An ordered list of URLs for communicating with Ethereum. The list is used in order, cyclically, switching if the current one is non-operational.",
+    "privacy": "Private",
+    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY"
+  },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",
