@@ -377,11 +377,6 @@ async fn sync_happy_flow() {
         .withf(move |class_hash, _class| *class_hash == deprecated_class_hash)
         .times(1)
         .returning(|_class_hash, _class| Ok(()));
-    mock_class_manager
-        .expect_add_deprecated_class()
-        .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
-        .times(1)
-        .returning(|_class_hash, _class| Ok(()));
 
     let ((reader, writer), _temp_dir) = get_test_storage();
     let sync_future = run_sync(
