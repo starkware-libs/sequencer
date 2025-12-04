@@ -1158,6 +1158,17 @@
           "extra_params": {}
         },
         {
+          "title": "Sent Message Size Bytes/sec",
+          "description": "The rate of bytes per second sent by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_votes_sent_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
           "title": "Consensus Votes Number of Received Messages",
           "description": "The increase in the number of vote messages received by consensus p2p (over the selected time range)",
           "type": "stat",
@@ -1167,6 +1178,17 @@
           "extra_params": {}
         },
         {
+          "title": "Received Message Size Bytes/sec",
+          "description": "The rate of bytes per second received by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_votes_received_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
           "title": "Consensus Votes Dropped Messages By Reason",
           "description": "The number of dropped consensus votes messages, by reason (over the selected time range)",
           "type": "stat",
@@ -1174,6 +1196,17 @@
             "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Dropped Message Size Bytes/sec",
+          "description": "The rate of bytes per second dropped by the consensus p2p component over the Votes topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_votes_dropped_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
         },
         {
           "title": "Consensus Conflicting Votes",
@@ -1194,6 +1227,17 @@
           "extra_params": {}
         },
         {
+          "title": "Sent Message Size Bytes/sec",
+          "description": "The rate of bytes per second sent by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_proposals_sent_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
           "title": "Consensus Proposals Number of Received Messages",
           "description": "The increase in the number of proposal messages received by consensus p2p (over the selected time range)",
           "type": "stat",
@@ -1203,6 +1247,17 @@
           "extra_params": {}
         },
         {
+          "title": "Received Message Size Bytes/sec",
+          "description": "The rate of bytes per second received by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_proposals_received_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
           "title": "Consensus Proposals Dropped Messages By Reason",
           "description": "The number of dropped consensus proposals messages, by reason (over the selected time range)",
           "type": "stat",
@@ -1210,6 +1265,17 @@
             "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Dropped Message Size Bytes/sec",
+          "description": "The rate of bytes per second dropped by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_consensus_proposals_dropped_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
         },
         {
           "title": "Consensus Network Events By Type",
@@ -1256,6 +1322,17 @@
           "extra_params": {}
         },
         {
+          "title": "Sent Message Size Bytes/sec",
+          "description": "The rate of bytes sent by the mempool p2p component (bytes per second)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_mempool_p2p_sent_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
           "title": "Number of received messages",
           "description": "Count of the received p2p messages (10m window)",
           "type": "timeseries",
@@ -1263,6 +1340,17 @@
             "increase(apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Received Message Size Bytes/sec",
+          "description": "The rate of bytes received by the mempool p2p component (bytes per second)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_mempool_p2p_received_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
         },
         {
           "title": "Mempool P2p Broadcasted Transaction Batch Size",
@@ -1291,6 +1379,17 @@
             "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Dropped Message Size Bytes/sec",
+          "description": "The rate of bytes dropped by the mempool p2p component (bytes per second)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(apollo_mempool_p2p_dropped_message_size_bytes_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
         },
         {
           "title": "Ping Latency",

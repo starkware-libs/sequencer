@@ -26,7 +26,9 @@ use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
     EventMetrics,
+    LabeledMessageMetrics,
     LatencyMetrics,
+    MessageMetrics,
     NetworkMetrics,
 };
 use apollo_network::network_manager::{
@@ -51,13 +53,19 @@ use crate::metrics::{
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_PING_LATENCY,
+    CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE_BYTES,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE_BYTES,
+    CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE_BYTES,
     CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
+    CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE_BYTES,
     CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE_BYTES,
+    CONSENSUS_VOTES_SENT_MESSAGE_SIZE_BYTES,
 };
 
 type ProposalStreamMessage = StreamMessage<ProposalPart, HeightAndRound>;
@@ -168,17 +176,35 @@ impl ConsensusManager {
         broadcast_metrics_by_topic.insert(
             Topic::new(self.config.votes_topic.clone()).hash(),
             BroadcastNetworkMetrics {
-                num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
-                num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
-                num_dropped_broadcast_messages: CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
+                sent_broadcast_message_metrics: MessageMetrics {
+                    num_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_VOTES_SENT_MESSAGE_SIZE_BYTES),
+                },
+                dropped_broadcast_message_metrics: LabeledMessageMetrics {
+                    num_messages: CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE_BYTES),
+                },
+                received_broadcast_message_metrics: MessageMetrics {
+                    num_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE_BYTES),
+                },
             },
         );
         broadcast_metrics_by_topic.insert(
             Topic::new(self.config.proposals_topic.clone()).hash(),
             BroadcastNetworkMetrics {
-                num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
-                num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
-                num_dropped_broadcast_messages: CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
+                sent_broadcast_message_metrics: MessageMetrics {
+                    num_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE_BYTES),
+                },
+                dropped_broadcast_message_metrics: LabeledMessageMetrics {
+                    num_messages: CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE_BYTES),
+                },
+                received_broadcast_message_metrics: MessageMetrics {
+                    num_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+                    message_size_bytes: Some(CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE_BYTES),
+                },
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
