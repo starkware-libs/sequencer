@@ -37,22 +37,21 @@ class TestL1Events(unittest.TestCase):
     }
 
     L1_EVENT = L1Events.L1Event(
-        tx=L1Events.L1HandlerTransaction(
-            contract_address="0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
-            entry_point_selector=0x1B64B1B3B690B43B9B514FB81377518F4039CD3E4F4914D8A6BDF01D679FB19,
-            calldata=[
-                0xF5B6EE2CAEB6769659F6C091D209DFDCAF3F69EB,
-                0x04C46E830BB56CE22735D5D8FC9CB90309317D0F,
-                0xC50A951C4426760BA75C5253985A16196B342168,
-                0x11BF9DBEBDD770C31FF13808C96A1CB2DE15A240274DC527E7D809BB2BF38DF,
-                0x956DFDEAC59085EDC3,
-                0x0,
-            ],
-            nonce=0x19B255,
-        ),
+        contract_address="0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
+        entry_point_selector=0x1B64B1B3B690B43B9B514FB81377518F4039CD3E4F4914D8A6BDF01D679FB19,
+        calldata=[
+            0xF5B6EE2CAEB6769659F6C091D209DFDCAF3F69EB,
+            0x04C46E830BB56CE22735D5D8FC9CB90309317D0F,
+            0xC50A951C4426760BA75C5253985A16196B342168,
+            0x11BF9DBEBDD770C31FF13808C96A1CB2DE15A240274DC527E7D809BB2BF38DF,
+            0x956DFDEAC59085EDC3,
+            0x0,
+        ],
+        nonce=0x19B255,
         fee=0x1308ABA4ADE2,
         l1_tx_hash="0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
         block_timestamp=1764500447,
+        block_number=23911042,
     )
 
     # L1_HANDLER tx from feeder gateway, expected to match the L1Event decoded from L1 logs.
