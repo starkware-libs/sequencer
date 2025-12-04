@@ -83,25 +83,31 @@ impl<S: StateReader> StatefulValidator<S> {
         // so they are skipped here.
         // Declare transaction should also be fully executed - otherwise, if we only go through
         // the validate phase, we would miss the check that the class was not declared before.
-        if let ApiTransaction::DeployAccount(_) | ApiTransaction::Declare(_) = tx.tx {
-            return self.execute(tx);
+        match tx.tx {
+            ApiTransaction::DeployAccount(_) | ApiTransaction::Declare(_) => self.execute(tx),
+            ApiTransaction::Invoke(_) => {
+                let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(&tx));
+                tx.perform_pre_validation_stage(self.state(), &tx_context)?;
+                if !tx.execution_flags.validate {
+                    return Ok(());
+                }
+
+                // `__validate__` call.
+                let (_optional_call_info, actual_cost) = self.validate(&tx, tx_context.clone())?;
+
+                // Post validations.
+                PostValidationReport::verify(
+                    &tx_context,
+                    &actual_cost,
+                    tx.execution_flags.charge_fee,
+                )?;
+
+                Ok(())
+            }
         }
-
-        let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(&tx));
-        tx.perform_pre_validation_stage(self.state(), &tx_context)?;
-        if !tx.execution_flags.validate {
-            return Ok(());
-        }
-
-        // `__validate__` call.
-        let (_optional_call_info, actual_cost) = self.validate(&tx, tx_context.clone())?;
-
-        // Post validations.
-        PostValidationReport::verify(&tx_context, &actual_cost, tx.execution_flags.charge_fee)?;
-
-        Ok(())
     }
 
+    /// TODO(tzahi): move to the GW TX validator.
     pub fn block_info(&self) -> &BlockInfo {
         self.tx_executor.block_context.as_ref().block_info()
     }
@@ -141,6 +147,7 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok((validate_call_info, tx_receipt))
     }
 
+    /// TODO(tzahi): Used only in native blockifier, remove after it is deleted.
     pub fn get_nonce(
         &mut self,
         account_address: ContractAddress,

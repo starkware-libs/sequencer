@@ -1,5 +1,6 @@
 pub mod contracts;
 pub mod dict_state_reader;
+pub mod execution;
 pub mod initial_test_state;
 pub mod l1_handler;
 pub mod prices;
@@ -8,6 +9,7 @@ pub mod syscall;
 #[cfg(test)]
 pub mod test_templates;
 pub mod transfers_generator;
+
 use std::collections::HashMap;
 use std::slice::Iter;
 use std::sync::LazyLock;

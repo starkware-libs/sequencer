@@ -5,6 +5,13 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
   sequencerConfig:
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_n_events: 5000
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_state_diff_size: 4000
+    batcher_config_block_builder_config_execute_config_n_workers: 28
+    batcher_config_block_builder_config_proposer_idle_detection_delay_millis: 2000
+    batcher_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    batcher_config_contract_class_manager_config_cairo_native_run_config_native_classes_whitelist: "All"
+    class_manager_config_class_manager_config_max_compiled_contract_class_object_size: 4089446
     components_batcher_port: 55000
     components_batcher_url: sequencer-core-service
     components_class_manager_port: 55001
@@ -23,6 +30,17 @@ config:
     components_signature_manager_url: sequencer-core-service
     components_state_sync_port: 55009
     components_state_sync_url: sequencer-core-service
+    consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_base: 9.1
+    consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_max: 15.0
+    consensus_manager_config_context_config_build_proposal_margin_millis: 1000
+    consensus_manager_config_context_config_override_eth_to_fri_rate: 0
+    consensus_manager_config_context_config_override_eth_to_fri_rate_is_none: true
+    consensus_manager_config_context_config_override_l1_data_gas_price_wei: 0
+    consensus_manager_config_context_config_override_l1_data_gas_price_wei_is_none: true
+    consensus_manager_config_context_config_override_l1_gas_price_wei: 0
+    consensus_manager_config_context_config_override_l1_gas_price_wei_is_none: true
+    consensus_manager_config_context_config_override_l2_gas_price_fri: 0
+    consensus_manager_config_context_config_override_l2_gas_price_fri_is_none: true
     state_sync_config_network_config_port: 55010
 
 service:

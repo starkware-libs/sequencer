@@ -158,11 +158,8 @@ fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
-    let base_layer_config = EthereumBaseLayerConfig {
-        starknet_contract_address,
-        prague_blob_gas_calc: true,
-        ..Default::default()
-    };
+    let base_layer_config =
+        EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() };
     (base_layer_config, node_url)
 }
 

@@ -71,6 +71,7 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     TransactionVersion,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{
     calldata,
     class_hash,

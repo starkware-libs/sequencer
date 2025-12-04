@@ -18,7 +18,7 @@ use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 pub mod traversal_test;
 
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-pub fn calculate_subtrees_roots<'a, L: Leaf>(
+pub async fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[SubTree<'a>],
     storage: &mut impl Storage,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
@@ -30,7 +30,7 @@ pub fn calculate_subtrees_roots<'a, L: Leaf>(
         })
         .collect();
 
-    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>())?;
+    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
         subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
@@ -42,7 +42,7 @@ pub fn calculate_subtrees_roots<'a, L: Leaf>(
 /// given tree according to the `root_hash`.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-pub fn fetch_patricia_paths<L: Leaf>(
+pub async fn fetch_patricia_paths<L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -56,7 +56,7 @@ pub fn fetch_patricia_paths<L: Leaf>(
 
     let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
-    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves)?;
+    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
     Ok(witnesses)
 }
 
@@ -67,7 +67,7 @@ pub fn fetch_patricia_paths<L: Leaf>(
 /// inner nodes in their paths.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-fn fetch_patricia_paths_inner<'a, L: Leaf>(
+async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     storage: &mut impl Storage,
     subtrees: Vec<SubTree<'a>>,
     witnesses: &mut PreimageMap,
@@ -76,7 +76,7 @@ fn fetch_patricia_paths_inner<'a, L: Leaf>(
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
-        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             // Always insert root.
             // No need to insert an unmodified node (which is not the root), because its parent is

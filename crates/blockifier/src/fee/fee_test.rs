@@ -23,6 +23,7 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::blockifier::block::validated_gas_prices;
 use crate::blockifier_versioned_constants::VersionedConstants;

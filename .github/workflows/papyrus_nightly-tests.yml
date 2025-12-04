@@ -32,39 +32,6 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     if: github.event.schedule == '30 0 * * *'
 
-  executable-run:
-    runs-on: macos-latest
-    if: github.event.schedule == '30 0 * * *'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: mkdir data
-
-      - name: Build node
-        run: cargo build -p papyrus_node
-
-      - name: Run executable
-        run: >
-          target/debug/papyrus_node --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
-          & sleep 30 ; kill $!
-
-  test:
-    runs-on: macos-latest
-    if: github.event.schedule == '30 0 * * *'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: |
-          cargo test -p papyrus_node
-        env:
-          SEED: 0
-
   integration-test:
     runs-on: macos-latest
     if: github.event.schedule == '30 0 * * *'
@@ -78,8 +45,7 @@ jobs:
           --test latency_histogram
           --test gateway_integration_test
           --test feeder_gateway_integration_test
-          -- --include-ignored --skip test_gw_integration_testnet;
-          cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
+          -- --include-ignored --skip test_gw_integration_testnet
 
   # TODO(dvir): make this run only if the path 'crates/apollo_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.

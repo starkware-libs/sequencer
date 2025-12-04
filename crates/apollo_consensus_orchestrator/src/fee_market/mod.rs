@@ -4,6 +4,7 @@ use ethnum::U256;
 use serde::Serialize;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::orchestrator_versioned_constants;
 

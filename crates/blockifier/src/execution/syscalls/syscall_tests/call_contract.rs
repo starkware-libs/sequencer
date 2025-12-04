@@ -32,11 +32,20 @@ fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
 
     let new_class_hash = empty_contract.get_class_hash();
     let to_panic = true.into();
+    let is_meta_tx = false.into();
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
-    let calldata = create_calldata(
-        test_contract.get_instance_address(0),
-        "test_revert_helper",
-        &[new_class_hash.0, to_panic],
+    let inner_calldata_args = &[new_class_hash.0, to_panic];
+    let calldata = Calldata::from(
+        [
+            vec![
+                **test_contract.get_instance_address(0),
+                selector_from_name("test_revert_helper").0,
+                inner_calldata_args.len().into(),
+            ],
+            inner_calldata_args.to_vec(),
+            vec![is_meta_tx],
+        ]
+        .concat(),
     );
     let entry_point_call = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
@@ -97,10 +106,18 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
     );
 
     // Calldata of contract A
-    let calldata = create_calldata(
-        test_contract.get_instance_address(0),
-        "middle_revert_contract",
-        &middle_call_data.0,
+    let is_meta_tx = false.into();
+    let calldata = Calldata::from(
+        [
+            vec![
+                **test_contract.get_instance_address(0),
+                selector_from_name("middle_revert_contract").0,
+                middle_call_data.0.len().into(),
+            ],
+            middle_call_data.0.to_vec(),
+            vec![is_meta_tx],
+        ]
+        .concat(),
     );
 
     // Create the entry point call to contract A.

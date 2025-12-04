@@ -16,6 +16,7 @@ use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, class_hash, compiled_class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 

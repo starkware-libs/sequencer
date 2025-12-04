@@ -34,8 +34,10 @@ pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
 pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
 pub(crate) const LOG_LEVEL: &str = "logLevel";
 
-pub const HISTOGRAM_BUCKETS: &[f64] =
-    &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0];
+pub const HISTOGRAM_BUCKETS: &[f64] = &[
+    0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+    100.0, 250.0,
+];
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,

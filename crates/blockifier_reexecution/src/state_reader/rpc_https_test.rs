@@ -30,10 +30,10 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use super::test_state_reader::RetryConfig;
 use super::utils::RPC_NODE_URL;
+use crate::state_reader::cli::guess_chain_id_from_node_url;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
-use crate::state_reader::utils::guess_chain_id_from_node_url;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";

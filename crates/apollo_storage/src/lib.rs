@@ -98,6 +98,8 @@ pub mod header;
 pub mod mmap_file;
 mod serialization;
 pub mod state;
+/// Storage reader server framework for handling remote storage queries.
+pub mod storage_reader_server;
 mod version;
 
 mod deprecated;
@@ -618,7 +620,7 @@ struct_field_names! {
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
-        last_voted_marker: TableIdentifier<(), NoVersionValueWrapper<LastVotedMarker>, SimpleTable>,
+        last_voted_marker: TableIdentifier<(), VersionZeroWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
         partial_block_hashes_components: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHashComponents>, SimpleTable>,
@@ -715,9 +717,9 @@ pub type StorageResult<V> = std::result::Result<V, StorageError>;
 #[allow(missing_docs)]
 #[derive(Serialize, Debug, Default, Deserialize, Clone, PartialEq, Validate)]
 pub struct StorageConfig {
-    #[validate]
+    #[validate(nested)]
     pub db_config: DbConfig,
-    #[validate]
+    #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
 }

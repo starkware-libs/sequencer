@@ -16,9 +16,11 @@ use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
+use crate::state_reader::cli::TransactionInput;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
@@ -32,26 +34,10 @@ use crate::state_reader::reexecution_state_reader::{
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
-pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
-
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
-
-pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
-    match (
-        node_url.contains("mainnet"),
-        node_url.contains("sepolia"),
-        node_url.contains("integration"),
-    ) {
-        (true, false, false) => Ok(ChainId::Mainnet),
-        (false, true, false) => Ok(ChainId::Sepolia),
-        // Integration URLs may contain the word "sepolia".
-        (false, _, true) => Ok(ChainId::IntegrationSepolia),
-        _ => Err(ReexecutionError::AmbiguousChainIdFromUrl(node_url.to_string())),
-    }
-}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
@@ -302,37 +288,47 @@ pub fn write_block_reexecution_data_to_file(
     println!("RPC replies required for reexecuting block {block_number} written to json file.");
 }
 
-/// Executes a single transaction from a JSON file using RPC to fetch block context.
-/// Does not assert correctness, only prints the execution result.
-pub fn execute_single_transaction_from_json(
+/// Executes a single transaction from a JSON file or given a transaction hash, using RPC to fetch
+/// block context. Does not assert correctness, only prints the execution result.
+pub fn execute_single_transaction(
     block_number: BlockNumber,
     node_url: String,
     chain_id: ChainId,
-    transaction_json_path: String,
+    tx_input: TransactionInput,
 ) -> ReexecutionResult<()> {
-    // Load transaction from a JSON file.
-    let json_content = read_to_string(&transaction_json_path).unwrap_or_else(|_| {
-        panic!("Failed to read transaction JSON file {}.", transaction_json_path)
-    });
-
-    let json_value: Value = serde_json::from_str(&json_content)?;
-
-    // Deserialize transaction.
-    let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
-
-    // Compute transaction hash.
-    let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
-
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
 
-    // Create ConsecutiveTestStateReaders similar to RPC test (block_number - 1 for last block).
+    // Create ConsecutiveTestStateReaders first.
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
-        chain_id,
+        chain_id.clone(),
         false, // dump_mode = false
     );
+
+    // Get transaction and hash based on input method.
+    let (transaction, transaction_hash) = match tx_input {
+        TransactionInput::FromHash { tx_hash } => {
+            // Fetch transaction from the next block (the block containing the transaction to
+            // execute).
+            let transaction =
+                consecutive_state_readers.next_block_state_reader.get_tx_by_hash(&tx_hash)?;
+            let transaction_hash = TransactionHash(Felt::from_hex_unchecked(&tx_hash));
+
+            (transaction, transaction_hash)
+        }
+        TransactionInput::FromFile { tx_path } => {
+            // Load the transaction from a local JSON file.
+            let json_content = read_to_string(&tx_path)
+                .unwrap_or_else(|_| panic!("Failed to read transaction JSON file: {}.", tx_path));
+            let json_value: Value = serde_json::from_str(&json_content)?;
+            let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
+            let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
+
+            (transaction, transaction_hash)
+        }
+    };
 
     // Convert transaction to BlockifierTransaction using api_txs_to_blockifier_txs_next_block.
     let blockifier_tx = consecutive_state_readers
@@ -365,18 +361,4 @@ macro_rules! assert_eq_state_diff {
             "Expected and actual state diffs do not match.",
         );
     };
-}
-
-/// Returns the block numbers for re-execution.
-/// There is a block number for each Starknet Version (starting v0.13)
-/// And some additional blocks with specific transactions.
-pub fn get_block_numbers_for_reexecution(relative_path: Option<String>) -> Vec<BlockNumber> {
-    let file_path = relative_path.unwrap_or_default()
-        + &(FULL_RESOURCES_DIR.to_string() + "/../block_numbers_for_reexecution.json");
-    let block_numbers_examples: HashMap<String, u64> =
-        serde_json::from_str(&read_to_string(file_path.clone()).unwrap_or_else(|_| {
-            panic!("Failed to read the block_numbers_for_reexecution file at {file_path}")
-        }))
-        .expect("Failed to deserialize block header");
-    block_numbers_examples.values().cloned().map(BlockNumber).collect()
 }

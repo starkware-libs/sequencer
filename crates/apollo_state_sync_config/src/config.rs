@@ -24,18 +24,18 @@ const STATE_SYNC_PORT: u16 = 12345;
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 #[validate(schema(function = "validate_config"))]
 pub struct StateSyncConfig {
-    #[validate]
+    #[validate(nested)]
     pub storage_config: StorageConfig,
     // TODO(Eitan): Add support for enum configs and use here
-    #[validate]
+    #[validate(nested)]
     pub p2p_sync_client_config: Option<P2pSyncClientConfig>,
-    #[validate]
+    #[validate(nested)]
     pub central_sync_client_config: Option<CentralSyncClientConfig>,
-    #[validate]
+    #[validate(nested)]
     pub network_config: Option<NetworkConfig>,
-    #[validate]
+    #[validate(nested)]
     pub revert_config: RevertConfig,
-    #[validate]
+    #[validate(nested)]
     pub rpc_config: RpcConfig,
     // TODO(noamsp): Remove this after fixing the replay procedure.
     // This is a temporary solution by disabling the replay procedure in production and enabling it

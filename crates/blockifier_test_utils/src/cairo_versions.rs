@@ -1,17 +1,12 @@
 use starknet_api::transaction::TransactionVersion;
 use strum_macros::EnumIter;
 
-#[derive(Clone, Hash, PartialEq, EnumIter, Eq, Copy, Debug)]
+#[derive(Clone, Default, Hash, PartialEq, EnumIter, Eq, Copy, Debug)]
 pub enum RunnableCairo1 {
+    #[default]
     Casm,
     #[cfg(feature = "cairo_native")]
     Native,
-}
-
-impl Default for RunnableCairo1 {
-    fn default() -> Self {
-        Self::Casm
-    }
 }
 
 impl RunnableCairo1 {
@@ -27,16 +22,11 @@ impl RunnableCairo1 {
 
 // TODO(Aviv, 14/7/2024): Move from test utils module, and use it in ContractClassVersionMismatch
 // error.
-#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
+#[derive(Clone, Default, Hash, PartialEq, Eq, Copy, Debug)]
 pub enum CairoVersion {
+    #[default]
     Cairo0,
     Cairo1(RunnableCairo1),
-}
-
-impl Default for CairoVersion {
-    fn default() -> Self {
-        Self::Cairo0
-    }
 }
 
 impl CairoVersion {

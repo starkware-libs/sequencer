@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
@@ -13,9 +15,9 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -62,6 +64,7 @@ use starknet_api::transaction::{
     MessageToL1,
     TransactionVersion,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{
     calldata,
     contract_address,
@@ -89,6 +92,8 @@ use crate::initial_state::{
     get_deploy_contract_tx_and_address_with_salt,
 };
 use crate::special_contracts::{
+    DATA_GAS_ACCOUNT_CONTRACT_CASM,
+    DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
     V1_BOUND_CAIRO0_CONTRACT,
     V1_BOUND_CAIRO1_CONTRACT_CASM,
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
@@ -1979,4 +1984,452 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_initial_sierra_gas() {
+    let account_contract = FeatureContract::Experimental;
+    let (mut test_manager, [account_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            account_contract,
+            calldata![],
+        )])
+        .await;
+
+    // Fund the account.
+    test_manager.add_fund_address_tx_with_default_amount(account_address);
+
+    // Test invoke gas limits.
+    let os_constants = &VersionedConstants::latest_constants().os_constants;
+    let validate_max_sierra_gas = os_constants.validate_max_sierra_gas.0;
+    let execute_max_sierra_gas = os_constants.execute_max_sierra_gas.0;
+    for l2_gas_amount in [
+        validate_max_sierra_gas - 123456,
+        validate_max_sierra_gas + 123456,
+        10 * execute_max_sierra_gas,
+    ] {
+        // Set up gas parameters.
+        let resource_bounds = match *NON_TRIVIAL_RESOURCE_BOUNDS {
+            ValidResourceBounds::AllResources(all_resource_bounds) => {
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds {
+                        max_amount: GasAmount(l2_gas_amount),
+                        max_price_per_unit: GasPrice(1 << 40),
+                    },
+                    ..all_resource_bounds
+                })
+            }
+            _ => panic!("Resource bounds are not all resources"),
+        };
+        let expected_validate_gas_upper_limit = u64::min(l2_gas_amount, validate_max_sierra_gas);
+        let expected_validate_gas_lower_limit = expected_validate_gas_upper_limit - 50000;
+        let expected_execute_gas_upper_limit =
+            u64::min(l2_gas_amount - 50000, execute_max_sierra_gas);
+        let expected_execute_gas_lower_limit = expected_execute_gas_upper_limit - 150000;
+
+        // Invoke verify_gas_limits.
+        let invoke_args = invoke_tx_args! {
+            sender_address: account_address,
+            nonce: test_manager.next_nonce(account_address),
+            calldata: create_calldata(
+                account_address,
+                "verify_gas_limits",
+                &[
+                    Felt::from(expected_validate_gas_lower_limit),
+                    Felt::from(expected_validate_gas_upper_limit),
+                    Felt::from(expected_execute_gas_lower_limit),
+                    Felt::from(expected_execute_gas_upper_limit)
+                ]
+            ),
+            resource_bounds: resource_bounds,
+        };
+        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+    }
+
+    // L1 handler bounds test.
+    let expected_l1_handler_gas_upper_bound = os_constants.l1_handler_max_amount_bounds.l2_gas.0;
+    let expected_l1_handler_gas_lower_bound = expected_l1_handler_gas_upper_bound - 1000000;
+    let from_address = Felt::from_hex_unchecked("0xDEADACC");
+    let selector = selector_from_name("verify_gas_limits_l1_handler");
+    let calldata = vec![
+        Felt::from(expected_l1_handler_gas_lower_bound),
+        Felt::from(expected_l1_handler_gas_upper_bound),
+    ];
+    let l1_handler_tx = ExecutableL1HandlerTransaction::create(
+        L1HandlerTransaction {
+            version: L1HandlerTransaction::VERSION,
+            nonce: Nonce::default(),
+            contract_address: account_address,
+            entry_point_selector: selector,
+            calldata: Calldata(Arc::new([vec![from_address], calldata.clone()].concat())),
+        },
+        &CHAIN_ID_FOR_TESTS,
+        Fee(1_000_000),
+    )
+    .unwrap();
+    test_manager.add_l1_handler_tx(l1_handler_tx.clone(), None);
+    let messages_to_l2 = vec![MessageToL2 {
+        from_address: EthAddress::try_from(from_address).unwrap(),
+        to_address: account_address,
+        nonce: Nonce::default(),
+        selector,
+        payload: L1ToL2Payload(calldata),
+    }];
+
+    // Run test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            messages_to_l2,
+            ..Default::default()
+        })
+        .await;
+
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_reverted_call() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_class_hash = get_class_hash_of_feature_contract(test_contract);
+    let test_contract2 = FeatureContract::TestContract2;
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
+    let (mut test_manager, [main_contract_address, test_contract2_address, empty_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            // The `my_storage_var` cell is initialized as the sum of the ctor args in the
+            // constructor. This cell is also used in revert tests, so it must be
+            // initialized to zero.
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract2, calldata![]),
+            (empty_contract, calldata![]),
+        ])
+        .await;
+
+    // Tests 1+2.
+
+    // Tell inner contract to panic.
+    let to_panic = true;
+    for (inner_selector, is_meta_tx) in
+        [("test_revert_helper", false), ("bad_selector", false), ("__execute__", true)]
+    {
+        // Test contract call to test_revert_helper.
+        let calldata = create_calldata(
+            main_contract_address,
+            "test_call_contract_revert",
+            &[
+                **main_contract_address,
+                selector_from_name(inner_selector).0,
+                Felt::TWO,
+                test_class_hash.0,
+                to_panic.into(),
+                is_meta_tx.into(),
+            ],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    // Test call to cairo0 contracts with 0 and more then 0 entry points.
+    for (contract, address) in
+        [(empty_contract, empty_contract_address), (test_contract2, test_contract2_address)]
+    {
+        let class_hash = get_class_hash_of_feature_contract(contract);
+        let calldata = create_calldata(
+            main_contract_address,
+            "test_call_contract_revert",
+            &[
+                **address,
+                selector_from_name("bad_selector").0,
+                Felt::TWO,
+                class_hash.0,
+                to_panic.into(),
+                false.into(),
+            ],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+        // Test 3:
+        // - Contract A calls Contract B.
+        // - Contract B changes the storage value from 0 to 10.
+        // - Contract A calls Contract C.
+        // - Contract C changes the storage value from 10 to 17 and raises an exception.
+        // - Contract A checks that the storage value == 10.
+        let calldata = create_calldata(
+            main_contract_address,
+            "test_revert_with_inner_call_and_reverted_storage",
+            &[**main_contract_address, test_class_hash.0],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    // Test 4:
+    //  - Contract A calls Contract B and asserts that the state remains unchanged.
+    //  - Contract B calls Contract C and panics.
+    //  - Contract C modifies the state but does not panic.
+
+    // Tell contract C not to panic:
+    let to_panic = false;
+    let contract_c_calldata = [test_class_hash.0, to_panic.into()];
+
+    // Create calldata recursively.
+    let contract_b_calldata = [
+        vec![
+            **main_contract_address,
+            selector_from_name("test_revert_helper").0,
+            contract_c_calldata.len().into(),
+        ],
+        contract_c_calldata.to_vec(),
+    ]
+    .concat();
+    let contract_a_calldata = [
+        vec![
+            **main_contract_address,
+            selector_from_name("middle_revert_contract").0,
+            contract_b_calldata.len().into(),
+        ],
+        contract_b_calldata,
+        vec![false.into()], // is_meta_tx.
+    ]
+    .concat();
+
+    // Call contract A.
+    let calldata =
+        create_calldata(main_contract_address, "test_call_contract_revert", &contract_a_calldata);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test and assert only the fee token contract and the OS contracts have storage
+    // updates.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+
+    test_output.perform_default_validations();
+
+    let block_hash_contract_address = ContractAddress(
+        Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+    );
+    let expected_changed_addresses: HashSet<&ContractAddress> = HashSet::from_iter([
+        &*STRK_FEE_TOKEN_ADDRESS,
+        &*ALIAS_CONTRACT_ADDRESS,
+        &block_hash_contract_address,
+    ]);
+    let actual_changed_addresses =
+        test_output.decompressed_state_diff.storage_updates.keys().collect::<HashSet<_>>();
+    assert!(
+        actual_changed_addresses.is_subset(&expected_changed_addresses),
+        "Expected changed addresses are not subset of actual changed addresses: actual changed \
+         addresses are {actual_changed_addresses:#?}, expected changed addresses are \
+         {expected_changed_addresses:#?}"
+    );
+}
+
+/// Tests that the OS correctly handles calls between Cairo 1.0 contracts that count resources by
+/// cairo steps and sierra gas.
+#[rstest]
+#[tokio::test]
+async fn test_resources_type() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_manager, [sierra_gas_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    // Define an updated Cairo 1.0 contract by overriding the encoded sierra version.
+    let mut cairo_steps_contract_sierra = test_contract.get_sierra();
+    let min_sierra_version =
+        VersionedConstants::latest_constants().min_sierra_version_for_sierra_gas.clone();
+    let (old_major, old_minor, old_patch) = (1, 5, 0);
+    let old_sierra_version = SierraVersion::new(old_major, old_minor, old_patch);
+    assert!(old_sierra_version < min_sierra_version);
+
+    // Override version.
+    assert!(cairo_steps_contract_sierra.get_sierra_version().unwrap() >= min_sierra_version);
+    cairo_steps_contract_sierra.sierra_program[0] = Felt::from(old_major);
+    cairo_steps_contract_sierra.sierra_program[1] = Felt::from(old_minor);
+    cairo_steps_contract_sierra.sierra_program[2] = Felt::from(old_patch);
+    assert_eq!(cairo_steps_contract_sierra.get_sierra_version().unwrap(), old_sierra_version);
+
+    // Declare it.
+    let cairo_steps_class_hash = cairo_steps_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: cairo_steps_class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = match test_contract.get_class() {
+        ContractClass::V0(_) => panic!("Expected Cairo 1.0 contract"),
+        ContractClass::V1((contract_class, _sierra_version)) => ClassInfo {
+            contract_class: ContractClass::V1((contract_class, old_sierra_version.clone())),
+            sierra_program_length: cairo_steps_contract_sierra.sierra_program.len(),
+            abi_length: cairo_steps_contract_sierra.abi.len(),
+            sierra_version: old_sierra_version,
+        },
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &cairo_steps_contract_sierra);
+
+    // Deploy it.
+    let (deploy_tx, cairo_steps_contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        cairo_steps_class_hash,
+        calldata![Felt::ZERO, Felt::ZERO],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        ContractAddressSalt(Felt::ZERO),
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Test recursive calling.
+    let (key, value) = (Felt::from(123), Felt::from(45));
+    let calldata_0 = vec![
+        **cairo_steps_contract_address,
+        selector_from_name("test_call_contract").0,
+        Felt::from(5), // Outer calldata length.
+        **sierra_gas_contract_address,
+        selector_from_name("test_storage_write").0,
+        Felt::TWO, // Inner calldata length.
+        key,
+        value,
+    ];
+    let calldata_1 = vec![
+        **sierra_gas_contract_address,
+        selector_from_name("test_storage_write").0,
+        Felt::TWO,
+        key + Felt::ONE,
+        value + Felt::ONE,
+    ];
+    let calldata = create_calldata(
+        sierra_gas_contract_address,
+        "test_call_two_contracts",
+        &[calldata_0, calldata_1].concat(),
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run test and check storage updates.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+
+    let expected_storage_updates =
+        HashMap::from([(key, value), (key + Felt::ONE, value + Felt::ONE)]);
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(cairo_steps_contract_address, HashMap::default());
+    test_output.assert_storage_diff_eq(sierra_gas_contract_address, expected_storage_updates);
+}
+
+/// Runs the OS test for data gas Cairo1 accounts.
+#[rstest]
+#[tokio::test]
+async fn test_data_gas_accounts() {
+    let test_contract_sierra = &DATA_GAS_ACCOUNT_CONTRACT_SIERRA;
+    let test_contract_casm = &DATA_GAS_ACCOUNT_CONTRACT_CASM;
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
+    assert!(
+        VersionedConstants::latest_constants().os_constants.data_gas_accounts.contains(&class_hash)
+    );
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare the data gas account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
+        sierra_program_length: test_contract_sierra.sierra_program.len(),
+        abi_length: test_contract_sierra.abi.len(),
+        sierra_version,
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, test_contract_sierra);
+
+    // Deploy it (from funded account).
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, data_gas_account_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        calldata![],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Create and run an invoke tx.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(data_gas_account_address, "test_resource_bounds", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert_eq!(tx.version(), TransactionVersion::THREE);
+    assert_matches!(tx.resource_bounds(), ValidResourceBounds::AllResources(_));
+    test_manager.add_invoke_tx(tx, None);
+
+    // Run test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
+
+/// Verify OS blocks direct calls to `__execute__` entry point.
+#[rstest]
+#[tokio::test]
+async fn test_direct_execute_call() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let dummy_account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_manager, [test_contract_address, dummy_account_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (dummy_account, calldata![]),
+        ])
+        .await;
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_direct_execute_call",
+        &[
+            **dummy_account_address,
+            Felt::from(5), // Outer calldata length.
+            **test_contract_address,
+            selector_from_name("assert_eq").0,
+            Felt::TWO, // Inner calldata length.
+            Felt::ONE, // Arg 1.
+            Felt::ONE, // Arg 2.
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
+    test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
 }

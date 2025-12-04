@@ -66,7 +66,8 @@ macro_rules! test_hash_changes {
 }
 
 #[rstest]
-fn test_block_hash_regression(
+#[tokio::test]
+async fn test_block_hash_regression(
     #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4)]
     block_hash_version: BlockHashVersion,
 ) {
@@ -81,10 +82,11 @@ fn test_block_hash_regression(
     let state_diff = get_state_diff();
     let block_commitments = calculate_block_commitments(
         &transactions_data,
-        &state_diff,
+        state_diff,
         l1_da_mode,
         &block_hash_version.to_owned().into(),
-    );
+    )
+    .await;
     let parent_hash = BlockHash(Felt::from(11_u8));
 
     let partial_block_hash_components = PartialBlockHashComponents {
@@ -116,8 +118,8 @@ fn test_block_hash_regression(
     );
 }
 
-#[test]
-fn test_tx_commitment_with_an_empty_signature() {
+#[tokio::test]
+async fn test_tx_commitment_with_an_empty_signature() {
     let transactions_data = vec![TransactionHashingData {
         transaction_signature: TransactionSignature::default(),
         transaction_output: get_transaction_output(),
@@ -125,10 +127,11 @@ fn test_tx_commitment_with_an_empty_signature() {
     }];
     let block_commitments = calculate_block_commitments(
         &transactions_data,
-        &get_state_diff(),
+        get_state_diff(),
         L1DataAvailabilityMode::Blob,
         &StarknetVersion::V0_13_2,
-    );
+    )
+    .await;
     let actual_tx_commitment = block_commitments.transaction_commitment;
     let expected_tx_commitment_hash_when_signature_vec_of_zero =
         felt!("0x30259cdf52543aa0866b46a839c5e089184408a97945b4ffa8dcae78177dfde");

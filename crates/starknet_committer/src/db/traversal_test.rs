@@ -49,6 +49,52 @@ fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
         .collect()
 }
 
+async fn test_fetch_patricia_paths_inner_impl(
+    storage: MapStorage,
+    root_hash: HashOutput,
+    leaf_indices: Vec<u128>,
+    height: SubTreeHeight,
+    expected_nodes: PreimageMap,
+) {
+    let mut storage = storage;
+    let expected_fetched_leaves = leaf_indices
+        .iter()
+        .map(|&idx| {
+            let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx)) {
+                MockLeaf(Felt::from(idx))
+            } else {
+                MockLeaf::default()
+            };
+            (small_tree_index_to_full(U256::from(idx), height), leaf)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let mut leaf_indices = leaf_indices
+        .iter()
+        .map(|&idx| small_tree_index_to_full(U256::from(idx), height))
+        .collect::<Vec<_>>();
+    let main_subtree = SubTree {
+        sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
+        root_index: small_tree_index_to_full(U256::ONE, height),
+        root_hash,
+    };
+    let mut nodes = HashMap::new();
+    let mut fetched_leaves = HashMap::new();
+
+    fetch_patricia_paths_inner::<MockLeaf>(
+        &mut storage,
+        vec![main_subtree],
+        &mut nodes,
+        Some(&mut fetched_leaves),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(nodes, expected_nodes);
+    assert_eq!(fetched_leaves, expected_fetched_leaves);
+}
+
+#[tokio::test]
 #[rstest]
 // Some cases uses addition hash and others (generated in python) use pedersen hash.
 // For convenience, the leaves values are their NodeIndices.
@@ -441,48 +487,15 @@ fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
         })),
     ]),
 )]
-fn test_fetch_patricia_paths_inner(
+async fn test_fetch_patricia_paths_inner(
     #[case] storage: MapStorage,
     #[case] root_hash: HashOutput,
     #[case] leaf_indices: Vec<u128>,
     #[case] height: SubTreeHeight,
     #[case] expected_nodes: PreimageMap,
 ) {
-    let mut storage = storage;
-    let expected_fetched_leaves = leaf_indices
-        .iter()
-        .map(|&idx| {
-            let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx)) {
-                MockLeaf(Felt::from(idx))
-            } else {
-                MockLeaf::default()
-            };
-            (small_tree_index_to_full(U256::from(idx), height), leaf)
-        })
-        .collect::<HashMap<_, _>>();
-
-    let mut leaf_indices = leaf_indices
-        .iter()
-        .map(|&idx| small_tree_index_to_full(U256::from(idx), height))
-        .collect::<Vec<_>>();
-    let main_subtree = SubTree {
-        sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
-        root_index: small_tree_index_to_full(U256::ONE, height),
-        root_hash,
-    };
-    let mut nodes = HashMap::new();
-    let mut fetched_leaves = HashMap::new();
-
-    fetch_patricia_paths_inner::<MockLeaf>(
-        &mut storage,
-        vec![main_subtree],
-        &mut nodes,
-        Some(&mut fetched_leaves),
-    )
-    .unwrap();
-
-    assert_eq!(nodes, expected_nodes);
-    assert_eq!(fetched_leaves, expected_fetched_leaves);
+    test_fetch_patricia_paths_inner_impl(storage, root_hash, leaf_indices, height, expected_nodes)
+        .await;
 }
 
 #[derive(Deserialize, Debug)]
@@ -495,6 +508,7 @@ struct TestPatriciaPathsInput {
     expected_nodes: HashMap<Felt, Vec<Felt>>,
 }
 
+#[tokio::test]
 #[rstest]
 /// Test cases generated using Python `PatriciaTree.update()`.
 /// The files names indicate the tree height, number of initial leaves and number of modified
@@ -504,7 +518,7 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -544,11 +558,12 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         })
         .collect();
 
-    test_fetch_patricia_paths_inner(
+    test_fetch_patricia_paths_inner_impl(
         MapStorage(DbHashMap::from(storage)),
         HashOutput(input.root_hash),
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
-    );
+    )
+    .await;
 }

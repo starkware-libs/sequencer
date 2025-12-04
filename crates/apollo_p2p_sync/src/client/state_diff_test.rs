@@ -46,7 +46,7 @@ async fn state_diff_basic_flow() {
     let value1 = ascii_as_felt("value1").unwrap();
     let nonce0 = Nonce(ascii_as_felt("nonce0").unwrap());
 
-    let state_diffs_and_chunks = vec![
+    let state_diffs_and_chunks = [
         (
             ThinStateDiff {
                 deployed_contracts: indexmap!(address0 => class_hash0),

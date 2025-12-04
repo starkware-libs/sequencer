@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -24,12 +25,14 @@ pub trait ForestReader<'a> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         // TODO(Yoav): Change to 'impl Config' or delete this trait
         config: ConfigImpl,
-    ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
+    ) -> impl Future<
+        Output = ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>,
+    > + Send;
 }
 
 pub trait ForestWriter {
     /// Returns the number of new facts written to storage.
-    fn write(&mut self, filled_forest: &FilledForest) -> usize;
+    fn write(&mut self, filled_forest: &FilledForest) -> impl Future<Output = usize> + Send;
 }
 
 pub trait ForestStorage<'a>: ForestReader<'a> + ForestWriter {}

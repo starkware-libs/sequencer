@@ -16,6 +16,7 @@ use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use log::{debug, info};
 use serde_json::Value;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;

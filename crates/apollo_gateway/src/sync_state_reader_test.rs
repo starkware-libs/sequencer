@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::{
     ClassManagerClientResult,
@@ -11,8 +11,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use lazy_static::lazy_static;
+use blockifier::state::state_api_test_utils::assert_eq_state_result;
 use mockall::predicate;
 use rstest::rstest;
 use starknet_api::block::{
@@ -25,13 +24,16 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::MempoolStateReader;
 use crate::sync_state_reader::SyncStateReader;
+
+static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
+
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
@@ -71,7 +73,7 @@ async fn test_get_block_info() {
         block_number,
         tokio::runtime::Handle::current(),
     );
-    let result = state_sync_reader.get_block_info().unwrap();
+    let result = state_sync_reader.get_block_info().await.unwrap();
 
     assert_eq!(
         result,
@@ -193,45 +195,16 @@ async fn test_get_class_hash_at() {
     assert_eq!(result, expected_result);
 }
 
-fn dummy_casm_contract_class() -> CasmContractClass {
-    CasmContractClass {
-        compiler_version: "0.0.0".to_string(),
-        prime: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    }
-}
-
-lazy_static! {
-    static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
-}
-
-fn assert_eq_state_result(
-    a: &StateResult<RunnableCompiledClass>,
-    b: &StateResult<RunnableCompiledClass>,
-) {
-    match (a, b) {
-        (Ok(a), Ok(b)) => assert_eq!(a, b),
-        (Err(StateError::UndeclaredClassHash(a)), Err(StateError::UndeclaredClassHash(b))) => {
-            assert_eq!(a, b)
-        }
-        _ => panic!("StateResult mismatch (or unsupported comparison): {a:?} vs {b:?}"),
-    }
-}
-
 #[rstest]
 #[case::class_declared(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(ContractClass::test_casm_contract_class())),
     1,
     Ok(true),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
+    Ok(RunnableCompiledClass::test_casm_contract_class()),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared_but_in_class_manager(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(ContractClass::test_casm_contract_class())),
     0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),

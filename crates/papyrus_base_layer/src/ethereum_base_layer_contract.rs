@@ -24,7 +24,7 @@ use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
 use tracing::{debug, error, instrument};
 use url::Url;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::eth_events::parse_event;
 use crate::{
@@ -38,6 +38,10 @@ use crate::{
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 pub type EthereumContractAddress = Address;
+
+#[cfg(test)]
+#[path = "ethereum_base_layer_contract_test.rs"]
+pub mod ethereum_base_layer_contract_test;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
@@ -179,13 +183,23 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             return Ok(None);
         };
         let blob_fee = match block.header.excess_blob_gas {
-            Some(excess_blob_gas) if self.config.prague_blob_gas_calc => {
-                // Pectra update.
-                eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
+            Some(excess_blob_gas) if self.config.bpo2_start_block_number <= block.header.number => {
+                // Fusaka BPO2 update.
+                eip7840::BlobParams::bpo2().calc_blob_fee(excess_blob_gas)
+            }
+            Some(excess_blob_gas) if self.config.bpo1_start_block_number <= block.header.number => {
+                // Fusaka BPO1 update.
+                eip7840::BlobParams::bpo1().calc_blob_fee(excess_blob_gas)
+            }
+            Some(excess_blob_gas)
+                if self.config.fusaka_no_bpo_start_block_number <= block.header.number =>
+            {
+                // Fusaka update.
+                eip7840::BlobParams::osaka().calc_blob_fee(excess_blob_gas)
             }
             Some(excess_blob_gas) => {
-                // EIP 4844 - original blob pricing.
-                eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
+                // Pectra update.
+                eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
             }
             None => 0,
         };
@@ -244,12 +258,41 @@ impl PartialEq for EthereumBaseLayerError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
     pub starknet_contract_address: EthereumContractAddress,
-    pub prague_blob_gas_calc: bool,
+    // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
+    // Note 2: make sure to calculate the block number as activation epoch x32.
+    // The block number at which the Fusaka upgrade was deployed (not including any BPO updates).
+    pub fusaka_no_bpo_start_block_number: L1BlockNumber,
+    // The block number at which BPO1 update was deployed.
+    pub bpo1_start_block_number: L1BlockNumber,
+    // The block number at which BPO2 update was deployed.
+    pub bpo2_start_block_number: L1BlockNumber,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
+}
+
+impl Validate for EthereumBaseLayerConfig {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        let mut errors = validator::ValidationErrors::new();
+
+        if self.fusaka_no_bpo_start_block_number > self.bpo1_start_block_number {
+            let mut error = ValidationError::new("block_numbers_not_ordered");
+            error.message =
+                Some("fusaka_no_bpo_start_block_number must be <= bpo1_start_block_number".into());
+            errors.add("fusaka_no_bpo_start_block_number", error);
+        }
+
+        if self.bpo1_start_block_number > self.bpo2_start_block_number {
+            let mut error = ValidationError::new("block_numbers_not_ordered");
+            error.message =
+                Some("bpo1_start_block_number must be <= bpo2_start_block_number".into());
+            errors.add("bpo1_start_block_number", error);
+        }
+
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
+    }
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
@@ -262,10 +305,22 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "prague_blob_gas_calc",
-                &self.prague_blob_gas_calc,
-                "If true use the blob gas calculcation from the Pectra upgrade. If false use the \
-                 EIP 4844 calculation.",
+                "fusaka_no_bpo_start_block_number",
+                &self.fusaka_no_bpo_start_block_number,
+                "The block number at which the Fusaka upgrade was deployed (not including any BPO \
+                 updates).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bpo1_start_block_number",
+                &self.bpo1_start_block_number,
+                "The block number at which BPO1 update was deployed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bpo2_start_block_number",
+                &self.bpo2_start_block_number,
+                "The block number at which BPO2 update was deployed.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -285,7 +340,9 @@ impl Default for EthereumBaseLayerConfig {
 
         Self {
             starknet_contract_address,
-            prague_blob_gas_calc: true,
+            fusaka_no_bpo_start_block_number: 0,
+            bpo1_start_block_number: 0,
+            bpo2_start_block_number: 0,
             timeout_millis: Duration::from_millis(1000),
         }
     }

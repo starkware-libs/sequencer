@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod compile;
 mod errors;
 pub mod offline_state_reader;

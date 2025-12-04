@@ -59,7 +59,7 @@ pub struct DbConfig {
     /// chain id.
     pub path_prefix: PathBuf,
     /// The [chain id](https://docs.rs/starknet_api/latest/starknet_api/core/struct.ChainId.html) of the Starknet network.
-    #[validate(custom = "validate_ascii")]
+    #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     /// Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file
     /// does not exist.

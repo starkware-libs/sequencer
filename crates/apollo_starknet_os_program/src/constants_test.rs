@@ -5,6 +5,7 @@ use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 const CONSTANTS_CONTENTS: &str = include_str!("cairo/starkware/starknet/core/os/constants.cairo");

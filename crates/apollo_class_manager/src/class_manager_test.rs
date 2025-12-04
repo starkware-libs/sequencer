@@ -31,10 +31,8 @@ fn mock_compile_expectations(
     compiler: &mut MockSierraCompilerClient,
     class: RawClass,
 ) -> (RawExecutableClass, CompiledClassHash) {
-    let compile_output = (
-        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap(),
-        CompiledClassHash(felt!("0x5678")),
-    );
+    let compile_output =
+        (RawExecutableClass::test_casm_contract_class(), CompiledClassHash(felt!("0x5678")));
     let cloned_compiled_output = compile_output.clone();
 
     compiler

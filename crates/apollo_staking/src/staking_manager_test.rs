@@ -209,7 +209,7 @@ async fn get_proposer_success(
     // - [7000–8999] → STAKER_2
     // - [9000–9999] → STAKER_1
 
-    set_stakers(&mut state, &block_context, &vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+    set_stakers(&mut state, &block_context, &[STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
@@ -259,7 +259,7 @@ async fn get_proposer_random_value_exceeds_total_weight(
     block_context: Context,
 ) {
     // Stakers with total weight 10000.
-    set_stakers(&mut state, &block_context, &vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+    set_stakers(&mut state, &block_context, &[STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
     // Random value is out of range. Valid range is [0, 10000).
     let mut random_generator = MockBlockRandomGenerator::new();

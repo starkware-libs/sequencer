@@ -903,11 +903,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         }
     ),
     (
-        LogRemainingBlocks,
-        log_remaining_blocks,
-        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
-    ),
-    (
         AllocateSegmentsForMessages,
         allocate_segments_for_messages,
         r#"# Allocate segments for the messages.
@@ -1853,6 +1848,11 @@ block_input = next(block_input_iterator)
 ) = get_execution_helper_and_syscall_handlers(
     block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
 )"#}
+    ),
+    (
+        LogRemainingBlocks,
+        log_remaining_blocks,
+        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
     ),
     (
         GetPublicKeys,

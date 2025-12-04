@@ -10,7 +10,7 @@ use apollo_config_manager_types::communication::{
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
-use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
@@ -24,7 +24,7 @@ const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";
 /// Creates a temporary config file with specific test values and returns CLI args pointing to it.
 fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
     let config = SequencerNodeConfig::default();
-    let config_pointers_map = ConfigPointersMap::create_for_testing(CONFIG_POINTERS.clone());
+    let config_pointers_map = ConfigPointersMap::create_for_testing();
 
     let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
 

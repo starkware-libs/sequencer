@@ -1,0 +1,2 @@
+~ /archival_data_gas_costs/gas_per_code_byte/0: 1280
+~ /deprecated_l2_resource_gas_costs/gas_per_code_byte/0: 32

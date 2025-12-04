@@ -117,6 +117,12 @@ pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 )]
 pub struct Calldata(pub Arc<Vec<Felt>>);
 
+impl From<Vec<Felt>> for Calldata {
+    fn from(value: Vec<Felt>) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
 #[macro_export]
 macro_rules! calldata {
     ( $( $x:expr ),* ) => {

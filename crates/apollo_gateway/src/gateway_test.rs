@@ -36,17 +36,14 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use clap::Command;
-use mempool_test_utils::starknet_api_test_utils::{
-    contract_class,
-    declare_tx,
-    VALID_ACCOUNT_BALANCE,
-};
+use mempool_test_utils::starknet_api_test_utils::{contract_class, declare_tx};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -68,6 +65,7 @@ use starknet_api::test_utils::{
     valid_resource_bounds_for_testing,
     TestingTxArgs,
     CHAIN_ID_FOR_TESTS,
+    VALID_ACCOUNT_BALANCE,
 };
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
@@ -125,6 +123,7 @@ fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
+        contract_class_manager_config: ContractClassManagerConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,
@@ -566,7 +565,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
@@ -609,7 +608,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|_, _| Err(expected_error));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 

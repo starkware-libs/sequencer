@@ -5,6 +5,7 @@ use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{constants, L2ToL1Payload};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 

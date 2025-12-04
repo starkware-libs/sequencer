@@ -568,7 +568,7 @@ fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
     // Run.
     let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let mut executor = TransactionExecutor::new(state, block_context, config);
-    let results = executor.execute_txs(&vec![account_tx.into()], None);
+    let results = executor.execute_txs(&[account_tx.into()], None);
 
     let (tx_execution_info, _state_diff) = results[0].as_ref().unwrap();
     assert!(tx_execution_info.is_reverted());

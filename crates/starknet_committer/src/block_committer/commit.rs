@@ -44,14 +44,16 @@ pub async fn commit_block<Reader: for<'a> ForestReader<'a>>(
     if let Some(ref mut tm) = time_measurement {
         tm.start_measurement(Action::Read);
     }
-    let (mut original_forest, original_contracts_trie_leaves) = trie_reader.read(
-        input.contracts_trie_root_hash,
-        input.classes_trie_root_hash,
-        &actual_storage_updates,
-        &actual_classes_updates,
-        &forest_sorted_indices,
-        input.config.clone(),
-    )?;
+    let (mut original_forest, original_contracts_trie_leaves) = trie_reader
+        .read(
+            input.contracts_trie_root_hash,
+            input.classes_trie_root_hash,
+            &actual_storage_updates,
+            &actual_classes_updates,
+            &forest_sorted_indices,
+            input.config.clone(),
+        )
+        .await?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();

@@ -10,9 +10,9 @@ use validator::Validate;
 /// Configuration for consensus containing both static and dynamic configs.
 #[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolConfig {
-    #[validate]
+    #[validate(nested)]
     pub dynamic_config: MempoolDynamicConfig,
-    #[validate]
+    #[validate(nested)]
     pub static_config: MempoolStaticConfig,
 }
 

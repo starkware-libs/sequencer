@@ -23,6 +23,7 @@ use crate::block::{
 use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
 use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
@@ -144,6 +145,10 @@ pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 
+#[allow(clippy::as_conversions)]
+pub const VALID_ACCOUNT_BALANCE: Fee =
+    Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
+
 // V3 transactions:
 pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
@@ -231,22 +236,56 @@ pub trait TestingTxArgs {
     fn get_executable_tx(&self) -> AccountTransaction;
 }
 
+static TEST_CASM_CONTRACT_CLASS: LazyLock<ContractClass> = LazyLock::new(|| {
+    let default_casm = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: vec![
+            BigUintAsHex { value: BigUint::from(1_u8) },
+            BigUintAsHex { value: BigUint::from(1_u8) },
+            BigUintAsHex { value: BigUint::from(1_u8) },
+        ],
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    ContractClass::V1((default_casm, SierraVersion::default()))
+});
+
+static TEST_DEPRECATED_CASM_CONTRACT_CLASS: LazyLock<ContractClass> = LazyLock::new(|| {
+    let default_deprecated_casm = DeprecatedContractClass {
+        abi: None,
+        program: Program {
+            attributes: serde_json::Value::Null,
+            builtins: serde_json::Value::Array(vec![]),
+            compiler_version: serde_json::Value::Null,
+            data: serde_json::Value::Array(vec![]),
+            debug_info: serde_json::Value::Null,
+            hints: serde_json::Value::Object(serde_json::Map::new()),
+            identifiers: serde_json::Value::Object(serde_json::Map::new()),
+            main_scope: serde_json::Value::String("__main__".to_string()),
+            prime: serde_json::Value::String(
+                "0x800000000000011000000000000000000000000000000000000000000000001".to_string(),
+            ),
+            reference_manager: serde_json::Value::Object({
+                let mut map = serde_json::Map::new();
+                map.insert("references".to_string(), serde_json::Value::Array(vec![]));
+                map
+            }),
+        },
+        entry_points_by_type: Default::default(),
+    };
+    ContractClass::V0(default_deprecated_casm)
+});
+
 impl ContractClass {
     pub fn test_casm_contract_class() -> Self {
-        let default_casm = CasmContractClass {
-            prime: Default::default(),
-            compiler_version: Default::default(),
-            bytecode: vec![
-                BigUintAsHex { value: BigUint::from(1_u8) },
-                BigUintAsHex { value: BigUint::from(1_u8) },
-                BigUintAsHex { value: BigUint::from(1_u8) },
-            ],
-            bytecode_segment_lengths: Default::default(),
-            hints: Default::default(),
-            pythonic_hints: Default::default(),
-            entry_points_by_type: Default::default(),
-        };
-        ContractClass::V1((default_casm, SierraVersion::default()))
+        TEST_CASM_CONTRACT_CLASS.clone()
+    }
+
+    pub fn test_deprecated_casm_contract_class() -> Self {
+        TEST_DEPRECATED_CASM_CONTRACT_CLASS.clone()
     }
 }
 

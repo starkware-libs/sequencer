@@ -101,12 +101,7 @@ async fn main() {
          {expected_block_number_after_revert}."
     );
     modify_revert_config_idle_nodes(&mut integration_test_manager, node_indices.clone(), None);
-    let node_start_height = expected_block_number_after_revert.unchecked_next();
-    modify_height_configs_idle_nodes(
-        &mut integration_test_manager,
-        node_indices.clone(),
-        node_start_height,
-    );
+    modify_height_configs_idle_nodes(&mut integration_test_manager, node_indices.clone());
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
@@ -187,14 +182,9 @@ fn modify_revert_config(
 fn modify_height_configs_idle_nodes(
     integration_test_manager: &mut IntegrationTestManager,
     node_indices: HashSet<usize>,
-    node_start_height: BlockNumber,
 ) {
-    integration_test_manager.modify_config_idle_nodes(node_indices, |config| {
+    integration_test_manager.modify_config_idle_nodes(node_indices, |_config| {
         // TODO(noamsp): Change these values point to a single config value and refactor this
         // function accordingly.
-        config.consensus_manager_config.as_mut().unwrap().immediate_active_height =
-            node_start_height;
-        config.consensus_manager_config.as_mut().unwrap().cende_config.skip_write_height =
-            Some(node_start_height);
     });
 }

@@ -17,6 +17,7 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,

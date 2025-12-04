@@ -230,9 +230,12 @@ impl TransactionConverterTrait for TransactionConverter {
                 }))
             }
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
-                let sierra = self.get_sierra(tx.class_hash).await?;
+                let (sierra, contract_class) = tokio::try_join!(
+                    self.get_sierra(tx.class_hash),
+                    self.get_executable(tx.class_hash)
+                )?;
                 let class_info = ClassInfo {
-                    contract_class: self.get_executable(tx.class_hash).await?,
+                    contract_class,
                     sierra_program_length: sierra.sierra_program.len(),
                     abi_length: sierra.abi.len(),
                     sierra_version: SierraVersion::extract_from_program(&sierra.sierra_program)?,

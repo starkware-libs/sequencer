@@ -10,6 +10,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;

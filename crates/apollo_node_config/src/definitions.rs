@@ -6,6 +6,9 @@ use apollo_config::{ParamPath, SerializedContent, SerializedParam};
 use serde_json::to_value;
 use serde_json::Value;
 
+#[cfg(any(feature = "testing", test))]
+use crate::node_config::CONFIG_POINTERS;
+
 #[derive(Debug, Clone, Default)]
 pub struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
 
@@ -22,8 +25,8 @@ impl ConfigPointersMap {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn create_for_testing(config_pointers: ConfigPointers) -> Self {
-        let mut config_pointers_map = Self::new(config_pointers);
+    pub fn create_for_testing() -> Self {
+        let mut config_pointers_map = Self::new(CONFIG_POINTERS.clone());
 
         // Set all required pointer targets with sensible testing defaults
         config_pointers_map.change_target_value(

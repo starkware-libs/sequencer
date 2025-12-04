@@ -12,6 +12,7 @@ use starknet_api::block::{
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
+use url::Url;
 
 use super::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
@@ -32,7 +33,7 @@ const TEST_SEQUENCER_ADDRESS: &str = "0x111";
 
 fn test_cende_client(server: &mut ServerGuard) -> PreconfirmedCendeClient {
     let config =
-        PreconfirmedCendeConfig { recorder_url: Sensitive::new(server.url().parse().unwrap()) };
+        PreconfirmedCendeConfig { recorder_url: server.url().parse::<Url>().unwrap().into() };
     PreconfirmedCendeClient::new(config)
 }
 

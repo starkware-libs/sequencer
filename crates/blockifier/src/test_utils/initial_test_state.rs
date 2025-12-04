@@ -12,7 +12,10 @@ use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use crate::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -172,10 +175,15 @@ pub fn test_state_inner_with_contract_manager(
         run_cairo_native,
         wait_on_native_compilation,
     ));
-    let reader = StateReaderAndContractManager {
-        state_reader: reader.clone(),
-        contract_class_manager: manager,
-    };
+
+    let reader = state_reader_and_contract_manager_for_testing(reader, manager);
 
     CachedState::from(reader)
+}
+
+pub fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasses>(
+    state_reader: Reader,
+    contract_class_manager: ContractClassManager,
+) -> StateReaderAndContractManager<Reader> {
+    StateReaderAndContractManager::new(state_reader, contract_class_manager, None)
 }

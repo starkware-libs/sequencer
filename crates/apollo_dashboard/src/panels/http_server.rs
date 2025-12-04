@@ -8,7 +8,7 @@ use apollo_http_server::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {
@@ -38,7 +38,7 @@ fn get_panel_transaction_success_rate() -> Panel {
     .with_unit(Unit::PercentUnit)
     .with_log_query("\"Recorded transaction\"")
 }
-fn get_panel_http_server_transactions_received_rate() -> Panel {
+pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
@@ -82,6 +82,17 @@ fn get_panel_transactions_failed_by_reason() -> Panel {
     .with_legends(vec!["internal error", "deprecated error"])
 }
 
+pub(crate) fn get_panel_http_server_seconds_since_last_transaction() -> Panel {
+    Panel::new(
+        "Seconds since last received transaction",
+        "The number of seconds since the last transaction was received by the HTTP server \
+         (assuming there was a transaction in the last 12 hours)",
+        get_time_since_last_increase_expr(&ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
+}
+
 pub(crate) fn get_http_server_row() -> Row {
     Row::new(
         "Http Server",
@@ -91,6 +102,7 @@ pub(crate) fn get_http_server_row() -> Row {
             get_panel_transaction_success_rate(),
             get_panel_transactions_failed_by_reason(),
             get_panel_http_add_tx_latency(),
+            get_panel_http_server_seconds_since_last_transaction(),
         ],
     )
 }

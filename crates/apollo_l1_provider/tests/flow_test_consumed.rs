@@ -84,7 +84,7 @@ async fn l1_handler_tx_consumed_txs() {
     // First we get the message sent. Then we get the consumed event (should be scraped on the
     // second iteration of the scraper loop). On the third iteration, we get the second consumed
     // event (to trigger deletion on the provider records).
-    let all_events = vec![
+    let all_events = [
         message_to_l2_event.clone(),
         message_consumed_event.clone(),
         message_consumed_event_2.clone(),

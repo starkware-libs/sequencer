@@ -29,12 +29,12 @@ fn test_versioned_constants_overrides() {
     let updated_max_n_events = versioned_constants.tx_event_limits.max_n_emitted_events + 1;
 
     // Create a versioned constants copy with overriden values.
-    let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+    let result = VersionedConstants::get_versioned_constants(Some(VersionedConstantsOverrides {
         validate_max_n_steps: updated_validate_max_n_steps,
         max_recursion_depth: updated_max_recursion_depth,
         invoke_tx_max_n_steps: updated_invoke_tx_max_n_steps,
         max_n_events: updated_max_n_events,
-    });
+    }));
 
     // Assert the new values are used.
     assert_eq!(result.invoke_tx_max_n_steps, updated_invoke_tx_max_n_steps);
@@ -45,7 +45,8 @@ fn test_versioned_constants_overrides() {
 
 #[rstest]
 fn test_string_inside_composed_field(
-    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+    #[values(StarknetVersion::LATEST, VersionedConstants::first_version())]
+    version: StarknetVersion,
 ) {
     let json_data = r#"
     {
@@ -88,7 +89,8 @@ fn check_constants_serde_error(
 
 #[rstest]
 fn test_missing_key(
-    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+    #[values(StarknetVersion::LATEST, VersionedConstants::first_version())]
+    version: StarknetVersion,
 ) {
     let json_data = r#"
     {
@@ -103,7 +105,7 @@ fn test_missing_key(
 /// not removed.
 #[test]
 fn test_backward_compatibility_accounts_increasing() {
-    let first_version = StarknetVersion::V0_13_0;
+    let first_version = VersionedConstants::first_version();
     let mut prev_vc = VersionedConstants::get(&first_version).unwrap();
     let mut prev_version = first_version;
     for version in StarknetVersion::iter().filter(|v| v > &first_version) {
@@ -142,7 +144,8 @@ fn test_backward_compatibility_accounts_increasing() {
 
 #[rstest]
 fn test_unhandled_value_type(
-    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+    #[values(StarknetVersion::LATEST, VersionedConstants::first_version())]
+    version: StarknetVersion,
 ) {
     let json_data = r#"
     {
@@ -153,7 +156,8 @@ fn test_unhandled_value_type(
 
 #[rstest]
 fn test_invalid_number(
-    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+    #[values(StarknetVersion::LATEST, VersionedConstants::first_version())]
+    version: StarknetVersion,
 ) {
     check_constants_serde_error(
         version,
@@ -198,7 +202,9 @@ fn test_all_jsons_in_enum() {
     // Check that the number of new starknet versions (versions supporting VC) is equal to the
     // number of JSON files.
     assert_eq!(
-        StarknetVersion::iter().filter(|version| version >= &StarknetVersion::V0_13_0).count(),
+        StarknetVersion::iter()
+            .filter(|version| version >= &VersionedConstants::first_version())
+            .count(),
         all_jsons.len()
     );
 

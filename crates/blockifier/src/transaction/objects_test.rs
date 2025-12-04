@@ -4,6 +4,7 @@ use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{class_hash, contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 

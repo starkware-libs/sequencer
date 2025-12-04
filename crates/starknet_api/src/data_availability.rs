@@ -7,17 +7,12 @@ use crate::StarknetApiError;
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
 )]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[serde(try_from = "Deserializer")]
 pub enum DataAvailabilityMode {
+    #[cfg_attr(any(test, feature = "testing"), default)]
     L1 = 0,
     L2 = 1,
-}
-
-#[cfg(any(test, feature = "testing"))]
-impl Default for DataAvailabilityMode {
-    fn default() -> Self {
-        Self::L1
-    }
 }
 
 /// Deserialize a `DataAvailabilityMode` from a given `Deserializer`.

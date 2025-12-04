@@ -171,6 +171,16 @@ pub async fn test_regression_committer_flow() {
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST);
 }
 
+async fn process_single_file(file_content: String, file_path_string: String) {
+    let output_file = NamedTempFile::new().unwrap();
+    let result =
+        test_single_committer_flow(file_content, output_file.path().to_str().unwrap().to_string())
+            .await;
+    if result.is_err() {
+        panic!("Error {} for file: {}", result.err().unwrap(), file_path_string);
+    }
+}
+
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_committer_all_files() {
@@ -179,20 +189,21 @@ pub async fn test_regression_committer_all_files() {
         EXPECTED_NUMBER_OF_FILES
     );
     let dir_path = fs::read_dir("./test_inputs/regression_files").unwrap();
-    let mut tasks = Vec::with_capacity(EXPECTED_NUMBER_OF_FILES);
-    for entry in dir_path {
-        tasks.push(tokio::task::spawn(async move {
+
+    // Collect all file paths and contents first
+    let files: Vec<_> = dir_path
+        .map(|entry| {
             let file_path = entry.unwrap().path();
-            let output_file = NamedTempFile::new().unwrap();
-            let result = test_single_committer_flow(
-                fs::read_to_string(file_path.clone()).unwrap(),
-                output_file.path().to_str().unwrap().to_string(),
-            )
-            .await;
-            if result.is_err() {
-                panic!("Error {} for file: {:?}", result.err().unwrap(), file_path);
-            }
-        }));
-    }
-    futures::future::try_join_all(tasks).await.unwrap();
+            let file_path_string = file_path.to_str().unwrap().to_string();
+            let file_content = fs::read_to_string(&file_path_string).unwrap();
+            (file_content, file_path_string)
+        })
+        .collect();
+
+    // Process all files concurrently
+    let tasks = files.into_iter().map(|(file_content, file_path_string)| {
+        process_single_file(file_content, file_path_string)
+    });
+
+    futures::future::join_all(tasks).await;
 }

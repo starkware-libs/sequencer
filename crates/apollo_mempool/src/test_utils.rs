@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_mempool_types::errors::MempoolError;
-use apollo_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
+use apollo_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
@@ -253,6 +253,20 @@ pub fn add_tx_expect_error(
     expected_error: MempoolError,
 ) {
     assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
+}
+
+#[track_caller]
+pub fn validate_tx(mempool: &mut Mempool, input: &ValidationArgs) {
+    assert_eq!(mempool.validate_tx(input.clone()), Ok(()));
+}
+
+#[track_caller]
+pub fn validate_tx_expect_error(
+    mempool: &mut Mempool,
+    input: &ValidationArgs,
+    expected_error: MempoolError,
+) {
+    assert_eq!(mempool.validate_tx(input.clone()), Err(expected_error));
 }
 
 #[track_caller]

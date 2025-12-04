@@ -46,8 +46,8 @@ pub enum KeyStoreError {
 /// Serves as the signature manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
-#[async_trait]
 #[cfg_attr(any(feature = "testing", test), automock)]
+#[async_trait]
 pub trait SignatureManagerClient: Send + Sync {
     async fn identify(
         &self,

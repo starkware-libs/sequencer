@@ -43,7 +43,7 @@ impl<S: Storage> FactsDb<S> {
 
     /// Creates the contracts trie original skeleton.
     /// Also returns the previous contracts state of the modified contracts.
-    fn create_contracts_trie<'a>(
+    async fn create_contracts_trie<'a>(
         &mut self,
         contracts_trie_root_hash: HashOutput,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
@@ -54,10 +54,11 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &HashMap::new(),
             &OriginalSkeletonContractsTrieConfig::new(),
-        )?)
+        )
+        .await?)
     }
 
-    fn create_storage_tries<'a>(
+    async fn create_storage_tries<'a>(
         &mut self,
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -81,13 +82,14 @@ impl<S: Storage> FactsDb<S> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
-            )?;
+            )
+            .await?;
             storage_tries.insert(*address, original_skeleton);
         }
         Ok(storage_tries)
     }
 
-    fn create_classes_trie<'a>(
+    async fn create_classes_trie<'a>(
         &mut self,
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
@@ -102,7 +104,8 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
-        )?)
+        )
+        .await?)
     }
 }
 
@@ -116,7 +119,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
-    fn read(
+    async fn read(
         &mut self,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
@@ -125,22 +128,28 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ConfigImpl,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        let (contracts_trie, original_contracts_trie_leaves) = self.create_contracts_trie(
-            contracts_trie_root_hash,
-            forest_sorted_indices.contracts_trie_sorted_indices,
-        )?;
-        let storage_tries = self.create_storage_tries(
-            storage_updates,
-            &original_contracts_trie_leaves,
-            &config,
-            &forest_sorted_indices.storage_tries_sorted_indices,
-        )?;
-        let classes_trie = self.create_classes_trie(
-            classes_updates,
-            classes_trie_root_hash,
-            &config,
-            forest_sorted_indices.classes_trie_sorted_indices,
-        )?;
+        let (contracts_trie, original_contracts_trie_leaves) = self
+            .create_contracts_trie(
+                contracts_trie_root_hash,
+                forest_sorted_indices.contracts_trie_sorted_indices,
+            )
+            .await?;
+        let storage_tries = self
+            .create_storage_tries(
+                storage_updates,
+                &original_contracts_trie_leaves,
+                &config,
+                &forest_sorted_indices.storage_tries_sorted_indices,
+            )
+            .await?;
+        let classes_trie = self
+            .create_classes_trie(
+                classes_updates,
+                classes_trie_root_hash,
+                &config,
+                forest_sorted_indices.classes_trie_sorted_indices,
+            )
+            .await?;
 
         Ok((
             OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
@@ -150,7 +159,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
 }
 
 impl<S: Storage> ForestWriter for FactsDb<S> {
-    fn write(&mut self, filled_forest: &FilledForest) -> usize {
-        filled_forest.write_to_storage(&mut self.storage)
+    async fn write(&mut self, filled_forest: &FilledForest) -> usize {
+        filled_forest.write_to_storage(&mut self.storage).await
     }
 }

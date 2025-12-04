@@ -71,7 +71,7 @@ pub const RPC_CONFIG_DEFAULT_PORT: u16 = 8090;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Validate)]
 pub struct RpcConfig {
-    #[validate(custom = "validate_ascii")]
+    #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     pub ip: IpAddr,
     pub port: u16,

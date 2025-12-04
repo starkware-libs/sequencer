@@ -34,6 +34,22 @@ empty_dashboard = {
 templating_object = {
     "list": [
         {
+            "type": "query",
+            "name": "gcp_project",
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "query": 'label_values(batcher_proposal_started{namespace=~"$namespace", cluster=~"$cluster"}, project_id)',
+            "query": {
+                "qryType": 1,
+                "query": 'label_values(batcher_proposal_started{namespace=~"$namespace", cluster=~"$cluster"}, project_id)',
+                "refId": "PrometheusVariableQueryEditor-VariableQuery",
+            },
+            "hide": 2,
+            "includeAll": False,
+            "multi": False,
+            "skipUrlSync": True,
+            "refresh": 1,
+        },
+        {
             "allValue": "",
             "current": {"selected": True, "text": [], "value": []},
             "datasource": {"type": "prometheus", "uid": "Prometheus"},

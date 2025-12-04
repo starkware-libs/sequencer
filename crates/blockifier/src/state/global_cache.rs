@@ -36,6 +36,21 @@ impl CompiledClasses {
             },
         }
     }
+
+    // Note: For Cairo 1 classes, the Sierra does not match the Casm.
+    #[cfg(any(feature = "testing", test))]
+    pub fn from_runnable_for_testing(runnable_compiled_class: RunnableCompiledClass) -> Self {
+        match runnable_compiled_class {
+            RunnableCompiledClass::V0(compiled_class_v0) => Self::V0(compiled_class_v0),
+            RunnableCompiledClass::V1(compiled_class_v1) => {
+                Self::V1(compiled_class_v1, Arc::new(SierraContractClass::default()))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(native_compiled_class_v1) => {
+                Self::V1Native(CachedCairoNative::Compiled(native_compiled_class_v1))
+            }
+        }
+    }
 }
 
 pub type RawClassCache = GlobalContractCache<CompiledClasses>;

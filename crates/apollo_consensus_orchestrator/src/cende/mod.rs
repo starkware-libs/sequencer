@@ -2,7 +2,6 @@
 mod cende_test;
 mod central_objects;
 
-use std::future::ready;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
@@ -90,6 +89,7 @@ pub trait CendeContext: Send + Sync {
     /// Write the previous height blob to Aerospike. Returns a cell with an inner boolean indicating
     /// whether the write was successful.
     /// `current_height` is the height of the block that is built when calling this function.
+    /// This function should return false if the previous height blob is not available.
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool>;
 
     // Prepares the previous height blob that will be written in the next height.
@@ -107,7 +107,6 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
     url: Url,
     client: ClientWithMiddleware,
-    skip_write_height: Option<BlockNumber>,
     class_manager: SharedClassManagerClient,
 }
 
@@ -129,7 +128,6 @@ impl CendeAmbassador {
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
-            skip_write_height: cende_config.skip_write_height,
             class_manager,
         }
     }
@@ -139,18 +137,6 @@ impl CendeAmbassador {
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
-
-        // TODO(dvir): consider returning a future that will be spawned in the context instead.
-        if self.skip_write_height == Some(current_height) {
-            info!(
-                "Height {current_height} is configured as the `skip_write_height`, meaning \
-                 consensus can send a proposal without writing to Aerospike. The blob that should \
-                 have been written here in a normal flow, should already be written to Aerospike. \
-                 Not writing to Aerospike previous height blob!!!.",
-            );
-            record_write_failure(CendeWriteFailureReason::SkipWriteHeight);
-            return tokio::spawn(ready(true));
-        }
 
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.url.clone());

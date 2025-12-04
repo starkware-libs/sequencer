@@ -5,6 +5,9 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
   sequencerConfig:
+    base_layer_config_bpo1_start_block_number: 13205504
+    base_layer_config_bpo2_start_block_number: 13410304
+    base_layer_config_fusaka_no_bpo_start_block_number: 13164544
     components_batcher_port: 55000
     components_batcher_url: sequencer-core-service
     components_l1_gas_price_provider_port: 55003

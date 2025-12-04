@@ -25,6 +25,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -80,6 +81,9 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                contract_class_manager: ContractClassManager::start(
+                    config.contract_class_manager_config.clone(),
+                ),
             }),
             state_reader_factory,
             mempool_client,
@@ -254,7 +258,7 @@ impl ProcessTxBlockingTask {
     fn process_tx(self) -> GatewayResult<Nonce> {
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
+            .instantiate_validator(self.state_reader_factory.as_ref(), self.runtime.clone())?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,

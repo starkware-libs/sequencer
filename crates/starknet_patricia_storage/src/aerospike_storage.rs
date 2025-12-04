@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use aerospike::{
     as_bin,
@@ -12,6 +13,7 @@ use aerospike::{
     Client,
     ClientPolicy,
     Error as AerospikeError,
+    Host,
     Key,
     ReadPolicy,
     Record,
@@ -31,6 +33,8 @@ use crate::storage_trait::{
     Storage,
 };
 
+pub type Port = u16;
+
 #[derive(thiserror::Error, Debug)]
 pub enum AerospikeStorageError {
     #[error(transparent)]
@@ -41,11 +45,15 @@ pub enum AerospikeStorageError {
     ExpectedBlob(Value),
 }
 
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+const DEFAULT_FAIL_IF_NOT_CONNECTED: bool = true;
+pub const DEFAULT_PORT: Port = 3000;
+
 #[derive(Clone)]
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
-    pub hosts: String,
+    pub hosts: Vec<Host>,
 
     pub client_policy: ClientPolicy,
     pub read_policy: ReadPolicy,
@@ -59,12 +67,16 @@ pub struct AerospikeStorageConfig {
 }
 
 impl AerospikeStorageConfig {
-    pub fn new_default(aeroset: String, namespace: String, hosts: String) -> Self {
+    pub fn new_default(aeroset: String, namespace: String, hosts: Vec<(String, Port)>) -> Self {
         Self {
             aeroset,
             namespace,
-            hosts,
-            client_policy: ClientPolicy::default(),
+            hosts: hosts.into_iter().map(|(host, port)| Host::new(&host, port)).collect(),
+            client_policy: ClientPolicy {
+                fail_if_not_connected: DEFAULT_FAIL_IF_NOT_CONNECTED,
+                timeout: Some(DEFAULT_TIMEOUT),
+                ..Default::default()
+            },
             read_policy: ReadPolicy::default(),
             write_policy: WritePolicy::default(),
             batch_policy: BatchPolicy::default(),
@@ -82,8 +94,8 @@ pub struct AerospikeStorage {
 }
 
 impl AerospikeStorage {
-    pub fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
-        let client = Arc::new(Client::new(&config.client_policy, &config.hosts)?);
+    pub async fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
+        let client = Arc::new(Client::new(&config.client_policy, &config.hosts).await?);
         Ok(Self { config, client })
     }
 
@@ -103,21 +115,26 @@ impl AerospikeStorage {
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let record =
-            self.client.get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)?;
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let record = self
+            .client
+            .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
+            .await?;
         self.extract_value(&record)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.client.put(
-            &self.config.write_policy,
-            &self.get_key(key)?,
-            &[as_bin!(&self.config.bin_name, value.0)],
-        )?)
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(self
+            .client
+            .put(
+                &self.config.write_policy,
+                &self.get_key(key)?,
+                &[as_bin!(&self.config.bin_name, value.0)],
+            )
+            .await?)
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
             ops.push(BatchOperation::read(
@@ -126,7 +143,7 @@ impl Storage for AerospikeStorage {
                 Bins::All,
             ));
         }
-        let batch_records = self.client.batch(&self.config.batch_policy, &ops)?;
+        let batch_records = self.client.batch(&self.config.batch_policy, &ops).await?;
         batch_records
             .iter()
             .map(|batch_record| match batch_record.record {
@@ -141,7 +158,7 @@ impl Storage for AerospikeStorage {
             .collect::<Result<_, _>>()
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let keys_and_bins: Vec<(DbKey, Bin)> = key_to_value
             .into_iter()
             .map(|(key, value)| (key, as_bin!(&self.config.bin_name, value.0)))
@@ -154,12 +171,12 @@ impl Storage for AerospikeStorage {
                 vec![operations::put(bin)],
             ));
         }
-        self.client.batch(&self.config.batch_policy, &ops)?;
+        self.client.batch(&self.config.batch_policy, &ops).await?;
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?)?;
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+        self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?).await?;
         Ok(())
     }
 

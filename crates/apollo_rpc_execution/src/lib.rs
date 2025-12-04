@@ -80,6 +80,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;

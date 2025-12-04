@@ -17,9 +17,10 @@ use apollo_node_config::component_execution_config::{
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
+use phf::phf_set;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
-use serde_json::{json, Map, Value};
+use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -52,6 +53,38 @@ use crate::test_utils::FIX_BINARY_NAME;
 use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
+
+pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
+    "base_layer_config.bpo1_start_block_number",
+    "base_layer_config.bpo2_start_block_number",
+    "base_layer_config.fusaka_no_bpo_start_block_number",
+    "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
+    "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
+    "batcher_config.block_builder_config.execute_config.n_workers",
+    "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
+    "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist",
+    "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
+    "consensus_manager_config.context_config.build_proposal_margin_millis",
+    "consensus_manager_config.context_config.override_eth_to_fri_rate",
+    "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none",
+    "consensus_manager_config.context_config.override_l1_data_gas_price_wei",
+    "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none",
+    "consensus_manager_config.context_config.override_l1_gas_price_wei",
+    "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none",
+    "consensus_manager_config.context_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none",
+    "gateway_config.authorized_declarer_accounts",
+    "gateway_config.authorized_declarer_accounts.#is_none",
+    "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
+    "gateway_config.stateless_tx_validator_config.min_gas_price",
+    "mempool_config.dynamic_config.transaction_ttl",
+    "sierra_compiler_config.max_bytecode_size",
+    "versioned_constants_overrides.max_n_events",
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -101,8 +134,6 @@ impl Service {
             .chain(config_filenames.clone())
             .chain(once(node_service.get_service_file_path()))
             .collect();
-
-        node_service.dump_node_service_replacer_app_config_files();
 
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
@@ -296,7 +327,7 @@ impl NodeService {
         self.as_inner().get_update_strategy()
     }
 
-    pub fn dump_node_service_replacer_app_config_files(&self) {
+    fn replacer_app_config_files(&self) -> Vec<(Value, String)> {
         let components_in_service = self
             .get_components_in_service()
             .into_iter()
@@ -319,25 +350,18 @@ impl NodeService {
 
                 // Parse it as a json
                 let map: Map<String, Value> =
-                    serde_json::from_str(&contents).expect("JSON should be an object");
+                    from_str(&contents).expect("JSON should be an object");
                 let original_app_config = Value::Object(map);
-
-                // Create relevant replace predicates.
-                let replace_pred = |key: &str, value: &Value| {
-                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
-                };
 
                 // Perform replacement
                 insert_replacer_annotations(original_app_config, replace_pred)
             })
             .collect();
 
-        for (data, dest) in
-            replacer_app_config_data.iter().zip(replacer_components_in_service.iter())
-        {
-            let dest_path = Path::new(dest);
-            serialize_to_file(&data, dest_path.to_str().unwrap());
-        }
+        let mut data_and_file_paths: Vec<(Value, String)> = replacer_app_config_data
+            .into_iter()
+            .zip(replacer_components_in_service.clone())
+            .collect();
 
         let replacer_config_filenames: Vec<String> =
             vec![deployment_replacer_file_path(), instance_replacer_file_path()];
@@ -348,7 +372,22 @@ impl NodeService {
             .collect();
         let replacer_deployment_file_path = self.replacer_deployment_file_path();
 
-        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
+        data_and_file_paths.push((replacer_config_paths.into(), replacer_deployment_file_path));
+
+        data_and_file_paths
+    }
+
+    pub fn dump_node_service_replacer_app_config_files(&self) {
+        for (data, file_path) in self.replacer_app_config_files().into_iter() {
+            serialize_to_file(&data, &file_path);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn test_dump_node_service_replacer_app_config_files(&self) {
+        for (data, file_path) in self.replacer_app_config_files().into_iter() {
+            serialize_to_file_test(&data, &file_path, FIX_BINARY_NAME);
+        }
     }
 }
 
@@ -508,18 +547,6 @@ impl NodeType {
 
             // Dumping in the replacer format.
 
-            let replace_pred = |key: &str, value: &Value| {
-                // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
-                let port_cond =
-                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false);
-
-                // Condition 2: service urls: ".url" suffix and a non-localhost string value
-                let url_cond = key.ends_with(".url")
-                    && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
-
-                port_cond || url_cond
-            };
-
             let pruned_with_replacer_annotations =
                 insert_replacer_annotations(pruned, replace_pred);
             let file_path = node_service.get_replacer_service_file_path();
@@ -539,6 +566,66 @@ impl NodeType {
             serialize_to_file_test(map, path, FIX_BINARY_NAME);
         });
     }
+
+    #[cfg(test)]
+    pub fn test_all_replacers_are_accounted_for(&self) {
+        // Obtain the application config keys of each service.
+        let application_config_keys: HashSet<String> = self
+            .all_service_names()
+            .iter()
+            .flat_map(|node_service| {
+                // TODO(Tsabary): consider wrapping this logic with a fn; more relevant once we're
+                // done transitioning to the new deployment mechanism.
+                node_service
+                    .get_components_in_service()
+                    .into_iter()
+                    .flat_map(|c| c.get_component_config_file_paths())
+                    .collect::<HashSet<_>>()
+                    .iter()
+                    .flat_map(|src| {
+                        let src_path = Path::new(src);
+                        // Read the app config file
+                        let mut contents = String::new();
+                        File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
+
+                        // Extract keys
+                        from_str::<Map<String, Value>>(&contents)
+                            .expect("JSON should be an object")
+                            .into_iter()
+                            .map(|(k, _)| k)
+                            .collect::<HashSet<_>>()
+                    })
+                    .collect::<HashSet<_>>()
+            })
+            .collect::<HashSet<_>>();
+
+        let replacer_keys: HashSet<String> =
+            KEYS_TO_BE_REPLACED.iter().copied().map(|item| item.to_string()).collect();
+
+        let unreplaced_keys: HashSet<String> =
+            replacer_keys.difference(&application_config_keys).cloned().collect();
+
+        assert!(
+            unreplaced_keys.is_empty(),
+            "Some replacer keys are not part of the config: {unreplaced_keys:#?}
+            \nPlease update 'KEYS_TO_BE_REPLACED'"
+        );
+    }
+}
+
+fn replace_pred(key: &str, value: &Value) -> bool {
+    if KEYS_TO_BE_REPLACED.contains(key) {
+        return true;
+    }
+
+    // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
+    let port_cond = key.ends_with(".port") && value.as_u64().map(|n| n != 0).unwrap_or(false);
+
+    // Condition 2: service urls: ".url" suffix and a non-localhost string value
+    let url_cond =
+        key.ends_with(".url") && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
+
+    port_cond || url_cond
 }
 
 pub(crate) trait GetComponentConfigs: ServiceNameInner {

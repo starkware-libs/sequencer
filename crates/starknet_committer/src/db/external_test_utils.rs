@@ -38,6 +38,7 @@ where
         &config,
         &leaf_modifications,
     )
+    .await
     .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(

@@ -2,11 +2,12 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
+use crate::metrics::CacheMetrics;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
+
 #[cfg(test)]
 #[path = "state_reader_and_contract_manager_test.rs"]
 pub mod state_reader_and_contract_manager_test;
@@ -14,13 +15,25 @@ pub mod state_reader_and_contract_manager_test;
 pub trait FetchCompiledClasses: StateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses>;
 
-    /// Returns whether the given Cairo1 class is declared.
+    /// Returns whether the given class hash corresponds to a declared Cairo 1 class.
+    /// Cairo 0 classes always return `false`.
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
-    pub contract_class_manager: ContractClassManager,
+    contract_class_manager: ContractClassManager,
+    class_cache_metrics: Option<CacheMetrics>,
+}
+
+impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
+    pub fn new(
+        state_reader: S,
+        contract_class_manager: ContractClassManager,
+        class_cache_metrics: Option<CacheMetrics>,
+    ) -> Self {
+        Self { state_reader, contract_class_manager, class_cache_metrics }
+    }
 }
 
 impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
@@ -40,11 +53,11 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
                     }
                 }
             }
-            CLASS_CACHE_HITS.increment(1);
+            self.increment_cache_hit_metric();
             self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
-        CLASS_CACHE_MISSES.increment(1);
+        self.increment_cache_miss_metric();
 
         let compiled_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, compiled_class.clone());
@@ -58,6 +71,18 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
             });
         self.update_native_metrics(&runnable_class);
         Ok(runnable_class)
+    }
+
+    fn increment_cache_hit_metric(&self) {
+        if let Some(ref class_cache_metrics) = self.class_cache_metrics {
+            class_cache_metrics.increment_hit();
+        }
+    }
+
+    fn increment_cache_miss_metric(&self) {
+        if let Some(ref class_cache_metrics) = self.class_cache_metrics {
+            class_cache_metrics.increment_miss();
+        }
     }
 
     fn update_native_metrics(&self, _runnable_class: &RunnableCompiledClass) {

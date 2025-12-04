@@ -52,8 +52,8 @@ pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
     ]
 }
 
-/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 2 seconds
-/// over a 2-minute window.
+/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 15 seconds
+/// over a 5-minute window.
 fn get_http_server_avg_add_tx_latency_alert(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
@@ -66,11 +66,11 @@ fn get_http_server_avg_add_tx_latency_alert(
         "High HTTP server average add_tx latency",
         AlertGroup::HttpServer,
         // The clamp_min is used to avoid division by zero, and the minimal value
-        // is 1/120, which is the minimum value of a valid count rate over a 2-minute window.
-        format!("rate({sum_metric}[2m]) / clamp_min(rate({count_metric}[2m]), 1/120)"),
+        // is 1/300, which is the minimum value of a valid count rate over a 5-minute window.
+        format!("rate({sum_metric}[5m]) / clamp_min(rate({count_metric}[5m]), 1/300)"),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
+            comparison_value: 15.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
@@ -85,11 +85,60 @@ pub(crate) fn get_http_server_avg_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![
         get_http_server_avg_add_tx_latency_alert(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::DayOnly,
         ),
         get_http_server_avg_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+/// Triggers if the latency of all `add_tx` calls, across all HTTP servers, exceeds 1 second
+/// over a 2-minute window.
+fn get_http_server_min_add_tx_latency_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    const TIME_WINDOW: &str = "2m";
+    let bucket_metric =
+        HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filer_and_additional_fields("le=\"1.0\"");
+    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
+    Alert::new(
+        "http_server_min_add_tx_latency",
+        "High HTTP server minimal add_tx latency",
+        AlertGroup::HttpServer,
+        // The lhs expr checks that there were transaction observations during the time window.
+        // The rhs expr verifies that none of these observations had a latency of 1 second or less
+        // (i.e., the le="1.0" bucket is empty).
+        // Multiplying these two conditions serves as a logical "and": it triggers only when there
+        // was activity, and all observed transactions took longer than 1 second.
+        format!(
+            "(sum(increase({count_metric}[{TIME_WINDOW}])) > 0) * \
+             (sum(increase({bucket_metric}[{TIME_WINDOW}])) < 1)"
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        ObserverApplicability::NotApplicable,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_http_server_min_add_tx_latency_alert_vec() -> Vec<Alert> {
+    vec![
+        get_http_server_min_add_tx_latency_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_http_server_min_add_tx_latency_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::Regular,
         ),
     ]
 }
@@ -125,11 +174,11 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::WorkingHours,
+            AlertSeverity::Informational,
         ),
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
+            AlertSeverity::Informational,
         ),
     ]
 }

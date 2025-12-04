@@ -40,11 +40,9 @@ const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    || load_and_create_hybrid_deployments(POTC_MOCK_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(STRESS_TEST_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH),
     system_test_deployments,
 ];
@@ -54,16 +52,12 @@ pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
 
-const POTC_MOCK_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/potc_mock.json";
 const MAINNET_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/mainnet.json";
 const INTEGRATION_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/sepolia_integration.json";
 const TESTNET_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/sepolia_testnet.json";
-const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/stress_test.json";
 const UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/upgrade_test.json";
 
@@ -136,12 +130,9 @@ impl Display for Environment {
 #[derive(EnumString, Clone, Display, PartialEq, Debug, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum CloudK8sEnvironment {
-    PotcMock,
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,
-    #[strum(serialize = "stress_test")]
-    StressTest,
     #[strum(serialize = "upgrade_test")]
     UpgradeTest,
 }

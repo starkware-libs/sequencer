@@ -76,7 +76,7 @@ impl Default for BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::default(),
             builtin_weights: BuiltinWeights::default(),
-            blake_weight: 6320,
+            blake_weight: 3750,
         }
     }
 }
@@ -423,7 +423,7 @@ impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
             gas_costs: BuiltinGasCosts {
-                pedersen: 5723,
+                pedersen: 4000,
                 range_check: 90,
                 ecdsa: 2000000,
                 ecop: 857850,

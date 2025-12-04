@@ -11,7 +11,12 @@ use apollo_mempool_types::communication::{
     MempoolResponse,
 };
 use apollo_mempool_types::errors::MempoolError;
-use apollo_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult, MempoolSnapshot};
+use apollo_mempool_types::mempool_types::{
+    CommitBlockArgs,
+    MempoolResult,
+    MempoolSnapshot,
+    ValidationArgs,
+};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
@@ -104,6 +109,11 @@ impl MempoolCommunicationWrapper {
         Ok(())
     }
 
+    fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
+        self.mempool.validate_tx(args)?;
+        Ok(())
+    }
+
     fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
         self.mempool.commit_block(args);
         Ok(())
@@ -136,6 +146,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
         // Update the dynamic config before handling the request.
         self.update_dynamic_config().await;
         match request {
+            MempoolRequest::ValidateTransaction(args) => {
+                MempoolResponse::ValidateTransaction(self.validate_tx(args))
+            }
             MempoolRequest::AddTransaction(args) => {
                 MempoolResponse::AddTransaction(self.add_tx(args).await)
             }

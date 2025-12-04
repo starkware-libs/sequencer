@@ -347,9 +347,9 @@ def normalize_config(config_content: str) -> str:
     return serialize_config_to_yaml(config, config_data)
 
 
-def show_config_diff(old_content: str, new_content: str, index: int) -> None:
+def show_config_diff(old_content: str, new_content: str, namespace: str, index: int) -> None:
     print_colored(
-        f"--------------------- Config changes {index} --------------------",
+        f"--------------------- Config changes for namespace: {namespace} --------------------",
         Colors.YELLOW,
     )
 
@@ -361,7 +361,6 @@ def show_config_diff(old_content: str, new_content: str, index: int) -> None:
         new_lines,
         fromfile=f"config{index}.yaml_old",
         tofile=f"config{index}.yaml",
-        lineterm="",
         n=0,  # context lines; no real 'context' in config files
     )
 
@@ -428,7 +427,7 @@ def _update_config(
         configs.append({"original": original_config, "updated": updated_config})
 
         # Show diff
-        show_config_diff(original_config, updated_config, index)
+        show_config_diff(original_config, updated_config, namespace, index)
 
     if not ask_for_confirmation():
         print_error("Operation cancelled by user")
