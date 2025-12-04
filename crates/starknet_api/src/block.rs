@@ -277,6 +277,7 @@ pub struct BlockHash(pub StarkHash);
     Default,
     Copy,
     derive_more::Display,
+    derive_more::Deref,
     Clone,
     Eq,
     PartialEq,

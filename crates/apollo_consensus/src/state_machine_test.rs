@@ -28,7 +28,7 @@ fn mk_vote(
     proposal_id: Option<ProposalCommitment>,
     voter: ValidatorId,
 ) -> Vote {
-    Vote { vote_type, height: HEIGHT.0, round, proposal_commitment: proposal_id, voter }
+    Vote { vote_type, height: HEIGHT, round, proposal_commitment: proposal_id, voter }
 }
 
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {

@@ -238,7 +238,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
 
     /// Caches a vote for a future height.
     fn cache_future_vote(&mut self, vote: Vote) {
-        self.future_votes.entry(BlockNumber(vote.height)).or_default().push(vote);
+        self.future_votes.entry(vote.height).or_default().push(vote);
     }
 
     /// Caches a proposal for a future height.
@@ -667,7 +667,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // TODO(matan): We need to figure out an actual caching strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
-        match message.height.cmp(&height.0) {
+        match message.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
                 if self.should_cache_vote(&height, 0, &message) {
                     trace!("Cache message for a future height. {:?}", message);
@@ -826,7 +826,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &self,
         current_height: &BlockNumber,
         current_round: Round,
-        msg_height: u64,
+        msg_height: BlockNumber,
         msg_round: Round,
         msg_description: &str,
     ) -> bool {
@@ -846,7 +846,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 msg_description,
                 msg_height,
                 msg_round,
-                current_height.0,
+                current_height,
                 current_round,
                 limits.future_height_limit,
                 limits.future_height_round_limit,
@@ -866,7 +866,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.should_cache_msg(
             current_height,
             current_round,
-            proposal.height.0,
+            proposal.height,
             proposal.round,
             "proposal",
         )
