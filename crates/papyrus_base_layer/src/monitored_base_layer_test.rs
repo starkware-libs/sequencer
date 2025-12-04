@@ -14,7 +14,7 @@ async fn switch_between_endpoints() {
     let url1 = Url::parse("http://first_endpoint").unwrap();
     let url2 = Url::parse("http://second_endpoint").unwrap();
     let urls = [url1.clone(), url2.clone()];
-    let base_layer = EthereumBaseLayerContract::new(Default::default(), url1.clone());
+    let base_layer = EthereumBaseLayerContract::new(Default::default(), url1.clone().into());
     let mut l1_endpoint_monitor = MockL1EndpointMonitorClient::new();
     l1_endpoint_monitor
         .expect_get_active_l1_endpoint()
@@ -29,11 +29,11 @@ async fn switch_between_endpoints() {
         MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 
     monitored_base_layer.ensure_operational().await.unwrap();
-    let get_url = monitored_base_layer.current_node_url.read().await.clone();
-    assert_eq!(get_url, urls[0]);
+    let get_url = monitored_base_layer.current_node_url.read().await;
+    assert_eq!(*get_url, Sensitive::new(urls[0].clone()).with_redactor(to_safe_string));
 
     // Trying a second time should switch the URL to the second one.
     monitored_base_layer.ensure_operational().await.unwrap();
-    let get_url = monitored_base_layer.current_node_url.read().await.clone();
-    assert_eq!(get_url, urls[1]);
+    let get_url = monitored_base_layer.current_node_url.read().await;
+    assert_eq!(*get_url, Sensitive::new(urls[1].clone()).with_redactor(to_safe_string));
 }

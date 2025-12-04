@@ -15,6 +15,7 @@ use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -67,14 +68,17 @@ pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>
 
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
-    pub url: Url,
+    pub url: Sensitive<Url>,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
 }
 
 impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig, url: Url) -> Self {
-        let contract = build_contract_instance(config.starknet_contract_address, url.clone());
+    pub fn new(config: EthereumBaseLayerConfig, url: Sensitive<Url>) -> Self {
+        // TODO(Tsabary,guyn,victork): we're NOT allowed to expose the URL here. propagate these
+        // changes down the line
+        let contract =
+            build_contract_instance(config.starknet_contract_address, url.as_ref().clone());
         Self { url, contract, config }
     }
 }
@@ -214,7 +218,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.url.clone())
     }
 

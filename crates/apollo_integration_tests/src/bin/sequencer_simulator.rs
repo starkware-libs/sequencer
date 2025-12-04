@@ -1,7 +1,9 @@
 use std::fs::read_to_string;
 
 use alloy::primitives::{Address as EthereumContractAddress, Address};
+use apollo_config::secrets::Sensitive;
 use apollo_infra::trace_util::configure_tracing;
+use apollo_infra_utils::url::to_safe_string;
 use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use apollo_integration_tests::utils::{
@@ -117,14 +119,14 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
     .await;
 }
 
-fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
+fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Sensitive<Url>) {
     let starknet_contract_address: EthereumContractAddress =
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
     let base_layer_config =
         EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() };
-    (base_layer_config, node_url)
+    (base_layer_config, Sensitive::new(node_url).with_redactor(to_safe_string))
 }
 
 #[derive(Parser, Debug)]
