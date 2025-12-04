@@ -109,7 +109,7 @@ impl EthereumBaseLayerContract {
         // changes down the line
         let contract = build_contract_instance(
             config.starknet_contract_address,
-            url_iterator.get_current_url().as_ref().clone(),
+            url_iterator.get_current_url().expose_inner(),
         );
         Self { url_iterator, contract, config }
     }
