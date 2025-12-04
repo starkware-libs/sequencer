@@ -17,7 +17,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
 };
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use crate::db::create_facts_tree::create_original_skeleton_tree;
+use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
 
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,

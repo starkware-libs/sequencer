@@ -14,7 +14,7 @@ use crate::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
 };
-use crate::db::traversal::fetch_patricia_paths;
+use crate::db::facts_db::traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,

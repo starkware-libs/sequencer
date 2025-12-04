@@ -25,14 +25,15 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     Preimage,
     PreimageMap,
 };
-use starknet_patricia::patricia_merkle_tree::traversal::SubTree;
+use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
-use super::fetch_patricia_paths_inner;
+use crate::db::facts_db::traversal::fetch_patricia_paths_inner;
+use crate::db::facts_db::types::FactsSubTree;
 
 fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
     raw_preimages
@@ -73,7 +74,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         .iter()
         .map(|&idx| small_tree_index_to_full(U256::from(idx), height))
         .collect::<Vec<_>>();
-    let main_subtree = SubTree {
+    let main_subtree = FactsSubTree {
         sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
         root_index: small_tree_index_to_full(U256::ONE, height),
         root_hash,
@@ -514,10 +515,10 @@ struct TestPatriciaPathsInput {
 /// The files names indicate the tree height, number of initial leaves and number of modified
 /// leaves. The hash function used in the python tests is Pedersen.
 /// The leaves values are their NodeIndices.
-#[case(include_str!("../../resources/fetch_patricia_paths_test_10_200_50.json"))]
-#[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
-#[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
-#[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_200_50.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_5_2.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_100_30.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_8_120_70.json"))]
 async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
