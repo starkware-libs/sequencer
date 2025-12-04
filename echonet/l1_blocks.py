@@ -9,6 +9,33 @@ logger = logging.getLogger(__name__)
 
 class L1Blocks:
     @staticmethod
+    def l1_event_matches_feeder_tx(l1_event: L1Events.L1Event, feeder_tx: dict) -> bool:
+        """
+        Compares L1Event with an L1_HANDLER feeder tx using only contract_address, entry_point_selector, nonce, and calldata.
+        Transaction hashes are ignored.
+        """
+        if feeder_tx.get("type") != "L1_HANDLER":
+            return False
+
+        feeder_contract = hex(int(feeder_tx["contract_address"], 16))
+        if l1_event.contract_address != feeder_contract:
+            return False
+
+        feeder_selector = int(feeder_tx["entry_point_selector"], 16)
+        if l1_event.entry_point_selector != feeder_selector:
+            return False
+
+        feeder_nonce = int(feeder_tx["nonce"], 16)
+        if l1_event.nonce != feeder_nonce:
+            return False
+
+        feeder_calldata = [int(item, 16) for item in feeder_tx["calldata"]]
+        if l1_event.calldata != feeder_calldata:
+            return False
+
+        return True
+
+    @staticmethod
     # TODO(Ayelet): Consider changing timestamp params to datetime.
     def find_l1_block_for_tx(
         feeder_tx: dict,
@@ -38,7 +65,7 @@ class L1Blocks:
         for log in logs:
             l1_event = L1Events.decode_log(log)
 
-            if L1Events.l1_event_matches_feeder_tx(l1_event, feeder_tx):
+            if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):
                 logger.info(
                     f"Found matching L1 block: {l1_event.block_number} for L1 tx: {feeder_tx['transaction_hash']}"
                 )
