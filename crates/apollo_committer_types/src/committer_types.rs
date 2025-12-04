@@ -14,3 +14,17 @@ pub struct CommitBlockRequest {
 pub struct CommitBlockResponse {
     state_root: GlobalRoot,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevertBlockRequest {
+    // A synthetic state diff that undoes the state diff of the given height.
+    reversed_state_diff: StateDiff,
+    height: BlockNumber,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub enum RevertBlockResponse {
+    #[default]
+    Uncommitted,
+    RevertedTo(GlobalRoot),
+}
