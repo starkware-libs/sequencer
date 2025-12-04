@@ -23,6 +23,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use apollo_committer_types::communication::MockCommitterClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -119,6 +120,7 @@ fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
 struct MockDependencies {
     storage_reader: MockBatcherStorageReader,
     storage_writer: MockBatcherStorageWriter,
+    committer_client: MockCommitterClient,
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -156,6 +158,7 @@ impl Default for MockDependencies {
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriter::new(),
+            committer_client: MockCommitterClient::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
@@ -171,6 +174,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
+        Arc::new(mock_dependencies.committer_client),
         Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
         TransactionConverter::new(
