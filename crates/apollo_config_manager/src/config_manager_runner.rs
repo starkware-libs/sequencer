@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::future::pending;
+use std::path::PathBuf;
 
 use apollo_config::presentation::get_config_presentation;
 use apollo_config_manager_config::config::ConfigManagerConfig;
@@ -9,8 +10,11 @@ use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
+use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
-use tokio::time::{interval, Duration as TokioDuration};
+use tokio::sync::mpsc;
+
+const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
 use tracing::{error, info};
 
 #[cfg(test)]
@@ -29,19 +33,11 @@ impl ComponentStarter for ConfigManagerRunner {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
 
-        info!("ConfigManagerRunner: starting periodic config updates");
+        info!("ConfigManagerRunner: starting filesystem watcher");
 
         if self.config_manager_config.enable_config_updates {
-            // Trigger the periodic config update.
-            let mut update_interval = interval(TokioDuration::from_secs_f64(
-                self.config_manager_config.config_update_interval_secs,
-            ));
-
-            loop {
-                update_interval.tick().await;
-                if let Err(e) = self.update_config().await {
-                    error!("ConfigManagerRunner: failed to update config: {}", e);
-                }
+            if let Err(e) = self.run_watcher_loop().await {
+                error!("ConfigManagerRunner: watcher terminated with error: {e}");
             }
         } else {
             // Avoid returning, as this fn is expected to run perpetually.
@@ -63,6 +59,47 @@ impl ConfigManagerRunner {
             latest_node_dynamic_config: initial_node_dynamic_config,
             cli_args,
         }
+    }
+
+    /// Watches CLI-supplied config files for modifications and triggers update_config on change.
+    async fn run_watcher_loop(&mut self) -> notify::Result<()> {
+        // Channel to receive events in async context.
+        let (tx, mut rx) = mpsc::channel(FS_EVENT_CHANNEL_CAPACITY);
+
+        // Build watcher that sends into the channel.
+        let mut watcher = RecommendedWatcher::new(
+            move |res| {
+                let _ = tx.blocking_send(res);
+            },
+            NotifyConfig::default(),
+        )?;
+
+        // Register every file argument.
+        for arg in &self.cli_args {
+            let path = PathBuf::from(arg);
+            if path.is_file() {
+                watcher.watch(&path, RecursiveMode::NonRecursive)?;
+            }
+        }
+
+        while let Some(event) = rx.recv().await {
+            match event {
+                Ok(ev) => match ev.kind {
+                    EventKind::Modify(_)
+                    | EventKind::Create(_)
+                    | EventKind::Remove(_)
+                    | EventKind::Other => {
+                        if let Err(e) = self.update_config().await {
+                            error!("ConfigManagerRunner: failed to update config: {e}");
+                        }
+                    }
+                    _ => {}
+                },
+                Err(e) => error!("ConfigManagerRunner: watcher error: {e}"),
+            }
+        }
+
+        Ok(())
     }
 
     // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>
