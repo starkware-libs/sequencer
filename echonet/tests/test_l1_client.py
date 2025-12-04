@@ -6,56 +6,28 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import requests
 import unittest
 from l1_client import L1Client
+from test_utils import TestUtils
 from unittest.mock import Mock, patch
 
 
 class TestL1Client(unittest.TestCase):
-    BLOCK_NUMBER_SAMPLE = 20_861_344  # 0x13e51a0
-
-    RPC_LOG_RESULT_SAMPLE = {
-        "address": "0xc662c410c0ecf747543f5ba90660f6abebd9c8c4",
-        "topics": [
-            "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b",
-            "0x000000000000000000000000023a2aac5d0fa69e3243994672822ba43e34e5c9",
-            "0x07c76a71952ce3acd1f953fd2a3fda8564408b821ff367041c89f44526076633",
-            "0x02d757788a8d8d6f21d1cd40bce38a8222d70654214e96ff95d8086e684fbee5",
-        ],
-        "data": (
-            "0x0000000000000000000000000000000000000000000000000000000000000060"
-            "0000000000000000000000000000000000000000000000000000000000195c23"
-            "0000000000000000000000000000000000000000000000000000000000000001"
-            "0000000000000000000000000000000000000000000000000000000000000003"
-            "001e220c4ac08b2f247d45721e08af1b2d8d65b640cea780534c8f20dc6ea981"
-            "000000000000000000000000000000000000000000001c468e3281804cca0000"
-            "0000000000000000000000000000000000000000000000000000000000000000"
-        ),
-        "blockNumber": hex(BLOCK_NUMBER_SAMPLE),
-        "blockHash": "0xe090b2c6fbffb35b6e07d5943938384daa59c8c9fefe487d9952ef9894f2483e",
-        "transactionHash": "0x66c2ef5ae6708ede5e47daaabfc4b54a53c423160ec27eac06524ea3cd939622",
-        "transactionIndex": hex(146),
-        "logIndex": hex(749),
-        "removed": False,
-        "blockTimestamp": hex(1_727_673_743),
-    }
-
     @patch("l1_client.requests.post")
     def test_get_logs_retries_after_exception_and_succeeds_on_second_attempt(self, mock_post):
         request_exception = requests.RequestException("some error")
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {"result": [self.RPC_LOG_RESULT_SAMPLE]}
-
+        successful_response.json.return_value = {"result": [TestUtils.RAW_JSON_LOG]}
         mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
         logs = client.get_logs(
-            from_block=self.BLOCK_NUMBER_SAMPLE,
-            to_block=self.BLOCK_NUMBER_SAMPLE,
+            from_block=TestUtils.BLOCK_NUMBER_SAMPLE,
+            to_block=TestUtils.BLOCK_NUMBER_SAMPLE,
         )
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(logs, [self.RPC_LOG_RESULT_SAMPLE])
+        self.assertEqual(logs, [TestUtils.RAW_JSON_LOG])
 
     def test_get_logs_raises_on_invalid_block_range(self):
         client = L1Client(api_key="api_key")
