@@ -447,6 +447,22 @@ impl<
              {deployed_contract_class_definitions:#?}"
         );
 
+        // Filter out classes that are already declared in the storage. Only the first deployment of
+        // a class declares it.
+        // TODO(shahak): add unit test for this.
+        let deployed_contract_class_definitions = {
+            let txn = self.reader.begin_ro_txn()?;
+            let state_reader = txn.get_state_reader()?;
+            deployed_contract_class_definitions
+                .into_iter()
+                .filter_map(|(class_hash, deprecated_class)| {
+                    state_reader
+                        .get_deprecated_class_definition_block_number(&class_hash)
+                        .map_or(Some(Ok((class_hash, deprecated_class))), |_| None)
+                })
+                .collect::<Result<IndexMap<ClassHash, DeprecatedContractClass>, StorageError>>()?
+        };
+
         // TODO(noamsp): describe why we do this.
         state_diff.deprecated_declared_classes.extend(
             deployed_contract_class_definitions
