@@ -203,14 +203,64 @@ pub(crate) fn update_config_map_by_pointers(
     config_map: &mut BTreeMap<ParamPath, Value>,
     pointers_map: &BTreeMap<ParamPath, ParamPath>,
 ) -> Result<(), ConfigError> {
+    let optional_param_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+
+    // Phase 1: Resolve only the optional flags and compute disabled prefixes.
+    let mut disabled_prefixes: HashSet<String> = HashSet::new();
     for (param_path, target_param_path) in pointers_map {
-        let Some(target_value) = config_map.get(target_param_path) else {
-            return Err(ConfigError::PointerTargetNotFound {
-                target_param: target_param_path.to_owned(),
-            });
-        };
-        config_map.insert(param_path.to_owned(), target_value.clone());
+        if param_path.ends_with(optional_param_suffix.as_str()) {
+            let target_value = match config_map.get(target_param_path) {
+                Some(v) => v.clone(),
+                None => {
+                    return Err(ConfigError::PointerTargetNotFound {
+                        target_param: target_param_path.to_owned(),
+                    });
+                }
+            };
+            // Write the flag value
+            config_map.insert(param_path.to_owned(), target_value.clone());
+            // Record disabled prefixes where the flag is true
+            if target_value == json!(true) {
+                if let Some(prefix) = param_path.strip_suffix(optional_param_suffix.as_str()) {
+                    disabled_prefixes.insert(prefix.to_owned());
+                }
+            }
+        }
     }
+
+    // Phase 2: Resolve non-flag pointers, skipping any under disabled prefixes.
+    for (param_path, target_param_path) in pointers_map {
+        if param_path.ends_with(optional_param_suffix.as_str()) {
+            continue;
+        }
+        // Check if param_path is under any disabled prefix by walking its ancestors
+        let mut is_under_disabled_prefix = false;
+        let mut prefix = String::new();
+        for part in param_path.split(FIELD_SEPARATOR) {
+            if !prefix.is_empty() {
+                prefix.push_str(FIELD_SEPARATOR);
+            }
+            prefix.push_str(part);
+            if disabled_prefixes.contains(&prefix) {
+                is_under_disabled_prefix = true;
+                break;
+            }
+        }
+        if is_under_disabled_prefix {
+            continue;
+        }
+
+        let target_value = match config_map.get(target_param_path) {
+            Some(v) => v.clone(),
+            None => {
+                return Err(ConfigError::PointerTargetNotFound {
+                    target_param: target_param_path.to_owned(),
+                });
+            }
+        };
+        config_map.insert(param_path.to_owned(), target_value);
+    }
+
     Ok(())
 }
 
