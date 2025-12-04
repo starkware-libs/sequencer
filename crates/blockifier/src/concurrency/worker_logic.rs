@@ -293,6 +293,18 @@ impl<S: StateReader> WorkerExecutor<S> {
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads)?;
 
+        if !reads_valid {
+            let tx = self.tx_at(tx_index);
+            let tx_hash = Transaction::tx_hash(tx.as_ref());
+            log::debug!(
+                "Validation failed for tx {} ({}): stale reads detected, discarding speculative \
+                 state_diff: {:?}",
+                tx_index,
+                tx_hash,
+                execution_output.state_diff
+            );
+        }
+
         let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index, commit_phase);
         if aborted {
             self.metrics.count_abort();
