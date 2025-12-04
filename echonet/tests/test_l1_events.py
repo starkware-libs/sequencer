@@ -6,7 +6,6 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from l1_client import L1Client
 from l1_events import L1Events
 
 
@@ -36,32 +35,6 @@ class TestL1Events(unittest.TestCase):
         "logIndex": "0x7b",
         "removed": False,
     }
-
-    L1_CLIENT_LOG = L1Client.Log(
-        address="0xc662c410c0ecf747543f5ba90660f6abebd9c8c4",
-        topics=[
-            "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b",
-            "0x000000000000000000000000f5b6ee2caeb6769659f6c091d209dfdcaf3f69eb",
-            "0x0616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
-            "0x01b64b1b3b690b43b9b514fb81377518f4039cd3e4f4914d8a6bdf01d679fb19",
-        ],
-        data="0x0000000000000000000000000000000000000000000000000000000000000060"
-        "000000000000000000000000000000000000000000000000000000000019b255"
-        "00000000000000000000000000000000000000000000000000001308aba4ade2"
-        "0000000000000000000000000000000000000000000000000000000000000005"
-        "00000000000000000000000004c46e830bb56ce22735d5d8fc9cb90309317d0f"
-        "000000000000000000000000c50a951c4426760ba75c5253985a16196b342168"
-        "011bf9dbebdd770c31ff13808c96a1cb2de15a240274dc527e7d809bb2bf38df"
-        "0000000000000000000000000000000000000000000000956dfdeac59085edc3"
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        block_number=23911042,
-        block_hash="0xb33512d13e1a2ff4f3aa6e799a4a2455249be5198760a3f41300a8362d802bf8",
-        transaction_hash="0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
-        transaction_index=79,
-        log_index=123,
-        removed=False,
-        block_timestamp=1764500447,
-    )
 
     DECODED_LOG = L1Events.DecodedLogMessageToL2(
         from_address="0xf5b6ee2caeb6769659f6c091d209dfdcaf3f69eb",
@@ -118,37 +91,27 @@ class TestL1Events(unittest.TestCase):
     }
 
     def test_decode_log_success(self):
-        decoded_log_result = L1Events.decode_log(self.L1_CLIENT_LOG)
+        decoded_log_result = L1Events.decode_log(self.RAW_JSON_LOG)
 
         self.assertIsInstance(decoded_log_result, L1Events.DecodedLogMessageToL2)
         self.assertEqual(decoded_log_result, self.DECODED_LOG)
 
     def test_decode_log_invalid_topics_raises_error(self):
         with self.assertRaisesRegex(
-            ValueError, "Log has no topics or insufficient topics for LogMessageToL2 event"
+            ValueError, "Log has insufficient topics for LogMessageToL2 event"
         ):
-            log = L1Client.Log(
-                address="0x0",
-                topics=[],
-                data="0x",
-                block_number=0,
-                block_hash="0x0",
-                transaction_hash="0x0",
-                transaction_index=0,
-                log_index=0,
-                removed=False,
-                block_timestamp=0,
-            )
+            log = copy.deepcopy(self.RAW_JSON_LOG)
+            log["topics"] = ["0x1", "0x2"]
             L1Events.decode_log(log)
 
     def test_decode_log_wrong_signature_raises_error(self):
-        log = copy.deepcopy(self.L1_CLIENT_LOG)
-        log.topics[0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
+        log = copy.deepcopy(self.RAW_JSON_LOG)
+        log["topics"][0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
         with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
             L1Events.decode_log(log)
 
     def test_parse_event_success(self):
-        result = L1Events.parse_event(self.L1_CLIENT_LOG)
+        result = L1Events.parse_event(self.RAW_JSON_LOG)
         self.assertIsInstance(result, L1Events.L1Event)
 
         self.assertEqual(result, self.L1_EVENT)

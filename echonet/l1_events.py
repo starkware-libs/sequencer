@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import List
 
 import eth_abi
-from l1_client import L1Client
 from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE
 
 
@@ -40,14 +39,17 @@ class L1Events:
         l1_tx_hash: str
         block_timestamp: int
 
-    def decode_log(log: L1Client.Log) -> DecodedLogMessageToL2:
+    def decode_log(log: dict) -> DecodedLogMessageToL2:
         """
         Decodes Ethereum log from Starknet L1 contract into DecodedLogMessageToL2 event.
         Event structure defined in: crates/papyrus_base_layer/resources/Starknet-0.10.3.4.json
         """
-        topics = log.topics
+        if not all(key in log for key in ("topics", "data", "transactionHash", "blockTimestamp")):
+            raise ValueError("Log is missing required fields for decoding")
+
+        topics = log["topics"]
         if len(topics) < 4:
-            raise ValueError("Log has no topics or insufficient topics for LogMessageToL2 event")
+            raise ValueError("Log has insufficient topics for LogMessageToL2 event")
         event_signature = topics[0]
         if event_signature != LOG_MESSAGE_TO_L2_EVENT_SIGNATURE:
             raise ValueError(f"Unhandled event signature: {event_signature}")
@@ -58,9 +60,10 @@ class L1Events:
         selector = int(topics[3], 16)
 
         # Non-indexed params (data): payload[], nonce, fee
-        if not log.data.startswith("0x"):
+        data = log["data"]
+        if not data.startswith("0x"):
             raise ValueError("Log data must start with '0x'")
-        data_bytes = bytes.fromhex(log.data[2:])  # Remove 0x prefix and convert to bytes
+        data_bytes = bytes.fromhex(data[2:])  # Remove 0x prefix and convert to bytes
         payload, nonce, fee = eth_abi.decode(["uint256[]", "uint256", "uint256"], data_bytes)
 
         return L1Events.DecodedLogMessageToL2(
@@ -70,12 +73,12 @@ class L1Events:
             payload=list(payload),
             nonce=nonce,
             fee=fee,
-            l1_tx_hash=log.transaction_hash,
-            block_timestamp=log.block_timestamp,
+            l1_tx_hash=log["transactionHash"],
+            block_timestamp=int(log["blockTimestamp"], 16),
         )
 
     @staticmethod
-    def parse_event(log: L1Client.Log) -> "L1Events.L1Event":
+    def parse_event(log: dict) -> "L1Events.L1Event":
         decoded = L1Events.decode_log(log)
         calldata = [int(decoded.from_address, 16)] + decoded.payload
 
