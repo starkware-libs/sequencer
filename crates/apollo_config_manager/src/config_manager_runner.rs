@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 use std::future::pending;
+use std::path::PathBuf;
 
 use apollo_config::presentation::get_config_presentation;
+use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -9,8 +11,12 @@ use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
+use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
-use tokio::time::{interval, Duration as TokioDuration};
+use tokio::sync::mpsc;
+use tokio::time::{interval, Duration as TokioDuration, Interval};
+
+const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
 use tracing::{error, info};
 
 #[cfg(test)]
@@ -29,19 +35,15 @@ impl ComponentStarter for ConfigManagerRunner {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
 
-        info!("ConfigManagerRunner: starting periodic config updates");
+        info!("ConfigManagerRunner: starting filesystem watcher");
 
         if self.config_manager_config.enable_config_updates {
-            // Trigger the periodic config update.
-            let mut update_interval = interval(TokioDuration::from_secs_f64(
+            let update_interval = interval(TokioDuration::from_secs_f64(
                 self.config_manager_config.config_update_interval_secs,
             ));
 
-            loop {
-                update_interval.tick().await;
-                if let Err(e) = self.update_config().await {
-                    error!("ConfigManagerRunner: failed to update config: {}", e);
-                }
+            if let Err(e) = self.run_watcher_loop(update_interval).await {
+                error!("ConfigManagerRunner: watcher terminated with error: {e}");
             }
         } else {
             // Avoid returning, as this fn is expected to run perpetually.
@@ -62,6 +64,59 @@ impl ConfigManagerRunner {
             config_manager_client,
             latest_node_dynamic_config: initial_node_dynamic_config,
             cli_args,
+        }
+    }
+
+    /// Monitors config files for changes via file system events and periodic polling.
+    async fn run_watcher_loop(&mut self, mut update_interval: Interval) -> notify::Result<()> {
+        // Channel to receive events in async context.
+        let (tx, mut rx) = mpsc::channel(FS_EVENT_CHANNEL_CAPACITY);
+
+        // Build watcher that sends into the channel.
+        let mut watcher = RecommendedWatcher::new(
+            move |res| {
+                let _ = tx.blocking_send(res);
+            },
+            NotifyConfig::default(),
+        )?;
+
+        let config_file_paths = Self::extract_config_file_paths(&self.cli_args);
+        for path in config_file_paths {
+            if path.is_file() {
+                watcher.watch(&path, RecursiveMode::NonRecursive)?;
+            } else {
+                error!("Config file path does not exist: {}", path.display());
+            }
+        }
+
+        loop {
+            tokio::select! {
+                // File system event
+                Some(event) = rx.recv() => {
+                    match event {
+                        Ok(ev) => match ev.kind {
+                            EventKind::Modify(_)
+                            | EventKind::Create(_)
+                            | EventKind::Remove(_)
+                            | EventKind::Other => {
+                                info!("ConfigManagerRunner: file change detected, updating config");
+                                if let Err(e) = self.update_config().await {
+                                    error!("ConfigManagerRunner: failed to update config: {e}");
+                                }
+                            }
+                            _ => {}
+                        },
+                        Err(e) => error!("ConfigManagerRunner: watcher error: {e}"),
+                    }
+                }
+                // Periodic tick
+                _ = update_interval.tick() => {
+                    info!("ConfigManagerRunner: periodic check triggered, updating config");
+                    if let Err(e) = self.update_config().await {
+                        error!("ConfigManagerRunner: failed to update config: {e}");
+                    }
+                }
+            }
         }
     }
 
@@ -116,6 +171,26 @@ impl ConfigManagerRunner {
                 info!("ConfigManagerRunner: {key} changed from {old_value} to {new_value}");
             }
         }
+    }
+
+    /// Extracts config file paths from CLI arguments.
+    /// Expects the format: --config_file path1 --config_file path2 ...
+    fn extract_config_file_paths(args: &[String]) -> Vec<PathBuf> {
+        let mut paths = Vec::new();
+        let mut i = 0;
+
+        while i < args.len() {
+            if args[i] == CONFIG_FILE_ARG || args[i] == "-f" {
+                // Next arg is the path
+                i += 1;
+                if i < args.len() {
+                    paths.push(PathBuf::from(&args[i]));
+                }
+            }
+            i += 1;
+        }
+
+        paths
     }
 }
 
