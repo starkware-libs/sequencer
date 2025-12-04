@@ -8,26 +8,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from l1_blocks import L1Blocks
 from l1_client import L1Client
+from test_utils import TestUtils
 
 
 class TestFindL1BlockForTx(unittest.TestCase):
-    FEEDER_TX_SAMPLE = {
-        "transaction_hash": "0x83c298ad90f4d1b35c0a324fa162a3ab3d3d3a4dcc046f0965bd045083a472",
-        "version": "0x0",
-        "contract_address": "0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
-        "entry_point_selector": "0x1b64b1b3b690b43b9b514fb81377518f4039cd3e4f4914d8a6bdf01d679fb19",
-        "nonce": "0x19b255",
-        "calldata": [
-            "0xf5b6ee2caeb6769659f6c091d209dfdcaf3f69eb",
-            "0x4c46e830bb56ce22735d5d8fc9cb90309317d0f",
-            "0xc50a951c4426760ba75c5253985a16196b342168",
-            "0x11bf9dbebdd770c31ff13808c96a1cb2de15a240274dc527e7d809bb2bf38df",
-            "0x956dfdeac59085edc3",
-            "0x0",
-        ],
-        "type": "L1_HANDLER",
-    }
-
     def mock_log(self, block_number: int, nonce: int) -> dict:
         nonce_hex = f"{nonce:064x}"
         return {
@@ -60,7 +44,7 @@ class TestFindL1BlockForTx(unittest.TestCase):
         mock_client.get_block_number_by_timestamp.side_effect = [100, 200]
         mock_client.get_logs.return_value = [self.mock_log(150, 1684053)]
 
-        result = L1Blocks.find_l1_block_for_tx(self.FEEDER_TX_SAMPLE, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertEqual(result, 150)
 
@@ -71,7 +55,7 @@ class TestFindL1BlockForTx(unittest.TestCase):
         mock_log_matching_nonce = self.mock_log(150, 1684053)
         mock_client.get_logs.return_value = [mock_log_non_matching_nonce, mock_log_matching_nonce]
 
-        result = L1Blocks.find_l1_block_for_tx(self.FEEDER_TX_SAMPLE, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertEqual(result, 150)  # Should return second log's block number
 
@@ -81,7 +65,7 @@ class TestFindL1BlockForTx(unittest.TestCase):
         mock_log_non_matching_nonce = self.mock_log(150, 25)  # Different nonce
         mock_client.get_logs.return_value = [mock_log_non_matching_nonce]
 
-        result = L1Blocks.find_l1_block_for_tx(self.FEEDER_TX_SAMPLE, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertIsNone(result)
 
@@ -90,7 +74,7 @@ class TestFindL1BlockForTx(unittest.TestCase):
         mock_client.get_block_number_by_timestamp.side_effect = [100, 200]
         mock_client.get_logs.return_value = []
 
-        result = L1Blocks.find_l1_block_for_tx(self.FEEDER_TX_SAMPLE, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertIsNone(result)
 
