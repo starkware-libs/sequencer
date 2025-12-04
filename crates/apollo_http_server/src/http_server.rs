@@ -23,7 +23,6 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use blockifier_reexecution::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
-use once_cell::sync::OnceCell;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
@@ -50,8 +49,6 @@ pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
 const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
-pub static MAX_SIERRA_PROGRAM_SIZE: OnceCell<usize> = OnceCell::new();
-
 pub struct HttpServer {
     pub config: HttpServerConfig,
     app_state: AppState,
@@ -64,8 +61,6 @@ pub struct AppState {
 
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
-        // Initialize the global MAX_SIERRA_PROGRAM_SIZE from the config
-        let _ = MAX_SIERRA_PROGRAM_SIZE.set(config.max_sierra_program_size);
         let app_state = AppState { gateway_client };
         HttpServer { config, app_state }
     }
@@ -90,7 +85,10 @@ impl HttpServer {
             .route("/gateway/add_rpc_transaction", post(add_rpc_tx))
             .with_state(self.app_state.clone())
             // Rest api endpoint
-            .route("/gateway/add_transaction", post(add_tx))
+            .route("/gateway/add_transaction", post({
+                let max_sierra_program_size = self.config.max_sierra_program_size;
+                move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx, max_sierra_program_size)
+            }))
             .with_state(self.app_state.clone())
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
             // and is_ready.
@@ -124,6 +122,7 @@ async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
+    max_sierra_program_size: usize,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
@@ -142,7 +141,7 @@ async fn add_tx(
         }
     };
 
-    let rpc_tx = tx.try_into().inspect_err(|e| {
+    let rpc_tx = tx.convert_to_rpc_tx(max_sierra_program_size).inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
 

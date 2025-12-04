@@ -12,7 +12,6 @@ use crate::deprecated_gateway_transaction::{
     DeprecatedGatewayDeployAccountTransaction,
     DeprecatedGatewayInvokeTransaction,
 };
-use crate::http_server::MAX_SIERRA_PROGRAM_SIZE;
 
 // Utils.
 
@@ -39,12 +38,6 @@ fn deprecated_gateway_deploy_account_tx_deserialization() {
         read_json_file(DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH);
 }
 
-fn initialize_max_sierra_program_size() {
-    if MAX_SIERRA_PROGRAM_SIZE.get().is_none() {
-        let _ = MAX_SIERRA_PROGRAM_SIZE.set(DEFAULT_MAX_SIERRA_PROGRAM_SIZE);
-    }
-}
-
 #[test]
 fn deprecated_gateway_declare_tx_conversion() {
     let deprecate_tx = deprecated_gateway_declare_tx();
@@ -54,8 +47,8 @@ fn deprecated_gateway_declare_tx_conversion() {
         deprecated_declare_tx
     );
     // TODO(Arni): Assert the deprecated transaction was converted to the expected RPC transaction.
-    initialize_max_sierra_program_size();
-    let _declare_tx: RpcDeclareTransactionV3 = deprecate_declare_tx.try_into().unwrap();
+    let _declare_tx: RpcDeclareTransactionV3 =
+        deprecate_declare_tx.convert_to_rpc_declare_tx(DEFAULT_MAX_SIERRA_PROGRAM_SIZE).unwrap();
 }
 
 fn create_malformed_sierra_program_for_serde_error() -> String {
@@ -91,7 +84,8 @@ fn deprecated_gateway_declare_tx_negative_flow_conversion(
     );
 
     deprecate_declare_tx.contract_class.sierra_program = sierra_program;
-    initialize_max_sierra_program_size();
-    let error = RpcDeclareTransactionV3::try_from(deprecate_declare_tx).unwrap_err();
+    let error = deprecate_declare_tx
+        .convert_to_rpc_declare_tx(DEFAULT_MAX_SIERRA_PROGRAM_SIZE)
+        .unwrap_err();
     assert_expected_error_fn(error);
 }
