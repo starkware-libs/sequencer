@@ -1,39 +1,28 @@
-#[cfg(not(feature = "cairo_native"))]
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-#[cfg(not(feature = "cairo_native"))]
 use starknet_api::class_hash;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-#[cfg(not(feature = "cairo_native"))]
 use starknet_api::core::ClassHash;
 
-#[cfg(not(feature = "cairo_native"))]
-use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
-#[cfg(not(feature = "cairo_native"))]
 use crate::state::errors::StateError;
 #[cfg(feature = "cairo_native")]
 use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::CompiledClasses;
-use crate::state::state_api::StateReader;
-#[cfg(not(feature = "cairo_native"))]
-use crate::state::state_api::StateResult;
-#[cfg(not(feature = "cairo_native"))]
+use crate::state::state_api::{StateReader, StateResult};
 use crate::state::state_api_test_utils::assert_eq_state_result;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
-#[cfg(not(feature = "cairo_native"))]
 use crate::state::state_reader_and_contract_manager_test_utils::MockFetchCompiledClasses;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::state_reader_and_contract_manager_for_testing;
 
-#[cfg(not(feature = "cairo_native"))]
 static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
 
 fn build_reader_and_declare_contract(
@@ -137,7 +126,6 @@ fn test_get_compiled_class_when_native_is_cached() {
     assert_matches!(compiled_class, RunnableCompiledClass::V1Native(_));
 }
 
-#[cfg(not(feature = "cairo_native"))]
 struct GetCompiledClassTestScenario {
     expectations: GetCompiledClassTestExpectation,
 
@@ -145,13 +133,11 @@ struct GetCompiledClassTestScenario {
     expected_result: StateResult<RunnableCompiledClass>,
 }
 
-#[cfg(not(feature = "cairo_native"))]
 struct GetCompiledClassTestExpectation {
     get_compiled_classes_result: Option<StateResult<CompiledClasses>>,
     is_declared_result: Option<StateResult<bool>>,
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn add_expectation_to_mock_fetch_compiled_classes(
     mock_fetch_compiled_classes: &mut MockFetchCompiledClasses,
     expectations: GetCompiledClassTestExpectation,
@@ -171,31 +157,33 @@ fn add_expectation_to_mock_fetch_compiled_classes(
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn cairo_1_declared_scenario() -> GetCompiledClassTestScenario {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let runnable_compiled_class = test_contract.get_runnable_class();
+    let compiled_class = assert_matches!(runnable_compiled_class.clone(), RunnableCompiledClass::V1(compiled_class) => compiled_class);
+    let compiled_classes =
+        CompiledClasses::V1(compiled_class, Arc::new(test_contract.get_sierra()));
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
-            get_compiled_classes_result: Some(Ok(CompiledClasses::from_runnable_for_testing(
-                RunnableCompiledClass::test_casm_contract_class(),
-            ))),
+            get_compiled_classes_result: Some(Ok(compiled_classes)),
             is_declared_result: None,
         },
-        expected_result: Ok(RunnableCompiledClass::test_casm_contract_class()),
+        expected_result: Ok(runnable_compiled_class),
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn cairo_1_cached_scenario() -> GetCompiledClassTestScenario {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let runnable_compiled_class = test_contract.get_runnable_class();
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
             get_compiled_classes_result: None,
             is_declared_result: Some(Ok(true)), // Verification call for cached Cairo1 class.
         },
-        expected_result: Ok(RunnableCompiledClass::test_casm_contract_class()),
+        expected_result: Ok(runnable_compiled_class),
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn cached_but_verification_failed_after_reorg_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
@@ -206,7 +194,6 @@ fn cached_but_verification_failed_after_reorg_scenario() -> GetCompiledClassTest
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
@@ -219,7 +206,6 @@ fn cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn cairo_0_cached_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
@@ -230,7 +216,6 @@ fn cairo_0_cached_scenario() -> GetCompiledClassTestScenario {
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 fn not_declared_scenario() -> GetCompiledClassTestScenario {
     GetCompiledClassTestScenario {
         expectations: GetCompiledClassTestExpectation {
@@ -243,7 +228,6 @@ fn not_declared_scenario() -> GetCompiledClassTestScenario {
     }
 }
 
-#[cfg(not(feature = "cairo_native"))]
 #[rstest]
 #[case::cairo_0_declared_and_cached(cairo_0_declared_scenario(), cairo_0_cached_scenario())]
 #[case::cairo_1_declared_and_cached(cairo_1_declared_scenario(), cairo_1_cached_scenario())]
@@ -256,10 +240,11 @@ fn not_declared_scenario() -> GetCompiledClassTestScenario {
 fn test_get_compiled_class_caching_scenarios(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
+    #[values(true, false)] wait_on_native_compilation: bool,
 ) {
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
+            wait_on_native_compilation,
             ..Default::default()
         },
         ..Default::default()
