@@ -3,10 +3,18 @@ use apollo_metrics::metrics::{
     MetricCounter,
     MetricGauge,
     MetricHistogram,
+    COLLECT_SEQUENCER_PROFILING_METRICS,
 };
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use serde::{Deserialize, Serialize};
 
 use crate::requests::LABEL_NAME_REQUEST_VARIANT;
+use crate::tokio_metrics::setup_tokio_metrics;
+
+pub const HISTOGRAM_BUCKETS: &[f64] = &[
+    0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+    100.0, 250.0,
+];
 
 /// Configuration for metrics collection.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -27,6 +35,45 @@ impl MetricsConfig {
     pub const fn disabled() -> Self {
         Self { collect_metrics: false, collect_profiling_metrics: false }
     }
+}
+
+/// Initializes the metrics recorder and tokio metrics if metrics collection is enabled.
+/// This should be called once during application startup, before creating components that use
+/// metrics.
+///
+/// Returns a PrometheusHandle if metrics collection is enabled, None otherwise.
+///
+/// # Example
+/// ```no_run
+/// use apollo_infra::metrics::{initialize_metrics_recorder, MetricsConfig};
+///
+/// let config = MetricsConfig::enabled();
+/// let prometheus_handle = initialize_metrics_recorder(config);
+/// ```
+pub fn initialize_metrics_recorder(config: MetricsConfig) -> Option<PrometheusHandle> {
+    // TODO(Tsabary): consider error handling
+    let prometheus_handle = if config.collect_metrics {
+        // TODO(Lev): add tests that show the metrics are collected / not collected based on the
+        // config value.
+        COLLECT_SEQUENCER_PROFILING_METRICS
+            .set(config.collect_profiling_metrics)
+            .expect("Should be able to set profiling metrics collection.");
+
+        Some(
+            PrometheusBuilder::new()
+                .set_buckets(HISTOGRAM_BUCKETS)
+                .expect("Should be able to set buckets")
+                .install_recorder()
+                .expect("should be able to build the recorder and install it globally"),
+        )
+    } else {
+        None
+    };
+
+    // Setup tokio metrics along with other metrics initialization
+    setup_tokio_metrics();
+
+    prometheus_handle
 }
 
 /// Metrics of a local client.
