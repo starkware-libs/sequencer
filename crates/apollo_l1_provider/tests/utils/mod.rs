@@ -170,15 +170,15 @@ pub(crate) async fn setup_scraper_and_provider<
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn send_message_from_l1_to_l2(
-    base_layer: &AnvilBaseLayer,
+    base_layer: &mut AnvilBaseLayer,
     call_data: &[u8],
 ) -> (TransactionHash, Uint<256, 4>) {
-    let contract = &base_layer.ethereum_base_layer.contract;
     let last_l1_block_number =
         base_layer.ethereum_base_layer.latest_l1_block_number().await.unwrap();
     assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
 
     // Send message from L1 to L2.
+    let contract = &base_layer.ethereum_base_layer.contract;
     let call_data = convert_call_data_to_u256(call_data);
     let fee = 1_u8;
     let message_to_l2 = contract

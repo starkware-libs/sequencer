@@ -21,7 +21,7 @@ async fn anvil_starts_with_no_contract() {
         ordered_l1_endpoint_urls: vec![anvil.endpoint_url()],
         ..Default::default()
     };
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let mut base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
 
     let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
     let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;

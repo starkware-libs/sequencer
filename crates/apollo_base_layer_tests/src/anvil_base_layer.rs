@@ -195,25 +195,25 @@ impl BaseLayerContract for AnvilBaseLayer {
     type Error = EthereumBaseLayerError;
 
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error> {
         self.ethereum_base_layer.get_proved_block_at(l1_block).await
     }
 
-    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error> {
+    async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error> {
         self.ethereum_base_layer.latest_l1_block_number().await
     }
 
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error> {
         self.ethereum_base_layer.l1_block_at(block_number).await
     }
 
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error> {
@@ -221,10 +221,17 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     async fn get_block_header(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
         self.ethereum_base_layer.get_block_header(block_number).await
+    }
+
+    async fn get_block_header_immutable(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockHeader>, Self::Error> {
+        self.ethereum_base_layer.get_block_header_immutable(block_number).await
     }
 
     // TODO(Arni): Consider deleting this function from the trait.

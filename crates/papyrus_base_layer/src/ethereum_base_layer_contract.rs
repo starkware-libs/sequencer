@@ -119,7 +119,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
         let block_id = l1_block.into();
@@ -143,17 +143,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
+        let immutable_self = &*self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())
             .events(events)
-            .address(self.config.starknet_contract_address);
+            .address(immutable_self.config.starknet_contract_address);
         let matching_logs = tokio::time::timeout(
-            self.config.timeout_millis,
-            self.contract.provider().get_logs(&filter),
+            immutable_self.config.timeout_millis,
+            immutable_self.contract.provider().get_logs(&filter),
         )
         .await??;
         // Debugging.
@@ -163,7 +164,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let block_header_futures = matching_logs.into_iter().map(|log| {
             let block_number = log.block_number.unwrap();
             async move {
-                let header = self.get_block_header(block_number).await?.unwrap();
+                let header =
+                    immutable_self.get_block_header_immutable(block_number).await?.unwrap();
                 parse_event(log, header.timestamp)
             }
         });
@@ -172,7 +174,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     #[instrument(skip(self), err)]
-    async fn latest_l1_block_number(&self) -> EthereumBaseLayerResult<L1BlockNumber> {
+    async fn latest_l1_block_number(&mut self) -> EthereumBaseLayerResult<L1BlockNumber> {
         let block_number = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_number(),
@@ -183,7 +185,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
         let block = tokio::time::timeout(
@@ -201,6 +203,13 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Query the Ethereum base layer for the header of a block.
     #[instrument(skip(self), err)]
     async fn get_block_header(
+        &mut self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
+        self.get_block_header_immutable(block_number).await
+    }
+
+    async fn get_block_header_immutable(
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
