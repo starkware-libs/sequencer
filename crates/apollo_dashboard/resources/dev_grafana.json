@@ -926,7 +926,9 @@
           "exprs": [
             "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed to join handle for timestamp\""
+          }
         },
         {
           "title": "ETH→STRK rate",
