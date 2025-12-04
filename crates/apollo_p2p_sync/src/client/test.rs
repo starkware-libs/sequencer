@@ -316,5 +316,7 @@ fn create_random_sync_block(
         account_transaction_hashes,
         l1_transaction_hashes,
         block_header_without_hash,
+        // TODO(Rotem): Test the storage is updated correctly with block header commitments.
+        block_header_commitments: None,
     }
 }

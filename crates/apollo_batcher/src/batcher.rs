@@ -573,6 +573,7 @@ impl Batcher {
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+            ..
         } = sync_block;
 
         let height = self.get_height_from_storage()?;
