@@ -45,7 +45,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::batcher::{Batcher, MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderError,
@@ -112,8 +112,8 @@ fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
 }
 
 struct MockDependencies {
-    storage_reader: MockBatcherStorageReaderTrait,
-    storage_writer: MockBatcherStorageWriterTrait,
+    storage_reader: MockBatcherStorageReader,
+    storage_writer: MockBatcherStorageWriter,
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -123,7 +123,7 @@ struct MockDependencies {
 
 impl Default for MockDependencies {
     fn default() -> Self {
-        let mut storage_reader = MockBatcherStorageReaderTrait::new();
+        let mut storage_reader = MockBatcherStorageReader::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
@@ -149,7 +149,7 @@ impl Default for MockDependencies {
 
         Self {
             storage_reader,
-            storage_writer: MockBatcherStorageWriterTrait::new(),
+            storage_writer: MockBatcherStorageWriter::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
@@ -443,7 +443,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[rstest]
 #[tokio::test]
 async fn consecutive_heights_success() {
-    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
@@ -741,7 +741,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 #[rstest]
 #[tokio::test]
 async fn get_height() {
-    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
@@ -753,7 +753,7 @@ async fn get_height() {
 #[rstest]
 #[tokio::test]
 async fn propose_block_without_retrospective_block_hash() {
-    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader
         .expect_height()
         .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
@@ -1040,7 +1040,7 @@ async fn revert_block_mismatch_block_number() {
 
 #[tokio::test]
 async fn revert_block_empty_storage() {
-    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
 
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };

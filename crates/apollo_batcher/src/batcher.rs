@@ -35,6 +35,7 @@ use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -101,8 +102,8 @@ type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>
 
 pub struct Batcher {
     pub config: BatcherConfig,
-    pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub storage_reader: Arc<dyn BatcherStorageReader>,
+    pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -145,8 +146,8 @@ impl Batcher {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: BatcherConfig,
-        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-        storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        storage_reader: Arc<dyn BatcherStorageReader>,
+        storage_writer: Box<dyn BatcherStorageWriter>,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
@@ -965,11 +966,9 @@ pub fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
-    let (storage_reader, storage_writer) = apollo_storage::open_storage_with_metric(
-        config.storage.clone(),
-        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-    )
-    .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer) =
+        open_storage_with_metric(config.storage.clone(), &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS)
+            .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1004,34 +1003,34 @@ pub fn create_batcher(
 }
 
 #[cfg_attr(test, automock)]
-pub trait BatcherStorageReaderTrait: Send + Sync {
+pub trait BatcherStorageReader: Send + Sync {
     /// Returns the next height that the batcher should work on.
-    fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+    fn height(&self) -> StorageResult<BlockNumber>;
 }
 
-impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
-    fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
+impl BatcherStorageReader for StorageReader {
+    fn height(&self) -> StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
     }
 }
 
 #[cfg_attr(test, automock)]
-pub trait BatcherStorageWriterTrait: Send + Sync {
+pub trait BatcherStorageWriter: Send + Sync {
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-    ) -> apollo_storage::StorageResult<()>;
+    ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
 }
 
-impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
+impl BatcherStorageWriter for StorageWriter {
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-    ) -> apollo_storage::StorageResult<()> {
+    ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }
