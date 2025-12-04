@@ -58,6 +58,8 @@ use validators::ParsedValidationErrors;
 
 /// Arg name for providing a configuration file.
 pub const CONFIG_FILE_ARG_NAME: &str = "config_file";
+/// Short arg name for providing a configuration file.
+pub const CONFIG_FILE_SHORT_ARG_NAME: &str = "f";
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
