@@ -78,7 +78,7 @@ impl EthereumBaseLayerContract {
         // TODO(Tsabary,guyn,victork): we're NOT allowed to expose the URL here. propagate these
         // changes down the line
         let contract =
-            build_contract_instance(config.starknet_contract_address, url.as_ref().clone());
+            build_contract_instance(config.starknet_contract_address, url.clone().expose_inner());
         Self { url, contract, config }
     }
 }

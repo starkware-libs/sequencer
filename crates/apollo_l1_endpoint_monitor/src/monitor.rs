@@ -74,7 +74,7 @@ impl L1EndpointMonitor {
     // high-level readability (through a dedicated const) and to improve testability.
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
-        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.as_ref().clone());
+        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.clone().expose_inner());
 
         // Note: response type annotation is coupled with the rpc method used.
         let is_operational_result = tokio::time::timeout(
