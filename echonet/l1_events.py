@@ -11,17 +11,6 @@ from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE
 
 class L1Events:
     @dataclass(frozen=True)
-    class DecodedLogMessageToL2:
-        from_address: str
-        to_address: str
-        selector: int
-        payload: List[int]
-        nonce: int
-        fee: int
-        l1_tx_hash: str
-        block_timestamp: int
-
-    @dataclass(frozen=True)
     class L1HandlerTransaction:
         """Mirrors Rust starknet_api::transaction::L1HandlerTransaction"""
 
@@ -39,7 +28,7 @@ class L1Events:
         l1_tx_hash: str
         block_timestamp: int
 
-    def decode_log(log: dict) -> DecodedLogMessageToL2:
+    def decode_log(log: dict) -> "L1Events.L1Event":
         """
         Decodes Ethereum log from Starknet L1 contract into DecodedLogMessageToL2 event.
         Event structure defined in: crates/papyrus_base_layer/resources/Starknet-0.10.3.4.json
@@ -66,34 +55,20 @@ class L1Events:
         data_bytes = bytes.fromhex(data[2:])  # Remove 0x prefix and convert to bytes
         payload, nonce, fee = eth_abi.decode(["uint256[]", "uint256", "uint256"], data_bytes)
 
-        return L1Events.DecodedLogMessageToL2(
-            from_address=from_address,
-            to_address=to_address,
-            selector=selector,
-            payload=list(payload),
-            nonce=nonce,
-            fee=fee,
-            l1_tx_hash=log["transactionHash"],
-            block_timestamp=int(log["blockTimestamp"], 16),
-        )
-
-    @staticmethod
-    def parse_event(log: dict) -> "L1Events.L1Event":
-        decoded = L1Events.decode_log(log)
-        calldata = [int(decoded.from_address, 16)] + decoded.payload
+        calldata = [int(from_address, 16)] + list(payload)
 
         tx = L1Events.L1HandlerTransaction(
-            contract_address=decoded.to_address,
-            entry_point_selector=decoded.selector,
+            contract_address=to_address,
+            entry_point_selector=selector,
             calldata=calldata,
-            nonce=decoded.nonce,
+            nonce=nonce,
         )
 
         return L1Events.L1Event(
             tx=tx,
-            fee=decoded.fee,
-            l1_tx_hash=decoded.l1_tx_hash,
-            block_timestamp=decoded.block_timestamp,
+            fee=fee,
+            l1_tx_hash=log["transactionHash"],
+            block_timestamp=int(log["blockTimestamp"], 16),
         )
 
     @staticmethod
