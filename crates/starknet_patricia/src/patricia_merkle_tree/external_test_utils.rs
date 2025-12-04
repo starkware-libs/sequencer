@@ -4,7 +4,7 @@ use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
@@ -25,19 +25,23 @@ use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeleto
 pub struct MockLeaf(pub Felt);
 
 impl HasStaticPrefix for MockLeaf {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = ();
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         DbKeyPrefix::new(&[0])
     }
 }
 
 impl DBObject for MockLeaf {
+    type DeserializeContext = ();
+
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
     }
-}
 
-impl Deserializable for MockLeaf {
-    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
+    fn deserialize(
+        value: &DbValue,
+        _deserialize_context: &Self::DeserializeContext,
+    ) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 }
@@ -112,8 +116,8 @@ fn create_inner_node_patricia_key(val: Felt) -> DbKey {
     create_db_key(PatriciaPrefix::InnerNode.into(), &val.to_bytes_be())
 }
 
-pub fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
-    create_db_key(L::get_static_prefix(), &U256::from(val).to_be_bytes())
+pub fn create_leaf_patricia_key<L: Leaf + HasStaticPrefix<KeyContext = ()>>(val: u128) -> DbKey {
+    create_db_key(L::get_static_prefix(&()), &U256::from(val).to_be_bytes())
 }
 
 fn create_binary_val(left: Felt, right: Felt) -> DbValue {
@@ -153,7 +157,9 @@ pub fn create_edge_entry_from_u128<SH: StarkHash>(
     create_edge_entry::<SH>(Felt::from(hash), path, length)
 }
 
-pub fn create_leaf_entry<L: Leaf>(hash: u128) -> (DbKey, DbValue) {
+pub fn create_leaf_entry<L: Leaf + HasStaticPrefix<KeyContext = ()>>(
+    hash: u128,
+) -> (DbKey, DbValue) {
     (create_leaf_patricia_key::<L>(hash), DbValue(create_32_bytes_entry(hash).to_vec()))
 }
 

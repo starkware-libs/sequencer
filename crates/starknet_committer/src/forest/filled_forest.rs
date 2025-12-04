@@ -39,9 +39,9 @@ impl FilledForest {
         let new_db_objects: DbHashMap = self
             .storage_tries
             .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contracts_trie.serialize())
-            .chain(self.classes_trie.serialize())
+            .flat_map(|tree| tree.serialize(&()).into_iter())
+            .chain(self.contracts_trie.serialize(&()).into_iter())
+            .chain(self.classes_trie.serialize(&()))
             .collect();
 
         // Store the new hash map.

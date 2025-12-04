@@ -1,8 +1,10 @@
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
-use starknet_patricia_storage::storage_trait::PatriciaStorageError;
+use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
 use thiserror::Error;
 
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 
@@ -88,4 +90,9 @@ pub trait SubTreeTrait<'a>: Sized {
         self.get_root_index().is_leaf()
     }
     fn should_traverse_unmodified_children() -> bool;
+
+    fn get_root_prefix<L: Leaf>(
+        &self,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+    ) -> DbKeyPrefix;
 }
