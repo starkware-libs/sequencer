@@ -15,8 +15,11 @@ define_metrics!(
 
         // Proposals topic metrics
         MetricCounter { CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, "apollo_consensus_proposals_num_sent_messages", "The number of messages sent by the consensus p2p component over the Proposals topic", init = 0 },
+        MetricHistogram { CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE_BYTES, "apollo_consensus_proposals_sent_message_size_bytes", "The size in bytes of messages sent by the consensus p2p component over the Proposals topic" },
         MetricCounter { CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, "apollo_consensus_proposals_num_received_messages", "The number of messages received by the consensus p2p component over the Proposals topic", init = 0 },
+        MetricHistogram { CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE_BYTES, "apollo_consensus_proposals_received_message_size_bytes", "The size in bytes of messages received by the consensus p2p component over the Proposals topic" },
         LabeledMetricCounter { CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES, "apollo_consensus_proposals_num_dropped_messages", "The number of messages dropped by the consensus p2p component over the Proposals topic", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
+        MetricHistogram { CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE_BYTES, "apollo_consensus_proposals_dropped_message_size_bytes", "The size in bytes of messages dropped by the consensus p2p component over the Proposals topic" },
 
         // Network events
         LabeledMetricCounter { CONSENSUS_NETWORK_EVENTS, "apollo_consensus_network_events", "Network events counter by event type for consensus", init = 0, labels = EVENT_TYPE_LABELS },
@@ -35,6 +38,9 @@ pub(crate) fn register_metrics() {
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.register();
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.register();
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.register();
+    CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE_BYTES.register();
+    CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE_BYTES.register();
+    CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE_BYTES.register();
     CONSENSUS_NETWORK_EVENTS.register();
     CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING.register();
 }
