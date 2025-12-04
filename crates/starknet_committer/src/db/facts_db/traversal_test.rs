@@ -25,7 +25,6 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     Preimage,
     PreimageMap,
 };
-use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
@@ -87,6 +86,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),
+        &(),
     )
     .await
     .unwrap();
