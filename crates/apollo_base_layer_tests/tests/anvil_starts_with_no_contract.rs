@@ -18,7 +18,7 @@ async fn anvil_starts_with_no_contract() {
         .try_spawn()
         .expect("Anvil not installed, see anvil base layer for installation instructions.");
     let base_layer_config = EthereumBaseLayerConfig {
-        ordered_l1_endpoint_urls: vec![anvil.endpoint_url()],
+        ordered_l1_endpoint_urls: vec![anvil.endpoint_url().into()],
         ..Default::default()
     };
     let mut base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
