@@ -887,6 +887,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "apollo_state_sync_types",
+ "apollo_storage",
  "async-trait",
  "blockifier",
  "chrono",
