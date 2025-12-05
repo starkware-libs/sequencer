@@ -8,10 +8,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
-use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
@@ -213,14 +217,18 @@ impl OfflineStateReader {
         self,
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
+    {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let hash = self.old_block_hash;
-        Ok(TransactionExecutor::<OfflineStateReader>::pre_process_and_create(
-            self,
+        let state_reader_and_contract_manager =
+            StateReaderAndContractManager::new(self, contract_class_manager.clone(), None);
+        Ok(TransactionExecutor::<StateReaderAndContractManager<OfflineStateReader>>::pre_process_and_create(
+            state_reader_and_contract_manager,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash }),
             transaction_executor_config.unwrap_or_default(),
@@ -259,13 +267,20 @@ impl OfflineConsecutiveStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<OfflineStateReader> for OfflineConsecutiveStateReaders {
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<OfflineStateReader>>
+    for OfflineConsecutiveStateReaders
+{
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
-        self.offline_state_reader_prev_block
-            .get_transaction_executor(self.block_context_next_block, transaction_executor_config)
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
+    {
+        self.offline_state_reader_prev_block.get_transaction_executor(
+            self.block_context_next_block,
+            transaction_executor_config,
+            contract_class_manager,
+        )
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
