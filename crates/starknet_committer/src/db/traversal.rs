@@ -13,13 +13,15 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 
+use crate::db::create_facts_tree::FactsSubTree;
+
 #[cfg(test)]
 #[path = "traversal_test.rs"]
 pub mod traversal_test;
 
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
 pub async fn calculate_subtrees_roots<'a, L: Leaf>(
-    subtrees: &[SubTree<'a>],
+    subtrees: &[FactsSubTree<'a>],
     storage: &mut impl Storage,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
@@ -54,7 +56,8 @@ pub async fn fetch_patricia_paths<L: Leaf>(
         return Ok(witnesses);
     }
 
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT };
+    let main_subtree = FactsSubTree::new(main_subtree, root_hash);
 
     fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
     Ok(witnesses)
@@ -69,7 +72,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 /// provided map.
 async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     storage: &mut impl Storage,
-    subtrees: Vec<SubTree<'a>>,
+    subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
 ) -> TraversalResult<()> {
@@ -88,8 +91,9 @@ async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                 // Binary node.
                 NodeData::Binary(binary_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
-                    let (left_subtree, right_subtree) = subtree
-                        .get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
+                    let (left_subtree, right_subtree) = subtree.get_children_subtrees();
+                    let left_subtree = FactsSubTree::new(left_subtree, binary_data.left_hash);
+                    let right_subtree = FactsSubTree::new(right_subtree, binary_data.right_hash);
                     next_subtrees.push(left_subtree);
                     next_subtrees.push(right_subtree);
                 }
@@ -97,8 +101,9 @@ async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                 NodeData::Edge(edge_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
                     // Parse bottom.
-                    let (bottom_subtree, empty_leaves_indices) = subtree
-                        .get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
+                    let (bottom_subtree, empty_leaves_indices) =
+                        subtree.get_bottom_subtree(&edge_data.path_to_bottom);
+                    let bottom_subtree = FactsSubTree::new(bottom_subtree, edge_data.bottom_hash);
                     if let Some(ref mut leaves_map) = leaves {
                         // Insert empty leaves descendent of the current subtree, that are not
                         // descendents of the bottom node.
