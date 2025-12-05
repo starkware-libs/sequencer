@@ -9,6 +9,7 @@ use cairo_lang_starknet_classes::contract_class::ContractEntryPoint as CairoLang
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sha3::Digest;
+use starknet_core::types::{FlattenedSierraClass, SierraEntryPoint};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as SNTypsCoreStarkHash};
 
@@ -270,6 +271,17 @@ impl SierraContractClass {
     }
 }
 
+impl From<FlattenedSierraClass> for SierraContractClass {
+    fn from(flattened_sierra: FlattenedSierraClass) -> Self {
+        Self {
+            sierra_program: flattened_sierra.sierra_program,
+            contract_class_version: flattened_sierra.contract_class_version,
+            entry_points_by_type: flattened_sierra.entry_points_by_type.into(),
+            abi: flattened_sierra.abi,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ContractClassComponentHashes {
     pub contract_class_version: Felt,
@@ -323,6 +335,18 @@ impl From<CairoLangContractEntryPoint> for EntryPoint {
         Self {
             function_idx: FunctionIndex(entry_point.function_idx),
             selector: EntryPointSelector(entry_point.selector.into()),
+        }
+    }
+}
+
+impl From<SierraEntryPoint> for EntryPoint {
+    fn from(entry_point: SierraEntryPoint) -> Self {
+        Self {
+            function_idx: FunctionIndex(
+                usize::try_from(entry_point.function_idx)
+                    .expect("Function index should fit in a usize"),
+            ),
+            selector: EntryPointSelector(entry_point.selector),
         }
     }
 }
