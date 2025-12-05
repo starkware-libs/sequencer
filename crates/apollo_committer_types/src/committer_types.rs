@@ -14,3 +14,14 @@ pub struct CommitBlockRequest {
 pub struct CommitBlockResponse {
     state_root: GlobalRoot,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevertBlockRequest {
+    reversed_state_diff: StateDiff,
+    height: BlockNumber,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RevertBlockResponse {
+    state_root: Option<GlobalRoot>,
+}
