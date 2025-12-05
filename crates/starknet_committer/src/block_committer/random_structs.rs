@@ -19,7 +19,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     get_random_u256,
     u256_try_into_felt,
 };
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -178,7 +178,7 @@ impl RandomValue for NodeIndex {
 
 macro_rules! random_filled_node {
     ($leaf:ty) => {
-        impl RandomValue for FilledNode<$leaf> {
+        impl RandomValue for FactDbFilledNode<$leaf> {
             fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
                 Self { data: NodeData::random(rng, max), hash: HashOutput::random(rng, max) }
             }
@@ -216,11 +216,13 @@ macro_rules! random_filled_tree {
                 }
                 .as_usize();
 
-                let mut nodes: Vec<(NodeIndex, FilledNode<$leaf>)> = (0..max_node_number)
-                    .map(|_| (NodeIndex::random(rng, max_size), FilledNode::random(rng, max_size)))
+                let mut nodes: Vec<(NodeIndex, FactDbFilledNode<$leaf>)> = (0..max_node_number)
+                    .map(|_| {
+                        (NodeIndex::random(rng, max_size), FactDbFilledNode::random(rng, max_size))
+                    })
                     .collect();
 
-                nodes.push((NodeIndex::ROOT, FilledNode::random(rng, max_size)));
+                nodes.push((NodeIndex::ROOT, FactDbFilledNode::random(rng, max_size)));
 
                 Self {
                     tree_map: nodes.into_iter().collect(),

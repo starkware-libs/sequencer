@@ -1,4 +1,3 @@
-use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use thiserror::Error;
@@ -29,7 +28,6 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 pub struct SubTree<'a> {
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
     pub root_index: NodeIndex,
-    pub root_hash: HashOutput,
 }
 
 impl<'a> SubTree<'a> {
@@ -56,11 +54,7 @@ impl<'a> SubTree<'a> {
     /// Returns the bottom subtree which is referred from `self` by the given path. When creating
     /// the bottom subtree some indices that were modified under `self` are not modified under the
     /// bottom subtree (leaves that were previously empty). These indices are returned as well.
-    pub fn get_bottom_subtree(
-        &self,
-        path_to_bottom: &PathToBottom,
-        bottom_hash: HashOutput,
-    ) -> (Self, Vec<&NodeIndex>) {
+    pub fn get_bottom_subtree(&self, path_to_bottom: &PathToBottom) -> (Self, Vec<&NodeIndex>) {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
         let bottom_height = self.get_height() - SubTreeHeight::new(path_to_bottom.length.into());
         let leftmost_in_subtree = bottom_index << bottom_height.into();
@@ -76,32 +70,19 @@ impl<'a> SubTree<'a> {
             .collect();
 
         (
-            Self {
-                sorted_leaf_indices: bottom_leaves,
-                root_index: bottom_index,
-                root_hash: bottom_hash,
-            },
+            Self { sorted_leaf_indices: bottom_leaves, root_index: bottom_index },
             previously_empty_leaf_indices,
         )
     }
 
-    pub fn get_children_subtrees(
-        &self,
-        left_hash: HashOutput,
-        right_hash: HashOutput,
-    ) -> (Self, Self) {
+    pub fn get_children_subtrees(&self) -> (Self, Self) {
         let [left_leaves, right_leaves] = self.split_leaves();
         let left_root_index = self.root_index * 2.into();
         (
-            SubTree {
-                sorted_leaf_indices: left_leaves,
-                root_index: left_root_index,
-                root_hash: left_hash,
-            },
+            SubTree { sorted_leaf_indices: left_leaves, root_index: left_root_index },
             SubTree {
                 sorted_leaf_indices: right_leaves,
                 root_index: left_root_index + NodeIndex::ROOT,
-                root_hash: right_hash,
             },
         )
     }
