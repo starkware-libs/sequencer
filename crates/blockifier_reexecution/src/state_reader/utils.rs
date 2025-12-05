@@ -14,23 +14,20 @@ use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{class_hash, contract_address};
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
 use crate::state_reader::cli::TransactionInput;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
-    OfflineConsecutiveStateReaders,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
+    OfflineConsecutiveStateReaders, SerializableDataPrevBlock, SerializableOfflineReexecutionData,
 };
 use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecutionStateReader,
+    ConsecutiveReexecutionStateReaders, ReexecutionStateReader,
 };
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
@@ -269,6 +266,30 @@ pub fn write_block_reexecution_data_to_file(
     );
 
     tracing::info!("Got consecutive state readers");
+    consecutive_state_readers
+        .last_block_state_reader
+        .get_class_hash_at(contract_address!(
+            "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+        ))
+        .unwrap();
+    consecutive_state_readers
+        .next_block_state_reader
+        .get_class_hash_at(contract_address!(
+            "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+        ))
+        .unwrap();
+    consecutive_state_readers
+        .last_block_state_reader
+        .get_compiled_class(class_hash!(
+            "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3"
+        ))
+        .unwrap();
+    consecutive_state_readers
+        .next_block_state_reader
+        .get_compiled_class(class_hash!(
+            "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3"
+        ))
+        .unwrap();
 
     let serializable_data_next_block =
         consecutive_state_readers.get_serializable_data_next_block().unwrap();

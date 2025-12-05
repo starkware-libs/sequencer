@@ -70,6 +70,7 @@ pub fn allocate_aliases_in_storage<S: StateReader>(
     for contract_address in contract_addresses {
         if let Some(storage_keys) = contract_address_to_sorted_storage_keys.get(&contract_address) {
             for key in storage_keys {
+                tracing::info!("Inserting alias for {contract_address} {key:?}");
                 alias_updater.insert_alias(key)?;
             }
         }
@@ -108,6 +109,7 @@ impl<'a, S: State> AliasUpdater<'a, S> {
         if alias_key.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
             && self.state.get_storage_at(self.alias_contract_address, *alias_key)? == Felt::ZERO
         {
+            tracing::info!("Allocating alias for {alias_key:?}");
             let alias_to_allocate = self.next_free_alias.unwrap_or(INITIAL_AVAILABLE_ALIAS);
             self.set_alias_in_storage(*alias_key, alias_to_allocate)?;
             self.is_alias_inserted = true;
