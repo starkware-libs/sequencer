@@ -222,6 +222,9 @@ impl<S: StateReader> State for CachedState<S> {
         key: StorageKey,
         value: Felt,
     ) -> StateResult<()> {
+        if **contract_address == Felt::TWO {
+            tracing::info!("Setting alias storage at {key:?} to {value:?}");
+        }
         self.cache.get_mut().set_storage_value(contract_address, key, value);
 
         Ok(())

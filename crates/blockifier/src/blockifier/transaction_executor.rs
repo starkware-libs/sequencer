@@ -194,8 +194,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                 Ok((tx_execution_info, state_diff)) => {
                     results.push(Ok((tx_execution_info, state_diff)))
                 }
-                Err(TransactionExecutorError::BlockFull) => break,
-                Err(error) => results.push(Err(error)),
+                Err(error) => panic!("Transaction {i} failed with {error:?}."),
             }
         }
         results
