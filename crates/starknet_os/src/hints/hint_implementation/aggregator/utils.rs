@@ -237,6 +237,7 @@ fn write_full_os_output(
     vm: &mut VirtualMachine,
     address: Relocatable,
     state_diff_writer: &mut FullStateDiffWriter,
+    full_output_flag: bool,
 ) -> VmUtilsResult<Relocatable> {
     let FullOsOutput { common_os_output, state_diff } = output;
     let messages_to_l1_start = vm.add_temporary_segment();
@@ -269,7 +270,7 @@ fn write_full_os_output(
         common_os_output.os_program_hash.into(),
         common_os_output.starknet_os_config_hash.into(),
         Felt::ZERO.into(), // use_kzg_da field (False in the aggregator input).
-        Felt::ONE.into(),  // full_output field (True in the aggregator input).
+        Felt::from(full_output_flag).into(),
     ])?;
 
     let squashed_os_state_update = vm.gen_arg(&vec![
@@ -296,11 +297,17 @@ impl LoadIntoVmMemory for FullOsOutputs {
         vm: &mut VirtualMachine,
         address: Relocatable,
     ) -> VmUtilsResult<Relocatable> {
+        let full_output = true;
         let mut os_output_ptr = address;
         let mut contract_changes_writer = FullStateDiffWriter::new(vm);
         for output in &self.0 {
-            os_output_ptr =
-                write_full_os_output(output, vm, os_output_ptr, &mut contract_changes_writer)?;
+            os_output_ptr = write_full_os_output(
+                output,
+                vm,
+                os_output_ptr,
+                &mut contract_changes_writer,
+                full_output,
+            )?;
         }
         Ok(os_output_ptr)
     }
