@@ -421,11 +421,7 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
 
     // Fetch the (block number -> block hash) mapping contract state.
     local state_entry: StateEntry*;
-    %{
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.BLOCK_HASH_CONTRACT_ADDRESS
-        ]
-    %}
+    %{ GetBlockMapping %}
 
     // Currently, the block hash mapping is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): output this hash.
