@@ -171,7 +171,7 @@ func deprecated_execute_entry_point{
     tempvar calldata_size = execution_context.calldata_size;
     tempvar calldata = execution_context.calldata;
 
-    %{ vm_enter_scope({'syscall_handler': deprecated_syscall_handler}) %}
+    %{ EnterScopeDeprecatedSyscallHandler %}
     call abs contract_entry_point;
     %{ vm_exit_scope() %}
     %{ execution_helper.exit_call() %}

@@ -245,7 +245,7 @@ func execute_entry_point{
     );
     static_assert ap == current_ap + EntryPointCallArguments.SIZE;
 
-    %{ vm_enter_scope({'syscall_handler': syscall_handler}) %}
+    %{ EnterScopeSyscallHandler %}
     call abs contract_entry_point;
     %{ vm_exit_scope() %}
 

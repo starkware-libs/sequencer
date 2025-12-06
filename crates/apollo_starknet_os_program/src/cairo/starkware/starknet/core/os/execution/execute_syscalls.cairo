@@ -1257,11 +1257,7 @@ func execute_replace_class{
 
     // TODO(Yoni, 1/1/2026): Check that there is a declared contract class with the given hash.
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar new_state_entry = new StateEntry(
         class_hash=class_hash, storage_ptr=state_entry.storage_ptr, nonce=state_entry.nonce
