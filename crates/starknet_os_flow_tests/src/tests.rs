@@ -1728,6 +1728,38 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     ));
 }
 
+/// Runs the same syscall several times from various call depths. E.g.,
+/// 1. sha256()
+/// 2. call_contract(sha256)
+/// 3. sha256()
+/// The OS runs the syscalls twice, with each pass executed in a different order:
+/// * First: 1, 3 and then 2.
+/// * Second: 1, 2, 3.
+/// This test checks that the OS behaves correctly and consistently in both cases.
+#[rstest]
+#[tokio::test]
+async fn test_syscalls_with_alternating_inner_calls() {
+    let use_kzg_da = true;
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    let calldata =
+        create_calldata(test_contract_address, "test_sha256_with_alternating_inner_calls", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_deprecated_tx_info() {

@@ -20,7 +20,7 @@ mod TestContract {
     use starknet::eth_address::U256IntoEthAddress;
     use starknet::eth_signature::verify_eth_signature;
     use starknet::info::v2::{ExecutionInfo, ResourceBounds, TxInfo};
-    use starknet::info::{BlockInfo, SyscallResultTrait};
+    use starknet::info::{BlockInfo, SyscallResultTrait, get_contract_address};
     use starknet::secp256_trait::{Signature, is_valid_signature};
     use starknet::secp256r1::{Secp256r1Impl, Secp256r1Point};
     use starknet::storage_access::{
@@ -28,7 +28,8 @@ mod TestContract {
     };
     use starknet::{
         ClassHash, ContractAddress, EthAddress, StorageAddress, class_hash_try_from_felt252,
-        contract_address_try_from_felt252, get_execution_info, storage_read_syscall, storage_write_syscall, syscalls,
+        contract_address_try_from_felt252, get_execution_info, storage_read_syscall,
+        storage_write_syscall, syscalls,
     };
     use traits::{Into, TryInto};
 
@@ -258,11 +259,8 @@ mod TestContract {
         let actual_class_hash_of_undeployed = starknet::syscalls::get_class_hash_at_syscall(
             undeployed_address
         )
-        .unwrap_syscall();
-        assert(
-            actual_class_hash_of_undeployed == ClassHashZero::zero(),
-            'WRONG_CLASS_HASH',
-        );
+            .unwrap_syscall();
+        assert(actual_class_hash_of_undeployed == ClassHashZero::zero(), 'WRONG_CLASS_HASH',);
     }
 
     #[external(v0)]
@@ -536,13 +534,26 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_sha256(ref self: ContractState) {
-        let mut input: Array<u32> = Default::default();
-        input.append('aaaa');
+    fn test_sha256_with_alternating_inner_calls(ref self: ContractState) {
+        test_sha256_helper('bbb', 0x1e0ca831);
 
-        // Test the sha256 syscall computation of the string 'aaaa'.
-        let [res, _, _, _, _, _, _, _] = compute_sha256_u32_array(input, 0, 0);
-        assert(res == 0x61be55a8, 'Wrong hash value');
+        syscalls::call_contract_syscall(
+            get_contract_address(), selector!("test_sha256"), array![].span(),
+        )
+            .unwrap_syscall();
+
+        test_sha256_helper('abcd', 0x88d4266f);
+    }
+
+    #[external(v0)]
+    fn test_sha256(ref self: ContractState) {
+        test_sha256_helper('aaaa', 0x61be55a8)
+    }
+
+    // TODO(Nimrod): Consider providing the expected result as [u32; 8].
+    fn test_sha256_helper(value: u32, expected_res: u32) {
+        let [res, _, _, _, _, _, _, _,] = compute_sha256_u32_array(array![value], 0, 0);
+        assert(res == expected_res, 'Wrong hash value');
     }
 
     #[external(v0)]
