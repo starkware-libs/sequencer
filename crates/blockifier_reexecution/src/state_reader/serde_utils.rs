@@ -63,6 +63,10 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
         ("INVOKE", "0x3") => {
             // In old invoke v3 transaction, the resource bounds names are lowercase.
             upper_case_resource_bounds_names(&mut raw_transaction);
+            // TODO(AvivG): Remove this once we support proof facts in rpc_v8.
+            if raw_transaction.get("proof_facts").is_none() {
+                raw_transaction["proof_facts"] = serde_json::json!([]);
+            }
             Ok(Transaction::Invoke(InvokeTransaction::V3(serde_json::from_value(raw_transaction)?)))
         }
         ("DEPLOY_ACCOUNT", "0x1") => Ok(Transaction::DeployAccount(DeployAccountTransaction::V1(

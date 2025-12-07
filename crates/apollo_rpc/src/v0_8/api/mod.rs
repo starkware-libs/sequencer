@@ -630,6 +630,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 fee_data_availability_mode,
                 paymaster_data,
                 account_deployment_data,
+                proof_facts: vec![],
             }),
         }
     }
