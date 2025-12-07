@@ -114,14 +114,9 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                 NodeData::Binary(binary_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
                     let (left_subtree, right_subtree) = subtree
-                        .get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
-
-                    if !left_subtree.is_unmodified() {
-                        next_subtrees.push(left_subtree);
-                    }
-                    if !right_subtree.is_unmodified() {
-                        next_subtrees.push(right_subtree);
-                    }
+                        .get_children_subtrees(binary_data.left_data, binary_data.right_data);
+                    next_subtrees.push(left_subtree);
+                    next_subtrees.push(right_subtree);
                 }
                 // Edge node.
                 // If it's the root: it's not necessarily a modified tree, because the modification
@@ -132,7 +127,7 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                     witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
                     // Parse bottom.
                     let (bottom_subtree, empty_leaves_indices) = subtree
-                        .get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
+                        .get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_data);
                     if let Some(ref mut leaves_map) = leaves {
                         // Insert empty leaves descendent of the current subtree, that are not
                         // descendents of the bottom node.

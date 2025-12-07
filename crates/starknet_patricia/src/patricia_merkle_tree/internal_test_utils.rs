@@ -24,7 +24,7 @@ impl TreeHashFunction<MockLeaf> for TestTreeHashFunction {
         HashOutput(leaf_data.0)
     }
 
-    fn compute_node_hash(node_data: &NodeData<MockLeaf>) -> HashOutput {
+    fn compute_node_hash(node_data: &NodeData<MockLeaf, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<MockHashFunction>(node_data)
     }
 }
