@@ -19,6 +19,7 @@ use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -37,6 +38,8 @@ define_versioned_constants!(
     VersionedConstants,
     RawVersionedConstants,
     VersionedConstantsError,
+    StarknetVersion::V0_13_0,
+    "resources/versioned_constants_diff_regression",
     (V0_13_0, "../resources/blockifier_versioned_constants_0_13_0.json"),
     (V0_13_1, "../resources/blockifier_versioned_constants_0_13_1.json"),
     (V0_13_1_1, "../resources/blockifier_versioned_constants_0_13_1_1.json"),
@@ -438,23 +441,29 @@ impl VersionedConstants {
     // squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
-        versioned_constants_overrides: VersionedConstantsOverrides,
+        versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     ) -> Self {
-        let VersionedConstantsOverrides {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            max_n_events,
-        } = versioned_constants_overrides;
         let latest_constants = Self::latest_constants().clone();
-        let tx_event_limits =
-            EventLimits { max_n_emitted_events: max_n_events, ..latest_constants.tx_event_limits };
-        Self {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            tx_event_limits,
-            ..latest_constants
+        match versioned_constants_overrides {
+            None => latest_constants,
+            Some(VersionedConstantsOverrides {
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+                max_n_events,
+            }) => {
+                let tx_event_limits = EventLimits {
+                    max_n_emitted_events: max_n_events,
+                    ..latest_constants.tx_event_limits
+                };
+                Self {
+                    validate_max_n_steps,
+                    max_recursion_depth,
+                    invoke_tx_max_n_steps,
+                    tx_event_limits,
+                    ..latest_constants
+                }
+            }
         }
     }
 

@@ -15,6 +15,8 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
@@ -29,25 +31,33 @@ use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
-use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
+type BlockifierStatefulValidator = StatefulValidator<
+    StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>,
+>;
 
 #[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub contract_class_manager: ContractClassManager,
 }
 
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
@@ -55,11 +65,12 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
-            .get_state_reader_from_latest_block()
+        let state_reader = runtime
+            .block_on(state_reader_factory.get_state_reader_from_latest_block())
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
             })
@@ -69,12 +80,18 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader)?;
+        let latest_block_info = runtime.block_on(get_latest_block_info(&state_reader))?;
 
-        let state = CachedState::new(state_reader);
-        let mut versioned_constants = VersionedConstants::get_versioned_constants(
-            self.config.versioned_constants_overrides.clone(),
+        let state_reader_and_contract_manager = StateReaderAndContractManager::new(
+            state_reader,
+            self.contract_class_manager.clone(),
+            Some(GATEWAY_CLASS_CACHE_METRICS),
         );
+
+        let state = CachedState::new(state_reader_and_contract_manager);
+        let mut versioned_constants = VersionedConstants::get_versioned_constants(Some(
+            self.config.versioned_constants_overrides.clone(),
+        ));
         // The validation of a transaction is not affected by the casm hash migration.
         versioned_constants.enable_casm_hash_migration = false;
 
@@ -332,10 +349,11 @@ fn skip_stateful_validations(
     Ok(false)
 }
 
-pub fn get_latest_block_info(
+async fn get_latest_block_info(
     state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     state_reader
         .get_block_info()
+        .await
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }

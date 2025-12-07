@@ -12,7 +12,7 @@ workspace = true
 [dependencies]
 apollo_infra_utils.workspace = true
 blake2.workspace = true
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive", "string"] }
 rand.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true

@@ -40,7 +40,7 @@ macro_rules! log_trivial_modification {
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
 /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
 /// encountering a trivial modification. Fills the previous leaf values if it is not none.
-fn fetch_nodes<'a, L: Leaf>(
+async fn fetch_nodes<'a, L: Leaf>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
     subtrees: Vec<SubTree<'a>>,
     storage: &mut impl Storage,
@@ -53,7 +53,7 @@ fn fetch_nodes<'a, L: Leaf>(
     while !current_subtrees.is_empty() {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
-        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
@@ -143,7 +143,7 @@ fn fetch_nodes<'a, L: Leaf>(
     Ok(())
 }
 
-pub fn create_original_skeleton_tree<'a, L: Leaf>(
+pub async fn create_original_skeleton_tree<'a, L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -170,11 +170,12 @@ pub fn create_original_skeleton_tree<'a, L: Leaf>(
         leaf_modifications,
         config,
         None,
-    )?;
+    )
+    .await?;
     Ok(skeleton_tree)
 }
 
-pub fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
+pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -201,11 +202,12 @@ pub fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
         leaf_modifications,
         config,
         Some(&mut leaves),
-    )?;
+    )
+    .await?;
     Ok((skeleton_tree, leaves))
 }
 
-pub fn get_leaves<'a, L: Leaf>(
+pub async fn get_leaves<'a, L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -218,7 +220,8 @@ pub fn get_leaves<'a, L: Leaf>(
         sorted_leaf_indices,
         &leaf_modifications,
         &config,
-    )?;
+    )
+    .await?;
     Ok(previous_leaves)
 }
 

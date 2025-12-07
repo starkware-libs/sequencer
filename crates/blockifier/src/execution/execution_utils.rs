@@ -29,6 +29,7 @@ use crate::execution::entry_point::{
     ConstructorEntryPointExecutionResult,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    EntryPointRevertInfo,
     ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{
@@ -322,6 +323,12 @@ pub fn execute_deployment(
         ));
     }
 
+    context.revert_infos.0.push(EntryPointRevertInfo::new(
+        deployed_contract_address,
+        current_class_hash,
+        context.n_emitted_events,
+        context.n_sent_messages_to_l1,
+    ));
     state.set_class_hash_at(deployed_contract_address, ctor_context.class_hash).map_err(
         |error| ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None),
     )?;

@@ -2,171 +2,31 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
+use blockifier_reexecution::state_reader::cli::{
+    parse_block_numbers_args,
+    BlockifierReexecutionCliArgs,
+    Command,
+    TransactionInput,
+    FULL_RESOURCES_DIR,
+};
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
-    execute_single_transaction_from_json,
-    get_block_numbers_for_reexecution,
-    guess_chain_id_from_node_url,
+    execute_single_transaction,
     reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
-    FULL_RESOURCES_DIR,
 };
-use clap::{Args, Parser, Subcommand};
+use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
 
 const BUCKET: &str = "reexecution_artifacts";
 const RESOURCES_DIR: &str = "/resources";
 const FILE_NAME: &str = "/reexecution_data.json";
 const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
-
-/// BlockifierReexecution CLI.
-#[derive(Debug, Parser)]
-#[clap(name = "blockifier-reexecution-cli", version)]
-pub struct BlockifierReexecutionCliArgs {
-    #[clap(flatten)]
-    global_options: GlobalOptions,
-
-    #[clap(subcommand)]
-    command: Command,
-}
-
-#[derive(clap::ValueEnum, Clone, Debug)]
-enum SupportedChainId {
-    Mainnet,
-    Testnet,
-    Integration,
-}
-
-impl From<SupportedChainId> for ChainId {
-    fn from(chain_id: SupportedChainId) -> Self {
-        match chain_id {
-            SupportedChainId::Mainnet => Self::Mainnet,
-            SupportedChainId::Testnet => Self::Sepolia,
-            SupportedChainId::Integration => Self::IntegrationSepolia,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Args)]
-struct RpcArgs {
-    /// Node url.
-    #[clap(long, short = 'n')]
-    node_url: String,
-
-    /// Optional chain ID (if not provided, it will be guessed from the node url).
-    #[clap(long, short = 'c')]
-    chain_id: Option<SupportedChainId>,
-}
-
-impl RpcArgs {
-    fn parse_chain_id(&self) -> ChainId {
-        self.chain_id
-            .clone()
-            .map(ChainId::from)
-            .unwrap_or(guess_chain_id_from_node_url(self.node_url.as_str()).unwrap())
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum Command {
-    /// Runs the RPC test.
-    RpcTest {
-        #[clap(flatten)]
-        rpc_args: RpcArgs,
-
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
-    },
-
-    /// Reexecutes a single transaction from a JSON file using RPC to fetch block context.
-    ReExecuteSingleTx {
-        #[clap(flatten)]
-        rpc_args: RpcArgs,
-
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
-
-        // TODO(Yonatank): make this field optional and add an option to provide a transaction hash
-        // instead (and use it to get the transaction from the RPC).
-        /// Path to the JSON file containing the transaction.
-        #[clap(long, short = 't')]
-        transaction_path: String,
-    },
-
-    /// Writes the RPC queries of all (selected) blocks to json files.
-    WriteToFile {
-        #[clap(flatten)]
-        rpc_args: RpcArgs,
-
-        /// Block numbers. If not specified, blocks are retrieved from
-        /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
-        block_numbers: Option<Vec<u64>>,
-
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
-    },
-
-    // Reexecute all (selected) blocks
-    Reexecute {
-        /// Block numbers. If not specified, blocks are retrieved from
-        /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
-        block_numbers: Option<Vec<u64>>,
-
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
-    },
-
-    // Upload all (selected) blocks to the gc bucket.
-    UploadFiles {
-        /// Block numbers. If not specified, blocks are retrieved from
-        /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
-        block_numbers: Option<Vec<u64>>,
-
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
-    },
-
-    // Download all (selected) blocks from the gc bucket.
-    DownloadFiles {
-        /// Block numbers. If not specified, blocks are retrieved from
-        /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
-        block_numbers: Option<Vec<u64>>,
-
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
-    },
-}
-
-fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber> {
-    block_numbers
-        .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
-        .unwrap_or_else(|| get_block_numbers_for_reexecution(None))
-}
-
-#[derive(Debug, Args)]
-struct GlobalOptions {}
 
 /// Main entry point of the blockifier reexecution CLI.
 /// TODO(Aner): run by default from the root of the project.
@@ -218,10 +78,15 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::ReExecuteSingleTx { block_number, rpc_args, transaction_path } => {
+        Command::ReexecuteSingleTx { block_number, rpc_args, tx_input } => {
+            let tx_source = match tx_input {
+                TransactionInput::FromFile { ref tx_path } => format!("from file {tx_path}"),
+                TransactionInput::FromHash { ref tx_hash } => format!("with hash {tx_hash}"),
+            };
+
             println!(
-                "Executing single transaction from {transaction_path}, for block number \
-                 {block_number}, and using node url {}.",
+                "Executing single transaction {tx_source}, for block number {block_number}, and \
+                 using node url {}.",
                 rpc_args.node_url
             );
 
@@ -231,12 +96,7 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction_from_json(
-                    BlockNumber(block_number),
-                    node_url,
-                    chain_id,
-                    transaction_path,
-                )
+                execute_single_transaction(BlockNumber(block_number), node_url, chain_id, tx_input)
             })
             .await
             .unwrap()

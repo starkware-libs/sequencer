@@ -10,6 +10,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolResult,
     MempoolSnapshot,
     MempoolStateSnapshot,
+    ValidationArgs,
 };
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
@@ -335,6 +336,15 @@ impl Mempool {
             .collect())
     }
 
+    /// Perform validation-only of an incoming transaction (without changing the state).
+    pub fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
+        let tx_reference = (&args).into();
+        self.validate_incoming_tx(tx_reference, args.account_nonce)?;
+        self.handle_fee_escalation(tx_reference, true)?;
+
+        Ok(())
+    }
+
     /// Adds a new transaction to the mempool.
     #[instrument(
         skip(self, args),
@@ -354,7 +364,7 @@ impl Mempool {
 
         let tx_reference = TransactionReference::new(&args.tx);
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
-        self.handle_fee_escalation(&args.tx)?;
+        self.handle_fee_escalation(tx_reference, false)?;
 
         if self.exceeds_capacity(&args.tx) {
             self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
@@ -563,12 +573,19 @@ impl Mempool {
         Ok(())
     }
 
-    /// If this transaction is already in the pool but the fees have increased beyond the threshold
-    /// in the config, remove the existing transaction from the queue and the pool.
+    /// This method checks if an incoming transaction with the same (address, nonce) already exists
+    /// in the pool and determines whether the incoming transaction should replace it based on fee
+    /// escalation rules.
+    /// If `validation_only` is `true`, only validates whether replacement would be allowed without
+    /// actually removing the existing transaction. If `false`, removes the existing transaction
+    /// when replacement is valid.
     /// Note: This method will **not** add the new incoming transaction.
-    #[instrument(level = "debug", skip(self, incoming_tx), err)]
-    fn handle_fee_escalation(&mut self, incoming_tx: &InternalRpcTransaction) -> MempoolResult<()> {
-        let incoming_tx_reference = TransactionReference::new(incoming_tx);
+    #[instrument(level = "debug", skip(self), err)]
+    fn handle_fee_escalation(
+        &mut self,
+        incoming_tx_reference: TransactionReference,
+        validation_only: bool,
+    ) -> MempoolResult<()> {
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
         self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
@@ -594,6 +611,10 @@ impl Mempool {
             );
             // TODO(Elin): consider adding a more specific error type / message.
             return Err(MempoolError::DuplicateNonce { address, nonce });
+        }
+
+        if validation_only {
+            return Ok(());
         }
 
         debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
@@ -855,6 +876,18 @@ impl TransactionReference {
             tx_hash: tx.tx_hash(),
             tip: tx.tip(),
             max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
+        }
+    }
+}
+
+impl From<&ValidationArgs> for TransactionReference {
+    fn from(args: &ValidationArgs) -> Self {
+        TransactionReference {
+            address: args.address,
+            nonce: args.tx_nonce,
+            tx_hash: args.tx_hash,
+            tip: args.tip,
+            max_l2_gas_price: args.max_l2_gas_price,
         }
     }
 }

@@ -10,9 +10,11 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
+use apollo_infra_utils::debug_every_n_sec;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -35,33 +37,34 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::storage::HeightVotedStorageTrait;
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
 
 /// Arguments for running consensus.
-#[derive(Clone)]
 pub struct RunConsensusArguments {
     /// Consensus configuration (static + dynamic). Static fields are used directly; dynamic
     /// fields are refreshed at height boundaries via `config_manager_client` when provided.
     pub consensus_config: ConsensusConfig,
-    /// The height at which the node may participate in consensus (if it is a validator).
-    pub start_active_height: BlockNumber,
     /// The height at which the node begins to run consensus.
-    pub start_observe_height: BlockNumber,
+    pub start_active_height: BlockNumber,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
     /// Optional client for fetching dynamic consensus config between heights.
     pub config_manager_client: Option<SharedConfigManagerClient>,
+    /// Storage used to persist last voted consensus height.
+    // See MultiHeightManager foran explanation of why we have Arc<Mutex>>.
+    pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl std::fmt::Debug for RunConsensusArguments {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RunConsensusArguments")
             .field("start_active_height", &self.start_active_height)
-            .field("start_observe_height", &self.start_observe_height)
             .field("dynamic_config", &self.consensus_config.dynamic_config)
             .field("static_config", &self.consensus_config.static_config)
             .field("quorum_type", &self.quorum_type)
+            .field("last_voted_height_storage", &self.last_voted_height_storage)
             .finish()
     }
 }
@@ -94,18 +97,16 @@ pub async fn run_consensus<ContextT>(
 where
     ContextT: ConsensusContext,
 {
-    info!("Running consensus, args: {:?}", run_consensus_args.clone());
+    info!("Running consensus, args: {:?}", run_consensus_args);
     register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(run_consensus_args.consensus_config.static_config.startup_delay).await;
 
-    // Ensure the node begins observing consensus no later than it becomes active.
-    assert!(run_consensus_args.start_observe_height <= run_consensus_args.start_active_height);
-
-    let mut current_height = run_consensus_args.start_observe_height;
+    let mut current_height = run_consensus_args.start_active_height;
     let mut manager = MultiHeightManager::new(
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
+        run_consensus_args.last_voted_height_storage.clone(),
     );
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
@@ -120,15 +121,8 @@ where
                 }
             }
         }
-        let must_observer = current_height < run_consensus_args.start_active_height;
         match manager
-            .run_height(
-                &mut context,
-                current_height,
-                must_observer,
-                &mut vote_receiver,
-                &mut proposals_receiver,
-            )
+            .run_height(&mut context, current_height, &mut vote_receiver, &mut proposals_receiver)
             .await?
         {
             RunHeightRes::Decision(decision) => {
@@ -177,16 +171,34 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+    last_voted_height_at_initialization: Option<BlockNumber>,
+    // The reason for this Arc<Mutex> we cannot share this instance mutably  with
+    // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
+    // rust limitations.
+    // TODO(guy.f): Remove in the following PR.
+    #[allow(dead_code)]
+    voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-    pub(crate) fn new(consensus_config: ConsensusConfig, quorum_type: QuorumType) -> Self {
+    pub(crate) fn new(
+        consensus_config: ConsensusConfig,
+        quorum_type: QuorumType,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    ) -> Self {
+        let last_voted_height_at_initialization = voted_height_storage
+            .lock()
+            .expect("Lock should never be poisoned")
+            .get_prev_voted_height()
+            .expect("Failed to get previous voted height from storage");
         Self {
             consensus_config,
             quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
+            last_voted_height_at_initialization,
+            voted_height_storage,
         }
     }
 
@@ -207,27 +219,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Assumes that `height` is monotonically increasing across calls.
     ///
     /// Inputs - see [`run_consensus`].
-    /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
-    ///   it is in the validator set).
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
     pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        must_observer: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         info!("Running consensus for height {}.", height);
-        let res = self
-            .run_height_inner(
-                context,
-                height,
-                must_observer,
-                broadcast_channels,
-                proposals_receiver,
-            )
-            .await?;
+        let res =
+            self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await?;
 
         // Clear any existing votes and proposals for previous heights as well as the current just
         // completed height.
@@ -256,23 +258,55 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    /// Continiously attempts to sync to the given height and waits until it succeeds.
+    async fn wait_until_sync_reaches_height(
+        &mut self,
+        height: BlockNumber,
+        context: &mut ContextT,
+    ) {
+        loop {
+            if context.try_sync(height).await {
+                debug!("Synced to {height}");
+                break;
+            }
+            tokio::time::sleep(self.consensus_config.dynamic_config.sync_retry_interval).await;
+            debug_every_n_sec!(1, "Retrying sync to {height}");
+            trace!("Retrying sync to {height}");
+        }
+    }
+
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        must_observer: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.report_max_cached_block_number_metric(height);
-        if context.try_sync(height).await {
+
+        // If we already voted for this height, do not proceed until we sync to this height.
+        // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
+        // consensus.
+        if self
+            .last_voted_height_at_initialization
+            .is_some_and(|last_voted_height| last_voted_height >= height)
+        {
+            // TODO(guy.f): Add this as a proposal failure with the reason in the prposal failure
+            // metrics.
+            info!(
+                "Current height ({height}) is less than or equal to the last voted height at \
+                 initialization ({}). Waiting for sync.",
+                self.last_voted_height_at_initialization.unwrap().0
+            );
+            self.wait_until_sync_reaches_height(height, context).await;
+            return Ok(RunHeightRes::Sync);
+        } else if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
         }
 
         let validators = context.validators(height).await;
-        let is_observer = must_observer
-            || !validators.contains(&self.consensus_config.dynamic_config.validator_id);
+        let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         info!(
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
             height, is_observer, validators,
@@ -285,6 +319,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
+            self.voted_height_storage.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
 

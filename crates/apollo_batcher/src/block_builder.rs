@@ -61,6 +61,7 @@ use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransacti
 use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
+    BATCHER_CLASS_CACHE_METRICS,
     PROPOSER_DEFERRED_TXS,
     VALIDATOR_WASTED_TXS,
 };
@@ -162,17 +163,18 @@ impl BlockExecutionArtifacts {
 
     // TODO(Nimrod): Consider caching this method.
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
-    pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
+    pub async fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
         let starknet_version = self.block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
         let header_commitments = calculate_block_commitments(
             &transactions_data,
-            &self.thin_state_diff(),
+            self.thin_state_diff(),
             l1_da_mode,
             &starknet_version,
-        );
+        )
+        .await;
         PartialBlockHashComponents {
             header_commitments,
             block_number: self.block_info.block_number,
@@ -721,8 +723,8 @@ pub struct BlockMetadata {
 
 // Type definitions for the abort channel required to abort the block builder.
 pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
-pub type BatcherWorkerPool =
-    Arc<WorkerPool<CachedState<StateReaderAndContractManager<ApolloReader>>>>;
+pub type ApolloStateReaderAndContractManager = StateReaderAndContractManager<ApolloReader>;
+pub type BatcherWorkerPool = Arc<WorkerPool<CachedState<ApolloStateReaderAndContractManager>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
@@ -757,18 +759,17 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<
-        ConcurrentTransactionExecutor<StateReaderAndContractManager<ApolloReader>>,
-    > {
+    ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
+    {
         info!(
             "preprocess and create transaction executor for block {}",
             block_metadata.block_info.block_number
         );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
-        let versioned_constants = VersionedConstants::get_versioned_constants(
+        let versioned_constants = VersionedConstants::get_versioned_constants(Some(
             block_builder_config.versioned_constants_overrides,
-        );
+        ));
         let block_context = BlockContext::new(
             block_metadata.block_info,
             block_builder_config.chain_info,
@@ -779,10 +780,11 @@ impl BlockBuilderFactory {
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
         let apollo_reader =
             ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
-        let state_reader = StateReaderAndContractManager {
-            state_reader: apollo_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-        };
+        let state_reader = StateReaderAndContractManager::new(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            Some(BATCHER_CLASS_CACHE_METRICS),
+        );
 
         let executor = ConcurrentTransactionExecutor::start_block(
             state_reader,

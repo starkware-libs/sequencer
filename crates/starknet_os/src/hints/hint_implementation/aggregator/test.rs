@@ -575,7 +575,7 @@ fn combined_kzg_info(da: &[Felt]) -> Vec<Felt> {
 
 fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
     let da = combined_output_da(full_output);
-    vec![
+    [
         vec![
             // initial_root.
             ROOT0,

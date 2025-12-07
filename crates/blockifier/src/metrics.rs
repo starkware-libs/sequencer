@@ -1,9 +1,8 @@
 use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricScope};
 
 define_metrics!(
     Blockifier => {
-        MetricCounter { CLASS_CACHE_MISSES, "class_cache_misses", "Counter of global class cache misses", init=0 },
-        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 },
         MetricCounter {
             NATIVE_CLASS_RETURNED,
             "native_class_returned",
@@ -29,3 +28,47 @@ define_metrics!(
 );
 
 pub const BLOCKIFIER_METRIC_RATE_DURATION: &str = "5m";
+
+pub struct CacheMetrics {
+    misses: MetricCounter,
+    hits: MetricCounter,
+}
+
+impl CacheMetrics {
+    pub const fn new(misses: MetricCounter, hits: MetricCounter) -> Self {
+        Self { misses, hits }
+    }
+
+    pub fn misses(&self) -> &MetricCounter {
+        &self.misses
+    }
+
+    pub fn hits(&self) -> &MetricCounter {
+        &self.hits
+    }
+}
+
+impl CacheMetrics {
+    pub fn register(&self) {
+        self.misses.register();
+        self.hits.register();
+    }
+
+    pub fn increment_miss(&self) {
+        self.misses.increment(1);
+    }
+
+    pub fn increment_hit(&self) {
+        self.hits.increment(1);
+    }
+
+    pub fn get_scope(&self) -> MetricScope {
+        assert_eq!(
+            self.misses.get_scope(),
+            self.hits.get_scope(),
+            "Scope of misses and hits must be the same"
+        );
+
+        self.misses.get_scope()
+    }
+}

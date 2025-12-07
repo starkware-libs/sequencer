@@ -143,7 +143,7 @@ impl Default for MockDependencies {
             let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
-            mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
+            mock_writer.expect_run().return_once(|| Ok(()));
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
@@ -1095,6 +1095,7 @@ async fn decision_reached() {
         .with(eq(IndexSet::new()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
+    let expected_partial_block_hash = expected_artifacts.partial_block_hash_components().await;
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
@@ -1102,7 +1103,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(Some(expected_artifacts.partial_block_hash_components())),
+            eq(Some(expected_partial_block_hash)),
         )
         .returning(|_, _, _| Ok(()));
 

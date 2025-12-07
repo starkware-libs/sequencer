@@ -7,6 +7,7 @@ config:
   sequencerConfig:
     components_sierra_compiler_port: 55007
     components_sierra_compiler_url: sequencer-sierracompiler-service
+    sierra_compiler_config_max_bytecode_size: 81920
 
 service:
   enabled: true

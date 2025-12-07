@@ -22,6 +22,7 @@ use starknet_api::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::blockifier_versioned_constants::VersionedConstants;

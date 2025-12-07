@@ -7,6 +7,7 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_infra::component_client::ClientError;
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
     L1GasPriceClientError,
@@ -21,6 +22,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
+use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -37,6 +39,7 @@ use starknet_api::block::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
@@ -317,10 +320,98 @@ async fn build_proposal() {
     assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
+
+#[tokio::test]
+async fn build_proposal_skips_write_for_height_0() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+
+    // Make sure the state sync client isn't called by clearing its expectations.
+    deps.state_sync_client = MockStateSyncClient::new();
+
+    // Clear the "default" expectations on the cende ambassador. If we can skip writing the blob,
+    // should not be called at all.
+    deps.cende_ambassador = MockCendeContext::new();
+
+    let mut context = deps.build_context();
+    let _fin_receiver = context
+        .build_proposal(ProposalInit { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
+        .await;
+}
+
+#[tokio::test]
+async fn build_proposal_skips_write_for_height_above_0() {
+    // Important: We set the height to be under 10 to avoid triggering the code path which writes
+    // the block hash mapping for height - 10 (which we're not testing as part of this test)
+    const HEIGHT: BlockNumber = BlockNumber(9);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+
+    // We already have the previous block in sync:
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Ok(Some(HEIGHT.prev().unwrap())));
+
+    // Clear the "default" expectations on the cende ambassador. If we can skip writing the blob,
+    // should not be called at all.
+    deps.cende_ambassador = MockCendeContext::new();
+
+    let mut context = deps.build_context();
+    let _fin_receiver = context
+        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .await;
+}
+
+#[tokio::test]
+async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
+    // We set a non zero height to make sure a call to get_latest_block_number is made.
+    //
+    // Important: We set the height to be under 10 to avoid triggering the code path which writes
+    // the block hash mapping for height - 10 (which we're not testing as part of this test)
+    const HEIGHT: BlockNumber = BlockNumber(9);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+
+    deps.state_sync_client.expect_get_latest_block_number().returning(|| {
+        Err(StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
+    });
+
+    let mut mock_cende_context = MockCendeContext::new();
+    mock_cende_context
+        .expect_write_prev_height_blob()
+        .times(1)
+        .return_once(|_| tokio::spawn(ready(true)));
+    deps.cende_ambassador = mock_cende_context;
+
+    let mut context = deps.build_context();
+    let fin_receiver = context
+        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .await;
+
+    assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
+}
+
 #[tokio::test]
 async fn build_proposal_cende_failure() {
+    // We write a height that isn't 0 since for height 0 we skip writing the blob (and we want to
+    // test a write failure).
+    //
+    // Important: We set the height to be under 10 to avoid triggering the code path which writes
+    // the block hash mapping for height - 10 (which we're not testing as part of this test)
+    const HEIGHT: BlockNumber = BlockNumber(9);
+
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    // We do not have the previous block in sync, so we must try to write the previous height blob.
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Ok(Some(HEIGHT.prev().unwrap().prev().unwrap())));
+
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
@@ -329,14 +420,28 @@ async fn build_proposal_cende_failure() {
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
 
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context
+        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
 #[tokio::test]
 async fn build_proposal_cende_incomplete() {
+    // We write a height that isn't 0 since for height 0 we skip writing the blob (and we want to
+    // test a write failure).
+    //
+    // Important: We set the height to be under 10 to avoid triggering the code path which writes
+    // the block hash mapping for height - 10 (which we're not testing as part of this test)
+    const HEIGHT: BlockNumber = BlockNumber(9);
+
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    // We do not have the previous block in sync, so we must try to write the previous height blob.
+    deps.state_sync_client
+        .expect_get_latest_block_number()
+        .returning(|| Ok(Some(HEIGHT.prev().unwrap().prev().unwrap())));
+
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
@@ -345,7 +450,9 @@ async fn build_proposal_cende_incomplete() {
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
 
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+    let fin_receiver = context
+        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
@@ -677,6 +784,8 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     // required for decision reached flow
     deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    // We never wrote block 0.
+    deps.state_sync_client.expect_get_latest_block_number().returning(|| Ok(None));
     deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
 
     // set the oracle to succeed on first block and fail on second

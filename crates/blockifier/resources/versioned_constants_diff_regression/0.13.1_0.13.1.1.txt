@@ -1,0 +1,4 @@
+~ /archival_data_gas_costs/gas_per_code_byte/0: 1280
+~ /deprecated_l2_resource_gas_costs/gas_per_code_byte/0: 32
+~ /gateway/max_calldata_length: 5000
+~ /ignore_inner_event_resources: false
