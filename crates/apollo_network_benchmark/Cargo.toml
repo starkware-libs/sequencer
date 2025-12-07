@@ -11,6 +11,7 @@ testing = []
 [dependencies]
 clap = { workspace = true, features = ["derive", "env"] }
 lazy_static.workspace = true
+metrics-exporter-prometheus.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

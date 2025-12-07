@@ -3,7 +3,11 @@ use clap::Parser;
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 /// Arguments from the runner, not meant to be set by the user.
-pub struct RunnerArgs {}
+pub struct RunnerArgs {
+    /// The port to run the Prometheus metrics server on
+    #[arg(long, env)]
+    pub metric_port: u16,
+}
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]

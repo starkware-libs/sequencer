@@ -1,6 +1,8 @@
 //! Runs a node that stress tests the p2p communication of the network.
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use clap::Parser;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use tracing::Level;
 
 #[cfg(test)]
@@ -28,6 +30,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .expect("Failed to set global default subscriber");
 
     println!("Starting network stress test with args:\n{args:?}");
+
+    // Set up metrics
+    let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
+        Ipv4Addr::UNSPECIFIED,
+        args.runner.metric_port,
+    )));
+
+    builder.install().expect("Failed to install prometheus recorder/exporter");
 
     Ok(())
 }
