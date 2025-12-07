@@ -90,9 +90,9 @@ impl RandomValue for ContractState {
     }
 }
 
-impl RandomValue for BinaryData {
+impl RandomValue for BinaryData<HashOutput> {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-        Self { left_hash: HashOutput::random(rng, max), right_hash: HashOutput::random(rng, max) }
+        Self { left_data: HashOutput::random(rng, max), right_data: HashOutput::random(rng, max) }
     }
 }
 
@@ -134,10 +134,10 @@ impl RandomValue for EdgePath {
     }
 }
 
-impl RandomValue for EdgeData {
+impl RandomValue for EdgeData<HashOutput> {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
         Self {
-            bottom_hash: HashOutput::random(rng, max),
+            bottom_data: HashOutput::random(rng, max),
             path_to_bottom: PathToBottom::random(rng, max),
         }
     }
@@ -145,7 +145,7 @@ impl RandomValue for EdgeData {
 
 macro_rules! random_node_data {
     ($leaf:ty) => {
-        impl RandomValue for NodeData<$leaf> {
+        impl RandomValue for NodeData<$leaf, HashOutput> {
             fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
                 match NodeDataVariants::iter()
                     .choose(rng)
