@@ -1,9 +1,15 @@
 use std::sync::Arc;
 
 use apollo_gateway_types::deprecated_gateway_error::StarknetError;
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClient};
+use apollo_state_sync_types::communication::{
+    SharedStateSyncClient,
+    StateSyncClient,
+    StateSyncClientError,
+};
+use apollo_state_sync_types::errors::StateSyncError;
 use async_trait::async_trait;
 use starknet_api::block::{BlockInfo, BlockNumber, GasPriceVector, GasPrices};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio::sync::OnceCell;
 
@@ -14,6 +20,7 @@ pub type StarknetResult<T> = Result<T, StarknetError>;
 #[async_trait]
 pub trait GatewayFixedBlockStateReader: Send + Sync {
     async fn get_block_info(&self) -> StarknetResult<BlockInfo>;
+    async fn get_nonce(&self, contract_address: ContractAddress) -> StarknetResult<Nonce>;
 }
 
 pub struct GatewayFixedBlockSyncStateClient {
@@ -66,5 +73,15 @@ impl GatewayFixedBlockStateReader for GatewayFixedBlockSyncStateClient {
             .get_or_try_init(|| self.get_block_info_from_sync_client())
             .await
             .cloned()
+    }
+
+    async fn get_nonce(&self, contract_address: ContractAddress) -> StarknetResult<Nonce> {
+        match self.state_sync_client.get_nonce_at(self.block_number, contract_address).await {
+            Ok(nonce) => Ok(nonce),
+            Err(StateSyncClientError::StateSyncError(StateSyncError::ContractNotFound(_))) => {
+                Ok(Nonce::default())
+            }
+            Err(e) => Err(StarknetError::internal_with_logging("Failed to get nonce", e)),
+        }
     }
 }
