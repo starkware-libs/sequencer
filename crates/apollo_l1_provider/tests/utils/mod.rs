@@ -1,4 +1,5 @@
 // TODO(guyn): remove this after sorting out the compilation flags on all the flow tests.
+#![cfg(any(test, feature = "testing"))]
 #![allow(dead_code)]
 use std::error::Error;
 use std::fmt::Debug;
