@@ -2108,9 +2108,11 @@ dependencies = [
 name = "apollo_network_benchmark"
 version = "0.0.0"
 dependencies = [
+ "apollo_network",
  "clap",
  "futures",
  "lazy_static",
+ "libp2p",
  "metrics-exporter-prometheus",
  "rstest",
  "tokio",
