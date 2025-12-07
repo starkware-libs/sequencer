@@ -264,8 +264,8 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
 
     // Create binary data from the left and right values.
     let binary_data = BinaryData {
-        left_hash: HashOutput(Felt::from(*left)),
-        right_hash: HashOutput(Felt::from(*right)),
+        left_data: HashOutput(Felt::from(*left)),
+        right_data: HashOutput(Felt::from(*right)),
     };
 
     // Create a filled node (irrelevant leaf type) with binary data and zero hash.
@@ -418,13 +418,13 @@ pub(crate) fn test_node_db_key() -> String {
     let hash = HashOutput(zero);
 
     let binary_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
+        data: NodeData::Binary(BinaryData { left_data: hash, right_data: hash }),
         hash,
     };
     let binary_node_key = binary_node.db_key(&EmptyKeyContext).0;
 
     let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Edge(EdgeData { bottom_hash: hash, path_to_bottom: Default::default() }),
+        data: NodeData::Edge(EdgeData { bottom_data: hash, path_to_bottom: Default::default() }),
         hash,
     };
 
@@ -511,8 +511,8 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Create a binary node from the parsed data.
     let binary_rust: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
-            right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
+            left_data: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
+            right_data: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
     };
@@ -527,7 +527,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Create an edge node from the parsed data.
     let edge_rust: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Edge(EdgeData {
-            bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
+            bottom_data: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom::new(
                 U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
                 EdgePathLength::new(

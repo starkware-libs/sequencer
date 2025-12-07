@@ -106,7 +106,7 @@ type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CanonicNode {
     BinaryOrLeaf(HashOutput),
-    Edge(EdgeData),
+    Edge(EdgeData<HashOutput>),
     Empty,
 }
 
@@ -252,19 +252,19 @@ fn get_children(
 
             let binary = preimage.get_binary()?;
             Ok((
-                CanonicNode::new(preimage_map, &binary.left_hash),
-                CanonicNode::new(preimage_map, &binary.right_hash),
+                CanonicNode::new(preimage_map, &binary.left_data),
+                CanonicNode::new(preimage_map, &binary.right_data),
             ))
         }
         CanonicNode::Edge(edge) => {
-            let hash = edge.bottom_hash;
+            let hash = edge.bottom_data;
             let path_to_bottom = edge.path_to_bottom;
 
             let child = if u8::from(path_to_bottom.length) == 1 {
                 CanonicNode::BinaryOrLeaf(hash)
             } else {
                 let new_path = path_to_bottom.remove_first_edges(EdgePathLength::new(1)?)?;
-                CanonicNode::Edge(EdgeData { bottom_hash: hash, path_to_bottom: new_path })
+                CanonicNode::Edge(EdgeData { bottom_data: hash, path_to_bottom: new_path })
             };
 
             if path_to_bottom.is_left_descendant() {
