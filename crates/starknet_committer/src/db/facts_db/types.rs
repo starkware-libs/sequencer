@@ -1,5 +1,9 @@
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
+    NodeContext,
+    PatriciaPrefix,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -13,8 +17,11 @@ pub struct FactsSubTree<'a> {
     pub root_hash: HashOutput,
 }
 
+pub type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
+
 impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
     type ChildData = HashOutput;
+    type NodeContext = NodeContext;
 
     fn create_child(
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -35,6 +42,12 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
     fn should_traverse_unmodified_children() -> bool {
         false
     }
+    fn unmodified_child_hash(data: Self::ChildData) -> Option<HashOutput> {
+        Some(data)
+    }
+    fn get_root_context(&self) -> Self::NodeContext {
+        Self::NodeContext { is_leaf: self.is_leaf(), node_hash: self.root_hash }
+    }
     fn get_root_prefix<L: Leaf>(
         &self,
         key_context: &<L as HasStaticPrefix>::KeyContext,
@@ -44,5 +57,8 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
         } else {
             PatriciaPrefix::InnerNode.into()
         }
+    }
+    fn get_root_suffix(&self) -> Vec<u8> {
+        self.root_hash.0.to_bytes_be().to_vec()
     }
 }

@@ -39,7 +39,7 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+impl<L: Leaf> FilledNode<L, HashOutput> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
     }
@@ -49,7 +49,7 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
-impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+impl<L: Leaf> HasDynamicPrefix for FilledNode<L, HashOutput> {
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
     fn get_prefix(&self, _key_context: &Self::KeyContext) -> DbKeyPrefix {
         match &self.data {
@@ -65,7 +65,7 @@ pub struct NodeContext {
     pub node_hash: HashOutput,
 }
 
-impl<L: Leaf> DBObject for FilledNode<L> {
+impl<L: Leaf> DBObject for FilledNode<L, HashOutput> {
     type DeserializeContext = NodeContext;
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.

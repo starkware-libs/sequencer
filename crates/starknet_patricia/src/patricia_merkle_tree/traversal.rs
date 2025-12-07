@@ -1,3 +1,4 @@
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
@@ -28,6 +29,7 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 pub trait SubTreeTrait<'a>: Sized {
     /// A node can carry data about its children (e.g. their hashes).
     type ChildData: Copy;
+    type NodeContext;
 
     /// Creates a concrete child node given its index and data.
     fn create_child(
@@ -104,8 +106,17 @@ pub trait SubTreeTrait<'a>: Sized {
     /// skeleton tree.
     fn should_traverse_unmodified_children() -> bool;
 
+    /// When should_traverse_unmodified_children is false, this function is used to get the hash
+    /// of the unmodified child (in this case ChildData will be HashOutput).
+    fn unmodified_child_hash(data: Self::ChildData) -> Option<HashOutput>;
+
     fn get_root_prefix<L: Leaf>(
         &self,
         key_context: &<L as HasStaticPrefix>::KeyContext,
     ) -> DbKeyPrefix;
+
+    fn get_root_suffix(&self) -> Vec<u8>;
+
+    // Need when deserializing the root node from a raw DbValue.
+    fn get_root_context(&self) -> Self::NodeContext;
 }

@@ -24,7 +24,9 @@ use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
-use crate::db::facts_db::traversal::calculate_subtrees_roots;
+use crate::db::db_layout::NodeLayout;
+use crate::db::facts_db::db::FactsNodeLayout;
+use crate::db::facts_db::traversal::get_roots_from_storage;
 use crate::db::facts_db::types::FactsSubTree;
 
 #[cfg(test)]
@@ -42,65 +44,95 @@ macro_rules! log_trivial_modification {
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
 /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
 /// encountering a trivial modification. Fills the previous leaf values if it is not none.
-async fn fetch_nodes<'a, L: Leaf>(
+async fn fetch_nodes<'a, L, Layout, SubTree>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    subtrees: Vec<FactsSubTree<'a>>,
+    subtrees: Vec<
+        impl SubTreeTrait<
+            'a,
+            ChildData = Layout::ChildData,
+            NodeContext = Layout::DeserializationContext,
+        >,
+    >,
     storage: &mut impl Storage,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> OriginalSkeletonTreeResult<()> {
+) -> OriginalSkeletonTreeResult<()>
+where
+    L: Leaf,
+    Layout: NodeLayout<L>,
+    SubTree: SubTreeTrait<
+            'a,
+            ChildData = Layout::ChildData,
+            NodeContext = Layout::DeserializationContext,
+        >,
+{
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
         let filled_roots =
-            calculate_subtrees_roots::<L>(&current_subtrees, storage, key_context).await?;
+            get_roots_from_storage::<L, Layout>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
-                NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+                NodeData::Binary(BinaryData { left_data, right_data }) => {
                     if subtree.is_unmodified() {
                         skeleton_tree.nodes.insert(
-                            subtree.root_index,
+                            subtree.get_root_index(),
                             OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
                         );
                         continue;
                     }
-                    skeleton_tree.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
+                    skeleton_tree
+                        .nodes
+                        .insert(subtree.get_root_index(), OriginalSkeletonNode::Binary);
                     let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash);
+                        subtree.get_children_subtrees(left_data, right_data);
 
                     handle_subtree(
                         skeleton_tree,
                         &mut next_subtrees,
                         left_subtree,
+                        left_data,
                         should_fetch_modified_leaves,
                     );
                     handle_subtree(
                         skeleton_tree,
                         &mut next_subtrees,
                         right_subtree,
+                        right_data,
                         should_fetch_modified_leaves,
                     )
                 }
                 // Edge node.
-                NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
-                    skeleton_tree
-                        .nodes
-                        .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
-                    if subtree.is_unmodified() {
-                        skeleton_tree.nodes.insert(
-                            path_to_bottom.bottom_index(subtree.root_index),
-                            OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
-                        );
-                        continue;
-                    }
+                NodeData::Edge(EdgeData { bottom_data, path_to_bottom }) => {
+                    skeleton_tree.nodes.insert(
+                        subtree.get_root_index(),
+                        OriginalSkeletonNode::Edge(path_to_bottom),
+                    );
+
                     // Parse bottom.
                     let (bottom_subtree, previously_empty_leaves_indices) =
-                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
+                        subtree.get_bottom_subtree(&path_to_bottom, bottom_data);
+
+                    if subtree.is_unmodified() {
+                        if !SubTree::should_traverse_unmodified_children() {
+                            skeleton_tree.nodes.insert(
+                                path_to_bottom.bottom_index(subtree.get_root_index()),
+                                OriginalSkeletonNode::UnmodifiedSubTree(
+                                    SubTree::unmodified_child_hash(bottom_data).unwrap(),
+                                ),
+                            );
+                        } else {
+                            // With index layout we need to traverse an unmodified bottom node.
+                            next_subtrees.push(bottom_subtree)
+                        }
+                        continue;
+                    }
+
                     if let Some(ref mut leaves) = previous_leaves {
                         leaves.extend(
                             previously_empty_leaves_indices
@@ -119,23 +151,28 @@ async fn fetch_nodes<'a, L: Leaf>(
                         skeleton_tree,
                         &mut next_subtrees,
                         bottom_subtree,
+                        bottom_data,
                         should_fetch_modified_leaves,
                     );
                 }
                 // Leaf node.
                 NodeData::Leaf(previous_leaf) => {
                     if subtree.is_unmodified() {
-                        warn!("Unexpectedly deserialized leaf sibling.")
+                        skeleton_tree.nodes.insert(
+                            subtree.get_root_index(),
+                            OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
+                        );
                     } else {
+                        let root_index = subtree.get_root_index();
                         // Modified leaf.
                         if config.compare_modified_leaves()
-                            && L::compare(leaf_modifications, &subtree.root_index, &previous_leaf)?
+                            && L::compare(leaf_modifications, &root_index, &previous_leaf)?
                         {
-                            log_trivial_modification!(subtree.root_index, previous_leaf);
+                            log_trivial_modification!(root_index, previous_leaf);
                         }
                         // If previous values of modified leaves are requested, add this leaf.
                         if let Some(ref mut leaves) = previous_leaves {
-                            leaves.insert(subtree.root_index, previous_leaf);
+                            leaves.insert(root_index, previous_leaf);
                         }
                     }
                 }
@@ -168,7 +205,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
     }
     let main_subtree = FactsSubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
-    fetch_nodes::<L>(
+    fetch_nodes::<L, FactsNodeLayout, FactsSubTree<'a>>(
         &mut skeleton_tree,
         vec![main_subtree],
         storage,
@@ -202,7 +239,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
     let main_subtree = FactsSubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     let mut leaves = HashMap::new();
-    fetch_nodes::<L>(
+    fetch_nodes::<L, FactsNodeLayout, FactsSubTree<'a>>(
         &mut skeleton_tree,
         vec![main_subtree],
         storage,
@@ -237,19 +274,40 @@ pub async fn get_leaves<'a, L: Leaf>(
 
 /// Handles a subtree referred by an edge or a binary node. Decides whether we deserialize the
 /// referred subtree or not.
-fn handle_subtree<'a>(
+fn handle_subtree<'a, SubTree: SubTreeTrait<'a>>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    next_subtrees: &mut Vec<FactsSubTree<'a>>,
-    subtree: FactsSubTree<'a>,
+    next_subtrees: &mut Vec<SubTree>,
+    subtree: SubTree,
+    subtree_data: SubTree::ChildData,
     should_fetch_modified_leaves: bool,
 ) {
-    if !subtree.is_leaf() || (should_fetch_modified_leaves && !subtree.is_unmodified()) {
+    let is_leaf = subtree.is_leaf();
+    let is_unmodified = subtree.is_unmodified();
+
+    // 1. Internal node → always traverse.
+    if !is_leaf {
         next_subtrees.push(subtree);
-    } else if subtree.is_unmodified() {
-        // Leaf sibling.
-        skeleton_tree
-            .nodes
-            .insert(subtree.root_index, OriginalSkeletonNode::UnmodifiedSubTree(subtree.root_hash));
+        return;
+    }
+
+    // 2. Modified leaf.
+    if !is_unmodified {
+        if should_fetch_modified_leaves {
+            next_subtrees.push(subtree);
+        }
+        return;
+    }
+
+    // 3. Unmodified leaf sibling.
+    if !SubTree::should_traverse_unmodified_children() {
+        skeleton_tree.nodes.insert(
+            subtree.get_root_index(),
+            OriginalSkeletonNode::UnmodifiedSubTree(
+                SubTree::unmodified_child_hash(subtree_data).unwrap(),
+            ),
+        );
+    } else {
+        next_subtrees.push(subtree);
     }
 }
 

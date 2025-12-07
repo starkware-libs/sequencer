@@ -1,6 +1,7 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
@@ -20,6 +21,7 @@ struct TestSubTree<'a> {
 
 impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
     type ChildData = ();
+    type NodeContext = ();
 
     fn create_child(
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -40,11 +42,18 @@ impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
     fn should_traverse_unmodified_children() -> bool {
         false
     }
+    fn unmodified_child_hash(_child_data: Self::ChildData) -> Option<HashOutput> {
+        None
+    }
+    fn get_root_context(&self) -> Self::NodeContext {}
     fn get_root_prefix<L: Leaf>(
         &self,
         _key_context: &<L as HasStaticPrefix>::KeyContext,
     ) -> DbKeyPrefix {
         DbKeyPrefix::new(&[0])
+    }
+    fn get_root_suffix(&self) -> Vec<u8> {
+        vec![]
     }
 }
 
