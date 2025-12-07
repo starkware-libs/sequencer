@@ -74,6 +74,22 @@ service:
   # loadBalancerSourceRanges: []  #  Allowed source IP ranges
   # sessionAffinity: "None"  #  Session affinity (None, ClientIP)
 
+# Extra Services Configuration (optional)
+# Create additional Kubernetes services for the same deployment
+# Each extra service can have different ports, type, and annotations
+# Example: Unify http-server and gateway into one deployment
+# extraServices:
+#   - name: gateway  # Optional: used as suffix in service name (sequencer-httpserver-gateway-service)
+#     type: "LoadBalancer"
+#     ports:
+#       - name: gateway
+#         port: 55002
+#         targetPort: 55002
+#         protocol: TCP
+#     annotations:
+#       cloud.google.com/load-balancer-type: "Internal"
+#       networking.gke.io/internal-load-balancer-allow-global-access: "true"
+
 # Ingress Configuration
 # See docs/INGRESS_CONFIGURATION.md for all available options
 ingress:
