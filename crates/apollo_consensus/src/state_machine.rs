@@ -7,6 +7,7 @@
 #[path = "state_machine_test.rs"]
 mod state_machine_test;
 
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
@@ -411,12 +412,21 @@ impl StateMachine {
     {
         let round = vote.round;
         let voter = vote.voter;
-        let inserted = self.prevotes.insert((round, voter), (vote, 1)).is_none();
-        assert!(
-            inserted,
-            "SHC should handle conflicts & replays: duplicate prevote for round={round}, \
-             voter={voter}",
-        );
+        match self.prevotes.entry((round, voter)) {
+            Entry::Occupied(entry) => {
+                let (old_vote, _) = entry.get();
+                if old_vote.proposal_commitment == vote.proposal_commitment {
+                    // Duplicate - ignore silently.
+                    return VecDeque::new();
+                } else {
+                    // Conflict - panic.
+                    panic!("Conflicting prevotes: old={old_vote:?}, new={vote:?}");
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert((vote, 1));
+            }
+        }
         self.map_round_to_upons(round, leader_fn)
     }
 
@@ -442,12 +452,21 @@ impl StateMachine {
     {
         let round = vote.round;
         let voter = vote.voter;
-        let inserted = self.precommits.insert((round, voter), (vote, 1)).is_none();
-        assert!(
-            inserted,
-            "SHC should handle conflicts & replays: duplicate precommit for round={round}, \
-             voter={voter}"
-        );
+        match self.precommits.entry((round, voter)) {
+            Entry::Occupied(entry) => {
+                let (old_vote, _) = entry.get();
+                if old_vote.proposal_commitment == vote.proposal_commitment {
+                    // Duplicate - ignore silently.
+                    return VecDeque::new();
+                } else {
+                    // Conflict - panic.
+                    panic!("Conflicting precommits: old={old_vote:?}, new={vote:?}");
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert((vote, 1));
+            }
+        }
         self.map_round_to_upons(round, leader_fn)
     }
 
