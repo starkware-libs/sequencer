@@ -81,7 +81,7 @@ use strum::VariantNames;
 use tempfile::TempDir;
 
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
-use crate::gateway::{Gateway, ProcessTxBlockingTask};
+use crate::gateway::Gateway;
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -322,18 +322,6 @@ async fn run_add_tx_and_extract_metrics(
     AddTxResults { result, metric_handle_for_queries, metrics }
 }
 
-fn process_tx_task(
-    stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
-) -> ProcessTxBlockingTask {
-    ProcessTxBlockingTask {
-        stateful_tx_validator_factory: Arc::new(stateful_transaction_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
-        mempool_client: Arc::new(MockMempoolClient::new()),
-        executable_tx: executable_invoke_tx(invoke_args()),
-        runtime: tokio::runtime::Handle::current(),
-    }
-}
-
 // Gateway spec errors tests.
 // TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
 // result of `add_tx`).
@@ -556,10 +544,11 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
 )]
 #[tokio::test]
-async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
+async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
     #[case] error_code: StarknetErrorCode,
     mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mut mock_dependencies: MockDependencies,
 ) {
     let expected_error = StarknetError {
         code: error_code.clone(),
@@ -574,9 +563,18 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .expect_instantiate_validator()
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
-    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+    let tx_args = invoke_args();
+    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let gateway = Gateway {
+        config: Arc::new(mock_dependencies.config),
+        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
+        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
+        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
+        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
+        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+    };
 
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -605,8 +603,9 @@ async fn stateless_transaction_validator_error(mut mock_dependencies: MockDepend
 
 #[rstest]
 #[tokio::test]
-async fn process_tx_returns_error_when_instantiating_validator_fails(
+async fn add_tx_returns_error_when_instantiating_validator_fails(
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mut mock_dependencies: MockDependencies,
 ) {
     let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
     let expected_error = StarknetError {
@@ -617,9 +616,18 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
         .expect_instantiate_validator()
         .return_once(|_| Err(expected_error));
 
-    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+    let tx_args = invoke_args();
+    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let gateway = Gateway {
+        config: Arc::new(mock_dependencies.config),
+        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
+        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
+        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
+        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
+        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+    };
 
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
