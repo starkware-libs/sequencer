@@ -26,15 +26,13 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::core::Nonce;
-use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use tracing::{debug, info, warn, Span};
+use tracing::{debug, warn, Span};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -153,33 +151,34 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let blocking_task =
-            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current());
-        // Run the blocking task in the current span.
+        let mut stateful_transaction_validator = self
+            .stateful_tx_validator_factory
+            .instantiate_validator(self.state_reader_factory.clone())
+            .await
+            .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
+
         let curr_span = Span::current();
-        let handle =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
-        let handle_result = handle.await;
-        let nonce = match handle_result {
-            Ok(Ok(nonce)) => nonce,
-            Ok(Err(starknet_err)) => {
-                info!(
-                    "Gateway validation failed for tx with signature: {:?} with error: {}",
-                    &tx_signature, starknet_err
-                );
-                metric_counters.record_add_tx_failure(&starknet_err);
-                return Err(starknet_err);
-            }
-            Err(join_err) => {
-                let err = StarknetError::internal_with_signature_logging(
-                    "Failed to process tx",
-                    &tx_signature,
-                    join_err,
-                );
-                metric_counters.record_add_tx_failure(&err);
-                return Err(err);
-            }
-        };
+        let mempool_client = self.mempool_client.clone();
+        let nonce = tokio::task::spawn_blocking(move || {
+            curr_span.in_scope(|| {
+                stateful_transaction_validator.extract_state_nonce_and_run_validations(
+                    &executable_tx.clone(),
+                    mempool_client,
+                    tokio::runtime::Handle::current(),
+                )
+            })
+        })
+        .await
+        .map_err(|e| {
+            let err = StarknetError {
+                code: StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.InternalError".to_string(),
+                ),
+                message: format!("Validation task failed to complete: {e}"),
+            };
+            metric_counters.record_add_tx_failure(&err);
+            err
+        })??;
 
         let gateway_output = create_gateway_output(&internal_tx);
 
@@ -227,46 +226,6 @@ impl Gateway {
             });
         }
         Ok(())
-    }
-}
-
-/// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
-/// from running.
-struct ProcessTxBlockingTask {
-    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
-    mempool_client: SharedMempoolClient,
-    executable_tx: AccountTransaction,
-    runtime: tokio::runtime::Handle,
-}
-
-impl ProcessTxBlockingTask {
-    pub fn new(
-        gateway: &Gateway,
-        executable_tx: AccountTransaction,
-        runtime: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
-            state_reader_factory: gateway.state_reader_factory.clone(),
-            mempool_client: gateway.mempool_client.clone(),
-            executable_tx,
-            runtime,
-        }
-    }
-
-    fn process_tx(self) -> GatewayResult<Nonce> {
-        let mut stateful_transaction_validator = self.runtime.block_on(
-            self.stateful_tx_validator_factory.instantiate_validator(self.state_reader_factory),
-        )?;
-
-        let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
-            &self.executable_tx,
-            self.mempool_client,
-            self.runtime,
-        )?;
-
-        Ok(nonce)
     }
 }
 
