@@ -1,3 +1,6 @@
+#![cfg(any(test, feature = "testing"))]
+mod utils;
+
 use std::str::FromStr;
 
 use alloy::consensus::Header as HeaderInner;
@@ -23,7 +26,6 @@ use papyrus_base_layer::test_utils::{
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
     DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
-mod utils;
 use papyrus_base_layer::BaseLayerContract;
 use utils::{L1_CONTRACT_ADDRESS, L2_ENTRY_POINT};
 
