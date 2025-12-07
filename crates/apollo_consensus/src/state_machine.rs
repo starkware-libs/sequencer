@@ -411,12 +411,14 @@ impl StateMachine {
     {
         let round = vote.round;
         let voter = vote.voter;
-        let inserted = self.prevotes.insert((round, voter), (vote, 1)).is_none();
-        assert!(
-            inserted,
-            "SHC should handle conflicts & replays: duplicate prevote for round={round}, \
-             voter={voter}",
-        );
+        // Allow exact replays (same proposal commitment) but detect conflicting votes
+        // from the same voter and round.
+        if let Some((old_vote, _)) = self.prevotes.insert((round, voter), (vote.clone(), 1)) {
+            assert!(
+                old_vote.proposal_commitment == vote.proposal_commitment,
+                "Conflicting prevotes: old={old_vote:?}, new={vote:?}",
+            );
+        }
         self.map_round_to_upons(round, leader_fn)
     }
 
