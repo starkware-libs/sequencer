@@ -4,9 +4,21 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 /// Arguments from the runner, not meant to be set by the user.
 pub struct RunnerArgs {
+    /// ID for Prometheus logging
+    #[arg(short, long, env)]
+    pub id: u64,
+
     /// The port to run the Prometheus metrics server on
     #[arg(long, env)]
     pub metric_port: u16,
+
+    /// The port to run the P2P network on
+    #[arg(short, env, long)]
+    pub p2p_port: u16,
+
+    /// The addresses of the bootstrap peers (can specify multiple)
+    #[arg(long, env, value_delimiter = ',')]
+    pub bootstrap: Vec<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
