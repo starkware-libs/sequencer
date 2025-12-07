@@ -24,8 +24,8 @@ class TestL1Client(unittest.TestCase):
 
         client = L1Client(api_key="api_key")
         logs = client.get_logs(
-            from_block=L1TestUtils.BLOCK_NUMBER_SAMPLE,
-            to_block=L1TestUtils.BLOCK_NUMBER_SAMPLE,
+            from_block=L1TestUtils.BLOCK_NUMBER,
+            to_block=L1TestUtils.BLOCK_NUMBER,
         )
 
         self.assertEqual(mock_post.call_count, 2)
