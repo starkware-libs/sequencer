@@ -1,24 +1,73 @@
+use std::str::FromStr;
 use std::time::Duration;
 
+use apollo_network::network_manager::NetworkManager;
+use apollo_network::NetworkConfig;
 use apollo_network_benchmark::node_args::NodeArgs;
 use futures::future::{select_all, BoxFuture};
+use futures::FutureExt;
+use libp2p::Multiaddr;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 /// The main stress test node that manages network communication and monitoring
 pub struct BroadcastNetworkStressTestNode {
     args: NodeArgs,
+    network_manager: Option<NetworkManager>,
 }
 
 impl BroadcastNetworkStressTestNode {
+    /// Creates network configuration from arguments
+    fn create_network_config(args: &NodeArgs) -> NetworkConfig {
+        let peer_private_key = create_peer_private_key(args.runner.id);
+
+        let mut network_config = NetworkConfig {
+            port: args.runner.p2p_port,
+            secret_key: Some(peer_private_key.to_vec().into()),
+            ..Default::default()
+        };
+
+        // disable Kademlia discovery
+        network_config.discovery_config.heartbeat_interval = Duration::from_secs(u64::MAX);
+
+        if !args.runner.bootstrap.is_empty() {
+            let bootstrap_peers: Vec<Multiaddr> = args
+                .runner
+                .bootstrap
+                .iter()
+                .map(|s| Multiaddr::from_str(s.trim()).unwrap())
+                .collect();
+            network_config.bootstrap_peer_multiaddr = Some(bootstrap_peers);
+        }
+
+        network_config
+    }
+
     /// Creates a new BroadcastNetworkStressTestNode instance
     pub async fn new(args: NodeArgs) -> Self {
-        Self { args }
+        // Create network configuration
+        let network_config = Self::create_network_config(&args);
+        // Create network manager
+        let network_manager = NetworkManager::new(network_config, None, None);
+        Self { args, network_manager: Some(network_manager) }
+    }
+
+    /// Starts the network manager in the background
+    pub async fn start_network_manager(&mut self) -> BoxFuture<'static, ()> {
+        let network_manager =
+            self.network_manager.take().expect("Network manager should be available");
+        async move {
+            let _ = network_manager.run().await;
+        }
+        .boxed()
     }
 
     /// Gets all the tasks that need to be run
     async fn get_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
-        Vec::new()
+        let mut tasks = Vec::new();
+        tasks.push(self.start_network_manager().await);
+
+        tasks
     }
 
     /// Unified run function that handles both simple and network reset modes
@@ -64,4 +113,18 @@ pub async fn race_and_kill_tasks(spawned_tasks: Vec<JoinHandle<()>>) {
     for task in remaining_tasks {
         task.abort();
     }
+}
+
+fn create_peer_private_key(peer_index: u64) -> [u8; 32] {
+    let array = peer_index.to_le_bytes();
+    assert_eq!(array.len(), 8);
+    let mut private_key = [0u8; 32];
+    private_key[0..8].copy_from_slice(&array);
+
+    // Log the secret key
+    let peer_private_key_hex =
+        private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    info!("Secret Key: {peer_private_key_hex:#?}");
+
+    private_key
 }
