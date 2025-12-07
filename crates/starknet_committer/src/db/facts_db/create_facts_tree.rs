@@ -61,7 +61,7 @@ async fn fetch_nodes<'a, L: Leaf>(
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
-                NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+                NodeData::<L, HashOutput>::Binary(BinaryData { left_data, right_data }) => {
                     if subtree.is_unmodified() {
                         skeleton_tree.nodes.insert(
                             subtree.root_index,
@@ -71,7 +71,7 @@ async fn fetch_nodes<'a, L: Leaf>(
                     }
                     skeleton_tree.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
                     let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash);
+                        subtree.get_children_subtrees(left_data, right_data);
 
                     handle_subtree(
                         skeleton_tree,
@@ -87,20 +87,20 @@ async fn fetch_nodes<'a, L: Leaf>(
                     )
                 }
                 // Edge node.
-                NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+                NodeData::<L, HashOutput>::Edge(EdgeData { bottom_data, path_to_bottom }) => {
                     skeleton_tree
                         .nodes
                         .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
                     if subtree.is_unmodified() {
                         skeleton_tree.nodes.insert(
                             path_to_bottom.bottom_index(subtree.root_index),
-                            OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(bottom_data),
                         );
                         continue;
                     }
                     // Parse bottom.
                     let (bottom_subtree, previously_empty_leaves_indices) =
-                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
+                        subtree.get_bottom_subtree(&path_to_bottom, bottom_data);
                     if let Some(ref mut leaves) = previous_leaves {
                         leaves.extend(
                             previously_empty_leaves_indices

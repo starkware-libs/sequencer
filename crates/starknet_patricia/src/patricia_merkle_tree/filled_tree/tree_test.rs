@@ -372,8 +372,8 @@ fn create_mock_binary_entry_for_testing(
         FilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Binary(BinaryData {
-                left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
-                right_hash: HashOutput(Felt::from_hex(right_hash).unwrap()),
+                left_data: HashOutput(Felt::from_hex(left_hash).unwrap()),
+                right_data: HashOutput(Felt::from_hex(right_hash).unwrap()),
             }),
         },
     )
@@ -391,7 +391,7 @@ fn create_mock_edge_entry_for_testing(
         FilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Edge(EdgeData {
-                bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
+                bottom_data: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
                 path_to_bottom: PathToBottom::new(
                     path.into(),
                     EdgePathLength::new(length).unwrap(),
