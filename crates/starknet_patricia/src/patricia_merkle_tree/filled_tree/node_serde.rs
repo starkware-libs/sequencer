@@ -73,7 +73,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
     /// - For leaf nodes: use leaf.serialize() method.
     fn serialize(&self) -> DbValue {
         match &self.data {
-            NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+            NodeData::Binary(BinaryData { left_data: left_hash, right_data: right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
                 let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
                 let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
@@ -83,7 +83,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
                 DbValue(serialized)
             }
 
-            NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+            NodeData::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }) => {
                 // Serialize bottom hash, path, and path length to byte arrays.
                 let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
                 let path: [u8; SERIALIZE_HASH_BYTES] =
@@ -114,10 +114,10 @@ impl<L: Leaf> DBObject for FilledNode<L> {
             Ok(Self {
                 hash: deserialize_context.node_hash,
                 data: NodeData::Binary(BinaryData {
-                    left_hash: HashOutput(Felt::from_bytes_be_slice(
+                    left_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[..SERIALIZE_HASH_BYTES],
                     )),
-                    right_hash: HashOutput(Felt::from_bytes_be_slice(
+                    right_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[SERIALIZE_HASH_BYTES..],
                     )),
                 }),
@@ -134,7 +134,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
             Ok(Self {
                 hash: deserialize_context.node_hash,
                 data: NodeData::Edge(EdgeData {
-                    bottom_hash: HashOutput(Felt::from_bytes_be_slice(
+                    bottom_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[..SERIALIZE_HASH_BYTES],
                     )),
                     path_to_bottom: PathToBottom::new(
