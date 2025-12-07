@@ -2,6 +2,7 @@
 pub mod aerospike_storage;
 pub mod db_object;
 pub mod errors;
+pub mod family_storage;
 pub mod map_storage;
 #[cfg(test)]
 pub mod map_storage_test;
