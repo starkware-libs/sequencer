@@ -88,22 +88,46 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 // will compile them, in a backward-compatible manner.
 const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
 
-// Type alias for single block compiled data
-type CompiledBlockData = (
-    BlockNumber,
-    ThinStateDiff,
-    IndexMap<ClassHash, SierraContractClass>,
-    IndexMap<ClassHash, DeprecatedContractClass>, // Declared deprecated classes
-    IndexMap<ClassHash, DeprecatedContractClass>, // Deployed contract class definitions
-    bool,
-);
+// Unified data type for ALL items from ALL streams
+// Each item goes into middle_queue as a separate future
+#[derive(Debug)]
+enum ProcessedBlockData {
+    // From BlockAvailable stream - header + body + signature
+    Block {
+        block_number: BlockNumber,
+        block: Block,
+        signature: BlockSignature,
+    },
+    // From StateDiffAvailable stream - state diff (after compilation if needed)
+    StateDiff {
+        block_number: BlockNumber,
+        block_hash: BlockHash,
+        thin_state_diff: ThinStateDiff,
+        classes: IndexMap<ClassHash, SierraContractClass>,
+        deprecated_classes: IndexMap<ClassHash, DeprecatedContractClass>,
+        deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
+        block_contains_old_classes: bool,
+    },
+    // From CompiledClassAvailable stream - no compilation needed
+    CompiledClass {
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        compiled_class: CasmContractClass,
+        is_compiler_backward_compatible: bool,
+    },
+    // From NewBaseLayerBlock stream - no compilation needed
+    BaseLayerBlock {
+        block_number: BlockNumber,
+        block_hash: BlockHash,
+    },
+}
 
-// Type alias for batch of compiled blocks
-type CompiledBatchData = Vec<CompiledBlockData>;
+// Type alias for batch of processed blocks (all types)
+type ProcessedBatchData = Vec<ProcessedBlockData>;
 
-// Type alias for compilation tasks - each task compiles ONE block and returns the compiled data
-type CompilationTask =
-    Pin<Box<dyn Future<Output = Result<CompiledBlockData, StateSyncError>> + Send>>;
+// Type alias for processing tasks - each task processes ONE block from ANY stream
+type ProcessingTask =
+    Pin<Box<dyn Future<Output = Result<ProcessedBlockData, StateSyncError>> + Send>>;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
@@ -213,6 +237,30 @@ impl Default for SyncConfig {
 
 // Orchestrates specific network interfaces (e.g. central, p2p, l1) and writes to Storage and shared
 // memory.
+//
+// ## Two-Queue Batching Design
+// 
+// The new batching architecture uses two queues to optimize storage writes:
+//
+// 1. **Middle Queue** (`middle_queue`): A FuturesOrdered queue containing ALL incoming blocks
+//    - Each block is represented as a Future (compilation task or immediate)
+//    - Blocks requiring compilation run async (class manager operations)
+//    - Blocks NOT requiring compilation resolve immediately
+//    - FuturesOrdered ensures blocks are consumed in order (even if they complete out of order)
+//    - Has a natural size limit via the feeder gateway's chunk size
+//
+// 2. **Batch Queue** (`batch_queue`): Final accumulator for ready-to-flush blocks
+//    - Polls `.next()` from middle_queue to get the next ready block (in order)
+//    - Accumulates blocks up to `batch_size` limit
+//    - When full, flushes all blocks to database in a single transaction
+//    - Provides optimal database write performance
+//
+// **Benefits:**
+// - Eliminates out-of-order tracking (FuturesOrdered handles ordering)
+// - No manual sorting or gap detection needed
+// - Simple flow: middle_queue.next() → batch_queue → flush
+// - Parallel compilation with ordered consumption
+// - Natural backpressure via queue size limits
 pub struct GenericStateSync<
     TCentralSource: CentralSourceTrait + Sync + Send,
     TPendingSource: PendingSourceTrait + Sync + Send,
@@ -229,10 +277,21 @@ pub struct GenericStateSync<
     writer: Arc<Mutex<StorageWriter>>,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
-    // Accumulator for batching blocks
-    pending_blocks: Vec<(BlockNumber, Block, BlockSignature)>,
-    // Queue for compilation tasks - maintains ordering while allowing concurrent compilation
-    compilation_tasks: FuturesOrdered<CompilationTask>,
+    // Middle queue: FuturesOrdered containing ALL incoming items from feeder gateway
+    // Each event (BlockAvailable, StateDiffAvailable, etc.) creates a future
+    // Futures are immediate for headers, async for state diff compilation
+    // FuturesOrdered maintains ORDER: items come out in the order they went in
+    middle_queue: FuturesOrdered<ProcessingTask>,
+    // Batch queue: accumulates ready items from middle_queue before flushing
+    // When this reaches config.block_batch_size, we flush all items in ONE DB transaction
+    batch_queue: Vec<ProcessedBlockData>,
+    // Queue markers: track the highest block/class already queued (in-flight)
+    // Streams use max(db_marker, queue_marker) to know where to start fetching
+    // This prevents duplicate requests to FGW while batch is being filled
+    queue_header_marker: Arc<RwLock<BlockNumber>>,
+    queue_state_marker: Arc<RwLock<BlockNumber>>,
+    queue_compiled_class_marker: Arc<RwLock<BlockNumber>>,
+    queue_base_layer_marker: Arc<RwLock<BlockNumber>>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -421,6 +480,7 @@ impl<
             self.config.collect_pending_data,
             PENDING_SLEEP_DURATION,
             self.config.blocks_max_stream_size,
+            self.queue_header_marker.clone(),
         )
         .fuse();
         let state_diff_stream = stream_new_state_diffs(
@@ -429,6 +489,7 @@ impl<
             self.central_source.clone(),
             self.config.block_propagation_sleep_duration,
             self.config.state_updates_max_stream_size,
+            self.queue_state_marker.clone(),
         )
         .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
@@ -438,6 +499,7 @@ impl<
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
             self.config.store_sierras_and_casms,
+            self.queue_compiled_class_marker.clone(),
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -467,50 +529,53 @@ impl<
             // tasks
             debug!("Selecting between block sync, state diff sync, and compilation tasks.");
 
-            // Check if we need to collect and flush a batch
-            if self.compilation_tasks.len() >= self.config.block_batch_size {
-                info!(
-                    "Batch size reached ({} blocks). Collecting compiled results...",
-                    self.compilation_tasks.len()
-                );
-
-                // Collect all completed compilations (in order!)
-                let mut compiled_batch = Vec::new();
-                for _ in 0..self.config.block_batch_size {
-                    if let Some(result) = self.compilation_tasks.next().await {
-                        match result {
-                            Ok(compiled_block) => {
-                                compiled_batch.push(compiled_block);
-                            }
-                            Err(e) => {
-                                error!("Compilation task failed: {:?}", e);
-                                return Err(e);
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if !compiled_batch.is_empty() {
-                    let batch_size = compiled_batch.len();
-                    let first_block = compiled_batch.first().map(|(bn, _, _, _, _, _)| *bn);
-                    let last_block = compiled_batch.last().map(|(bn, _, _, _, _, _)| *bn);
-                    info!(
-                        "Collected {batch_size} compiled blocks ({first_block:?} to \
-                         {last_block:?}). Writing to storage in ONE transaction..."
-                    );
-
-                    // Write all compiled blocks in ONE transaction
-                    self.write_compiled_batch(compiled_batch).await?;
-
-                    info!("Successfully wrote {batch_size} blocks to storage in one transaction.");
-                }
-            }
-
             // Select from all streams
             tokio::select! {
-                // No longer check compilation_tasks here - we collect them in batches above
+                // Poll middle_queue to get next ready block (in order) and accumulate in batch_queue
+                Some(result) = self.middle_queue.next(), if !self.middle_queue.is_empty() => {
+                    match result {
+                        Ok(processed_block) => {
+                            let item_desc = match &processed_block {
+                                ProcessedBlockData::Block { block_number, .. } => format!("Block {} (header)", block_number),
+                                ProcessedBlockData::StateDiff { block_number, .. } => format!("Block {} (state diff)", block_number),
+                                ProcessedBlockData::CompiledClass { .. } => "Compiled class".to_string(),
+                                ProcessedBlockData::BaseLayerBlock { block_number, .. } => format!("Base layer block {}", block_number),
+                            };
+                            
+                            debug!(
+                                "{} ready from middle_queue. Adding to batch_queue ({}/{})...",
+                                item_desc,
+                                self.batch_queue.len() + 1,
+                                self.config.block_batch_size
+                            );
+                            
+                            // Add to batch_queue
+                            self.batch_queue.push(processed_block);
+                            
+                            // Flush if batch_queue is full
+                            if self.batch_queue.len() >= self.config.block_batch_size {
+                                info!(
+                                    "Batch queue full ({} items). Flushing to database...",
+                                    self.batch_queue.len()
+                                );
+                                let batch = std::mem::take(&mut self.batch_queue);
+                                self.flush_processed_batch(batch).await?;
+                                
+                                // NOTE: We do NOT reset queue markers here!
+                                // Queue markers track what we've REQUESTED from FGW, not what we've written.
+                                // middle_queue may still have items compiling (e.g., state diffs 500-999)
+                                // If we reset markers, streams would re-fetch those items (duplicates!)
+                                // Queue markers only advance, never reset.
+                                
+                                info!("Batch successfully flushed. Batch queue cleared.");
+                            }
+                        }
+                        Err(e) => {
+                            error!("Processing task failed: {:?}", e);
+                            return Err(e);
+                        }
+                    }
+                }
                 // Check for sync events from streams
                 res = block_stream.next() => {
                     let sync_event = res.expect("Received None from block stream.")?;
@@ -544,14 +609,33 @@ impl<
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
                 if self.config.enable_block_batching {
-                    // Add block to batch
-                    self.pending_blocks.push((block_number, block, signature));
-
-                    // Flush if batch is full
-                    if self.pending_blocks.len() >= self.config.block_batch_size {
-                        let blocks = std::mem::take(&mut self.pending_blocks);
-                        self.store_blocks_batched(blocks).await?;
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_header_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
                     }
+                    
+                    // Create an immediate future that returns the Block data
+                    // No async work needed - just wrap the data
+                    let block_future: ProcessingTask = Box::pin(async move {
+                        Ok(ProcessedBlockData::Block {
+                            block_number,
+                            block,
+                            signature,
+                        })
+                    });
+
+                    // Push to middle_queue (FuturesOrdered maintains order)
+                    self.middle_queue.push_back(block_future);
+
+                    debug!(
+                        "Block {} (header) added to middle_queue. Queue size: {}, Batch queue: {}/{}",
+                        block_number,
+                        self.middle_queue.len(),
+                        self.batch_queue.len(),
+                        self.config.block_batch_size
+                    );
+
                     Ok(())
                 } else {
                     self.store_block(block_number, block, signature).await
@@ -564,37 +648,53 @@ impl<
                 deployed_contract_class_definitions,
             } => {
                 if self.config.enable_block_batching {
-                    // Submit each block individually for compilation
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_state_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
+                    }
+                    
+                    // Create an async future that processes (compiles) the state diff
                     let class_manager_client = self.class_manager_client.clone();
                     let reader = self.reader.clone();
 
-                    let compilation_future: CompilationTask =
-                        Box::pin(Self::compile_single_state_diff(
-                            class_manager_client,
-                            reader,
+                    let state_diff_future: ProcessingTask = Box::pin(async move {
+                        // Process state diff (with compilation if needed)
+                        let (thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes) = 
+                            Self::process_state_diff(
+                                class_manager_client,
+                                reader,
+                                block_number,
+                                state_diff,
+                                deployed_contract_class_definitions,
+                            ).await?;
+
+                        // Return state diff data only (header was already added separately)
+                        Ok(ProcessedBlockData::StateDiff {
                             block_number,
-                            state_diff,
+                            block_hash,
+                            thin_state_diff,
+                            classes,
+                            deprecated_classes,
                             deployed_contract_class_definitions,
-                        ));
+                            block_contains_old_classes,
+                        })
+                    });
 
-                    // Add to FuturesOrdered - maintains order while allowing concurrency
-                    self.compilation_tasks.push_back(compilation_future);
+                    // Add to middle_queue
+                    self.middle_queue.push_back(state_diff_future);
 
-                    info!(
-                        "Compilation task submitted for block {}. Batch count: {}/{}",
+                    debug!(
+                        "Block {} (state diff) added to middle_queue. Queue size: {}, Batch queue: {}/{}",
                         block_number,
-                        self.compilation_tasks.len(),
+                        self.middle_queue.len(),
+                        self.batch_queue.len(),
                         self.config.block_batch_size
                     );
 
                     Ok(())
                 } else {
-                    // Non-batching mode: flush blocks then process state diff
-                    if !self.pending_blocks.is_empty() {
-                        let blocks = std::mem::take(&mut self.pending_blocks);
-                        self.store_blocks_batched(blocks).await?;
-                    }
-
+                    // Non-batching mode: store state diff immediately
                     self.store_state_diff(
                         block_number,
                         block_hash,
@@ -610,16 +710,70 @@ impl<
                 compiled_class,
                 is_compiler_backward_compatible,
             } => {
-                self.store_compiled_class(
-                    class_hash,
-                    compiled_class_hash,
-                    compiled_class,
-                    is_compiler_backward_compatible,
-                )
-                .await
+                if self.config.enable_block_batching {
+                    // Create immediate future for compiled class (no compilation needed)
+                    let class_future: ProcessingTask = Box::pin(async move {
+                        Ok(ProcessedBlockData::CompiledClass {
+                            class_hash,
+                            compiled_class_hash,
+                            compiled_class,
+                            is_compiler_backward_compatible,
+                        })
+                    });
+
+                    // Add to middle_queue - will be immediately ready
+                    self.middle_queue.push_back(class_future);
+
+                    debug!(
+                        "Compiled class {:?} added to middle_queue. Queue size: {}, Batch queue: {}/{}",
+                        class_hash,
+                        self.middle_queue.len(),
+                        self.batch_queue.len(),
+                        self.config.block_batch_size
+                    );
+
+                    Ok(())
+                } else {
+                    self.store_compiled_class(
+                        class_hash,
+                        compiled_class_hash,
+                        compiled_class,
+                        is_compiler_backward_compatible,
+                    )
+                    .await
+                }
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
-                self.store_base_layer_block(block_number, block_hash).await
+                if self.config.enable_block_batching {
+                    // Update queue marker to track what's in-flight
+                    {
+                        let mut marker = self.queue_base_layer_marker.write().await;
+                        *marker = (*marker).max(block_number.unchecked_next());
+                    }
+                    
+                    // Create immediate future for base layer block (no compilation needed)
+                    let base_layer_future: ProcessingTask = Box::pin(async move {
+                        Ok(ProcessedBlockData::BaseLayerBlock {
+                            block_number,
+                            block_hash,
+                        })
+                    });
+
+                    // Add to middle_queue - will be immediately ready
+                    self.middle_queue.push_back(base_layer_future);
+
+                    debug!(
+                        "Base layer block {} added to middle_queue. Queue size: {}, Batch queue: {}/{}",
+                        block_number,
+                        self.middle_queue.len(),
+                        self.batch_queue.len(),
+                        self.config.block_batch_size
+                    );
+
+                    Ok(())
+                } else {
+                    self.store_base_layer_block(block_number, block_hash).await
+                }
             }
             SyncEvent::NoProgress => Err(StateSyncError::NoProgress),
         }
@@ -838,15 +992,17 @@ impl<
         Ok(())
     }
 
-    // Compile a single state diff asynchronously (non-blocking compilation)
+    // Process a single state diff asynchronously (may involve compilation)
     // This is a static method so it can be used to create a Future without &mut self
-    async fn compile_single_state_diff(
+    // Process state diff (with compilation if needed) and return the processed components
+    // Returns: (thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes)
+    async fn process_state_diff(
         class_manager_client: Option<SharedClassManagerClient>,
         reader: StorageReader,
         block_number: BlockNumber,
         state_diff: StateDiff,
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
-    ) -> Result<CompiledBlockData, StateSyncError> {
+    ) -> Result<(ThinStateDiff, IndexMap<ClassHash, SierraContractClass>, IndexMap<ClassHash, DeprecatedContractClass>, IndexMap<ClassHash, DeprecatedContractClass>, bool), StateSyncError> {
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
@@ -879,58 +1035,182 @@ impl<
             }
         }
 
-        Ok((
-            block_number,
-            thin_state_diff,
-            classes,
-            deprecated_classes,
-            deployed_contract_class_definitions,
-            block_contains_old_classes,
-        ))
+        Ok((thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes))
     }
 
-    // Write a compiled batch to storage (called after compilation completes)
-    async fn write_compiled_batch(&mut self, compiled_batch: CompiledBatchData) -> StateSyncResult {
+    // Flush a batch of processed blocks (from ALL streams) to storage
+    // Uses a SINGLE database transaction for all writes (much faster than 1000 separate transactions)
+    async fn flush_processed_batch(&mut self, batch: ProcessedBatchData) -> StateSyncResult {
+        if batch.is_empty() {
+            return Ok(());
+        }
+
+        info!("Flushing batch of {} items to database...", batch.len());
         let batch_start = Instant::now();
-        let first_block_number = compiled_batch.first().unwrap().0;
-        let last_block_number = compiled_batch.last().unwrap().0;
-        let batch_size = compiled_batch.len();
+
+        // NO SORTING NEEDED! CompleteBlock already contains header + state diff together
+        // FuturesOrdered guarantees they come out in block number order
+        info!("Processing batch of {} items (in FuturesOrdered order)...", batch.len());
 
         let has_class_manager = self.class_manager_client.is_some();
         let store_sierras_and_casms = self.config.store_sierras_and_casms;
+        
+        // Track highest block numbers for metrics
+        let mut highest_block = BlockNumber(0);
+        
+        // Separate lists for different item types
+        let mut blocks_to_write = Vec::new();
+        let mut state_diffs_to_write = Vec::new();
+        let mut casms_to_write = Vec::new();
+        let mut base_layer_blocks = Vec::new();
+        let mut compiled_classes_for_class_manager = Vec::new();
 
-        // Write all state diffs in a single transaction
+        // Track min/max block numbers in batch for debugging
+        let mut min_block = BlockNumber(u64::MAX);
+        let mut max_block = BlockNumber(0);
+        
+        // Separate items by type
+        for processed_item in batch {
+            match processed_item {
+                ProcessedBlockData::Block {
+                    block_number,
+                    block,
+                    signature,
+                } => {
+                    if block_number > highest_block {
+                        highest_block = block_number;
+                    }
+                    if block_number < min_block {
+                        min_block = block_number;
+                    }
+                    if block_number > max_block {
+                        max_block = block_number;
+                    }
+                    blocks_to_write.push((block_number, block, signature));
+                }
+                ProcessedBlockData::StateDiff {
+                    block_number,
+                    block_hash,
+                    thin_state_diff,
+                    classes,
+                    deprecated_classes,
+                    deployed_contract_class_definitions,
+                    block_contains_old_classes,
+                } => {
+                    if block_number > highest_block {
+                        highest_block = block_number;
+                    }
+                    if block_number < min_block {
+                        min_block = block_number;
+                    }
+                    if block_number > max_block {
+                        max_block = block_number;
+                    }
+                    state_diffs_to_write.push((
+                        block_number,
+                        block_hash,
+                        thin_state_diff,
+                        classes,
+                        deprecated_classes,
+                        deployed_contract_class_definitions,
+                        block_contains_old_classes,
+                    ));
+                }
+                ProcessedBlockData::CompiledClass {
+                    class_hash,
+                    compiled_class_hash,
+                    compiled_class,
+                    is_compiler_backward_compatible,
+                } => {
+                    if store_sierras_and_casms {
+                        casms_to_write.push((class_hash, compiled_class.clone()));
+                    }
+                    if !is_compiler_backward_compatible {
+                        compiled_classes_for_class_manager.push((class_hash, compiled_class_hash, compiled_class));
+                    }
+                }
+                ProcessedBlockData::BaseLayerBlock { block_number, block_hash } => {
+                    base_layer_blocks.push((block_number, block_hash));
+                }
+            }
+        }
+
+        // Sort and deduplicate to handle stream retries and out-of-order events
+        blocks_to_write.sort_by_key(|(bn, _, _)| *bn);
+        blocks_to_write.dedup_by_key(|(bn, _, _)| *bn);
+        
+        state_diffs_to_write.sort_by_key(|(bn, ..)| *bn);
+        state_diffs_to_write.dedup_by_key(|(bn, ..)| *bn);
+        
+        // Deduplicate compiled classes by class_hash to prevent duplicate key errors
+        casms_to_write.sort_by_key(|(ch, _)| *ch);
+        casms_to_write.dedup_by_key(|(ch, _)| *ch);
+
+        info!(
+            "Batch separated: {} blocks, {} state diffs ({} to {}), {} casms, {} base layer. Writing in ONE transaction...",
+            blocks_to_write.len(),
+            state_diffs_to_write.len(),
+            min_block,
+            max_block,
+            casms_to_write.len(),
+            base_layer_blocks.len()
+        );
+
+        // Write everything in a SINGLE transaction
         let storage_start = Instant::now();
         self.perform_storage_writes(move |writer| {
             let txn_start = Instant::now();
             let mut txn = writer.begin_rw_txn()?;
-            info!(
-                "STATE_DIFF_BATCH_STORAGE_TIMING: Batch txn begin took {:?}",
-                txn_start.elapsed()
-            );
+            info!("BATCH_STORAGE_TIMING: Single txn begin took {:?}", txn_start.elapsed());
 
-            // Update class manager marker if needed
-            if has_class_manager {
-                txn = txn.update_class_manager_block_marker(&last_block_number.unchecked_next())?;
+            // Get current markers to skip already-written blocks (handles duplicates/retries)
+            let current_header_marker = txn.get_header_marker()?;
+            let current_state_marker = txn.get_state_marker()?;
+            info!("BATCH_STORAGE_TIMING: Current markers - Header: {:?}, State: {:?}", current_header_marker, current_state_marker);
+
+            // Write all HEADERS first (they MUST come before state diffs for state_diff_stream to work)
+            for (block_number, block, signature) in &blocks_to_write {
+                // Skip if already written (handles duplicates from stream retries)
+                if *block_number < current_header_marker {
+                    debug!("Skipping header {} (already in DB, header_marker: {})", block_number, current_header_marker);
+                    continue;
+                }
+                
+                txn = txn.append_header(*block_number, &block.header)?;
+                txn = txn.append_block_signature(*block_number, signature)?;
+                txn = txn.append_body(*block_number, block.body.clone())?;
+                
+                if block.header.block_header_without_hash.starknet_version
+                    < STARKNET_VERSION_TO_COMPILE_FROM
+                {
+                    txn = txn.update_compiler_backward_compatibility_marker(
+                        &block_number.unchecked_next(),
+                    )?;
+                }
             }
+            
+            info!("BATCH_STORAGE_TIMING: Wrote {} headers", blocks_to_write.len());
 
-            // Write all state diffs to the same transaction
-            for (
-                block_number,
-                thin_state_diff,
-                classes,
-                deprecated_classes,
-                deployed_contract_class_definitions,
-                block_contains_old_classes,
-            ) in compiled_batch
-            {
-                let state_diff_start = Instant::now();
-
-                txn = txn.append_state_diff(block_number, thin_state_diff)?;
-
-                if store_sierras_and_casms || block_contains_old_classes {
+            // Write all STATE DIFFS (after headers are written)
+            for (block_number, _block_hash, thin_state_diff, classes, deprecated_classes, deployed_contract_class_definitions, block_contains_old_classes) in &state_diffs_to_write {
+                // Skip if already written (handles duplicates from stream retries)
+                if *block_number < current_state_marker {
+                    debug!("Skipping state diff {} (already in DB, state_marker: {})", block_number, current_state_marker);
+                    continue;
+                }
+                
+                // Update class manager marker if needed
+                if has_class_manager {
+                    txn = txn.update_class_manager_block_marker(&block_number.unchecked_next())?;
+                }
+                
+                // Write state diff
+                txn = txn.append_state_diff(*block_number, thin_state_diff.clone())?;
+                
+                // Write classes if needed
+                if store_sierras_and_casms || *block_contains_old_classes {
                     txn = txn.append_classes(
-                        block_number,
+                        *block_number,
                         &classes
                             .iter()
                             .map(|(class_hash, class)| (*class_hash, class))
@@ -942,44 +1222,139 @@ impl<
                             .collect::<Vec<_>>(),
                     )?;
                 }
+            }
+            
+            info!("BATCH_STORAGE_TIMING: Wrote {} state diffs", state_diffs_to_write.len());
 
-                debug!(
-                    "STATE_DIFF_BATCH_STORAGE_TIMING: Block {} write took {:?}",
-                    block_number,
-                    state_diff_start.elapsed()
-                );
+            // Write all compiled classes (skip if already in DB for crash recovery)
+            let mut casms_written = 0;
+            let mut casms_skipped = 0;
+            for (class_hash, compiled_class) in casms_to_write {
+                // Check if CASM already exists in DB (crash recovery scenario)
+                if txn.get_casm(&class_hash)?.is_some() {
+                    debug!("Skipping CASM {} (already in DB)", class_hash);
+                    casms_skipped += 1;
+                    continue;
+                }
+                txn = txn.append_casm(&class_hash, &compiled_class)?;
+                casms_written += 1;
+            }
+            
+            if casms_skipped > 0 {
+                info!("BATCH_STORAGE_TIMING: Wrote {} casms, skipped {} duplicates", casms_written, casms_skipped);
+            } else {
+                info!("BATCH_STORAGE_TIMING: Wrote {} casms", casms_written);
             }
 
-            // Commit once for all state diffs
+            // Commit ONCE for entire batch
             let commit_start = Instant::now();
             txn.commit()?;
             info!(
-                "STATE_DIFF_BATCH_STORAGE_TIMING: Batch commit (includes flush) took {:?}",
+                "BATCH_STORAGE_TIMING: Single txn commit (includes flush) took {:?}",
                 commit_start.elapsed()
             );
+            
             Ok(())
         })
         .await?;
 
         info!(
-            "STATE_DIFF_BATCH_TIMING: Batch of {} state diffs total storage took {:?}",
-            batch_size,
+            "BATCH_STORAGE_TIMING: Total storage (with commit) took {:?}",
             storage_start.elapsed()
         );
 
-        // Update metrics for all blocks in batch
-        #[allow(clippy::as_conversions)]
-        for i in 0..batch_size {
-            let bn = BlockNumber(first_block_number.0 + i as u64);
-            STATE_SYNC_STATE_MARKER.set_lossy(bn.unchecked_next().0);
-            info!("SYNC_NEW_BLOCK: Added block {}.", bn);
+        // Process compiled classes that need class manager
+        for (class_hash, compiled_class_hash, compiled_class) in compiled_classes_for_class_manager {
+            if let Some(class_manager_client) = &self.class_manager_client {
+                let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
+                    "Compiled classes stream gave class hash that doesn't appear in storage.",
+                );
+                let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
+                    .expect("Failed reading sierra version from program.");
+                let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
+                class_manager_client
+                    .add_class_and_executable_unsafe(
+                        class_hash,
+                        class,
+                        compiled_class_hash,
+                        contract_class,
+                    )
+                    .await
+                    .expect("Failed adding class and compiled class to class manager.");
+            }
         }
 
-        let total_time = batch_start.elapsed();
+        // Process base layer blocks
+        for (block_number, block_hash) in base_layer_blocks {
+            self.store_base_layer_block(block_number, block_hash).await?;
+        }
+
+        // Update metrics (header + state are written together now)
+        if highest_block > BlockNumber(0) {
+            STATE_SYNC_HEADER_MARKER.set_lossy(highest_block.unchecked_next().0);
+            STATE_SYNC_BODY_MARKER.set_lossy(highest_block.unchecked_next().0);
+            STATE_SYNC_STATE_MARKER.set_lossy(highest_block.unchecked_next().0);
+            if has_class_manager {
+                STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(highest_block.unchecked_next().0);
+            }
+        }
+
         info!(
-            "STATE_DIFF_BATCH_TIMING_COMPLETE: Batch of {} state diffs total processing took {:?}",
-            batch_size, total_time
+            "BATCH_FLUSH_COMPLETE: Batch flush took {:?}. Batch successfully flushed!",
+            batch_start.elapsed()
         );
+
+        Ok(())
+    }
+
+    // Helper to store already-processed state diff
+    async fn store_processed_state_diff(
+        &mut self,
+        block_number: BlockNumber,
+        thin_state_diff: ThinStateDiff,
+        classes: IndexMap<ClassHash, SierraContractClass>,
+        deprecated_classes: IndexMap<ClassHash, DeprecatedContractClass>,
+        deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
+        block_contains_old_classes: bool,
+    ) -> StateSyncResult {
+        let has_class_manager = self.class_manager_client.is_some();
+        let store_sierras_and_casms = self.config.store_sierras_and_casms;
+
+        self.perform_storage_writes(move |writer| {
+            let mut txn = writer.begin_rw_txn()?;
+
+            // Update class manager marker if needed
+            if has_class_manager {
+                txn = txn.update_class_manager_block_marker(&block_number.unchecked_next())?;
+            }
+
+            // Write state diff
+            txn = txn.append_state_diff(block_number, thin_state_diff)?;
+
+            // Write classes if needed
+            if store_sierras_and_casms || block_contains_old_classes {
+                txn = txn.append_classes(
+                    block_number,
+                    &classes
+                        .iter()
+                        .map(|(class_hash, class)| (*class_hash, class))
+                        .collect::<Vec<_>>(),
+                    &deprecated_classes
+                        .iter()
+                        .chain(deployed_contract_class_definitions.iter())
+                        .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
+                        .collect::<Vec<_>>(),
+                )?;
+            }
+
+            txn.commit()?;
+            Ok(())
+        })
+        .await?;
+
+        // Update metric
+        STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
+        info!("SYNC_NEW_BLOCK: Added block {}.", block_number);
 
         Ok(())
     }
@@ -1352,10 +1727,14 @@ fn stream_new_blocks<
     collect_pending_data: bool,
     pending_sleep_duration: Duration,
     max_stream_size: u32,
+    queue_header_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
             loop {
-            let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            let db_header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            let queue_marker = *queue_header_marker.read().await;
+            // Use max of DB marker and queue marker to skip blocks already in-flight
+            let header_marker = db_header_marker.max(queue_marker);
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
@@ -1387,9 +1766,15 @@ fn stream_new_blocks<
             let block_stream =
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
             pin_mut!(block_stream);
+            let mut next_expected_block = header_marker;
             while let Some(maybe_block) = block_stream.next().await {
                 let (block_number, block, signature) = maybe_block?;
+                if block_number != next_expected_block {
+                    warn!("Gap detected in block stream. Expected {}, found {}. Discarding and retrying...", next_expected_block, block_number);
+                    break;
+                }
                 yield SyncEvent::BlockAvailable { block_number, block , signature };
+                next_expected_block = next_expected_block.unchecked_next();
             }
         }
     }
@@ -1400,13 +1785,17 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
+    queue_state_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
             let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
+            let db_state_marker = txn.get_state_marker()?;
             let last_block_number = txn.get_header_marker()?;
             drop(txn);
+            let queue_marker = *queue_state_marker.read().await;
+            // Use max of DB marker and queue marker to skip state diffs already in-flight
+            let state_marker = db_state_marker.max(queue_marker);
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
@@ -1418,6 +1807,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                 central_source.stream_state_updates(state_marker, up_to).fuse();
             pin_mut!(state_diff_stream);
 
+            let mut next_expected_block = state_marker;
             while let Some(maybe_state_diff) = state_diff_stream.next().await {
                 let (
                     block_number,
@@ -1425,6 +1815,12 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     mut state_diff,
                     deployed_contract_class_definitions,
                 ) = maybe_state_diff?;
+
+                if block_number != next_expected_block {
+                    warn!("Gap detected in state diff stream. Expected {}, found {}. Discarding and retrying...", next_expected_block, block_number);
+                    break;
+                }
+
                 sort_state_diff(&mut state_diff);
                 yield SyncEvent::StateDiffAvailable {
                     block_number,
@@ -1432,6 +1828,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     state_diff,
                     deployed_contract_class_definitions,
                 };
+                next_expected_block = next_expected_block.unchecked_next();
             }
         }
     }
@@ -1465,6 +1862,7 @@ impl StateSync {
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         let base_layer_source = base_layer_source.map(Arc::new);
+        
         Self {
             config,
             shared_highest_block,
@@ -1477,8 +1875,12 @@ impl StateSync {
             writer: Arc::new(Mutex::new(writer)),
             sequencer_pub_key: None,
             class_manager_client,
-            pending_blocks: Vec::new(),
-            compilation_tasks: FuturesOrdered::new(),
+            middle_queue: FuturesOrdered::new(),
+            batch_queue: Vec::new(),
+            queue_header_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_state_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_compiled_class_marker: Arc::new(RwLock::new(BlockNumber::default())),
+            queue_base_layer_marker: Arc::new(RwLock::new(BlockNumber::default())),
         }
     }
 }
@@ -1489,11 +1891,15 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
     store_sierras_and_casms: bool,
+    queue_compiled_class_marker: Arc<RwLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
             let txn = reader.begin_ro_txn()?;
-            let mut from = txn.get_compiled_class_marker()?;
+            let db_compiled_class_marker = txn.get_compiled_class_marker()?;
+            let queue_marker = *queue_compiled_class_marker.read().await;
+            // Use max of DB marker and queue marker to skip compiled classes already in-flight
+            let mut from = db_compiled_class_marker.max(queue_marker);
             let state_marker = txn.get_state_marker()?;
             let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
             // Avoid starting streams from blocks without declared classes.
@@ -1532,6 +1938,10 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 pending::<()>().await;
                 continue;
             }
+
+            // Update queue marker BEFORE fetching to prevent duplicate requests
+            // This tells future iterations: "we're fetching up to block X, don't re-fetch it"
+            *queue_compiled_class_marker.write().await = up_to;
 
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =

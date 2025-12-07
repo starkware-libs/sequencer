@@ -727,9 +727,22 @@ impl FileHandlers<RW> {
         self.clone().contract_class.append(contract_class)
     }
 
+    // Appends multiple contract classes in batch and returns their locations.
+    fn append_contract_classes_batch(
+        &self,
+        contract_classes: &[&SierraContractClass],
+    ) -> Vec<LocationInFile> {
+        self.clone().contract_class.append_batch(contract_classes)
+    }
+
     // Appends a CASM to the corresponding file and returns its location.
     fn append_casm(&self, casm: &CasmContractClass) -> LocationInFile {
         self.clone().casm.append(casm)
+    }
+
+    // Appends multiple CASMs in batch and returns their locations.
+    fn append_casms_batch(&self, casms: &[&CasmContractClass]) -> Vec<LocationInFile> {
+        self.clone().casm.append_batch(casms)
     }
 
     // Appends a deprecated contract class to the corresponding file and returns its location.
@@ -740,14 +753,35 @@ impl FileHandlers<RW> {
         self.clone().deprecated_contract_class.append(deprecated_contract_class)
     }
 
+    // Appends multiple deprecated contract classes in batch and returns their locations.
+    fn append_deprecated_contract_classes_batch(
+        &self,
+        deprecated_contract_classes: &[&DeprecatedContractClass],
+    ) -> Vec<LocationInFile> {
+        self.clone().deprecated_contract_class.append_batch(deprecated_contract_classes)
+    }
+
     // Appends a thin transaction output to the corresponding file and returns its location.
     fn append_transaction_output(&self, transaction_output: &TransactionOutput) -> LocationInFile {
         self.clone().transaction_output.append(transaction_output)
     }
 
+    // Appends multiple transaction outputs in batch and returns their locations.
+    fn append_transaction_outputs_batch(
+        &self,
+        transaction_outputs: &[&TransactionOutput],
+    ) -> Vec<LocationInFile> {
+        self.clone().transaction_output.append_batch(transaction_outputs)
+    }
+
     // Appends a transaction to the corresponding file and returns its location.
     fn append_transaction(&self, transaction: &Transaction) -> LocationInFile {
         self.clone().transaction.append(transaction)
+    }
+
+    // Appends multiple transactions in batch and returns their locations.
+    fn append_transactions_batch(&self, transactions: &[&Transaction]) -> Vec<LocationInFile> {
+        self.clone().transaction.append_batch(transactions)
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
