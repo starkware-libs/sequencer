@@ -1,6 +1,7 @@
 pub(crate) mod aggregator;
 pub(crate) mod blake2s;
 pub(crate) mod block_context;
+pub(crate) mod block_hash;
 pub(crate) mod bls_field;
 pub(crate) mod builtins;
 pub(crate) mod cairo1_revert;
