@@ -235,7 +235,7 @@ impl StateReader for ApolloReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        self.get_compiled_class_from_db(class_hash).map(|class| class.to_runnable())
+        self.get_compiled_classes(class_hash).map(|class| class.to_runnable())
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
