@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
@@ -10,8 +11,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::state_update_pointers::{StateEntryPtr, StoragePtr};
 use crate::io::os_output::{
+    wrap_missing,
     FullOsOutput,
     MessageToL2,
+    OsOutput,
+    OsOutputError,
     MESSAGE_TO_L1_CONST_FIELD_SIZE,
     MESSAGE_TO_L2_CONST_FIELD_SIZE,
 };
@@ -19,6 +23,7 @@ use crate::io::os_output_types::{
     FullCompiledClassHashUpdate,
     FullContractChanges,
     FullContractStorageUpdate,
+    TryFromOutputIter,
 };
 use crate::vm_utils::{LoadIntoVmMemory, VmUtilsResult};
 
@@ -298,5 +303,39 @@ impl LoadIntoVmMemory for FullOsOutputs {
                 write_full_os_output(output, vm, os_output_ptr, &mut contract_changes_writer)?;
         }
         Ok(os_output_ptr)
+    }
+}
+
+pub struct FullOsOutputsData {
+    pub outputs: FullOsOutputs,
+    pub n_outputs: usize,
+    pub program_hash: Felt,
+}
+
+impl TryFromOutputIter for FullOsOutputsData {
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
+        iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
+    ) -> Result<Self, OsOutputError> {
+        let n_outputs = wrap_missing(iter.next(), "n_output")?;
+        let n_outputs_usize = felt_to_usize(&n_outputs)?;
+        assert!(n_outputs_usize > 0, "No tasks found in the bootloader output.");
+
+        let mut program_hash: Option<Felt> = None;
+        let mut outputs = FullOsOutputs(Vec::<FullOsOutput>::with_capacity(n_outputs_usize));
+        for _ in 0..n_outputs_usize {
+            wrap_missing(iter.next(), "output_size")?;
+            let current_output_program_hash = wrap_missing(iter.next(), "program_hash")?;
+            assert_eq!(
+                program_hash.get_or_insert(current_output_program_hash),
+                &current_output_program_hash
+            );
+            outputs.0.push(OsOutput::try_from_output_iter(iter, private_keys)?.try_into()?);
+        }
+        Ok(Self {
+            outputs,
+            n_outputs: n_outputs_usize,
+            program_hash: program_hash.expect("n_outputs > 0 but program hash wasn't initialized."),
+        })
     }
 }

@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
@@ -38,6 +39,8 @@ pub static STARKNET_OS_CONFIG_HASH_VERSION: LazyLock<Felt> = LazyLock::new(|| {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsOutputError {
+    #[error(transparent)]
+    Math(#[from] MathError),
     #[error("Missing expected field: {0}.")]
     MissingFieldInOutput(String),
     #[error("Invalid output in field: {value_name}. Val: {val}. Error: {message}")]
