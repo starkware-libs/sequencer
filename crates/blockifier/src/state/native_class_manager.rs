@@ -289,11 +289,15 @@ fn process_compilation_request(
         return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+    log::info!(
+        "Starting native compilation for contract with class hash: {:#066x}",
+        class_hash.0
+    );
     let start = Instant::now();
     let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
-    log::debug!(
-        "Compiling to native contract with class hash: {:#066x}. Duration: {:.3} seconds",
+    log::info!(
+        "Native compilation for class hash {:#066x} completed in {:.3} seconds",
         class_hash.0,
         duration.as_secs_f32()
     );
@@ -304,7 +308,11 @@ fn process_compilation_request(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
             );
-            log::debug!("Compilation succeeded");
+            log::info!(
+                "Native compilation succeeded for class hash: {:#066x} (took {:.3}s)",
+                class_hash.0,
+                duration.as_secs_f32()
+            );
             Ok(())
         }
         Err(err) => {
@@ -312,9 +320,10 @@ fn process_compilation_request(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(casm)),
             );
-            log::debug!(
-                "Error compiling contract class with class hash: {:#066x}: {err}",
-                class_hash.0
+            log::warn!(
+                "Native compilation failed for class hash {:#066x} after {:.3}s: {err}",
+                class_hash.0,
+                duration.as_secs_f32()
             );
             NATIVE_COMPILATION_ERROR.increment(1);
             if panic_on_compilation_failure {

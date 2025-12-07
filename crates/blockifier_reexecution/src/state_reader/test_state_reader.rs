@@ -7,6 +7,8 @@ use apollo_gateway::rpc_state_reader::RpcStateReader;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -14,10 +16,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
+#[cfg(feature = "cairo_native")]
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
+#[cfg(feature = "cairo_native")]
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
 use serde_json::{json, to_value};
@@ -57,6 +63,8 @@ use crate::state_reader::utils::{
     get_chain_info,
     get_rpc_state_reader_config,
 };
+#[cfg(feature = "cairo_native")]
+use crate::state_reader::utils::ConsecutiveReexecutionStateReadersWithNative;
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
 pub const DEFAULT_RETRY_WAIT_TIME: u64 = 10000;
@@ -500,5 +508,35 @@ impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStat
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         self.next_block_state_reader.get_state_diff()
+    }
+}
+
+#[cfg(feature = "cairo_native")]
+impl ConsecutiveReexecutionStateReadersWithNative<TestStateReader> for ConsecutiveTestStateReaders {
+    fn pre_process_and_create_executor_with_native(
+        self,
+        contract_class_manager_config: ContractClassManagerConfig,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
+        let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+        let wrapped_state_reader = StateReaderAndContractManager::new(
+            self.last_block_state_reader,
+            contract_class_manager,
+            None,
+        );
+
+        let block_context = self.next_block_state_reader.get_block_context()?;
+        let old_block_number = BlockNumber(
+            block_context.block_info().block_number.0 - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let old_block_hash =
+            self.next_block_state_reader.get_old_block_hash(old_block_number)?;
+
+        Ok(TransactionExecutor::pre_process_and_create(
+            wrapped_state_reader,
+            block_context,
+            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
+            TransactionExecutorConfig::default(),
+        )?)
     }
 }

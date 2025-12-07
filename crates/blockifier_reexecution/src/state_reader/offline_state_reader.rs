@@ -1,6 +1,8 @@
 use std::fs;
 
 use blockifier::abi::constants;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -8,10 +10,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+#[cfg(feature = "cairo_native")]
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
+#[cfg(feature = "cairo_native")]
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
@@ -33,6 +39,8 @@ use crate::state_reader::reexecution_state_reader::{
 };
 use crate::state_reader::test_state_reader::StarknetContractClassMapping;
 use crate::state_reader::utils::{get_chain_info, ReexecutionStateMaps};
+#[cfg(feature = "cairo_native")]
+use crate::state_reader::utils::ConsecutiveReexecutionStateReadersWithNative;
 
 pub struct OfflineReexecutionData {
     offline_state_reader_prev_block: OfflineStateReader,
@@ -274,5 +282,36 @@ impl ConsecutiveReexecutionStateReaders<OfflineStateReader> for OfflineConsecuti
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         Ok(self.state_diff_next_block.clone())
+    }
+}
+
+#[cfg(feature = "cairo_native")]
+impl ConsecutiveReexecutionStateReadersWithNative<OfflineStateReader>
+    for OfflineConsecutiveStateReaders
+{
+    fn pre_process_and_create_executor_with_native(
+        self,
+        contract_class_manager_config: ContractClassManagerConfig,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
+    {
+        let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+        let wrapped_state_reader = StateReaderAndContractManager::new(
+            self.offline_state_reader_prev_block,
+            contract_class_manager,
+            None,
+        );
+
+        let old_block_number = BlockNumber(
+            self.block_context_next_block.block_info().block_number.0
+                - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let hash = wrapped_state_reader.state_reader.old_block_hash;
+
+        Ok(TransactionExecutor::pre_process_and_create(
+            wrapped_state_reader,
+            self.block_context_next_block,
+            Some(BlockHashAndNumber { number: old_block_number, hash }),
+            TransactionExecutorConfig::default(),
+        )?)
     }
 }

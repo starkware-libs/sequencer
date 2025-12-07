@@ -6,9 +6,16 @@ use std::sync::LazyLock;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::StateReader;
+#[cfg(feature = "cairo_native")]
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
@@ -237,6 +244,138 @@ pub fn reexecute_and_verify_correctness<
     transaction_executor.block_state
 }
 
+/// Trait for types that support creating an executor with Cairo native execution.
+#[cfg(feature = "cairo_native")]
+pub trait ConsecutiveReexecutionStateReadersWithNative<
+    S: StateReader + FetchCompiledClasses + Send + Sync + Clone + 'static,
+>: ConsecutiveReexecutionStateReaders<S>
+{
+    fn pre_process_and_create_executor_with_native(
+        self,
+        contract_class_manager_config: ContractClassManagerConfig,
+    ) -> ReexecutionResult<
+        blockifier::blockifier::transaction_executor::TransactionExecutor<
+            StateReaderAndContractManager<S>,
+        >,
+    >;
+}
+
+/// Counts the number of calls executed with Cairo native in a CallInfo and its inner calls.
+/// Returns (native_count, total_count).
+#[cfg(feature = "cairo_native")]
+fn count_native_calls(call_info: &blockifier::execution::call_info::CallInfo) -> (usize, usize) {
+    let mut native_count = 0;
+    let mut total_count = 0;
+
+    for call in call_info.iter() {
+        total_count += 1;
+        if call.execution.cairo_native {
+            native_count += 1;
+        }
+    }
+
+    (native_count, total_count)
+}
+
+/// Reexecutes transactions and verifies correctness using Cairo native execution.
+#[cfg(feature = "cairo_native")]
+pub fn reexecute_and_verify_correctness_with_native<
+    S: StateReader + FetchCompiledClasses + Send + Sync + Clone + 'static,
+    T: ConsecutiveReexecutionStateReadersWithNative<S>,
+>(
+    consecutive_state_readers: T,
+    contract_class_manager_config: ContractClassManagerConfig,
+) -> Option<CachedState<StateReaderAndContractManager<S>>> {
+    let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
+    tracing::info!("Got expected state diff");
+    let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
+    tracing::info!("Got all txs in next block");
+    let mut transaction_executor = consecutive_state_readers
+        .pre_process_and_create_executor_with_native(contract_class_manager_config)
+        .unwrap();
+    tracing::info!("Created transaction executor with Cairo native");
+
+    println!(
+        "Executing {} transactions with Cairo native (run_cairo_native=true, \
+         wait_on_native_compilation=true)...",
+        all_txs_in_next_block.len()
+    );
+    println!("{}", "=".repeat(80));
+
+    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
+
+    let mut total_native_calls = 0;
+    let mut total_calls = 0;
+
+    // Verify all transactions executed successfully and print native call statistics.
+    for (idx, res) in execution_results.iter().enumerate() {
+        assert_matches!(res, Ok(_));
+        let (tx_execution_info, _state_maps) = res.as_ref().unwrap();
+
+        // Count native calls across all call infos in this transaction.
+        let mut tx_native_calls = 0;
+        let mut tx_total_calls = 0;
+
+        if let Some(ref call_info) = tx_execution_info.validate_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+        if let Some(ref call_info) = tx_execution_info.execute_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+        if let Some(ref call_info) = tx_execution_info.fee_transfer_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+
+        total_native_calls += tx_native_calls;
+        total_calls += tx_total_calls;
+
+        println!(
+            "Transaction {}/{}: {} native calls out of {} total calls ({:.1}% native)",
+            idx + 1,
+            all_txs_in_next_block.len(),
+            tx_native_calls,
+            tx_total_calls,
+            if tx_total_calls > 0 {
+                (tx_native_calls as f64 / tx_total_calls as f64) * 100.0
+            } else {
+                0.0
+            }
+        );
+    }
+
+    println!("{}", "=".repeat(80));
+    println!(
+        "All {} transactions executed successfully with Cairo native.",
+        all_txs_in_next_block.len()
+    );
+    println!(
+        "Total: {} native calls out of {} total calls ({:.1}% native)",
+        total_native_calls,
+        total_calls,
+        if total_calls > 0 {
+            (total_native_calls as f64 / total_calls as f64) * 100.0
+        } else {
+            0.0
+        }
+    );
+    println!("{}", "=".repeat(80));
+
+    // Finalize block and read actual statediff; using non_consuming_finalize to keep the
+    // block_state.
+    let actual_state_diff =
+        transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
+
+    assert_eq_state_diff!(expected_state_diff, actual_state_diff);
+
+    transaction_executor.block_state
+}
+
 pub fn reexecute_block_for_testing(block_number: u64) {
     // In tests we are already in the blockifier_reexecution directory.
     let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
@@ -323,6 +462,7 @@ pub fn execute_single_transaction(
     node_url: String,
     chain_id: ChainId,
     tx_input: TransactionInput,
+    run_cairo_native: bool,
 ) -> ReexecutionResult<()> {
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
@@ -362,6 +502,72 @@ pub fn execute_single_transaction(
     let blockifier_tx = consecutive_state_readers
         .next_block_state_reader
         .api_txs_to_blockifier_txs_next_block(vec![(transaction, transaction_hash)])?;
+
+    #[cfg(feature = "cairo_native")]
+    if run_cairo_native {
+        use crate::state_reader::utils::ConsecutiveReexecutionStateReadersWithNative;
+
+        println!(
+            "Executing transaction with Cairo native (run_cairo_native=true, \
+             wait_on_native_compilation=true)..."
+        );
+        println!("{}", "=".repeat(80));
+
+        // Create transaction executor with Cairo native support.
+        let contract_class_manager_config =
+            ContractClassManagerConfig::create_for_testing(true, true);
+        let mut transaction_executor = consecutive_state_readers
+            .pre_process_and_create_executor_with_native(contract_class_manager_config)?;
+
+        // Execute transaction (should be single element).
+        let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
+
+        // We expect exactly one execution result since we executed a single transaction.
+        let res =
+            execution_results.first().expect("Expected exactly one execution result, but got none");
+
+        println!("Transaction executed successfully with Cairo native.");
+        let (tx_execution_info, _state_maps) = res.as_ref().unwrap();
+
+        // Count native calls across all call infos in this transaction.
+        let mut tx_native_calls = 0;
+        let mut tx_total_calls = 0;
+
+        if let Some(ref call_info) = tx_execution_info.validate_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+        if let Some(ref call_info) = tx_execution_info.execute_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+        if let Some(ref call_info) = tx_execution_info.fee_transfer_call_info {
+            let (native, total) = count_native_calls(call_info);
+            tx_native_calls += native;
+            tx_total_calls += total;
+        }
+
+        println!(
+            "Native calls: {} out of {} total calls ({:.1}% native)",
+            tx_native_calls,
+            tx_total_calls,
+            if tx_total_calls > 0 {
+                (tx_native_calls as f64 / tx_total_calls as f64) * 100.0
+            } else {
+                0.0
+            }
+        );
+        println!("{}", "=".repeat(80));
+
+        return Ok(());
+    }
+
+    #[cfg(not(feature = "cairo_native"))]
+    if run_cairo_native {
+        panic!("Cairo native feature is not enabled. Rebuild with --features cairo_native");
+    }
 
     // Create transaction executor.
     let mut transaction_executor =

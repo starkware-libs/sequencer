@@ -2,6 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier_reexecution::state_reader::cli::{
     BlockifierReexecutionCliArgs, Command, FULL_RESOURCES_DIR, TransactionInput,
     parse_block_numbers_args,
@@ -12,6 +14,8 @@ use blockifier_reexecution::state_reader::utils::{
     execute_single_transaction, reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
 };
+#[cfg(feature = "cairo_native")]
+use blockifier_reexecution::state_reader::utils::reexecute_and_verify_correctness_with_native;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -60,10 +64,11 @@ async fn main() {
     };
 
     match args.command {
-        Command::RpcTest { block_number, rpc_args } => {
+        Command::RpcTest { block_number, rpc_args, run_cairo_native } => {
             println!(
-                "Running RPC test for block number {block_number} using node url {}.",
-                rpc_args.node_url
+                "Running RPC test for block number {block_number} using node url {}{}.",
+                rpc_args.node_url,
+                if run_cairo_native { " with Cairo native" } else { "" }
             );
 
             let config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
@@ -72,12 +77,30 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
+                let consecutive_state_readers = ConsecutiveTestStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(config),
                     rpc_args.parse_chain_id(),
                     false,
-                ))
+                );
+
+                #[cfg(feature = "cairo_native")]
+                if run_cairo_native {
+                    reexecute_and_verify_correctness_with_native(
+                        consecutive_state_readers,
+                        ContractClassManagerConfig::create_for_testing(true, true),
+                    );
+                    return;
+                }
+
+                #[cfg(not(feature = "cairo_native"))]
+                if run_cairo_native {
+                    panic!(
+                        "Cairo native feature is not enabled. Rebuild with --features cairo_native"
+                    );
+                }
+
+                reexecute_and_verify_correctness(consecutive_state_readers);
             })
             .await
             .unwrap();
@@ -87,7 +110,7 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::ReexecuteSingleTx { block_number, rpc_args, tx_input } => {
+        Command::ReexecuteSingleTx { block_number, rpc_args, run_cairo_native, tx_input } => {
             let tx_source = match tx_input {
                 TransactionInput::FromFile { ref tx_path } => format!("from file {tx_path}"),
                 TransactionInput::FromHash { ref tx_hash } => format!("with hash {tx_hash}"),
@@ -95,8 +118,9 @@ async fn main() {
 
             println!(
                 "Executing single transaction {tx_source}, for block number {block_number}, and \
-                 using node url {}.",
-                rpc_args.node_url
+                 using node url {}{}.",
+                rpc_args.node_url,
+                if run_cairo_native { " with Cairo native" } else { "" }
             );
 
             let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
@@ -105,7 +129,13 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction(BlockNumber(block_number), node_url, chain_id, tx_input)
+                execute_single_transaction(
+                    BlockNumber(block_number),
+                    node_url,
+                    chain_id,
+                    tx_input,
+                    run_cairo_native,
+                )
             })
             .await
             .unwrap()
@@ -145,19 +175,41 @@ async fn main() {
             task_set.join_all().await;
         }
 
-        Command::Reexecute { block_numbers, directory_path } => {
+        Command::Reexecute { block_numbers, directory_path, run_cairo_native } => {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Reexecuting blocks {block_numbers:?}.");
+            println!(
+                "Reexecuting blocks {block_numbers:?}{}.",
+                if run_cairo_native { " with Cairo native" } else { "" }
+            );
+
+            #[cfg(not(feature = "cairo_native"))]
+            if run_cairo_native {
+                panic!("Cairo native feature is not enabled. Rebuild with --features cairo_native");
+            }
 
             let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
                 task_set.spawn(async move {
-                    reexecute_and_verify_correctness(
-                        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
-                    );
+                    let consecutive_state_readers =
+                        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap();
+
+                    #[cfg(feature = "cairo_native")]
+                    if run_cairo_native {
+                        reexecute_and_verify_correctness_with_native(
+                            consecutive_state_readers,
+                            ContractClassManagerConfig::create_for_testing(true, true),
+                        );
+                        println!(
+                            "Reexecution test for block {block} passed successfully (with Cairo \
+                             native)."
+                        );
+                        return;
+                    }
+
+                    reexecute_and_verify_correctness(consecutive_state_readers);
                     println!("Reexecution test for block {block} passed successfully.");
                 });
             }

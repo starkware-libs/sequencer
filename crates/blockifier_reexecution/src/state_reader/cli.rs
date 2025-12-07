@@ -76,6 +76,10 @@ pub enum Command {
         /// Block number.
         #[clap(long, short = 'b')]
         block_number: u64,
+
+        /// Enable Cairo native execution with synchronous compilation.
+        #[clap(long)]
+        run_cairo_native: bool,
     },
 
     /// Reexecutes a single transaction from a JSON file using RPC to fetch block context.
@@ -86,6 +90,10 @@ pub enum Command {
         /// Block number.
         #[clap(long, short = 'b')]
         block_number: u64,
+
+        /// Enable Cairo native execution with synchronous compilation.
+        #[clap(long)]
+        run_cairo_native: bool,
 
         /// Select how to provide the transaction input.
         #[clap(subcommand)]
@@ -121,6 +129,10 @@ pub enum Command {
         // TODO(Aner): add possibility to retrieve files from gc bucket.
         #[clap(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
+
+        /// Enable Cairo native execution with synchronous compilation.
+        #[clap(long)]
+        run_cairo_native: bool,
     },
 
     // Upload all (selected) blocks to the gc bucket.
