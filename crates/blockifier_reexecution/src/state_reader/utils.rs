@@ -7,6 +7,8 @@ use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
 #[cfg(feature = "cairo_native")]
+use apollo_compile_to_native_types::SierraCompilationConfig;
+#[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
@@ -69,6 +71,31 @@ pub fn get_chain_info(chain_id: &ChainId) -> ChainInfo {
         chain_id: chain_id.clone(),
         fee_token_addresses: get_fee_token_addresses(chain_id),
         is_l3: false,
+    }
+}
+
+/// Creates a ContractClassManagerConfig with custom native compilation settings for reexecution.
+#[cfg(feature = "cairo_native")]
+pub fn create_native_config_for_reexecution(
+    run_cairo_native: bool,
+    wait_on_native_compilation: bool,
+) -> ContractClassManagerConfig {
+    let native_compiler_config = SierraCompilationConfig {
+        max_file_size: Some(52_428_800), // max_native_bytecode_size: 52428800
+        max_cpu_time: Some(600),
+        max_memory_usage: Some(16_106_127_360), // 16106127360 bytes
+        optimization_level: 2,
+        compiler_binary_path: None,
+    };
+
+    ContractClassManagerConfig {
+        cairo_native_run_config: blockifier::blockifier::config::CairoNativeRunConfig {
+            run_cairo_native,
+            wait_on_native_compilation,
+            ..Default::default()
+        },
+        native_compiler_config,
+        ..Default::default()
     }
 }
 
@@ -514,8 +541,7 @@ pub fn execute_single_transaction(
         println!("{}", "=".repeat(80));
 
         // Create transaction executor with Cairo native support.
-        let contract_class_manager_config =
-            ContractClassManagerConfig::create_for_testing(true, true);
+        let contract_class_manager_config = create_native_config_for_reexecution(true, true);
         let mut transaction_executor = consecutive_state_readers
             .pre_process_and_create_executor_with_native(contract_class_manager_config)?;
 

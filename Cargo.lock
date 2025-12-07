@@ -3609,6 +3609,7 @@ version = "0.16.0-rc.2"
 dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
+ "apollo_compile_to_native_types",
  "apollo_gateway",
  "apollo_gateway_config",
  "apollo_rpc_execution",

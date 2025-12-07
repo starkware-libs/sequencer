@@ -12,6 +12,7 @@ cairo_native = ["blockifier/cairo_native", "blockifier/testing"]
 [dependencies]
 apollo_compile_to_casm.workspace = true
 apollo_compile_to_casm_types.workspace = true
+apollo_compile_to_native_types.workspace = true
 apollo_gateway.workspace = true
 apollo_gateway_config.workspace = true
 apollo_rpc_execution.workspace = true

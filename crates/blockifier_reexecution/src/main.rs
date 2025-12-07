@@ -2,8 +2,6 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
-#[cfg(feature = "cairo_native")]
-use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier_reexecution::state_reader::cli::{
     BlockifierReexecutionCliArgs, Command, FULL_RESOURCES_DIR, TransactionInput,
     parse_block_numbers_args,
@@ -14,6 +12,8 @@ use blockifier_reexecution::state_reader::utils::{
     execute_single_transaction, reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
 };
+#[cfg(feature = "cairo_native")]
+use blockifier_reexecution::state_reader::utils::create_native_config_for_reexecution;
 #[cfg(feature = "cairo_native")]
 use blockifier_reexecution::state_reader::utils::reexecute_and_verify_correctness_with_native;
 use clap::Parser;
@@ -88,7 +88,7 @@ async fn main() {
                 if run_cairo_native {
                     reexecute_and_verify_correctness_with_native(
                         consecutive_state_readers,
-                        ContractClassManagerConfig::create_for_testing(true, true),
+                        create_native_config_for_reexecution(true, true),
                     );
                     return;
                 }
@@ -200,7 +200,7 @@ async fn main() {
                     if run_cairo_native {
                         reexecute_and_verify_correctness_with_native(
                             consecutive_state_readers,
-                            ContractClassManagerConfig::create_for_testing(true, true),
+                            create_native_config_for_reexecution(true, true),
                         );
                         println!(
                             "Reexecution test for block {block} passed successfully (with Cairo \
