@@ -106,8 +106,7 @@ class L1Client:
         if data is None:
             return []
 
-        results = data.get("result", [])
-        return results
+        return data.get("result", [])
 
     def get_block_by_number(self, block_number: int) -> Optional[Dict]:
         """
