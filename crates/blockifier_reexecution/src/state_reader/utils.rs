@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
-use std::fs::read_to_string;
+use std::fs::{read_to_string, create_dir_all, write};
+use std::path::PathBuf;
 use std::sync::LazyLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
@@ -72,6 +74,29 @@ pub fn get_chain_info(chain_id: &ChainId) -> ChainInfo {
         fee_token_addresses: get_fee_token_addresses(chain_id),
         is_l3: false,
     }
+}
+
+/// Creates a temporary directory for saving execution infos and returns its path.
+fn create_execution_info_dir() -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let dir_path = PathBuf::from(format!("/tmp/blockifier_reexecution_execution_infos_{}", timestamp));
+    create_dir_all(&dir_path).expect("Failed to create execution info directory");
+    dir_path
+}
+
+/// Saves transaction execution info to a file.
+fn save_execution_info(
+    dir_path: &PathBuf,
+    tx_index: usize,
+    execution_info: &blockifier::transaction::objects::TransactionExecutionInfo,
+) {
+    let file_path = dir_path.join(format!("tx_{}.txt", tx_index));
+    let content = format!("{:#?}", execution_info);
+    write(&file_path, content)
+        .unwrap_or_else(|e| panic!("Failed to write execution info to {:?}: {}", file_path, e));
 }
 
 /// Creates a ContractClassManagerConfig with custom native compilation settings for reexecution.
@@ -256,9 +281,16 @@ pub fn reexecute_and_verify_correctness<
         consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
     tracing::info!("Created transaction executor");
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
-    // Verify all transactions executed successfully.
-    for res in execution_results.iter() {
+    
+    // Create directory for saving execution infos
+    let exec_info_dir = create_execution_info_dir();
+    println!("Saving execution infos to: {}", exec_info_dir.display());
+    
+    // Verify all transactions executed successfully and save execution infos.
+    for (idx, res) in execution_results.iter().enumerate() {
         assert_matches!(res, Ok(_));
+        let (tx_execution_info, _state_maps) = res.as_ref().unwrap();
+        save_execution_info(&exec_info_dir, idx, tx_execution_info);
     }
 
     // Finalize block and read actual statediff; using non_consuming_finalize to keep the
@@ -331,6 +363,10 @@ pub fn reexecute_and_verify_correctness_with_native<
 
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
 
+    // Create directory for saving execution infos
+    let exec_info_dir = create_execution_info_dir();
+    println!("Saving execution infos to: {}", exec_info_dir.display());
+
     let mut total_native_calls = 0;
     let mut total_calls = 0;
 
@@ -338,6 +374,9 @@ pub fn reexecute_and_verify_correctness_with_native<
     for (idx, res) in execution_results.iter().enumerate() {
         assert_matches!(res, Ok(_));
         let (tx_execution_info, _state_maps) = res.as_ref().unwrap();
+
+        // Save execution info to file
+        save_execution_info(&exec_info_dir, idx, tx_execution_info);
 
         // Count native calls across all call infos in this transaction.
         let mut tx_native_calls = 0;
