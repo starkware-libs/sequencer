@@ -35,6 +35,7 @@ use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
+use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
@@ -108,12 +109,13 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         Ok(Box::new(StatefulTransactionValidator {
             config: self.config.clone(),
             blockifier_stateful_tx_validator,
+            gateway_fixed_block_state_reader,
         }))
     }
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait StatefulTransactionValidatorTrait {
+pub trait StatefulTransactionValidatorTrait: Send {
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
@@ -125,9 +127,10 @@ pub trait StatefulTransactionValidatorTrait {
 pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait> {
     config: StatefulTransactionValidatorConfig,
     blockifier_stateful_tx_validator: B,
+    gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader>,
 }
 
-impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
+impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTrait
     for StatefulTransactionValidator<B>
 {
     fn extract_state_nonce_and_run_validations(
@@ -137,8 +140,9 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
         let address = executable_tx.contract_address();
-        let account_nonce =
-            self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
+        let account_nonce = runtime
+            .block_on(self.gateway_fixed_block_state_reader.get_nonce(address))
+            .map_err(|e| {
                 // TODO(noamsp): Fix this. Need to map the errors better.
                 StarknetError::internal_with_signature_logging(
                     format!("Failed to get nonce for sender address {address}"),
