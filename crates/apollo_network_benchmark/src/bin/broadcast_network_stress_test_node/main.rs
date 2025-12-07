@@ -1,8 +1,10 @@
 //! Runs a node that stress tests the p2p communication of the network.
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::time::Duration;
 
 use clap::Parser;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use tokio_metrics::RuntimeMetricsReporterBuilder;
 use tracing::Level;
 
 #[cfg(test)]
@@ -38,6 +40,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )));
 
     builder.install().expect("Failed to install prometheus recorder/exporter");
+
+    // Start the tokio runtime metrics reporter to automatically collect and export runtime metrics
+    tokio::spawn(
+        RuntimeMetricsReporterBuilder::default()
+            .with_interval(Duration::from_secs(1))
+            .describe_and_run(),
+    );
 
     Ok(())
 }
