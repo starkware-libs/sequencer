@@ -1766,9 +1766,15 @@ fn stream_new_blocks<
             let block_stream =
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
             pin_mut!(block_stream);
+            let mut next_expected_block = header_marker;
             while let Some(maybe_block) = block_stream.next().await {
                 let (block_number, block, signature) = maybe_block?;
+                if block_number != next_expected_block {
+                    warn!("Gap detected in block stream. Expected {}, found {}. Discarding and retrying...", next_expected_block, block_number);
+                    break;
+                }
                 yield SyncEvent::BlockAvailable { block_number, block , signature };
+                next_expected_block = next_expected_block.unchecked_next();
             }
         }
     }
@@ -1801,6 +1807,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                 central_source.stream_state_updates(state_marker, up_to).fuse();
             pin_mut!(state_diff_stream);
 
+            let mut next_expected_block = state_marker;
             while let Some(maybe_state_diff) = state_diff_stream.next().await {
                 let (
                     block_number,
@@ -1808,6 +1815,12 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     mut state_diff,
                     deployed_contract_class_definitions,
                 ) = maybe_state_diff?;
+
+                if block_number != next_expected_block {
+                    warn!("Gap detected in state diff stream. Expected {}, found {}. Discarding and retrying...", next_expected_block, block_number);
+                    break;
+                }
+
                 sort_state_diff(&mut state_diff);
                 yield SyncEvent::StateDiffAvailable {
                     block_number,
@@ -1815,6 +1828,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     state_diff,
                     deployed_contract_class_definitions,
                 };
+                next_expected_block = next_expected_block.unchecked_next();
             }
         }
     }
