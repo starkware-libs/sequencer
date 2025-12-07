@@ -67,7 +67,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
 
                 let mut base_layer = self.base_layer.lock().await;
                 base_layer
-                    .set_provider_url(new_node_url.clone().expose_inner())
+                    .set_provider_url(new_node_url.clone())
                     .await
                     .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))?;
 
@@ -157,7 +157,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
         Ok(self.current_node_url.read().await.clone())
     }
 
-    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.get()
             .await?
             .set_provider_url(url)

@@ -240,7 +240,7 @@ impl BaseLayerContract for AnvilBaseLayer {
         Ok(self.ethereum_base_layer.url_iterator.get_current_url())
     }
 
-    async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, _url: Sensitive<Url>) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
 
