@@ -101,6 +101,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
             account_deployment_data: AccountDeploymentData(from_py_felts(
                 tx.account_deployment_data,
             )),
+            proof_facts: vec![],
         })
     }
 }
