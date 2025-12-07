@@ -105,11 +105,9 @@ pub struct EthereumBaseLayerContract {
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
-        // TODO(Tsabary,guyn,victork): we're NOT allowed to expose the URL here. propagate these
-        // changes down the line
         let contract = build_contract_instance(
             config.starknet_contract_address,
-            url_iterator.get_current_url().expose_inner(),
+            url_iterator.get_current_url(),
         );
         Self { url_iterator, contract, config }
     }
@@ -275,8 +273,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
-        self.contract =
-            build_contract_instance(self.config.starknet_contract_address, url.as_ref().clone());
+        self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
         Ok(())
     }
 
@@ -439,9 +436,9 @@ impl Default for EthereumBaseLayerConfig {
 
 fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
-    node_url: Url,
+    node_url: Sensitive<Url>,
 ) -> StarknetL1Contract {
-    let l1_client = ProviderBuilder::default().connect_http(node_url);
+    let l1_client = ProviderBuilder::default().connect_http(node_url.expose_inner());
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)
