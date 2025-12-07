@@ -2094,6 +2094,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_network_benchmark"
+version = "0.0.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "apollo_network_types"
 version = "0.0.0"
 dependencies = [
