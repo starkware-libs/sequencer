@@ -33,10 +33,10 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
-static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+pub static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
 });
-static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
+pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
