@@ -94,10 +94,11 @@ impl SyncStateReader {
 
         Ok(contract_class)
     }
-}
 
-impl FetchCompiledClasses for SyncStateReader {
-    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+    fn get_compiled_classes_from_client(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<CompiledClasses> {
         let contract_class = self.get_contract_class_from_client(class_hash)?;
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
@@ -117,6 +118,12 @@ impl FetchCompiledClasses for SyncStateReader {
                 Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_contract_class)?))
             }
         }
+    }
+}
+
+impl FetchCompiledClasses for SyncStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.get_compiled_classes_from_client(class_hash)
     }
 
     /// Returns whether the given Cairo1 class is declared.
