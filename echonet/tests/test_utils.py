@@ -1,7 +1,7 @@
 from l1_client import L1Client
 
 
-class TestUtils:
+class L1TestUtils:
     BLOCK_NUMBER_SAMPLE = 23911042
 
     RAW_JSON_LOG = {

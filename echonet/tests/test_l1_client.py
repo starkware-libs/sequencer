@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import requests
 import unittest
 from l1_client import L1Client
-from test_utils import TestUtils
+from test_utils import L1TestUtils
 from unittest.mock import Mock, patch
 
 
@@ -19,17 +19,17 @@ class TestL1Client(unittest.TestCase):
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {"result": [TestUtils.RAW_JSON_LOG]}
+        successful_response.json.return_value = {"result": [L1TestUtils.RAW_JSON_LOG]}
         mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
         logs = client.get_logs(
-            from_block=TestUtils.BLOCK_NUMBER_SAMPLE,
-            to_block=TestUtils.BLOCK_NUMBER_SAMPLE,
+            from_block=L1TestUtils.BLOCK_NUMBER_SAMPLE,
+            to_block=L1TestUtils.BLOCK_NUMBER_SAMPLE,
         )
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(logs, [TestUtils.RAW_JSON_LOG])
+        self.assertEqual(logs, [L1TestUtils.RAW_JSON_LOG])
 
     def test_get_logs_raises_on_invalid_block_range(self):
         client = L1Client(api_key="api_key")
@@ -156,13 +156,13 @@ class TestL1Client(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_decode_log_success(self):
-        result = L1Client.decode_log_response(TestUtils.RAW_JSON_LOG)
+        result = L1Client.decode_log_response(L1TestUtils.RAW_JSON_LOG)
 
         self.assertIsInstance(result, L1Client.L1Event)
-        self.assertEqual(result, TestUtils.L1_EVENT)
+        self.assertEqual(result, L1TestUtils.L1_EVENT)
 
     def test_decode_log_invalid_topics_raises_error(self):
-        log = copy.deepcopy(TestUtils.RAW_JSON_LOG)
+        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
         log["topics"] = ["0x1", "0x2"]
         with self.assertRaisesRegex(
             ValueError, "Log has insufficient topics for LogMessageToL2 event"
@@ -170,7 +170,7 @@ class TestL1Client(unittest.TestCase):
             L1Client.decode_log_response(log)
 
     def test_decode_log_wrong_signature_raises_error(self):
-        log = copy.deepcopy(TestUtils.RAW_JSON_LOG)
+        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
         log["topics"][0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
         with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
             L1Client.decode_log_response(log)
