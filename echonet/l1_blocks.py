@@ -36,7 +36,7 @@ class L1Blocks:
         logs = client.get_logs(start_block_data, end_block_data)
 
         for log in logs:
-            l1_event = L1Events.parse_event(log)
+            l1_event = L1Events.decode_log(log)
 
             if L1Events.l1_event_matches_feeder_tx(l1_event, feeder_tx):
                 # TODO(Ayelet): Add blockNumber to L1Event.
