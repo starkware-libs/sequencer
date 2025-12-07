@@ -647,6 +647,9 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
             fee_data_availability_mode,
             paymaster_data,
             account_deployment_data,
+            // TODO(AvivG): Get proof_facts from P2P protocol, until then, lost during protobuf
+            // serialization/deserialization.
+            proof_facts: vec![],
         })
     }
 }
