@@ -51,7 +51,7 @@ impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
             &Self::CONTRACT_STATE_HASH_VERSION,
         ))
     }
-    fn compute_node_hash(node_data: &NodeData<ContractState>) -> HashOutput {
+    fn compute_node_hash(node_data: &NodeData<ContractState, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
 }
@@ -67,7 +67,7 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
             );
         HashOutput(Poseidon::hash(&contract_class_leaf_version, &compiled_class_hash.0))
     }
-    fn compute_node_hash(node_data: &NodeData<CompiledClassHash>) -> HashOutput {
+    fn compute_node_hash(node_data: &NodeData<CompiledClassHash, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PoseidonHashFunction>(node_data)
     }
 }
@@ -79,7 +79,7 @@ impl TreeHashFunction<StarknetStorageValue> for TreeHashFunctionImpl {
     fn compute_leaf_hash(storage_value: &StarknetStorageValue) -> HashOutput {
         HashOutput(storage_value.0)
     }
-    fn compute_node_hash(node_data: &NodeData<StarknetStorageValue>) -> HashOutput {
+    fn compute_node_hash(node_data: &NodeData<StarknetStorageValue, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
 }
