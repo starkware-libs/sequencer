@@ -515,6 +515,7 @@ pub struct IntermediateInvokeTransaction {
     pub account_deployment_data: Option<AccountDeploymentData>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
+    // TODO(AvivG): Consider adding proof facts.
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.
@@ -628,6 +629,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                     msg: "Invoke V3 must contain account_deployment_data field.".to_string(),
                 },
             )?,
+            proof_facts: None,
         })
     }
 }

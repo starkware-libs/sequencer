@@ -630,6 +630,8 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 fee_data_availability_mode,
                 paymaster_data,
                 account_deployment_data,
+                // TODO(AvivG): Get proof facts from rpc_v8 once supported.
+                proof_facts: None,
             }),
         }
     }

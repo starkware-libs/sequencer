@@ -573,6 +573,7 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+    // TODO(AvivG): Add proof facts.
 }
 
 impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
@@ -628,6 +629,8 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
             fee_data_availability_mode: tx.fee_data_availability_mode,
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
+            // TODO(AvivG): Get from RpcInvokeTransactionV3 once supported.
+            proof_facts: None,
         }
     }
 }
