@@ -294,14 +294,13 @@ impl FetchCompiledClasses for ApolloReader {
     }
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        let state_number = StateNumber(self.latest_block);
+        let state_number = self.latest_block;
         let class_declaration_block_number = self
             .reader()?
             .get_state_reader()
             .and_then(|sr| sr.get_class_definition_block_number(&class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
-        Ok(
-            matches!(class_declaration_block_number, Some(block_number) if block_number <= state_number.0),
-        )
+        Ok(matches!(class_declaration_block_number, Some(block_number)
+            if block_number <= state_number))
     }
 }

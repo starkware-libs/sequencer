@@ -248,19 +248,32 @@ impl StateSync {
 
     async fn is_cairo_1_class_declared_at(
         &self,
-        block_number: BlockNumber,
+        state_number: BlockNumber,
         class_hash: ClassHash,
     ) -> StateSyncResult<bool> {
         let storage_reader = self.storage_reader.clone();
-        let class_definition_block_number_opt = storage_reader
+        let class_definition_block_number = storage_reader
             .begin_ro_txn()?
-            .get_state_reader()?
-            .get_class_definition_block_number(&class_hash)?;
-        if let Some(class_definition_block_number) = class_definition_block_number_opt {
-            Ok(class_definition_block_number <= block_number)
-        } else {
-            Ok(false)
-        }
+            .get_state_reader()
+            .and_then(|sr| sr.get_class_definition_block_number(&class_hash))?;
+        Ok(matches!(class_definition_block_number, Some(block_number)
+            if block_number <= state_number))
+    }
+
+    async fn is_cairo_0_class_declared_at(
+        &self,
+        state_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncResult<bool> {
+        let storage_reader = self.storage_reader.clone();
+        // TODO(noamsp): Add unit testing for cairo0
+        let deprecated_class_definition_block_number = storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()
+            .and_then(|sr| sr.get_deprecated_class_definition_block_number(&class_hash))?;
+
+        Ok(matches!(deprecated_class_definition_block_number, Some(block_number)
+            if block_number <= state_number))
     }
 
     async fn is_class_declared_at(
@@ -272,18 +285,7 @@ impl StateSync {
             return Ok(true);
         }
 
-        let storage_reader = self.storage_reader.clone();
-        // TODO(noamsp): Add unit testing for cairo0
-        let deprecated_class_definition_block_number_opt = storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_deprecated_class_definition_block_number(&class_hash)?;
-
-        Ok(deprecated_class_definition_block_number_opt.is_some_and(
-            |deprecated_class_definition_block_number| {
-                deprecated_class_definition_block_number <= block_number
-            },
-        ))
+        self.is_cairo_0_class_declared_at(block_number, class_hash).await
     }
 }
 
