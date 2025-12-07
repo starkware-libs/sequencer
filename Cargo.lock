@@ -2101,6 +2101,8 @@ dependencies = [
  "lazy_static",
  "rstest",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
