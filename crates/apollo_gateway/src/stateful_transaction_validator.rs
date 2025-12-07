@@ -35,6 +35,7 @@ use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
+use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
@@ -108,13 +109,14 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         Ok(Box::new(StatefulTransactionValidator {
             config: self.config.clone(),
             blockifier_stateful_tx_validator,
+            gateway_fixed_block_state_reader,
         }))
     }
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait StatefulTransactionValidatorTrait {
-    fn extract_state_nonce_and_run_validations(
+pub trait StatefulTransactionValidatorTrait: Send {
+    fn run_transaction_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
         mempool_client: SharedMempoolClient,
@@ -125,20 +127,22 @@ pub trait StatefulTransactionValidatorTrait {
 pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait> {
     config: StatefulTransactionValidatorConfig,
     blockifier_stateful_tx_validator: B,
+    gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader>,
 }
 
-impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
+impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTrait
     for StatefulTransactionValidator<B>
 {
-    fn extract_state_nonce_and_run_validations(
+    fn run_transaction_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
         let address = executable_tx.contract_address();
-        let account_nonce =
-            self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
+        let account_nonce = runtime
+            .block_on(self.gateway_fixed_block_state_reader.get_nonce(address))
+            .map_err(|e| {
                 // TODO(noamsp): Fix this. Need to map the errors better.
                 StarknetError::internal_with_signature_logging(
                     format!("Failed to get nonce for sender address {address}"),
@@ -146,19 +150,6 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
                     e,
                 )
             })?;
-        self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
-        Ok(account_nonce)
-    }
-}
-
-impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
-    fn run_transaction_validations(
-        &mut self,
-        executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-        runtime: tokio::runtime::Handle,
-    ) -> StatefulTransactionValidatorResult<()> {
         self.validate_state_preconditions(executable_tx, account_nonce)?;
         runtime.block_on(validate_by_mempool(
             executable_tx,
@@ -166,9 +157,11 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
             mempool_client.clone(),
         ))?;
         self.run_validate_entry_point(executable_tx, account_nonce, mempool_client, runtime)?;
-        Ok(())
+        Ok(account_nonce)
     }
+}
 
+impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
     fn validate_state_preconditions(
         &self,
         executable_tx: &ExecutableTransaction,
