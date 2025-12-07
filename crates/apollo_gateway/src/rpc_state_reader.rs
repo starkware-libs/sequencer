@@ -210,6 +210,27 @@ impl GatewayFixedBlockStateReader for RpcStateReader {
         })?;
         Ok(block_info)
     }
+
+    async fn get_nonce(&self, contract_address: ContractAddress) -> StarknetResult<Nonce> {
+        let get_nonce_params = GetNonceParams { block_id: self.block_id, contract_address };
+        let reader = self.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            reader.send_rpc_request("starknet_getNonce", get_nonce_params)
+        })
+        .await
+        .map_err(|e| StarknetError::internal_with_logging("JoinError", e))?;
+
+        match result {
+            Ok(value) => {
+                let nonce: Nonce = serde_json::from_value(value).map_err(|e| {
+                    StarknetError::internal_with_logging("Failed to parse nonce", e)
+                })?;
+                Ok(nonce)
+            }
+            Err(RPCStateReaderError::ContractAddressNotFound(_)) => Ok(Nonce::default()),
+            Err(e) => Err(StarknetError::internal_with_logging("RPC error", e)),
+        }
+    }
 }
 
 #[async_trait]

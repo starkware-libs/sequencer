@@ -79,6 +79,10 @@ impl GatewayFixedBlockStateReader for TestGatewayFixedBlockStateReader {
     async fn get_block_info(&self) -> StarknetResult<BlockInfo> {
         Ok(self.block_info.clone())
     }
+
+    async fn get_nonce(&self, _contract_address: ContractAddress) -> StarknetResult<Nonce> {
+        Ok(Nonce::default())
+    }
 }
 
 pub struct TestStateReaderFactory {
