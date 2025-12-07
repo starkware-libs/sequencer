@@ -1,8 +1,13 @@
+import copy
 from l1_client import L1Client
 
 
 class L1TestUtils:
-    BLOCK_NUMBER_SAMPLE = 23911042
+    """Samples of the same transaction in different representations used throughout the flow."""
+
+    BLOCK_NUMBER = 23911042
+    BLOCK_RANGE = [BLOCK_NUMBER - 10, BLOCK_NUMBER + 10]
+    NONCE = 0x19B255
 
     RAW_JSON_LOG = {
         "address": "0xc662c410c0ecf747543f5ba90660f6abebd9c8c4",
@@ -41,14 +46,14 @@ class L1TestUtils:
             0x956DFDEAC59085EDC3,
             0x0,
         ],
-        nonce=0x19B255,
+        nonce=NONCE,
         fee=0x1308ABA4ADE2,
         l1_tx_hash="0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
         block_timestamp=1764500447,
         block_number=23911042,
     )
 
-    # L1_HANDLER tx from feeder gateway, expected to match the L1Event decoded from L1 logs.
+    # L1_HANDLER tx from feeder gateway, expected to match the L1_EVENT.
     FEEDER_TX = {
         "transaction_hash": "0x83c298ad90f4d1b35c0a324fa162a3ab3d3d3a4dcc046f0965bd045083a472",
         "version": "0x0",
@@ -65,3 +70,13 @@ class L1TestUtils:
         ],
         "type": "L1_HANDLER",
     }
+
+    @staticmethod
+    def raw_log_with_nonce(nonce: int) -> dict:
+        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
+
+        data = log["data"]
+        nonce_hex = f"{nonce:064x}"
+        log["data"] = data[:66] + nonce_hex + data[130:]
+
+        return log
