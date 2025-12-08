@@ -1,3 +1,6 @@
+use apollo_storage::storage_reader_server::StorageReaderServerHandler;
+use apollo_storage::{StorageError, StorageReader};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::state::ThinStateDiff;
@@ -45,4 +48,19 @@ pub enum StateSyncStorageRequest {
 pub enum StateSyncStorageResponse {
     /// Table1 data for the requested operation.
     Table1Replacer(BlockHeader),
+}
+
+pub struct StateSyncStorageReaderServerHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<StateSyncStorageRequest, StateSyncStorageResponse>
+    for StateSyncStorageReaderServerHandler
+{
+    async fn handle_request(
+        _storage_reader: &StorageReader,
+        _request: StateSyncStorageRequest,
+    ) -> Result<StateSyncStorageResponse, StorageError> {
+        // TODO(Dean/Nadin): Implement the logic for the state sync storage reader server handler.
+        unimplemented!()
+    }
 }
