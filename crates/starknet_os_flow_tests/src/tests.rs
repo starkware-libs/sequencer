@@ -529,7 +529,7 @@ async fn test_os_logic(
 ) {
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
-    let n_expected_txs = 29;
+    let n_expected_txs = 31;
     let mut expected_storage_updates = HashMap::new();
 
     // Declare a Cairo 0 test contract.
@@ -691,6 +691,19 @@ async fn test_os_logic(
         "test_get_contract_address",
         &[**contract_addresses[0]],
     );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Test get_sequencer_address syscall.
+    let calldata = create_calldata(
+        contract_addresses[0],
+        "test_get_sequencer_address",
+        &[Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS)],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Test tx_version syscall.
+    let calldata =
+        create_calldata(contract_addresses[0], "test_tx_version", &[TransactionVersion::THREE.0]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Delegate proxy tests.
