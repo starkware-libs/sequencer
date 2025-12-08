@@ -1,5 +1,8 @@
 use std::fmt::Debug;
 
+use apollo_storage::storage_reader_server::StorageReaderServerHandler;
+use apollo_storage::{StorageError, StorageReader};
+use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -162,6 +165,21 @@ pub enum BatcherStorageRequest {
 pub enum BatcherStorageResponse {
     /// Table1 data for the requested operation.
     Table1Replacer(BlockHeader),
+}
+
+pub struct BatcherStorageReaderServerHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
+    for BatcherStorageReaderServerHandler
+{
+    async fn handle_request(
+        _storage_reader: &StorageReader,
+        _request: BatcherStorageRequest,
+    ) -> Result<BatcherStorageResponse, StorageError> {
+        // TODO(Dean/Nadin): Implement the logic for the batcher storage reader server handler.
+        unimplemented!()
+    }
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;
