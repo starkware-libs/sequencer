@@ -71,5 +71,7 @@ class L1Blocks:
                 return l1_event.block_number
 
         # Not found in this range
-        logger.info(f"No matching L1 block found for L1 tx: {feeder_tx['transaction_hash']}")
+        logger.info(
+            f"No matching L1 block found for L2 tx: {feeder_tx['transaction_hash']} in range {start_block_data}-{end_block_data}"
+        )
         return None
