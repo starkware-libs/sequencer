@@ -60,6 +60,8 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+clap = { workspace = true, features = ["derive"] }
+hex.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
