@@ -3,14 +3,48 @@ Provides mock responses for L1 RPC calls.
 """
 
 import json
+from dataclasses import dataclass
 from typing import Any
+
+import logging
+from collections import deque
+from l1_blocks import L1Blocks
+from l1_client import L1Client
 
 
 class L1Manager:
-    def set_new_tx(self, feeder_gateway_tx: dict, block_timestamp: int) -> None:
+    @dataclass(frozen=True)
+    class L1TxData:
+        block_number: int
+        block_data: dict
+        logs: list[dict]
+
+    def __init__(self, l1_client: L1Client):
+        self.logger = logging.getLogger("L1Manager")
+        self.l1_client = l1_client
+        self.queue: deque[L1Manager.L1TxData] = deque()
+
+    def set_new_tx(self, feeder_gateway_tx: dict, l2_block_timestamp: int) -> None:
         """
-        Gets a feeder gateway transaction, and its block timestamp and updates the cache with info retrieved from L1.
+        Gets a feeder gateway transaction and its block timestamp,
+        fetches the relevant L1 data, and queues it.
         """
+        l1_block_number = L1Blocks.find_l1_block_for_tx(
+            feeder_gateway_tx, l2_block_timestamp, self.l1_client
+        )
+        if l1_block_number is None:
+            return
+
+        l1_block_data = self.l1_client.get_block_by_number(l1_block_number)
+        assert l1_block_data is not None, f"Block {l1_block_number} must exist"
+
+        logs = self.l1_client.get_logs(l1_block_number, l1_block_number)
+        assert logs, f"Logs must exist for block {l1_block_number}"
+
+        self.queue.append(L1Manager.L1TxData(l1_block_number, l1_block_data, logs))
+        self.logger.debug(
+            f"Queued L1 data of block {l1_block_number}, for L2 tx {feeder_gateway_tx['transaction_hash']}"
+        )
 
     def get_logs(self, filter: Any) -> str:
         """
