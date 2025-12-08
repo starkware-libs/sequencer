@@ -12,8 +12,14 @@ config:
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
   sequencerConfig:
+    components_class_manager_port: 55001
+    components_class_manager_url: "sequencer-core-service"
     components_gateway_port: 55002
     components_gateway_url: "sequencer-gateway-service"
+    components_mempool_port: 55006
+    components_mempool_url: "sequencer-mempool-service"
+    components_state_sync_port: 55009
+    components_state_sync_url: "sequencer-core-service"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -89,7 +95,14 @@ service:
 #     annotations:
 #       cloud.google.com/load-balancer-type: "Internal"
 #       networking.gke.io/internal-load-balancer-allow-global-access: "true"
-
+extraServices:
+  - name: gateway
+    type: ClusterIP
+    ports:
+      - name: gateway
+        port: 55002
+        targetPort: 55002
+        protocol: TCP
 # Ingress Configuration
 # See docs/INGRESS_CONFIGURATION.md for all available options
 ingress:
