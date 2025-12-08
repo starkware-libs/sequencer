@@ -64,9 +64,31 @@ pub trait ForestReader<'a> {
     > + Send;
 }
 
-pub trait ForestWriter {
-    /// Returns the number of new facts written to storage.
-    fn write(&mut self, filled_forest: &FilledForest) -> impl Future<Output = usize> + Send;
+pub trait ForestWriter: Send {
+    /// Serializes a filled forest into a hash map.
+    fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap;
+
+    fn get_storage(&mut self) -> &mut impl Storage;
+
+    /// Writes the serialized filled forest to storage. Returns the number of new updates written to
+    /// storage.
+    fn write(&mut self, filled_forest: &FilledForest) -> impl Future<Output = usize> + Send {
+        async {
+            let updates = Self::serialize_forest(filled_forest);
+            self.write_updates(updates).await
+        }
+    }
+
+    fn write_updates(&mut self, updates: DbHashMap) -> impl Future<Output = usize> + Send {
+        async {
+            let n_updates = updates.len();
+            self.get_storage()
+                .mset(updates)
+                .await
+                .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
+            n_updates
+        }
+    }
 }
 
 pub trait ForestStorage<'a>: ForestReader<'a> + ForestWriter {}
