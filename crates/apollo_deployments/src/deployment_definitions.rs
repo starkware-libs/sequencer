@@ -27,6 +27,7 @@ type DeploymentFn = fn() -> Vec<Deployment>;
 
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
+const COMMITTER_PORT: u16 = 55011;
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
 // TODO(Tsabary): the l1 endpoint monitor is unused, consider removing.
@@ -187,6 +188,7 @@ impl BusinessLogicServicePort {
 pub enum InfraServicePort {
     Batcher,
     ClassManager,
+    Committer,
     Gateway,
     L1EndpointMonitor,
     L1GasPriceProvider,
@@ -202,6 +204,7 @@ impl InfraServicePort {
         match self {
             InfraServicePort::Batcher => BATCHER_PORT,
             InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
+            InfraServicePort::Committer => COMMITTER_PORT,
             InfraServicePort::Gateway => GATEWAY_PORT,
             InfraServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
             InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
@@ -252,6 +255,7 @@ pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
     ClassManager,
+    Committer,
     ConfigManager,
     Consensus,
     General, // General configs that are not specific to any service, e.g., pointer targets.
@@ -276,6 +280,7 @@ impl ComponentConfigInService {
             ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
             ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
             ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
+            ComponentConfigInService::Committer => vec!["committer_config".to_string()],
             ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
             ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
             ComponentConfigInService::General => vec![
