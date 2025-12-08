@@ -20,6 +20,7 @@ cairo-lang-starknet-classes.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 apollo_storage = { workspace = true, features = ["testing"] }
