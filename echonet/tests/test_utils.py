@@ -6,6 +6,7 @@ class L1TestUtils:
     """Samples of the same transaction in different representations used throughout the flow."""
 
     BLOCK_NUMBER = 23911042
+    BLOCK_NUMBER_HEX = hex(BLOCK_NUMBER)
     BLOCK_RANGE = [BLOCK_NUMBER - 10, BLOCK_NUMBER + 10]
     NONCE = 0x19B255
 
@@ -27,7 +28,7 @@ class L1TestUtils:
         "0000000000000000000000000000000000000000000000956dfdeac59085edc3"
         "0000000000000000000000000000000000000000000000000000000000000000",
         "blockHash": "0xb33512d13e1a2ff4f3aa6e799a4a2455249be5198760a3f41300a8362d802bf8",
-        "blockNumber": "0x16cda82",
+        "blockNumber": BLOCK_NUMBER_HEX,
         "blockTimestamp": "0x692c23df",
         "transactionHash": "0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
         "transactionIndex": "0x4f",
