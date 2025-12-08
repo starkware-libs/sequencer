@@ -43,7 +43,6 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHashComponents,
     TransactionHashingData,
 };
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -124,10 +123,59 @@ pub struct BlockExecutionArtifacts {
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
-    pub block_info: BlockInfo,
+    partial_block_hash_components: PartialBlockHashComponents,
 }
 
 impl BlockExecutionArtifacts {
+    pub async fn new(
+        BlockExecutionSummary {
+            state_diff: commitment_state_diff,
+            compressed_state_diff,
+            bouncer_weights,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration,
+            block_info,
+        }: BlockExecutionSummary,
+        execution_data: BlockTransactionExecutionData,
+        final_n_executed_txs: usize,
+    ) -> Self {
+        let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
+        let starknet_version = block_info.starknet_version;
+        let transactions_data =
+            prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
+        let header_commitments = calculate_block_commitments(
+            &transactions_data,
+            commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
+            l1_da_mode,
+            &starknet_version,
+        )
+        .await;
+        let partial_block_hash_components = PartialBlockHashComponents {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version,
+        };
+        let l2_gas_used = execution_data.l2_gas_used();
+        Self {
+            execution_data,
+            commitment_state_diff,
+            compressed_state_diff,
+            bouncer_weights,
+            l2_gas_used,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration,
+            final_n_executed_txs,
+            partial_block_hash_components,
+        }
+    }
+
     pub fn address_to_nonce(&self) -> HashMap<ContractAddress, Nonce> {
         HashMap::from_iter(
             self.commitment_state_diff
@@ -142,49 +190,21 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
-        // TODO(Ayelet): Remove the clones.
-        let commitment_state_diff = self.commitment_state_diff.clone();
-        ThinStateDiff {
-            deployed_contracts: commitment_state_diff.address_to_class_hash,
-            storage_diffs: commitment_state_diff.storage_updates,
-            class_hash_to_compiled_class_hash: commitment_state_diff
-                .class_hash_to_compiled_class_hash,
-            nonces: commitment_state_diff.address_to_nonce,
-            // TODO(AlonH): Remove this when the structure of storage diffs changes.
-            deprecated_declared_classes: Vec::new(),
-        }
+        commitment_state_diff_as_thin_state_diff(&self.commitment_state_diff)
     }
 
     pub fn commitment(&self) -> ProposalCommitment {
         ProposalCommitment {
-            state_diff_commitment: calculate_state_diff_hash(&self.thin_state_diff()),
+            state_diff_commitment: self
+                .partial_block_hash_components
+                .header_commitments
+                .state_diff_commitment,
         }
     }
 
-    // TODO(Nimrod): Consider caching this method.
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
     pub async fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
-        let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
-        let starknet_version = self.block_info.starknet_version;
-        let transactions_data =
-            prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
-        let header_commitments = calculate_block_commitments(
-            &transactions_data,
-            self.thin_state_diff(),
-            l1_da_mode,
-            &starknet_version,
-        )
-        .await;
-        PartialBlockHashComponents {
-            header_commitments,
-            block_number: self.block_info.block_number,
-            l1_gas_price: self.block_info.gas_prices.l1_gas_price_per_token(),
-            l1_data_gas_price: self.block_info.gas_prices.l1_data_gas_price_per_token(),
-            l2_gas_price: self.block_info.gas_prices.l2_gas_price_per_token(),
-            sequencer: SequencerContractAddress(self.block_info.sequencer_address),
-            timestamp: self.block_info.block_timestamp,
-            starknet_version,
-        }
+        self.partial_block_hash_components.clone()
     }
 }
 
@@ -202,6 +222,22 @@ fn prepare_txs_hashing_data(
             transaction_signature: optional_signature.clone().unwrap_or_default(),
         })
         .collect()
+}
+
+fn commitment_state_diff_as_thin_state_diff(
+    commitment_state_diff: &CommitmentStateDiff,
+) -> ThinStateDiff {
+    // TODO(Ayelet): Remove the clones.
+    ThinStateDiff {
+        deployed_contracts: commitment_state_diff.address_to_class_hash.clone(),
+        storage_diffs: commitment_state_diff.storage_updates.clone(),
+        class_hash_to_compiled_class_hash: commitment_state_diff
+            .class_hash_to_compiled_class_hash
+            .clone(),
+        nonces: commitment_state_diff.address_to_nonce.clone(),
+        // TODO(AlonH): Remove this when the structure of storage diffs changes.
+        deprecated_declared_classes: Vec::new(),
+    }
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
@@ -406,16 +442,6 @@ impl BlockBuilder {
         .await
         .expect("Failed to spawn blocking executor task.")?;
 
-        let BlockExecutionSummary {
-            state_diff,
-            compressed_state_diff,
-            bouncer_weights,
-            casm_hash_computation_data_sierra_gas,
-            casm_hash_computation_data_proving_gas,
-            compiled_class_hashes_for_migration,
-            block_info,
-        } = block_summary;
-
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
@@ -425,19 +451,8 @@ impl BlockBuilder {
                 self.block_txs[final_n_executed_txs..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
-        let l2_gas_used = execution_data.l2_gas_used();
-        Ok(BlockExecutionArtifacts {
-            execution_data,
-            commitment_state_diff: state_diff,
-            compressed_state_diff,
-            bouncer_weights,
-            l2_gas_used,
-            casm_hash_computation_data_sierra_gas,
-            casm_hash_computation_data_proving_gas,
-            final_n_executed_txs: final_n_executed_txs_nonopt,
-            compiled_class_hashes_for_migration,
-            block_info,
-        })
+        Ok(BlockExecutionArtifacts::new(block_summary, execution_data, final_n_executed_txs_nonopt)
+            .await)
     }
 
     /// Returns the number of transactions that are currently being executed by the executor.

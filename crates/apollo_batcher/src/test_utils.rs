@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use async_trait::async_trait;
+use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -8,7 +9,6 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
 use starknet_api::block::BlockInfo;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
@@ -136,15 +136,15 @@ pub fn verify_indexed_execution_infos(
 }
 
 impl BlockExecutionArtifacts {
-    pub fn create_for_testing() -> Self {
+    pub async fn create_for_testing() -> Self {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
-        Self {
-            execution_data: BlockTransactionExecutionData {
-                execution_infos_and_signatures: indexed_execution_infos_and_signatures(),
-                rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
-                consumed_l1_handler_tx_hashes: Default::default(),
-            },
-            commitment_state_diff: CommitmentStateDiff {
+        let execution_data = BlockTransactionExecutionData {
+            execution_infos_and_signatures: indexed_execution_infos_and_signatures(),
+            rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
+            consumed_l1_handler_tx_hashes: Default::default(),
+        };
+        let block_execution_summary = BlockExecutionSummary {
+            state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
                     contract_address!("0x7"),
                     class_hash!("0x11111111"),
@@ -155,12 +155,11 @@ impl BlockExecutionArtifacts {
             },
             compressed_state_diff: Default::default(),
             bouncer_weights: BouncerWeights::empty(),
-            l2_gas_used: GasAmount::default(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
             compiled_class_hashes_for_migration: vec![],
-            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
             block_info: BlockInfo::create_for_testing(),
-        }
+        };
+        Self::new(block_execution_summary, execution_data, DUMMY_FINAL_N_EXECUTED_TXS).await
     }
 }

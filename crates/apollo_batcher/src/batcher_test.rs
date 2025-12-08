@@ -88,8 +88,8 @@ const PROPOSAL_ID: ProposalId = ProposalId(0);
 const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
     BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
-fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().commitment()
+async fn proposal_commitment() -> ProposalCommitment {
+    BlockExecutionArtifacts::create_for_testing().await.commitment()
 }
 
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
@@ -420,12 +420,12 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
         mock_create_builder_for_propose_block(
             &mut deps.block_builder_factory,
             vec![],
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     } else {
         mock_create_builder_for_validate_block(
             &mut deps.block_builder_factory,
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
     deps.l1_provider_client.expect_start_block().returning(|_, _| {
@@ -459,7 +459,7 @@ async fn consecutive_heights_success() {
         mock_create_builder_for_propose_block(
             &mut block_builder_factory,
             vec![],
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
 
@@ -497,7 +497,7 @@ async fn validate_block_full_flow() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut batcher = create_batcher_with_active_validate_block(Ok(
-        BlockExecutionArtifacts::create_for_testing(),
+        BlockExecutionArtifacts::create_for_testing().await,
     ))
     .await;
     let metrics = recorder.handle().render();
@@ -518,7 +518,9 @@ async fn validate_block_full_flow() {
     };
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
-        SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
+        SendProposalContentResponse {
+            response: ProposalStatus::Finished(proposal_commitment().await)
+        }
     );
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
@@ -582,7 +584,7 @@ async fn send_proposal_content_after_finish_or_abort(
     #[case] content: SendProposalContent,
 ) {
     let mut batcher = create_batcher_with_active_validate_block(Ok(
-        BlockExecutionArtifacts::create_for_testing(),
+        BlockExecutionArtifacts::create_for_testing().await,
     ))
     .await;
 
@@ -636,7 +638,7 @@ async fn propose_block_full_flow() {
     mock_create_builder_for_propose_block(
         &mut block_builder_factory,
         expected_streamed_txs.clone(),
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
 
     let mut l1_provider_client = MockL1ProviderClient::new();
@@ -674,8 +676,9 @@ async fn propose_block_full_flow() {
         commitment,
         GetProposalContentResponse {
             content: GetProposalContent::Finished {
-                id: proposal_commitment(),
+                id: proposal_commitment().await,
                 final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
+                    .await
                     .final_n_executed_txs
             }
         }
@@ -703,7 +706,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         mock_create_builder_for_propose_block(
             &mut block_builder_factory,
             expected_streamed_txs.clone(),
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
 
@@ -796,11 +799,11 @@ async fn consecutive_proposal_generation_success() {
         mock_create_builder_for_propose_block(
             &mut block_builder_factory,
             vec![],
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
         mock_create_builder_for_validate_block(
             &mut block_builder_factory,
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
     let mut l1_provider_client = MockL1ProviderClient::new();
@@ -842,7 +845,7 @@ async fn concurrent_proposals_generation_fail() {
     for _ in 0..2 {
         mock_create_builder_for_validate_block(
             &mut block_builder_factory,
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
     let mut batcher = start_batcher_with_active_validate(block_builder_factory).await;
@@ -874,7 +877,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(
         &mut block_builder_factory,
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
@@ -1069,7 +1072,7 @@ async fn decision_reached() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut mock_dependencies = MockDependencies::default();
-    let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
+    let expected_artifacts = BlockExecutionArtifacts::create_for_testing().await;
 
     mock_dependencies
         .mempool_client
@@ -1110,7 +1113,7 @@ async fn decision_reached() {
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
 
     let decision_reached_response =
@@ -1169,7 +1172,7 @@ async fn test_execution_info_order_is_kept() {
     mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
-    let block_builder_result = BlockExecutionArtifacts::create_for_testing();
+    let block_builder_result = BlockExecutionArtifacts::create_for_testing().await;
     // Check that the execution_infos were initiated properly for this test.
     let execution_infos = block_builder_result
         .execution_data
@@ -1259,7 +1262,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
 
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
