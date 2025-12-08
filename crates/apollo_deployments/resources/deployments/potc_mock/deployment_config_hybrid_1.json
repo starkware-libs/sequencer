@@ -11,31 +11,33 @@
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/committer.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1,
-      "toleration": null,
+      "storage": 512,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 14
         }
       },
-      "external_secret": null,
-      "anti_affinity": false,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
+      "anti_affinity": true,
       "update_strategy_type": "RollingUpdate",
       "ports": {
-        "Committer": 55011,
+        "Committer": 55010,
         "MonitoringEndpoint": 8082
       }
     },
@@ -52,28 +54,30 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/state_sync_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1,
-      "toleration": null,
+      "storage": 1000,
+      "toleration": "batcher-8-64",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 14
         }
       },
-      "external_secret": null,
-      "anti_affinity": false,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
+      "anti_affinity": true,
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "Batcher": 55000,
@@ -94,16 +98,29 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/http_server_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/http_server.json"
       ],
-      "ingress": null,
+      "ingress": {
+        "domain": "starknet.io",
+        "alternative_names": [
+          "potc-testnet-mock-sepolia.starknet.io"
+        ],
+        "internal": false,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          }
+        ]
+      },
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -114,7 +131,9 @@
           "memory": 8
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
       "ports": {
@@ -132,27 +151,29 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/gateway_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 1,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
       "ports": {
@@ -175,8 +196,8 @@
         "app_configs/l1_provider_config.json",
         "app_configs/l1_scraper_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/l1.json"
       ],
       "ingress": null,
@@ -184,19 +205,21 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
-      "anti_affinity": false,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
+      "anti_affinity": true,
       "update_strategy_type": "Recreate",
       "ports": {
         "L1EndpointMonitor": 55005,
@@ -216,8 +239,8 @@
         "app_configs/mempool_config.json",
         "app_configs/mempool_p2p_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
@@ -225,19 +248,21 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
-      "anti_affinity": false,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
+      "anti_affinity": true,
       "update_strategy_type": "Recreate",
       "ports": {
         "Mempool": 55006,
@@ -254,27 +279,29 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/sierra_compiler_config.json",
-        "deployments/testing/deployment_config_override.json",
-        "deployments/testing/hybrid.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_1.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 1,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-potc-mock-1"
+      },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
       "ports": {
