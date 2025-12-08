@@ -65,7 +65,7 @@ pub trait ForestReader<'a> {
 }
 
 #[async_trait]
-pub trait ForestWriter: Send {
+pub trait ForestWriter: ForestMetadata + Send {
     /// Serializes a filled forest into a hash map.
     fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap;
 
@@ -78,6 +78,19 @@ pub trait ForestWriter: Send {
         let updates = Self::serialize_forest(filled_forest);
         self.write_updates(updates).await
     }
+
+    async fn write_with_metadata(
+        &mut self,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+    ) -> usize {
+        let mut updates = Self::serialize_forest(filled_forest);
+        for (metadata_type, value) in metadata {
+            Self::insert_metadata(&mut updates, metadata_type, value);
+        }
+        self.write_updates(updates).await
+    }
 }
 
 pub trait ForestStorage<'a>: ForestReader<'a> + ForestWriter {}
+impl<'a, T: ForestReader<'a> + ForestWriter> ForestStorage<'a> for T {}
