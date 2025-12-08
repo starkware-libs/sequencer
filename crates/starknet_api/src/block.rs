@@ -14,6 +14,7 @@ use strum_macros::EnumIter;
 use time::OffsetDateTime;
 
 use crate::core::{
+    ascii_as_felt,
     ContractAddress,
     EventCommitment,
     GlobalRoot,
@@ -159,6 +160,14 @@ impl TryFrom<&str> for StarknetVersion {
     type Error = StarknetApiError;
     fn try_from(starknet_version: &str) -> Result<Self, StarknetApiError> {
         Self::try_from(starknet_version.to_string())
+    }
+}
+
+impl TryFrom<&StarknetVersion> for Felt {
+    type Error = StarknetApiError;
+
+    fn try_from(starknet_version: &StarknetVersion) -> Result<Self, Self::Error> {
+        ascii_as_felt(&starknet_version.to_string())
     }
 }
 

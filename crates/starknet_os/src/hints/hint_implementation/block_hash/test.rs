@@ -24,7 +24,6 @@ use starknet_api::block_hash::block_hash_calculator::{
     STARKNET_GAS_PRICES0,
 };
 use starknet_api::core::{
-    ascii_as_felt,
     EventCommitment,
     GlobalRoot,
     ReceiptCommitment,
@@ -111,7 +110,7 @@ fn cairo_calculate_block_hash(
         EndpointArg::from(gas_prices_hash),
         EndpointArg::from(state_root),
         EndpointArg::from(parent_hash),
-        EndpointArg::from(ascii_as_felt(&components.starknet_version.to_string()).unwrap()),
+        EndpointArg::from(Felt::try_from(&components.starknet_version).unwrap()),
     ];
 
     // We expect one felt as return value (block_hash).
