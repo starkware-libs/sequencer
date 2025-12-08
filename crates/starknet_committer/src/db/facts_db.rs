@@ -1,12 +1,20 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, Storage};
+use starknet_patricia_storage::storage_trait::{
+    create_db_key,
+    DbHashMap,
+    DbKey,
+    DbKeyPrefix,
+    Storage,
+};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -161,9 +169,25 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
     }
 }
 
+#[async_trait]
 impl<S: Storage> ForestWriter for FactsDb<S> {
-    async fn write(&mut self, filled_forest: &FilledForest) -> usize {
-        filled_forest.write_to_storage(&mut self.storage).await
+    fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap {
+        filled_forest
+            .storage_tries
+            .values()
+            .flat_map(|tree| tree.serialize().into_iter())
+            .chain(filled_forest.contracts_trie.serialize())
+            .chain(filled_forest.classes_trie.serialize())
+            .collect()
+    }
+
+    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+        let n_updates = updates.len();
+        self.storage
+            .mset(updates)
+            .await
+            .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
+        n_updates
     }
 }
 
