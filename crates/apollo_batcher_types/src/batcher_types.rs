@@ -163,4 +163,19 @@ pub enum BatcherStorageResponse {
     Table1Replacer(BlockHeader),
 }
 
+pub struct BatcherStorageReaderServerHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<BatcherRequest, BatcherResponse>
+    for BatcherStorageReaderServerHandler
+{
+    async fn handle_request(
+        storage_reader: &StorageReader,
+        request: BatcherRequest,
+    ) -> Result<BatcherResponse, StorageError> {
+        // TODO(Dean/Nadin): Implement the logic for the batcher storage reader server handler.
+        unimplemented!()
+    }
+}
+
 pub type BatcherResult<T> = Result<T, BatcherError>;
