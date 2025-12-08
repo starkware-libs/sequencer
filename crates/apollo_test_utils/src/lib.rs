@@ -870,6 +870,7 @@ auto_impl_get_test_instance! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
+        pub proof_facts: ProofFacts,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {

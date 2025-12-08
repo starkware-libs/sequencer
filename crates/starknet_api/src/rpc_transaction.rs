@@ -574,7 +574,9 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
-    // TODO(AvivG): Add proof facts.
+    #[serde(default)]
+    pub proof_facts: ProofFacts,
+    // TODO(AvivG): Add proof field.
 }
 
 impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
@@ -630,8 +632,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
             fee_data_availability_mode: tx.fee_data_availability_mode,
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
-            // TODO(AvivG): Get from RpcInvokeTransactionV3 once supported.
-            proof_facts: ProofFacts::default(),
+            proof_facts: tx.proof_facts,
         }
     }
 }
@@ -658,6 +659,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
             sender_address: value.sender_address,
             calldata: value.calldata,
             account_deployment_data: value.account_deployment_data,
+            proof_facts: value.proof_facts,
         })
     }
 }
