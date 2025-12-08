@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -6,7 +7,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, Storage};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -18,7 +19,7 @@ use crate::db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
-use crate::db::forest_trait::{ForestReader, ForestWriter};
+use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -29,6 +30,9 @@ use crate::patricia_merkle_tree::tree::{
     OriginalSkeletonStorageTrieConfig,
 };
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+pub static COMMITMENT_OFFSET_KEY: LazyLock<&[u8]> = LazyLock::new(|| b"commitment_offset");
+pub static STATE_DIFF_HASH_PREFIX: LazyLock<&[u8]> = LazyLock::new(|| b"state_diff_hash");
 
 pub struct FactsDb<S: Storage> {
     // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
@@ -161,5 +165,17 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
 impl<S: Storage> ForestWriter for FactsDb<S> {
     async fn write(&mut self, filled_forest: &FilledForest) -> usize {
         filled_forest.write_to_storage(&mut self.storage).await
+    }
+}
+
+impl<S: Storage> ForestMetadata for FactsDb<S> {
+    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
+        match metadata_type {
+            ForestMetadataType::CommitmentOffset => DbKey(COMMITMENT_OFFSET_KEY.to_vec()),
+            ForestMetadataType::StateDiffHash(block_number) => {
+                let state_diff_hash_key_prefix = DbKeyPrefix::new(*STATE_DIFF_HASH_PREFIX);
+                create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
+            }
+        }
     }
 }
