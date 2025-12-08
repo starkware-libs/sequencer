@@ -1,5 +1,8 @@
 {
   "base_layer_config.starknet_contract_address": "0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057",
+  "batcher_config.first_block_with_partial_block_hash.block_number": 86311,
+  "batcher_config.first_block_with_partial_block_hash.block_hash": "0x578b4e2f34e4da24e7482de643b4e3435fa7e34770cdb8d71002bb19e415ffa",
+  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": "0x5c980ea7747167d2ae98fa7ef7d62f52243e924c453b4934045443d977458d3",
   "chain_id": "SN_SEPOLIA",
   "consensus_manager_config.context_config.num_validators": 5,
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.apollo-sepolia-alpha-10.starknet.io/tcp/53080/p2p/12D3KooWHTbjQtxM3nTF85uadLTbDxX9DXjZzzwdtAogdqxGr9t5,/dns/sequencer-core-service.apollo-sepolia-alpha-11.starknet.io/tcp/53080/p2p/12D3KooWJ2JJbbMRt1YrERoMPfU4hwTASZkpVqbfGiyu4d3MGGhs,/dns/sequencer-core-service.apollo-sepolia-alpha-12.starknet.io/tcp/53080/p2p/12D3KooWLDHhUjWxXrye37UN23QMEiLEyDt9N6ZtSAsEs2guckW9,/dns/sequencer-core-service.apollo-sepolia-alpha-13.starknet.io/tcp/53080/p2p/12D3KooWKZu9RjwQfiRu6VxeCUqZr6fah8BeLjKErDEw1bVDL8X5,/dns/sequencer-core-service.apollo-sepolia-alpha-14.starknet.io/tcp/53080/p2p/12D3KooWNEQduhMrckKco8bvmPXZvXuGo5RQNdhxL7nr6rwydJ4V,/dns/sequencer-core-service.apollo-sepolia-alpha-15.starknet.io/tcp/53080/p2p/12D3KooWEGF9d7XwCFL9mu6co9z7tiDA4whzVHWuZqHAjXRaYTeS",
