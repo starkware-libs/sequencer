@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::future::Future;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -16,6 +17,10 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
 use validator::Validate;
+
+// Tracks how many components have completed their revert.
+static COMPLETED_REVERT_COMPONENTS: AtomicUsize = AtomicUsize::new(0);
+const EXPECTED_REVERT_COMPONENTS: usize = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RevertConfig {
@@ -106,6 +111,11 @@ where
         None => info!("There aren't any blocks saved in {component_name}'s storage!"),
     };
     info!("Starting eternal pending.");
+
+    let completed = COMPLETED_REVERT_COMPONENTS.fetch_add(1, Ordering::SeqCst) + 1;
+    if completed == EXPECTED_REVERT_COMPONENTS {
+        info!("Finished revert for all components.");
+    }
 
     pending().await
 }

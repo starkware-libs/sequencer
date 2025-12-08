@@ -808,10 +808,8 @@ impl SequencerConsensusContext {
     }
 
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
-        info!(
-            "Adding sync block to Batcher for height {}",
-            sync_block.block_header_without_hash.block_number,
-        );
+        let height = sync_block.block_header_without_hash.block_number;
+        info!("Adding sync block to Batcher for height {}", height);
         // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
         // should have a way to report an error and continue to the next height.
         self.deps
@@ -819,6 +817,7 @@ impl SequencerConsensusContext {
             .add_sync_block(sync_block.clone())
             .await
             .expect("Failed to add sync block due to batcher error: {e:?}");
+        info!("SYNC_NEW_BLOCK: Batcher fully stored block {}", height);
     }
 
     // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
