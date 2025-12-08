@@ -1562,6 +1562,10 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     let calldata = create_calldata(main_contract_address, "test_keccak", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    // Call test_ec_op.
+    let calldata = create_calldata(main_contract_address, "test_ec_op", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
     // Points for keccak / secp tests.
     let x_low = Felt::from(302934307671667531413257853548643485645u128);
     let x_high = Felt::from(328530677494498397859470651507255972949u128);
