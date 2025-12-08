@@ -1039,6 +1039,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "mempool_test_utils",
  "pretty_assertions",
+ "regex",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
