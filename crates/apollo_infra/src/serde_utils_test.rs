@@ -11,6 +11,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
 
 use crate::serde_utils::SerdeWrapper;
@@ -64,6 +65,7 @@ fn serde_rpc_invoke_tx() {
         account_deployment_data: Default::default(),
         nonce_data_availability_mode: DataAvailabilityMode::L1,
         fee_data_availability_mode: DataAvailabilityMode::L1,
+        proof_facts: ProofFacts::default(),
     };
     let rpc_invoke_tx = RpcInvokeTransaction::V3(invoke_tx);
 
