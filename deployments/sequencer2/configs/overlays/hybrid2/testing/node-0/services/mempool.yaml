@@ -1,0 +1,23 @@
+name: mempool
+
+replicas: 1
+
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
+  sequencerConfig:
+    components_class_manager_url: sequencer-core-service
+    components_class_manager_port: 55001
+    components_gateway_url: sequencer-gateway-service
+    components_gateway_port: 55002
+    components_mempool_url: sequencer-mempool-service
+    components_mempool_port: 55006
+    mempool_config_dynamic_config_transaction_ttl: 300
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: mempool
+    port: 55006
+    targetPort: 55006
+    protocol: TCP

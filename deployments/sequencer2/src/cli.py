@@ -9,7 +9,7 @@ def argument_parser():
         "-l",
         "--layout",
         type=str,
-        choices=["consolidated", "hybrid", "distributed"],
+        choices=["consolidated", "hybrid", "hybrid2", "distributed"],
         default="consolidated",
         help="Layout name to use. Default: consolidated",
     )
