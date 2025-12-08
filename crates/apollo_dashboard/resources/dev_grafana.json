@@ -1149,11 +1149,65 @@
           "extra_params": {}
         },
         {
-          "title": "Consensus Votes Number of Sent Messages",
-          "description": "The increase in the number of vote messages sent by consensus p2p (over the selected time range)",
+          "title": "Consensus Proposals Sent Message Size MB/sec",
+          "description": "The rate of MB per second sent by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
+          "title": "Consensus Proposals Received Message Size MB/sec",
+          "description": "The rate of MB per second received by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
+          "title": "Consensus Proposals Dropped Message Size MB/sec",
+          "description": "The rate of MB per second dropped by the consensus p2p component over the Proposals topic",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
+        },
+        {
+          "title": "Consensus Proposals Number of Sent Messages",
+          "description": "The increase in the number of proposal messages sent by consensus p2p (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+            "increase(apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Proposals Number of Received Messages",
+          "description": "The increase in the number of proposal messages received by consensus p2p (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "increase(apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Proposals Dropped Messages By Reason",
+          "description": "The number of dropped consensus proposals messages, by reason (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
         },
@@ -1170,15 +1224,6 @@
           }
         },
         {
-          "title": "Consensus Votes Number of Received Messages",
-          "description": "The increase in the number of vote messages received by consensus p2p (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "increase(apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Consensus Votes Received Message Size MB/sec",
           "description": "The rate of MB per second received by the consensus p2p component over the Votes topic",
           "type": "timeseries",
@@ -1189,15 +1234,6 @@
           "extra_params": {
             "unit": "decmbytes"
           }
-        },
-        {
-          "title": "Consensus Votes Dropped Messages By Reason",
-          "description": "The number of dropped consensus votes messages, by reason (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
-          ],
-          "extra_params": {}
         },
         {
           "title": "Consensus Votes Dropped Message Size Bytes/sec",
@@ -1212,6 +1248,33 @@
           }
         },
         {
+          "title": "Consensus Votes Number of Sent Messages",
+          "description": "The increase in the number of vote messages sent by consensus p2p (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Votes Number of Received Messages",
+          "description": "The increase in the number of vote messages received by consensus p2p (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "increase(apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Votes Dropped Messages By Reason",
+          "description": "The number of dropped consensus votes messages, by reason (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Consensus Conflicting Votes",
           "description": "The increase in the number of conflicting votes (over the selected time range)",
           "type": "stat",
@@ -1219,69 +1282,6 @@
             "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
-        },
-        {
-          "title": "Consensus Proposals Number of Sent Messages",
-          "description": "The increase in the number of proposal messages sent by consensus p2p (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "increase(apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Consensus Proposals Sent Message Size MB/sec",
-          "description": "The rate of MB per second sent by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_sent_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "decmbytes"
-          }
-        },
-        {
-          "title": "Consensus Proposals Number of Received Messages",
-          "description": "The increase in the number of proposal messages received by consensus p2p (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "increase(apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Consensus Proposals Received Message Size MB/sec",
-          "description": "The rate of MB per second received by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_received_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "decmbytes"
-          }
-        },
-        {
-          "title": "Consensus Proposals Dropped Messages By Reason",
-          "description": "The number of dropped consensus proposals messages, by reason (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Consensus Proposals Dropped Message Size MB/sec",
-          "description": "The rate of MB per second dropped by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(apollo_consensus_proposals_dropped_message_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "decmbytes"
-          }
         },
         {
           "title": "Consensus Network Events By Type",
