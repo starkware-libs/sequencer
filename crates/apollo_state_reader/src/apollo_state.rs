@@ -47,15 +47,6 @@ impl ClassReader {
         Ok(casm)
     }
 
-    fn read_casm(&self, class_hash: ClassHash) -> StateResult<CasmContractClass> {
-        let casm = self.read_executable(class_hash)?;
-        let ContractClass::V1((casm, _sierra_version)) = casm else {
-            panic!("Class hash {class_hash} originated from a Cairo 1 contract.");
-        };
-
-        Ok(casm)
-    }
-
     fn read_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
         let sierra = self
             .runtime
@@ -64,16 +55,6 @@ impl ClassReader {
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
         Ok(sierra)
-    }
-
-    // TODO(Elin): make `read[_optional_deprecated]_casm` symmetrical and independent of invocation
-    // order.
-    fn read_optional_deprecated_casm(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<Option<DeprecatedClass>> {
-        let casm = self.read_executable(class_hash)?;
-        if let ContractClass::V0(casm) = casm { Ok(Some(casm)) } else { Ok(None) }
     }
 
     /// Returns the compiled class hash v2 for the given class hash.
@@ -115,14 +96,16 @@ impl ApolloReader {
             .map_err(|error| StateError::StateReadError(error.to_string()))
     }
 
-    // TODO(Arni): Refactor this function so it is clear we use it only when the class reader is not
-    // set.
     /// Returns a V1 contract with Sierra if V1 contract is found, or a V0 contract without Sierra
     /// if a V1 contract is not found, or an `Error` otherwise.
     fn get_compiled_classes_from_storage(
         &self,
         class_hash: ClassHash,
     ) -> StateResult<CompiledClasses> {
+        assert!(
+            self.class_reader.is_none(),
+            "Should not enter this function if the class reader is set"
+        );
         if self.is_declared(class_hash)? {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
@@ -181,39 +164,36 @@ impl ApolloReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<(CasmContractClass, SierraContractClass)> {
-        let Some(class_reader) = &self.class_reader else {
-            // Class reader is not set. Try to read directly from storage.
-            let (option_casm, option_sierra) = self
-                .reader()?
-                .get_casm_and_sierra(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?;
-            let (casm, sierra) = couple_casm_and_sierra(class_hash, option_casm, option_sierra)?
-                .expect(
-                    "Should be able to fetch a Casm and Sierra class if its definition exists,
+        assert!(
+            self.class_reader.is_none(),
+            "Should not enter this function if the class reader is set"
+        );
+        let (option_casm, option_sierra) = self
+            .reader()?
+            .get_casm_and_sierra(&class_hash)
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        let (casm, sierra) = couple_casm_and_sierra(class_hash, option_casm, option_sierra)?
+            .expect(
+                "Should be able to fetch a Casm and Sierra class if its definition exists,
                     database is inconsistent.",
-                );
+            );
 
-            return Ok((casm, sierra));
-        };
-
-        // TODO(Elin): consider not reading Sierra if compilation is disabled.
-        Ok((class_reader.read_casm(class_hash)?, class_reader.read_sierra(class_hash)?))
+        Ok((casm, sierra))
     }
 
     fn read_deprecated_casm(&self, class_hash: ClassHash) -> StateResult<Option<DeprecatedClass>> {
-        let Some(class_reader) = &self.class_reader else {
-            // Class reader is not set. Try to read directly from storage.
-            let state_number = StateNumber(self.latest_block);
-            let option_casm = self
-                .reader()?
-                .get_state_reader()
-                .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
-                .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        assert!(
+            self.class_reader.is_none(),
+            "Should not enter this function if the class reader is set"
+        );
+        let state_number = StateNumber(self.latest_block);
+        let option_casm = self
+            .reader()?
+            .get_state_reader()
+            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
-            return Ok(option_casm);
-        };
-
-        class_reader.read_optional_deprecated_casm(class_hash)
+        Ok(option_casm)
     }
 
     /// Returns the compiled class hash v2 for the given class hash.
