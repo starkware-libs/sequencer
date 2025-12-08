@@ -1948,6 +1948,34 @@ async fn test_deprecated_send_to_l1() {
 
 #[rstest]
 #[tokio::test]
+async fn test_replace_class() {
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (
+        mut test_manager,
+        [test_contract_address_cairo0, test_contract_address_cairo1, _empty_contract_address],
+    ) = TestManager::<DictStateReader>::new_with_default_initial_state([
+        (FeatureContract::TestContract(CairoVersion::Cairo0), calldata![Felt::ZERO, Felt::ZERO]),
+        (
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ZERO, Felt::ZERO],
+        ),
+        (empty_contract, calldata![]),
+    ])
+    .await;
+    let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
+
+    for address in [test_contract_address_cairo1, test_contract_address_cairo0] {
+        let calldata = create_calldata(address, "test_replace_class", &[empty_class_hash.0]);
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
 async fn test_deploy_syscall() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
