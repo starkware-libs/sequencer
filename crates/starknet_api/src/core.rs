@@ -81,6 +81,14 @@ impl std::fmt::Display for ChainId {
     }
 }
 
+impl std::str::FromStr for ChainId {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from(s.to_owned()))
+    }
+}
+
 impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
