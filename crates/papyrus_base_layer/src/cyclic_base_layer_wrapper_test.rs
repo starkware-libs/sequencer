@@ -30,7 +30,7 @@ const NUM_URLS: usize = 2;
 async fn cycle_get_proved_block_at(#[case] num_failing_calls: usize) {
     // Setup.
     let success = num_failing_calls < NUM_URLS;
-    let expected_num_url_calls = num_failing_calls + 1;
+    let expected_num_url_calls = num_failing_calls * 2 + 1;
     let num_url_calls_made = Arc::new(AtomicUsize::new(0));
     let num_url_calls_made_clone = num_url_calls_made.clone();
     let num_url_calls_made_clone2 = num_url_calls_made.clone();
@@ -73,7 +73,7 @@ async fn cycle_get_proved_block_at(#[case] num_failing_calls: usize) {
 async fn cycle_latest_l1_block_number(#[case] num_failing_calls: usize) {
     // Setup.
     let success = num_failing_calls < NUM_URLS;
-    let expected_num_url_calls = num_failing_calls + 1;
+    let expected_num_url_calls = num_failing_calls * 2 + 1;
     let num_url_calls_made = Arc::new(AtomicUsize::new(0));
     let num_url_calls_made_clone = num_url_calls_made.clone();
     let num_url_calls_made_clone2 = num_url_calls_made.clone();
@@ -113,7 +113,7 @@ async fn cycle_latest_l1_block_number(#[case] num_failing_calls: usize) {
 async fn cycle_l1_block_at(#[case] num_failing_calls: usize) {
     // Setup.
     let success = num_failing_calls < NUM_URLS;
-    let expected_num_url_calls = num_failing_calls + 1;
+    let expected_num_url_calls = num_failing_calls * 2 + 1;
     let num_url_calls_made = Arc::new(AtomicUsize::new(0));
     let num_url_calls_made_clone = num_url_calls_made.clone();
     let num_url_calls_made_clone2 = num_url_calls_made.clone();
@@ -156,7 +156,7 @@ async fn cycle_l1_block_at(#[case] num_failing_calls: usize) {
 async fn cycle_events(#[case] num_failing_calls: usize) {
     // Setup.
     let success = num_failing_calls < NUM_URLS;
-    let expected_num_url_calls = num_failing_calls + 1;
+    let expected_num_url_calls = num_failing_calls * 2 + 1;
     let num_url_calls_made = Arc::new(AtomicUsize::new(0));
     let num_url_calls_made_clone = num_url_calls_made.clone();
     let num_url_calls_made_clone2 = num_url_calls_made.clone();
@@ -196,7 +196,7 @@ async fn cycle_events(#[case] num_failing_calls: usize) {
 async fn cycle_get_block_header(#[case] num_failing_calls: usize) {
     // Setup.
     let success = num_failing_calls < NUM_URLS;
-    let expected_num_url_calls = num_failing_calls + 1;
+    let expected_num_url_calls = num_failing_calls * 2 + 1;
     let num_url_calls_made = Arc::new(AtomicUsize::new(0));
     let num_url_calls_made_clone = num_url_calls_made.clone();
     let num_url_calls_made_clone2 = num_url_calls_made.clone();
@@ -255,7 +255,7 @@ async fn get_block_header_fails_after_cycle_error() {
     let mut base_layer = MockBaseLayerContract::new();
     base_layer
         .expect_get_url()
-        .times(1)
+        .times(2)
         .returning(move || Ok(Url::parse("http://first_endpoint").unwrap()));
     base_layer.expect_get_block_header().times(1).returning(move |_| Err(MockError::MockError));
     base_layer.expect_cycle_provider_url().times(1).returning(move || Err(MockError::MockError));
