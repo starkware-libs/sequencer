@@ -15,6 +15,7 @@ use crate::block_committer::input::{
     try_node_index_into_contract_address,
     StarknetStorageValue,
 };
+use crate::db::forest_trait::{commitment_offset_entry, state_diff_hash_entry};
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
@@ -48,11 +49,16 @@ impl FilledForest {
     pub async fn write_to_storage_with_metadata(
         &self,
         storage: &mut impl Storage,
-        _block_height: BlockNumber,
-        _state_diff_hash: StateDiffCommitment,
+        block_height: BlockNumber,
+        state_diff_hash: StateDiffCommitment,
     ) -> usize {
-        let new_db_objects = self.serialize_trees();
-        // TODO(Yoav): Insert metadata into the new db objects.
+        let mut new_db_objects = self.serialize_trees();
+
+        let commitment_offset_entry = commitment_offset_entry(block_height);
+        let state_diff_hash_entry = state_diff_hash_entry(block_height, state_diff_hash);
+        new_db_objects.insert(commitment_offset_entry.0, commitment_offset_entry.1);
+        new_db_objects.insert(state_diff_hash_entry.0, state_diff_hash_entry.1);
+
         self.write_hashmap_to_storage(storage, new_db_objects).await
     }
 
