@@ -7,6 +7,19 @@ The blockier reexecution crate is intended to verify blockifier changes do not b
 ## CLI Commands
 Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permisionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
 
+### Chain ID Option
+Commands that use RPC (`rpc-test`, `reexecute-single-tx`, `write-to-file`) accept an optional `-c/--chain-id` argument. If not provided, the chain ID is guessed from the node URL.
+
+Standard chain IDs:
+- `SN_MAIN` - Mainnet
+- `SN_SEPOLIA` - Sepolia testnet
+- `SN_INTEGRATION_SEPOLIA` - Integration Sepolia
+
+Custom chain IDs are also supported for private/custom networks:
+```
+cargo run --bin blockifier_reexecution rpc-test -n <node_url> -b <block_number> -c MY_CUSTOM_CHAIN
+```
+
 ### Reexecution Modes
 
 Reexecution can be run via CLI in the following modes: 

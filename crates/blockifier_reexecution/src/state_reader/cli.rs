@@ -20,23 +20,6 @@ pub struct BlockifierReexecutionCliArgs {
     pub command: Command,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
-pub enum SupportedChainId {
-    Mainnet,
-    Testnet,
-    Integration,
-}
-
-impl From<SupportedChainId> for ChainId {
-    fn from(chain_id: SupportedChainId) -> Self {
-        match chain_id {
-            SupportedChainId::Mainnet => Self::Mainnet,
-            SupportedChainId::Testnet => Self::Sepolia,
-            SupportedChainId::Integration => Self::IntegrationSepolia,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Args)]
 pub struct RpcArgs {
     /// Node url.
@@ -44,16 +27,17 @@ pub struct RpcArgs {
     pub node_url: String,
 
     /// Optional chain ID (if not provided, it will be guessed from the node url).
+    /// Standard chain IDs: SN_MAIN, SN_SEPOLIA, SN_INTEGRATION_SEPOLIA.
+    /// Custom chain IDs are also supported.
     #[clap(long, short = 'c')]
-    pub chain_id: Option<SupportedChainId>,
+    pub chain_id: Option<ChainId>,
 }
 
 impl RpcArgs {
     pub fn parse_chain_id(&self) -> ChainId {
         self.chain_id
             .clone()
-            .map(ChainId::from)
-            .unwrap_or(guess_chain_id_from_node_url(self.node_url.as_str()).unwrap())
+            .unwrap_or_else(|| guess_chain_id_from_node_url(self.node_url.as_str()).unwrap())
     }
 }
 
