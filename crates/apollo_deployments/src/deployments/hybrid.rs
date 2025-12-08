@@ -98,6 +98,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
         };
 
+        // TODO(Yoav): Add committer when it is ready.
         let batcher = Self::Core.component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager =
             Self::Core.component_config_pair(service_ports[&InfraServicePort::ClassManager]);
