@@ -2962,3 +2962,34 @@ async fn test_empty_multi_block() {
     );
     test_output.expect_hint_coverage("test_empty_multi_block");
 }
+
+/// Tests deploying a contract with no constructor.
+/// The OS returns (retdata_size=0, retdata=0) from the deploy_contract function (in
+/// deprecated_execute_syscalls.cairo, used both by Cairo0 and 1 contracts). This means retdata is
+/// not relocatable in the VM as in all other cases. This test verifies our support for this case.
+#[rstest]
+#[tokio::test]
+async fn test_deploy_no_ctor_contract() {
+    let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
+    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([(
+        empty_contract_cairo0,
+        calldata![],
+    )])
+    .await;
+    let class_hash = get_class_hash_of_feature_contract(empty_contract_cairo0);
+
+    // Deploy the empty contract using the deploy syscall.
+    let (deploy_tx, _address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        calldata![],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        ContractAddressSalt(Felt::ZERO),
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Run the test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
