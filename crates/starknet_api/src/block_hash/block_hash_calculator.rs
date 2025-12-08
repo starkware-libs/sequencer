@@ -162,7 +162,7 @@ pub fn calculate_block_hash(
                 .iter(),
             )
             .chain(
-                &ascii_as_felt(&partial_block_hash_components.starknet_version.to_string())
+                &Felt::try_from(&partial_block_hash_components.starknet_version)
                     .expect("Expect ASCII version"),
             )
             .chain(&Felt::ZERO)
