@@ -219,6 +219,9 @@
     "DeprecatedSyscallHint": "GetSequencerAddress"
   },
   {
+    "DeprecatedSyscallHint": "GetTxInfo"
+  },
+  {
     "DeprecatedSyscallHint": "GetTxSignature"
   },
   {
