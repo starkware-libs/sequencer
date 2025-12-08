@@ -10,6 +10,7 @@ use tracing::Level;
 #[cfg(test)]
 mod message_test;
 
+mod handlers;
 mod message;
 mod protocol;
 mod stress_test_node;

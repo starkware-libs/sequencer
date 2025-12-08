@@ -10,6 +10,7 @@ use libp2p::Multiaddr;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
+use crate::handlers::receive_stress_test_message;
 use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
 
 /// The main stress test node that manages network communication and monitoring
@@ -19,8 +20,6 @@ pub struct BroadcastNetworkStressTestNode {
     // TODO(AndrewL): Remove this once they are used
     #[allow(dead_code)]
     message_sender: Option<MessageSender>,
-    // TODO(AndrewL): Remove this once they are used
-    #[allow(dead_code)]
     message_receiver: Option<MessageReceiver>,
 }
 
@@ -85,10 +84,24 @@ impl BroadcastNetworkStressTestNode {
         .boxed()
     }
 
+    /// Starts the message receiving task
+    pub async fn make_message_receiver_task(&mut self) -> BoxFuture<'static, ()> {
+        let message_receiver =
+            self.message_receiver.take().expect("message_receiver should be available");
+
+        async move {
+            info!("Starting message receiver");
+            message_receiver.for_each(receive_stress_test_message).await;
+            info!("Message receiver task ended");
+        }
+        .boxed()
+    }
+
     /// Gets all the tasks that need to be run
     async fn get_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
         let mut tasks = Vec::new();
         tasks.push(self.start_network_manager().await);
+        tasks.push(self.make_message_receiver_task().await);
 
         tasks
     }
