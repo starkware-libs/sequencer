@@ -84,7 +84,7 @@ class L1Manager:
             }
         )
 
-    def get_block_by_number(self, block_number: int) -> str:
+    def get_block_by_number(self, block_number: str) -> str:
         """
         Returns raw block response from Alchemy.
         """
