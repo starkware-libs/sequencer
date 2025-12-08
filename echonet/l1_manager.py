@@ -3,14 +3,51 @@ Provides mock responses for L1 RPC calls.
 """
 
 import json
+from dataclasses import dataclass
 from typing import Any
+
+import logging
+from collections import deque
+from l1_blocks import L1Blocks
+from l1_client import L1Client
 
 
 class L1Manager:
+    @dataclass(frozen=True)
+    class L1TxData:
+        logs: list[dict]
+        block_number: int
+        block_data: dict
+
+    def __init__(self, l1_client: L1Client):
+        self.logger = logging.getLogger("L1Manager")
+        self.l1_client = l1_client
+        self.queue: deque[L1Manager.L1TxData] = deque()
+
     def set_new_tx(self, feeder_gateway_tx: dict, block_timestamp: int) -> None:
         """
-        Gets a feeder gateway transaction, and its block timestamp and updates the cache with info retrieved from L1.
+        Gets a feeder gateway transaction and its block timestamp,
+        fetches the relevant L1 data, and queues it.
         """
+        block_number = L1Blocks.find_l1_block_for_tx(
+            feeder_gateway_tx, block_timestamp, self.l1_client
+        )
+        if block_number is None:
+            return
+
+        # TODO(Ayelet): Optimize by caching logs and block data.
+        logs = self.l1_client.get_logs(block_number, block_number)
+        if not logs:
+            return
+
+        block_data = self.l1_client.get_block_by_number(block_number)
+        if block_data is None:
+            return
+
+        self.queue.append(L1Manager.L1TxData(logs, block_number, block_data))
+        self.logger.debug(
+            f"Queued L1 data of block {block_number}, for L2 tx {feeder_gateway_tx['transaction_hash']}"
+        )
 
     def get_logs(self, filter: Any) -> str:
         """

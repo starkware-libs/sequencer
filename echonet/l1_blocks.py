@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional
 
 import logging
@@ -71,5 +72,17 @@ class L1Blocks:
                 return l1_event.block_number
 
         # Not found in this range
-        logger.info(f"No matching L1 block found for L1 tx: {feeder_tx['transaction_hash']}")
+        start_iso = (
+            datetime.fromtimestamp(search_start_timestamp, tz=datetime.timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        end_iso = (
+            datetime.fromtimestamp(search_end_timestamp, tz=datetime.timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        logger.info(
+            f"No matching L1 block found for L2 tx: {feeder_tx['transaction_hash']} in range {start_iso}-{end_iso}"
+        )
         return None
