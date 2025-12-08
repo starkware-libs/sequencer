@@ -32,7 +32,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use tracing::{debug, warn, Span};
+use tracing::{debug, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -156,24 +156,9 @@ impl Gateway {
             .instantiate_validator(self.state_reader_factory.clone())
             .await?;
 
-        let curr_span = Span::current();
-        let mempool_client = self.mempool_client.clone();
-        let nonce = tokio::task::spawn_blocking(move || {
-            curr_span.in_scope(|| {
-                stateful_transaction_validator.extract_state_nonce_and_run_validations(
-                    &executable_tx.clone(),
-                    mempool_client,
-                    tokio::runtime::Handle::current(),
-                )
-            })
-        })
-        .await
-        .map_err(|e| StarknetError {
-            code: StarknetErrorCode::UnknownErrorCode(
-                "StarknetErrorCode.InternalError".to_string(),
-            ),
-            message: format!("Blocking task join error: {e}"),
-        })??;
+        let nonce = stateful_transaction_validator
+            .extract_state_nonce_and_run_validations(&executable_tx, self.mempool_client.clone())
+            .await?;
 
         let gateway_output = create_gateway_output(&internal_tx);
 
