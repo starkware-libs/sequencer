@@ -2,14 +2,11 @@ name: Sequencer-Docker-Test
 
 on:
   workflow_dispatch:
-  push:
+
+  pull_request:
     branches:
       - main
       - main-v[0-9].**
-    tags:
-      - v[0-9].**
-
-  pull_request:
 
 env:
   crate_triggers: "apollo_node,apollo_dashboard,apollo_integration_tests"
@@ -64,21 +61,23 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-    runs-on: namespace-profile-2xlarge-ubuntu-24-04-amd64-local-builder
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64-local-builder
     env:
       MONITORING_ENABLED: false
       SIMULATOR_RUN_FOREVER: false
       FOLLOW_LOGS: false
       SIMULATOR_TIMEOUT: 300
+      COMPOSE_PARALLEL_LIMIT: 2
+      COMPOSE_BAKE: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run docker compose
-        run: ./deployments/monitoring/deploy_local_stack.sh up -d --build --yes
-        env:
-          COMPOSE_BAKE: true
+        run: |
+          echo "Docker compose version: $(docker compose version)"
+          ./deployments/monitoring/deploy_local_stack.sh up -d --build --yes
 
       # Getting the sequencer_simulator container id, then
       # Invoking `docker wait $container_id`.
