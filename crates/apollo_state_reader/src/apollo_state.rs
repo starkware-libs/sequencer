@@ -22,6 +22,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 #[cfg(test)]
 #[path = "apollo_state_test.rs"]
@@ -114,9 +115,14 @@ impl ApolloReader {
             .map_err(|error| StateError::StateReadError(error.to_string()))
     }
 
+    // TODO(Arni): Refactor this function so it is clear we use it only when the class reader is not
+    // set.
     /// Returns a V1 contract with Sierra if V1 contract is found, or a V0 contract without Sierra
     /// if a V1 contract is not found, or an `Error` otherwise.
-    fn get_compiled_class_from_db(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+    fn get_compiled_classes_from_storage(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<CompiledClasses> {
         if self.is_declared(class_hash)? {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
@@ -134,6 +140,40 @@ impl ApolloReader {
                 Ok(CompiledClasses::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
             }
             None => Err(StateError::UndeclaredClassHash(class_hash)),
+        }
+    }
+
+    fn get_compiled_classes_from_class_reader(
+        &self,
+        class_hash: ClassHash,
+        class_reader: &ClassReader,
+    ) -> StateResult<CompiledClasses> {
+        let contract_class = class_reader.read_executable(class_hash)?;
+        match contract_class {
+            ContractClass::V0(starknet_api_contract_class) => {
+                Ok(CompiledClasses::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
+            }
+            ContractClass::V1((casm_contract_class, sierra_version)) => {
+                if !self.is_declared(class_hash)? {
+                    return Err(StateError::UndeclaredClassHash(class_hash));
+                }
+                let sierra = class_reader.read_sierra(class_hash)?;
+                let extracted_sierra_version =
+                    SierraVersion::extract_from_program(&sierra.sierra_program)?;
+                if extracted_sierra_version != sierra_version {
+                    let message = format!(
+                        "Sierra version mismatch. Expected: {sierra_version}, Actual: \
+                         {extracted_sierra_version}"
+                    );
+                    let error = StateError::CasmAndSierraMismatch { class_hash, message };
+                    error!("Error in getting compiled classes: {error:?}");
+                    return Err(error);
+                }
+                Ok(CompiledClasses::V1(
+                    CompiledClassV1::try_from((casm_contract_class, sierra_version))?,
+                    Arc::new(sierra),
+                ))
+            }
         }
     }
 
@@ -265,7 +305,12 @@ impl StateReader for ApolloReader {
 
 impl FetchCompiledClasses for ApolloReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        self.get_compiled_class_from_db(class_hash)
+        match &self.class_reader {
+            Some(class_reader) => {
+                self.get_compiled_classes_from_class_reader(class_hash, class_reader)
+            }
+            None => self.get_compiled_classes_from_storage(class_hash),
+        }
     }
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {

@@ -2454,6 +2454,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
