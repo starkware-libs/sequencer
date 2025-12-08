@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from l1_blocks import L1Blocks
 from l1_client import L1Client
-from test_utils import TestUtils
+from test_utils import L1TestUtils
 
 
 class TestL1Blocks(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestL1Blocks(unittest.TestCase):
         mock_client.get_block_number_by_timestamp.side_effect = [100, 200]
         mock_client.get_logs.return_value = [self.mock_log(150, 1684053)]
 
-        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertEqual(result, 150)
 
@@ -55,7 +55,7 @@ class TestL1Blocks(unittest.TestCase):
         mock_log_matching_nonce = self.mock_log(150, 1684053)
         mock_client.get_logs.return_value = [mock_log_non_matching_nonce, mock_log_matching_nonce]
 
-        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertEqual(result, 150)  # Should return second log's block number
 
@@ -65,7 +65,7 @@ class TestL1Blocks(unittest.TestCase):
         mock_log_non_matching_nonce = self.mock_log(150, 25)  # Different nonce
         mock_client.get_logs.return_value = [mock_log_non_matching_nonce]
 
-        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertIsNone(result)
 
@@ -74,21 +74,21 @@ class TestL1Blocks(unittest.TestCase):
         mock_client.get_block_number_by_timestamp.side_effect = [100, 200]
         mock_client.get_logs.return_value = []
 
-        result = L1Blocks.find_l1_block_for_tx(TestUtils.FEEDER_TX, 1000, mock_client)
+        result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
         self.assertIsNone(result)
 
     def test_matches_l1_handler_tx_success(self):
-        l1_event = TestUtils.L1_EVENT
+        l1_event = L1TestUtils.L1_EVENT
 
-        feeder_tx = TestUtils.FEEDER_TX
+        feeder_tx = L1TestUtils.FEEDER_TX
 
         self.assertTrue(L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx))
 
     def test_matches_l1_handler_tx_mismatches(self):
-        l1_event = TestUtils.L1_EVENT
+        l1_event = L1TestUtils.L1_EVENT
 
-        base_feeder_tx = TestUtils.FEEDER_TX
+        base_feeder_tx = L1TestUtils.FEEDER_TX
 
         mismatch_cases = [
             ("type", {"type": "INVOKE"}),

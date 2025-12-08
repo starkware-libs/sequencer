@@ -66,7 +66,7 @@ class L1Blocks:
 
             if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):
                 logger.info(
-                    f"Found matching L1 block: {l1_event.block_number} for L1 tx: {feeder_tx['transaction_hash']}"
+                    f"Found matching L1 tx {l1_event.l1_tx_hash}, in block: {l1_event.block_number} for L2 tx: {feeder_tx['transaction_hash']}"
                 )
                 return l1_event.block_number
 
