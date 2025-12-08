@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use starknet_api::block::BlockInfo;
-use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
@@ -47,9 +46,6 @@ pub trait StatefulValidatorTrait {
     #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
     fn block_info(&self) -> &BlockInfo;
-    // TODO(Itamar): Remove this method.
-    #[allow(clippy::result_large_err)]
-    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
 }
 
 impl<S: StateReader> StatefulValidatorTrait for StatefulValidator<S> {
@@ -59,10 +55,6 @@ impl<S: StateReader> StatefulValidatorTrait for StatefulValidator<S> {
 
     fn block_info(&self) -> &BlockInfo {
         StatefulValidator::block_info(self)
-    }
-
-    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce> {
-        StatefulValidator::get_nonce(self, account_address)
     }
 }
 
@@ -146,13 +138,5 @@ impl<S: StateReader> StatefulValidator<S> {
         );
 
         Ok((validate_call_info, tx_receipt))
-    }
-
-    /// TODO(tzahi): Used only in native blockifier, remove after it is deleted.
-    pub fn get_nonce(
-        &mut self,
-        account_address: ContractAddress,
-    ) -> StatefulValidatorResult<Nonce> {
-        Ok(self.state().get_nonce_at(account_address)?)
     }
 }
