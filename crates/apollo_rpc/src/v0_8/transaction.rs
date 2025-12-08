@@ -447,7 +447,7 @@ pub struct InvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
-    // TODO(AvivG): Add proof facts to rpc_v8.
+    pub proof_facts: Option<Vec<Felt>>,
 }
 
 impl From<InvokeTransactionV3> for client_transaction::InvokeTransaction {
@@ -537,7 +537,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
                     fee_data_availability_mode,
                     paymaster_data,
                     account_deployment_data,
-                    proof_facts: _,
+                    proof_facts,
                 },
             ) => Ok(Self::Version3(InvokeTransactionV3 {
                 sender_address,
@@ -551,6 +551,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
                 fee_data_availability_mode,
                 paymaster_data,
                 account_deployment_data,
+                proof_facts,
             })),
         }
     }

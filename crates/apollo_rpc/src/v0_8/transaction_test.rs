@@ -19,6 +19,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
+use starknet_types_core::felt::Felt;
 
 use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};
 use super::{
@@ -120,6 +121,7 @@ auto_impl_get_test_instance! {
         pub account_deployment_data: AccountDeploymentData,
         pub nonce_data_availability_mode: DataAvailabilityMode,
         pub fee_data_availability_mode: DataAvailabilityMode,
+        pub proof_facts: Option<Vec<Felt>>,
     }
     pub enum TransactionVersion0 {
         Version0 = 0,
