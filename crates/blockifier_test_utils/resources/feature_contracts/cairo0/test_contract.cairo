@@ -12,6 +12,10 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.messages import send_message_to_l1
 from starkware.starknet.common.syscalls import (
+    CallContract,
+    CallContractRequest,
+    DELEGATE_CALL_SELECTOR,
+    DELEGATE_L1_HANDLER_SELECTOR,
     TxInfo,
     storage_read,
     storage_write,
@@ -357,6 +361,72 @@ func test_deploy_and_call{syscall_ptr: felt*, range_check_ptr}(
     );
     TestContract.set_value(contract_address=contract_address, address=key, value=value);
     return (contract_address=contract_address);
+}
+
+// Copied from starkware/starknet/core/test_contract/deprecated_syscalls.cairo.
+func delegate_call{syscall_ptr: felt*}(
+    contract_address: felt, function_selector: felt, calldata_size: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    let syscall = [cast(syscall_ptr, CallContract*)];
+    assert syscall.request = CallContractRequest(
+        selector=DELEGATE_CALL_SELECTOR,
+        contract_address=contract_address,
+        function_selector=function_selector,
+        calldata_size=calldata_size,
+        calldata=calldata,
+    );
+    %{ syscall_handler.delegate_call(segments=segments, syscall_ptr=ids.syscall_ptr) %}
+    let response = syscall.response;
+
+    let syscall_ptr = syscall_ptr + CallContract.SIZE;
+    return (retdata_size=response.retdata_size, retdata=response.retdata);
+}
+
+// Copied from starkware/starknet/core/test_contract/deprecated_syscalls.cairo.
+func delegate_l1_handler{syscall_ptr: felt*}(
+    contract_address: felt, function_selector: felt, calldata_size: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    let syscall = [cast(syscall_ptr, CallContract*)];
+    assert syscall.request = CallContractRequest(
+        selector=DELEGATE_L1_HANDLER_SELECTOR,
+        contract_address=contract_address,
+        function_selector=function_selector,
+        calldata_size=calldata_size,
+        calldata=calldata,
+    );
+    %{ syscall_handler.delegate_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr) %}
+    let response = syscall.response;
+
+    let syscall_ptr = syscall_ptr + CallContract.SIZE;
+    return (retdata_size=response.retdata_size, retdata=response.retdata);
+}
+
+@external
+@raw_output
+func test_delegate_call{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    code_address: felt, selector: felt, calldata_len: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    let (retdata_size: felt, retdata: felt*) = delegate_call(
+        contract_address=code_address,
+        function_selector=selector,
+        calldata_size=calldata_len,
+        calldata=calldata,
+    );
+    return (retdata_size=retdata_size, retdata=retdata);
+}
+
+@external
+@raw_output
+func test_delegate_l1_handler{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    code_address: felt, selector: felt, calldata_len: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    let (retdata_size: felt, retdata: felt*) = delegate_l1_handler(
+        contract_address=code_address,
+        function_selector=selector,
+        calldata_size=calldata_len,
+        calldata=calldata,
+    );
+    return (retdata_size=retdata_size, retdata=retdata);
 }
 
 @external
