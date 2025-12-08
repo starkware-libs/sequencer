@@ -361,3 +361,52 @@ fn repropose() {
         assert!(reqs.is_empty());
     });
 }
+
+#[tokio::test]
+async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
+    // This test verifies that receiving 3 identical prevotes during awaiting_finished_building
+    // results in only one vote being processed, so no TimeoutPrevote is triggered.
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        false,
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let ret = shc.start(&leader_fn).unwrap();
+    assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartBuildProposal(ROUND_0)));
+        assert!(reqs.is_empty());
+    });
+
+    // Receive enough identical prevotes during awaiting_finished_building to trigger Timeout
+    // (if they weren't duplicates)
+    let duplicate_vote = prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_1);
+
+    // First vote gets queued
+    assert_matches!(
+        shc.handle_vote(&leader_fn, duplicate_vote.clone()).unwrap(),
+        ShcReturn::Requests(reqs) if reqs.is_empty()
+    );
+
+    // Remaining votes are duplicates - should be ignored
+    for _ in 1..VALIDATORS.len() {
+        assert_matches!(
+            shc.handle_vote(&leader_fn, duplicate_vote.clone()).unwrap(),
+            ShcReturn::Requests(reqs) if reqs.is_empty()
+        );
+    }
+
+    // Finish building - processes the queue
+    // Only one vote was queued (duplicates were ignored), so no TimeoutPrevote should be triggered,
+    // only a broadcast vote
+    let ret = shc
+        .handle_event(&leader_fn, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), ROUND_0))
+        .unwrap();
+    assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote && v.round == ROUND_0);
+        assert!(reqs.is_empty());
+    });
+}
