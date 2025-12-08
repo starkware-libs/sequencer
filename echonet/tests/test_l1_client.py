@@ -1,6 +1,8 @@
 import os
 import sys
 
+import copy
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import requests
@@ -152,6 +154,26 @@ class TestL1Client(unittest.TestCase):
         result = client.get_timestamp_of_block(block_number=123456)
 
         self.assertIsNone(result)
+
+    def test_decode_log_success(self):
+        result = L1Client.decode_log_response(TestUtils.RAW_JSON_LOG)
+
+        self.assertIsInstance(result, L1Client.L1Event)
+        self.assertEqual(result, TestUtils.L1_EVENT)
+
+    def test_decode_log_invalid_topics_raises_error(self):
+        log = copy.deepcopy(TestUtils.RAW_JSON_LOG)
+        log["topics"] = ["0x1", "0x2"]
+        with self.assertRaisesRegex(
+            ValueError, "Log has insufficient topics for LogMessageToL2 event"
+        ):
+            L1Client.decode_log_response(log)
+
+    def test_decode_log_wrong_signature_raises_error(self):
+        log = copy.deepcopy(TestUtils.RAW_JSON_LOG)
+        log["topics"][0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
+        with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
+            L1Client.decode_log_response(log)
 
 
 if __name__ == "__main__":
