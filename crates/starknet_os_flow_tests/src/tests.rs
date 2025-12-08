@@ -2945,12 +2945,17 @@ async fn test_prove_block() {
     test_output.perform_default_validations();
 }
 
-/// Test that runs the OS with 10 transfer transactions in one block and saves the Cairo PIE and
-/// OS output.
+/// Test that runs the OS with 10 transfer transactions and two ecop calls in one block and saves
+/// the Cairo PIE and OS output.
 #[tokio::test]
 async fn test_prove_block_10_transfers() {
-    let (mut test_manager, []) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
 
     // Add 10 transfer transactions to different addresses.
     for i in 0..10u128 {
@@ -2964,6 +2969,12 @@ async fn test_prove_block_10_transfers() {
         test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
     }
 
+    // Add two calls to test_ecop.
+    for _ in 0..6 {
+        let calldata = create_calldata(test_contract_address, "test_ecop", &[]);
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
     // Run the test.
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
@@ -2974,7 +2985,7 @@ async fn test_prove_block_10_transfers() {
         .await;
 
     // Save Cairo PIE to file.
-    let cairo_pie_path = std::path::Path::new("cairo_pie_10_transfers.zip");
+    let cairo_pie_path = std::path::Path::new("cairo_pie_10_transfers_with_6_ecop.zip");
     let merge_extra_segments = true;
     test_output
         .runner_output
@@ -2984,7 +2995,7 @@ async fn test_prove_block_10_transfers() {
     println!("Cairo PIE saved to {:?}", cairo_pie_path);
 
     // Save raw OS output to JSON file.
-    let os_output_path = "os_output_10_transfers.json";
+    let os_output_path = "os_output_10_transfers_with_6_ecop.json";
     let os_output_json =
         serde_json::to_string_pretty(&test_output.runner_output.raw_os_output).unwrap();
     std::fs::write(os_output_path, os_output_json).expect("Failed to write OS output");
