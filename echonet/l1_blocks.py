@@ -2,6 +2,7 @@ from typing import Optional
 
 import logging
 from l1_client import L1Client
+from l1_utils import timestamp_to_iso
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,6 @@ class L1Blocks:
         return True
 
     @staticmethod
-    # TODO(Ayelet): Consider changing timestamp params to datetime.
     def find_l1_block_for_tx(
         feeder_tx: dict,
         l2_block_timestamp: int,
@@ -58,7 +58,6 @@ class L1Blocks:
         if not start_block_data or not end_block_data:
             return None
 
-        # TODO(Ayelet): Cache logs to avoid repeated calls.
         logs = client.get_logs(start_block_data, end_block_data)
 
         for log in logs:
@@ -71,5 +70,8 @@ class L1Blocks:
                 return l1_event.block_number
 
         # Not found in this range
-        logger.info(f"No matching L1 block found for L1 tx: {feeder_tx['transaction_hash']}")
+        logger.info(
+            f"No matching L1 block found for L2 tx: {feeder_tx['transaction_hash']} "
+            f"in range {timestamp_to_iso(search_start_timestamp)}-{timestamp_to_iso(search_end_timestamp)}"
+        )
         return None
