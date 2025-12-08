@@ -10,6 +10,7 @@ mod single_height_consensus_test;
 
 use std::collections::{HashSet, VecDeque};
 
+use crate::state_machine::VoteStatus;
 const REBROADCAST_LOG_PERIOD_SECS: u64 = 10;
 
 use apollo_consensus_config::config::TimeoutsConfig;
@@ -242,29 +243,29 @@ impl SingleHeightConsensus {
             return Ok(ShcReturn::Requests(VecDeque::new()));
         }
 
-        // Check duplicates/conflicts from SM stored votes.
-        let (votes_map, sm_vote) = match vote.vote_type {
-            VoteType::Prevote => {
-                (self.state_machine.prevotes_ref(), StateMachineEvent::Prevote(vote.clone()))
-            }
-            VoteType::Precommit => {
-                (self.state_machine.precommits_ref(), StateMachineEvent::Precommit(vote.clone()))
-            }
-        };
-        if let Some((old_vote, _)) = votes_map.get(&(vote.round, vote.voter)) {
-            if old_vote.proposal_commitment == vote.proposal_commitment {
+        // Check if vote has already been received.
+        match self.state_machine.received_vote(&vote) {
+            VoteStatus::Duplicate => {
                 // Duplicate - ignore.
                 return Ok(ShcReturn::Requests(VecDeque::new()));
-            } else {
+            }
+            VoteStatus::Conflict(old_vote, new_vote) => {
                 // Conflict - ignore and record.
-                warn!("Conflicting votes: old={old_vote:?}, new={vote:?}");
+                warn!("Conflicting votes: old={old_vote:?}, new={new_vote:?}");
                 CONSENSUS_CONFLICTING_VOTES.increment(1);
                 return Ok(ShcReturn::Requests(VecDeque::new()));
             }
+            VoteStatus::NotReceived => {
+                // Vote is new, proceed to process it.
+            }
         }
 
+        let sm_vote = match vote.vote_type {
+            VoteType::Prevote => StateMachineEvent::Prevote(vote.clone()),
+            VoteType::Precommit => StateMachineEvent::Precommit(vote.clone()),
+        };
+
         info!("Accepting {:?}", vote);
-        // TODO(Asmaa): consider calling handle_prevote/precommit instead of sending the vote event.
         let requests = self.state_machine.handle_event(sm_vote, leader_fn);
         self.handle_state_machine_requests(requests)
     }

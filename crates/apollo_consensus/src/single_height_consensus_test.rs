@@ -330,3 +330,53 @@ fn repropose() {
         assert!(reqs.is_empty());
     });
 }
+
+#[tokio::test]
+async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
+    // This test verifies that receiving 3 identical prevotes during awaiting_finished_building
+    // results in only one vote being processed, so no TimeoutPrevote is triggered.
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        false,
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let ret = shc.start(&leader_fn).unwrap();
+    assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartBuildProposal(0)));
+        assert!(reqs.is_empty());
+    });
+
+    // Receive 3 identical prevotes during awaiting_finished_building
+    let duplicate_vote = prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1);
+
+    // First vote gets queued
+    assert_matches!(
+        shc.handle_vote(&leader_fn, duplicate_vote.clone()).unwrap(),
+        ShcReturn::Requests(reqs) if reqs.is_empty()
+    );
+
+    // Second and third votes are duplicates - should be ignored
+    assert_matches!(
+        shc.handle_vote(&leader_fn, duplicate_vote.clone()).unwrap(),
+        ShcReturn::Requests(reqs) if reqs.is_empty()
+    );
+    assert_matches!(
+        shc.handle_vote(&leader_fn, duplicate_vote.clone()).unwrap(),
+        ShcReturn::Requests(reqs) if reqs.is_empty()
+    );
+
+    // Finish building - processes the queue
+    // Only one vote was queued (duplicates were ignored), so no TimeoutPrevote should be triggered,
+    // only a broadcast vote
+    let ret = shc
+        .handle_event(&leader_fn, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
+        .unwrap();
+    assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote && v.round == 0);
+        assert!(reqs.is_empty());
+    });
+}
