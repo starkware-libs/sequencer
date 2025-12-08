@@ -32,7 +32,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
@@ -47,6 +47,7 @@ pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 pub enum DistributedNodeServiceName {
     Batcher,
     ClassManager,
+    // TODO(Yoav): Add committer when it is ready.
     ConsensusManager,
     HttpServer,
     Gateway,
@@ -326,6 +327,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -354,6 +356,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Batcher
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -380,6 +383,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -406,6 +410,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -436,6 +441,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -466,6 +472,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::Mempool
                             | InfraServicePort::SignatureManager
@@ -492,6 +499,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -520,6 +528,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -548,6 +557,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -576,6 +586,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -607,6 +618,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -634,6 +646,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -662,6 +675,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -689,6 +703,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1EndpointMonitor
@@ -716,6 +731,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -747,6 +763,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -771,6 +788,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -797,6 +815,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -824,6 +843,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -851,6 +871,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
