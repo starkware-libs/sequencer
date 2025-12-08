@@ -2104,6 +2104,7 @@ dependencies = [
  "libp2p",
  "metrics-exporter-prometheus",
  "rstest",
+ "serde",
  "tokio",
  "tokio-metrics",
  "tracing",
