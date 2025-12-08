@@ -1,3 +1,6 @@
+use apollo_storage::storage_reader_server::StorageReaderServerHandler;
+use apollo_storage::{StorageError, StorageReader};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockNumber};
 
@@ -15,4 +18,20 @@ pub enum ClassManagerStorageRequest {
 pub enum ClassManagerStorageResponse {
     /// Table1 data for the requested operation.
     Table1Replacer(BlockHeader),
+}
+
+pub struct ClassManagerStorageReaderServerHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<ClassManagerStorageRequest, ClassManagerStorageResponse>
+    for ClassManagerStorageReaderServerHandler
+{
+    async fn handle_request(
+        _storage_reader: &StorageReader,
+        _request: ClassManagerStorageRequest,
+    ) -> Result<ClassManagerStorageResponse, StorageError> {
+        // TODO(Dean/Nadin): Implement the logic for the class manager storage reader server
+        // handler.
+        unimplemented!()
+    }
 }
