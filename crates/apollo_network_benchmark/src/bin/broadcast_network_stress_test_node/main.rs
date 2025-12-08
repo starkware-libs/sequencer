@@ -12,6 +12,7 @@ mod message_test;
 
 mod handlers;
 mod message;
+pub mod metrics;
 mod protocol;
 mod stress_test_node;
 
