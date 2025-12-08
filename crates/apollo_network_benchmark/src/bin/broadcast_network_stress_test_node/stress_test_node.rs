@@ -10,10 +10,18 @@ use libp2p::Multiaddr;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
+use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
+
 /// The main stress test node that manages network communication and monitoring
 pub struct BroadcastNetworkStressTestNode {
     args: NodeArgs,
     network_manager: Option<NetworkManager>,
+    // TODO(AndrewL): Remove this once they are used
+    #[allow(dead_code)]
+    message_sender: Option<MessageSender>,
+    // TODO(AndrewL): Remove this once they are used
+    #[allow(dead_code)]
+    message_receiver: Option<MessageReceiver>,
 }
 
 impl BroadcastNetworkStressTestNode {
@@ -49,9 +57,22 @@ impl BroadcastNetworkStressTestNode {
     pub async fn new(args: NodeArgs) -> Self {
         // Create network configuration
         let network_config = Self::create_network_config(&args);
+
         // Create network manager
-        let network_manager = NetworkManager::new(network_config, None, None);
-        Self { args, network_manager: Some(network_manager) }
+        let mut network_manager = NetworkManager::new(network_config, None, None);
+
+        // Register protocol channels
+        let (message_sender, message_receiver) = register_protocol_channels(
+            &mut network_manager,
+            args.user.buffer_size,
+            &args.user.network_protocol,
+        );
+        Self {
+            args,
+            network_manager: Some(network_manager),
+            message_sender: Some(message_sender),
+            message_receiver: Some(message_receiver),
+        }
     }
 
     /// Starts the network manager in the background
