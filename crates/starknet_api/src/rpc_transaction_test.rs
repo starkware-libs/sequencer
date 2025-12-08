@@ -139,7 +139,7 @@ fn test_invoke_tx_size_of() {
         // + tx_v3.account_deployment_data.dynamic_size();
 
         // Check the size of the V3 invoke transaction.
-        assert_eq!(tx_v3.size_bytes(), 448);
+        assert_eq!(tx_v3.size_bytes(), 480);
     } else {
         panic!("Expected RpcTransaction::Invoke");
     }

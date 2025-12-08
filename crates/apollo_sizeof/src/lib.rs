@@ -71,6 +71,15 @@ impl<T: SizeOf> SizeOf for Vec<T> {
     }
 }
 
+impl<T: SizeOf> SizeOf for Option<T> {
+    fn dynamic_size(&self) -> usize {
+        match self {
+            Some(value) => value.size_bytes(),
+            None => 0,
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! default_deref_sizeof {
     ($($name:ident < $($generic_params:ident $(: $bounds:path)*),* >),*) => {

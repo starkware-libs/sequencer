@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -573,7 +574,8 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
-    // TODO(AvivG): Add proof facts.
+    pub proof_facts: Option<Vec<Felt>>,
+    // TODO(AvivG): Add proof field.
 }
 
 impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
@@ -657,6 +659,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
             sender_address: value.sender_address,
             calldata: value.calldata,
             account_deployment_data: value.account_deployment_data,
+            proof_facts: value.proof_facts,
         })
     }
 }
