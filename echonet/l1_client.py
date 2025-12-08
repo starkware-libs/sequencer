@@ -111,7 +111,7 @@ class L1Client:
 
         return data.get("result", [])
 
-    def get_block_by_number(self, block_number: int) -> Optional[Dict]:
+    def get_block_by_number(self, block_number: str) -> Optional[Dict]:
         """
         Get block details by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
@@ -119,7 +119,7 @@ class L1Client:
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
-            "params": [hex(block_number), False],
+            "params": [block_number, False],
             "id": 1,
         }
 
@@ -134,7 +134,7 @@ class L1Client:
 
         return result.get("result")
 
-    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
+    def get_timestamp_of_block(self, block_number: str) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
