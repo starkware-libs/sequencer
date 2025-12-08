@@ -9,6 +9,7 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+apollo_metrics.workspace = true
 apollo_network.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
