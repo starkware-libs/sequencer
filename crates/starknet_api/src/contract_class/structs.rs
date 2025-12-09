@@ -63,6 +63,12 @@ impl ContractClass {
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub struct SierraVersion(Version);
 
+impl Display for SierraVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl From<SierraVersion> for VersionId {
     fn from(val: SierraVersion) -> Self {
         VersionId {
