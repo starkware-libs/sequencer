@@ -4,4 +4,5 @@
 
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
-pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.7.2";
+pub const CAIRO_NATIVE_GIT_URL: &str = "https://github.com/lambdaclass/cairo_native";
+pub const CAIRO_NATIVE_GIT_REV: &str = "941149cf65fa4a0bafeccd0bfa1c4d138c543f05";

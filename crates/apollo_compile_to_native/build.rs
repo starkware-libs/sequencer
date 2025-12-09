@@ -14,9 +14,10 @@ fn main() {
 /// Native. The binary is executed as a subprocess whenever Sierra to Cairo compilation is required.
 fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
+    let required_version = CAIRO_NATIVE_GIT_REV;
 
-    let cargo_install_args = &[binary_name, "--version", required_version];
+    let cargo_install_args =
+        &[binary_name, "--git", CAIRO_NATIVE_GIT_URL, "--rev", CAIRO_NATIVE_GIT_REV];
     install_compiler_binary(binary_name, required_version, cargo_install_args, &out_dir());
 }
 
