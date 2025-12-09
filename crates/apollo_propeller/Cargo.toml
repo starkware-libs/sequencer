@@ -1,0 +1,18 @@
+[package]
+name = "apollo_propeller"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = []
+
+[dependencies]
+
+
+[dev-dependencies]
+
+
+[lints]
+workspace = true
