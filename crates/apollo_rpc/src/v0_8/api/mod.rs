@@ -619,6 +619,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 account_deployment_data,
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
+                proof_facts,
             }) => Self::V3(starknet_api::transaction::InvokeTransactionV3 {
                 resource_bounds: resource_bounds.into(),
                 tip,
@@ -630,8 +631,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 fee_data_availability_mode,
                 paymaster_data,
                 account_deployment_data,
-                // TODO(AvivG): Get proof facts from rpc_v8 once supported.
-                proof_facts: vec![],
+                proof_facts,
             }),
         }
     }
