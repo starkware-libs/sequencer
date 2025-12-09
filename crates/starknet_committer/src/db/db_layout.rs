@@ -8,10 +8,7 @@ use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use crate::db::index_db::leaves::TrieType;
 
 /// Specifies the trie db layout.
-pub trait NodeLayout<'a, L: Leaf>
-where
-    FilledNode<L, Self::NodeData>: DBObject<DeserializeContext = Self::DeserializationContext>,
-{
+pub trait NodeLayout<'a, L: Leaf> {
     /// Additional data that a node stores about its children.
     type NodeData: Clone;
 

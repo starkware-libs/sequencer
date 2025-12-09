@@ -23,7 +23,7 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
     UnmodifiedChildTraversal,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 use tracing::warn;
@@ -34,12 +34,13 @@ use crate::block_committer::input::{
     StarknetStorageValue,
 };
 use crate::db::db_layout::NodeLayout;
-use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree_and_get_previous_leaves;
-use crate::db::facts_db::db::FactsNodeLayout;
-use crate::db::facts_db::types::FactsSubTree;
+use crate::db::index_db::leaves::TrieType;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
+use crate::patricia_merkle_tree::tree::{
+    OriginalSkeletonTrieConfig,
+    OriginalSkeletonTrieDontCompareConfig,
+};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 /// Logs out a warning of a trivial modification.
@@ -57,7 +58,7 @@ macro_rules! log_trivial_modification {
 ///
 /// The function is generic over the DB layout (`Layout`), which controls the concrete node data
 /// (`Layout::NodeData`) and traversal strategy (via `Layout::SubTree`).
-pub async fn fetch_nodes<'a, L, Layout>(
+pub(crate) async fn fetch_nodes<'a, L, Layout>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
     subtrees: Vec<Layout::SubTree>,
     storage: &mut impl Storage,
@@ -69,7 +70,6 @@ pub async fn fetch_nodes<'a, L, Layout>(
 where
     L: Leaf,
     Layout: NodeLayout<'a, L>,
-    FilledNode<L, Layout::NodeData>: DBObject<DeserializeContext = Layout::DeserializationContext>,
 {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
@@ -247,10 +247,7 @@ pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     subtrees: &[Layout::SubTree],
     storage: &mut impl Storage,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>>
-where
-    FilledNode<L, Layout::NodeData>: DBObject<DeserializeContext = Layout::DeserializationContext>,
-{
+) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
         .iter()
@@ -262,7 +259,10 @@ where
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        let filled_node = FilledNode::deserialize(val, &subtree.get_root_context())?;
+        let filled_node = Layout::get_filled_node(Layout::NodeDbObject::deserialize(
+            val,
+            &subtree.get_root_context(),
+        )?);
         subtrees_roots.push(filled_node);
     }
     Ok(subtrees_roots)
@@ -288,10 +288,7 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
     Ok(())
 }
 
-pub async fn create_original_skeleton_tree<
-    'a,
-    L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext>,
->(
+pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -303,16 +300,11 @@ pub async fn create_original_skeleton_tree<
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        log_warning_for_empty_leaves(
-            sorted_leaf_indices.get_indices(),
-            leaf_modifications,
-            config,
-        )?;
-        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
+        return Ok(handle_empty_subtree::<L>(sorted_leaf_indices).0);
     }
-    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
+    let main_subtree = Layout::create_subtree(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
-    fetch_nodes::<L, FactsNodeLayout>(
+    fetch_nodes::<L, Layout>(
         &mut skeleton_tree,
         vec![main_subtree],
         storage,
@@ -325,7 +317,11 @@ pub async fn create_original_skeleton_tree<
     Ok(skeleton_tree)
 }
 
-pub async fn create_storage_tries<'a>(
+pub async fn create_storage_tries<
+    'a,
+    L: Leaf + From<StarknetStorageValue>,
+    Layout: NodeLayout<'a, L>,
+>(
     storage: &mut impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -342,13 +338,13 @@ pub async fn create_storage_tries<'a>(
             .ok_or(ForestError::MissingContractCurrentState(*address))?;
         let config = OriginalSkeletonTrieConfig::new(config.warn_on_trivial_modifications());
 
-        let original_skeleton = create_original_skeleton_tree(
+        let original_skeleton = create_original_skeleton_tree::<L, Layout>(
             storage,
             contract_state.storage_root_hash,
             *sorted_leaf_indices,
             &config,
-            updates,
-            &EmptyKeyContext,
+            &updates.iter().map(|(idx, value)| (*idx, L::from(*value))).collect(),
+            &Layout::generate_key_context(TrieType::StorageTrie(*address)),
         )
         .await?;
         storage_tries.insert(*address, original_skeleton);
@@ -356,24 +352,43 @@ pub async fn create_storage_tries<'a>(
     Ok(storage_tries)
 }
 
-/// Creates the contracts trie original skeleton.
-/// Also returns the previous contracts state of the modified contracts.
-pub async fn create_contracts_trie<'a>(
+pub async fn create_contracts_trie<'a, L: Leaf + Into<ContractState>, Layout: NodeLayout<'a, L>>(
     storage: &mut impl Storage,
-    contracts_trie_root_hash: HashOutput,
-    contracts_trie_sorted_indices: SortedLeafIndices<'a>,
+    root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'a>,
 ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
-    Ok(create_original_skeleton_tree_and_get_previous_leaves(
+    if sorted_leaf_indices.is_empty() {
+        let unmodified = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
+        return Ok((unmodified, HashMap::new()));
+    }
+    if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+        return Ok(handle_empty_subtree(sorted_leaf_indices));
+    }
+    let main_subtree = Layout::create_subtree(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
+    let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
+    let mut leaves = HashMap::new();
+    fetch_nodes::<L, Layout>(
+        &mut skeleton_tree,
+        vec![main_subtree],
         storage,
-        contracts_trie_root_hash,
-        contracts_trie_sorted_indices,
         &HashMap::new(),
-        &OriginalSkeletonTrieConfig::new(false),
+        &OriginalSkeletonTrieDontCompareConfig,
+        Some(&mut leaves),
+        &Layout::generate_key_context(TrieType::ContractsTrie),
     )
-    .await?)
+    .await?;
+
+    let leaves: HashMap<NodeIndex, ContractState> =
+        leaves.into_iter().map(|(idx, leaf)| (idx, leaf.into())).collect();
+
+    Ok((skeleton_tree, leaves))
 }
 
-pub async fn create_classes_trie<'a>(
+pub async fn create_classes_trie<
+    'a,
+    L: Leaf + From<CompiledClassHash>,
+    Layout: NodeLayout<'a, L>,
+>(
     storage: &mut impl Storage,
     actual_classes_updates: &LeafModifications<CompiledClassHash>,
     classes_trie_root_hash: HashOutput,
@@ -382,13 +397,22 @@ pub async fn create_classes_trie<'a>(
 ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
     let config = OriginalSkeletonTrieConfig::new(config.warn_on_trivial_modifications());
 
-    Ok(create_original_skeleton_tree(
+    Ok(create_original_skeleton_tree::<L, Layout>(
         storage,
         classes_trie_root_hash,
         contracts_trie_sorted_indices,
         &config,
-        actual_classes_updates,
-        &EmptyKeyContext,
+        &actual_classes_updates.iter().map(|(idx, value)| (*idx, L::from(*value))).collect(),
+        &Layout::generate_key_context(TrieType::ClassesTrie),
     )
     .await?)
+}
+
+pub(crate) fn handle_empty_subtree<'a, L: Leaf>(
+    sorted_leaf_indices: SortedLeafIndices<'a>,
+) -> (OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, L>) {
+    (
+        OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices),
+        sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
+    )
 }
