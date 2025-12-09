@@ -71,7 +71,7 @@ class TestL1Client(unittest.TestCase):
 
         client = L1Client(api_key="api_key")
         result = client.get_timestamp_of_block(
-            block_number=123,
+            block_number=L1TestUtils.BLOCK_NUMBER_HEX,
         )
 
         self.assertEqual(mock_post.call_count, 2)
@@ -87,7 +87,7 @@ class TestL1Client(unittest.TestCase):
 
         client = L1Client(api_key="api_key")
         result = client.get_timestamp_of_block(
-            block_number=123,
+            block_number=L1TestUtils.BLOCK_NUMBER_HEX,
         )
 
         self.assertEqual(mock_post.call_count, 1)
@@ -96,29 +96,22 @@ class TestL1Client(unittest.TestCase):
     @patch("l1_client.requests.post")
     def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
+        block_info = {
+            "number": L1TestUtils.BLOCK_NUMBER_HEX,
+            "timestamp": "0x5f5e100",
+        }
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {
-            "result": {
-                "number": hex(123456),
-                "timestamp": "0x5f5e100",
-            }
-        }
+        successful_response.json.return_value = {"result": block_info}
 
         mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_by_number(block_number=123456)
+        result = client.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(
-            result,
-            {
-                "number": hex(123456),
-                "timestamp": "0x5f5e100",
-            },
-        )
+        self.assertEqual(result, block_info)
 
     @patch("l1_client.requests.post")
     def test_get_block_by_number_returns_none_when_rpc_result_is_empty(self, mock_post):
@@ -129,7 +122,7 @@ class TestL1Client(unittest.TestCase):
         mock_post.return_value = response_ok
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_by_number(block_number=123456)
+        result = client.get_block_by_number(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertEqual(mock_post.call_count, 1)
         self.assertIsNone(result)
@@ -139,10 +132,10 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = {"timestamp": "0x5f5e100"}
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=123456)
+        result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertEqual(result, int("0x5f5e100", 16))
-        mock_get_block_by_number.assert_called_once_with(123456)
+        mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER_HEX)
 
     @patch.object(L1Client, "get_block_by_number")
     def test_get_timestamp_of_block_returns_none_when_block_not_found(
@@ -151,7 +144,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = None
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=123456)
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertIsNone(result)
 
