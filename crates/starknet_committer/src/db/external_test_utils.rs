@@ -24,7 +24,7 @@ pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: impl OriginalSkeletonTreeConfig,
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
@@ -72,7 +72,7 @@ pub async fn single_tree_flow_test<
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: impl OriginalSkeletonTreeConfig,
 ) -> String {
     // Move from leaf number to actual index.
     let leaf_modifications = leaf_modifications

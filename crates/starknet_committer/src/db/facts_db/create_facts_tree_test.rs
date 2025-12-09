@@ -13,7 +13,6 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
     MockLeaf,
-    OriginalSkeletonMockTrieConfig,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -24,6 +23,7 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
+use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 
 #[tokio::test]
 #[rstest]
@@ -208,7 +208,7 @@ async fn test_create_tree(
         .into_iter()
         .map(|(idx, leaf)| (NodeIndex::from_subtree_index(idx, subtree_height), leaf))
         .collect();
-    let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
+    let config = OriginalSkeletonTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let skeleton_tree = create_original_skeleton_tree(

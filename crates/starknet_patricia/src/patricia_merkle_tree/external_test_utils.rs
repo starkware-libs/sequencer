@@ -16,10 +16,8 @@ use super::node_data::leaf::Leaf;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
 use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
-use crate::generate_trie_config;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub Felt);
@@ -62,8 +60,6 @@ impl Leaf for MockLeaf {
         Ok((Self(input), input.to_hex_string()))
     }
 }
-
-generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
 
 pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
     if *value > u256_from_felt(&Felt::MAX) {
