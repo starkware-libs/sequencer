@@ -614,3 +614,15 @@ impl AccountDeploymentData {
         self.0.is_empty()
     }
 }
+
+/// Client-provided proof used for client-side proving; otherwise empty.
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
+pub struct Proof(pub Vec<u32>);
+
+impl Proof {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
