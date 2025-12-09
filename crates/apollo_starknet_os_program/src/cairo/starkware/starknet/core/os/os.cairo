@@ -265,20 +265,8 @@ func execute_blocks{
     // Build block context.
     let (block_context: BlockContext*) = get_block_context(os_global_context=os_global_context);
 
-    // Pre-process block.
-    with contract_state_changes {
-        write_block_number_to_block_hash_mapping(block_context=block_context);
-    }
-
-    // Update the contract class changes according to the migration.
-
-    local n_classes_to_migrate;
-    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
-    %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
-    with contract_class_changes {
-        migrate_classes_to_v2_casm_hash(
-            n_classes=n_classes_to_migrate, block_context=block_context
-        );
+    with contract_state_changes, contract_class_changes {
+        pre_process_block(block_context=block_context);
     }
 
     // Execute transactions.
@@ -454,6 +442,25 @@ func migrate_classes_to_v2_casm_hash{
         key=class_hash, prev_value=casm_hash_v1, new_value=casm_hash_v2
     );
     migrate_classes_to_v2_casm_hash(n_classes=n_classes - 1, block_context=block_context);
+    return ();
+}
+
+// Pre-processes the block.
+func pre_process_block{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    contract_state_changes: DictAccess*,
+    contract_class_changes: DictAccess*,
+}(block_context: BlockContext*) {
+    alloc_locals;
+
+    write_block_number_to_block_hash_mapping(block_context=block_context);
+
+    // Update the contract class changes according to the migration.
+    local n_classes_to_migrate;
+    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
+    %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
+    migrate_classes_to_v2_casm_hash(n_classes=n_classes_to_migrate, block_context=block_context);
     return ();
 }
 
