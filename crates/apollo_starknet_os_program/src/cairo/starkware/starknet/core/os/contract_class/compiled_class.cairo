@@ -20,14 +20,14 @@ from starkware.starknet.core.os.constants import (
     PEDERSEN_GAS_COST,
     POSEIDON_GAS_COST,
 )
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
+)
 from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     COMPILED_CLASS_VERSION,
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
-)
-from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
-    compiled_class_hash as blake_compiled_class_hash,
 )
 
 // Checks that the list of selectors is sorted.

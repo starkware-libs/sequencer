@@ -4,13 +4,11 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_equal, assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.segments import relocate_segment
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import ExecutionInfo
-from starkware.cairo.common.math import assert_not_equal
-from starkware.starknet.core.os.constants import EXECUTE_ENTRY_POINT_SELECTOR
 from starkware.starknet.common.syscalls import (
     CALL_CONTRACT_SELECTOR,
     DELEGATE_CALL_SELECTOR,
@@ -70,6 +68,7 @@ from starkware.starknet.core.os.constants import (
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
+    EXECUTE_ENTRY_POINT_SELECTOR,
     RESERVED_CONTRACT_ADDRESS,
 )
 from starkware.starknet.core.os.contract_address.contract_address import get_contract_address

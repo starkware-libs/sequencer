@@ -1,8 +1,8 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.hash_state_poseidon import (
     HashState,
-    hash_init,
     hash_finalize,
+    hash_init,
     hash_update_single,
 )
 from starkware.starknet.common.new_syscalls import BlockInfo
