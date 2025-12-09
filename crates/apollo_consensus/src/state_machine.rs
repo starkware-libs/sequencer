@@ -83,6 +83,17 @@ pub(crate) enum Step {
     Precommit,
 }
 
+/// Status of a vote when checking if it has been received.
+#[derive(Debug, PartialEq)]
+pub(crate) enum VoteStatus {
+    /// Vote is new and has not been received yet.
+    New,
+    /// Vote is a duplicate (same proposal_commitment) - already received or queued.
+    Duplicate,
+    /// Vote conflicts with an existing vote (different proposal_commitment).
+    Conflict(Vote, Vote),
+}
+
 /// State Machine. Major assumptions:
 /// 1. SHC handles: authentication, replays, and conflicts.
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
@@ -167,10 +178,6 @@ impl StateMachine {
         self.height
     }
 
-    pub(crate) fn prevotes_ref(&self) -> &VotesMap {
-        &self.prevotes
-    }
-
     pub(crate) fn precommits_ref(&self) -> &VotesMap {
         &self.precommits
     }
@@ -189,6 +196,44 @@ impl StateMachine {
 
     pub(crate) fn last_self_precommit(&self) -> Option<Vote> {
         self.last_self_precommit.clone()
+    }
+
+    /// Check if a vote has already been received (either in the vote maps or queued).
+    /// Returns the status of the vote: NotReceived, Duplicate, or Conflict.
+    pub(crate) fn received_vote(&self, vote: &Vote) -> VoteStatus {
+        let determine_status = |old: &Vote, new: &Vote| {
+            if old.proposal_commitment == new.proposal_commitment {
+                VoteStatus::Duplicate
+            } else {
+                VoteStatus::Conflict(old.clone(), new.clone())
+            }
+        };
+
+        // Check Map
+        let key = (vote.round, vote.voter);
+        let map_entry = match vote.vote_type {
+            VoteType::Prevote => self.prevotes.get(&key),
+            VoteType::Precommit => self.precommits.get(&key),
+        };
+
+        if let Some((old_vote, _)) = map_entry {
+            return determine_status(old_vote, vote);
+        }
+
+        // Check Queue
+        for event in &self.events_queue {
+            let queued_vote = match (event, vote.vote_type) {
+                (StateMachineEvent::Prevote(v), VoteType::Prevote) => v,
+                (StateMachineEvent::Precommit(v), VoteType::Precommit) => v,
+                _ => continue,
+            };
+
+            if queued_vote.round == vote.round && queued_vote.voter == vote.voter {
+                return determine_status(queued_vote, vote);
+            }
+        }
+
+        VoteStatus::New
     }
 
     fn make_self_vote(
@@ -274,10 +319,7 @@ impl StateMachine {
         self.handle_enqueued_events(leader_fn)
     }
 
-    pub(crate) fn handle_enqueued_events<LeaderFn>(
-        &mut self,
-        leader_fn: &LeaderFn,
-    ) -> VecDeque<SMRequest>
+    fn handle_enqueued_events<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -311,7 +353,7 @@ impl StateMachine {
         output_requests
     }
 
-    pub(crate) fn handle_event_internal<LeaderFn>(
+    fn handle_event_internal<LeaderFn>(
         &mut self,
         event: StateMachineEvent,
         leader_fn: &LeaderFn,
@@ -344,7 +386,7 @@ impl StateMachine {
         }
     }
 
-    pub(crate) fn handle_finished_building<LeaderFn>(
+    fn handle_finished_building<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
@@ -362,7 +404,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    pub(crate) fn handle_finished_validation<LeaderFn>(
+    fn handle_finished_validation<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
@@ -377,7 +419,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    pub(crate) fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<SMRequest> {
+    fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<SMRequest> {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
@@ -392,11 +434,7 @@ impl StateMachine {
     }
 
     // A prevote from a peer node.
-    pub(crate) fn handle_prevote<LeaderFn>(
-        &mut self,
-        vote: Vote,
-        leader_fn: &LeaderFn,
-    ) -> VecDeque<SMRequest>
+    fn handle_prevote<LeaderFn>(&mut self, vote: Vote, leader_fn: &LeaderFn) -> VecDeque<SMRequest>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -411,7 +449,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    pub(crate) fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<SMRequest> {
+    fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<SMRequest> {
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         };
