@@ -119,7 +119,6 @@ impl From<ThinStateDiff> for StateDiff {
     }
 }
 
-/// All optional configurations of the committer.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
