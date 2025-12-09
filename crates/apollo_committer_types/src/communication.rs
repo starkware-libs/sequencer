@@ -13,7 +13,12 @@ use serde::{Deserialize, Serialize};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use crate::committer_types::{
+    CommitBlockRequest,
+    CommitBlockResponse,
+    RevertBlockRequest,
+    RevertBlockResponse,
+};
 use crate::errors::{CommitterClientError, CommitterClientResult, CommitterResult};
 
 pub type LocalCommitterClient = LocalComponentClient<CommitterRequest, CommitterResponse>;
@@ -25,11 +30,17 @@ pub type SharedCommitterClient = Arc<dyn CommitterClient>;
 #[async_trait]
 #[cfg_attr(any(feature = "testing", test), automock)]
 pub trait CommitterClient: Send + Sync {
-    /// Applies the state diff on the state trees and computes the new state roots.
+    /// Applies the state diff on the state trees and computes the new state root.
     async fn commit_block(
         &self,
         input: CommitBlockRequest,
     ) -> CommitterClientResult<CommitBlockResponse>;
+
+    /// Applies the reversed state diff on the state trees and computes the previous state root.
+    async fn revert_block(
+        &self,
+        input: RevertBlockRequest,
+    ) -> CommitterClientResult<RevertBlockResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -40,6 +51,7 @@ pub trait CommitterClient: Send + Sync {
 )]
 pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
+    RevertBlock(RevertBlockRequest),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);
@@ -49,6 +61,7 @@ impl PrioritizedRequest for CommitterRequest {}
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum CommitterResponse {
     CommitBlock(CommitterResult<CommitBlockResponse>),
+    RevertBlock(CommitterResult<RevertBlockResponse>),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterResponse);
@@ -71,6 +84,20 @@ where
         handle_all_response_variants!(
             CommitterResponse,
             CommitBlock,
+            CommitterClientError,
+            CommitterError,
+            Direct
+        )
+    }
+
+    async fn revert_block(
+        &self,
+        input: RevertBlockRequest,
+    ) -> CommitterClientResult<RevertBlockResponse> {
+        let request = CommitterRequest::RevertBlock(input);
+        handle_all_response_variants!(
+            CommitterResponse,
+            RevertBlock,
             CommitterClientError,
             CommitterError,
             Direct
