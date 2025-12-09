@@ -34,10 +34,10 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
-static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+pub static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
 });
-static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
+pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
@@ -277,7 +277,7 @@ fn to_64_bits(num: usize) -> [u8; 8] {
 // Otherwise, returns:
 // [gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri].
 // TODO(Ayelet): add l2_gas_consumed, next_l2_gas_price after 0.14.0.
-fn gas_prices_to_hash(
+pub fn gas_prices_to_hash(
     l1_gas_price: &GasPricePerToken,
     l1_data_gas_price: &GasPricePerToken,
     l2_gas_price: &GasPricePerToken,
