@@ -73,7 +73,7 @@ impl SyncStateReader {
         Ok(sierra)
     }
 
-    fn get_compiled_class_from_client(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+    fn get_contract_class_from_client(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let is_class_declared = self
             .runtime
             .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
@@ -98,7 +98,7 @@ impl SyncStateReader {
 
 impl FetchCompiledClasses for SyncStateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        let contract_class = self.get_compiled_class_from_client(class_hash)?;
+        let contract_class = self.get_contract_class_from_client(class_hash)?;
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
                 let sierra = self.read_sierra(class_hash)?.ok_or_else(|| {
@@ -165,7 +165,7 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = self.get_compiled_class_from_client(class_hash)?;
+        let contract_class = self.get_contract_class_from_client(class_hash)?;
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
