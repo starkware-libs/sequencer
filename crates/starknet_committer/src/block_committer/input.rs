@@ -119,7 +119,7 @@ impl From<ThinStateDiff> for StateDiff {
 }
 
 /// Trait contains all optional configurations of the committer.
-pub trait Config: Debug + Eq + PartialEq {
+pub trait Config: Debug + Eq + PartialEq + Send + Sync {
     /// Indicates whether a warning should be given in case of a trivial state update.
     /// If the configuration is set, it requires that the storage will contain the original data for
     /// the modified leaves. Otherwise, it is not required.
