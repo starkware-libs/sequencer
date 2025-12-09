@@ -2,72 +2,68 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
-use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
-    LeafModifications,
-    LeafWithEmptyKeyContext,
-};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::NodeLayout;
-use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::{read_forest, ForestReader, ForestWriter};
-use crate::db::index_db::leaves::TrieType;
+use crate::db::index_db::leaves::{
+    IndexLayoutCompiledClassHash,
+    IndexLayoutContractState,
+    IndexLayoutStarknetStorageValue,
+    TrieType,
+};
+use crate::db::index_db::types::{
+    EmptyNodeData,
+    IndexFilledNode,
+    IndexLayoutSubTree,
+    IndexNodeContext,
+};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
+use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
-/// Facts DB node layout.
-///
-/// In a facts DB, the storage keys are node hashes and the values are preimages. In particular,
-/// each nodes holds its child node hashes. In this layout, only once the  parent is traversed we
-/// have the db keys of its children.
-pub struct FactsNodeLayout {}
-
-impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
-    type NodeData = HashOutput;
-
-    type NodeDbObject = FactDbFilledNode<L>;
-
-    type DeserializationContext = FactNodeDeserializationContext;
-
-    type SubTree = FactsSubTree<'a>;
-
-    fn generate_key_context(_trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
-        EmptyKeyContext
-    }
+pub struct IndexDb<S: Storage> {
+    storage: S,
 }
 
-pub struct FactsDb<S: Storage> {
-    // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
-    // private.
-    pub storage: S,
-}
-
-impl<S: Storage> FactsDb<S> {
+impl<S: Storage> IndexDb<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
     }
 }
 
-impl FactsDb<MapStorage> {
-    pub fn consume_storage(self) -> MapStorage {
-        self.storage
+pub struct IndexNodeLayout {}
+
+impl<'a, L> NodeLayout<'a, L> for IndexNodeLayout
+where
+    L: Leaf + HasStaticPrefix<KeyContext = TrieType>,
+    TreeHashFunctionImpl: TreeHashFunction<L>,
+{
+    type NodeData = EmptyNodeData;
+    type NodeDbObject = IndexFilledNode<L>;
+    type DeserializationContext = IndexNodeContext;
+    type SubTree = IndexLayoutSubTree<'a>;
+
+    fn generate_key_context(trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
+        trie_type
     }
 }
 
+// TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
+// create_xxx_trie.
 #[async_trait]
-impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
+impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
@@ -79,7 +75,13 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        read_forest::<S, StarknetStorageValue, ContractState, CompiledClassHash, FactsNodeLayout>(
+        read_forest::<
+            S,
+            IndexLayoutStarknetStorageValue,
+            IndexLayoutContractState,
+            IndexLayoutCompiledClassHash,
+            IndexNodeLayout,
+        >(
             &mut self.storage,
             context,
             storage_updates,
@@ -92,11 +94,11 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
 }
 
 #[async_trait]
-impl<S: Storage> ForestWriter for FactsDb<S> {
+impl<S: Storage> ForestWriter for IndexDb<S> {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
         let mut serialized_forest = DbHashMap::new();
 
-        // Storage tries.
+        // TODO(Ariel): use a different key context when FilledForest is generic over leaf types.
         for tree in filled_forest.storage_tries.values() {
             serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
         }
