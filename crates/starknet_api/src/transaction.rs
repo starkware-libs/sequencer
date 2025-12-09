@@ -26,6 +26,7 @@ use crate::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -679,7 +680,7 @@ pub struct InvokeTransactionV3 {
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
     #[serde(default)]
-    pub proof_facts: Vec<Felt>,
+    pub proof_facts: ProofFacts,
 }
 
 impl TransactionHasher for InvokeTransactionV3 {

@@ -19,6 +19,7 @@ use starknet_api::transaction::{
     InvokeTransactionV3,
     TransactionHash,
 };
+use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
@@ -103,7 +104,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
                 tx.account_deployment_data,
             )),
             // TODO(AvivG): Get from PyInvokeTransactionV3 once supported.
-            proof_facts: vec![],
+            proof_facts: ProofFacts::default(),
         })
     }
 }

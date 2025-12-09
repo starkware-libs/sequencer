@@ -122,6 +122,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Resource,
     ResourceBounds,
     Tip,
@@ -426,6 +427,7 @@ pub trait GetTestInstance: Sized {
 
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct ProofFacts(pub Vec<Felt>);
     pub struct AllResourceBounds {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
@@ -725,7 +727,7 @@ auto_impl_get_test_instance! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
-        pub proof_facts: Vec<Felt>,
+        pub proof_facts: ProofFacts,
     }
     pub enum L1DataAvailabilityMode {
         Calldata = 0,

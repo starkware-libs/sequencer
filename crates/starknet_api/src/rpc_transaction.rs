@@ -20,6 +20,7 @@ use crate::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -630,7 +631,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
             // TODO(AvivG): Get from RpcInvokeTransactionV3 once supported.
-            proof_facts: vec![],
+            proof_facts: ProofFacts::default(),
         }
     }
 }

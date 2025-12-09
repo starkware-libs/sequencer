@@ -25,7 +25,7 @@ use starknet_api::deprecated_contract_class::{
     Program,
 };
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, ProofFacts};
 use starknet_api::transaction::{EventKey, TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 use tracing::debug;
@@ -631,7 +631,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 paymaster_data,
                 account_deployment_data,
                 // TODO(AvivG): Get proof facts from rpc_v8 once supported.
-                proof_facts: vec![],
+                proof_facts: ProofFacts::default(),
             }),
         }
     }
