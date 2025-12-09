@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 import eth_abi
@@ -7,7 +6,11 @@ import functools
 import inspect
 import logging
 import requests
-from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE, STARKNET_L1_CONTRACT_ADDRESS
+from l1_utils import (
+    LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
+    STARKNET_L1_CONTRACT_ADDRESS,
+    timestamp_to_iso,
+)
 
 
 class L1Client:
@@ -149,9 +152,7 @@ class L1Client:
         Get the block number at/after a given timestamp using blocks-by-timestamp API.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        timestamp_iso = (
-            datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
-        )
+        timestamp_iso = timestamp_to_iso(timestamp)
 
         params = {
             "networks": "eth-mainnet",
