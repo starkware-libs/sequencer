@@ -20,6 +20,7 @@ use crate::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -121,8 +122,8 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             fee_data_availability_mode: invoke_args.fee_data_availability_mode,
             paymaster_data: invoke_args.paymaster_data,
             account_deployment_data: invoke_args.account_deployment_data,
-            // TODO(AvivG): Get from invoke_args once supported.
-            proof_facts: vec![],
+            // TODO(AvivG): Get proof_facts from invoke_args once supported.
+            proof_facts: ProofFacts::default(),
         })
     } else {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version)

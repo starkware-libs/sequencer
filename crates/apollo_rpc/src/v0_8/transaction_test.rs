@@ -14,6 +14,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
 };
@@ -120,6 +121,7 @@ auto_impl_get_test_instance! {
         pub account_deployment_data: AccountDeploymentData,
         pub nonce_data_availability_mode: DataAvailabilityMode,
         pub fee_data_availability_mode: DataAvailabilityMode,
+        pub proof_facts: ProofFacts,
     }
     pub enum TransactionVersion0 {
         Version0 = 0,

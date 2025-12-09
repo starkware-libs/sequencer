@@ -10,6 +10,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
 };
@@ -103,7 +104,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
                 tx.account_deployment_data,
             )),
             // TODO(AvivG): Get from PyInvokeTransactionV3 once supported.
-            proof_facts: vec![],
+            proof_facts: ProofFacts::default(),
         })
     }
 }
