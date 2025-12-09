@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::HashOutput;
-use starknet_patricia::generate_trie_config;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -24,21 +23,28 @@ use crate::patricia_merkle_tree::types::{
     RootHashes,
     StarknetForestProofs,
 };
-generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
 
-generate_trie_config!(OriginalSkeletonClassesTrieConfig, CompiledClassHash);
+pub struct OriginalSkeletonTrieConfig {
+    compare_modified_leaves: bool,
+}
 
-pub(crate) struct OriginalSkeletonContractsTrieConfig;
-
-impl OriginalSkeletonTreeConfig<ContractState> for OriginalSkeletonContractsTrieConfig {
-    fn compare_modified_leaves(&self) -> bool {
-        false
+impl OriginalSkeletonTrieConfig {
+    pub fn new(should_compare_modified_leaves: bool) -> Self {
+        Self { compare_modified_leaves: should_compare_modified_leaves }
     }
 }
 
-impl OriginalSkeletonContractsTrieConfig {
-    pub(crate) fn new() -> Self {
-        Self
+impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieConfig {
+    fn compare_modified_leaves(&self) -> bool {
+        self.compare_modified_leaves
+    }
+}
+
+pub(crate) struct OriginalSkeletonTrieDontCompareConfig;
+
+impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieDontCompareConfig {
+    fn compare_modified_leaves(&self) -> bool {
+        false
     }
 }
 
