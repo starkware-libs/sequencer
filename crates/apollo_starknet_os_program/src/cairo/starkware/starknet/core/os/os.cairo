@@ -22,8 +22,10 @@ from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
 from starkware.starknet.core.os.block_context import (
     BlockContext,
     CompiledClassFactsBundle,
+    OsGlobalContext,
     get_block_context,
 )
+from starkware.starknet.core.os.builtins import get_builtin_params
 from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
     STORED_BLOCK_HASH_BUFFER,
@@ -94,56 +96,38 @@ func main{
     let initial_range_check_ptr = range_check_ptr;
     let range_check_ptr = range_check_ptr + 1;
 
+    local public_keys: felt*;
+    local n_public_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys) %}
+
+    // Build OS global context.
+    let os_global_context = get_os_global_context(
+        n_public_keys=n_public_keys, public_keys=public_keys
+    );
+
+    // Execute blocks.
     local n_blocks = nondet %{ len(os_input.block_inputs) %};
-
-    let (
-        local n_compiled_class_facts, local compiled_class_facts, local builtin_costs
-    ) = guess_compiled_class_facts();
-
-    let (
-        local n_deprecated_compiled_class_facts, deprecated_compiled_class_facts
-    ) = deprecated_load_compiled_class_facts();
-
     let (local os_outputs: OsOutput*) = alloc();
     %{
         from starkware.starknet.core.os.execution_helper import StateUpdatePointers
         state_update_pointers = StateUpdatePointers(segments=segments)
     %}
-    local compiled_class_facts_bundle: CompiledClassFactsBundle* = new CompiledClassFactsBundle(
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
-    );
-
-    local public_keys: felt*;
-    local n_public_keys: felt;
-    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys) %}
-    let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
-        n_public_keys=n_public_keys, public_keys=public_keys
-    );
-    local starknet_os_config: StarknetOsConfig* = new StarknetOsConfig(
-        chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
-        fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
-        public_keys_hash=public_keys_hash,
-    );
-
     local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
     let txs_range_check_ptr = initial_txs_range_check_ptr;
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
-            compiled_class_facts_bundle=compiled_class_facts_bundle,
-            starknet_os_config=starknet_os_config,
+            os_global_context=os_global_context,
         );
     }
 
     // Validate the guessed compile class facts.
+    let compiled_class_facts_bundle = os_global_context.compiled_class_facts_bundle;
     validate_compiled_class_facts_post_execution(
         n_compiled_class_facts=compiled_class_facts_bundle.n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts_bundle.compiled_class_facts,
-        builtin_costs=builtin_costs,
+        builtin_costs=compiled_class_facts_bundle.builtin_costs,
     );
 
     // Guess whether to use KZG commitment scheme and whether to output the full state.
@@ -245,12 +229,7 @@ func execute_blocks{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     txs_range_check_ptr,
-}(
-    n_blocks: felt,
-    os_output_per_block_dst: OsOutput*,
-    compiled_class_facts_bundle: CompiledClassFactsBundle*,
-    starknet_os_config: StarknetOsConfig*,
-) {
+}(n_blocks: felt, os_output_per_block_dst: OsOutput*, os_global_context: OsGlobalContext*) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
         return ();
@@ -284,17 +263,7 @@ func execute_blocks{
     let contract_class_changes_start = contract_class_changes;
 
     // Build block context.
-    let (execute_syscalls_ptr) = get_label_location(label_value=execute_syscalls);
-    let (execute_deprecated_syscalls_ptr) = get_label_location(
-        label_value=execute_deprecated_syscalls
-    );
-
-    let (block_context: BlockContext*) = get_block_context(
-        execute_syscalls_ptr=execute_syscalls_ptr,
-        execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
-        compiled_class_facts_bundle=compiled_class_facts_bundle,
-        starknet_os_config=starknet_os_config,
-    );
+    let (block_context: BlockContext*) = get_block_context(os_global_context=os_global_context);
 
     // Pre-process block.
     with contract_state_changes {
@@ -342,17 +311,6 @@ func execute_blocks{
 
     %{ vm_exit_scope() %}
 
-    // Compute the general config hash.
-    // This is done here to avoid passing pedersen_ptr to serialize_output_header.
-    let hash_ptr = pedersen_ptr;
-    with hash_ptr {
-        let (starknet_os_config_hash) = get_starknet_os_config_hash(
-            starknet_os_config=&block_context.starknet_os_config
-        );
-    }
-
-    let pedersen_ptr = hash_ptr;
-
     // All blocks inside of a multi block should be off-chain and therefore
     // should not be compressed.
     assert os_output_per_block_dst[0] = OsOutput(
@@ -363,7 +321,7 @@ func execute_blocks{
             prev_block_hash=nondet %{ block_input.prev_block_hash %},
             new_block_hash=nondet %{ block_input.new_block_hash %},
             os_program_hash=0,
-            starknet_os_config_hash=starknet_os_config_hash,
+            starknet_os_config_hash=os_global_context.starknet_os_config_hash,
             use_kzg_da=FALSE,
             full_output=TRUE,
         ),
@@ -375,8 +333,7 @@ func execute_blocks{
     return execute_blocks(
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
-        compiled_class_facts_bundle=compiled_class_facts_bundle,
-        starknet_os_config=starknet_os_config,
+        os_global_context=os_global_context,
     );
 }
 
@@ -498,4 +455,53 @@ func migrate_classes_to_v2_casm_hash{
     );
     migrate_classes_to_v2_casm_hash(n_classes=n_classes - 1, block_context=block_context);
     return ();
+}
+
+// Returns an OsGlobalContext instance.
+//
+// Note: the compiled class facts are guessed here, and must be validated post-execution.
+func get_os_global_context{
+    pedersen_ptr: HashBuiltin*, range_check_ptr, poseidon_ptr: PoseidonBuiltin*
+}(n_public_keys: felt, public_keys: felt*) -> OsGlobalContext* {
+    alloc_locals;
+    // Compiled class facts bundle.
+    let (n_compiled_class_facts, compiled_class_facts, builtin_costs) = guess_compiled_class_facts(
+        );
+    let (
+        n_deprecated_compiled_class_facts, deprecated_compiled_class_facts
+    ) = deprecated_load_compiled_class_facts();
+
+    // Starknet OS config.
+    let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
+        n_public_keys=n_public_keys, public_keys=public_keys
+    );
+    tempvar starknet_os_config = new StarknetOsConfig(
+        chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
+        fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
+        public_keys_hash=public_keys_hash,
+    );
+    let (starknet_os_config_hash) = get_starknet_os_config_hash{hash_ptr=pedersen_ptr}(
+        starknet_os_config=starknet_os_config
+    );
+
+    // Function pointers.
+    let (execute_syscalls_ptr) = get_label_location(label_value=execute_syscalls);
+    let (execute_deprecated_syscalls_ptr) = get_label_location(
+        label_value=execute_deprecated_syscalls
+    );
+    tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
+        starknet_os_config=starknet_os_config,
+        starknet_os_config_hash=starknet_os_config_hash,
+        compiled_class_facts_bundle=new CompiledClassFactsBundle(
+            n_compiled_class_facts=n_compiled_class_facts,
+            compiled_class_facts=compiled_class_facts,
+            builtin_costs=builtin_costs,
+            n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
+            deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        ),
+        builtin_params=get_builtin_params(),
+        execute_syscalls_ptr=execute_syscalls_ptr,
+        execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
+    );
+    return os_global_context;
 }
