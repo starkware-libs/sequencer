@@ -955,6 +955,50 @@ pub struct MempoolTransactionBatch {
     #[prost(message, repeated, tag = "1")]
     pub transactions: ::prost::alloc::vec::Vec<MempoolTransaction>,
 }
+/// A Merkle proof consisting of sibling hashes used to verify that a leaf belongs to a Merkle tree.
+/// Each sibling hash is 32 bytes (SHA-256). The siblings are ordered from leaf level to root level.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MerkleProof {
+    /// The sibling hashes needed to reconstruct the path from the leaf to the root.
+    /// Each hash is 32 bytes.
+    #[prost(message, repeated, tag = "1")]
+    pub siblings: ::prost::alloc::vec::Vec<Hash256>,
+}
+/// A single unit in the Propeller protocol containing a shard of erasure-coded data
+/// along with cryptographic proofs for verification.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnit {
+    /// The actual data shard (erasure-coded fragment of the original message).
+    #[prost(bytes = "vec", tag = "1")]
+    pub shard: ::prost::alloc::vec::Vec<u8>,
+    /// The position of this shard in the erasure coding scheme.
+    #[prost(uint64, tag = "2")]
+    pub index: u64,
+    /// The Merkle root of all shards, used to verify shard integrity.
+    #[prost(message, optional, tag = "3")]
+    pub merkle_root: ::core::option::Option<Hash256>,
+    /// The Merkle proof that this shard belongs to the tree with the given root.
+    #[prost(message, optional, tag = "4")]
+    pub merkle_proof: ::core::option::Option<MerkleProof>,
+    /// The peer ID of the original publisher who created and signed this unit.
+    #[prost(message, optional, tag = "5")]
+    pub publisher: ::core::option::Option<PeerId>,
+    /// Cryptographic signature from the publisher over the merkle_root.
+    #[prost(bytes = "vec", tag = "6")]
+    pub signature: ::prost::alloc::vec::Vec<u8>,
+    /// Logical channel identifier for multiplexing different message streams.
+    #[prost(uint32, tag = "7")]
+    pub channel: u32,
+}
+/// A batch of PropellerUnits for efficient transmission.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnitBatch {
+    #[prost(message, repeated, tag = "1")]
+    pub batch: ::prost::alloc::vec::Vec<PropellerUnit>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClassesRequest {
