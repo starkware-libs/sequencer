@@ -1,13 +1,17 @@
 use std::time::Duration;
 
 use apollo_metrics::metrics::LossyIntoF64;
-use sysinfo::{Pid, System};
+use sysinfo::{Networks, Pid, System};
 use tokio::time::interval;
 use tracing::warn;
 
 use crate::metrics::{
     SYSTEM_AVAILABLE_MEMORY_BYTES,
     SYSTEM_CPU_COUNT,
+    SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT,
+    SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL,
+    SYSTEM_NETWORK_BYTES_SENT_CURRENT,
+    SYSTEM_NETWORK_BYTES_SENT_TOTAL,
     SYSTEM_PROCESS_CPU_USAGE_PERCENT,
     SYSTEM_PROCESS_MEMORY_USAGE_BYTES,
     SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES,
@@ -41,15 +45,45 @@ fn collect_system_and_process_metrics(system: &mut System, current_pid: Pid) {
     }
 }
 
+/// Collects network interface metrics (bytes sent/received)
+fn collect_network_metrics(networks: &mut Networks) {
+    networks.refresh(false);
+
+    let mut total_bytes_sent: u64 = 0;
+    let mut total_bytes_received: u64 = 0;
+    let mut current_bytes_sent: u64 = 0;
+    let mut current_bytes_received: u64 = 0;
+
+    for (interface_name, data) in networks.iter() {
+        // Skip virtual interfaces used for traffic control and loopback to avoid
+        // double-counting
+        if interface_name == "lo" || interface_name.starts_with("ifb") {
+            continue;
+        }
+
+        total_bytes_sent += data.total_transmitted();
+        total_bytes_received += data.total_received();
+        current_bytes_sent += data.transmitted();
+        current_bytes_received += data.received();
+    }
+
+    SYSTEM_NETWORK_BYTES_SENT_TOTAL.set(total_bytes_sent.into_f64());
+    SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL.set(total_bytes_received.into_f64());
+    SYSTEM_NETWORK_BYTES_SENT_CURRENT.set(current_bytes_sent.into_f64());
+    SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT.set(current_bytes_received.into_f64());
+}
+
 pub async fn monitor_process_metrics(interval_seconds: u64) {
     let mut interval = interval(Duration::from_secs(interval_seconds));
     let current_pid = sysinfo::get_current_pid().expect("Failed to get current process PID");
 
     struct State {
         system: System,
+        networks: Networks,
     }
 
-    let mut state = Some(State { system: System::new_all() });
+    let mut state =
+        Some(State { system: System::new_all(), networks: Networks::new_with_refreshed_list() });
 
     loop {
         interval.tick().await;
@@ -59,6 +93,7 @@ pub async fn monitor_process_metrics(interval_seconds: u64) {
         // threads
         state = tokio::task::spawn_blocking(move || {
             collect_system_and_process_metrics(&mut passed_state.system, current_pid);
+            collect_network_metrics(&mut passed_state.networks);
             Some(passed_state)
         })
         .await
