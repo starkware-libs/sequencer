@@ -22,6 +22,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
+use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::trie_traversal::create_original_skeleton_tree;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 
@@ -211,7 +212,7 @@ async fn test_create_tree(
     let config = OriginalSkeletonTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let skeleton_tree = create_original_skeleton_tree(
+    let skeleton_tree = create_original_skeleton_tree::<MockLeaf, FactsNodeLayout>(
         &mut storage,
         root_hash,
         sorted_leaf_indices,
