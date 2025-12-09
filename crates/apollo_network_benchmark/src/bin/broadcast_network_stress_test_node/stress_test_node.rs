@@ -6,19 +6,19 @@ use apollo_network::NetworkConfig;
 use apollo_network_benchmark::node_args::NodeArgs;
 use futures::future::{select_all, BoxFuture};
 use futures::FutureExt;
-use libp2p::Multiaddr;
+use libp2p::swarm::dial_opts::DialOpts;
+use libp2p::{Multiaddr, PeerId};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::handlers::receive_stress_test_message;
+use crate::handlers::{receive_stress_test_message, send_stress_test_messages};
 use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
 
 /// The main stress test node that manages network communication and monitoring
 pub struct BroadcastNetworkStressTestNode {
     args: NodeArgs,
+    network_config: NetworkConfig,
     network_manager: Option<NetworkManager>,
-    // TODO(AndrewL): Remove this once they are used
-    #[allow(dead_code)]
     message_sender: Option<MessageSender>,
     message_receiver: Option<MessageReceiver>,
 }
@@ -56,7 +56,7 @@ impl BroadcastNetworkStressTestNode {
         let network_config = Self::create_network_config(&args);
 
         // Create network manager
-        let mut network_manager = NetworkManager::new(network_config, None, None);
+        let mut network_manager = NetworkManager::new(network_config.clone(), None, None);
 
         // Register protocol channels
         let (message_sender, message_receiver) = register_protocol_channels(
@@ -66,6 +66,7 @@ impl BroadcastNetworkStressTestNode {
         );
         Self {
             args,
+            network_config,
             network_manager: Some(network_manager),
             message_sender: Some(message_sender),
             message_receiver: Some(message_receiver),
@@ -78,6 +79,39 @@ impl BroadcastNetworkStressTestNode {
             self.network_manager.take().expect("Network manager should be available");
         async move {
             let _ = network_manager.run().await;
+        }
+        .boxed()
+    }
+
+    fn get_peers(&self) -> Vec<PeerId> {
+        self.network_config
+            .bootstrap_peer_multiaddr
+            .as_ref()
+            .map(|peers| {
+                peers
+                    .iter()
+                    .filter_map(|multiaddr| {
+                        let peer_id = DialOpts::from(multiaddr.clone()).get_peer_id();
+                        if peer_id.is_none() {
+                            warn!("Bootstrap multiaddr missing peer ID: {multiaddr}");
+                        }
+                        peer_id
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Starts the message sending task if this node should broadcast
+    pub async fn start_message_sender(&mut self) -> BoxFuture<'static, ()> {
+        let message_sender =
+            self.message_sender.take().expect("message_sender should be available");
+
+        let args = self.args.clone();
+        let peers = self.get_peers();
+
+        async move {
+            send_stress_test_messages(message_sender, &args, peers).await;
         }
         .boxed()
     }
@@ -100,6 +134,7 @@ impl BroadcastNetworkStressTestNode {
         let mut tasks = Vec::new();
         tasks.push(self.start_network_manager().await);
         tasks.push(self.make_message_receiver_task().await);
+        tasks.push(self.start_message_sender().await);
 
         tasks
     }
