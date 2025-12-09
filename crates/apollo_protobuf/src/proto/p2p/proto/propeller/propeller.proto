@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "p2p/proto/common.proto";
+
+// TODO(AndrewL): Uncomment this when we have a go_package for the propeller proto.
+// option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/propeller";
+
+message PropellerUnit {
+    uint32 channel = 1;
+    bytes publisher = 2;
+    bytes root = 3;
+    bytes signature = 4;
+    uint32 index = 5;
+    bytes shard = 6;
+    bytes proof = 7;
+}
+
+message PropellerUnitBatch {
+    repeated PropellerUnit batch = 1;
+}
+
