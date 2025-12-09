@@ -99,6 +99,26 @@ fn save_execution_info(
         .unwrap_or_else(|e| panic!("Failed to write execution info to {:?}: {}", file_path, e));
 }
 
+/// Saves state diff (expected and actual) to files in the given directory.
+fn save_state_diffs(
+    dir_path: &PathBuf,
+    expected_state_diff: &CommitmentStateDiff,
+    actual_state_diff: &CommitmentStateDiff,
+) {
+    let expected_path = dir_path.join("expected_state_diff.txt");
+    let actual_path = dir_path.join("actual_state_diff.txt");
+    
+    let expected_content = format!("{:#?}", ComparableStateDiff::from(expected_state_diff.clone()));
+    let actual_content = format!("{:#?}", ComparableStateDiff::from(actual_state_diff.clone()));
+    
+    write(&expected_path, expected_content)
+        .unwrap_or_else(|e| panic!("Failed to write expected state diff to {:?}: {}", expected_path, e));
+    write(&actual_path, actual_content)
+        .unwrap_or_else(|e| panic!("Failed to write actual state diff to {:?}: {}", actual_path, e));
+    
+    println!("State diffs saved to: {}", dir_path.display());
+}
+
 /// Creates a ContractClassManagerConfig with custom native compilation settings for reexecution.
 #[cfg(feature = "cairo_native")]
 pub fn create_native_config_for_reexecution(
@@ -298,6 +318,9 @@ pub fn reexecute_and_verify_correctness<
     let actual_state_diff =
         transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
 
+    // Save state diffs to the execution info directory.
+    save_state_diffs(&exec_info_dir, &expected_state_diff, &actual_state_diff);
+
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
     transaction_executor.block_state
@@ -436,6 +459,9 @@ pub fn reexecute_and_verify_correctness_with_native<
     // block_state.
     let actual_state_diff =
         transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
+
+    // Save state diffs to the execution info directory.
+    save_state_diffs(&exec_info_dir, &expected_state_diff, &actual_state_diff);
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
