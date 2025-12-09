@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -9,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{StorageError, StorageReader};
@@ -18,20 +21,44 @@ use crate::{StorageError, StorageReader};
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
 
-// TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
-#[allow(dead_code)]
 /// Configuration for the storage reader server.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServerConfig {
     /// The socket address to bind the server to.
-    socket: SocketAddr,
+    pub socket: SocketAddr,
     /// Whether the server is enabled.
-    enable: bool,
+    pub enable: bool,
 }
 
 impl ServerConfig {
     /// Creates a new server configuration.
     pub fn new(socket: SocketAddr, enable: bool) -> Self {
         Self { socket, enable }
+    }
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self { socket: (Ipv4Addr::UNSPECIFIED, 8080).into(), enable: false }
+    }
+}
+
+impl SerializeConfig for ServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "socket",
+                &self.socket.to_string(),
+                "The socket address for the storage reader HTTP server.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "enable",
+                &self.enable,
+                "Whether to enable the storage reader HTTP server.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -155,5 +182,24 @@ impl IntoResponse for StorageServerError {
         let error_message = format!("Storage error: {}", self.0);
         error!("{}", error_message);
         (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+    }
+}
+
+/// Creates and returns an optional StorageReaderServer based on the enable flag.
+pub fn create_storage_reader_server<RequestHandler, Request, Response>(
+    storage_reader: StorageReader,
+    socket: SocketAddr,
+    enable: bool,
+) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+where
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    Request: Serialize + DeserializeOwned + Send + 'static,
+    Response: Serialize + DeserializeOwned + Send + 'static,
+{
+    if enable {
+        let config = ServerConfig::new(socket, enable);
+        Some(StorageReaderServer::new(storage_reader, config))
+    } else {
+        None
     }
 }
