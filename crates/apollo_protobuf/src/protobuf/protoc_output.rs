@@ -957,6 +957,30 @@ pub struct MempoolTransactionBatch {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnit {
+    #[prost(uint32, tag = "1")]
+    pub channel: u32,
+    #[prost(bytes = "vec", tag = "2")]
+    pub publisher: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "3")]
+    pub root: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "4")]
+    pub signature: ::prost::alloc::vec::Vec<u8>,
+    #[prost(uint32, tag = "5")]
+    pub index: u32,
+    #[prost(bytes = "vec", tag = "6")]
+    pub shard: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "7")]
+    pub proof: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnitBatch {
+    #[prost(message, repeated, tag = "1")]
+    pub batch: ::prost::alloc::vec::Vec<PropellerUnit>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClassesRequest {
     #[prost(message, optional, tag = "1")]
     pub iteration: ::core::option::Option<Iteration>,
