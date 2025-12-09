@@ -21,7 +21,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 
 // Const describe the size of the serialized node.
-pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
+pub const SERIALIZE_HASH_BYTES: usize = 32;
 pub(crate) const BINARY_BYTES: usize = 2 * SERIALIZE_HASH_BYTES;
 pub(crate) const EDGE_LENGTH_BYTES: usize = 1;
 pub(crate) const EDGE_PATH_BYTES: usize = 32;
