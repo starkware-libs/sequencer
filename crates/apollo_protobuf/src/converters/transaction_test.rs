@@ -121,6 +121,8 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
     let mut transaction =
         starknet_api::transaction::InvokeTransactionV3::get_test_instance(&mut rng);
     transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
+    // TODO(AvivG): Remove this once proof_facts is added to P2P protocol.
+    transaction.proof_facts = vec![];
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);

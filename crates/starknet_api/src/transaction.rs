@@ -678,6 +678,8 @@ pub struct InvokeTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
+    #[serde(default)]
+    pub proof_facts: Vec<Felt>,
 }
 
 impl TransactionHasher for InvokeTransactionV3 {
