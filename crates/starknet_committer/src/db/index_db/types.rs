@@ -13,7 +13,11 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{
+    DBObject,
+    EmptyDeserializationContext,
+    HasStaticPrefix,
+};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
@@ -63,7 +67,7 @@ where
         deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
         if deserialize_context.is_leaf {
-            let leaf = L::deserialize(value, &())?;
+            let leaf = L::deserialize(value, &EmptyDeserializationContext)?;
             let hash = TreeHashFunctionImpl::compute_leaf_hash(&leaf);
             Ok(IndexFilledNode(FilledNode { hash, data: NodeData::Leaf(leaf) }))
         } else if value.0.len() == INDEX_LAYOUT_BINARY_BYTES {
@@ -101,13 +105,13 @@ pub struct IndexLayoutSubTree<'a> {
 }
 
 impl<'a> SubTreeTrait<'a> for IndexLayoutSubTree<'a> {
-    type ChildData = ();
+    type NodeData = ();
     type NodeContext = IndexNodeContext;
 
-    fn create_child(
+    fn create(
         sorted_leaf_indices: SortedLeafIndices<'a>,
         root_index: NodeIndex,
-        _child_data: Self::ChildData,
+        _child_data: Self::NodeData,
     ) -> Self {
         Self { sorted_leaf_indices, root_index }
     }
@@ -120,7 +124,7 @@ impl<'a> SubTreeTrait<'a> for IndexLayoutSubTree<'a> {
     fn should_traverse_unmodified_children() -> bool {
         true
     }
-    fn unmodified_child_hash(_data: Self::ChildData) -> Option<HashOutput> {
+    fn unmodified_child_hash(_data: Self::NodeData) -> Option<HashOutput> {
         None
     }
     fn get_root_context(&self) -> Self::NodeContext {
