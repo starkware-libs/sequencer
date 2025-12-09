@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timezone
+from typing import Any
 
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs
@@ -15,3 +17,7 @@ LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
 def timestamp_to_iso(timestamp: int) -> str:
     """Convert Unix timestamp to ISO 8601 string (UTC)."""
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def rpc_response(result: Any) -> str:
+    return json.dumps({"jsonrpc": "2.0", "id": "1", "result": result})
