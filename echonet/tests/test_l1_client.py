@@ -19,7 +19,7 @@ class TestL1Client(unittest.TestCase):
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {"result": [L1TestUtils.RAW_JSON_LOG]}
+        successful_response.json.return_value = L1TestUtils.LOGS_RPC_RESPONSE
         mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
@@ -29,7 +29,7 @@ class TestL1Client(unittest.TestCase):
         )
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(logs, [L1TestUtils.RAW_JSON_LOG])
+        self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
     def test_get_logs_raises_on_invalid_block_range(self):
         client = L1Client(api_key="api_key")
@@ -44,20 +44,18 @@ class TestL1Client(unittest.TestCase):
 
     @patch("l1_client.requests.post")
     def test_get_logs_when_rpc_result_is_empty(self, mock_post):
+        empty_response = L1TestUtils.logs_rpc_response_with_logs([])
         response_ok = Mock()
         response_ok.raise_for_status.return_value = None
-        response_ok.json.return_value = {"result": []}
+        response_ok.json.return_value = empty_response
 
         mock_post.return_value = response_ok
 
         client = L1Client(api_key="api_key")
-        logs = client.get_logs(
-            from_block=1,
-            to_block=1,
-        )
+        logs = client.get_logs(from_block=1, to_block=1)
 
         self.assertEqual(mock_post.call_count, 1)
-        self.assertEqual(logs, [])
+        self.assertEqual(logs, empty_response)
 
     @patch("l1_client.requests.post")
     def test_get_timestamp_of_block_retries_after_failure_and_succeeds(self, mock_post):
@@ -149,13 +147,13 @@ class TestL1Client(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_decode_log_success(self):
-        result = L1Client.decode_log_response(L1TestUtils.RAW_JSON_LOG)
+        result = L1Client.decode_log_response(L1TestUtils.LOG)
 
         self.assertIsInstance(result, L1Client.L1Event)
         self.assertEqual(result, L1TestUtils.L1_EVENT)
 
     def test_decode_log_invalid_topics_raises_error(self):
-        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
+        log = copy.deepcopy(L1TestUtils.LOG)
         log["topics"] = ["0x1", "0x2"]
         with self.assertRaisesRegex(
             ValueError, "Log has insufficient topics for LogMessageToL2 event"
@@ -163,7 +161,7 @@ class TestL1Client(unittest.TestCase):
             L1Client.decode_log_response(log)
 
     def test_decode_log_wrong_signature_raises_error(self):
-        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
+        log = copy.deepcopy(L1TestUtils.LOG)
         log["topics"][0] = "0x0000000000000000000000000000000000000000000000000000000000000001"
         with self.assertRaisesRegex(ValueError, "Unhandled event signature"):
             L1Client.decode_log_response(log)

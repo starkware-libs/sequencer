@@ -10,7 +10,8 @@ class L1TestUtils:
     BLOCK_RANGE = [BLOCK_NUMBER - 10, BLOCK_NUMBER + 10]
     NONCE = 0x19B255
 
-    RAW_JSON_LOG = {
+    # Log entry (the "result" content)
+    LOG = {
         "address": "0xc662c410c0ecf747543f5ba90660f6abebd9c8c4",
         "topics": [
             "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b",  # event_signature
@@ -34,6 +35,13 @@ class L1TestUtils:
         "transactionIndex": "0x4f",
         "logIndex": "0x7b",
         "removed": False,
+    }
+
+    # Full JSON-RPC response from get_logs
+    LOGS_RPC_RESPONSE = {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "result": [LOG],
     }
 
     L1_EVENT = L1Client.L1Event(
@@ -73,8 +81,9 @@ class L1TestUtils:
     }
 
     @staticmethod
-    def raw_log_with_nonce(nonce: int) -> dict:
-        log = copy.deepcopy(L1TestUtils.RAW_JSON_LOG)
+    def log_with_nonce(nonce: int) -> dict:
+        """Returns a copy of LOG with a different nonce."""
+        log = copy.deepcopy(L1TestUtils.LOG)
 
         data = log["data"]
         nonce_hex = f"{nonce:064x}"
@@ -87,3 +96,12 @@ class L1TestUtils:
         log["data"] = data[:slot_start] + nonce_hex + data[slot_end:]
 
         return log
+
+    @staticmethod
+    def logs_rpc_response_with_logs(logs: list) -> dict:
+        """Returns a full JSON-RPC response with the given logs."""
+        return {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": logs,
+        }

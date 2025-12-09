@@ -58,9 +58,11 @@ class L1Blocks:
         if not start_block_data or not end_block_data:
             return None
 
-        logs = client.get_logs(start_block_data, end_block_data)
+        logs_response = client.get_logs(start_block_data, end_block_data)
+        if logs_response is None:
+            return None
 
-        for log in logs:
+        for log in logs_response.get("result", []):
             l1_event = L1Client.decode_log_response(log)
 
             if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):
@@ -72,6 +74,6 @@ class L1Blocks:
         # Not found in this range
         logger.info(
             f"No matching L1 block found for L2 tx: {feeder_tx['transaction_hash']} "
-            f"in the range {timestamp_to_iso(search_start_timestamp)} to {timestamp_to_iso(search_end_timestamp)}"
+            f"in range {timestamp_to_iso(search_start_timestamp)}-{timestamp_to_iso(search_end_timestamp)}"
         )
         return None
