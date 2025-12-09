@@ -265,6 +265,8 @@ fn invoke_transaction() -> RpcInvokeTransaction {
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
+        proof: vec![],
+        proof_facts: vec![],
     })
 }
 
@@ -779,6 +781,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
+            proof_facts: vec![],
         }),
         CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
             resource_bounds: Some(
@@ -842,6 +845,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
+            proof_facts: vec![],
         }),
     ];
 
@@ -1059,6 +1063,7 @@ fn test_invoke_tx_size_of() {
     // + internal_invoke_tx.sender_address.dynamic_size()
     // + internal_invoke_tx.signature.dynamic_size()
     // + internal_invoke_tx.tip.dynamic_size();
+    // + internal_invoke_tx.proof_facts.dynamic_size();
 
-    assert_eq!(invoke_tx.size_bytes(), 448);
+    assert_eq!(invoke_tx.size_bytes(), 496);
 }

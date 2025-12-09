@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -573,6 +574,8 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+    pub proof: Vec<u32>,
+    pub proof_facts: Vec<Felt>,
 }
 
 impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
@@ -603,6 +606,9 @@ impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
     fn calldata(&self) -> &Calldata {
         &self.calldata
     }
+    fn proof_facts(&self) -> &Vec<Felt> {
+        &self.proof_facts
+    }
 }
 
 impl TransactionHasher for RpcInvokeTransactionV3 {
@@ -628,6 +634,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
             fee_data_availability_mode: tx.fee_data_availability_mode,
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
+            proof_facts: tx.proof_facts,
         }
     }
 }
@@ -654,6 +661,9 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
             sender_address: value.sender_address,
             calldata: value.calldata,
             account_deployment_data: value.account_deployment_data,
+            // TODO(AvivG): empty OK here? where used?
+            proof: vec![],
+            proof_facts: value.proof_facts,
         })
     }
 }
