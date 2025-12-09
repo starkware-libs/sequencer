@@ -19,7 +19,7 @@ use starknet_committer::hash_function::hash::{
     CONTRACT_STATE_HASH_VERSION,
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -167,7 +167,7 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                     leaf_modifications,
                     &mut storage,
                     root_hash,
-                    OriginalSkeletonStorageTrieConfig::new(false),
+                    OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
                 )
                 .await;
                 // 3. Serialize and return output.
