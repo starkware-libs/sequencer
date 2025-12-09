@@ -17,6 +17,7 @@ from starkware.starknet.core.os.os_config.os_config import StarknetOsConfig
 struct CompiledClassFactsBundle {
     n_compiled_class_facts: felt,
     compiled_class_facts: CompiledClassFact*,
+    builtin_costs: felt*,
     n_deprecated_compiled_class_facts: felt,
     deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
 }
@@ -50,17 +51,30 @@ struct BlockContext {
     execute_deprecated_syscalls_ptr: felt*,
 }
 
+// Holds global context for the OS execution.
+struct OsGlobalContext {
+    // OS config available globally for all blocks.
+    starknet_os_config: StarknetOsConfig*,
+    starknet_os_config_hash: felt,
+
+    // Compiled class facts available globally for all blocks.
+    compiled_class_facts_bundle: CompiledClassFactsBundle*,
+
+    // Parameters for select_builtins.
+    builtin_params: BuiltinParams*,
+    // A function pointer to the 'execute_syscalls' function.
+    execute_syscalls_ptr: felt*,
+    // A function pointer to the 'execute_deprecated_syscalls' function.
+    execute_deprecated_syscalls_ptr: felt*,
+}
+
 // Returns a BlockContext instance.
 //
-// 'syscall_handler' and 'block_input' should be passed as hint variables.
-func get_block_context{range_check_ptr}(
-    execute_syscalls_ptr: felt*,
-    execute_deprecated_syscalls_ptr: felt*,
-    compiled_class_facts_bundle: CompiledClassFactsBundle*,
-    starknet_os_config: StarknetOsConfig*,
-) -> (block_context: BlockContext*) {
+// 'syscall_handler' should be passed as a hint variable.
+func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> (
+    block_context: BlockContext*
+) {
     alloc_locals;
-    let (builtin_params) = get_builtin_params();
     tempvar block_number = nondet %{ syscall_handler.block_info.block_number %};
     tempvar block_timestamp = nondet %{ syscall_handler.block_info.block_timestamp %};
     let (divided_block_number, _) = unsigned_div_rem(block_number, VALIDATE_BLOCK_NUMBER_ROUNDING);
@@ -69,8 +83,9 @@ func get_block_context{range_check_ptr}(
         block_timestamp, VALIDATE_TIMESTAMP_ROUNDING
     );
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
+    let compiled_class_facts_bundle = os_global_context.compiled_class_facts_bundle;
     local block_context: BlockContext = BlockContext(
-        builtin_params=builtin_params,
+        builtin_params=os_global_context.builtin_params,
         n_compiled_class_facts=compiled_class_facts_bundle.n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts_bundle.compiled_class_facts,
         n_deprecated_compiled_class_facts=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
@@ -85,9 +100,9 @@ func get_block_context{range_check_ptr}(
             block_timestamp=block_timestamp_for_validate,
             sequencer_address=0,
         ),
-        starknet_os_config=[starknet_os_config],
-        execute_syscalls_ptr=execute_syscalls_ptr,
-        execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
+        starknet_os_config=[os_global_context.starknet_os_config],
+        execute_syscalls_ptr=os_global_context.execute_syscalls_ptr,
+        execute_deprecated_syscalls_ptr=os_global_context.execute_deprecated_syscalls_ptr,
     );
 
     let (__fp__, _) = get_fp_and_pc();

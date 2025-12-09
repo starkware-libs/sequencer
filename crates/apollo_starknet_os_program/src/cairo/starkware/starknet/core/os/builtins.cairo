@@ -72,7 +72,7 @@ struct BuiltinParams {
 static_assert SelectableBuiltins.SIZE == BuiltinEncodings.SIZE;
 static_assert SelectableBuiltins.SIZE == BuiltinInstanceSizes.SIZE;
 
-func get_builtin_params() -> (builtin_params: BuiltinParams*) {
+func get_builtin_params() -> BuiltinParams* {
     alloc_locals;
     let (local __fp__, _) = get_fp_and_pc();
 
@@ -105,7 +105,7 @@ func get_builtin_params() -> (builtin_params: BuiltinParams*) {
     local builtin_params: BuiltinParams = BuiltinParams(
         builtin_encodings=&builtin_encodings, builtin_instance_sizes=&builtin_instance_sizes
     );
-    return (builtin_params=&builtin_params);
+    return &builtin_params;
 }
 
 // Updates the builtins listed in `selected_encodings` (the "selected" builtins) in `builtin_ptrs`
