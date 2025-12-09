@@ -337,6 +337,18 @@ impl Mempool {
     }
 
     /// Perform validation-only of an incoming transaction (without changing the state).
+    #[instrument(
+        level = "debug",
+        skip(self, args),
+        fields( // Log subset of (informative) fields.
+            tx_nonce = %args.tx_nonce,
+            tx_hash = %args.tx_hash,
+            tx_tip = %args.tip,
+            tx_max_l2_gas_price = %args.max_l2_gas_price,
+            address = %args.address
+        ),
+        err)
+    ]
     pub fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
         let tx_reference = (&args).into();
         self.validate_incoming_tx(tx_reference, args.account_nonce)?;
@@ -602,7 +614,6 @@ impl Mempool {
     /// actually removing the existing transaction. If `false`, removes the existing transaction
     /// when replacement is valid.
     /// Note: This method will **not** add the new incoming transaction.
-    #[instrument(level = "debug", skip(self), err)]
     fn handle_fee_escalation(
         &mut self,
         incoming_tx_reference: TransactionReference,
