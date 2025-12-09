@@ -8,6 +8,10 @@ use tracing::warn;
 use crate::metrics::{
     SYSTEM_AVAILABLE_MEMORY_BYTES,
     SYSTEM_CPU_COUNT,
+    SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT,
+    SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL,
+    SYSTEM_NETWORK_BYTES_SENT_CURRENT,
+    SYSTEM_NETWORK_BYTES_SENT_TOTAL,
     SYSTEM_PROCESS_CPU_USAGE_PERCENT,
     SYSTEM_PROCESS_MEMORY_USAGE_BYTES,
     SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES,
@@ -126,9 +130,39 @@ fn get_process_memory() -> Option<(u64, u64)> {
     Some((rss_kb? * 1024, vsize_kb? * 1024))
 }
 
+/// Reads per-interface network byte counters from /proc/net/dev.
+/// Returns a vec of (interface_name, rx_bytes, tx_bytes).
+fn get_network_stats() -> Option<Vec<(String, u64, u64)>> {
+    let content = match fs::read_to_string("/proc/net/dev") {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("Failed to read /proc/net/dev: {}", e);
+            return None;
+        }
+    };
+
+    let mut result = Vec::new();
+    // Skip the first two header lines
+    for line in content.lines().skip(2) {
+        let (iface, rest) = line.split_once(':')?;
+        let iface = iface.trim().to_string();
+        let fields: Vec<&str> = rest.split_whitespace().collect();
+        // Field 0 = rx_bytes, field 8 = tx_bytes
+        let rx_bytes: u64 = fields.first()?.parse().ok()?;
+        let tx_bytes: u64 = fields.get(8)?.parse().ok()?;
+        result.push((iface, rx_bytes, tx_bytes));
+    }
+    Some(result)
+}
+
 struct CpuState {
     prev_ticks: u64,
     prev_time: Instant,
+}
+
+struct NetworkState {
+    prev_bytes_sent: u64,
+    prev_bytes_received: u64,
 }
 
 /// Collects system-wide and process-specific metrics (CPU, memory) by reading /proc directly.
@@ -166,14 +200,49 @@ fn collect_system_and_process_metrics(cpu_state: &mut Option<CpuState>) {
     }
 }
 
+/// Collects network interface metrics (bytes sent/received) by reading /proc/net/dev.
+fn collect_network_metrics(network_state: &mut Option<NetworkState>) {
+    let stats = match get_network_stats() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let mut total_bytes_sent: u64 = 0;
+    let mut total_bytes_received: u64 = 0;
+
+    for (iface, rx, tx) in &stats {
+        if iface == "lo" || iface.starts_with("ifb") {
+            continue;
+        }
+        total_bytes_sent += tx;
+        total_bytes_received += rx;
+    }
+
+    SYSTEM_NETWORK_BYTES_SENT_TOTAL.set(total_bytes_sent.into_f64());
+    SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL.set(total_bytes_received.into_f64());
+
+    if let Some(prev) = network_state.as_ref() {
+        let current_sent = total_bytes_sent.saturating_sub(prev.prev_bytes_sent);
+        let current_received = total_bytes_received.saturating_sub(prev.prev_bytes_received);
+        SYSTEM_NETWORK_BYTES_SENT_CURRENT.set(current_sent.into_f64());
+        SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT.set(current_received.into_f64());
+    }
+
+    *network_state = Some(NetworkState {
+        prev_bytes_sent: total_bytes_sent,
+        prev_bytes_received: total_bytes_received,
+    });
+}
+
 pub async fn monitor_process_metrics(interval_seconds: u64) {
     let mut interval = interval(Duration::from_secs(interval_seconds));
 
     struct State {
         cpu_state: Option<CpuState>,
+        network_state: Option<NetworkState>,
     }
 
-    let mut state = Some(State { cpu_state: None });
+    let mut state = Some(State { cpu_state: None, network_state: None });
 
     loop {
         interval.tick().await;
@@ -182,6 +251,7 @@ pub async fn monitor_process_metrics(interval_seconds: u64) {
         state = tokio::task::spawn_blocking(move || {
             let mut state = passed_state.unwrap();
             collect_system_and_process_metrics(&mut state.cpu_state);
+            collect_network_metrics(&mut state.network_state);
             Some(state)
         })
         .await
