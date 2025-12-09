@@ -714,11 +714,6 @@
     "privacy": "Public",
     "value": 500
   },
-  "components.committer.remote_client_config.connection_timeout_ms": {
-    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
-    "privacy": "Public",
-    "value": 500
-  },
   "components.committer.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
