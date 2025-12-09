@@ -74,10 +74,10 @@ class L1Client:
 
         return None
 
-    def get_logs(self, from_block: int, to_block: int) -> List[dict]:
+    def get_logs(self, from_block: int, to_block: int) -> Optional[Dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
-        Tries up to retries_count times. On failure, logs an error and returns [].
+        Tries up to retries_count times. On failure, logs an error and returns None.
         """
         if from_block > to_block:
             raise ValueError("from_block must be less than or equal to to_block")
@@ -97,7 +97,7 @@ class L1Client:
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        data = self._run_request_with_retry(
+        return self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={
                 "url": self.rpc_url,
@@ -105,11 +105,6 @@ class L1Client:
                 "to_block": to_block,
             },
         )
-
-        if data is None:
-            return []
-
-        return data.get("result", [])
 
     def get_block_by_number(self, block_number: str) -> Optional[Dict]:
         """

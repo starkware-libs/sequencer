@@ -58,9 +58,11 @@ class L1Blocks:
         if not start_block_data or not end_block_data:
             return None
 
-        logs = client.get_logs(start_block_data, end_block_data)
+        logs_response = client.get_logs(start_block_data, end_block_data)
+        if logs_response is None:
+            return None
 
-        for log in logs:
+        for log in logs_response.get("result", []):
             l1_event = L1Client.decode_log_response(log)
 
             if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):

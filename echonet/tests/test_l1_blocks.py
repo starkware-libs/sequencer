@@ -15,7 +15,7 @@ class TestL1Blocks(unittest.TestCase):
     def test_find_l1_block_for_tx_success(self):
         mock_client = Mock(spec=L1Client)
         mock_client.get_block_number_by_timestamp.side_effect = L1TestUtils.BLOCK_RANGE
-        mock_client.get_logs.return_value = [L1TestUtils.RAW_JSON_LOG]
+        mock_client.get_logs.return_value = L1TestUtils.LOGS_RPC_RESPONSE
 
         result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
@@ -24,10 +24,12 @@ class TestL1Blocks(unittest.TestCase):
     def test_find_l1_block_for_tx_multiple_logs_finds_second(self):
         mock_client = Mock(spec=L1Client)
         mock_client.get_block_number_by_timestamp.side_effect = L1TestUtils.BLOCK_RANGE
-        mock_client.get_logs.return_value = [
-            L1TestUtils.raw_log_with_nonce(L1TestUtils.NONCE - 1),
-            L1TestUtils.RAW_JSON_LOG,
-        ]
+        mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs(
+            [
+                L1TestUtils.log_with_nonce(L1TestUtils.NONCE - 1),
+                L1TestUtils.LOG,
+            ]
+        )
 
         result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
@@ -38,7 +40,9 @@ class TestL1Blocks(unittest.TestCase):
     def test_find_l1_block_for_tx_logs_dont_match(self):
         mock_client = Mock(spec=L1Client)
         mock_client.get_block_number_by_timestamp.side_effect = L1TestUtils.BLOCK_RANGE
-        mock_client.get_logs.return_value = [L1TestUtils.raw_log_with_nonce(L1TestUtils.NONCE - 1)]
+        mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs(
+            [L1TestUtils.log_with_nonce(L1TestUtils.NONCE - 1)]
+        )
 
         result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
@@ -47,7 +51,7 @@ class TestL1Blocks(unittest.TestCase):
     def test_find_l1_block_for_tx_no_logs_found(self):
         mock_client = Mock(spec=L1Client)
         mock_client.get_block_number_by_timestamp.side_effect = L1TestUtils.BLOCK_RANGE
-        mock_client.get_logs.return_value = []
+        mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs([])
 
         result = L1Blocks.find_l1_block_for_tx(L1TestUtils.FEEDER_TX, 1000, mock_client)
 
