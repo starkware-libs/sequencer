@@ -22,6 +22,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -629,7 +630,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                     msg: "Invoke V3 must contain account_deployment_data field.".to_string(),
                 },
             )?,
-            proof_facts: vec![],
+            proof_facts: ProofFacts::default(),
         })
     }
 }

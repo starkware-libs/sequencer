@@ -614,3 +614,16 @@ impl AccountDeploymentData {
         self.0.is_empty()
     }
 }
+
+/// Client-provided proof facts used for client-side proving.
+/// Only needed when the client supplies a proof; otherwise empty.
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
+pub struct ProofFacts(pub Vec<Felt>);
+
+impl ProofFacts {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}

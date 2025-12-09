@@ -85,6 +85,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Resource,
     ResourceBounds,
     Tip,
@@ -155,6 +156,7 @@ const COMPRESSION_THRESHOLD_BYTES: usize = 384;
 
 auto_storage_serde! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct ProofFacts(pub Vec<Felt>);
     pub struct AllResourceBounds {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
@@ -1292,7 +1294,7 @@ auto_storage_serde_conditionally_compressed! {
         pub fee_data_availability_mode: DataAvailabilityMode,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
-        pub proof_facts: Vec<Felt>,
+        pub proof_facts: ProofFacts,
     }
 
     pub struct L1HandlerTransaction {

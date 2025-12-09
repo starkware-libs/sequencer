@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -649,7 +650,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
             account_deployment_data,
             // TODO(AvivG): Get proof_facts from P2P protocol, until then, lost during protobuf
             // serialization/deserialization.
-            proof_facts: vec![],
+            proof_facts: ProofFacts::default(),
         })
     }
 }
