@@ -8,3 +8,10 @@ define_metrics!(
         MetricHistogram { RECEIVE_MESSAGE_DELAY_SECONDS, "receive_message_delay_seconds", "Message delay in seconds" },
     },
 );
+
+pub(crate) fn register_metrics() {
+    RECEIVE_MESSAGE_BYTES.register();
+    RECEIVE_MESSAGE_COUNT.register();
+    RECEIVE_MESSAGE_BYTES_SUM.register();
+    RECEIVE_MESSAGE_DELAY_SECONDS.register();
+}
