@@ -22,50 +22,32 @@ struct CompiledClassFactsBundle {
     deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
 }
 
-// Represents information that is the same throughout the block.
-struct BlockContext {
+// Holds global context for the OS execution.
+struct OsGlobalContext {
+    // OS config available globally for all blocks.
+    starknet_os_config: StarknetOsConfig,
+    starknet_os_config_hash: felt,
+
+    // Compiled class facts available globally for all blocks.
+    compiled_class_facts_bundle: CompiledClassFactsBundle,
+
     // Parameters for select_builtins.
     builtin_params: BuiltinParams*,
-
-    // A list of (compiled_class_hash, compiled_class) with the classes that are executed
-    // in this block.
-    n_compiled_class_facts: felt,
-    compiled_class_facts: CompiledClassFact*,
-
-    // A list of (deprecated_compiled_class_hash, deprecated_compiled_class) with
-    // the classes that are executed in this block.
-    n_deprecated_compiled_class_facts: felt,
-    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
-
-    // Information about the block.
-    block_info_for_execute: BlockInfo*,
-    // A version of `block_info` that will be returned by the 'get_execution_info'
-    // syscall during '__validate__'.
-    // Some of the fields, which cannot be used in validate mode, are zeroed out.
-    block_info_for_validate: BlockInfo*,
-    // StarknetOsConfig instance.
-    starknet_os_config: StarknetOsConfig,
     // A function pointer to the 'execute_syscalls' function.
     execute_syscalls_ptr: felt*,
     // A function pointer to the 'execute_deprecated_syscalls' function.
     execute_deprecated_syscalls_ptr: felt*,
 }
 
-// Holds global context for the OS execution.
-struct OsGlobalContext {
-    // OS config available globally for all blocks.
-    starknet_os_config: StarknetOsConfig*,
-    starknet_os_config_hash: felt,
-
-    // Compiled class facts available globally for all blocks.
-    compiled_class_facts_bundle: CompiledClassFactsBundle*,
-
-    // Parameters for select_builtins.
-    builtin_params: BuiltinParams*,
-    // A function pointer to the 'execute_syscalls' function.
-    execute_syscalls_ptr: felt*,
-    // A function pointer to the 'execute_deprecated_syscalls' function.
-    execute_deprecated_syscalls_ptr: felt*,
+// Represents information that is the same throughout the block.
+struct BlockContext {
+    os_global_context: OsGlobalContext,
+    // Information about the block.
+    block_info_for_execute: BlockInfo*,
+    // A version of `block_info` that will be returned by the 'get_execution_info'
+    // syscall during '__validate__'.
+    // Some of the fields, which cannot be used in validate mode, are zeroed out.
+    block_info_for_validate: BlockInfo*,
 }
 
 // Returns a BlockContext instance.
@@ -85,11 +67,7 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
     let compiled_class_facts_bundle = os_global_context.compiled_class_facts_bundle;
     local block_context: BlockContext = BlockContext(
-        builtin_params=os_global_context.builtin_params,
-        n_compiled_class_facts=compiled_class_facts_bundle.n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts_bundle.compiled_class_facts,
-        n_deprecated_compiled_class_facts=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=compiled_class_facts_bundle.deprecated_compiled_class_facts,
+        os_global_context=[os_global_context],
         block_info_for_execute=new BlockInfo(
             block_number=block_number,
             block_timestamp=block_timestamp,
@@ -100,9 +78,6 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
             block_timestamp=block_timestamp_for_validate,
             sequencer_address=0,
         ),
-        starknet_os_config=[os_global_context.starknet_os_config],
-        execute_syscalls_ptr=os_global_context.execute_syscalls_ptr,
-        execute_deprecated_syscalls_ptr=os_global_context.execute_deprecated_syscalls_ptr,
     );
 
     let (__fp__, _) = get_fp_and_pc();
