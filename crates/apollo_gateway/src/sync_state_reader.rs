@@ -41,6 +41,74 @@ use crate::state_reader::{
     StateReaderFactory,
 };
 
+/// A state reader for genesis/empty state. Returns default values for all queries.
+/// Used for bootstrap transactions when no blocks exist yet.
+pub(crate) struct GenesisStateReader;
+
+#[async_trait]
+impl MempoolStateReader for GenesisStateReader {
+    async fn get_block_info(&self) -> StateResult<BlockInfo> {
+        // Return a genesis block info with default/minimal values.
+        // These values allow bootstrap transactions to pass validation.
+        Ok(BlockInfo {
+            block_number: BlockNumber(0),
+            block_timestamp: starknet_api::block::BlockTimestamp(0),
+            sequencer_address: ContractAddress::default(),
+            gas_prices: GasPrices {
+                eth_gas_prices: GasPriceVector {
+                    l1_gas_price: 1_u128.try_into()?,
+                    l1_data_gas_price: 1_u128.try_into()?,
+                    l2_gas_price: 1_u128.try_into()?,
+                },
+                strk_gas_prices: GasPriceVector {
+                    l1_gas_price: 1_u128.try_into()?,
+                    l1_data_gas_price: 1_u128.try_into()?,
+                    l2_gas_price: 1_u128.try_into()?,
+                },
+            },
+            use_kzg_da: false,
+        })
+    }
+}
+
+impl BlockifierStateReader for GenesisStateReader {
+    fn get_storage_at(
+        &self,
+        _contract_address: ContractAddress,
+        _key: StorageKey,
+    ) -> StateResult<Felt> {
+        Ok(Felt::default())
+    }
+
+    fn get_nonce_at(&self, _contract_address: ContractAddress) -> StateResult<Nonce> {
+        Ok(Nonce::default())
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        Err(StateError::UndeclaredClassHash(class_hash))
+    }
+
+    fn get_class_hash_at(&self, _contract_address: ContractAddress) -> StateResult<ClassHash> {
+        Ok(ClassHash::default())
+    }
+
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(CompiledClassHash::default())
+    }
+}
+
+impl FetchCompiledClasses for GenesisStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        Err(StateError::UndeclaredClassHash(class_hash))
+    }
+
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        Ok(false)
+    }
+}
+
+impl GatewayStateReaderWithCompiledClasses for GenesisStateReader {}
+
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
 pub(crate) struct SyncStateReader {
@@ -364,11 +432,15 @@ impl StateReaderFactory for SyncStateReaderFactory {
     async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
-        let latest_block_number = self
-            .shared_state_sync_client
-            .get_latest_block_number()
-            .await?
-            .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
+        let latest_block_number = self.shared_state_sync_client.get_latest_block_number().await?;
+
+        // If no blocks exist yet, return genesis state readers for bootstrap transactions.
+        let Some(latest_block_number) = latest_block_number else {
+            tracing::info!(
+                "No blocks found yet; using genesis state readers for bootstrap transactions."
+            );
+            return Ok(Box::new(GenesisStateReader));
+        };
 
         Ok(Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
