@@ -7,6 +7,8 @@ class L1TestUtils:
 
     BLOCK_NUMBER = 23911042
     BLOCK_NUMBER_HEX = hex(BLOCK_NUMBER)
+    BLOCK_TIMESTAMP = 1764500447
+    BLOCK_TIMESTAMP_HEX = hex(BLOCK_TIMESTAMP)
     BLOCK_RANGE = [BLOCK_NUMBER - 10, BLOCK_NUMBER + 10]
     NONCE = 0x19B255
 
@@ -30,7 +32,7 @@ class L1TestUtils:
         "0000000000000000000000000000000000000000000000000000000000000000",
         "blockHash": "0xb33512d13e1a2ff4f3aa6e799a4a2455249be5198760a3f41300a8362d802bf8",
         "blockNumber": BLOCK_NUMBER_HEX,
-        "blockTimestamp": "0x692c23df",
+        "blockTimestamp": BLOCK_TIMESTAMP_HEX,
         "transactionHash": "0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
         "transactionIndex": "0x4f",
         "logIndex": "0x7b",
@@ -42,6 +44,19 @@ class L1TestUtils:
         "jsonrpc": "2.0",
         "id": "1",
         "result": [LOG],
+    }
+
+    # Block entry (the "result" content)
+    BLOCK = {
+        "number": BLOCK_NUMBER_HEX,
+        "timestamp": BLOCK_TIMESTAMP_HEX,
+    }
+
+    # Full JSON-RPC response from get_block_by_number
+    BLOCK_RPC_RESPONSE = {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "result": BLOCK,
     }
 
     L1_EVENT = L1Client.L1Event(
@@ -58,8 +73,8 @@ class L1TestUtils:
         nonce=NONCE,
         fee=0x1308ABA4ADE2,
         l1_tx_hash="0x726df509fdd23a944f923a6fc18e80cbe7300a54aa34f8e6bd77e9961ca6ce52",
-        block_timestamp=1764500447,
-        block_number=23911042,
+        block_timestamp=BLOCK_TIMESTAMP,
+        block_number=BLOCK_NUMBER,
     )
 
     # L1_HANDLER tx from feeder gateway, expected to match the L1_EVENT.
@@ -104,4 +119,13 @@ class L1TestUtils:
             "jsonrpc": "2.0",
             "id": "1",
             "result": logs,
+        }
+
+    @staticmethod
+    def block_rpc_response_with_block(block: dict) -> dict:
+        """Returns a full JSON-RPC response with the given block."""
+        return {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": block,
         }

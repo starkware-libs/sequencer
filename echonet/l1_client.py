@@ -119,22 +119,21 @@ class L1Client:
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        result = self._run_request_with_retry(
+        return self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
-
-        if result is None:
-            return None
-
-        return result.get("result")
 
     def get_timestamp_of_block(self, block_number: str) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        block = self.get_block_by_number(block_number)
+        response = self.get_block_by_number(block_number)
+        if response is None:
+            return None
+
+        block = response.get("result")
         if block is None:
             # Block not found
             return None

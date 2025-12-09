@@ -58,50 +58,12 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(logs, empty_response)
 
     @patch("l1_client.requests.post")
-    def test_get_timestamp_of_block_retries_after_failure_and_succeeds(self, mock_post):
-        request_exception = requests.RequestException("some error")
-
-        successful_response = Mock()
-        successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {"result": {"timestamp": "0x20"}}  # 32
-
-        mock_post.side_effect = [request_exception, successful_response]
-
-        client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(
-            block_number=L1TestUtils.BLOCK_NUMBER_HEX,
-        )
-
-        self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(result, 32)
-
-    @patch("l1_client.requests.post")
-    def test_get_timestamp_of_block_returns_none_when_rpc_result_is_empty(self, mock_post):
-        response_ok = Mock()
-        response_ok.raise_for_status.return_value = None
-        response_ok.json.return_value = {"result": None}
-
-        mock_post.return_value = response_ok
-
-        client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(
-            block_number=L1TestUtils.BLOCK_NUMBER_HEX,
-        )
-
-        self.assertEqual(mock_post.call_count, 1)
-        self.assertIsNone(result)
-
-    @patch("l1_client.requests.post")
     def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
-        block_info = {
-            "number": L1TestUtils.BLOCK_NUMBER_HEX,
-            "timestamp": "0x5f5e100",
-        }
 
         successful_response = Mock()
         successful_response.raise_for_status.return_value = None
-        successful_response.json.return_value = {"result": block_info}
+        successful_response.json.return_value = L1TestUtils.BLOCK_RPC_RESPONSE
 
         mock_post.side_effect = [request_exception, successful_response]
 
@@ -109,13 +71,14 @@ class TestL1Client(unittest.TestCase):
         result = client.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertEqual(mock_post.call_count, 2)
-        self.assertEqual(result, block_info)
+        self.assertEqual(result, L1TestUtils.BLOCK_RPC_RESPONSE)
 
     @patch("l1_client.requests.post")
     def test_get_block_by_number_returns_none_when_rpc_result_is_empty(self, mock_post):
+        empty_response = L1TestUtils.block_rpc_response_with_block(None)
         response_ok = Mock()
         response_ok.raise_for_status.return_value = None
-        response_ok.json.return_value = {"result": None}
+        response_ok.json.return_value = empty_response
 
         mock_post.return_value = response_ok
 
@@ -123,16 +86,16 @@ class TestL1Client(unittest.TestCase):
         result = client.get_block_by_number(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
 
         self.assertEqual(mock_post.call_count, 1)
-        self.assertIsNone(result)
+        self.assertEqual(result, empty_response)
 
     @patch.object(L1Client, "get_block_by_number")
     def test_get_timestamp_of_block_returns_int_timestamp(self, mock_get_block_by_number):
-        mock_get_block_by_number.return_value = {"timestamp": "0x5f5e100"}
+        mock_get_block_by_number.return_value = L1TestUtils.BLOCK_RPC_RESPONSE
 
         client = L1Client(api_key="api_key")
         result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER_HEX)
 
-        self.assertEqual(result, int("0x5f5e100", 16))
+        self.assertEqual(result, L1TestUtils.BLOCK_TIMESTAMP)
         mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER_HEX)
 
     @patch.object(L1Client, "get_block_by_number")
@@ -140,6 +103,17 @@ class TestL1Client(unittest.TestCase):
         self, mock_get_block_by_number
     ):
         mock_get_block_by_number.return_value = None
+
+        client = L1Client(api_key="api_key")
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+
+        self.assertIsNone(result)
+
+    @patch.object(L1Client, "get_block_by_number")
+    def test_get_timestamp_of_block_returns_none_when_result_is_none(
+        self, mock_get_block_by_number
+    ):
+        mock_get_block_by_number.return_value = L1TestUtils.block_rpc_response_with_block(None)
 
         client = L1Client(api_key="api_key")
         result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
