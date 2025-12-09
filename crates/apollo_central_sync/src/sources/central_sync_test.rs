@@ -2,7 +2,7 @@ use core::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_class_manager_types::ClassManagerClient;
+use apollo_class_manager_types::{ClassHashes, ClassManagerClient, MockClassManagerClient};
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
@@ -27,8 +27,9 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
-use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointOffset, EntryPointV0};
 use starknet_api::felt;
 use starknet_api::state::{SierraContractClass, StateDiff, StateNumber};
 use tokio::sync::{Mutex, RwLock};
@@ -189,6 +190,7 @@ async fn sync_empty_chain() {
 async fn sync_happy_flow() {
     const N_BLOCKS: u64 = 5;
     const LATEST_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 1);
+    const DEPLOY_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 2);
     // FIXME: (Omri) analyze and set a lower value.
     const MAX_TIME_TO_SYNC_MS: u64 = 800;
     let _ = simple_logger::init_with_env();
@@ -197,6 +199,26 @@ async fn sync_happy_flow() {
     let compiled_class_hash_1 = CompiledClassHash(felt!("0x101"));
     let class_hash_2 = ClassHash(felt!("0x2"));
     let compiled_class_hash_2 = CompiledClassHash(felt!("0x102"));
+    let deployed_class_hash = ClassHash(felt!("0x3"));
+    let deprecated_class_hash = ClassHash(felt!("0x4"));
+
+    let mut rng = get_rng();
+    let mut deployed_class = ContractClass::get_test_instance(&mut rng);
+    deployed_class.entry_points_by_type.insert(
+        Default::default(),
+        vec![EntryPointV0 {
+            selector: EntryPointSelector::default(),
+            offset: EntryPointOffset(123),
+        }],
+    );
+    let mut deprecated_class = ContractClass::get_test_instance(&mut rng);
+    deprecated_class.entry_points_by_type.insert(
+        Default::default(),
+        vec![EntryPointV0 {
+            selector: EntryPointSelector::default(),
+            offset: EntryPointOffset(124),
+        }],
+    );
 
     // Mock having N_BLOCKS chain in central.
     let mut central_mock = MockCentralSourceTrait::new();
@@ -231,16 +253,20 @@ async fn sync_happy_flow() {
         .boxed();
         blocks_stream
     });
+
+    let expected_deprecated_class = deprecated_class.clone();
+    let expected_deployed_class = deployed_class.clone();
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
+        let deprecated_class = deprecated_class.clone();
+        let deployed_class = deployed_class.clone();
         let state_stream: StateUpdatesStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
-                // TODO(Eitan): test classes were added to class manager by including declared classes and deprecated declared classes
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number })
                 }
 
                 // Add declared classes to specific blocks to test compiled class hash mapping
-                let state_diff = match block_number.0 {
+                let mut state_diff = match block_number.0 {
                     1 => StateDiff {
                         declared_classes: IndexMap::from([
                             (class_hash_1, (compiled_class_hash_1, SierraContractClass::default())),
@@ -255,12 +281,21 @@ async fn sync_happy_flow() {
                     },
                     _ => StateDiff::default(),
                 };
+                // For the last block, include test data for deployed class definitions
+                let mut deployed_contract_class_definitions = IndexMap::new();
+                if block_number.0 >= DEPLOY_BLOCK_NUMBER.0 {
+                    deployed_contract_class_definitions = IndexMap::from([(deployed_class_hash, deployed_class.clone())]);
+                }
+
+                if block_number == LATEST_BLOCK_NUMBER {
+                    state_diff.deprecated_declared_classes = IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
+                }
 
                 yield Ok((
                     block_number,
                     create_block_hash(block_number, false),
                     state_diff,
-                    IndexMap::new(),
+                    deployed_contract_class_definitions,
                 ));
             }
         }
@@ -322,6 +357,32 @@ async fn sync_happy_flow() {
         })
     });
 
+    // Create mock class manager client with expectations
+    let mut mock_class_manager = MockClassManagerClient::new();
+
+    // Expect add_deprecated_class to be called for both class hashes
+    mock_class_manager.expect_add_class().times(1).returning(move |_class| {
+        Ok(ClassHashes { class_hash: class_hash_1, ..Default::default() })
+    });
+    mock_class_manager.expect_add_class().times(1).returning(move |_class| {
+        Ok(ClassHashes { class_hash: class_hash_2, ..Default::default() })
+    });
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deprecated_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+
     let ((reader, writer), _temp_dir) = get_test_storage();
     let sync_future = run_sync(
         reader.clone(),
@@ -329,7 +390,7 @@ async fn sync_happy_flow() {
         central_mock,
         base_layer_mock,
         get_test_sync_config(false),
-        None,
+        Some(Arc::new(mock_class_manager)),
     );
 
     // Check that the storage reached N_BLOCKS within MAX_TIME_TO_SYNC_MS.
@@ -388,6 +449,35 @@ async fn sync_happy_flow() {
             assert_eq!(hash_2, Some(compiled_class_hash_2));
             // Ensure class hash 1 remains unchanged after later declarations.
             assert_eq!(hash_final, Some(compiled_class_hash_1));
+
+            // Verify that the deprecated class definition block number is the same as the first
+            // block that the class was declared in.
+            let deploy_block_number = state_reader
+                .get_deprecated_class_definition_block_number(&deployed_class_hash)
+                .unwrap();
+            assert_eq!(deploy_block_number, Some(DEPLOY_BLOCK_NUMBER));
+            let declare_deprecated_block_number = state_reader
+                .get_deprecated_class_definition_block_number(&deprecated_class_hash)
+                .unwrap();
+            assert_eq!(declare_deprecated_block_number, Some(LATEST_BLOCK_NUMBER));
+
+            // Verify that the deprecated contract class is the same as the one that was declared.
+            let deploy_class = state_reader
+                .get_deprecated_class_definition_at(
+                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
+                    &deployed_class_hash,
+                )
+                .unwrap();
+            assert_eq!(deploy_class, Some(expected_deployed_class.clone()));
+
+            let declare_deprecated_class = state_reader
+                .get_deprecated_class_definition_at(
+                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
+                    &deprecated_class_hash,
+                )
+                .unwrap();
+            assert_eq!(declare_deprecated_class, Some(expected_deprecated_class.clone()));
+
             CheckStoragePredicateResult::Passed
         });
 
