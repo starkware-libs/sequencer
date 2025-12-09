@@ -53,6 +53,14 @@ pub struct UserArgs {
     #[arg(long, env, default_value = "gossipsub")]
     pub network_protocol: NetworkProtocol,
 
+    /// Size of StressTestMessage
+    #[arg(long, env, default_value = "1024")]
+    pub message_size_bytes: usize,
+
+    /// The time to sleep between broadcasts of StressTestMessage in milliseconds
+    #[arg(long, env, default_value = "1000")]
+    pub heartbeat_millis: u64,
+
     /// The timeout in seconds for the node.
     /// When the node runs for longer than this, it will be killed.
     #[arg(long, env, default_value = "4000")]
