@@ -29,11 +29,7 @@ use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::tree::{
-    OriginalSkeletonClassesTrieConfig,
-    OriginalSkeletonContractsTrieConfig,
-    OriginalSkeletonStorageTrieConfig,
-};
+use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 /// Facts DB node layout.
@@ -74,7 +70,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
             &HashMap::new(),
-            &OriginalSkeletonContractsTrieConfig::new(),
+            &OriginalSkeletonTrieConfig::new(false),
             &EmptyKeyContext,
         )
         .await?)
@@ -95,8 +91,7 @@ impl<S: Storage> FactsDb<S> {
             let contract_state = original_contracts_trie_leaves
                 .get(&contract_address_into_node_index(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
-            let config =
-                OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());
+            let config = OriginalSkeletonTrieConfig::new(config.warn_on_trivial_modifications());
 
             let original_skeleton = create_original_skeleton_tree(
                 &mut self.storage,
@@ -119,7 +114,7 @@ impl<S: Storage> FactsDb<S> {
         config: &ReaderConfig,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
-        let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
+        let config = OriginalSkeletonTrieConfig::new(config.warn_on_trivial_modifications());
 
         Ok(create_original_skeleton_tree(
             &mut self.storage,
