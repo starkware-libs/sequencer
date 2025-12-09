@@ -30,6 +30,7 @@ pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;
 
+use crate::block::{BlockNumber, StarknetVersion};
 use crate::core::{ClassHash, CompiledClassHash};
 use crate::transaction::TransactionVersion;
 
@@ -97,6 +98,10 @@ pub enum StarknetApiError {
         .0.hash.0, .0.actual.0, .0.expected.0
     )]
     DeclareTransactionCasmHashMissMatch(Box<CasmHashMismatch>),
+    #[error(
+        "Missing block header commitments for block number {block_number} in version {version}"
+    )]
+    MissingBlockHeaderCommitments { block_number: BlockNumber, version: StarknetVersion },
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;

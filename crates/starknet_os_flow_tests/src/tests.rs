@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
@@ -12,7 +13,8 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::expect;
+use expect_test::{expect, Expect};
+use itertools::Itertools;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
@@ -46,7 +48,10 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
-use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
+use starknet_api::transaction::constants::{
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+    EXECUTE_ENTRY_POINT_NAME,
+};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -81,6 +86,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
+use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
@@ -113,6 +119,27 @@ use crate::utils::{
     update_expected_storage,
     update_expected_storage_updates_for_block_hash_contract,
 };
+
+const UNCOVERED_HINTS: Expect = expect![[r#"
+    [
+        "AggregatorHint(DisableDaPageCreation)",
+        "AggregatorHint(GetAggregatorOutput)",
+        "AggregatorHint(GetChainIdFromInput)",
+        "AggregatorHint(GetFeeTokenAddressFromInput)",
+        "AggregatorHint(GetFullOutputFromInput)",
+        "AggregatorHint(GetOsOuputForInnerBlocks)",
+        "AggregatorHint(GetPublicKeysFromAggregatorInput)",
+        "AggregatorHint(GetUseKzgDaFromInput)",
+        "AggregatorHint(WriteDaSegment)",
+        "DeprecatedSyscallHint(DelegateCall)",
+        "DeprecatedSyscallHint(DelegateL1Handler)",
+        "DeprecatedSyscallHint(Deploy)",
+        "OsHint(GetClassHashAndCompiledClassFact)",
+        "OsHint(InitializeAliasCounter)",
+        "OsHint(LoadBottom)",
+        "StatelessHint(SetApToSegmentHashPoseidon)",
+    ]
+"#]];
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
     LazyLock::new(|| {
@@ -151,6 +178,27 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
     let divided = divide_vec_into_n_parts(to_divide, n_parts);
     let actual_lengths: Vec<usize> = divided.iter().map(|part| part.len()).collect();
     assert_eq!(actual_lengths, expected_lengths);
+}
+
+/// Tests that the set of uncovered hints is up to date.
+#[rstest]
+fn test_coverage_regression() {
+    // Iterate over all JSON files in the coverage directory.
+    let covered_hints = fs::read_dir("resources/hint_coverage")
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .flat_map(|entry| {
+            serde_json::from_str::<Vec<AllHints>>(&fs::read_to_string(entry.path()).unwrap())
+                .unwrap()
+        })
+        .unique()
+        .collect::<Vec<_>>();
+    let uncovered_hints = AllHints::all_iter()
+        .filter(|hint| !covered_hints.contains(hint))
+        .map(|hint| format!("{hint:?}"))
+        .sorted()
+        .collect::<Vec<_>>();
+    UNCOVERED_HINTS.assert_debug_eq(&uncovered_hints);
 }
 
 /// Scenario of declaring and deploying the test contract.
@@ -239,6 +287,10 @@ async fn declare_deploy_scenario(
 
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+    test_output.expect_hint_coverage(&format!(
+        "declare_deploy_scenario_n_blocks_{}_use_kzg_da_{}_full_output_{}",
+        n_blocks, use_kzg_da, full_output
+    ));
 }
 
 /// Test state diffs in separate blocks that become trivial in a multiblock.
@@ -290,6 +342,12 @@ async fn trivial_diff_scenario(
     );
 
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!(
+        "trivial_diff_scenario_use_kzg_da_{}_full_output_{}_contract_{}",
+        use_kzg_da, full_output, contract_type
+    ));
 }
 
 /// This test verifies that when an entry point modifies storage and then reverts (panics):
@@ -348,6 +406,9 @@ async fn test_reverted_invoke_tx(
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
 
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_reverted_invoke_tx_{}", contract_type));
 }
 
 #[rstest]
@@ -376,7 +437,7 @@ async fn test_encrypted_state_diff(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
-            private_keys,
+            private_keys: private_keys.clone(),
             ..Default::default()
         })
         .await;
@@ -392,6 +453,18 @@ async fn test_encrypted_state_diff(
         ..Default::default()
     };
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+
+    let scenario_name = format!(
+        "test_encrypted_state_diff_use_kzg_da_{}_full_output_{}_private_keys_{}",
+        use_kzg_da,
+        full_output,
+        match private_keys {
+            None => "none".to_string(),
+            Some(keys) if keys.is_empty() => "empty".to_string(),
+            Some(keys) => keys.iter().map(|key| key.to_string()).collect::<Vec<_>>().join("_"),
+        }
+    );
+    test_output.expect_hint_coverage(&scenario_name);
 }
 
 /// Verifies that when an L1 handler modifies storage and then reverts, all storage changes made
@@ -443,6 +516,9 @@ async fn test_reverted_l1_handler_tx(
     // Make sure we expect no messages were sent to L2, explicitly, before validating actual output.
     assert!(test_output.expected_values.messages_to_l2.is_empty());
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
 }
 
 #[rstest]
@@ -822,6 +898,7 @@ async fn test_os_logic(
 
     // Run the test.
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
+    let n_private_keys = private_keys.as_ref().map(|keys| keys.len()).unwrap_or(0);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
             messages_to_l1: vec![expected_message_to_l1],
@@ -836,6 +913,9 @@ async fn test_os_logic(
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output.expect_hint_coverage(&format!(
+        "test_os_logic_n_blocks_{n_blocks_in_multi_block}_with_{n_private_keys}_private_keys",
+    ));
 }
 
 #[rstest]
@@ -919,6 +999,7 @@ async fn test_v1_bound_accounts_cairo0() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output.expect_hint_coverage("test_v1_bound_accounts_cairo0");
 }
 
 #[rstest]
@@ -1015,6 +1096,7 @@ async fn test_v1_bound_accounts_cairo1() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output.expect_hint_coverage("test_v1_bound_accounts_cairo1");
 }
 
 #[rstest]
@@ -1155,6 +1237,10 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     // Verify that the funded account, the new account and the sequencer all have changed balances.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    // Hint coverage.
+    test_output
+        .expect_hint_coverage(&format!("test_new_class_execution_info_use_kzg_da_{}", use_kzg_da));
 }
 
 #[rstest]
@@ -1204,7 +1290,6 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     test_output.perform_default_validations();
 
     // Validate poseidon usage.
-    // TODO(Meshi): Add blake opcode validations.
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
@@ -1217,6 +1302,19 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         "#]]
         .assert_debug_eq(&poseidons);
     }
+
+    // Validate blake usage.
+    let blakes = test_output.runner_output.metrics.opcode_instances.blake_opcode_count;
+    expect![[r#"
+        564
+    "#]]
+    .assert_debug_eq(&blakes);
+
+    // Hint coverage.
+    test_output.expect_hint_coverage(&format!(
+        "test_experimental_libfuncs_contract_use_kzg_da_{}",
+        use_kzg_da
+    ));
 }
 
 #[rstest]
@@ -1351,6 +1449,9 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(faulty_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    // Hint coverage.
+    test_output.expect_hint_coverage(&format!("test_new_account_flow_use_kzg_da_{}", use_kzg_da));
 }
 
 #[rstest]
@@ -1626,6 +1727,43 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     // Verify that the funded account and the sequencer have both updated their balances.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    test_output.expect_hint_coverage(&format!(
+        "test_new_syscalls_flow_use_kzg_da_{}_n_blocks_{}",
+        use_kzg_da, n_blocks_in_multi_block
+    ));
+}
+
+/// Runs the same syscall several times from various call depths. E.g.,
+/// 1. sha256()
+/// 2. call_contract(sha256)
+/// 3. sha256()
+/// The OS runs the syscalls twice, with each pass executed in a different order:
+/// * First: 1, 3 and then 2.
+/// * Second: 1, 2, 3.
+/// This test checks that the OS behaves correctly and consistently in both cases.
+#[rstest]
+#[tokio::test]
+async fn test_syscalls_with_alternating_inner_calls() {
+    let use_kzg_da = true;
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    let calldata =
+        create_calldata(test_contract_address, "test_sha256_with_alternating_inner_calls", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
 }
 
 #[rstest]
@@ -1776,6 +1914,7 @@ async fn test_deprecated_tx_info() {
     test_output.assert_account_balance_change(tx_info_account_address);
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+    test_output.expect_hint_coverage("test_deprecated_tx_info");
 }
 
 #[rstest]
@@ -1829,6 +1968,7 @@ async fn test_deploy_syscall() {
         perform_global_validations,
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
     );
+    test_output.expect_hint_coverage("test_deploy_syscall");
 
     // Make sure only the newly deployed contract and the fee contract have changed storage.
     let block_hash_contract_address = ContractAddress(
@@ -1984,6 +2124,8 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+    let cairo_type = if is_cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_block_info_{}", cairo_type));
 }
 
 #[rstest]
@@ -2087,6 +2229,7 @@ async fn test_initial_sierra_gas() {
         .await;
 
     test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_initial_sierra_gas");
 }
 
 #[rstest]
@@ -2225,6 +2368,7 @@ async fn test_reverted_call() {
          addresses are {actual_changed_addresses:#?}, expected changed addresses are \
          {expected_changed_addresses:#?}"
     );
+    test_output.expect_hint_coverage("test_reverted_call");
 }
 
 /// Tests that the OS correctly handles calls between Cairo 1.0 contracts that count resources by
@@ -2328,6 +2472,7 @@ async fn test_resources_type() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(cairo_steps_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(sierra_gas_contract_address, expected_storage_updates);
+    test_output.expect_hint_coverage("test_resources_type");
 }
 
 /// Runs the OS test for data gas Cairo1 accounts.
@@ -2391,6 +2536,7 @@ async fn test_data_gas_accounts() {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_data_gas_accounts");
 }
 
 /// Verify OS blocks direct calls to `__execute__` entry point.
@@ -2432,4 +2578,315 @@ async fn test_direct_execute_call() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
+    test_output.expect_hint_coverage("test_direct_execute_call");
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_meta_tx() {
+    let meta_tx_contract = FeatureContract::MetaTx(RunnableCairo1::Casm);
+    let tx_info_contract = FeatureContract::TxInfoWriter;
+    let (mut test_manager, [meta_tx_contract_address, tx_info_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (meta_tx_contract, calldata![]),
+            (tx_info_contract, calldata![]),
+        ])
+        .await;
+
+    let argument = Felt::from(1234);
+    let signature = vec![Felt::from(5432), Felt::from(100)];
+
+    // Create and run an invoke tx.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **meta_tx_contract_address,
+                    selector_from_name(EXECUTE_ENTRY_POINT_NAME).0,
+                    Felt::ONE, // Calldata length.
+                    argument,
+                    signature.len().into()
+                ],
+                signature.clone(),
+                vec![false.into()], // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx0 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx0_hash = tx0.tx_hash();
+    let tx0_nonce = tx0.nonce();
+    assert!(tx0_nonce != Nonce(Felt::ZERO));
+    test_manager.add_invoke_tx(tx0, None);
+
+    // Compute the meta-tx hash.
+    let meta_tx_hash0 = InvokeTransaction::create(
+        invoke_tx(invoke_tx_args! {
+            version: TransactionVersion::ZERO,
+            sender_address: meta_tx_contract_address,
+            calldata: calldata![argument],
+            max_fee: Fee(0),
+        }),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap()
+    .tx_hash();
+
+    // Call `tx_info_writer` with a meta transaction.
+    let argument1 = Felt::ONE;
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **tx_info_contract_address,
+                    selector_from_name(EXECUTE_ENTRY_POINT_NAME).0,
+                    Felt::ONE, // Calldata length.
+                    argument1,
+                    signature.len().into(),
+                ],
+                signature.clone(),
+                vec![false.into()], // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx1 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx1_hash = tx1.tx_hash();
+    let tx1_nonce = tx1.nonce();
+    assert!(tx1_nonce != Nonce(Felt::ZERO));
+    test_manager.add_invoke_tx(tx1, None);
+
+    // Compute the meta-tx hash.
+    let meta_tx_hash1 = InvokeTransaction::create(
+        invoke_tx(invoke_tx_args! {
+            version: TransactionVersion::ZERO,
+            sender_address: tx_info_contract_address,
+            calldata: calldata![argument1],
+            max_fee: Fee(0),
+        }),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap()
+    .tx_hash();
+
+    // Check that calling an entry point other than '__execute__` fails.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **meta_tx_contract_address,
+                    selector_from_name("foo").0,
+                    Felt::ZERO,
+                    signature.len().into()
+                ],
+                signature.clone(),
+                vec![true.into()] // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx2 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert!(tx2.nonce() != Nonce(Felt::ZERO));
+    let tx2_hash = tx2.tx_hash();
+    let tx2_nonce = tx2.nonce();
+    test_manager.add_invoke_tx(tx2, None);
+
+    // Construct the expected storage diff for each of the two contracts.
+    // All zero-valued keys should be filtered out (as they don't appear in the state diff).
+    let calldata_key = selector_from_name("call_data").0;
+    let calldata_item_keys: Vec<Felt> =
+        (0..4u8).map(|i| Pedersen::hash(&calldata_key, &i.into())).collect();
+    let no_argument = Felt::from_bytes_be_slice(b"NO_ARGUMENT");
+    let no_signature = Felt::from_bytes_be_slice(b"NO_SIGNATURE");
+    let expected_meta_tx_contract_diffs: HashMap<Felt, Felt> = HashMap::from_iter([
+        (calldata_key, Felt::from(4)), // Size of `call_data` vector.
+        // Inside the meta-tx.
+        (calldata_item_keys[0], Felt::ZERO), // caller_address.
+        (calldata_item_keys[0] + Felt::ONE, **meta_tx_contract_address), /* account_contract_address. */
+        (calldata_item_keys[0] + Felt::TWO, Felt::ZERO),                 // tx_version.
+        (calldata_item_keys[0] + Felt::THREE, argument),                 // Argument.
+        (calldata_item_keys[0] + Felt::from(4u8), *meta_tx_hash0),       // transaction_hash.
+        (calldata_item_keys[0] + Felt::from(5u8), signature[0]),         // signature.
+        (calldata_item_keys[0] + Felt::from(6u8), Felt::ZERO),           // max_fee.
+        (calldata_item_keys[0] + Felt::from(7u8), Felt::ZERO),           // resource_bound_len.
+        (calldata_item_keys[0] + Felt::from(8u8), Felt::ZERO),           // nonce.
+        // Outside the meta-tx.
+        (calldata_item_keys[1], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[1] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[1] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[1] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[1] + Felt::from(4u8), *tx0_hash), // transaction_hash.
+        (calldata_item_keys[1] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[1] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[1] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[1] + Felt::from(8u8), *tx0_nonce), // nonce.
+        // Outside the meta-tx (second tx).
+        (calldata_item_keys[2], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[2] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[2] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[2] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[2] + Felt::from(4u8), *tx1_hash), // transaction_hash.
+        (calldata_item_keys[2] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[2] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[2] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[2] + Felt::from(8u8), *tx1_nonce), // nonce.
+        // Outside the meta-tx (third tx).
+        (calldata_item_keys[3], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[3] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[3] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[3] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[3] + Felt::from(4u8), *tx2_hash), // transaction_hash.
+        (calldata_item_keys[3] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[3] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[3] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[3] + Felt::from(8u8), *tx2_nonce), // nonce.
+    ].into_iter().filter(|(_, v)| *v != Felt::ZERO));
+    let expected_tx_info_writer_diffs: HashMap<Felt, Felt> = HashMap::from_iter(
+        [
+            (**get_storage_var_address("version", &[Felt::ZERO]), Felt::ZERO),
+            (
+                **get_storage_var_address("account_contract_address", &[Felt::ZERO]),
+                **tx_info_contract_address,
+            ),
+            (**get_storage_var_address("max_fee", &[Felt::ZERO]), Felt::ZERO),
+            (**get_storage_var_address("signature_len", &[Felt::ZERO]), Felt::TWO),
+            (**get_storage_var_address("transaction_hash", &[Felt::ZERO]), *meta_tx_hash1),
+            (
+                **get_storage_var_address("chain_id", &[Felt::ZERO]),
+                Felt::try_from(&*CHAIN_ID_FOR_TESTS).unwrap(),
+            ),
+            (**get_storage_var_address("nonce", &[Felt::ZERO]), Felt::ZERO),
+        ]
+        .into_iter()
+        .filter(|(_, v)| *v != Felt::ZERO),
+    );
+
+    // Run the test and verify the storage changes.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(meta_tx_contract_address, expected_meta_tx_contract_diffs);
+    test_output.assert_storage_diff_eq(tx_info_contract_address, expected_tx_info_writer_diffs);
+    test_output.expect_hint_coverage("test_meta_tx");
+}
+
+#[rstest]
+#[tokio::test]
+/// Verifies that a contract can be declared in one block and deployed in a later block:
+/// 1. Class declarations persist across block boundaries.
+/// 2. The deployed contract's storage is properly initialized.
+/// 3. The class hash to compiled class hash mapping appears in the state diff.
+async fn test_declare_and_deploy_in_separate_blocks() {
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare a test contract.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_sierra = test_contract.get_sierra();
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(test_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &test_contract_sierra);
+
+    // Move on to the next block, with an empty block in between.
+    test_manager.move_to_next_block();
+    test_manager.move_to_next_block();
+
+    // Deploy the test contract using the deploy contract syscall.
+    let (constructor_arg1, constructor_arg2) = (Felt::from(7), Felt::from(90));
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        calldata![constructor_arg1, constructor_arg2],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Run the test and verify the storage changes.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    // The test contract constructor writes the sum of the two input arguments to storage.
+    test_output.assert_storage_diff_eq(
+        address,
+        HashMap::from([(
+            **get_storage_var_address("my_storage_var", &[]),
+            constructor_arg1 + constructor_arg2,
+        )]),
+    );
+    assert_eq!(
+        test_output
+            .decompressed_state_diff
+            .class_hash_to_compiled_class_hash
+            .get(&class_hash)
+            .unwrap()
+            .0,
+        compiled_class_hash.0
+    );
+    test_output.expect_hint_coverage("test_declare_and_deploy_in_separate_blocks");
+}
+
+/// Test the behavior of an empty multi-block.
+/// We test the case n_blocks_in_multi_block = `STORED_BLOCK_HASH_BUFFER` to additionally verify
+/// that the last block in the multi-block contains the block-hash of the first block in this case.
+#[rstest]
+#[tokio::test]
+async fn test_empty_multi_block() {
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let next_block_number = test_manager.initial_state.next_block_number.0;
+    assert!(next_block_number > STORED_BLOCK_HASH_BUFFER);
+
+    // Create empty blocks.
+    let n_blocks = STORED_BLOCK_HASH_BUFFER + 1;
+    for _ in 0..n_blocks - 1 {
+        test_manager.move_to_next_block();
+    }
+
+    // Run the test and verify the storage changes.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(
+        Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+        HashMap::from_iter((0..n_blocks).map(|block_index| {
+            let (old_block_number, old_block_hash) =
+                maybe_dummy_block_hash_and_number(BlockNumber(block_index + next_block_number))
+                    .unwrap();
+            (Felt::from(old_block_number.0), old_block_hash.0)
+        })),
+    );
+    test_output.expect_hint_coverage("test_empty_multi_block");
 }
