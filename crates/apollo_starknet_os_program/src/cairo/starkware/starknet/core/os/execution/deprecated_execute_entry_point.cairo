@@ -96,7 +96,7 @@ func call_execute_deprecated_syscalls{
     syscall_size,
     syscall_ptr: felt*,
 ) {
-    jmp abs block_context.execute_deprecated_syscalls_ptr;
+    jmp abs block_context.os_global_context.execute_deprecated_syscalls_ptr;
 }
 
 // Executes an entry point in a contract.
@@ -120,10 +120,11 @@ func deprecated_execute_entry_point{
 
     // The key must be at offset 0.
     static_assert DeprecatedCompiledClassFact.hash == 0;
+    let compiled_class_facts_bundle = block_context.os_global_context.compiled_class_facts_bundle;
     let (compiled_class_fact: DeprecatedCompiledClassFact*) = find_element(
-        array_ptr=block_context.deprecated_compiled_class_facts,
+        array_ptr=compiled_class_facts_bundle.deprecated_compiled_class_facts,
         elm_size=DeprecatedCompiledClassFact.SIZE,
-        n_elms=block_context.n_deprecated_compiled_class_facts,
+        n_elms=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
         key=execution_context.class_hash,
     );
     local compiled_class: DeprecatedCompiledClass* = compiled_class_fact.compiled_class;
@@ -155,7 +156,7 @@ func deprecated_execute_entry_point{
     assert [os_context] = cast(syscall_ptr, felt);
 
     let n_builtins = BuiltinEncodings.SIZE;
-    local builtin_params: BuiltinParams* = block_context.builtin_params;
+    local builtin_params: BuiltinParams* = block_context.os_global_context.builtin_params;
     select_builtins(
         n_builtins=n_builtins,
         all_encodings=builtin_params.builtin_encodings,
