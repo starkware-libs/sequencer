@@ -37,7 +37,6 @@ class TestL1Manager(unittest.TestCase):
         logs = self.manager.get_logs(0, 100)
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
 
-    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
     def test_single_block(self, mock_find_l1_block_for_tx):
         # Setup.
         mock_find_l1_block_for_tx.return_value = L1TestUtils.BLOCK_NUMBER
@@ -133,7 +132,3 @@ class TestL1Manager(unittest.TestCase):
         # get_block_number still returns 30.
         result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30))
-
-
-if __name__ == "__main__":
-    unittest.main()
