@@ -28,6 +28,8 @@ use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::traversal::get_roots_from_storage;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::trie_traversal::fetch_nodes;
+use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieDontCompareConfig;
 
 #[cfg(test)]
 #[path = "create_facts_tree_test.rs"]
