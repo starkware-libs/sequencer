@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     Preimage,
@@ -11,54 +10,25 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::HasStaticPrefix;
-use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::Storage;
 
-use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::trie_traversal::get_roots_from_storage;
 
 #[cfg(test)]
 #[path = "traversal_test.rs"]
 pub mod traversal_test;
 
-// TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<L>>(
-    subtrees: &[impl SubTreeTrait<
-        'a,
-        ChildData = Layout::ChildData,
-        NodeContext = Layout::DeserializationContext,
-    >],
-    storage: &mut impl Storage,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L, Layout::ChildData>>> {
-    let mut subtrees_roots = vec![];
-    let db_keys: Vec<DbKey> = subtrees
-        .iter()
-        .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>(key_context), &subtree.get_root_suffix())
-        })
-        .collect();
-
-    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
-    for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
-        let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        let filled_node = Layout::deserialize_node(val, &subtree.get_root_context())?;
-        subtrees_roots.push(filled_node);
-    }
-    Ok(subtrees_roots)
-}
-
 /// Returns the Patricia inner nodes ([PreimageMap]) in the paths to the given `leaf_indices` in the
 /// given tree according to the `root_hash`.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-pub async fn fetch_patricia_paths<L: Leaf>(
+pub async fn fetch_patricia_paths<L: Leaf + HasStaticPrefix<KeyContext = ()>>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<PreimageMap> {
     let mut witnesses = PreimageMap::new();
 
@@ -68,14 +38,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 
     let main_subtree = FactsSubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
-    fetch_patricia_paths_inner::<L>(
-        storage,
-        vec![main_subtree],
-        &mut witnesses,
-        leaves,
-        key_context,
-    )
-    .await?;
+    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
     Ok(witnesses)
 }
 
@@ -86,19 +49,17 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 /// inner nodes in their paths.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
+pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf + HasStaticPrefix<KeyContext = ()>>(
     storage: &mut impl Storage,
     subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<()> {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
         let filled_roots =
-            get_roots_from_storage::<L, FactsNodeLayout>(&current_subtrees, storage, key_context)
-                .await?;
+            get_roots_from_storage::<L, FactsNodeLayout>(&current_subtrees, storage, &()).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             // Always insert root.
             // No need to insert an unmodified node (which is not the root), because its parent is
