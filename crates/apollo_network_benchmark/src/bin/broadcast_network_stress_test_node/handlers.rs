@@ -1,15 +1,47 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use apollo_metrics::metrics::LossyIntoF64;
+use apollo_network_benchmark::node_args::NodeArgs;
 use libp2p::PeerId;
 
-use crate::message::StressTestMessage;
+use crate::message::{StressTestMessage, METADATA_SIZE};
 use crate::metrics::{
     RECEIVE_MESSAGE_BYTES,
     RECEIVE_MESSAGE_BYTES_SUM,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
 };
+use crate::protocol::MessageSender;
+
+fn get_message(id: u64, size_bytes: usize) -> StressTestMessage {
+    let message = StressTestMessage::new(id, 0, vec![0; size_bytes - *METADATA_SIZE]);
+    assert_eq!(Vec::<u8>::from(message.clone()).len(), size_bytes);
+    message
+}
+
+/// Unified implementation for sending stress test messages via any protocol
+pub async fn send_stress_test_messages(
+    mut message_sender: MessageSender,
+    args: &NodeArgs,
+    peers: Vec<PeerId>,
+) {
+    let size_bytes = args.user.message_size_bytes;
+    let heartbeat = Duration::from_millis(args.user.heartbeat_millis);
+
+    let mut message_index = 0;
+    let mut message = get_message(args.runner.id, size_bytes).clone();
+
+    let mut interval = tokio::time::interval(heartbeat);
+    loop {
+        interval.tick().await;
+
+        message.metadata.time = SystemTime::now();
+        message.metadata.message_index = message_index;
+        let message_clone = message.clone().into();
+        message_sender.send_message(&peers, message_clone).await;
+        message_index += 1;
+    }
+}
 
 pub fn receive_stress_test_message(received_message: Vec<u8>, _sender_peer_id: Option<PeerId>) {
     let end_time = SystemTime::now();
