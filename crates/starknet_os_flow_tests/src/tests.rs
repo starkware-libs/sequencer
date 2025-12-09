@@ -1290,7 +1290,6 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     test_output.perform_default_validations();
 
     // Validate poseidon usage.
-    // TODO(Meshi): Add blake opcode validations.
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
@@ -1303,6 +1302,13 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         "#]]
         .assert_debug_eq(&poseidons);
     }
+
+    // Validate blake usage.
+    let blakes = test_output.runner_output.metrics.opcode_instances.blake_opcode_count;
+    expect![[r#"
+        564
+    "#]]
+    .assert_debug_eq(&blakes);
 
     // Hint coverage.
     test_output.expect_hint_coverage(&format!(
