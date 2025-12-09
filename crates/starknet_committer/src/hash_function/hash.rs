@@ -1,3 +1,5 @@
+use std::convert::AsRef;
+
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
@@ -8,6 +10,11 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::index_db::leaves::{
+    IndexLayoutCompiledClassHash,
+    IndexLayoutContractState,
+    IndexLayoutStarknetStorageValue,
+};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
@@ -46,6 +53,15 @@ impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
     }
 }
 
+impl TreeHashFunction<IndexLayoutContractState> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(contract_state: &IndexLayoutContractState) -> HashOutput {
+        compute_contract_state_leaf_hash(contract_state)
+    }
+    fn compute_node_hash(node_data: &NodeData<IndexLayoutContractState, HashOutput>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
+    }
+}
+
 fn compute_contract_state_leaf_hash<L: AsRef<ContractState>>(
     contract_state_leaf: &L,
 ) -> HashOutput {
@@ -71,6 +87,17 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
     }
 }
 
+impl TreeHashFunction<IndexLayoutCompiledClassHash> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(compiled_class_hash: &IndexLayoutCompiledClassHash) -> HashOutput {
+        compute_compiled_class_leaf_hash(compiled_class_hash)
+    }
+    fn compute_node_hash(
+        node_data: &NodeData<IndexLayoutCompiledClassHash, HashOutput>,
+    ) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PoseidonHashFunction>(node_data)
+    }
+}
+
 fn compute_compiled_class_leaf_hash<L: AsRef<CompiledClassHash>>(
     compiled_class_hash_leaf: &L,
 ) -> HashOutput {
@@ -87,6 +114,17 @@ impl TreeHashFunction<StarknetStorageValue> for TreeHashFunctionImpl {
         HashOutput(storage_value.0)
     }
     fn compute_node_hash(node_data: &NodeData<StarknetStorageValue, HashOutput>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
+    }
+}
+
+impl TreeHashFunction<IndexLayoutStarknetStorageValue> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(storage_value: &IndexLayoutStarknetStorageValue) -> HashOutput {
+        HashOutput(storage_value.0.0)
+    }
+    fn compute_node_hash(
+        node_data: &NodeData<IndexLayoutStarknetStorageValue, HashOutput>,
+    ) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
 }
