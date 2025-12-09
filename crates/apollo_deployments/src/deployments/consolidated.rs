@@ -136,6 +136,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     InfraServicePort::Batcher
                     | InfraServicePort::Mempool
                     | InfraServicePort::ClassManager
+                    | InfraServicePort::Committer
                     | InfraServicePort::Gateway
                     | InfraServicePort::L1EndpointMonitor
                     | InfraServicePort::L1GasPriceProvider
@@ -169,6 +170,7 @@ fn get_consolidated_config() -> ComponentConfig {
     ComponentConfig {
         batcher: base.clone(),
         class_manager: base.clone(),
+        committer: base.clone(),
         config_manager: base.clone(),
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
         gateway: base.clone(),

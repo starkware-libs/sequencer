@@ -8,6 +8,7 @@ use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockHeader, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
@@ -118,6 +119,7 @@ pub struct DecisionReachedResponse {
     pub state_diff: ThinStateDiff,
     pub l2_gas_used: GasAmount,
     pub central_objects: CentralObjects,
+    pub block_header_commitments: BlockHeaderCommitments,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
