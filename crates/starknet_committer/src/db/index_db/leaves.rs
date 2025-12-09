@@ -19,7 +19,9 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 // Wrap the leaves types so that we can implement the [DBObject] trait differently in index
 // layout.
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From, derive_more::Into,
+)]
 pub struct IndexLayoutContractState(pub ContractState);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From)]

@@ -37,7 +37,7 @@ impl From<HashOutput> for EmptyNodeData {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, derive_more::Into)]
 pub struct IndexFilledNode<L: Leaf>(pub FilledNode<L, EmptyNodeData>);
 
 pub struct IndexNodeContext {
@@ -148,7 +148,7 @@ pub struct IndexLayoutSubTree<'a> {
 }
 
 impl<'a> SubTreeTrait<'a> for IndexLayoutSubTree<'a> {
-    type NodeData = ();
+    type NodeData = EmptyNodeData;
     type NodeDeserializeContext = IndexNodeContext;
 
     fn create(
