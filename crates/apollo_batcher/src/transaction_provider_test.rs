@@ -16,6 +16,7 @@ use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
 
 use crate::transaction_provider::{
+    ProofValidator,
     ProposeTransactionProvider,
     TransactionProvider,
     TransactionProviderError,
@@ -94,6 +95,7 @@ impl MockDependencies {
             self.final_n_executed_txs_receiver,
             Arc::new(self.l1_provider_client),
             HEIGHT,
+            ProofValidator::new(),
         );
         (validate_tx_provider, self.final_n_executed_txs_sender)
     }
