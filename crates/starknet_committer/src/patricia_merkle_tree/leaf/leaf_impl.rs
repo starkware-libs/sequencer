@@ -5,7 +5,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, Leaf
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::db_object::HasStaticPrefix;
+use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 use starknet_types_core::felt::Felt;
 
@@ -22,7 +22,8 @@ pub struct ContractState {
 }
 
 impl HasStaticPrefix for StarknetStorageValue {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = EmptyKeyContext;
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::StorageLeaf.into()
     }
 }
@@ -41,7 +42,8 @@ impl Leaf for StarknetStorageValue {
 }
 
 impl HasStaticPrefix for CompiledClassHash {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = EmptyKeyContext;
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::CompiledClassLeaf.into()
     }
 }
@@ -60,7 +62,8 @@ impl Leaf for CompiledClassHash {
 }
 
 impl HasStaticPrefix for ContractState {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = EmptyKeyContext;
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::StateTreeLeaf.into()
     }
 }
