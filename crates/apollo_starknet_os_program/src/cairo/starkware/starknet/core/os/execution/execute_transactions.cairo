@@ -186,14 +186,7 @@ func execute_transactions{
     let txs_range_check_ptr = selectable_builtins.range_check;
 
     // Fill holes in the rc96 segment.
-    %{
-        rc96_ptr = ids.range_check96_ptr
-        segment_size = rc96_ptr.offset
-        base = rc96_ptr - segment_size
-
-        for i in range(segment_size):
-            memory.setdefault(base + i, 0)
-    %}
+    %{ FillHolesInRc96Segment %}
 
     // Finalize the sha256 segment.
     finalize_sha256(
@@ -221,7 +214,7 @@ func execute_transactions_inner{
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
 }(block_context: BlockContext*, n_txs) {
-    %{ print(f"execute_transactions_inner: {ids.n_txs} transactions remaining.") %}
+    %{ LogRemainingTxs %}
     if (n_txs == 0) {
         return ();
     }
