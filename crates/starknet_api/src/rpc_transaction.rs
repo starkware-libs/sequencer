@@ -607,6 +607,11 @@ impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
     fn calldata(&self) -> &Calldata {
         &self.calldata
     }
+    // TODO(AvivG): Remove #[allow(unused)] when proof_facts is used.
+    #[allow(unused)]
+    fn proof_facts(&self) -> &ProofFacts {
+        &self.proof_facts
+    }
 }
 
 impl TransactionHasher for RpcInvokeTransactionV3 {
