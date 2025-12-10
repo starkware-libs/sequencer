@@ -21,6 +21,7 @@ use crate::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    Proof,
     ProofFacts,
     Tip,
     TransactionSignature,
@@ -577,7 +578,8 @@ pub struct RpcInvokeTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
     #[serde(default)]
     pub proof_facts: ProofFacts,
-    // TODO(AvivG): Add proof field.
+    #[serde(default)]
+    pub proof: Proof,
 }
 
 impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
@@ -666,6 +668,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
             calldata: value.calldata,
             account_deployment_data: value.account_deployment_data,
             proof_facts: value.proof_facts,
+            proof: Proof::default(),
         })
     }
 }

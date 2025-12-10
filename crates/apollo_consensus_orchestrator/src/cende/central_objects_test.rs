@@ -112,6 +112,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    Proof,
     ProofFacts,
     ResourceBounds,
     Tip,
@@ -270,6 +271,7 @@ fn invoke_transaction() -> RpcInvokeTransaction {
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
         proof_facts: ProofFacts::default(),
+        proof: Proof::default(),
     })
 }
 
@@ -1098,6 +1100,7 @@ fn test_invoke_tx_size_of() {
     // + internal_invoke_tx.signature.dynamic_size()
     // + internal_invoke_tx.tip.dynamic_size();
     // + internal_invoke_tx.proof_facts.dynamic_size();
+    // + internal_invoke_tx.proof.dynamic_size();
 
-    assert_eq!(invoke_tx.size_bytes(), 480);
+    assert_eq!(invoke_tx.size_bytes(), 504);
 }

@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    Proof,
     ProofFacts,
     ResourceBounds,
     Tip,
@@ -124,6 +125,7 @@ impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
             nonce_data_availability_mode: deprecated_invoke_tx.nonce_data_availability_mode,
             fee_data_availability_mode: deprecated_invoke_tx.fee_data_availability_mode,
             proof_facts: ProofFacts::default(),
+            proof: Proof::default(),
         }
     }
 }
