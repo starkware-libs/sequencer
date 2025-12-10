@@ -90,7 +90,7 @@ func call_execute_syscalls{
     revert_log: RevertLogEntry*,
     outputs: OsCarriedOutputs*,
 }(block_context: BlockContext*, execution_context: ExecutionContext*, syscall_ptr_end: felt*) {
-    jmp abs block_context.execute_syscalls_ptr;
+    jmp abs block_context.os_global_context.execute_syscalls_ptr;
 }
 
 // Returns the CompiledClassEntryPoint, based on 'compiled_class' and 'execution_context'.
@@ -163,10 +163,11 @@ func execute_entry_point{
 
     // The key must be at offset 0.
     static_assert CompiledClassFact.hash == 0;
+    let compiled_class_facts_bundle = block_context.os_global_context.compiled_class_facts_bundle;
     let (compiled_class_fact: CompiledClassFact*) = find_element(
-        array_ptr=block_context.compiled_class_facts,
+        array_ptr=compiled_class_facts_bundle.compiled_class_facts,
         elm_size=CompiledClassFact.SIZE,
-        n_elms=block_context.n_compiled_class_facts,
+        n_elms=compiled_class_facts_bundle.n_compiled_class_facts,
         key=compiled_class_hash,
     );
     local compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
@@ -213,7 +214,7 @@ func execute_entry_point{
     let builtin_ptrs: BuiltinPointers* = prepare_builtin_ptrs_for_execute(builtin_ptrs);
 
     let n_builtins = BuiltinEncodings.SIZE;
-    local builtin_params: BuiltinParams* = block_context.builtin_params;
+    local builtin_params: BuiltinParams* = block_context.os_global_context.builtin_params;
     local calldata_size: felt = execution_context.calldata_size;
     local calldata_start: felt* = execution_context.calldata;
     local calldata_end: felt* = calldata_start + calldata_size;

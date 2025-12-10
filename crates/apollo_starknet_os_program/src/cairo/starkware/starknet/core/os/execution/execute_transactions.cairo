@@ -337,7 +337,7 @@ func charge_fee{
     assert_nn_le(calldata.amount.low, max_fee);
 
     // TODO(ilya, 01/01/2026): Consider caching the fee_token_class_hash.
-    local fee_token_address = block_context.starknet_os_config.fee_token_address;
+    local fee_token_address = block_context.os_global_context.starknet_os_config.fee_token_address;
     let (fee_state_entry: StateEntry*) = dict_read{dict_ptr=contract_state_changes}(
         key=fee_token_address
     );
@@ -387,7 +387,7 @@ func get_account_tx_common_fields(
         tx_hash_prefix=tx_hash_prefix,
         version=3,
         sender_address=sender_address,
-        chain_id=block_context.starknet_os_config.chain_id,
+        chain_id=block_context.os_global_context.starknet_os_config.chain_id,
         nonce=nondet %{ tx.nonce %},
         tip=nondet %{ tx.tip %},
         n_resource_bounds=3,
@@ -593,7 +593,7 @@ func execute_l1_handler_transaction{
     local tx_execution_info: ExecutionInfo* = tx_execution_context.execution_info;
 
     local nonce = nondet %{ tx.nonce %};
-    local chain_id = block_context.starknet_os_config.chain_id;
+    local chain_id = block_context.os_global_context.starknet_os_config.chain_id;
 
     let pedersen_ptr = builtin_ptrs.selectable.pedersen;
     with pedersen_ptr {

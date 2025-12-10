@@ -497,9 +497,9 @@ func get_os_global_context{
         label_value=execute_deprecated_syscalls
     );
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
-        starknet_os_config=starknet_os_config,
+        starknet_os_config=[starknet_os_config],
         starknet_os_config_hash=starknet_os_config_hash,
-        compiled_class_facts_bundle=new CompiledClassFactsBundle(
+        compiled_class_facts_bundle=CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,
             builtin_costs=builtin_costs,
