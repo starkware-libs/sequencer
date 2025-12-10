@@ -23,6 +23,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
+use crate::db::facts_db::traversal::calculate_subtrees_roots;
 use crate::db::traversal::calculate_subtrees_roots;
 
 #[cfg(test)]
