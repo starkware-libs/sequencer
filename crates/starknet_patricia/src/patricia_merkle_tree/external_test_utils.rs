@@ -6,7 +6,7 @@ use rand::Rng;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{
     DBObject,
-    Deserializable,
+    EmptyDeserializationContext,
     EmptyKeyContext,
     HasStaticPrefix,
 };
@@ -37,13 +37,16 @@ impl HasStaticPrefix for MockLeaf {
 }
 
 impl DBObject for MockLeaf {
+    type DeserializeContext = EmptyDeserializationContext;
+
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
     }
-}
 
-impl Deserializable for MockLeaf {
-    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
+    fn deserialize(
+        value: &DbValue,
+        _deserialize_context: &Self::DeserializeContext,
+    ) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 }
