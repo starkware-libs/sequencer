@@ -142,17 +142,7 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
-        // TODO(Ayelet): Remove the clones.
-        let commitment_state_diff = self.commitment_state_diff.clone();
-        ThinStateDiff {
-            deployed_contracts: commitment_state_diff.address_to_class_hash,
-            storage_diffs: commitment_state_diff.storage_updates,
-            class_hash_to_compiled_class_hash: commitment_state_diff
-                .class_hash_to_compiled_class_hash,
-            nonces: commitment_state_diff.address_to_nonce,
-            // TODO(AlonH): Remove this when the structure of storage diffs changes.
-            deprecated_declared_classes: Vec::new(),
-        }
+        commitment_state_diff_as_thin_state_diff(&self.commitment_state_diff)
     }
 
     pub fn commitment(&self) -> ProposalCommitment {
@@ -185,6 +175,22 @@ impl BlockExecutionArtifacts {
             timestamp: self.block_info.block_timestamp,
             starknet_version,
         }
+    }
+}
+
+fn commitment_state_diff_as_thin_state_diff(
+    commitment_state_diff: &CommitmentStateDiff,
+) -> ThinStateDiff {
+    // TODO(Ayelet): Remove the clones.
+    ThinStateDiff {
+        deployed_contracts: commitment_state_diff.address_to_class_hash.clone(),
+        storage_diffs: commitment_state_diff.storage_updates.clone(),
+        class_hash_to_compiled_class_hash: commitment_state_diff
+            .class_hash_to_compiled_class_hash
+            .clone(),
+        nonces: commitment_state_diff.address_to_nonce.clone(),
+        // TODO(AlonH): Remove this when the structure of storage diffs changes.
+        deprecated_declared_classes: Vec::new(),
     }
 }
 
