@@ -17,26 +17,13 @@ use crate::deployment_definitions::{
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{
-    get_environment_ingress_internal,
-    get_ingress,
-    Controller,
-    Ingress,
-    IngressParams,
-    Resource,
-    Resources,
-    Toleration,
-};
+use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
-
-const BATCHER_STORAGE: usize = 500;
-const CLASS_MANAGER_STORAGE: usize = 500;
-const STATE_SYNC_STORAGE: usize = 500;
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -215,47 +202,16 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
-    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
-                DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
-                DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
-                DistributedNodeServiceName::SierraCompiler => {
-                    Some(Toleration::ApolloGeneralService)
-                }
-                DistributedNodeServiceName::SignatureManager => {
-                    Some(Toleration::ApolloGeneralService)
-                }
-                DistributedNodeServiceName::StateSync => Some(Toleration::ApolloGeneralService),
-            },
-            Environment::LocalK8s => None,
-        }
+    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
+        None
     }
 
     fn get_ingress(
         &self,
-        environment: &Environment,
-        ingress_params: IngressParams,
+        _environment: &Environment,
+        _ingress_params: IngressParams,
     ) -> Option<Ingress> {
-        match self {
-            DistributedNodeServiceName::Batcher => None,
-            DistributedNodeServiceName::ClassManager => None,
-            DistributedNodeServiceName::ConsensusManager => None,
-            DistributedNodeServiceName::HttpServer => {
-                get_ingress(ingress_params, get_environment_ingress_internal(environment))
-            }
-            DistributedNodeServiceName::Gateway => None,
-            DistributedNodeServiceName::L1 => None,
-            DistributedNodeServiceName::Mempool => None,
-            DistributedNodeServiceName::SierraCompiler => None,
-            DistributedNodeServiceName::SignatureManager => None,
-            DistributedNodeServiceName::StateSync => None,
-        }
+        None
     }
 
     fn has_p2p_interface(&self) -> bool {
@@ -273,22 +229,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
-    fn get_storage(&self, environment: &Environment) -> Option<usize> {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
-                DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
-                DistributedNodeServiceName::ConsensusManager => None,
-                DistributedNodeServiceName::HttpServer => None,
-                DistributedNodeServiceName::Gateway => None,
-                DistributedNodeServiceName::L1 => None,
-                DistributedNodeServiceName::Mempool => None,
-                DistributedNodeServiceName::SierraCompiler => None,
-                DistributedNodeServiceName::SignatureManager => None,
-                DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
-            },
-            Environment::LocalK8s => None,
-        }
+    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
+        None
     }
 
     fn get_resources(&self, _environment: &Environment) -> Resources {
@@ -299,22 +241,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
         1
     }
 
-    fn get_anti_affinity(&self, environment: &Environment) -> bool {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                DistributedNodeServiceName::Batcher => true,
-                DistributedNodeServiceName::ClassManager => false,
-                DistributedNodeServiceName::ConsensusManager => false,
-                DistributedNodeServiceName::HttpServer => false,
-                DistributedNodeServiceName::Gateway => false,
-                DistributedNodeServiceName::L1 => false,
-                DistributedNodeServiceName::Mempool => true,
-                DistributedNodeServiceName::SierraCompiler => false,
-                DistributedNodeServiceName::SignatureManager => false,
-                DistributedNodeServiceName::StateSync => false,
-            },
-            Environment::LocalK8s => false,
-        }
+    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
+        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {

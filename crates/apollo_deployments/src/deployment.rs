@@ -113,14 +113,6 @@ pub enum P2PCommunicationType {
 }
 
 impl P2PCommunicationType {
-    pub(crate) fn get_p2p_domain(&self, domain: &str) -> String {
-        match self {
-            P2PCommunicationType::Internal => "svc.cluster.local",
-            P2PCommunicationType::External => domain,
-        }
-        .to_string()
-    }
-
     pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {
         K8SServiceType::LoadBalancer
     }
