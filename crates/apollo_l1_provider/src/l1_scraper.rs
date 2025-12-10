@@ -36,7 +36,7 @@ type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
 // TODO(guyn): make this a config parameter
 // Sensible lower bound.
-const L1_BLOCK_TIME: u64 = 10;
+const L1_BLOCK_TIME: u64 = 12;
 
 pub struct L1Scraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1ScraperConfig,
