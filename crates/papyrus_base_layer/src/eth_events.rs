@@ -24,6 +24,7 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
     let log = log.inner;
 
     let event = Starknet::StarknetEvents::decode_log(&log)?.data;
+
     match event {
         Starknet::StarknetEvents::LogMessageToL2(event) => {
             let fee = Fee(event.fee.try_into().map_err(EthereumBaseLayerError::FeeOutOfRange)?);
