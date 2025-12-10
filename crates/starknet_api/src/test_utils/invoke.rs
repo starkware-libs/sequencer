@@ -20,6 +20,7 @@ use crate::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
+    Proof,
     ProofFacts,
     Tip,
     TransactionSignature,
@@ -51,6 +52,7 @@ pub struct InvokeTxArgs {
     pub only_query: bool,
     pub tx_hash: TransactionHash,
     pub proof_facts: ProofFacts,
+    // TODO(AvivG): Consider adding `proof` field.
 }
 
 impl Default for InvokeTxArgs {
@@ -158,6 +160,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         fee_data_availability_mode: invoke_args.fee_data_availability_mode,
         paymaster_data: invoke_args.paymaster_data,
         account_deployment_data: invoke_args.account_deployment_data,
+        proof: Proof::default(),
     }))
 }
 
