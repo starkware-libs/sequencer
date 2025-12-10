@@ -144,7 +144,8 @@ async fn stream_new_base_layer_block_test_header_marker() {
     let mut mock = MockBaseLayerSourceTrait::new();
     mock.expect_latest_proved_block().times(4).returning(move || Ok(iter.next()));
     let mut stream =
-        stream_new_base_layer_block(reader, Arc::new(mock), Duration::from_millis(0)).boxed();
+        stream_new_base_layer_block(reader, Arc::new(Mutex::new(mock)), Duration::from_millis(0))
+            .boxed();
 
     let event = stream.next().await.unwrap().unwrap();
     assert_matches!(event, SyncEvent::NewBaseLayerBlock { block_number: BlockNumber(1), .. });
@@ -167,7 +168,8 @@ async fn stream_new_base_layer_block_no_blocks_on_base_layer() {
     mock.expect_latest_proved_block().times(2).returning(move || Ok(values.next().unwrap()));
 
     let mut stream =
-        stream_new_base_layer_block(reader, Arc::new(mock), Duration::from_millis(0)).boxed();
+        stream_new_base_layer_block(reader, Arc::new(Mutex::new(mock)), Duration::from_millis(0))
+            .boxed();
 
     let event = stream.next().await.unwrap().unwrap();
     assert_matches!(event, SyncEvent::NewBaseLayerBlock { block_number: BlockNumber(1), .. });
@@ -201,7 +203,7 @@ async fn store_base_layer_block_test() {
         central_source: Arc::new(MockCentralSourceTrait::new()),
         pending_source: Arc::new(MockPendingSourceTrait::new()),
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
-        base_layer_source: Some(Arc::new(MockBaseLayerSourceTrait::new())),
+        base_layer_source: Some(Arc::new(Mutex::new(MockBaseLayerSourceTrait::new()))),
         reader,
         writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
