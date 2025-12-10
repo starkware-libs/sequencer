@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassHashDbConfig};
+use apollo_class_manager_config::config::CachedClassStorageConfig;
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
 use starknet_api::contract_class::ContractClass;
@@ -12,27 +12,19 @@ use starknet_api::state::SierraContractClass;
 use crate::class_storage::{
     CachedClassStorage,
     ClassHashStorage,
-    ClassHashStorageConfig,
     ClassStorage,
     FsClassStorage,
     FsClassStorageError,
 };
+use crate::test_utils::FsClassStorageBuilderForTesting;
 
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
-        let config = ClassHashStorageConfig {
-            class_hash_db_config: ClassHashDbConfig {
-                path_prefix: path_prefix.path().to_path_buf(),
-                enforce_file_exists: false,
-                max_size: 1 << 30,    // 1GB.
-                min_size: 1 << 10,    // 1KB.
-                growth_step: 1 << 26, // 64MB.
-                max_readers: 1 << 13, // 8K readers
-            },
-            ..Default::default()
-        };
-        Self::new(config).unwrap()
+        let builder = FsClassStorageBuilderForTesting::default();
+        let (_, config, _) =
+            builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
+        Self::new(config.class_hash_storage_config).unwrap()
     }
 }
 
