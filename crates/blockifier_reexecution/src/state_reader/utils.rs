@@ -276,8 +276,21 @@ pub fn write_block_reexecution_data_to_file(
 
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
-    // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = consecutive_state_readers.reexecute_and_verify_correctness().unwrap();
+    // Run the reexecution and get the state maps and contract class mapping.
+    let (block_state, expected_state_diff, actual_state_diff) =
+        consecutive_state_readers.reexecute_block();
+
+    // Warn if state diffs don't match, but continue writing the file.
+    let expected_comparable = ComparableStateDiff::from(expected_state_diff);
+    let actual_comparable = ComparableStateDiff::from(actual_state_diff);
+    if expected_comparable != actual_comparable {
+        println!(
+            "WARNING: State diff mismatch for block {block_number}. Expected and actual state \
+             diffs do not match."
+        );
+    }
+
+    let block_state = block_state.unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
         contract_class_mapping: block_state
