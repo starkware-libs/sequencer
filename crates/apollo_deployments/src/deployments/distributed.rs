@@ -91,8 +91,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
         let gateway = DistributedNodeServiceName::Gateway
             .component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_endpoint_monitor = DistributedNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
         let l1_gas_price_provider = DistributedNodeServiceName::L1
             .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
         let l1_provider = DistributedNodeServiceName::L1
@@ -140,7 +138,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
-                    l1_endpoint_monitor.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
@@ -1021,7 +1018,6 @@ fn get_http_server_component_config(
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -1030,7 +1026,7 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
+    config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.state_sync = state_sync_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();

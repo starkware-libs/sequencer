@@ -108,8 +108,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
             .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
         let l1_provider = HybridNodeServiceName::L1
             .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let l1_endpoint_monitor = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
         let mempool = HybridNodeServiceName::Mempool
             .component_config_pair(service_ports[&InfraServicePort::Mempool]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler
@@ -126,7 +124,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
-                    l1_endpoint_monitor.remote(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
@@ -711,7 +708,6 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
-    l1_endpoint_monitor_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -724,7 +720,6 @@ fn get_core_component_config(
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
-    config.l1_endpoint_monitor = l1_endpoint_monitor_remote_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
