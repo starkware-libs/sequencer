@@ -8,6 +8,10 @@
 #[path = "single_height_consensus_test.rs"]
 mod single_height_consensus_test;
 
+#[cfg(test)]
+#[path = "simulation_test.rs"]
+mod simulation_test;
+
 use std::collections::{HashSet, VecDeque};
 
 use crate::state_machine::VoteStatus;
