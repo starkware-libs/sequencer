@@ -87,6 +87,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),
+        &(),
     )
     .await
     .unwrap();

@@ -59,12 +59,11 @@ impl FilledForest {
     fn serialize_trees(&self) -> DbHashMap {
         self.storage_tries
             .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contracts_trie.serialize())
-            .chain(self.classes_trie.serialize())
+            .flat_map(|tree| tree.serialize(&()).into_iter())
+            .chain(self.contracts_trie.serialize(&()))
+            .chain(self.classes_trie.serialize(&()))
             .collect()
     }
-
     async fn write_hashmap_to_storage(
         &self,
         storage: &mut impl Storage,
@@ -164,8 +163,8 @@ impl FilledForest {
             contract_address_to_storage_skeleton.len(),
             contract_address_to_storage_updates.len()
         );
-        // `contract_address_to_storage_updates` includes all modified contracts, even those with
-        // unmodified storage, see StateDiff::actual_storage_updates().
+        // `contract_address_to_storage_updates` includes all modified contracts, even those
+        // with unmodified storage, see StateDiff::actual_storage_updates().
         for (contract_address, storage_updates) in contract_address_to_storage_updates {
             let node_index = contract_address_into_node_index(&contract_address);
             let original_contract_state = original_contracts_trie_leaves

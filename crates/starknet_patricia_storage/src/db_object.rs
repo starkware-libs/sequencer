@@ -2,18 +2,29 @@ use crate::errors::DeserializationError;
 use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 
 pub trait HasDynamicPrefix {
+    /// Extra data needed to construct a leaf for node db key prefix. For example, in index layout,
+    /// we need to know the trie type of inner nodes.
+    type KeyContext;
+
     /// Returns the storage key prefix of the DB object.
-    fn get_prefix(&self) -> DbKeyPrefix;
+    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix;
 }
 
 pub trait HasStaticPrefix {
+    /// Extra data needed to construct a leaf for node db key prefix. For example, in index layout,
+    /// we need to know the trie type of inner nodes.
+    type KeyContext;
+
     /// Returns the storage key prefix of the DB object.
-    fn get_static_prefix() -> DbKeyPrefix;
+    fn get_static_prefix(key_context: &Self::KeyContext) -> DbKeyPrefix;
 }
 
 impl<T: HasStaticPrefix> HasDynamicPrefix for T {
-    fn get_prefix(&self) -> DbKeyPrefix {
-        T::get_static_prefix()
+    /// Inherit the KeyContext from the HasStaticPrefix trait.
+    type KeyContext = <T as HasStaticPrefix>::KeyContext;
+
+    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
+        T::get_static_prefix(key_context)
     }
 }
 
@@ -22,8 +33,8 @@ pub trait DBObject: HasDynamicPrefix {
     fn serialize(&self) -> DbValue;
 
     /// Returns a `DbKey` from a prefix and a suffix.
-    fn get_db_key(&self, suffix: &[u8]) -> DbKey {
-        create_db_key(self.get_prefix(), suffix)
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), suffix)
     }
 }
 

@@ -1,3 +1,4 @@
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
 use thiserror::Error;
@@ -102,5 +103,8 @@ pub trait SubTreeTrait<'a>: Sized {
     fn should_traverse_unmodified_children() -> bool;
 
     /// Returns the [DbKeyPrefix] of the root node.
-    fn get_root_prefix<L: Leaf>(&self) -> DbKeyPrefix;
+    fn get_root_prefix<L: Leaf>(
+        &self,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+    ) -> DbKeyPrefix;
 }

@@ -54,6 +54,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &HashMap::new(),
             &OriginalSkeletonContractsTrieConfig::new(),
+            &(),
         )
         .await?)
     }
@@ -82,6 +83,7 @@ impl<S: Storage> FactsDb<S> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                &(),
             )
             .await?;
             storage_tries.insert(*address, original_skeleton);
@@ -104,6 +106,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            &(),
         )
         .await?)
     }

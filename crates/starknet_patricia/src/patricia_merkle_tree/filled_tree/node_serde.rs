@@ -1,6 +1,6 @@
 use ethnum::U256;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix, HasStaticPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
@@ -44,16 +44,18 @@ impl<L: Leaf> FilledNode<L> {
         self.hash.0.to_bytes_be()
     }
 
-    pub fn db_key(&self) -> DbKey {
-        self.get_db_key(&self.suffix())
+    pub fn db_key(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey {
+        self.get_db_key(key_context, &self.suffix())
     }
 }
 
 impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
-    fn get_prefix(&self) -> DbKeyPrefix {
+    type KeyContext = <L as HasStaticPrefix>::KeyContext;
+
+    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
         match &self.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
-            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix()),
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(key_context)),
         }
         .into()
     }
