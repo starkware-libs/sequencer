@@ -10,6 +10,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 
@@ -23,12 +24,16 @@ pub mod traversal_test;
 pub async fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[FactsSubTree<'a>],
     storage: &mut impl Storage,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
         .iter()
         .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>(), &subtree.root_hash.0.to_bytes_be())
+            create_db_key(
+                subtree.get_root_prefix::<L>(key_context),
+                &subtree.root_hash.0.to_bytes_be(),
+            )
         })
         .collect();
 
@@ -49,6 +54,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<PreimageMap> {
     let mut witnesses = PreimageMap::new();
 
@@ -58,7 +64,14 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 
     let main_subtree = FactsSubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
-    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
+    fetch_patricia_paths_inner::<L>(
+        storage,
+        vec![main_subtree],
+        &mut witnesses,
+        leaves,
+        key_context,
+    )
+    .await?;
     Ok(witnesses)
 }
 
@@ -74,11 +87,13 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<()> {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
-        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
+        let filled_roots =
+            calculate_subtrees_roots::<L>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             // Always insert root.
             // No need to insert an unmodified node (which is not the root), because its parent is

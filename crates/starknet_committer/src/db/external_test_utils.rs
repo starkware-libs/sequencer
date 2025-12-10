@@ -15,6 +15,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::map_storage::MapStorage;
 
 use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
@@ -27,7 +28,7 @@ pub async fn tree_computation_flow<L, TH>(
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
-    L: Leaf + 'static,
+    L: Leaf + HasStaticPrefix<KeyContext = ()> + 'static,
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
@@ -37,6 +38,7 @@ where
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        &(),
     )
     .await
     .expect("Failed to create the original skeleton tree");
@@ -63,7 +65,10 @@ where
         .expect("Failed to create the filled tree")
 }
 
-pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
+pub async fn single_tree_flow_test<
+    L: Leaf + HasStaticPrefix<KeyContext = ()> + 'static,
+    TH: TreeHashFunction<L> + 'static,
+>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
@@ -85,7 +90,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize());
+    let json_storage = &json!(filled_tree.serialize(&()));
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }
