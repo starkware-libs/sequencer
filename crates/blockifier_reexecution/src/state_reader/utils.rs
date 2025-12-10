@@ -14,20 +14,14 @@ use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::offline_state_reader::{
-    OfflineConsecutiveStateReaders,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
-};
+use crate::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
-use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -244,65 +238,6 @@ pub fn reexecute_block_for_testing(block_number: u64) {
         .reexecute_and_verify_correctness();
 
     println!("Reexecution test for block {block_number} passed successfully.");
-}
-
-pub fn write_block_reexecution_data_to_file(
-    block_number: BlockNumber,
-    full_file_path: String,
-    node_url: String,
-    chain_id: ChainId,
-    contract_class_manager: ContractClassManager,
-) {
-    let config = RpcStateReaderConfig::from_url(node_url);
-
-    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
-        block_number.prev().expect("Should not run with block 0"),
-        Some(config),
-        chain_id.clone(),
-        true,
-        contract_class_manager,
-    );
-
-    let serializable_data_next_block =
-        consecutive_state_readers.get_serializable_data_next_block().unwrap();
-
-    let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
-
-    // Run the reexecution and get the state maps and contract class mapping.
-    let (block_state, expected_state_diff, actual_state_diff) =
-        consecutive_state_readers.reexecute_block();
-
-    // Warn if state diffs don't match, but continue writing the file.
-    let expected_comparable = ComparableStateDiff::from(expected_state_diff);
-    let actual_comparable = ComparableStateDiff::from(actual_state_diff);
-    if expected_comparable != actual_comparable {
-        println!(
-            "WARNING: State diff mismatch for block {block_number}. Expected and actual state \
-             diffs do not match."
-        );
-    }
-
-    let block_state = block_state.unwrap();
-    let serializable_data_prev_block = SerializableDataPrevBlock {
-        state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state
-            .state
-            .state_reader
-            .get_contract_class_mapping_dumper()
-            .unwrap(),
-    };
-
-    // Write the reexecution data to a json file.
-    SerializableOfflineReexecutionData {
-        serializable_data_prev_block,
-        serializable_data_next_block,
-        chain_id,
-        old_block_hash,
-    }
-    .write_to_file(&full_file_path)
-    .unwrap();
-
-    println!("RPC replies required for reexecuting block {block_number} written to json file.");
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
