@@ -4,8 +4,8 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.patricia import (
-    patricia_update_using_update_constants,
     patricia_update_read_optimized,
+    patricia_update_using_update_constants,
 )
 from starkware.cairo.common.patricia_utils import PatriciaUpdateConstants
 from starkware.cairo.common.patricia_with_poseidon import (

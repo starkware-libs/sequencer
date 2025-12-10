@@ -2,15 +2,15 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, HashBuiltin, EcOpBuiltin
+from starkware.cairo.common.cairo_builtins import EcOpBuiltin, HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.ec_point import EcPoint
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
-from starkware.starknet.core.os.output import OsOutput, serialize_os_output
 from starkware.starknet.core.os.os_config.os_config import (
+    StarknetOsConfig,
     get_public_keys_hash,
     get_starknet_os_config_hash,
-    StarknetOsConfig,
 )
+from starkware.starknet.core.os.output import OsOutput, serialize_os_output
 
 func main{
     output_ptr: felt*,

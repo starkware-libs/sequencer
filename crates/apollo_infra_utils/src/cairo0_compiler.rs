@@ -1,4 +1,6 @@
 #[cfg(any(test, feature = "testing"))]
+use std::io::Read;
+#[cfg(any(test, feature = "testing"))]
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
@@ -204,6 +206,37 @@ pub fn cairo0_format(unformatted: &String) -> String {
     let stderr_output = String::from_utf8(format_output.stderr).unwrap();
     assert!(format_output.status.success(), "{stderr_output}");
 
+    // Run isort on the formatted file.
+    // Note: We use the `format_output` stdout but since cairo-format writes to stdout,
+    // we need to write that back to the temp file for isort to process.
+    let formatted_content = format_output.stdout;
+    let mut temp_file_formatted = tempfile::NamedTempFile::new().unwrap();
+    temp_file_formatted.write_all(&formatted_content).unwrap();
+
+    // Run isort.
+    let mut isort_command = Command::new("isort");
+    let isort_config_path = resolve_project_relative_path(".isort.cfg").unwrap();
+    isort_command.args([
+        "--settings-file",
+        isort_config_path.to_str().unwrap(),
+        "--lai",
+        "1",
+        "-m",
+        "3",
+        // Checks that imports with parentheses include a trailing comma.
+        "--tc",
+    ]);
+    isort_command.arg(temp_file_formatted.path().to_str().unwrap());
+
+    let isort_output = isort_command.output().unwrap();
+    let isort_stderr = String::from_utf8(isort_output.stderr).unwrap();
+    assert!(isort_output.status.success(), "{isort_stderr}");
+
     // Return formatted file.
-    String::from_utf8_lossy(format_output.stdout.as_slice()).to_string()
+    let mut final_content = String::new();
+    std::fs::File::open(temp_file_formatted.path())
+        .unwrap()
+        .read_to_string(&mut final_content)
+        .unwrap();
+    final_content
 }

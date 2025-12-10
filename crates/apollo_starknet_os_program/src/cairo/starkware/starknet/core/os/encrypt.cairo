@@ -1,17 +1,17 @@
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin
-from starkware.cairo.common.ec import ec_mul, recover_y, StarkCurve
+from starkware.cairo.common.ec import StarkCurve, ec_mul, recover_y
 from starkware.cairo.common.ec_point import EcPoint
-from starkware.cairo.common.math import assert_le_felt, assert_not_zero, assert_le
+from starkware.cairo.common.math import assert_le, assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.naive_blake import (
-    calc_blake_hash_single,
-    naive_encode_felt252_to_u32s,
-    felt_from_le_u32s,
-    create_initial_state_for_blake2s,
     blake_with_opcode_for_single_16_length_word,
+    calc_blake_hash_single,
+    create_initial_state_for_blake2s,
+    felt_from_le_u32s,
+    naive_encode_felt252_to_u32s,
 )
-from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
-from starkware.cairo.common.alloc import alloc
 
 // Encryption for StarkNet committee members — Overview
 //

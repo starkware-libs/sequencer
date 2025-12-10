@@ -10,10 +10,10 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
-from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.dict import dict_new, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.ec_point import EcPoint
+from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.registers import get_label_location
@@ -30,6 +30,9 @@ from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
     STORED_BLOCK_HASH_BUFFER,
 )
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
+)
 from starkware.starknet.core.os.contract_class.compiled_class import (
     CompiledClassFact,
     guess_compiled_class_facts,
@@ -40,15 +43,18 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
     DeprecatedCompiledClassFact,
     deprecated_load_compiled_class_facts,
 )
+from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
+    compiled_class_hash as poseidon_compiled_class_hash,
+)
 from starkware.starknet.core.os.execution.deprecated_execute_syscalls import (
     execute_deprecated_syscalls,
 )
 from starkware.starknet.core.os.execution.execute_syscalls import execute_syscalls
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
 from starkware.starknet.core.os.os_config.os_config import (
-    get_starknet_os_config_hash,
-    get_public_keys_hash,
     StarknetOsConfig,
+    get_public_keys_hash,
+    get_starknet_os_config_hash,
 )
 from starkware.starknet.core.os.output import (
     MessageToL1Header,
@@ -60,12 +66,6 @@ from starkware.starknet.core.os.output import (
 )
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
-from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
-    compiled_class_hash as poseidon_compiled_class_hash,
-)
-from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
-    compiled_class_hash as blake_compiled_class_hash,
-)
 
 // Executes transactions on Starknet.
 func main{
