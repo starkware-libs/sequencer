@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used)]
+#![recursion_limit = "256"]
 #[cfg(test)]
 mod precision_test;
 
@@ -122,6 +123,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    Proof,
     ProofFacts,
     Resource,
     ResourceBounds,
@@ -428,6 +430,7 @@ pub trait GetTestInstance: Sized {
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
     pub struct ProofFacts(pub Vec<Felt>);
+    pub struct Proof(pub Arc<Vec<u32>>);
     pub struct AllResourceBounds {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
