@@ -469,6 +469,7 @@ impl From<InvokeTransactionV3> for client_transaction::InvokeTransaction {
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
             r#type: client_transaction::InvokeType::Invoke,
+            proof: tx.proof,
         })
     }
 }

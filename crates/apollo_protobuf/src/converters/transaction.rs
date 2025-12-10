@@ -684,6 +684,7 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
                 .iter()
                 .map(|account_deployment_data| (*account_deployment_data).into())
                 .collect(),
+            proof: vec![],
         }
     }
 }
