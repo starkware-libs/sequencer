@@ -31,7 +31,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
 };
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
-use crate::types::{ConsensusError, Decision, ProposalCommitment, Round, ValidatorId};
+use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 /// The SHC can either update the manager of a decision or return requests for the manager to run,
@@ -84,10 +84,7 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub(crate) fn start<LeaderFn>(
-        &mut self,
-        leader_fn: &LeaderFn,
-    ) -> Result<ShcReturn, ConsensusError>
+    pub(crate) fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -102,7 +99,7 @@ impl SingleHeightConsensus {
         &mut self,
         leader_fn: &LeaderFn,
         init: ProposalInit,
-    ) -> Result<ShcReturn, ConsensusError>
+    ) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -110,12 +107,12 @@ impl SingleHeightConsensus {
         let height = self.state_machine.height();
         if init.height != height {
             warn!("Invalid proposal height: expected {:?}, got {:?}", height, init.height);
-            return Ok(ShcReturn::Requests(VecDeque::new()));
+            return ShcReturn::Requests(VecDeque::new());
         }
         let proposer_id = leader_fn(init.round);
         if init.proposer != proposer_id {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
-            return Ok(ShcReturn::Requests(VecDeque::new()));
+            return ShcReturn::Requests(VecDeque::new());
         }
         // Avoid duplicate validations:
         // - If SM already has an entry for this round, a (re)proposal was already recorded.
@@ -124,7 +121,7 @@ impl SingleHeightConsensus {
             || self.pending_validation_rounds.contains(&init.round)
         {
             warn!("Round {} already handled a proposal, ignoring", init.round);
-            return Ok(ShcReturn::Requests(VecDeque::new()));
+            return ShcReturn::Requests(VecDeque::new());
         }
         let timeout = self.timeouts.get_proposal_timeout(init.round);
         info!(
@@ -137,7 +134,7 @@ impl SingleHeightConsensus {
         // parallel (e.g., due to repeats or spam).
         self.pending_validation_rounds.insert(init.round);
         // Ask the manager to start validation.
-        Ok(ShcReturn::Requests(VecDeque::from([SMRequest::StartValidateProposal(init)])))
+        ShcReturn::Requests(VecDeque::from([SMRequest::StartValidateProposal(init)]))
     }
 
     #[instrument(skip_all)]
@@ -145,7 +142,7 @@ impl SingleHeightConsensus {
         &mut self,
         leader_fn: &LeaderFn,
         event: StateMachineEvent,
-    ) -> Result<ShcReturn, ConsensusError>
+    ) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -171,7 +168,7 @@ impl SingleHeightConsensus {
         &mut self,
         leader_fn: &LeaderFn,
         event: StateMachineEvent,
-    ) -> Result<ShcReturn, ConsensusError>
+    ) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -179,22 +176,19 @@ impl SingleHeightConsensus {
         self.handle_state_machine_requests(sm_requests)
     }
 
-    fn handle_vote_broadcasted(&mut self, vote: Vote) -> Result<ShcReturn, ConsensusError> {
+    fn handle_vote_broadcasted(&mut self, vote: Vote) -> ShcReturn {
         let last_vote = match vote.vote_type {
-            VoteType::Prevote => self.state_machine.last_self_prevote().ok_or_else(|| {
-                ConsensusError::InternalInconsistency("No prevote to send".to_string())
-            })?,
-            VoteType::Precommit => self.state_machine.last_self_precommit().ok_or_else(|| {
-                ConsensusError::InternalInconsistency("No precommit to send".to_string())
-            })?,
+            VoteType::Prevote => self.state_machine.last_self_prevote(),
+            VoteType::Precommit => self.state_machine.last_self_precommit(),
         };
+        let last_vote = last_vote.expect("No last vote to send");
         if last_vote.round > vote.round {
             // Only rebroadcast the newest vote.
-            return Ok(ShcReturn::Requests(VecDeque::new()));
+            return ShcReturn::Requests(VecDeque::new());
         }
         assert_eq!(last_vote, vote);
         trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
-        Ok(ShcReturn::Requests(VecDeque::from([SMRequest::BroadcastVote(last_vote)])))
+        ShcReturn::Requests(VecDeque::from([SMRequest::BroadcastVote(last_vote)]))
     }
 
     fn handle_finished_validation<LeaderFn>(
@@ -203,7 +197,7 @@ impl SingleHeightConsensus {
         proposal_id: Option<ProposalCommitment>,
         round: Round,
         valid_round: Option<Round>,
-    ) -> Result<ShcReturn, ConsensusError>
+    ) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -235,7 +229,7 @@ impl SingleHeightConsensus {
         leader_fn: &LeaderFn,
         proposal_id: Option<ProposalCommitment>,
         round: Round,
-    ) -> Result<ShcReturn, ConsensusError>
+    ) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -262,18 +256,14 @@ impl SingleHeightConsensus {
 
     /// Handle vote messages from peer nodes.
     #[instrument(skip_all)]
-    pub(crate) fn handle_vote<LeaderFn>(
-        &mut self,
-        leader_fn: &LeaderFn,
-        vote: Vote,
-    ) -> Result<ShcReturn, ConsensusError>
+    pub(crate) fn handle_vote<LeaderFn>(&mut self, leader_fn: &LeaderFn, vote: Vote) -> ShcReturn
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         trace!("Received {:?}", vote);
         if !self.validators.contains(&vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
-            return Ok(ShcReturn::Requests(VecDeque::new()));
+            return ShcReturn::Requests(VecDeque::new());
         }
 
         // Check if vote has already been received.
@@ -284,13 +274,13 @@ impl SingleHeightConsensus {
                     DUPLICATE_VOTE_LOG_PERIOD_SECS,
                     "Ignoring duplicate vote: {vote:?}"
                 );
-                return Ok(ShcReturn::Requests(VecDeque::new()));
+                return ShcReturn::Requests(VecDeque::new());
             }
             VoteStatus::Conflict(old_vote, new_vote) => {
                 // Conflict - ignore and record.
                 warn!("Conflicting votes: old={old_vote:?}, new={new_vote:?}");
                 CONSENSUS_CONFLICTING_VOTES.increment(1);
-                return Ok(ShcReturn::Requests(VecDeque::new()));
+                return ShcReturn::Requests(VecDeque::new());
             }
             VoteStatus::New => {
                 // Vote is new, proceed to process it.
@@ -307,67 +297,31 @@ impl SingleHeightConsensus {
     }
 
     // Handle requests output by the state machine.
-    fn handle_state_machine_requests(
-        &mut self,
-        requests: VecDeque<SMRequest>,
-    ) -> Result<ShcReturn, ConsensusError> {
+    fn handle_state_machine_requests(&mut self, requests: VecDeque<SMRequest>) -> ShcReturn {
         // If any request indicates a decision, handle it immediately regardless of position.
         if let Some(&SMRequest::DecisionReached(proposal_id, round)) =
             requests.iter().find(|r| matches!(r, SMRequest::DecisionReached(_, _)))
         {
             return self.handle_state_machine_decision(proposal_id, round);
         }
-        Ok(ShcReturn::Requests(requests))
+        ShcReturn::Requests(requests)
     }
 
     fn handle_state_machine_decision(
         &mut self,
         proposal_id: ProposalCommitment,
         round: Round,
-    ) -> Result<ShcReturn, ConsensusError> {
-        let invalid_decision = |msg: String| {
-            ConsensusError::InternalInconsistency(format!(
-                "Invalid decision: sm_proposal_id={proposal_id}, round={round}. {msg}",
-            ))
-        };
-        let block = self
+    ) -> ShcReturn {
+        let supporting_precommits = self
             .state_machine
-            .proposal_id_for_round(round)
-            .ok_or_else(|| invalid_decision("No proposal entry for this round".to_string()))?;
-        if block != proposal_id {
-            return Err(invalid_decision(format!(
-                "StateMachine proposal commitment should match the stored block. Shc.block_id: \
-                 {block}"
-            )));
-        }
-        let supporting_precommits = self.precommit_votes_for_value(round, Some(proposal_id));
-
-        // TODO(matan): Check actual weights.
-        let vote_weight = u64::try_from(supporting_precommits.len())
-            .expect("Should have way less than u64::MAX supporting votes");
-        let total_weight = self.state_machine.total_weight();
-
-        if !self.state_machine.quorum().is_met(vote_weight, total_weight) {
-            let msg = format!(
-                "Not enough supporting votes. num_supporting_votes: {vote_weight} out of \
-                 {total_weight}. supporting_votes: {supporting_precommits:?}",
-            );
-            return Err(invalid_decision(msg));
-        }
-        Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
-    }
-
-    fn precommit_votes_for_value(
-        &self,
-        round: Round,
-        value: Option<ProposalCommitment>,
-    ) -> Vec<Vote> {
-        self.state_machine
             .precommits_ref()
             .iter()
-            .filter_map(|(&(r, _voter), (v, _w))| {
-                if r == round && v.proposal_commitment == value { Some(v.clone()) } else { None }
+            .filter(|(&(r, _voter), (v, _w))| {
+                r == round && v.proposal_commitment == Some(proposal_id)
             })
-            .collect()
+            .map(|(_vote_key, (v, _w))| v.clone())
+            .collect();
+
+        ShcReturn::Decision(Decision { precommits: supporting_precommits, block: proposal_id })
     }
 }
