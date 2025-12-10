@@ -9,6 +9,9 @@ version.workspace = true
 workspace = true
 
 [features]
+cairo_native = [
+  "blockifier/cairo_native",
+]
 testing = [
   "apollo_class_manager_types/testing",
   "apollo_gateway_config/testing",

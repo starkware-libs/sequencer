@@ -7,6 +7,9 @@ license.workspace = true
 
 [features]
 blockifier_regression_https_testing = []
+cairo_native = [
+  "blockifier/cairo_native",
+]
 
 [dependencies]
 apollo_compile_to_casm.workspace = true
@@ -16,7 +19,7 @@ apollo_gateway_config.workspace = true
 apollo_rpc_execution.workspace = true
 apollo_sierra_compilation_config.workspace = true
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["reexecution"] }
+blockifier = { workspace = true, features = ["cairo_native", "reexecution"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
 google-cloud-storage.workspace = true
