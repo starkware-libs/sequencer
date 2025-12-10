@@ -68,6 +68,7 @@ GET_STATE_UPDATE_ENDPOINT = "/feeder_gateway/get_state_update"
 GET_SIGNATURE_ENDPOINT = "/feeder_gateway/get_signature"
 GET_TRANSACTION_ENDPOINT = "/feeder_gateway/get_transaction"
 GET_CLASS_BY_HASH_ENDPOINT = "/feeder_gateway/get_class_by_hash"
+GET_COMPILED_CLASS_BY_CLASS_HASH_ENDPOINT = "/feeder_gateway/get_compiled_class_by_class_hash"
 
 # Sequencer endpoints
 ADD_TX_ENDPOINT = "/gateway/add_transaction"
