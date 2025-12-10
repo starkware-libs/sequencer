@@ -5,7 +5,7 @@ use apollo_storage::class_hash::ClassHashStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::StorageReader;
+use apollo_storage::{StorageReader, StorageTxn};
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
@@ -27,7 +27,7 @@ use starknet_types_core::felt::Felt;
 #[path = "apollo_state_test.rs"]
 mod test;
 
-type RawApolloReader<'env> = apollo_storage::StorageTxn<'env, RO>;
+type RawApolloReader<'env> = StorageTxn<'env, RO>;
 
 pub struct ClassReader {
     pub reader: SharedClassManagerClient,
