@@ -1,60 +1,31 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use apollo_infra::component_client::DEFAULT_RETRIES;
-use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_infra_utils::template::Template;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use libp2p::Multiaddr;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::addresses::{get_peer_id, peer_address};
-use crate::config_override::{
-    ConfigOverride,
-    DeploymentConfigOverride,
-    InstanceConfigOverride,
-    PeerToPeerAdvertisementConfig,
-    PeerToPeerBootstrapConfig,
-};
-use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
-    CloudK8sEnvironment,
     ComponentConfigInService,
-    DeploymentInputs,
     Environment,
     InfraServicePort,
     ServicePort,
-    CONSENSUS_P2P_PORT,
-    MEMPOOL_P2P_PORT,
 };
 use crate::deployments::distributed::RETRIES_FOR_L1_SERVICES;
-use crate::k8s::{
-    get_environment_ingress_internal,
-    get_ingress,
-    Controller,
-    ExternalSecret,
-    Ingress,
-    IngressParams,
-    K8sServiceConfigParams,
-    Resource,
-    Resources,
-    Toleration,
-};
+use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
-use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
+use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
-pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
-const CORE_STORAGE: usize = 1000;
 const TEST_CORE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -200,45 +171,16 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
-        match environment {
-            Environment::CloudK8s(cloud_env) => match self {
-                HybridNodeServiceName::Core => match cloud_env {
-                    CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                        Some(Toleration::ApolloCoreService)
-                    }
-                    CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => {
-                        Some(Toleration::ApolloCoreServiceC2D56)
-                    }
-                },
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
-            },
-            Environment::LocalK8s => None,
-        }
+    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
+        None
     }
 
     fn get_ingress(
         &self,
-        environment: &Environment,
-        ingress_params: IngressParams,
+        _environment: &Environment,
+        _ingress_params: IngressParams,
     ) -> Option<Ingress> {
-        match self {
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::Gateway
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool
-            | HybridNodeServiceName::SierraCompiler => None,
-            HybridNodeServiceName::HttpServer => match &environment {
-                Environment::CloudK8s(_) => {
-                    get_ingress(ingress_params, get_environment_ingress_internal(environment))
-                }
-                Environment::LocalK8s => None,
-            },
-        }
+        None
     }
 
     fn has_p2p_interface(&self) -> bool {
@@ -251,103 +193,27 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-    fn get_storage(&self, environment: &Environment) -> Option<usize> {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => Some(CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::Mempool
-                | HybridNodeServiceName::SierraCompiler => None,
-            },
-            Environment::LocalK8s => match self {
-                HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::Mempool
-                | HybridNodeServiceName::SierraCompiler => None,
-            },
+    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
+        match self {
+            HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
+            HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool
+            | HybridNodeServiceName::SierraCompiler => None,
         }
     }
 
-    fn get_resources(&self, environment: &Environment) -> Resources {
-        match environment {
-            Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                    match self {
-                        HybridNodeServiceName::Core => {
-                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
-                        }
-                        HybridNodeServiceName::HttpServer => {
-                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                        }
-                        HybridNodeServiceName::Gateway => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::L1 => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::Mempool => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::SierraCompiler => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                    }
-                }
-                CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => match self {
-                    HybridNodeServiceName::Core => {
-                        Resources::new(Resource::new(50, 200), Resource::new(50, 220))
-                    }
-                    HybridNodeServiceName::HttpServer => {
-                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                    }
-                    HybridNodeServiceName::Gateway => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::L1 => {
-                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
-                    }
-                    HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
-                    }
-                    HybridNodeServiceName::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                },
-            },
-            Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-        }
+    fn get_resources(&self, _environment: &Environment) -> Resources {
+        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
     }
 
-    fn get_replicas(&self, environment: &Environment) -> usize {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => 1,
-                HybridNodeServiceName::HttpServer => 1,
-                HybridNodeServiceName::Gateway => 2,
-                HybridNodeServiceName::L1 => 1,
-                HybridNodeServiceName::Mempool => 1,
-                HybridNodeServiceName::SierraCompiler => 2,
-            },
-            Environment::LocalK8s => 1,
-        }
+    fn get_replicas(&self, _environment: &Environment) -> usize {
+        1
     }
 
-    fn get_anti_affinity(&self, environment: &Environment) -> bool {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => true,
-                HybridNodeServiceName::HttpServer => false,
-                HybridNodeServiceName::Gateway => false,
-                HybridNodeServiceName::L1 => true,
-                HybridNodeServiceName::Mempool => true,
-                HybridNodeServiceName::SierraCompiler => false,
-            },
-            Environment::LocalK8s => false,
-        }
+    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
+        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
@@ -802,178 +668,4 @@ fn get_http_server_component_config(
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
-}
-
-/// Loads the hybrid deployments from the given input file and returns a vector of `Deployment`.
-pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deployment> {
-    let inputs =
-        DeploymentInputs::load_from_file(resolve_project_relative_path(input_file).unwrap());
-    hybrid_deployments(&inputs)
-}
-
-fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
-    // List all nodes as respective bootstrap peers.
-    let sanitized_domain = inputs.p2p_communication_type.get_p2p_domain(&inputs.ingress_domain);
-
-    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
-        .node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            peer_address(
-                NodeService::Hybrid(HybridNodeServiceName::Core),
-                CONSENSUS_P2P_PORT,
-                &inputs.node_namespace_format.format(&[&node_id]),
-                &get_peer_id(*node_id),
-                &sanitized_domain,
-            )
-        })
-        .collect();
-
-    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
-        .node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            peer_address(
-                NodeService::Hybrid(HybridNodeServiceName::Mempool),
-                MEMPOOL_P2P_PORT,
-                &inputs.node_namespace_format.format(&[&node_id]),
-                &get_peer_id(*node_id),
-                &sanitized_domain,
-            )
-        })
-        .collect();
-
-    let consensus_p2p_bootstrap_config =
-        PeerToPeerBootstrapConfig::new(Some(consensus_bootstrap_peers_multiaddrs));
-    let mempool_p2p_bootstrap_config =
-        PeerToPeerBootstrapConfig::new(Some(mempool_bootstrap_peers_multiaddrs));
-
-    inputs
-        .node_and_validator_ids
-        .iter()
-        .map(|&(i, ref validator_id)| {
-            let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
-                Some(K8sServiceConfigParams::new(
-                    inputs.node_namespace_format.format(&[&i]),
-                    inputs.ingress_domain.clone(),
-                    inputs.p2p_communication_type,
-                ))
-            } else {
-                None
-            };
-            hybrid_deployment(
-                i,
-                validator_id.to_string(),
-                inputs.p2p_communication_type,
-                inputs.deployment_environment.clone(),
-                &Template::new(INSTANCE_NAME_FORMAT),
-                &inputs.secret_name_format,
-                DeploymentConfigOverride::new(
-                    inputs.starknet_contract_address,
-                    &inputs.chain_id_string,
-                    inputs.eth_fee_token_address,
-                    inputs.starknet_gateway_url.clone(),
-                    inputs.strk_fee_token_address,
-                    inputs.num_validators,
-                    inputs.state_sync_type.clone(),
-                    consensus_p2p_bootstrap_config.clone(),
-                    mempool_p2p_bootstrap_config.clone(),
-                    inputs.audited_libfuncs_only,
-                    inputs.http_server_port,
-                    inputs.monitoring_endpoint_config_port,
-                    inputs.state_sync_config_rpc_config_port,
-                    inputs.mempool_p2p_config_network_config_port,
-                    inputs.consensus_manager_config_network_config_port,
-                ),
-                &inputs.node_namespace_format,
-                &inputs.ingress_domain,
-                &inputs.http_server_ingress_alternative_name,
-                k8s_service_config_params,
-            )
-        })
-        .collect()
-}
-
-// TODO(Tsabary): unify these into inner structs.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn hybrid_deployment(
-    id: usize,
-    validator_id: String,
-    p2p_communication_type: P2PCommunicationType,
-    environment: Environment,
-    instance_name_format: &Template,
-    secret_name_format: &Template,
-    deployment_config_override: DeploymentConfigOverride,
-    node_namespace_format: &Template,
-    ingress_domain: &str,
-    http_server_ingress_alternative_name: &str,
-    k8s_service_config_params: Option<K8sServiceConfigParams>,
-) -> Deployment {
-    Deployment::new(
-        NodeType::Hybrid,
-        environment,
-        &instance_name_format.format(&[&id]),
-        Some(ExternalSecret::new(secret_name_format.format(&[&id]))),
-        ConfigOverride::new(
-            deployment_config_override,
-            create_hybrid_instance_config_override(
-                id,
-                validator_id,
-                node_namespace_format,
-                p2p_communication_type,
-                ingress_domain,
-            ),
-        ),
-        IngressParams::new(
-            ingress_domain.to_string(),
-            Some(vec![http_server_ingress_alternative_name.into()]),
-        ),
-        k8s_service_config_params,
-    )
-}
-
-fn create_hybrid_instance_config_override(
-    node_id: usize,
-    validator_id: String,
-    node_namespace_format: &Template,
-    p2p_communication_type: P2PCommunicationType,
-    domain: &str,
-) -> InstanceConfigOverride {
-    let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
-
-    // Set advertised addresses based on the P2P communication type.
-    let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
-        match p2p_communication_type {
-            P2PCommunicationType::Internal =>
-            // No advertised addresses for internal communication.
-            {
-                (None, None)
-            }
-            P2PCommunicationType::External =>
-            // Advertised addresses for external communication.
-            {
-                (
-                    Some(peer_address(
-                        NodeService::Hybrid(HybridNodeServiceName::Core),
-                        CONSENSUS_P2P_PORT,
-                        &node_namespace_format.format(&[&node_id]),
-                        &get_peer_id(node_id),
-                        &sanitized_domain,
-                    )),
-                    Some(peer_address(
-                        NodeService::Hybrid(HybridNodeServiceName::Mempool),
-                        MEMPOOL_P2P_PORT,
-                        &node_namespace_format.format(&[&node_id]),
-                        &get_peer_id(node_id),
-                        &sanitized_domain,
-                    )),
-                )
-            }
-        };
-
-    InstanceConfigOverride::new(
-        PeerToPeerAdvertisementConfig::new(consensus_advertised_multiaddr),
-        PeerToPeerAdvertisementConfig::new(mempool_advertised_multiaddr),
-        validator_id,
-    )
 }
