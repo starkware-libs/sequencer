@@ -8,10 +8,12 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
-use starknet_patricia::patricia_merkle_tree::traversal::{SubTree, TraversalResult};
+use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+
+use crate::db::facts_db::types::FactsSubTree;
 
 #[cfg(test)]
 #[path = "traversal_test.rs"]
@@ -19,14 +21,14 @@ pub mod traversal_test;
 
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
 pub async fn calculate_subtrees_roots<'a, L: Leaf>(
-    subtrees: &[SubTree<'a>],
+    subtrees: &[FactsSubTree<'a>],
     storage: &mut impl Storage,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
         .iter()
         .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>().into(), &subtree.root_hash.0.to_bytes_be())
+            create_db_key(subtree.get_root_prefix::<L>(), &subtree.root_hash.0.to_bytes_be())
         })
         .collect();
 
@@ -54,7 +56,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
         return Ok(witnesses);
     }
 
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = FactsSubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
     fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
     Ok(witnesses)
@@ -67,9 +69,9 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 /// inner nodes in their paths.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-async fn fetch_patricia_paths_inner<'a, L: Leaf>(
+pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     storage: &mut impl Storage,
-    subtrees: Vec<SubTree<'a>>,
+    subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
 ) -> TraversalResult<()> {
@@ -103,7 +105,7 @@ async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                         // Insert empty leaves descendent of the current subtree, that are not
                         // descendents of the bottom node.
                         for index in empty_leaves_indices {
-                            leaves_map.insert(*index, L::default());
+                            leaves_map.insert(index, L::default());
                         }
                     }
                     next_subtrees.push(bottom_subtree);
