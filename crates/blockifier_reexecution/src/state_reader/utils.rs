@@ -1,21 +1,24 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs::read_to_string;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
-use blockifier::state::state_api::StateReader;
+use blockifier::state::global_cache::CompiledClasses;
+use blockifier::state::state_api::{StateReader, StateResult};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
@@ -38,6 +41,30 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
+
+/// Converts a [`starknet_api::contract_class::ContractClass`] into the corresponding
+/// [`CompiledClasses`].
+///
+/// For `V1` (Cairo 1) classes, a matching `SierraContractClass` must be provided.
+/// For `V0` classes, this argument should be `None`.
+pub fn contract_class_to_compiled_classes(
+    contract_class: ContractClass,
+    sierra_contract_class: Option<SierraContractClass>,
+) -> StateResult<CompiledClasses> {
+    match contract_class {
+        ContractClass::V0(deprecated_class) => {
+            Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_class)?))
+        }
+        ContractClass::V1(versioned_casm) => {
+            let sierra_contract_class =
+                sierra_contract_class.expect("V1 contract class requires Sierra class");
+            Ok(CompiledClasses::V1(
+                CompiledClassV1::try_from(versioned_casm)?,
+                Arc::new(sierra_contract_class),
+            ))
+        }
+    }
+}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
