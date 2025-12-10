@@ -88,24 +88,21 @@ async fn block_execution_artifacts(
     consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
     final_n_executed_txs: usize,
 ) -> BlockExecutionArtifacts {
-    let l2_gas_used = GasAmount(execution_infos_and_signatures.len().try_into().unwrap());
-    BlockExecutionArtifacts {
-        execution_data: BlockTransactionExecutionData {
-            execution_infos_and_signatures,
-            rejected_tx_hashes,
-            consumed_l1_handler_tx_hashes,
-        },
-        commitment_state_diff: Default::default(),
+    let block_summary = BlockExecutionSummary {
+        state_diff: Default::default(),
         compressed_state_diff: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
-        // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
-        l2_gas_used,
         casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
         compiled_class_hashes_for_migration: vec![],
-        final_n_executed_txs,
         block_info: BlockInfo::create_for_testing(),
-    }
+    };
+    let execution_data = BlockTransactionExecutionData {
+        execution_infos_and_signatures,
+        rejected_tx_hashes,
+        consumed_l1_handler_tx_hashes,
+    };
+    BlockExecutionArtifacts::new(block_summary, execution_data, final_n_executed_txs).await
 }
 
 // Filling the execution_info with some non-default values to make sure the block_builder uses them.
@@ -440,7 +437,7 @@ async fn transaction_failed_test_expectations() -> TestExpectations {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts_copy
                 .compiled_class_hashes_for_migration,
-            block_info: expected_block_artifacts_copy.block_info,
+            block_info: BlockInfo::create_for_testing(),
         })
     });
 
@@ -538,7 +535,7 @@ async fn set_close_block_expectations(
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: output_block_artifacts
                 .compiled_class_hashes_for_migration,
-            block_info: output_block_artifacts.block_info,
+            block_info: BlockInfo::create_for_testing(),
         })
     });
     output_block_artifacts_copy
@@ -1136,7 +1133,7 @@ async fn partial_chunk_execution_proposer() {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts
                 .compiled_class_hashes_for_migration,
-            block_info: expected_block_artifacts.block_info,
+            block_info: BlockInfo::create_for_testing(),
         })
     });
 
