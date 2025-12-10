@@ -1,6 +1,7 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
 use crate::patricia_merkle_tree::external_test_utils::small_tree_index_to_full;
@@ -39,8 +40,10 @@ impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
     fn should_traverse_unmodified_children() -> bool {
         false
     }
-
-    fn get_root_prefix<L: Leaf>(&self) -> DbKeyPrefix {
+    fn get_root_prefix<L: Leaf>(
+        &self,
+        _key_context: &<L as HasStaticPrefix>::KeyContext,
+    ) -> DbKeyPrefix {
         DbKeyPrefix::new(&[0])
     }
 }
