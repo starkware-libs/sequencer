@@ -60,6 +60,7 @@ use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -257,6 +258,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         commitments,
         previous_state_roots.classes_trie_root_hash,
         sorted_class_leaf_indices,
+        &EmptyKeyContext,
     )
     .await
     .unwrap();
@@ -284,6 +286,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
             commitments,
             address_to_previous_storage_root_hash[&address],
             sorted_leaf_indices,
+            &EmptyKeyContext,
         )
         .await
         .unwrap();
@@ -372,14 +375,22 @@ pub(crate) async fn get_previous_states_and_new_storage_roots<
     // Get previous contract state leaves.
     let sorted_contract_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
     // Get the previous and the new contract states.
-    let previous_contract_states =
-        get_leaves(commitments, previous_contract_trie_root, sorted_contract_leaf_indices)
-            .await
-            .unwrap();
-    let new_contract_states: HashMap<NodeIndex, ContractState> =
-        get_leaves(commitments, new_contract_trie_root, sorted_contract_leaf_indices)
-            .await
-            .unwrap();
+    let previous_contract_states = get_leaves(
+        commitments,
+        previous_contract_trie_root,
+        sorted_contract_leaf_indices,
+        &EmptyKeyContext,
+    )
+    .await
+    .unwrap();
+    let new_contract_states: HashMap<NodeIndex, ContractState> = get_leaves(
+        commitments,
+        new_contract_trie_root,
+        sorted_contract_leaf_indices,
+        &EmptyKeyContext,
+    )
+    .await
+    .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
         .into_iter()
         .map(|(idx, contract_state)| {
