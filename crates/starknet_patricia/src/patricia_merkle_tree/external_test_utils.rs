@@ -4,12 +4,7 @@ use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{
-    DBObject,
-    Deserializable,
-    EmptyKeyContext,
-    HasStaticPrefix,
-};
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
@@ -37,13 +32,16 @@ impl HasStaticPrefix for MockLeaf {
 }
 
 impl DBObject for MockLeaf {
+    type DeserializeContext = ();
+
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
     }
-}
 
-impl Deserializable for MockLeaf {
-    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
+    fn deserialize(
+        value: &DbValue,
+        _deserialize_context: &Self::DeserializeContext,
+    ) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 }
