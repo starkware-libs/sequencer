@@ -48,7 +48,11 @@ use crate::state_reader::compile::{
     sierra_to_versioned_contract_class_v1,
 };
 use crate::state_reader::errors::ReexecutionResult;
-use crate::state_reader::offline_state_reader::SerializableDataNextBlock;
+use crate::state_reader::offline_state_reader::{
+    SerializableDataNextBlock,
+    SerializableDataPrevBlock,
+    SerializableOfflineReexecutionData,
+};
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
@@ -62,6 +66,7 @@ use crate::state_reader::utils::{
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
+    ComparableStateDiff,
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
@@ -520,6 +525,51 @@ impl ConsecutiveTestStateReaders {
         println!("Execution result: {:?}", res);
 
         Ok(())
+    }
+
+    /// Writes the reexecution data required to reexecute a block to a JSON file.
+    pub fn write_block_reexecution_data_to_file(self, full_file_path: &str) {
+        let chain_id = self.next_block_state_reader.chain_id.clone();
+        let block_number = self.next_block_state_reader.get_block_info().unwrap().block_number;
+
+        let serializable_data_next_block = self.get_serializable_data_next_block().unwrap();
+
+        let old_block_hash = self.get_old_block_hash().unwrap();
+
+        // Run the reexecution and get the state maps and contract class mapping.
+        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block();
+
+        // Warn if state diffs don't match, but continue writing the file.
+        let expected_comparable = ComparableStateDiff::from(expected_state_diff);
+        let actual_comparable = ComparableStateDiff::from(actual_state_diff);
+        if expected_comparable != actual_comparable {
+            println!(
+                "WARNING: State diff mismatch for block {block_number}. Expected and actual state \
+                 diffs do not match."
+            );
+        }
+
+        let block_state = block_state.unwrap();
+        let serializable_data_prev_block = SerializableDataPrevBlock {
+            state_maps: block_state.get_initial_reads().unwrap().into(),
+            contract_class_mapping: block_state
+                .state
+                .state_reader
+                .get_contract_class_mapping_dumper()
+                .unwrap(),
+        };
+
+        // Write the reexecution data to a json file.
+        SerializableOfflineReexecutionData {
+            serializable_data_prev_block,
+            serializable_data_next_block,
+            chain_id,
+            old_block_hash,
+        }
+        .write_to_file(full_file_path)
+        .unwrap();
+
+        println!("RPC replies required for reexecuting block {block_number} written to json file.");
     }
 }
 

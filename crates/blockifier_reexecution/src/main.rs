@@ -14,7 +14,6 @@ use blockifier_reexecution::state_reader::cli::{
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
-use blockifier_reexecution::state_reader::utils::write_block_reexecution_data_to_file;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -136,16 +135,18 @@ async fn main() {
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
+                let rpc_state_reader_config = RpcStateReaderConfig::from_url(node_url);
                 task_set.spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
-                        write_block_reexecution_data_to_file(
-                            block_number,
-                            full_file_path,
-                            node_url,
+                        ConsecutiveTestStateReaders::new(
+                            block_number.prev().expect("Should not run with block 0"),
+                            Some(rpc_state_reader_config),
                             chain_id,
+                            true,
                             contract_class_manager,
                         )
+                        .write_block_reexecution_data_to_file(&full_file_path)
                     })
                     .await
                 });
