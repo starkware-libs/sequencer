@@ -5,6 +5,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 
@@ -54,6 +55,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &HashMap::new(),
             &OriginalSkeletonContractsTrieConfig::new(),
+            &EmptyKeyContext,
         )
         .await?)
     }
@@ -82,6 +84,7 @@ impl<S: Storage> FactsDb<S> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                &EmptyKeyContext,
             )
             .await?;
             storage_tries.insert(*address, original_skeleton);
@@ -104,6 +107,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            &EmptyKeyContext,
         )
         .await?)
     }
