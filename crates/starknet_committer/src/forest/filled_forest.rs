@@ -31,10 +31,6 @@ pub struct FilledForest {
 }
 
 impl FilledForest {
-    pub fn get_contract_root_hash(&self) -> HashOutput {
-        self.contracts_trie.get_root_hash()
-    }
-
     pub fn get_compiled_class_root_hash(&self) -> HashOutput {
         self.classes_trie.get_root_hash()
     }
@@ -117,8 +113,8 @@ impl FilledForest {
             contract_address_to_storage_skeleton.len(),
             contract_address_to_storage_updates.len()
         );
-        // `contract_address_to_storage_updates` includes all modified contracts, even those with
-        // unmodified storage, see StateDiff::actual_storage_updates().
+        // `contract_address_to_storage_updates` includes all modified contracts, even those
+        // with unmodified storage, see StateDiff::actual_storage_updates().
         for (contract_address, storage_updates) in contract_address_to_storage_updates {
             let node_index = contract_address_into_node_index(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
