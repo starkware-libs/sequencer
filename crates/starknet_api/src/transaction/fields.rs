@@ -627,3 +627,27 @@ impl ProofFacts {
         self.0.is_empty()
     }
 }
+
+/// Client-provided proof used for client-side proving.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    SizeOf,
+    derive_more::Deref,
+    derive_more::From,
+)]
+pub struct Proof(pub Arc<Vec<u32>>);
+
+impl From<Vec<u32>> for Proof {
+    fn from(value: Vec<u32>) -> Self {
+        Self(Arc::new(value))
+    }
+}
