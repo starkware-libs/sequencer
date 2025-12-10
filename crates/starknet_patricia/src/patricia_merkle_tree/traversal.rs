@@ -1,3 +1,4 @@
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
 use thiserror::Error;
@@ -27,7 +28,7 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 /// storage layout.
 pub trait SubTreeTrait<'a>: Sized {
     /// Extra data a node can carry (e.g. its hash).
-    type NodeData: Copy;
+    type NodeData;
 
     /// Creates a concrete child node given its index and data.
     fn create(
@@ -101,5 +102,8 @@ pub trait SubTreeTrait<'a>: Sized {
     fn should_traverse_unmodified_children() -> bool;
 
     /// Returns the [DbKeyPrefix] of the root node.
-    fn get_root_prefix<L: Leaf>(&self) -> DbKeyPrefix;
+    fn get_root_prefix<L: Leaf>(
+        &self,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+    ) -> DbKeyPrefix;
 }

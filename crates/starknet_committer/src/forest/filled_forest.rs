@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -31,6 +34,51 @@ pub struct FilledForest {
 }
 
 impl FilledForest {
+    /// Writes the node serialization of the filled trees to storage. Returns the number of new
+    /// objects written to storage.
+    pub async fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
+        // Serialize all trees to one hash map.
+        let new_db_objects = self.serialize_trees();
+
+        // Store the new hash map.
+        self.write_hashmap_to_storage(storage, new_db_objects).await
+    }
+
+    /// Writes the node serialization of the filled trees to storage with given metadata. Returns
+    /// the number of new objects written to storage.
+    pub async fn write_to_storage_with_metadata(
+        &self,
+        storage: &mut impl Storage,
+        _block_height: BlockNumber,
+        _state_diff_hash: StateDiffCommitment,
+    ) -> usize {
+        let new_db_objects = self.serialize_trees();
+        // TODO(Yoav): Insert metadata into the new db objects.
+        self.write_hashmap_to_storage(storage, new_db_objects).await
+    }
+
+    fn serialize_trees(&self) -> DbHashMap {
+        self.storage_tries
+            .values()
+            .flat_map(|tree| tree.serialize(&EmptyKeyContext).into_iter())
+            .chain(self.contracts_trie.serialize(&EmptyKeyContext))
+            .chain(self.classes_trie.serialize(&EmptyKeyContext))
+            .collect()
+    }
+
+    async fn write_hashmap_to_storage(
+        &self,
+        storage: &mut impl Storage,
+        db_hashmap: DbHashMap,
+    ) -> usize {
+        let n_new_facts = db_hashmap.len();
+        storage
+            .mset(db_hashmap)
+            .await
+            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
+        n_new_facts
+    }
+
     pub fn get_contract_root_hash(&self) -> HashOutput {
         self.contracts_trie.get_root_hash()
     }
@@ -117,8 +165,8 @@ impl FilledForest {
             contract_address_to_storage_skeleton.len(),
             contract_address_to_storage_updates.len()
         );
-        // `contract_address_to_storage_updates` includes all modified contracts, even those with
-        // unmodified storage, see StateDiff::actual_storage_updates().
+        // `contract_address_to_storage_updates` includes all modified contracts, even those
+        // with unmodified storage, see StateDiff::actual_storage_updates().
         for (contract_address, storage_updates) in contract_address_to_storage_updates {
             let node_index = contract_address_into_node_index(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
