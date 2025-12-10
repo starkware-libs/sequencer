@@ -200,7 +200,8 @@ Examples:
         revert_up_to_block = (
             args.revert_up_to_block
             if revert_up_to_block is not None
-            else get_current_block_number(args.feeder_url)
+            # Add 1 to the feeder's current block number to revert to the same height as the feeder.
+            else get_current_block_number(args.feeder_url) + 1
         )
         enable_revert_mode(
             namespace_list,
