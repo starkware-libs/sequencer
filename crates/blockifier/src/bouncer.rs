@@ -430,8 +430,8 @@ impl Default for BuiltinWeights {
                 bitwise: 583,
                 keccak: 600000,
                 poseidon: 11450,
-                add_mod: 358,
-                mul_mod: 358,
+                add_mod: 1910,
+                mul_mod: 1910,
                 range_check96: 179,
             },
         }
