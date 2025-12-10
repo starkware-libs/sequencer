@@ -169,7 +169,11 @@ class TransactionSenderService:
                 if tx.get("type") == "L1_HANDLER":
                     # Use shared L1Manager to update any L1-related cache/state based on this tx.
                     try:
-                        l1_manager.update_cache(tx, block_timestamp=src_ts)
+                        logger.info(f"Setting new tx: {tx}, src_bn: {src_bn}, src_ts: {src_ts}")
+                        l1_manager.set_new_tx(tx, src_ts)
+                        txh = tx.get("transaction_hash")
+                        if isinstance(txh, str) and txh:
+                            shared.record_sent_tx(txh, int(src_bn))
                     except Exception as err:
                         logger.warning(
                             f"Failed to update L1 cache for tx {tx.get('transaction_hash')}: {err}"
@@ -290,7 +294,7 @@ class TransactionSenderService:
                     sent_map: Dict[str, int] = snapshot.get("sent_tx_hashes") or {}
 
                     # Only consider errors / pending txs that are at least 10 blocks old
-                    threshold_block = int(block_number) - 10
+                    threshold_block = int(block_number) - 20
 
                     # Collect all eligible errors (gateway + not-committed) with reasons
                     candidates: List[tuple[str, int, str]] = []

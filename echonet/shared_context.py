@@ -399,6 +399,6 @@ class SharedContext:
 
 shared = SharedContext()
 # Global L1Manager instance shared across modules.
-_L1_ALCHEMY_API_KEY = os.getenv("L1_ALCHEMY_API_KEY", "")
+_L1_ALCHEMY_API_KEY = os.getenv("L1_ALCHEMY_API_KEY", "fSw5uvMqdG7d2Y6cwexg7")
 _l1_client = L1Client(api_key=_L1_ALCHEMY_API_KEY)
 l1_manager: L1Manager = L1Manager(_l1_client)

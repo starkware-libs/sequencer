@@ -149,6 +149,25 @@ class EchoCenterService:
         out_txs = []
         for entry in tx_entries:
             tx = entry["tx"]
+            tx_type = tx.get("type")
+
+            # L1 handler transactions should match the feeder-gateway L1 handler
+            # schema and not include account-transaction specific fields such as
+            # paymaster data or resource bounds.
+            if tx_type == "L1_HANDLER":
+                l1_handler_keys = [
+                    "version",
+                    "nonce",
+                    "contract_address",
+                    "entry_point_selector",
+                    "calldata",
+                    "type",
+                ]
+                tx_obj = {k: tx[k] for k in l1_handler_keys if k in tx}
+                tx_obj["transaction_hash"] = tx["hash_value"]
+                out_txs.append(tx_obj)
+                continue
+
             pass_through_keys = [
                 "version",
                 "nonce",
@@ -163,7 +182,7 @@ class EchoCenterService:
             ]
             tx_obj = {k: tx[k] for k in pass_through_keys}
             tx_obj["transaction_hash"] = tx["hash_value"]
-            if tx["type"] == "DEPLOY_ACCOUNT":
+            if tx_type == "DEPLOY_ACCOUNT":
                 deploy_pass_through = [
                     "contract_address_salt",
                     "class_hash",
@@ -463,34 +482,61 @@ class EchoCenterService:
           to the same handlers used by the explicit eth_* HTTP endpoints below.
         - For any other request, just return 200 with an empty body.
         """
-        if request.method == "POST":
-            data = request.get_json(silent=True) or {}
-            method = data.get("method")
-            self.logger.info(f"Method: {method}")
-            if not isinstance(method, str):
-                return ("", consts.HTTP_OK)
+        if request.method != "POST":
+            return ("", consts.HTTP_OK)
 
-            # JSON-RPC params can be an array or an object; normalize to dict-like
-            raw_params = data.get("params")
-            self.logger.info(f"Raw params: {raw_params}")
-            if isinstance(raw_params, list) and raw_params:
-                params = raw_params[0]
-            elif isinstance(raw_params, dict):
-                params = raw_params
-            else:
-                params = {}
+        data = request.get_json(silent=True) or {}
+        method = data.get("method")
+        rpc_id = data.get("id", 1)
+        self.logger.info(f"Method: {method}")
+        if not isinstance(method, str):
+            return ("", consts.HTTP_OK)
 
-            if method == "eth_blockNumber":
-                payload = self.l1_manager.get_block_number()
-                return self._json_response(payload, consts.HTTP_OK)
-            if method == "eth_getBlockByNumber":
-                payload = self.l1_manager.get_block_by_number(params)
-                return self._json_response(payload, consts.HTTP_OK)
-            if method == "eth_getLogs":
-                payload = self.l1_manager.get_logs(params if isinstance(params, dict) else {})
-                return self._json_response(payload, consts.HTTP_OK)
+        # JSON-RPC params can be an array or an object; keep both forms for logging,
+        # but normalize to a dict-like value where convenient.
+        raw_params = data.get("params")
+        self.logger.info(f"Raw params: {raw_params}")
+        if isinstance(raw_params, list) and raw_params:
+            params = raw_params[0]
+        elif isinstance(raw_params, dict):
+            params = raw_params
+        else:
+            params = {}
 
-        return ("", consts.HTTP_OK)
+        if method == "eth_blockNumber":
+            payload = self.l1_manager.get_block_number()
+            logger.info(f"eth_blockNumber payload: {payload}")
+            return self._json_response(payload, consts.HTTP_OK)
+
+        if method == "eth_getBlockByNumber":
+            payload = self.l1_manager.get_block_by_number(params)
+            logger.info(f"eth_getBlockByNumber payload: {payload}")
+            return self._json_response(payload, consts.HTTP_OK)
+
+        if method == "eth_getLogs":
+            payload = self.l1_manager.get_logs(params if isinstance(params, dict) else {})
+            logger.info(f"eth_getLogs payload: {payload}")
+            return self._json_response(payload, consts.HTTP_OK)
+
+        if method == "eth_call":
+            # Return the base block number - 1 (used for initializing base hashes)
+            # encoded as a 32-byte word, so that it is ABI-decodable by clients.
+            base_block_minus_one = int(self._base_block_number) - 1
+            result_word = self._format_0x_hex(base_block_minus_one, width=64)
+            payload = {"jsonrpc": "2.0", "id": rpc_id, "result": result_word}
+            logger.info(f"eth_call payload: {payload}")
+            return self._json_response(payload, consts.HTTP_OK)
+
+        # Fallback for unimplemented JSON-RPC methods: return a proper JSON-RPC
+        # error object instead of an empty body, so clients don't fail with
+        # "EOF while parsing a value".
+        error_payload = {
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "error": {"code": -32601, "message": f"Method {method} not implemented"},
+        }
+        logger.info(f"Unhandled JSON-RPC method {method}, returning error payload: {error_payload}")
+        return self._json_response(error_payload, consts.HTTP_OK)
 
 
 service = EchoCenterService(

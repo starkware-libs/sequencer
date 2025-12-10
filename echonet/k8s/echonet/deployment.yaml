@@ -115,7 +115,6 @@ spec:
               - { key: l1_client.py, path: l1_client.py }
               - { key: manage_sequencer.py, path: manage_sequencer.py }
               - { key: l1_manager.py, path: l1_manager.py }
-              - { key: l1_block_finder.py, path: l1_block_finder.py }
               - { key: l1_blocks.py, path: l1_blocks.py }
               - { key: l1_utils.py, path: l1_utils.py }
               - { key: logger.py, path: logger.py }

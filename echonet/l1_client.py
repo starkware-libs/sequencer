@@ -4,13 +4,13 @@ from typing import Any, Callable, Dict, List, Optional
 import eth_abi
 import functools
 import inspect
-import logging
 import requests
 from l1_utils import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
     timestamp_to_iso,
 )
+from logger import get_logger
 
 
 class L1Client:
@@ -37,7 +37,9 @@ class L1Client:
         retries_count: int = 2,
     ):
         self.api_key = api_key
-        self.logger = logging.Logger("L1Client")
+        # Use the common echonet logger namespace so L1Client logs are consistent
+        # with the rest of the system.
+        self.logger = get_logger("l1_client")
         self.timeout = timeout
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
