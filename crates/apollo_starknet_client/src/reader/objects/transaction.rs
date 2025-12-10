@@ -516,7 +516,8 @@ pub struct IntermediateInvokeTransaction {
     pub account_deployment_data: Option<AccountDeploymentData>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
-    // TODO(AvivG): Consider adding proof facts.
+    // TODO(AvivG): Add `proof_facts` to read historical `InvokeTransactionV3` from external
+    // Starknet nodes. Consider adding `proof`.
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.
