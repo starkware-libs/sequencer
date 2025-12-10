@@ -82,7 +82,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 358
+    "value": 2000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
@@ -107,7 +107,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
     "privacy": "Public",
-    "value": 358
+    "value": 2000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
