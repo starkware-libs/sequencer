@@ -136,7 +136,7 @@ pub fn verify_indexed_execution_infos(
 }
 
 impl BlockExecutionArtifacts {
-    pub fn create_for_testing() -> Self {
+    pub async fn create_for_testing() -> Self {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
             execution_data: BlockTransactionExecutionData {
