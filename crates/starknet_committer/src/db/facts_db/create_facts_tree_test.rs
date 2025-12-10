@@ -217,6 +217,7 @@ async fn test_create_tree(
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        &(),
     )
     .await
     .unwrap();
@@ -225,7 +226,7 @@ async fn test_create_tree(
 
 pub(crate) fn create_mock_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = MockLeaf(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&(), &leaf.0.to_bytes_be()), leaf.serialize())
 }
 
 fn create_mock_leaf_modifications(
