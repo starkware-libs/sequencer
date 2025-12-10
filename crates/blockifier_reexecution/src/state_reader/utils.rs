@@ -4,11 +4,9 @@ use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
-use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
@@ -20,8 +18,6 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -219,25 +215,6 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
             ),
         }
     }
-}
-
-pub fn reexecute_block_for_testing(block_number: u64) {
-    // In tests we are already in the blockifier_reexecution directory.
-    let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
-
-    // Initialize the contract class manager.
-    let mut contract_class_manager_config = ContractClassManagerConfig::default();
-    if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
-        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
-    }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
-
-    OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
-        .unwrap()
-        .reexecute_and_verify_correctness();
-
-    println!("Reexecution test for block {block_number} passed successfully.");
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
