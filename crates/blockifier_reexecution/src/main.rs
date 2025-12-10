@@ -12,10 +12,10 @@ use blockifier_reexecution::state_reader::cli::{
     FULL_RESOURCES_DIR,
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
+use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
     execute_single_transaction,
-    reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
 };
 use clap::Parser;
@@ -72,13 +72,14 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
+                ConsecutiveTestStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     rpc_args.parse_chain_id(),
                     false,
                     contract_class_manager,
-                ))
+                )
+                .reexecute_and_verify_correctness()
             })
             .await
             .unwrap();
@@ -165,13 +166,12 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
                 let contract_class_manager = contract_class_manager.clone();
                 task_set.spawn(async move {
-                    reexecute_and_verify_correctness(
-                        OfflineConsecutiveStateReaders::new_from_file(
-                            &full_file_path,
-                            contract_class_manager,
-                        )
-                        .unwrap(),
-                    );
+                    OfflineConsecutiveStateReaders::new_from_file(
+                        &full_file_path,
+                        contract_class_manager,
+                    )
+                    .unwrap()
+                    .reexecute_and_verify_correctness();
                     println!("Reexecution test for block {block} passed successfully.");
                 });
             }
