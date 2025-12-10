@@ -436,7 +436,8 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
         | StarknetApiError::BlockHashVersion { .. }
         | StarknetApiError::ParseSierraVersionError(..)
         | StarknetApiError::ResourceHexToFeltConversion(..)
-        | StarknetApiError::OutOfRange { .. } => StarknetError {
+        | StarknetApiError::OutOfRange { .. }
+        | StarknetApiError::InvalidChainIdHex(..) => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },
