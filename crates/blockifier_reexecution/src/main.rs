@@ -13,7 +13,7 @@ use blockifier_reexecution::state_reader::cli::{
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
-use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -68,7 +68,7 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                ConsecutiveTestStateReaders::new(
+                ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     rpc_args.parse_chain_id(),
@@ -104,7 +104,7 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                ConsecutiveTestStateReaders::new(
+                ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_id,
@@ -139,7 +139,7 @@ async fn main() {
                 task_set.spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
-                        ConsecutiveTestStateReaders::new(
+                        ConsecutiveRpcStateReaders::new(
                             block_number.prev().expect("Should not run with block 0"),
                             Some(rpc_state_reader_config),
                             chain_id,
