@@ -35,7 +35,7 @@ use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
 };
-use crate::state_reader::test_state_reader::StarknetContractClassMapping;
+use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
 use crate::state_reader::utils::{get_chain_info, ReexecutionStateMaps};
 
 pub struct OfflineReexecutionData {
