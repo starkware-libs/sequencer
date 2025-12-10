@@ -17,7 +17,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
@@ -50,12 +50,12 @@ macro_rules! compare_skeleton_tree {
 
 pub(crate) fn create_storage_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = StarknetStorageValue(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
 }
 
 pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = CompiledClassHash(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
 }
 
 pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
@@ -65,7 +65,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         storage_root_hash: HashOutput(felt),
         class_hash: ClassHash(felt),
     };
-    (leaf.get_db_key(&felt.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &felt.to_bytes_be()), leaf.serialize())
 }
 
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
