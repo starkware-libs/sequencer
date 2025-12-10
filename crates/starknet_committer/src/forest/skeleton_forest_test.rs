@@ -32,7 +32,7 @@ use crate::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use crate::db::facts_db::FactsDb;
+use crate::db::facts_db::db::FactsDb;
 use crate::db::forest_trait::ForestReader;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
