@@ -461,7 +461,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 Some(shc_event) = shc_events.next() => {
                     let leader_fn = make_leader_fn(context, height);
-                    shc.handle_event(&leader_fn, shc_event)?
+                    shc.handle_event(&leader_fn, shc_event)
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -500,7 +500,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
-            match shc.start(&leader_fn)? {
+            match shc.start(&leader_fn) {
                 decision @ ShcReturn::Decision(_) => {
                     // Start should generate either StartValidateProposal (validator) or
                     // StartBuildProposal (proposer). We do not enforce this
@@ -518,7 +518,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         for (init, content_receiver) in cached_proposals {
             match self
                 .handle_proposal_known_init(context, height, shc, init, content_receiver)
-                .await?
+                .await
             {
                 decision @ ShcReturn::Decision(_) => return Ok(decision),
                 ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
@@ -529,7 +529,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
-            match shc.handle_vote(&leader_fn, msg)? {
+            match shc.handle_vote(&leader_fn, msg) {
                 decision @ ShcReturn::Decision(_) => return Ok(decision),
                 ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
             }
@@ -589,14 +589,15 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
                     if self.should_cache_proposal(&height, shc.current_round(), &proposal_init) {
-                        self.handle_proposal_known_init(
-                            context,
-                            height,
-                            shc,
-                            proposal_init,
-                            content_receiver,
-                        )
-                        .await
+                        Ok(self
+                            .handle_proposal_known_init(
+                                context,
+                                height,
+                                shc,
+                                proposal_init,
+                                content_receiver,
+                            )
+                            .await)
                     } else {
                         Ok(ShcReturn::Requests(VecDeque::new()))
                     }
@@ -616,7 +617,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         proposal_init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
-    ) -> Result<ShcReturn, ConsensusError> {
+    ) -> ShcReturn {
         // Store the stream; requests will reference it by (height, round)
         self.proposal_streams.insert((height, proposal_init.round), content_receiver);
         let leader_fn = make_leader_fn(context, height);
@@ -682,7 +683,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc) => {
                     if self.should_cache_vote(&height, shc.current_round(), &message) {
                         let leader_fn = make_leader_fn(context, height);
-                        shc.handle_vote(&leader_fn, message)
+                        Ok(shc.handle_vote(&leader_fn, message))
                     } else {
                         Ok(ShcReturn::Requests(VecDeque::new()))
                     }
