@@ -1,7 +1,8 @@
 use core::panic;
 
-use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::state::StateStorageWriter;
+use apollo_storage::test_utils::get_test_storage;
+use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
@@ -22,8 +23,8 @@ use starknet_api::{calldata, felt};
 use crate::apollo_state::ApolloReader;
 
 #[test]
-fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
-    let ((storage_reader, mut storage_writer), _) = apollo_storage::test_utils::get_test_storage();
+fn test_entry_point_with_papyrus_state() -> StorageResult<()> {
+    let ((storage_reader, mut storage_writer), _) = get_test_storage();
 
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();

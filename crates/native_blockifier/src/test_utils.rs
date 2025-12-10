@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use apollo_storage::{StorageReader, StorageWriter};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::errors::NativeBlockifierResult;
-use crate::storage::Storage;
+use crate::storage::{RawDeclaredClassMapping, RawDeprecatedDeclaredClassMapping, Storage};
 
 pub struct MockStorage {
     pub block_number_to_class_hash: HashMap<u64, Vec<u8>>,
@@ -43,11 +44,11 @@ impl Storage for MockStorage {
         todo!()
     }
 
-    fn reader(&self) -> &apollo_storage::StorageReader {
+    fn reader(&self) -> &StorageReader {
         todo!()
     }
 
-    fn writer(&mut self) -> &mut apollo_storage::StorageWriter {
+    fn writer(&mut self) -> &mut StorageWriter {
         todo!()
     }
 
