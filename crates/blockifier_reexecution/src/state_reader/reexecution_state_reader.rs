@@ -133,7 +133,9 @@ pub trait ConsecutiveReexecutionStateReaders<S: StateReader + Send + Sync + 'sta
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
 
-    fn reexecute_and_verify_correctness(self) -> Option<CachedState<S>> {
+    /// Reexecutes a block and returns the block state along with the expected and actual state
+    /// diffs. Does not verify that the state diffs match.
+    fn reexecute_block(self) -> (Option<CachedState<S>>, CommitmentStateDiff, CommitmentStateDiff) {
         let expected_state_diff = self.get_next_block_state_diff().unwrap();
 
         let all_txs_in_next_block = self.get_next_block_txs().unwrap();
@@ -153,8 +155,14 @@ pub trait ConsecutiveReexecutionStateReaders<S: StateReader + Send + Sync + 'sta
             .expect("Couldn't finalize block")
             .state_diff;
 
+        (transaction_executor.block_state, expected_state_diff, actual_state_diff)
+    }
+
+    fn reexecute_and_verify_correctness(self) -> Option<CachedState<S>> {
+        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block();
+
         assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
-        transaction_executor.block_state
+        block_state
     }
 }
