@@ -22,7 +22,7 @@ use crate::block_committer::input::{
     ConfigImpl,
     StarknetStorageValue,
 };
-use crate::db::create_facts_tree::{
+use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
