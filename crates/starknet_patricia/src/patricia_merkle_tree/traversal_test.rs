@@ -1,13 +1,50 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::hash::HashOutput;
-use starknet_types_core::felt::Felt;
+use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
 use crate::patricia_merkle_tree::external_test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::traversal::SubTree;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::traversal::SubTreeTrait;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+
+/// Test implementation for [SubTreeTrait]. It should only be used for child creation purposes,
+/// e.g. by using `get_bottom_subtree` or `get_children_subtrees`.
+#[derive(Debug, PartialEq)]
+struct TestSubTree<'a> {
+    sorted_leaf_indices: SortedLeafIndices<'a>,
+    root_index: NodeIndex,
+}
+
+impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
+    type NodeData = ();
+
+    fn create(
+        sorted_leaf_indices: SortedLeafIndices<'a>,
+        root_index: NodeIndex,
+        _child_data: Self::NodeData,
+    ) -> Self {
+        Self { sorted_leaf_indices, root_index }
+    }
+
+    fn get_root_index(&self) -> NodeIndex {
+        self.root_index
+    }
+
+    fn get_sorted_leaf_indices(&self) -> &SortedLeafIndices<'a> {
+        &self.sorted_leaf_indices
+    }
+
+    fn should_traverse_unmodified_children() -> bool {
+        false
+    }
+
+    fn get_root_prefix<L: Leaf>(&self) -> DbKeyPrefix {
+        // Dummy prefix for testing purposes (we only need a prefix when interacting with storage).
+        DbKeyPrefix::new(&[0])
+    }
+}
 
 /// case::single_right_child
 ///     1
@@ -175,19 +212,17 @@ fn test_get_bottom_subtree(
     );
 
     // Create the input Subtree.
-    let tree = SubTree { sorted_leaf_indices, root_index, root_hash: HashOutput(Felt::ONE) };
+    let tree = TestSubTree { sorted_leaf_indices, root_index };
 
     // Get the bottom subtree.
-    let (subtree, previously_empty_leaf_indices) =
-        tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
+    let (subtree, previously_empty_leaf_indices) = tree.get_bottom_subtree(&path_to_bottom, ());
 
     let expected_root_index = small_tree_index_to_full(expected_root_index, height);
 
     // Create the expected subtree.
-    let expected_subtree = SubTree {
+    let expected_subtree = TestSubTree {
         sorted_leaf_indices: expected_sorted_leaf_indices,
         root_index: expected_root_index,
-        root_hash: HashOutput(Felt::TWO),
     };
     assert_eq!(previously_empty_leaf_indices, expected_previously_empty_leaf_indices);
     assert_eq!(subtree, expected_subtree);
