@@ -127,7 +127,7 @@ pub fn get_integration_test_storage(
                 .get_class_manager_exec_path()
                 .join(CLASS_MANAGER_DB_PATH_SUFFIX)
                 .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
-            storage_config.batcher_storage_config.db_config.path_prefix =
+            storage_config.consensus_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_consensus_exec_path().join(CONSENSUS_DB_PATH_SUFFIX);
         }
     }
