@@ -22,7 +22,8 @@ pub struct ContractState {
 }
 
 impl HasStaticPrefix for StarknetStorageValue {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = ();
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::StorageLeaf.into()
     }
 }
@@ -41,7 +42,8 @@ impl Leaf for StarknetStorageValue {
 }
 
 impl HasStaticPrefix for CompiledClassHash {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = ();
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::CompiledClassLeaf.into()
     }
 }
@@ -60,7 +62,8 @@ impl Leaf for CompiledClassHash {
 }
 
 impl HasStaticPrefix for ContractState {
-    fn get_static_prefix() -> DbKeyPrefix {
+    type KeyContext = ();
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::StateTreeLeaf.into()
     }
 }
