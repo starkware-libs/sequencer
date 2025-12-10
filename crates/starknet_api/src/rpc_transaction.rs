@@ -607,6 +607,9 @@ impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
     fn calldata(&self) -> &Calldata {
         &self.calldata
     }
+    fn proof_facts(&self) -> &ProofFacts {
+        &self.proof_facts
+    }
 }
 
 impl TransactionHasher for RpcInvokeTransactionV3 {

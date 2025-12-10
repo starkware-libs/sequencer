@@ -11,6 +11,7 @@ use crate::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ProofFacts,
     ResourceBounds,
     Tip,
     ValidResourceBounds,
@@ -363,6 +364,7 @@ pub(crate) trait InvokeTransactionV3Trait {
     fn calldata(&self) -> &Calldata;
     fn sender_address(&self) -> &ContractAddress;
     fn nonce(&self) -> &Nonce;
+    fn proof_facts(&self) -> &ProofFacts;
 }
 
 pub(crate) fn get_invoke_transaction_v3_hash<T: InvokeTransactionV3Trait>(
@@ -427,6 +429,9 @@ impl InvokeTransactionV3Trait for InvokeTransactionV3 {
     }
     fn calldata(&self) -> &Calldata {
         &self.calldata
+    }
+    fn proof_facts(&self) -> &ProofFacts {
+        &self.proof_facts
     }
 }
 
