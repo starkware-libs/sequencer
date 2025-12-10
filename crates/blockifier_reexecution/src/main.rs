@@ -14,10 +14,7 @@ use blockifier_reexecution::state_reader::cli::{
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
-use blockifier_reexecution::state_reader::utils::{
-    execute_single_transaction,
-    write_block_reexecution_data_to_file,
-};
+use blockifier_reexecution::state_reader::utils::write_block_reexecution_data_to_file;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -101,19 +98,21 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+            let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let chain_id = rpc_args.parse_chain_id();
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction(
-                    BlockNumber(block_number),
-                    node_url,
+                ConsecutiveTestStateReaders::new(
+                    BlockNumber(block_number - 1),
+                    Some(rpc_state_reader_config),
                     chain_id,
-                    tx_input,
+                    false,
                     contract_class_manager,
                 )
+                .execute_single_transaction(tx_input)
             })
             .await
             .unwrap()
