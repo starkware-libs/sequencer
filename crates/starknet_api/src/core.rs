@@ -18,7 +18,7 @@ use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
@@ -87,18 +87,29 @@ impl ChainId {
     }
 }
 
+/// Parses a hex string (e.g., "0x534e5f4d41494e") into a ChainId.
+pub fn chain_id_from_hex_str(hex_str: &str) -> StarknetApiResult<ChainId> {
+    let chain_id_str =
+        std::str::from_utf8(&hex::decode(hex_str.trim_start_matches("0x")).map_err(|e| {
+            StarknetApiError::InvalidChainIdHex(format!(
+                "Failed to decode the hex string {hex_str}. Error: {e:?}"
+            ))
+        })?)
+        .map_err(|e| {
+            StarknetApiError::InvalidChainIdHex(format!(
+                "Failed to convert to UTF-8 string. Error: {e}"
+            ))
+        })?
+        .to_string();
+    Ok(ChainId::from(chain_id_str))
+}
+
 pub fn deserialize_chain_id_from_hex<'de, D>(deserializer: D) -> Result<ChainId, D::Error>
 where
     D: Deserializer<'de>,
 {
     let hex_str = String::deserialize(deserializer)?;
-    let chain_id_str =
-        std::str::from_utf8(&hex::decode(hex_str.trim_start_matches("0x")).map_err(|e| {
-            D::Error::custom(format!("Failed to decode the hex string {hex_str}. Error: {e:?}"))
-        })?)
-        .map_err(|e| D::Error::custom(format!("Failed to convert to UTF-8 string. Error: {e:?}")))?
-        .to_string();
-    Ok(ChainId::from(chain_id_str))
+    chain_id_from_hex_str(&hex_str).map_err(D::Error::custom)
 }
 
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),
