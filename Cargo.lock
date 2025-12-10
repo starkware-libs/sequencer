@@ -12280,6 +12280,7 @@ dependencies = [
 name = "starknet_committer"
 version = "0.17.0-rc.0"
 dependencies = [
+ "async-trait",
  "csv",
  "ethnum",
  "hex",
