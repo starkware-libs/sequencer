@@ -21,9 +21,12 @@ use crate::class_storage::{
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
+        use starknet_api::core::ChainId;
+
         let config = ClassHashStorageConfig {
             class_hash_db_config: ClassHashDbConfig {
                 path_prefix: path_prefix.path().to_path_buf(),
+                chain_id: ChainId::Other("UnusedChainID".to_string()),
                 enforce_file_exists: false,
                 max_size: 1 << 30,    // 1GB.
                 min_size: 1 << 10,    // 1KB.

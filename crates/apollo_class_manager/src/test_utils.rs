@@ -5,6 +5,7 @@ use apollo_class_manager_config::config::{
     ClassHashStorageConfig,
     FsClassStorageConfig,
 };
+use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
@@ -26,6 +27,7 @@ impl Default for FsClassStorageBuilderForTesting {
             class_hash_storage_config: ClassHashStorageConfig {
                 class_hash_db_config: ClassHashDbConfig {
                     path_prefix: class_hash_storage_handle.path().to_path_buf(),
+                    chain_id: ChainId::Other("UnusedChainID".to_string()),
                     enforce_file_exists: false,
                     max_size: 1 << 30,    // 1GB.
                     min_size: 1 << 10,    // 1KB.

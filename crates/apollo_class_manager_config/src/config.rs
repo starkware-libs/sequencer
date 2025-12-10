@@ -47,6 +47,7 @@ impl SerializeConfig for CachedClassStorageConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ClassHashDbConfig {
     pub path_prefix: PathBuf,
+    pub chain_id: ChainId,
     pub enforce_file_exists: bool,
     pub min_size: usize,
     pub max_size: usize,
@@ -62,6 +63,12 @@ impl SerializeConfig for ClassHashDbConfig {
                 "path_prefix",
                 &self.path_prefix,
                 "Prefix of the path of the node's storage directory.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -115,6 +122,7 @@ impl Default for ClassHashStorageConfig {
         Self {
             class_hash_db_config: ClassHashDbConfig {
                 path_prefix: "/data/class_hash_storage".into(),
+                chain_id: ChainId::Other("UnusedChainID".to_string()),
                 enforce_file_exists: false,
                 min_size: 1 << 20,    // 1MB
                 max_size: 1 << 40,    // 1TB
@@ -137,7 +145,7 @@ impl From<ClassHashStorageConfig> for StorageConfig {
             db_config: apollo_storage::db::DbConfig {
                 // TODO(Noamsp): move the chain id into the config and use StorageConfig instead of
                 // ClassHashStorageConfig
-                chain_id: ChainId::Other("UnusedChainID".to_string()),
+                chain_id: value.class_hash_db_config.chain_id,
                 path_prefix: value.class_hash_db_config.path_prefix,
                 enforce_file_exists: value.class_hash_db_config.enforce_file_exists,
                 min_size: value.class_hash_db_config.min_size,
