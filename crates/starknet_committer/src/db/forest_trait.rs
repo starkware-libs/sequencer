@@ -4,12 +4,11 @@ use std::future::Future;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
-use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
-use crate::block_committer::input::{ConfigImpl, StarknetStorageValue};
+use crate::block_committer::input::{ConfigImpl, InputContext, StarknetStorageValue};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -49,11 +48,10 @@ pub trait ForestMetadata {
 
 /// Trait for reading an original skeleton forest from some storage.
 /// The implementation may depend on the underlying storage layout.
-pub trait ForestReader<'a> {
+pub trait ForestReader<'a, I: InputContext> {
     fn read(
         &mut self,
-        contracts_trie_root_hash: HashOutput,
-        classes_trie_root_hash: HashOutput,
+        context: I,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -92,5 +90,5 @@ pub trait ForestWriter: ForestMetadata + Send {
     }
 }
 
-pub trait ForestStorage<'a>: ForestReader<'a> + ForestWriter {}
-impl<'a, T: ForestReader<'a> + ForestWriter> ForestStorage<'a> for T {}
+pub trait ForestStorage<'a, I: InputContext>: ForestReader<'a, I> + ForestWriter {}
+impl<'a, I: InputContext, T: ForestReader<'a, I> + ForestWriter> ForestStorage<'a, I> for T {}

@@ -7,9 +7,9 @@ use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::block_committer::input::{ConfigImpl, Input};
+use crate::block_committer::input::{ConfigImpl, FactsDbInitialRead, Input};
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type FactsDbInputImpl = Input<ConfigImpl, FactsDbInitialRead>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
