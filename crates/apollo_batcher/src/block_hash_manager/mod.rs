@@ -1,5 +1,11 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
+use core::panic;
+
+use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
+use starknet_api::state::ThinStateDiff;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -15,6 +21,8 @@ pub(crate) mod types;
 pub(crate) struct BlockHashManagerConfig {
     pub(crate) tasks_channel_size: usize,
     pub(crate) results_channel_size: usize,
+    // Wait for tasks channel to be available before sending.
+    pub(crate) wait_for_tasks_channel: bool,
 }
 
 #[allow(dead_code)]
@@ -38,5 +46,65 @@ impl BlockHashManager {
         let commitment_task_performer = state_committer.run();
 
         Self { tasks_sender, results_receiver, commitment_task_performer, config }
+    }
+
+    pub(crate) async fn add_commitment_task(
+        self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) {
+        let commitment_task_input =
+            CommitmentTaskInput { height, state_diff, state_diff_commitment };
+        let error_message = format!(
+            "Failed to send commitment task to state committer. Block: {height}, state diff \
+             commitment: {state_diff_commitment:?}",
+        );
+        let success_message = format!(
+            "Sent commitment task for block {} and state diff {:?} to state committer.",
+            height, state_diff_commitment
+        );
+
+        if self.config.wait_for_tasks_channel {
+            info!(
+                "Waiting to send commitment task for block {height} and state diff \
+                 {state_diff_commitment:?} to state committer."
+            );
+            match self.tasks_sender.send(commitment_task_input).await {
+                Ok(_) => {
+                    info!(success_message);
+                }
+                Err(err) => {
+                    panic!("{}. error: {err}", error_message);
+                }
+            };
+        } else {
+            match self.tasks_sender.try_send(commitment_task_input) {
+                Ok(_) => {
+                    info!(success_message);
+                }
+                Err(TrySendError::Full(_)) => {
+                    let channel_size = self.tasks_sender.max_capacity();
+                    panic!(
+                        "Failed to send commitment task to state committer because the channel is \
+                         full. Block: {height}, state diff commitment: {state_diff_commitment:?}, \
+                         channel size: {channel_size}. Consider increasing the channel size or \
+                         enabling waiting in the config.",
+                    );
+                }
+                Err(err) => {
+                    panic!("{}. error: {err}", error_message);
+                }
+            };
+        }
+    }
+
+    pub(crate) async fn get_commitment_result(&mut self) -> Option<CommitmentTaskOutput> {
+        unimplemented!()
+    }
+
+    // TODO(Amos): Pass committer client as argument.
+    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
+        unimplemented!()
     }
 }
