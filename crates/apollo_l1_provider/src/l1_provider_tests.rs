@@ -1483,6 +1483,7 @@ async fn bootstrap_e2e() {
 
     let mut l1_provider =
         L1Provider::new(config, l1_provider_client.clone(), Arc::new(sync_client), None);
+
     // Test.
 
     // Trigger the bootstrapper: this will trigger the sync task to start trying to fetch blocks
@@ -1492,10 +1493,7 @@ async fn bootstrap_e2e() {
     // understand though.
     let scraped_l1_handler_txs = vec![]; // No txs to scrape in this test.
     l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs).await.unwrap();
-    // TODO(guyn): this test assumes we start in bootstrapping state. The test should be updated to
-    // include the part where the batcher's first commit_block command is what determines the
-    // catchup height and causes the bootstrapping to begin.
-    l1_provider.start_bootstrapping(CATCH_UP_HEIGHT);
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, CATCH_UP_HEIGHT);
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
@@ -1578,6 +1576,7 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(3);
+    const CATCH_UP_HEIGHT: BlockNumber = BlockNumber(5);
 
     let sync_client = MockStateSyncClient::default();
     let config = L1ProviderConfig {
@@ -1587,12 +1586,13 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
 
     let mut l1_provider =
         L1Provider::new(config, l1_provider_client.clone(), Arc::new(sync_client), None);
+
     // Test.
 
     // Start the sync sequence, should busy-wait until the batcher height is sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
     l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs.into()).await.unwrap();
-
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, CATCH_UP_HEIGHT);
     // **Commit** a few blocks. The height starts from the provider's current height, since this
     // is a trivial catchup scenario (nothing to catch up).
     // This checks that the trivial catch_up_height doesn't mess up this flow.
@@ -1606,11 +1606,11 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     // Commit blocks should have been applied.
     let start_height_plus_2 = height_add(STARTUP_HEIGHT, 2);
     assert_eq!(l1_provider.current_height, start_height_plus_2);
-    // TODO(guyn): it is possible that the rest of this test is trivial.
+
     // Should still be bootstrapping, since catchup height isn't determined yet.
     // Technically we could end bootstrapping at this point, but its simpler to let it
     // terminate gracefully once the batcher and sync are ready.
-    assert_eq!(l1_provider.state, ProviderState::Pending);
+    assert!(l1_provider.state.is_bootstrapping());
 
     // Let the sync task continue, it should short circuit.
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
