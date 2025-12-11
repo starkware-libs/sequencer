@@ -56,10 +56,7 @@ impl GatewayFixedBlockSyncStateClient {
                     l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
                 },
             },
-            use_kzg_da: match block_header.l1_da_mode {
-                L1DataAvailabilityMode::Blob => true,
-                L1DataAvailabilityMode::Calldata => false,
-            },
+            use_kzg_da: block_header.l1_da_mode.is_use_kzg_da(),
             starknet_version: block_header.starknet_version,
         };
 
