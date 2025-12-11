@@ -2,11 +2,25 @@ import functools
 import inspect
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
+<<<<<<< HEAD
+||||||| dd2fc66abf
+import functools
+import inspect
+import logging
+=======
+import eth_abi
+import functools
+import inspect
+import logging
+>>>>>>> origin/main-v0.14.1
 import requests
-from l1_constants import LOG_MESSAGE_TO_L2_EVENT_SIGNATURE, STARKNET_L1_CONTRACT_ADDRESS
+from l1_utils import (
+    LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
+    STARKNET_L1_CONTRACT_ADDRESS,
+    timestamp_to_iso,
+)
 
 
 class L1Client:
@@ -16,20 +30,14 @@ class L1Client:
     )
 
     @dataclass(frozen=True)
-    class Log:
-        """
-        Ethereum log entry
-        """
-
-        address: str
-        topics: List[str]
-        data: str
+    class L1Event:
+        contract_address: str
+        entry_point_selector: int
+        calldata: List[int]
+        nonce: int
+        fee: int
+        l1_tx_hash: str
         block_number: int
-        block_hash: str
-        transaction_hash: str
-        transaction_index: int
-        log_index: int
-        removed: bool
         block_timestamp: int
 
     def __init__(
@@ -76,10 +84,10 @@ class L1Client:
 
         return None
 
-    def get_logs(self, from_block: int, to_block: int) -> List["L1Client.Log"]:
+    def get_logs(self, from_block: int, to_block: int) -> Optional[Dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
-        Tries up to retries_count times. On failure, logs an error and returns [].
+        Tries up to retries_count times. On failure, logs an error and returns None.
         """
         if from_block > to_block:
             raise ValueError("from_block must be less than or equal to to_block")
@@ -99,7 +107,7 @@ class L1Client:
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        data = self._run_request_with_retry(
+        return self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={
                 "url": self.rpc_url,
@@ -108,49 +116,34 @@ class L1Client:
             },
         )
 
-        if data is None:
-            return []
-
-        results = data.get("result", [])
-
-        return [
-            L1Client.Log(
-                address=result["address"],
-                topics=result["topics"],
-                data=result["data"],
-                block_number=int(result["blockNumber"], 16),
-                block_hash=result["blockHash"],
-                transaction_hash=result["transactionHash"],
-                transaction_index=int(result["transactionIndex"], 16),
-                log_index=int(result["logIndex"], 16),
-                removed=result["removed"],
-                block_timestamp=int(result["blockTimestamp"], 16),
-            )
-            for result in results
-        ]
-
-    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
+    def get_block_by_number(self, block_number: str) -> Optional[Dict]:
         """
-        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Get block details by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
-            "params": [hex(block_number), False],
+            "params": [block_number, False],
             "id": 1,
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        result = self._run_request_with_retry(
+        return self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
 
-        if result is None:
+    def get_timestamp_of_block(self, block_number: str) -> Optional[int]:
+        """
+        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Tries up to retries_count times. On failure, logs an error and returns None.
+        """
+        response = self.get_block_by_number(block_number)
+        if response is None:
             return None
 
-        block = result.get("result")
+        block = response.get("result")
         if block is None:
             # Block not found
             return None
@@ -163,9 +156,7 @@ class L1Client:
         Get the block number at/after a given timestamp using blocks-by-timestamp API.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        timestamp_iso = (
-            datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
-        )
+        timestamp_iso = timestamp_to_iso(timestamp)
 
         params = {
             "networks": "eth-mainnet",
@@ -188,3 +179,48 @@ class L1Client:
 
         block = items[0].get("block", {})
         return block.get("number")
+
+    @staticmethod
+    def decode_log_response(log: dict) -> "L1Client.L1Event":
+        """
+        Decodes Ethereum log from Starknet L1 contract into DecodedLogMessageToL2 event.
+        Event structure defined in: crates/papyrus_base_layer/resources/Starknet-0.10.3.4.json
+        """
+        if not all(
+            key in log
+            for key in ("topics", "data", "transactionHash", "blockTimestamp", "blockNumber")
+        ):
+            raise ValueError("Log is missing required fields for decoding")
+
+        topics = log["topics"]
+        if len(topics) < 4:
+            raise ValueError("Log has insufficient topics for LogMessageToL2 event")
+        event_signature = topics[0]
+        if event_signature != LOG_MESSAGE_TO_L2_EVENT_SIGNATURE:
+            raise ValueError(f"Unhandled event signature: {event_signature}")
+
+        # Indexed params (topics): fromAddress, toAddress, selector
+        from_address = hex(int(topics[1], 16))
+        to_address = hex(int(topics[2], 16))
+        selector = int(topics[3], 16)
+
+        # Non-indexed params (data): payload[], nonce, fee
+        data = log["data"]
+        if not data.startswith("0x"):
+            raise ValueError("Log data must start with '0x'")
+        data_bytes = bytes.fromhex(data[2:])  # Remove 0x prefix and convert to bytes
+        payload, nonce, fee = eth_abi.decode(["uint256[]", "uint256", "uint256"], data_bytes)
+
+        # Prepend the L1 sender address to the calldata.
+        calldata = [int(from_address, 16)] + list(payload)
+
+        return L1Client.L1Event(
+            contract_address=to_address,
+            entry_point_selector=selector,
+            calldata=calldata,
+            nonce=nonce,
+            fee=fee,
+            l1_tx_hash=log["transactionHash"],
+            block_timestamp=int(log["blockTimestamp"], 16),
+            block_number=int(log["blockNumber"], 16),
+        )

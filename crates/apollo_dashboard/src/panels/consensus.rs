@@ -20,12 +20,18 @@ use apollo_consensus_manager::metrics::{
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_PING_LATENCY,
+    CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE,
+    CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE,
+    CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE,
     CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE,
+    CONSENSUS_VOTES_SENT_MESSAGE_SIZE,
 };
 use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
@@ -347,6 +353,15 @@ fn get_panel_consensus_votes_num_sent_messages() -> Panel {
     )
 }
 
+fn get_panel_consensus_votes_sent_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_VOTES_SENT_MESSAGE_SIZE,
+        "Consensus Votes Sent Message Size MB/sec",
+        "The rate of MB per second sent by the consensus p2p component over the Votes topic",
+    )
+    .with_unit(Unit::MB)
+}
+
 fn get_panel_consensus_votes_num_received_messages() -> Panel {
     Panel::new(
         "Consensus Votes Number of Received Messages",
@@ -355,6 +370,15 @@ fn get_panel_consensus_votes_num_received_messages() -> Panel {
         increase(&CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, "$__range"),
         PanelType::Stat,
     )
+}
+
+fn get_panel_consensus_votes_received_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE,
+        "Consensus Votes Received Message Size MB/sec",
+        "The rate of MB per second received by the consensus p2p component over the Votes topic",
+    )
+    .with_unit(Unit::MB)
 }
 
 fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
@@ -367,6 +391,15 @@ fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
     )
 }
 
+fn get_panel_consensus_proposals_sent_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE,
+        "Consensus Proposals Sent Message Size MB/sec",
+        "The rate of MB per second sent by the consensus p2p component over the Proposals topic",
+    )
+    .with_unit(Unit::MB)
+}
+
 fn get_panel_consensus_proposals_num_received_messages() -> Panel {
     Panel::new(
         "Consensus Proposals Number of Received Messages",
@@ -375,6 +408,16 @@ fn get_panel_consensus_proposals_num_received_messages() -> Panel {
         increase(&CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, "$__range"),
         PanelType::Stat,
     )
+}
+
+fn get_panel_consensus_proposals_received_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE,
+        "Consensus Proposals Received Message Size MB/sec",
+        "The rate of MB per second received by the consensus p2p component over the Proposals \
+         topic",
+    )
+    .with_unit(Unit::MB)
 }
 
 fn get_panel_consensus_conflicting_votes() -> Panel {
@@ -414,6 +457,15 @@ fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
     )
 }
 
+fn get_panel_consensus_votes_dropped_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE,
+        "Consensus Votes Dropped Message Size Bytes/sec",
+        "The rate of MB per second dropped by the consensus p2p component over the Votes topic",
+    )
+    .with_unit(Unit::MB)
+}
+
 fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
     Panel::new(
         "Consensus Proposals Dropped Messages By Reason",
@@ -427,6 +479,15 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
         ),
         PanelType::Stat,
     )
+}
+
+fn get_panel_consensus_proposals_dropped_message_size() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE,
+        "Consensus Proposals Dropped Message Size MB/sec",
+        "The rate of MB per second dropped by the consensus p2p component over the Proposals topic",
+    )
+    .with_unit(Unit::MB)
 }
 
 fn get_panel_consensus_ping_latency() -> Panel {
@@ -507,13 +568,19 @@ pub(crate) fn get_consensus_p2p_row() -> Row {
         "ConsensusP2p",
         vec![
             get_panel_consensus_num_connected_peers(),
+            get_panel_consensus_proposals_sent_message_size(),
+            get_panel_consensus_proposals_received_message_size(),
+            get_panel_consensus_proposals_dropped_message_size(),
+            get_panel_consensus_proposals_num_sent_messages(),
+            get_panel_consensus_proposals_num_received_messages(),
+            get_panel_consensus_proposals_dropped_messages_by_reason(),
+            get_panel_consensus_votes_sent_message_size(),
+            get_panel_consensus_votes_received_message_size(),
+            get_panel_consensus_votes_dropped_message_size(),
             get_panel_consensus_votes_num_sent_messages(),
             get_panel_consensus_votes_num_received_messages(),
             get_panel_consensus_votes_dropped_messages_by_reason(),
             get_panel_consensus_conflicting_votes(),
-            get_panel_consensus_proposals_num_sent_messages(),
-            get_panel_consensus_proposals_num_received_messages(),
-            get_panel_consensus_proposals_dropped_messages_by_reason(),
             get_panel_consensus_network_events_by_type(),
             get_panel_consensus_ping_latency(),
         ],

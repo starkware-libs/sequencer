@@ -4,9 +4,13 @@ use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
-use url::Url;
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
+use crate::ethereum_base_layer_contract::{
+    CircularUrlIterator,
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
 use crate::BaseLayerContract;
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
@@ -21,11 +25,9 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
 
     let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
-    let base_layer = EthereumBaseLayerContract {
-        contract,
-        config: Default::default(),
-        url: Url::parse("http://dummy_url").unwrap(),
-    };
+    let config = EthereumBaseLayerConfig::default();
+    let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+    let base_layer = EthereumBaseLayerContract { contract, config, url_iterator };
 
     (base_layer, asserter)
 }

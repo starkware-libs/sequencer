@@ -6,13 +6,11 @@ use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORI
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use apollo_integration_tests::utils::{
     create_integration_test_tx_generator,
-    ConsensusTxs,
     DeployAndInvokeTxs,
     ACCOUNT_ID_0,
     N_TXS_IN_FIRST_BLOCK,
 };
 use clap::Parser;
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -23,7 +21,6 @@ use papyrus_base_layer::test_utils::{
     DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
 use serde_json::Value;
-use tokio::time::{sleep, Duration};
 use tracing::info;
 use url::Url;
 
@@ -98,69 +95,43 @@ fn get_ports(args: &Args) -> (u16, u16) {
     }
 }
 
-async fn run_simulation(
-    sequencer_simulator: &SequencerSimulator,
-    tx_generator: &mut MultiAccountTransactionGenerator,
-    run_forever: bool,
-) {
-    const N_TXS: usize = 50;
-    const SLEEP_DURATION: Duration = Duration::from_secs(1);
-
-    let mut i = 1;
-    loop {
-        sequencer_simulator
-            .send_txs(
-                tx_generator,
-                &ConsensusTxs {
-                    n_invoke_txs: N_TXS,
-                    // TODO(Arni): Add non-zero value.
-                    n_l1_handler_txs: 0,
-                },
-                ACCOUNT_ID_0,
-            )
-            .await;
-        sequencer_simulator.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
-
-        if !run_forever {
-            break;
-        }
-
-        sleep(SLEEP_DURATION).await;
-        i += 1;
-    }
-}
-
 async fn initialize_anvil_state(sender_address: Address, receiver_address: Address) {
     info!(
         "Initializing Anvil state with sender: {} and receiver: {}",
         sender_address, receiver_address
     );
 
-    let (base_layer_config, base_layer_url) = build_base_layer_config_for_testing();
+    let base_layer_config = build_base_layer_config_for_testing();
 
-    let ethereum_base_layer_contract =
-        EthereumBaseLayerContract::new(base_layer_config.clone(), base_layer_url.clone());
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(base_layer_config.clone());
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
 
     make_block_history_on_anvil(
         sender_address,
         receiver_address,
         base_layer_config,
-        &base_layer_url,
         NUM_BLOCKS_NEEDED_ON_L1,
     )
     .await;
 }
 
+<<<<<<< HEAD
 // TODO(Arni): Use `AnvilBaseLayer`.
 fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
+||||||| dd2fc66abf
+fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
+=======
+fn build_base_layer_config_for_testing() -> EthereumBaseLayerConfig {
+>>>>>>> origin/main-v0.14.1
     let starknet_contract_address: EthereumContractAddress =
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
-    let base_layer_config =
-        EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() };
-    (base_layer_config, node_url)
+    EthereumBaseLayerConfig {
+        ordered_l1_endpoint_urls: vec![node_url.clone()],
+        starknet_contract_address,
+        ..Default::default()
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -219,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
     // Wait for the deploy and invoke transaction to be accepted in a separate block.
     sequencer_simulator.await_txs_accepted(0, N_TXS_IN_FIRST_BLOCK).await;
 
-    run_simulation(&sequencer_simulator, &mut tx_generator, args.run_forever).await;
+    sequencer_simulator.run_simulation(&mut tx_generator, args.run_forever, ACCOUNT_ID_0).await;
 
     // TODO(Nadin): pass node index as an argument.
     sequencer_simulator.verify_txs_accepted(0, &mut tx_generator, ACCOUNT_ID_0).await;

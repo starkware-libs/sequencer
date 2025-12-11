@@ -4,7 +4,6 @@ use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
 use starknet_api::hash::StarkHash;
 use tracing::debug;
-use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -37,10 +36,9 @@ pub async fn make_block_history_on_anvil(
     sender_address: EthereumContractAddress,
     receiver_address: EthereumContractAddress,
     base_layer_config: EthereumBaseLayerConfig,
-    url: &Url,
     num_blocks: usize,
 ) {
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
     let provider = base_layer.contract.provider();
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();
@@ -72,12 +70,8 @@ pub async fn make_block_history_on_anvil(
 ///
 /// Note: This creates empty blocks. For blocks with transactions, use the
 /// `make_block_history_on_anvil` function instead.
-pub async fn anvil_mine_blocks(
-    base_layer_config: EthereumBaseLayerConfig,
-    num_blocks: u64,
-    url: &Url,
-) {
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
+pub async fn anvil_mine_blocks(base_layer_config: EthereumBaseLayerConfig, num_blocks: u64) {
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
     let provider = base_layer.contract.provider();
 
     let block_before = provider.get_block_number().await.expect("Failed to get block number");

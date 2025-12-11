@@ -150,7 +150,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         Ok(())
     }
 
-    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<L1BlockNumber, B> {
+    async fn latest_l1_block_number(&mut self) -> L1GasPriceScraperResult<L1BlockNumber, B> {
         let latest_l1_block_number = self
             .base_layer
             .latest_l1_block_number()

@@ -6,6 +6,7 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
+use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -132,7 +133,6 @@ impl FlowTestSetup {
             sender_address,
             receiver_address,
             base_layer_config.clone(),
-            &base_layer_url,
             NUM_L1_TRANSACTIONS,
         )
         .await;
@@ -246,12 +246,12 @@ impl FlowSequencerSetup {
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
-        consensus_manager_config.cende_config.recorder_url = recorder_url;
+        consensus_manager_config.cende_config.recorder_url = recorder_url.into();
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
-            url_header_list: Some(vec![eth_to_strk_oracle_url_headers]),
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers.into()]),
             ..Default::default()
         };
 
@@ -259,12 +259,8 @@ impl FlowSequencerSetup {
 
         let component_config = ComponentConfig::default();
 
-        // Explicitly avoid collecting metrics in the monitoring endpoint; metrics are collected
-        // using a global recorder, which fails when being set multiple times in the same
-        // process, as in this test.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
             port: available_ports.get_next_port(),
-            collect_metrics: false,
             ..Default::default()
         };
 
@@ -292,13 +288,14 @@ impl FlowSequencerSetup {
             num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (clients, servers) = create_node_modules(&node_config, vec![]).await;
+        let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
+        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } =
+        let HttpServerConfig { ip, port, .. } =
             node_config.http_server_config.as_ref().unwrap().to_owned();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 

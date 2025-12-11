@@ -1,16 +1,12 @@
 use std::time::Duration;
 
-use apollo_deployments::deployments::consolidated::ConsolidatedNodeServiceName;
-use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
+use apollo_deployments::service::NodeType;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK};
-use strum::IntoEnumIterator;
-use tokio::join;
 use tracing::info;
 
 #[tokio::main]
@@ -18,7 +14,6 @@ async fn main() {
     integration_test_setup("restart").await;
     const TIMEOUT: Duration = Duration::from_secs(30);
     const LONG_TIMEOUT: Duration = Duration::from_secs(90);
-    const TOTAL_INVOKE_TXS: u64 = 250;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     /// The number of distributed remote sequencers that participate in the test.
@@ -41,25 +36,9 @@ async fn main() {
     .await;
 
     // Assert that RESTART_NODE is a hybrid node.
-    assert_eq!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&RESTART_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        HybridNodeServiceName::iter().count()
-    );
+    assert_eq!(integration_test_manager.get_node_type(RESTART_NODE), NodeType::Hybrid);
     // Assert that SHUTDOWN_NODE is not a consolidated node.
-    assert_ne!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&SHUTDOWN_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        ConsolidatedNodeServiceName::iter().count()
-    );
+    assert_ne!(integration_test_manager.get_node_type(SHUTDOWN_NODE), NodeType::Consolidated);
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
@@ -76,15 +55,6 @@ async fn main() {
     // Create a simulator for sustained transaction sending.
     let simulator = integration_test_manager.create_simulator();
     let mut tx_generator = integration_test_manager.tx_generator().snapshot();
-    let test_scenario = ConsensusTxs {
-        n_invoke_txs: TOTAL_INVOKE_TXS.try_into().expect("Failed to convert TPS to usize"),
-        n_l1_handler_txs: 0,
-    };
-
-    // TODO(noamsp): Try to refactor this to use tokio::spawn.
-    // Task that sends sustained transactions for the entire test duration.
-    let tx_sending_task =
-        simulator.send_txs(&mut tx_generator, &test_scenario, DEFAULT_SENDER_ACCOUNT);
 
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
@@ -120,25 +90,15 @@ async fn main() {
              down"
         );
         integration_test_manager.poll_all_running_nodes_received_more_txs(LONG_TIMEOUT).await;
-
-        // The expected accepted number of transactions is the total number of invoke transactions
-        // sent + the number of transactions sent during the bootstrap phase.
-        let expected_n_accepted_txs = N_TXS_IN_FIRST_BLOCK
-            + TryInto::<usize>::try_into(TOTAL_INVOKE_TXS)
-                .expect("Failed to convert TOTAL_INVOKE_TXS to usize");
-        // TODO(lev): We need to find a way to stop sending transactions after the test is done and
-        // not to wait till all transactions are sent and processed.
-
-        info!(
-            "Verifying that all running nodes processed all transactions - \
-             {expected_n_accepted_txs}"
-        );
-        integration_test_manager
-            .await_txs_accepted_on_all_running_nodes(expected_n_accepted_txs)
-            .await;
     };
 
-    let _ = join!(tx_sending_task, await_and_restart_nodes_task);
+    simulator
+        .run_test_with_nonstop_tx_sending(
+            &mut tx_generator,
+            DEFAULT_SENDER_ACCOUNT,
+            await_and_restart_nodes_task,
+        )
+        .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
     info!("Restart flow integration test completed successfully!");

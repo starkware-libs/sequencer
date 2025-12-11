@@ -96,7 +96,7 @@ pub struct GenericStateSync<
     central_source: Arc<TCentralSource>,
     pending_source: Arc<TPendingSource>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    base_layer_source: Option<Arc<TBaseLayerSource>>,
+    base_layer_source: Option<Arc<Mutex<TBaseLayerSource>>>,
     reader: StorageReader,
     writer: Arc<Mutex<StorageWriter>>,
     sequencer_pub_key: Option<SequencerPublicKey>,
@@ -916,7 +916,7 @@ impl StateSync {
         writer: StorageWriter,
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
-        let base_layer_source = base_layer_source.map(Arc::new);
+        let base_layer_source = base_layer_source.map(|source| Arc::new(Mutex::new(source)));
         Self {
             config,
             shared_highest_block,
@@ -1005,7 +1005,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
 // TODO(dvir): consider combine this function and store_base_layer_block.
 fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
     reader: StorageReader,
-    base_layer_source: Arc<TBaseLayerSource>,
+    base_layer_source: Arc<Mutex<TBaseLayerSource>>,
     base_layer_propagation_sleep_duration: Duration,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
@@ -1013,7 +1013,7 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
             tokio::time::sleep(base_layer_propagation_sleep_duration).await;
             let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
 
-            match base_layer_source.latest_proved_block().await? {
+            match base_layer_source.lock().await.latest_proved_block().await? {
                 Some((block_number, _block_hash)) if header_marker <= block_number => {
                     debug!(
                         "Sync headers ({header_marker}) is behind the base layer tip \

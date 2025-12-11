@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use apollo_http_server_config::config::DEFAULT_MAX_SIERRA_PROGRAM_SIZE;
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::compression_utils::CompressionError;
@@ -46,7 +47,8 @@ fn deprecated_gateway_declare_tx_conversion() {
         deprecated_declare_tx
     );
     // TODO(Arni): Assert the deprecated transaction was converted to the expected RPC transaction.
-    let _declare_tx: RpcDeclareTransactionV3 = deprecate_declare_tx.try_into().unwrap();
+    let _declare_tx: RpcDeclareTransactionV3 =
+        deprecate_declare_tx.convert_to_rpc_declare_tx(DEFAULT_MAX_SIERRA_PROGRAM_SIZE).unwrap();
 }
 
 fn create_malformed_sierra_program_for_serde_error() -> String {
@@ -82,6 +84,8 @@ fn deprecated_gateway_declare_tx_negative_flow_conversion(
     );
 
     deprecate_declare_tx.contract_class.sierra_program = sierra_program;
-    let error = RpcDeclareTransactionV3::try_from(deprecate_declare_tx).unwrap_err();
+    let error = deprecate_declare_tx
+        .convert_to_rpc_declare_tx(DEFAULT_MAX_SIERRA_PROGRAM_SIZE)
+        .unwrap_err();
     assert_expected_error_fn(error);
 }
