@@ -3,11 +3,7 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use apollo_class_manager_config::config::{
-    CachedClassStorageConfig,
-    ClassHashStorageConfig,
-    FsClassStorageConfig,
-};
+use apollo_class_manager_config::config::{CachedClassStorageConfig, FsClassStorageConfig};
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
@@ -252,8 +248,7 @@ pub struct ClassHashStorage {
 }
 
 impl ClassHashStorage {
-    pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
-        let storage_config = StorageConfig::from(config);
+    pub fn new(storage_config: StorageConfig) -> ClassHashStorageResult<Self> {
         let (reader, writer) = apollo_storage::open_storage_with_metric(
             storage_config,
             &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
