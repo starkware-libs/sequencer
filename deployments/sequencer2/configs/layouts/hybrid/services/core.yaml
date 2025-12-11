@@ -16,6 +16,8 @@ config:
     components_batcher_url: "sequencer-core-service"
     components_class_manager_port: 55001
     components_class_manager_url: "sequencer-core-service"
+    components_committer_port: 55011
+    components_committer_url: "sequencer-committer-service"
     components_l1_endpoint_monitor_port: 55005
     components_l1_endpoint_monitor_url: "sequencer-l1-service"
     components_l1_gas_price_provider_port: 55003
@@ -97,6 +99,10 @@ service:
     - name: state-sync-network
       port: 55010
       targetPort: 55010
+      protocol: TCP
+    - name: committer
+      port: 55011
+      targetPort: 55011
       protocol: TCP
     - name: consensus-p2p
       port: 53080

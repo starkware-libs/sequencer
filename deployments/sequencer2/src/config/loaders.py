@@ -333,7 +333,7 @@ class NodeConfigLoader(Config):
 
     @staticmethod
     def apply_sequencer_overrides(
-        merged_json_config: dict, sequencer_config: Dict[str, Any], service_name: str = "unknown"
+        merged_json_config: dict, sequencer_config: Dict[str, Any], service_name: str = "unknown", debug_string: str = None
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
@@ -385,6 +385,8 @@ class NodeConfigLoader(Config):
                     f"  - YAML key '{yaml_key}' (maps to placeholder '{placeholder}') "
                     f"does not match any placeholder in the '{service_name}' service application config."
                 )
+            if debug_string:
+                error_messages.append(f"Debug string: {debug_string}")
             raise ValueError(
                 f"Invalid sequencerConfig override keys found for service '{service_name}'. "
                 f"The following keys do not match any placeholder in the application config:\n"

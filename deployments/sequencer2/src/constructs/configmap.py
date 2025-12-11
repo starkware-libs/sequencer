@@ -46,6 +46,18 @@ class ConfigMapConstruct(BaseConstruct):
         if self.service_config.config and self.service_config.config.sequencerConfig:
             merged_sequencer_config = self.service_config.config.sequencerConfig
 
+        debug_string = (
+            "service_name={service_name} | merged_sequencer_config={merged_sequencer_config} | "
+            "node_config_keys={node_config_keys} | configList={configList} | full_service_config={full_service_config}"
+            .format(
+                service_name=self.service_config.name,
+                merged_sequencer_config=repr(merged_sequencer_config),
+                node_config_keys=list(node_config.keys()),
+                configList=getattr(getattr(self.service_config.config, 'configList', ''), '__str__', lambda: '')(),
+                full_service_config=repr(self.service_config),
+            )
+        )
+
         # Apply merged overrides
         if merged_sequencer_config:
             node_config = NodeConfigLoader.apply_sequencer_overrides(
