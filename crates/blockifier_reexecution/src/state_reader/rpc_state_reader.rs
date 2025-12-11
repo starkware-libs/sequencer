@@ -201,6 +201,16 @@ impl RpcStateReader {
         }
     }
 
+    /// Creates an RpcStateReader from a node URL, chain ID, and block number.
+    pub fn new_with_default_config(
+        node_url: String,
+        chain_id: ChainId,
+        block_number: BlockNumber,
+    ) -> Self {
+        let config = RpcStateReaderConfig::from_url(node_url);
+        Self::new(&config, chain_id, block_number, false)
+    }
+
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
         RpcStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
     }
