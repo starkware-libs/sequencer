@@ -110,6 +110,13 @@ impl EthereumBaseLayerContract {
         );
         Self { url_iterator, contract, config }
     }
+    #[cfg(any(test, feature = "testing"))]
+    pub fn new_with_provider(config: EthereumBaseLayerConfig, provider: RootProvider) -> Self {
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let starknet_contract_address = config.starknet_contract_address;
+        let contract = Starknet::new(starknet_contract_address, provider);
+        Self { url_iterator, contract, config }
+    }
 }
 
 #[async_trait]
