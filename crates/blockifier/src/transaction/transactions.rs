@@ -10,7 +10,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::transaction::fields::{AccountDeploymentData, Calldata};
+use starknet_api::transaction::fields::{AccountDeploymentData, Calldata, ProofFacts};
 use starknet_api::transaction::{
     constants,
     DeclareTransactionV2,
@@ -228,6 +228,7 @@ impl TransactionInfoCreatorInner for DeclareTransaction {
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: tx.account_deployment_data.clone(),
+                    proof_facts: ProofFacts::default(),
                 })
             }
         }
@@ -287,6 +288,7 @@ impl TransactionInfoCreatorInner for DeployAccountTransaction {
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: AccountDeploymentData::default(),
+                    proof_facts: ProofFacts::default(),
                 })
             }
         }
@@ -367,6 +369,7 @@ impl TransactionInfoCreatorInner for InvokeTransaction {
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: tx.account_deployment_data.clone(),
+                    proof_facts: tx.proof_facts.clone(),
                 })
             }
         }
