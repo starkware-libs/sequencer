@@ -1,3 +1,4 @@
+#![cfg(any(test, feature = "testing"))]
 mod utils;
 use std::time::Duration;
 

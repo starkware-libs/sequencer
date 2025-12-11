@@ -1,3 +1,4 @@
+#![cfg(any(test, feature = "testing"))]
 mod utils;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -17,14 +18,15 @@ use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
-use utils::{setup_scraper_and_provider, TARGET_L2_HEIGHT, TIMELOCK_DURATION};
-
-use crate::utils::{
+use utils::{
+    setup_scraper_and_provider,
     TokioLinkedClock,
     CALL_DATA,
     L1_CONTRACT_ADDRESS,
     L2_ENTRY_POINT,
     POLLING_INTERVAL_DURATION,
+    TARGET_L2_HEIGHT,
+    TIMELOCK_DURATION,
 };
 
 fn block_from_number(number: L1BlockNumber) -> L1BlockReference {
