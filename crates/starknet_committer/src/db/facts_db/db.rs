@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
+use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -15,10 +17,12 @@ use crate::block_committer::input::{
     ConfigImpl,
     StarknetStorageValue,
 };
+use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
+use crate::db::facts_db::types::FactDbFilledNode;
 use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
@@ -31,6 +35,18 @@ use crate::patricia_merkle_tree::tree::{
 };
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+pub struct FactsNodeLayout {}
+
+impl<L: Leaf> NodeLayout<L> for FactsNodeLayout {
+    type ChildData = HashOutput;
+    type DeserializationContext = FactNodeDeserializationContext;
+    fn deserialize_node(
+        value: &DbValue,
+        deserialize_context: &Self::DeserializationContext,
+    ) -> Result<FactDbFilledNode<L>, DeserializationError> {
+        DBObject::deserialize(value, deserialize_context)
+    }
+}
 pub struct FactsDb<S: Storage> {
     // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
     // private.
