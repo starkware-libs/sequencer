@@ -327,6 +327,12 @@
     "OsHint": "TxAccountDeploymentData"
   },
   {
+    "OsHint": "TxProofFactsLen"
+  },
+  {
+    "OsHint": "TxProofFacts"
+  },
+  {
     "OsHint": "GenSignatureArg"
   },
   {
