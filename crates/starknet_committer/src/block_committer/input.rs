@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::StateRoots;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
@@ -157,12 +157,20 @@ impl Default for ConfigImpl {
     }
 }
 
+/// Defines the context type for the input of the committer.
+pub trait InputContext {}
+
+/// Used for reading the roots in facts layout case.
+#[derive(Debug, PartialEq)]
+pub struct FactsDInitialRead(pub StateRoots);
+
+impl InputContext for FactsDInitialRead {}
+
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Input<C: Config> {
+pub struct Input<C: Config, I: InputContext> {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
-    pub contracts_trie_root_hash: HashOutput,
-    pub classes_trie_root_hash: HashOutput,
+    pub initial_read_context: I,
     pub config: C,
 }
 
