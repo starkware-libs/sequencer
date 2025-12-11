@@ -35,6 +35,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    Proof,
     ProofFacts,
     Resource,
     ResourceBounds,
@@ -449,6 +450,7 @@ pub struct InvokeTransactionV3 {
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub proof_facts: ProofFacts,
+    pub proof: Proof,
 }
 
 impl From<InvokeTransactionV3> for client_transaction::InvokeTransaction {
@@ -554,6 +556,8 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
                 paymaster_data,
                 account_deployment_data,
                 proof_facts,
+                // TODO(AvivG): Understand in what flow this is used. Is info lost?
+                proof: Proof::default(),
             })),
         }
     }
