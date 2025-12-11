@@ -186,7 +186,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             .await
             .map_err(L1ScraperError::BaseLayerError)?
             .number;
-        Ok(last_historic_l2_height)
+        Ok(last_historic_l2_height.unchecked_next())
     }
 
     /// Send an initialize message to the L1 provider, including the last L2 height that was proved
