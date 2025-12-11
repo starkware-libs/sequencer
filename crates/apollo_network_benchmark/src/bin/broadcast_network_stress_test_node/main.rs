@@ -3,6 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
 use clap::Parser;
+use message::METADATA_SIZE;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio_metrics::RuntimeMetricsReporterBuilder;
 use tracing::Level;
@@ -39,6 +40,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .expect("Failed to set global default subscriber");
 
     println!("Starting network stress test with args:\n{args:?}");
+
+    assert!(
+        args.user.message_size_bytes >= *METADATA_SIZE,
+        "Message size must be at least {} bytes",
+        *METADATA_SIZE
+    );
 
     // Set up metrics
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
