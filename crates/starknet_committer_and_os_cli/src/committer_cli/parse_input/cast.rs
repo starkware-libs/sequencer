@@ -4,6 +4,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
+    FactsDInitialRead,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -17,15 +18,15 @@ use starknet_types_core::felt::Felt;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type FactsDbInputImpl = Input<ConfigImpl, FactsDInitialRead>;
 
 #[derive(Debug, PartialEq)]
-pub struct CommitterInputImpl {
-    pub input: InputImpl,
+pub struct CommitterFactsDbInputImpl {
+    pub input: FactsDbInputImpl,
     pub storage: MapStorage,
 }
 
-impl TryFrom<RawInput> for CommitterInputImpl {
+impl TryFrom<RawInput> for CommitterFactsDbInputImpl {
     type Error = DeserializationError;
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = MapStorage::default();
@@ -83,18 +84,20 @@ impl TryFrom<RawInput> for CommitterInputImpl {
             )?;
         }
         let input = Input {
+            initial_read_context: FactsDInitialRead(StateRoots {
+                contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                    &raw_input.contracts_trie_root_hash,
+                )),
+                classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                    &raw_input.classes_trie_root_hash,
+                )),
+            }),
             state_diff: StateDiff {
                 address_to_class_hash,
                 address_to_nonce,
                 class_hash_to_compiled_class_hash,
                 storage_updates,
             },
-            contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.contracts_trie_root_hash,
-            )),
-            classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.classes_trie_root_hash,
-            )),
             config: raw_input.config.into(),
         };
         Ok(Self { input, storage })
