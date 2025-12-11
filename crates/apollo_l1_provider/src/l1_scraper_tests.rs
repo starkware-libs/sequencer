@@ -193,7 +193,7 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
     // The scraper should return a finality too high error.
     assert_matches!(
         scraper.send_events_to_l1_provider().await,
-        Err(L1ScraperError::FinalityTooHigh { .. })
+        Err(L1ScraperError::LatestBlockNumberTooLow { .. })
     );
 }
 

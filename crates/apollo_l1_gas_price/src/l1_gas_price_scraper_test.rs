@@ -319,7 +319,7 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
     // The scraper should return a finality too high error.
     assert_matches!(
         scraper.update_prices(&mut block_number).await,
-        Err(L1GasPriceScraperError::FinalityTooHigh { .. })
+        Err(L1GasPriceScraperError::LatestBlockNumberTooLow { .. })
     );
 }
 

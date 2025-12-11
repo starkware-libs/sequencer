@@ -41,10 +41,10 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error(transparent)]
     NetworkError(ClientError),
     #[error(
-        "Finality is too high: finality: {finality}, latest L1 block number: \
-         {latest_l1_block_number}"
+        "Latest L1 block number is too low: latest L1 block number: {latest_l1_block_number}, \
+         finality: {finality}"
     )]
-    FinalityTooHigh { finality: u64, latest_l1_block_number: u64 },
+    LatestBlockNumberTooLow { latest_l1_block_number: u64, finality: u64 },
 }
 
 pub struct L1GasPriceScraper<B: BaseLayerContract> {
@@ -158,9 +158,9 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
             .map_err(L1GasPriceScraperError::BaseLayerError)?;
         let latest_l1_block_number = latest_l1_block_number
             .checked_sub(self.config.finality)
-            .ok_or(L1GasPriceScraperError::FinalityTooHigh {
-                finality: self.config.finality,
+            .ok_or(L1GasPriceScraperError::LatestBlockNumberTooLow {
                 latest_l1_block_number,
+                finality: self.config.finality,
             })?;
         Ok(latest_l1_block_number)
     }
