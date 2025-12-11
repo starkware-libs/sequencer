@@ -1,5 +1,8 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
+use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
+use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -33,5 +36,32 @@ impl BlockHashManager {
         let commitment_task_performer = state_committer.run();
 
         Self { tasks_sender, results_receiver, commitment_task_performer }
+    }
+
+    pub(crate) async fn add_commitment_task(
+        self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) {
+        self.tasks_sender
+            .send(CommitmentTaskInput { height, state_diff, state_diff_commitment })
+            .await
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Failed to send commitment task to StateCommitter. Block: {height} Error: \
+                     {err}"
+                );
+            });
+        info!("Sent commitment task for block {height} to StateCommitter.");
+    }
+
+    pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
+        unimplemented!()
+    }
+
+    // TODO(Amos): Pass committer client as argument.
+    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
+        unimplemented!()
     }
 }
