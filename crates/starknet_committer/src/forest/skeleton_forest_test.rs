@@ -27,6 +27,7 @@ use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
     ConfigImpl,
+    FactsDInitialRead,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -143,8 +144,10 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
             class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(6, 1), (0, 7), (7, 9)]),
             ..Default::default()
         },
-        contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
-        classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
+        context: FactsDInitialRead {
+            contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
+            classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
+        },
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     },
     MapStorage(DbHashMap::from([
@@ -294,7 +297,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         vec![7, 6, 0],
 )]
 async fn test_create_original_skeleton_forest(
-    #[case] input: Input<ConfigImpl>,
+    #[case] input: Input<ConfigImpl, FactsDInitialRead>,
     #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
@@ -317,8 +320,7 @@ async fn test_create_original_skeleton_forest(
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
         .read(
-            input.contracts_trie_root_hash,
-            input.classes_trie_root_hash,
+            input.initial_read_context,
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,

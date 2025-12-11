@@ -20,6 +20,7 @@ use crate::block_committer::input::{
     contract_address_into_node_index,
     Config,
     ConfigImpl,
+    FactsDInitialRead,
     StarknetStorageValue,
 };
 use crate::db::create_facts_tree::{
@@ -126,14 +127,13 @@ impl FactsDb<MapStorage> {
     }
 }
 
-impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
+impl<'a, S: Storage> ForestReader<'a, FactsDInitialRead> for FactsDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     async fn read(
         &mut self,
-        contracts_trie_root_hash: HashOutput,
-        classes_trie_root_hash: HashOutput,
+        context: FactsDInitialRead,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -141,7 +141,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         let (contracts_trie, original_contracts_trie_leaves) = self
             .create_contracts_trie(
-                contracts_trie_root_hash,
+                context.contracts_trie_root_hash,
                 forest_sorted_indices.contracts_trie_sorted_indices,
             )
             .await?;
@@ -156,7 +156,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
         let classes_trie = self
             .create_classes_trie(
                 classes_updates,
-                classes_trie_root_hash,
+                context.classes_trie_root_hash,
                 &config,
                 forest_sorted_indices.classes_trie_sorted_indices,
             )
