@@ -47,7 +47,7 @@ impl<T> Sensitive<T> {
     }
 
     /// Consumes the wrapper and returns the inner sensitive value.
-    pub fn into(self) -> T {
+    pub fn expose_inner(self) -> T {
         self.inner
     }
 
