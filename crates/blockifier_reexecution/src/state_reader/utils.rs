@@ -5,14 +5,13 @@ use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::global_cache::CompiledClasses;
-use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
@@ -24,7 +23,6 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
-use crate::assert_eq_state_diff;
 use crate::state_reader::cli::TransactionInput;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
@@ -237,35 +235,6 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
     }
 }
 
-pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + 'static,
-    T: ConsecutiveReexecutionStateReaders<S>,
->(
-    consecutive_state_readers: T,
-) -> Option<CachedState<S>> {
-    let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
-
-    let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
-
-    let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
-
-    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
-    // Verify all transactions executed successfully.
-    for res in execution_results.iter() {
-        assert_matches!(res, Ok(_));
-    }
-
-    // Finalize block and read actual statediff; using non_consuming_finalize to keep the
-    // block_state.
-    let actual_state_diff =
-        transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
-
-    assert_eq_state_diff!(expected_state_diff, actual_state_diff);
-
-    transaction_executor.block_state
-}
-
 pub fn reexecute_block_for_testing(block_number: u64) {
     // In tests we are already in the blockifier_reexecution directory.
     let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
@@ -278,10 +247,9 @@ pub fn reexecute_block_for_testing(block_number: u64) {
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
-    reexecute_and_verify_correctness(
-        OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
-            .unwrap(),
-    );
+    OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
+        .unwrap()
+        .reexecute_and_verify_correctness();
 
     println!("Reexecution test for block {block_number} passed successfully.");
 }
@@ -309,7 +277,7 @@ pub fn write_block_reexecution_data_to_file(
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
     // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
+    let block_state = consecutive_state_readers.reexecute_and_verify_correctness().unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
         contract_class_mapping: block_state
