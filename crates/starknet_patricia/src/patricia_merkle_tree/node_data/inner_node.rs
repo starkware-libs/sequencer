@@ -200,7 +200,7 @@ impl PathToBottom {
     }
 }
 
-// TODO(Ariel 10/12/2025): Move Preimage to the fact_db module in starknet_committer (add a flatten
+// TODO(Ariel): Move Preimage to the fact_db module in starknet_committer (add a flatten
 // trait to be implemented in starknet_committer for BinaryData and EdgeData).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Preimage {
