@@ -2,7 +2,11 @@ use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::LeafResult;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{
+    DBObject,
+    EmptyDeserializationContext,
+    HasStaticPrefix,
+};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
@@ -129,7 +133,7 @@ impl std::fmt::Display for IndexLayoutLeafDeserializationError {
 impl std::error::Error for IndexLayoutLeafDeserializationError {}
 
 impl DBObject for IndexLayoutContractState {
-    type DeserializeContext = ();
+    type DeserializeContext = EmptyDeserializationContext;
     fn serialize(&self) -> DbValue {
         let mut buffer = Vec::new();
         self.0.class_hash.0.serialize(&mut buffer).unwrap();
@@ -163,7 +167,7 @@ impl DBObject for IndexLayoutContractState {
 }
 
 impl DBObject for IndexLayoutCompiledClassHash {
-    type DeserializeContext = ();
+    type DeserializeContext = EmptyDeserializationContext;
     fn serialize(&self) -> DbValue {
         let mut buffer = Vec::new();
         self.0.0.serialize(&mut buffer).unwrap();
@@ -183,7 +187,7 @@ impl DBObject for IndexLayoutCompiledClassHash {
 }
 
 impl DBObject for IndexLayoutStarknetStorageValue {
-    type DeserializeContext = ();
+    type DeserializeContext = EmptyDeserializationContext;
     fn serialize(&self) -> DbValue {
         let mut buffer = Vec::new();
         self.0.0.serialize(&mut buffer).unwrap();
