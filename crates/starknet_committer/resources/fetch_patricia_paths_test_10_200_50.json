@@ -1,5 +1,5 @@
 {
-    "initial_preimages": {
+    "facts_storage": {
         "0x33924bf2bb0c460b51d65d184fb15ec10f32e49bee6c78c760475e9db7a4348": [
             "0x3",
             "0x1",
@@ -1965,7 +1965,7 @@
         620
     ],
     "root_hash": "0x341f2cf6c17472659d832552388f1275eb914e303c2ba3e043291cb1829e0f5",
-    "leaf_indices": [
+    "modfied_leaves_indices": [
         897,
         338,
         208,
