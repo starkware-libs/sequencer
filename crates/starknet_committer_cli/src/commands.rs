@@ -14,7 +14,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
