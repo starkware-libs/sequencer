@@ -52,7 +52,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
     Felt::from_hex("0x1b20bbb35009bf03f86fb092b56a9c44deedbcca6addf8f7640f54a48ba5bbc").unwrap()
 )]
 fn test_tree_hash_function_contract_state_leaf(
-    #[case] node_data: NodeData<ContractState>,
+    #[case] node_data: NodeData<ContractState, HashOutput>,
     #[case] expected_hash: Felt,
 ) {
     let hash_output = TreeHashFunctionImpl::compute_node_hash(&node_data);
@@ -65,7 +65,7 @@ fn test_tree_hash_function_contract_state_leaf(
     Felt::from_hex("0x49ed9a06987e7e55770d6c4d7d16b819ad984bf4aed552042847380cc31210d").unwrap()
 )]
 fn test_tree_hash_function_compiled_class_hash_leaf(
-    #[case] node_data: NodeData<CompiledClassHash>,
+    #[case] node_data: NodeData<CompiledClassHash, HashOutput>,
     #[case] expected_hash: Felt,
 ) {
     let hash_output = TreeHashFunctionImpl::compute_node_hash(&node_data);
@@ -76,7 +76,7 @@ fn test_tree_hash_function_compiled_class_hash_leaf(
 // Expected hash value was computed independently.
 #[case(NodeData::Leaf(StarknetStorageValue(Felt::from_hex("0xDEAFBEEF").unwrap())), Felt::from_hex("0xDEAFBEEF").unwrap())]
 fn test_tree_hash_function_storage_leaf(
-    #[case] node_data: NodeData<StarknetStorageValue>,
+    #[case] node_data: NodeData<StarknetStorageValue, HashOutput>,
     #[case] expected_hash: Felt,
 ) {
     let hash_output = TreeHashFunctionImpl::compute_node_hash(&node_data);
@@ -94,10 +94,13 @@ fn test_tree_hash_function_impl_binary_node(
 ) {
     use starknet_types_core::hash::StarkHash;
 
-    let hash_output =
-        TreeHashFunctionImpl::compute_node_hash(&NodeData::<StarknetStorageValue>::Binary(
-            BinaryData { left_hash: HashOutput(left_hash), right_hash: HashOutput(right_hash) },
-        ));
+    let hash_output = TreeHashFunctionImpl::compute_node_hash(&NodeData::<
+        StarknetStorageValue,
+        HashOutput,
+    >::Binary(BinaryData {
+        left_data: HashOutput(left_hash),
+        right_data: HashOutput(right_hash),
+    }));
     assert_eq!(hash_output, HashOutput(Pedersen::hash(&left_hash, &right_hash)));
     assert_eq!(hash_output, HashOutput(expected_hash));
 }
@@ -114,16 +117,14 @@ fn test_tree_hash_function_impl_edge_node(
 ) {
     use starknet_types_core::hash::StarkHash;
 
-    let hash_output = TreeHashFunctionImpl::compute_node_hash(
-        &NodeData::<StarknetStorageValue>::Edge(EdgeData {
-            bottom_hash: HashOutput(bottom_hash),
-            path_to_bottom: PathToBottom::new(
-                edge_path.into(),
-                EdgePathLength::new(length).unwrap(),
-            )
+    let hash_output = TreeHashFunctionImpl::compute_node_hash(&NodeData::<
+        StarknetStorageValue,
+        HashOutput,
+    >::Edge(EdgeData {
+        bottom_data: HashOutput(bottom_hash),
+        path_to_bottom: PathToBottom::new(edge_path.into(), EdgePathLength::new(length).unwrap())
             .unwrap(),
-        }),
-    );
+    }));
     let direct_hash_computation =
         HashOutput(Pedersen::hash(&bottom_hash, &edge_path.into()) + Felt::from(length));
     assert_eq!(hash_output, HashOutput(expected_hash));

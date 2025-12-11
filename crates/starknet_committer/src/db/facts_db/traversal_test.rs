@@ -466,24 +466,24 @@ async fn test_fetch_patricia_paths_inner_impl(
     PreimageMap::from([
         (HashOutput(Felt::from_hex_unchecked("0xdd6634d8228819c6b4aec64cf4e5a39a420c77b75cdf08a85f73ae2f7afcc1")),
         Preimage::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from_hex_unchecked("0x111afbf8374248dc3a584bbd5f7c868f1dd76c3f17a326b5c77e692d736ece5")),
-            right_hash: HashOutput(Felt::from_hex_unchecked("0x20eec267afb39fcff7c97f9aa9e46ab73f61bf2e7db51c85a8f17cc313447fe")),
+            left_data: HashOutput(Felt::from_hex_unchecked("0x111afbf8374248dc3a584bbd5f7c868f1dd76c3f17a326b5c77e692d736ece5")),
+            right_data: HashOutput(Felt::from_hex_unchecked("0x20eec267afb39fcff7c97f9aa9e46ab73f61bf2e7db51c85a8f17cc313447fe")),
         })),
         (HashOutput(Felt::from_hex_unchecked("0x111afbf8374248dc3a584bbd5f7c868f1dd76c3f17a326b5c77e692d736ece5")),
         Preimage::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from_hex_unchecked("0x610eec7d913ae704e188746bc82767430e39e6f096188f4671712791c563a67")),
-            right_hash: HashOutput(Felt::from_hex_unchecked("0x25177dfc7f358239f3b7c4c1771ddcd7eaf74a1b2b2ac952f2c2dd52f5b860d")),
+            left_data: HashOutput(Felt::from_hex_unchecked("0x610eec7d913ae704e188746bc82767430e39e6f096188f4671712791c563a67")),
+            right_data: HashOutput(Felt::from_hex_unchecked("0x25177dfc7f358239f3b7c4c1771ddcd7eaf74a1b2b2ac952f2c2dd52f5b860d")),
         })),
         (HashOutput(Felt::from_hex_unchecked("0x610eec7d913ae704e188746bc82767430e39e6f096188f4671712791c563a67")),
         Preimage::Edge(EdgeData {
-            bottom_hash: HashOutput(Felt::from_hex_unchecked("0x8")),
+            bottom_data: HashOutput(Felt::from_hex_unchecked("0x8")),
             path_to_bottom: PathToBottom::new(EdgePath(U256::from(0_u128)),
             EdgePathLength::new(1).unwrap())
             .unwrap()
         })),
         (HashOutput(Felt::from_hex_unchecked("0x25177dfc7f358239f3b7c4c1771ddcd7eaf74a1b2b2ac952f2c2dd52f5b860d")),
         Preimage::Edge(EdgeData {
-            bottom_hash: HashOutput(Felt::from_hex_unchecked("0xb")),
+            bottom_data: HashOutput(Felt::from_hex_unchecked("0xb")),
             path_to_bottom: PathToBottom::new(EdgePath(U256::from(1_u128)),
             EdgePathLength::new(1).unwrap())
             .unwrap()

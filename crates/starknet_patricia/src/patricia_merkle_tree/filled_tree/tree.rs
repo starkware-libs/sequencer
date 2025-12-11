@@ -211,8 +211,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 );
 
                 let data = NodeData::Binary(BinaryData {
-                    left_hash: left_hash.await??,
-                    right_hash: right_hash.await??,
+                    left_data: left_hash.await??,
+                    right_data: right_hash.await??,
                 });
 
                 let hash = TH::compute_node_hash(&data);
@@ -234,8 +234,10 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     Arc::clone(&leaf_index_to_leaf_output),
                 )
                 .await?;
-                let data =
-                    NodeData::Edge(EdgeData { path_to_bottom: *path_to_bottom, bottom_hash });
+                let data = NodeData::Edge(EdgeData {
+                    path_to_bottom: *path_to_bottom,
+                    bottom_data: bottom_hash,
+                });
                 let hash = TH::compute_node_hash(&data);
                 Self::write_to_output_map(
                     filled_tree_output_map,

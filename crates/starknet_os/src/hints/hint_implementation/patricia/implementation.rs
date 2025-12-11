@@ -214,7 +214,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         get_ptr_from_var_name(Ids::CurrentHash.into(), vm, ids_data, ap_tracking)?;
 
     let nested_fields_and_values =
-        [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
+        [("x", binary_data.left_data.0.into()), ("y", binary_data.right_data.0.into())];
     insert_values_to_fields(
         current_hash_address,
         hint_processor.commitment_type.hash_builtin_struct(),
@@ -402,7 +402,7 @@ pub(crate) fn load_edge<S: StateReader>(
     let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
     let preimage =
         Preimage::try_from(commitment_facts.get(&node).ok_or(OsHintError::MissingPreimage(node))?)?;
-    let Preimage::Edge(EdgeData { bottom_hash, path_to_bottom }) = preimage else {
+    let Preimage::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }) = preimage else {
         // We expect an edge node.
         return Err(OsHintError::AssertionFailed {
             message: format!("An edge node is expected, found {preimage:?}"),
@@ -459,7 +459,7 @@ pub(crate) fn load_bottom<S: StateReader>(
 
     let hash_ptr_address = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     let nested_fields_and_values =
-        [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
+        [("x", binary_data.left_data.0.into()), ("y", binary_data.right_data.0.into())];
     insert_values_to_fields(
         hash_ptr_address,
         hint_processor.commitment_type.hash_builtin_struct(),
