@@ -15,7 +15,7 @@ use starknet_committer::db::external_test_utils::tree_computation_flow;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer_and_os_cli::committer_cli::commands::commit;
-use starknet_committer_and_os_cli::committer_cli::parse_input::cast::CommitterInputImpl;
+use starknet_committer_and_os_cli::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input;
 use starknet_committer_and_os_cli::committer_cli::tests::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -72,7 +72,7 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
             runtime.block_on({
-                let CommitterInputImpl { input, storage } =
+                let CommitterFactsDbInputImpl { input, storage } =
                     parse_input(committer_input_string).expect("Failed to parse the given input.");
                 // Set the given log level if handle is passed.
                 commit(input, OUTPUT_PATH.to_owned(), storage)

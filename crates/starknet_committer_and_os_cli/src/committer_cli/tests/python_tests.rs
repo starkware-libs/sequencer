@@ -36,7 +36,7 @@ use thiserror;
 use tracing::{debug, error, info, warn};
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
+use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::parse_from_python::{
     parse_input_single_storage_tree_flow_test,
@@ -288,7 +288,7 @@ pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestRe
 }
 
 fn create_output_to_python(
-    CommitterInputImpl { input: actual_input, storage }: CommitterInputImpl,
+    CommitterFactsDbInputImpl { input: actual_input, storage }: CommitterFactsDbInputImpl,
 ) -> String {
     let (storage_keys_hash, storage_values_hash) = hash_storage(&storage);
     let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
@@ -312,8 +312,8 @@ fn create_output_to_python(
         actual_input.state_diff.address_to_nonce.len(),
         actual_input.state_diff.class_hash_to_compiled_class_hash.len(),
         actual_input.state_diff.storage_updates.len(),
-        actual_input.contracts_trie_root_hash.0.to_bytes_be(),
-        actual_input.classes_trie_root_hash.0.to_bytes_be(),
+        actual_input.context.contracts_trie_root_hash.0.to_bytes_be(),
+        actual_input.context.classes_trie_root_hash.0.to_bytes_be(),
         storage_keys_hash,
         storage_values_hash,
         state_diff_keys_hash,

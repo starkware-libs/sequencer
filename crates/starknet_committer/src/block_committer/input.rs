@@ -157,12 +157,26 @@ impl Default for ConfigImpl {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct Input<C: Config> {
-    /// All relevant information for the state diff commitment.
-    pub state_diff: StateDiff,
+/// Defines the context type for the input of the committer.
+pub trait InputContext {
+    type ForestReadContext;
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FactsDbInputContext {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
+}
+
+impl InputContext for FactsDbInputContext {
+    type ForestReadContext = FactsDbInputContext;
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Input<C: Config, I: InputContext> {
+    /// All relevant information for the state diff commitment.
+    pub state_diff: StateDiff,
+    pub context: I,
     pub config: C,
 }
 
