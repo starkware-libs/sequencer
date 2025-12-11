@@ -174,7 +174,7 @@ impl StorageTestSetup {
             mut class_manager_storage,
             class_manager_storage_config,
             class_manager_storage_handles,
-        ) = fs_class_storage_builder.build();
+        ) = fs_class_storage_builder.with_chain_id(chain_info.chain_id.clone()).build();
 
         initialize_class_manager_test_state(&mut class_manager_storage, classes);
 

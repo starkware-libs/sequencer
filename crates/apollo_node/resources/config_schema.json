@@ -374,6 +374,11 @@
     "privacy": "Public",
     "value": 4089446
   },
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
   "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.enforce_file_exists": {
     "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
     "privacy": "Public",
