@@ -5,7 +5,7 @@ use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree, complete with its hash and data.
-pub struct FilledNode<L: Leaf> {
+pub struct FilledNode<L: Leaf, ChildData> {
     pub hash: HashOutput,
-    pub data: NodeData<L, HashOutput>,
+    pub data: NodeData<L, ChildData>,
 }

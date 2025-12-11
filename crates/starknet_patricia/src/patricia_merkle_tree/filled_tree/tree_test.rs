@@ -16,7 +16,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -25,6 +25,8 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+
+type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single
@@ -312,7 +314,7 @@ fn get_small_tree_updated_skeleton_and_leaf_modifications()
 }
 
 fn get_small_tree_expected_filled_tree_map_and_root_hash()
--> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
+-> (HashMap<NodeIndex, FactDbFilledNode<MockLeaf>>, HashOutput) {
     let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
     let expected_filled_tree_map = HashMap::from([
         create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),
@@ -366,10 +368,10 @@ fn create_mock_binary_entry_for_testing(
     hash: &str,
     left_hash: &str,
     right_hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Binary(BinaryData {
                 left_data: HashOutput(Felt::from_hex(left_hash).unwrap()),
@@ -385,10 +387,10 @@ fn create_mock_edge_entry_for_testing(
     path: u128,
     length: u8,
     bottom_hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Edge(EdgeData {
                 bottom_data: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
@@ -405,10 +407,10 @@ fn create_mock_edge_entry_for_testing(
 fn create_mock_leaf_entry_for_testing(
     index: u128,
     hash: &str,
-) -> (NodeIndex, FilledNode<MockLeaf>) {
+) -> (NodeIndex, FactDbFilledNode<MockLeaf>) {
     (
         NodeIndex::from(index),
-        FilledNode {
+        FactDbFilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
             data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
         },

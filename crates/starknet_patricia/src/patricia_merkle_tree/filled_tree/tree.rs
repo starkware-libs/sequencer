@@ -17,6 +17,8 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashF
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
+type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
+
 #[cfg(test)]
 #[path = "tree_test.rs"]
 pub mod tree_test;
@@ -49,14 +51,14 @@ pub trait FilledTree<L: Leaf>: Sized + Send {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct FilledTreeImpl<L: Leaf> {
-    pub tree_map: HashMap<NodeIndex, FilledNode<L>>,
+    pub tree_map: HashMap<NodeIndex, FactDbFilledNode<L>>,
     pub root_hash: HashOutput,
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
-    ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
+    ) -> HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
@@ -72,7 +74,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         Arc::new(leaf_index_to_leaf_input.keys().map(|index| (*index, Mutex::new(None))).collect())
     }
 
-    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, FilledNode<L>> {
+    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, FactDbFilledNode<L>> {
         &self.tree_map
     }
 
@@ -179,7 +181,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         index: NodeIndex,
         leaf_modifications: Option<Arc<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::Input>>>>,
-        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
+        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>>>,
         leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::Output>>>>,
     ) -> FilledTreeResult<HashOutput>
     where
@@ -219,7 +221,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FilledNode { hash, data },
+                    FactDbFilledNode { hash, data },
                 )?;
                 Ok(hash)
             }
@@ -242,7 +244,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FilledNode { hash, data },
+                    FactDbFilledNode { hash, data },
                 )?;
                 Ok(hash)
             }
@@ -259,7 +261,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FilledNode { hash, data },
+                    FactDbFilledNode { hash, data },
                 )?;
                 if let Some(output) = leaf_output {
                     Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
