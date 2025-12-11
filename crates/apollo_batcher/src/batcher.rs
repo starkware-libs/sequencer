@@ -33,6 +33,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::block_hash_marker::BlockHashMarkerStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -1084,6 +1085,9 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> StorageResult<BlockNumber>;
 
+    /// Returns the next height the batcher should store block hash for.
+    fn block_hash_height(&self) -> StorageResult<BlockNumber>;
+
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
 }
 
@@ -1092,10 +1096,11 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_state_marker()
     }
 
-    fn get_state_diff(
-        &self,
-        height: BlockNumber,
-    ) -> apollo_storage::StorageResult<Option<ThinStateDiff>> {
+    fn block_hash_height(&self) -> StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_block_hash_marker()
+    }
+
+    fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
         self.begin_ro_txn()?.get_state_diff(height)
     }
 }
