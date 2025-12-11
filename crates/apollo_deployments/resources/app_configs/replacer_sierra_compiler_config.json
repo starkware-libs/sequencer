@@ -1,4 +1,5 @@
 {
+  "sierra_compiler_config.audited_libfuncs_only": "$$$_SIERRA_COMPILER_CONFIG-AUDITED_LIBFUNCS_ONLY_$$$",
   "sierra_compiler_config.max_bytecode_size": "$$$_SIERRA_COMPILER_CONFIG-MAX_BYTECODE_SIZE_$$$",
   "sierra_compiler_config.max_memory_usage": 5368709120,
   "sierra_compiler_config.max_memory_usage.#is_none": false

@@ -1,5 +1,6 @@
 {
   "monitoring_config.collect_metrics": true,
   "monitoring_config.collect_profiling_metrics": true,
-  "monitoring_endpoint_config.ip": "0.0.0.0"
+  "monitoring_endpoint_config.ip": "0.0.0.0",
+  "monitoring_endpoint_config.port": "$$$_MONITORING_ENDPOINT_CONFIG-PORT_$$$"
 }
