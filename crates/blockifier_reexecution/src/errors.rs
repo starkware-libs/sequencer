@@ -1,4 +1,5 @@
 use apollo_gateway::errors::RPCStateReaderError;
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::blockifier_versioned_constants::VersionedConstantsError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::TransactionExecutionError;
@@ -19,6 +20,8 @@ pub enum ReexecutionError {
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     State(#[from] StateError),
+    #[error(transparent)]
+    TransactionExecutorError(#[from] TransactionExecutorError),
     #[error(transparent)]
     TransactionExecutionError(#[from] TransactionExecutionError),
     #[error(transparent)]

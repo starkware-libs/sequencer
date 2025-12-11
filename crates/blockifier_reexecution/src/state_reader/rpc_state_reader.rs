@@ -9,12 +9,15 @@ use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
-use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::blockifier::transaction_executor::{
+    TransactionExecutionOutput,
+    TransactionExecutor,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
-use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
@@ -475,11 +478,36 @@ impl ConsecutiveRpcStateReaders {
         ))
     }
 
+    /// Executes a single transaction.
+    /// Returns the execution output, initial reads and the block context.
+    pub fn execute_single_api_tx(
+        self,
+        tx: Transaction,
+    ) -> ReexecutionResult<(TransactionExecutionOutput, StateMaps, BlockContext)> {
+        let chain_id = self.next_block_state_reader.chain_id.clone();
+        let transaction_hash = tx.calculate_transaction_hash(&chain_id)?;
+
+        let blockifier_txs = self
+            .next_block_state_reader
+            .api_txs_to_blockifier_txs_next_block(vec![(tx, transaction_hash)])?;
+        let blockifier_tx = blockifier_txs
+            .first()
+            .expect("API to Blockifier transaction conversion returned empty list");
+
+        let mut transaction_executor = self.pre_process_and_create_executor(None)?;
+        let block_context = transaction_executor.block_context.as_ref().clone();
+
+        let (tx_execution_info, state_diff) = transaction_executor.execute(blockifier_tx)?;
+        let initial_reads =
+            transaction_executor.block_state.as_ref().unwrap().get_initial_reads()?;
+        Ok(((tx_execution_info, state_diff), initial_reads, block_context))
+    }
+
     /// Executes a single transaction from a JSON file or given a transaction hash, using RPC to
     /// fetch block context. Does not assert correctness, only prints the execution result.
     pub fn execute_single_transaction(self, tx_input: TransactionInput) -> ReexecutionResult<()> {
         // Get transaction and hash based on input method.
-        let (transaction, transaction_hash) = match tx_input {
+        let (transaction, _) = match tx_input {
             TransactionInput::FromHash { tx_hash } => {
                 // Fetch transaction from the next block (the block containing the transaction to
                 // execute).
@@ -503,20 +531,7 @@ impl ConsecutiveRpcStateReaders {
             }
         };
 
-        // Convert transaction to BlockifierTransaction using api_txs_to_blockifier_txs_next_block.
-        let blockifier_tx = self
-            .next_block_state_reader
-            .api_txs_to_blockifier_txs_next_block(vec![(transaction, transaction_hash)])?;
-
-        // Create transaction executor.
-        let mut transaction_executor = self.pre_process_and_create_executor(None)?;
-
-        // Execute transaction (should be single element).
-        let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
-
-        // We expect exactly one execution result since we executed a single transaction.
-        let res =
-            execution_results.first().expect("Expected exactly one execution result, but got none");
+        let (res, _, _) = self.execute_single_api_tx(transaction)?;
 
         println!("Execution result: {:?}", res);
 
