@@ -1,4 +1,5 @@
 //! Runs a node that stress tests the p2p communication of the network.
+#![allow(clippy::as_conversions)]
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
@@ -11,8 +12,10 @@ use tracing::Level;
 #[cfg(test)]
 mod message_test;
 
+mod explore_config;
 mod handlers;
 mod message;
+mod message_index_detector;
 pub mod metrics;
 mod protocol;
 mod stress_test_node;
