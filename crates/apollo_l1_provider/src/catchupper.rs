@@ -9,7 +9,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tracing::debug;
 
-// When the Provider gets a commit_block that is too high, it starts bootstrapping.
+// When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
 // commit, including that height. The sync task continues until reaching the target height,
 // inclusive, and only after the commit_block (from sync) causes the Provider's current height to be
@@ -19,7 +19,7 @@ use tracing::debug;
 
 /// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
-pub struct Bootstrapper {
+pub struct Catchupper {
     pub target_height: BlockNumber,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
@@ -30,7 +30,7 @@ pub struct Bootstrapper {
     pub n_sync_health_check_failures: Arc<AtomicU8>,
 }
 
-impl Bootstrapper {
+impl Catchupper {
     // FIXME: this isn't added to configs, since this test shouldn't be made here, it should be
     // handled through a task management layer.
     pub const MAX_HEALTH_CHECK_FAILURES: u8 = 5;
@@ -48,12 +48,12 @@ impl Bootstrapper {
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
             // This is overriden when starting the sync task (e.g., when provider starts
-            // bootstrapping).
+            // catching up).
             target_height: BlockNumber(0),
         }
     }
 
-    /// Check if the caller has caught up with the bootstrapper.
+    /// Check if the caller has caught up with the catchupper.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
         let is_caught_up = current_provider_height > self.target_height;
 
@@ -127,18 +127,18 @@ impl Bootstrapper {
     }
 }
 
-impl PartialEq for Bootstrapper {
+impl PartialEq for Catchupper {
     fn eq(&self, other: &Self) -> bool {
         self.target_height == other.target_height
             && self.commit_block_backlog == other.commit_block_backlog
     }
 }
 
-impl Eq for Bootstrapper {}
+impl Eq for Catchupper {}
 
-impl std::fmt::Debug for Bootstrapper {
+impl std::fmt::Debug for Catchupper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Bootstrapper")
+        f.debug_struct("Catchupper")
             .field("target_height", &self.target_height)
             .field("commit_block_backlog", &self.commit_block_backlog)
             .field("sync_task_handle", &self.sync_task_handle)

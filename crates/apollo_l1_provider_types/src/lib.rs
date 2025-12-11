@@ -376,11 +376,11 @@ impl Display for Event {
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ProviderState {
-    /// Provider has not been initialized yet, needs to do bootstrapping at least once.
+    /// Provider has not been initialized yet, needs to get start_height and probably also catch
+    /// up.
     Uninitialized,
-    // TODO(guyn): in a upcoming PR, bootstrap will be available not only on startup.
-    /// Provider is catching up using sync. Only happens on startup.
-    Bootstrap,
+    /// Provider is catching up using sync.
+    CatchingUp,
     /// Provider is not ready for proposing or validating. Use start_block to transition to Propose
     /// or Validate.
     Pending,
@@ -397,14 +397,14 @@ impl ProviderState {
         *self == ProviderState::Uninitialized
     }
 
-    pub fn is_bootstrapping(&self) -> bool {
-        *self == ProviderState::Bootstrap
+    pub fn is_catching_up(&self) -> bool {
+        *self == ProviderState::CatchingUp
     }
 
     pub fn transition_to_pending(&self) -> ProviderState {
         assert!(
-            !self.is_bootstrapping(),
-            "Transitioning from bootstrapping should be done manually by the L1Provider."
+            !self.is_catching_up(),
+            "Transitioning from catching up should be done manually by the L1Provider."
         );
         ProviderState::Pending
     }
