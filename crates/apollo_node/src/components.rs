@@ -34,8 +34,8 @@ use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
+use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -49,9 +49,10 @@ pub struct SequencerNodeComponents {
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
     pub l1_endpoint_monitor: Option<L1EndpointMonitor>,
-    pub l1_scraper: Option<L1Scraper<MonitoredEthereumBaseLayer>>,
+    pub l1_scraper: Option<L1Scraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_provider: Option<L1Provider>,
-    pub l1_gas_price_scraper: Option<L1GasPriceScraper<MonitoredEthereumBaseLayer>>,
+    pub l1_gas_price_scraper:
+        Option<L1GasPriceScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
@@ -381,17 +382,14 @@ pub async fn create_node_components(
             let l1_scraper_config =
                 config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
-            let l1_endpoint_monitor_client =
-                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-            let monitored_base_layer =
-                MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
+            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
             Some(
                 L1Scraper::new(
                     l1_scraper_config.clone(),
                     l1_provider_client,
-                    monitored_base_layer,
+                    cyclic_base_layer_wrapper,
                     event_identifiers_to_track(),
                 )
                 .await
@@ -477,16 +475,13 @@ pub async fn create_node_components(
             // TODO(guyn): we are left in a weird situation in which the base layer config has a
             // list of URLs but the l1 endpoing monitor also has such a list, and we use the latter.
             // This will all go away in a subsequent PR where we remove the endpoint monitor.
-            let l1_endpoint_monitor_client =
-                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-            let monitored_base_layer =
-                MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
+            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
             Some(L1GasPriceScraper::new(
                 l1_gas_price_scraper_config.clone(),
                 l1_gas_price_client,
-                monitored_base_layer,
+                cyclic_base_layer_wrapper,
             ))
         }
         ActiveComponentExecutionMode::Disabled => {

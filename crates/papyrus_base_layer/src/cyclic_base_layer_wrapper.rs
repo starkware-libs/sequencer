@@ -11,6 +11,7 @@ use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L
 #[path = "cyclic_base_layer_wrapper_test.rs"]
 pub mod cyclic_base_layer_wrapper_test;
 
+#[derive(Debug)]
 pub struct CyclicBaseLayerWrapper<B: BaseLayerContract + Send + Sync> {
     base_layer: B,
 }

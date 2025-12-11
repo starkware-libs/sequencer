@@ -64,6 +64,7 @@ use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
+use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use tracing::info;
 
@@ -94,9 +95,10 @@ struct WrapperServers {
     pub(crate) config_manager_runner: Option<Box<ConfigManagerRunnerServer>>,
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
-    pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
+    pub(crate) l1_scraper_server:
+        Option<Box<L1ScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) l1_gas_price_scraper_server:
-        Option<Box<L1GasPriceScraperServer<EthereumBaseLayerContract>>>,
+        Option<Box<L1GasPriceScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
     pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
