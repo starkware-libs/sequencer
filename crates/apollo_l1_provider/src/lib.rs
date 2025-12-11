@@ -1,4 +1,4 @@
-pub mod bootstrapper;
+pub mod catchupper;
 
 pub mod communication;
 pub mod l1_provider;

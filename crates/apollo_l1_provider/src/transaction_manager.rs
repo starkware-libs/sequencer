@@ -177,7 +177,7 @@ impl TransactionManager {
         // If exists, return false and do nothing. If not, create the record as a HashOnly payload.
         let is_new_record = self.create_record_if_not_exist(tx_hash);
         // Replace a HashOnly payload with a Full payload. Do not update a Full payload.
-        // A hash only payload can come from bootstrapping from state sync, and then updated by
+        // A hash only payload can come from catching up from state sync, and then updated by
         // add_events from the scraper. However, if we get the same full tx twice (from the scraper)
         // it could indicate a double-scrape, and may cause the tx to be re-added to the proposable
         // index.
