@@ -16,12 +16,9 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
 use crate::assert_eq_state_diff;
-use crate::state_reader::compile::{
-    legacy_to_contract_class_v0,
-    sierra_to_versioned_contract_class_v1,
-};
-use crate::state_reader::errors::ReexecutionResult;
-use crate::state_reader::utils::contract_class_to_compiled_classes;
+use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
+use crate::errors::ReexecutionResult;
+use crate::utils::contract_class_to_compiled_classes;
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
