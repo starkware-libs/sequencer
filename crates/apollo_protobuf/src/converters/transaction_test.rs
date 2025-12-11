@@ -3,12 +3,7 @@ use lazy_static::lazy_static;
 use rand::random;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    ProofFacts,
-    ResourceBounds,
-    ValidResourceBounds,
-};
+use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
@@ -126,8 +121,6 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
     let mut transaction =
         starknet_api::transaction::InvokeTransactionV3::get_test_instance(&mut rng);
     transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
-    // TODO(AvivG): Remove this once proof_facts is added to P2P protocol.
-    transaction.proof_facts = ProofFacts::default();
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
