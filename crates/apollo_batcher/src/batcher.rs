@@ -92,6 +92,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_PROVIDER_ERRORS,
+    GLOBAL_ROOT_HEIGHT,
     L2_GAS_IN_LAST_BLOCK,
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
@@ -1107,6 +1108,7 @@ impl Batcher {
 
         self.storage_writer.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
+        GLOBAL_ROOT_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
     }
@@ -1539,7 +1541,11 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .height()
             .expect("Failed to get height from storage during batcher creation.");
-        register_metrics(storage_height);
+        let global_root_height = self
+            .storage_reader
+            .global_root_height()
+            .expect("Failed to get global roots height from storage during batcher creation.");
+        register_metrics(storage_height, global_root_height);
     }
 }
 

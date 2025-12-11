@@ -335,6 +335,17 @@
             "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
+            "log_query": "\"Building block at height\""
+          }
+        },
+        {
+          "title": "Global Root Height",
+          "description": "The height of the first block without global root stored.",
+          "type": "stat",
+          "exprs": [
+            "batcher_global_root_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {
             "log_query": "\"Committing block at height\""
           }
         },
