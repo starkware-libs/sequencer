@@ -11,28 +11,10 @@ image:
 
 config:
   sequencerConfig:
-    base_layer_config_starknet_contract_address: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
     chain_id: "CHAIN_ID_SUBDIR"
-    consensus_manager_config_network_config_port: 53080
-    http_server_config_port: 8080
-    mempool_p2p_config_network_config_port: 53200
-    consensus_manager_config_context_config_num_validators: 1
-    consensus_manager_config_network_config_advertised_multiaddr: ""
-    consensus_manager_config_network_config_advertised_multiaddr_is_none: true
-    consensus_manager_config_network_config_bootstrap_peer_multiaddr: ""
-    consensus_manager_config_network_config_bootstrap_peer_multiaddr_is_none: true
     eth_fee_token_address: "0x1001"
-    mempool_p2p_config_network_config_advertised_multiaddr: ""
-    mempool_p2p_config_network_config_advertised_multiaddr_is_none: true
-    mempool_p2p_config_network_config_bootstrap_peer_multiaddr: ""
-    mempool_p2p_config_network_config_bootstrap_peer_multiaddr_is_none: true
     monitoring_endpoint_config_port: 8082
-    sierra_compiler_config_audited_libfuncs_only: false
     starknet_url: "https://integration-sepolia.starknet.io/"
-    state_sync_config_central_sync_client_config_is_none: true
-    state_sync_config_network_config_is_none: false
-    state_sync_config_p2p_sync_client_config_is_none: false
-    state_sync_config_rpc_config_port: 8090
     strk_fee_token_address: "0x1002"
     validator_id: "0x64"
     versioned_constants_overrides_max_n_events: 1000

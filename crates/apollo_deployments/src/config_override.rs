@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use apollo_config::converters::serialize_optional_comma_separated;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -11,14 +11,10 @@ use serde_with::with_prefix;
 use url::Url;
 
 use crate::deployment_definitions::{StateSyncConfig, StateSyncType};
-use crate::replacers::insert_replacer_annotations;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
-const REPLACER_DEPLOYMENT_FILE_NAME: &str = "replacer_deployment.json";
-const REPLACER_INSTANCE_FILE_NAME: &str = "replacer_instance.json";
-const REPLACER_DIR: &str = "crates/apollo_deployments/resources/deployments/";
 
 // Serialization prefixes for p2p configs
 with_prefix!(consensus_prefix "consensus_manager_config.network_config.");
@@ -28,14 +24,6 @@ with_prefix!(mempool_prefix "mempool_p2p_config.network_config.");
 pub struct ConfigOverride {
     deployment_config_override: DeploymentConfigOverride,
     instance_config_override: InstanceConfigOverride,
-}
-
-pub(crate) fn deployment_replacer_file_path() -> String {
-    PathBuf::from(REPLACER_DIR).join(REPLACER_DEPLOYMENT_FILE_NAME).to_string_lossy().to_string()
-}
-
-pub(crate) fn instance_replacer_file_path() -> String {
-    PathBuf::from(REPLACER_DIR).join(REPLACER_INSTANCE_FILE_NAME).to_string_lossy().to_string()
 }
 
 impl ConfigOverride {
@@ -58,17 +46,9 @@ impl ConfigOverride {
         if create {
             let deployment_data = to_value(&self.deployment_config_override).unwrap();
             serialize_to_file(&deployment_data, deployment_path.to_str().unwrap());
-            serialize_to_file(
-                &insert_replacer_annotations(deployment_data, |_, _| true),
-                &deployment_replacer_file_path(),
-            );
 
             let instance_data = to_value(&self.instance_config_override).unwrap();
             serialize_to_file(&instance_data, instance_path.to_str().unwrap());
-            serialize_to_file(
-                &insert_replacer_annotations(instance_data, |_, _| true),
-                &instance_replacer_file_path(),
-            );
         }
 
         ConfigOverrideWithPaths {

@@ -7,6 +7,7 @@ config:
   sequencerConfig:
     components_gateway_port: 55002
     components_gateway_url: sequencer-gateway-service
+    http_server_config_port: 8080
 
 service:
   enabled: true
