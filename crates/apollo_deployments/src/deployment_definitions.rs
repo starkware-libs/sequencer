@@ -15,15 +15,10 @@ use strum_macros::{Display, EnumString};
 use url::Url;
 
 use crate::addresses::PEER_IDS;
-use crate::deployment::{Deployment, P2PCommunicationType};
-use crate::deployment_definitions::testing::system_test_deployments;
+use crate::deployment::P2PCommunicationType;
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
-
-mod testing;
-
-type DeploymentFn = fn() -> Vec<Deployment>;
 
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
@@ -38,8 +33,6 @@ pub(crate) const MEMPOOL_P2P_PORT: u16 = 53200;
 const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
-
-pub const DEPLOYMENTS: &[DeploymentFn] = &[system_test_deployments];
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
