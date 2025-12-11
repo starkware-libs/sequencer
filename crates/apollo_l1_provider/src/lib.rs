@@ -26,7 +26,7 @@ use crate::transaction_manager::TransactionManagerConfig;
 impl From<L1ProviderConfig> for TransactionManagerConfig {
     fn from(config: L1ProviderConfig) -> Self {
         TransactionManagerConfig {
-            new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
+            l1_handler_proposal_cooldown_seconds: config.l1_handler_proposal_cooldown_seconds,
             l1_handler_cancellation_timelock_seconds: config
                 .l1_handler_cancellation_timelock_seconds,
             l1_handler_consumption_timelock_seconds: config.l1_handler_consumption_timelock_seconds,
