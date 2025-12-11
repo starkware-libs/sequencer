@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
@@ -26,7 +26,7 @@ pub async fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[FactsSubTree<'a>],
     storage: &mut impl Storage,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L>>> {
+) -> TraversalResult<Vec<FactDbFilledNode<L>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
         .iter()
@@ -115,8 +115,12 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                     witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
                     let (left_subtree, right_subtree) = subtree
                         .get_children_subtrees(binary_data.left_data, binary_data.right_data);
-                    next_subtrees.push(left_subtree);
-                    next_subtrees.push(right_subtree);
+                    if !left_subtree.is_unmodified() {
+                        next_subtrees.push(left_subtree);
+                    }
+                    if !right_subtree.is_unmodified() {
+                        next_subtrees.push(right_subtree);
+                    }
                 }
                 // Edge node.
                 // If it's the root: it's not necessarily a modified tree, because the modification

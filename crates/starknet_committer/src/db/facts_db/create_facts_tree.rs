@@ -61,7 +61,7 @@ async fn fetch_nodes<'a, L: Leaf>(
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
-                NodeData::<L, HashOutput>::Binary(BinaryData { left_data, right_data }) => {
+                NodeData::Binary(BinaryData { left_data, right_data }) => {
                     if subtree.is_unmodified() {
                         skeleton_tree.nodes.insert(
                             subtree.root_index,
@@ -87,7 +87,7 @@ async fn fetch_nodes<'a, L: Leaf>(
                     )
                 }
                 // Edge node.
-                NodeData::<L, HashOutput>::Edge(EdgeData { bottom_data, path_to_bottom }) => {
+                NodeData::Edge(EdgeData { bottom_data, path_to_bottom }) => {
                     skeleton_tree
                         .nodes
                         .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
