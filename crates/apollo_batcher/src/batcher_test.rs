@@ -130,6 +130,7 @@ impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReader::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
@@ -463,6 +464,7 @@ async fn consecutive_heights_success() {
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
@@ -762,6 +764,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
@@ -776,6 +779,7 @@ async fn propose_block_without_retrospective_block_hash() {
     storage_reader
         .expect_height()
         .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut batcher =
         create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
@@ -1061,7 +1065,7 @@ async fn revert_block_mismatch_block_number() {
 async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
-
+    storage_reader.expect_block_hash_height().returning(|| Ok(BlockNumber(0)));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     let mut batcher = create_batcher(mock_dependencies).await;
 
