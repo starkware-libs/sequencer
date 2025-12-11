@@ -20,6 +20,7 @@ use crate::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -327,7 +328,8 @@ impl InvokeTransaction {
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData),
-        (account_deployment_data, AccountDeploymentData)
+        (account_deployment_data, AccountDeploymentData),
+        (proof_facts, ProofFacts)
     );
     implement_getter_calls!((tx_hash, TransactionHash));
 
