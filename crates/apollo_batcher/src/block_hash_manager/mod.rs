@@ -1,5 +1,11 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
+use core::panic;
+
+use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
+use starknet_api::state::ThinStateDiff;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -38,5 +44,48 @@ impl BlockHashManager {
         let commitment_task_performer = state_committer.run();
 
         Self { tasks_sender, results_receiver, commitment_task_performer }
+    }
+
+    pub(crate) async fn add_commitment_task(
+        self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) {
+        match self.tasks_sender.try_send(CommitmentTaskInput {
+            height,
+            state_diff,
+            state_diff_commitment,
+        }) {
+            Ok(_) => {
+                info!(
+                    "Sent commitment task for block {height} and state diff \
+                     {state_diff_commitment:?} to StateCommitter."
+                );
+            }
+            Err(TrySendError::Full(_)) => {
+                let channel_size = self.tasks_sender.max_capacity();
+                panic!(
+                    "Failed to send commitment task to StateCommitter because the channel is \
+                     full. Block: {height}, state_diff_commitment: {state_diff_commitment:?}, \
+                     channel size: {channel_size}",
+                );
+            }
+            Err(err) => {
+                panic!(
+                    "Failed to send commitment task to StateCommitter. error: {err}, block: \
+                     {height}, state_diff_commitment: {state_diff_commitment:?}",
+                );
+            }
+        };
+    }
+
+    pub(crate) async fn get_commitment_result(&mut self) -> CommitmentTaskOutput {
+        unimplemented!()
+    }
+
+    // TODO(Amos): Pass committer client as argument.
+    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
+        unimplemented!()
     }
 }
