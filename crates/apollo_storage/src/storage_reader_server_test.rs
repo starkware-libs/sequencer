@@ -43,6 +43,19 @@ impl StorageReaderServerHandler<TestRequest, TestResponse> for TestHandler {
     }
 }
 
+#[derive(Clone)]
+struct ErrorHandler;
+
+#[async_trait]
+impl StorageReaderServerHandler<TestRequest, TestResponse> for ErrorHandler {
+    async fn handle_request(
+        _storage_reader: &StorageReader,
+        _request: TestRequest,
+    ) -> Result<TestResponse, StorageError> {
+        Err(StorageError::DBInconsistency { msg: "Test error".to_string() })
+    }
+}
+
 #[tokio::test]
 async fn test_endpoint_successful_query() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
@@ -109,6 +122,56 @@ async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response 
     )
     .await
     .unwrap()
+}
+
+#[tokio::test]
+async fn test_endpoint_handler_error() {
+    let ((reader, _writer), _temp_dir) = get_test_storage();
+
+    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8083));
+    let config = ServerConfig::new(socket, true);
+
+    let server =
+        StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let app = server.app();
+
+    let request = TestRequest { block_number: 0 };
+    let response = send_storage_query(app, &request).await;
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    let body = to_bytes(response).await;
+    let error_message = String::from_utf8(body.to_vec()).unwrap();
+    assert!(error_message.contains("Storage error"));
+    assert!(error_message.contains("Test error"));
+}
+
+#[tokio::test]
+async fn test_endpoint_invalid_json() {
+    let ((reader, _writer), _temp_dir) = get_test_storage();
+
+    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8084));
+    let config = ServerConfig::new(socket, true);
+
+    let server =
+        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let app = server.app();
+
+    // Test with invalid JSON
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/storage/query")
+                .header("content-type", "application/json")
+                .body(Body::from("invalid json"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Should return error status code
+    assert!(!response.status().is_success());
 }
 
 // Helper function to convert response body to bytes
