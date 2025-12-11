@@ -132,6 +132,33 @@ async fn all_event_types_must_be_filtered_and_parsed() {
     }
 }
 
+#[tokio::test]
+async fn cannot_parse_log_message_to_l1() {
+    // Setup.
+    // Make a mock L1
+    let asserter = Asserter::new();
+    let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone());
+
+    let mut base_layer = EthereumBaseLayerContract::new_with_provider(
+        EthereumBaseLayerConfig::default(),
+        provider.root().clone(),
+    );
+
+    // We can just return the same block all the time, it will only affect the timestamps.
+    let dummy_block: Block<B256, Header> = dummy_block();
+
+    // This log is for LogMessageToL1 event.
+    let expected_message_to_l1_log =
+        encode_log_message_to_l1_log(&[U256::from(15), U256::from(202)]);
+    asserter.push_success(&vec![expected_message_to_l1_log.clone()]);
+    // asserter.push_success(&Vec::<Log>::new());
+    asserter.push_success(&dummy_block);
+
+    let result = base_layer.events(0..=1, event_identifiers_to_track()).await;
+
+    assert!(result.is_err(), "expected error");
+}
+
 fn dummy_block<T>() -> Block<T, Header> {
     Block {
         header: Header {
@@ -235,6 +262,51 @@ fn encode_message_into_log(
                     U256::from(L2_ENTRY_POINT).into(),
                 ],
                 encoded_data,
+            ),
+        },
+        block_hash: Some(BlockHash::from_str(FAKE_HASH).unwrap()),
+        block_number: Some(block_number),
+        block_timestamp: None,
+        transaction_hash: Some(TxHash::from_str(FAKE_HASH).unwrap()),
+        transaction_index: Some(block_number + 1),
+        log_index: Some(block_number + 2),
+        removed: false,
+    }
+}
+
+// Generate a LogMessageToL1 log (which we do not filter on).
+fn encode_log_message_to_l1_log(payload: &[U256]) -> Log {
+    let selector = "LogMessageToL1(address,uint256[],uint256,uint256)";
+    let block_number = 1;
+    let starknet_address = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS.to_bigint().to_str_radix(16);
+    let starknet_address = format!("{:0>64}", starknet_address);
+
+    let offset = U256::from(32u64);
+
+    let mut encoded = Vec::new();
+    // Offset to the array data (96 bytes).
+    encoded.extend_from_slice(&offset.to_be_bytes::<32>());
+
+    // Tail section has the payload array data only. It starts with the length of the array.
+    let array_len = U256::from(payload.len());
+    encoded.extend_from_slice(&array_len.to_be_bytes::<32>());
+    // Finally, write the array elements.
+    for item in payload {
+        encoded.extend_from_slice(&item.to_be_bytes::<32>());
+    }
+
+    let log_data = Bytes::from(encoded);
+
+    Log {
+        inner: LogInner {
+            address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+            data: LogData::new_unchecked(
+                vec![
+                    filter_to_hash(selector).parse().unwrap(),
+                    starknet_address.parse().unwrap(),
+                    U256::from(L1_CONTRACT_ADDRESS).into(),
+                ],
+                log_data,
             ),
         },
         block_hash: Some(BlockHash::from_str(FAKE_HASH).unwrap()),
