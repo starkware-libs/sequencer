@@ -375,7 +375,8 @@ async fn commit_block_backlog() {
         .build_into_l1_provider();
 
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, TARGET_HEIGHT);
+    l1_provider.state = ProviderState::Bootstrap;
+    l1_provider.bootstrapper.start_l2_sync(STARTUP_HEIGHT, TARGET_HEIGHT);
 
     // Test.
     // Commit height is below target height. Doesn't trigger backlog.
