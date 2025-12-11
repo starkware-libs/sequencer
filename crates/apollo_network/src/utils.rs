@@ -1,3 +1,15 @@
+//! Networking utility functions and types.
+//!
+//! This module provides utility functions and data structures that support
+//! the broader networking functionality. It includes multiaddress utilities,
+//! stream management helpers, and other common networking operations.
+//!
+//! ## Key Components
+//!
+//! - [`StreamMap`]: A concurrent stream multiplexer for managing multiple async streams
+//! - Address utilities: Functions for creating and validating network addresses
+//! - Helper functions for common networking operations
+
 use core::net::Ipv4Addr;
 use std::collections::btree_map::{Keys, ValuesMut};
 use std::collections::BTreeMap;
