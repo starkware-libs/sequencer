@@ -61,10 +61,10 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 }
 
 /// Fetches the inner nodes [HashOutput] and [Preimage] in the paths to modified leaves.
-/// The siblings (witnesses) are included in the [Preimage] of their parent node.
+/// Including also the [Preimage] of the siblings, to support `load_bottom` hint.
 /// Required for `patricia_update` function in Cairo.
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
-/// inner nodes in their paths.
+/// inner nodes in their paths and their siblings.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 async fn fetch_patricia_paths_inner<'a, L: Leaf>(
@@ -78,20 +78,18 @@ async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     while !current_subtrees.is_empty() {
         let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
-            // Always insert root.
-            // No need to insert an unmodified node (which is not the root), because its parent is
-            // inserted, and contains the preimage.
-            if subtree.is_unmodified() {
-                continue;
-            }
+            // Always insert the current node, even if the subtree is unmodified.
+            // Don't insert the children of an unmodified node.
             match filled_root.data {
                 // Binary node.
                 NodeData::Binary(binary_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
                     let (left_subtree, right_subtree) = subtree
                         .get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
-                    next_subtrees.push(left_subtree);
-                    next_subtrees.push(right_subtree);
+                    if !subtree.is_unmodified() {
+                        next_subtrees.push(left_subtree);
+                        next_subtrees.push(right_subtree);
+                    }
                 }
                 // Edge node.
                 NodeData::Edge(edge_data) => {
@@ -106,10 +104,15 @@ async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                             leaves_map.insert(*index, L::default());
                         }
                     }
-                    next_subtrees.push(bottom_subtree);
+                    if !subtree.is_unmodified() {
+                        next_subtrees.push(bottom_subtree);
+                    }
                 }
                 // Leaf node.
                 NodeData::Leaf(leaf_data) => {
+                    if subtree.is_unmodified() {
+                        continue;
+                    }
                     // Fetch the leaf if it's modified and should be fetched.
                     if let Some(ref mut leaves_map) = leaves {
                         leaves_map.insert(subtree.root_index, leaf_data);

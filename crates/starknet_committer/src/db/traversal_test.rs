@@ -55,6 +55,7 @@ async fn test_fetch_patricia_paths_inner_impl(
     leaf_indices: Vec<u128>,
     height: SubTreeHeight,
     expected_nodes: PreimageMap,
+    should_result_equal_to_expected_nodes: bool,
 ) {
     let mut storage = storage;
     let expected_fetched_leaves = leaf_indices
@@ -90,7 +91,13 @@ async fn test_fetch_patricia_paths_inner_impl(
     .await
     .unwrap();
 
-    assert_eq!(nodes, expected_nodes);
+    if should_result_equal_to_expected_nodes {
+        assert_eq!(nodes, expected_nodes);
+    } else {
+        assert!(
+            expected_nodes.iter().all(|(hash, preimage)| nodes.get(hash).unwrap().eq(preimage))
+        );
+    }
     assert_eq!(fetched_leaves, expected_fetched_leaves);
 }
 
@@ -98,7 +105,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 #[rstest]
 // Some cases uses addition hash and others (generated in python) use pedersen hash.
 // For convenience, the leaves values are their NodeIndices.
-/// This test simulates the main function
+/// The python-generated cases expect the siblings only in the preimages of the nodes, not in the
+/// nodes themselves. This test simulates the main function
 /// [`crate::patricia_merkle_tree::traversal::fetch_patricia_paths`], but with a tree of different
 /// height. SubTree structure:
 /// ```text
@@ -111,8 +119,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 /// 8   9 10 11 12  13 14  15
 /// ```
 /// Modified leaf indices: `[13]`
-/// Expected nodes hashes: `[92, 54, 25]`
-/// Siblings hashes (in preimage of nodes): `[38, 29, 12]`
+/// Expected nodes hashes: `[92, 38, 54, 25, 29]`
+/// Siblings leaves (in preimage of nodes): `[12]`
 #[case::binary_tree_one_leaf(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -130,13 +138,16 @@ async fn test_fetch_patricia_paths_inner_impl(
     SubTreeHeight::new(3),
     to_preimage_map(HashMap::from([
         (92, vec![38, 54]),
+        (38, vec![17, 21]),
         (54, vec![25, 29]),
         (25, vec![12, 13]),
+        (29, vec![14, 15]),
     ])),
+    true,
 )]
 /// Modified leaf indices: `[12, 13]`
-/// Expected nodes hashes: `[92, 54, 25]`
-/// Siblings hashes (in preimage of nodes): `[38, 29]`
+/// Expected nodes hashes: `[92, 38, 54, 25, 29]`
+/// Siblings leaves (in preimage of nodes): `[]`
 #[case::binary_tree_two_siblings(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -154,13 +165,16 @@ async fn test_fetch_patricia_paths_inner_impl(
     SubTreeHeight::new(3),
     to_preimage_map(HashMap::from([
         (92, vec![38, 54]),
+        (38, vec![17, 21]),
         (54, vec![25, 29]),
+        (29, vec![14, 15]),
         (25, vec![12, 13]),
     ])),
+    true,
 )]
 /// Modified leaf indices: `[11, 14]`
-/// Expected nodes hashes: `[92, 38, 54, 21, 29]`
-/// Siblings hashes (in preimage of nodes): `[17, 25, 10, 15]`
+/// Expected nodes hashes: `[92, 38, 54, 17, 21, 25, 29]`
+/// Siblings leaves (in preimage of nodes): `[10, 15]`
 #[case::binary_tree_two_leaves(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -182,13 +196,16 @@ async fn test_fetch_patricia_paths_inner_impl(
         (92, vec![38, 54]),
         (38, vec![17, 21]),
         (54, vec![25, 29]),
+        (17, vec![8, 9]),
         (21, vec![10, 11]),
+        (25, vec![12, 13]),
         (29, vec![14, 15]),
     ])),
+    true,
 )]
 /// Modified leaf indices: `[8, 11, 12, 14]`
 /// Expected nodes hashes: `[92, 38, 54, 17, 21, 25, 29]`
-/// Siblings hashes (in preimage of nodes): `[9, 10, 13, 15]`
+/// Siblings leaves (in preimage of nodes): `[9, 10, 13, 15]`
 #[case::binary_many_leaves(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -219,6 +236,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         (25, vec![12, 13]),
         (29, vec![14, 15]),
     ])),
+    true,
 )]
 /// SubTree structure:
 /// ```text
@@ -231,8 +249,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 ///  8   9     13  14  15
 /// ```
 /// Modified leaf indices: `[13]`
-/// Expected nodes hashes: `[62, 44, 15]`
-/// Siblings hashes (in preimage of nodes): `[18, 29]`
+/// Expected nodes hashes: `[62, 18, 44, 15, 29]`
+/// Siblings leaves (in preimage of nodes): `[]`
 #[case::edge_one_leaf_edge(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -249,13 +267,16 @@ async fn test_fetch_patricia_paths_inner_impl(
     // edge: [length, path, bottom]
     to_preimage_map(HashMap::from([
         (62, vec![18, 44]),
+        (18, vec![1, 0, 17]),
         (44, vec![15, 29]),
         (15, vec![1, 1, 13]),
+        (29, vec![14, 15]),
     ])),
+    true,
 )]
 /// Modified leaf indices: `[14]`
-/// Expected nodes hashes: `[62, 44, 29]`
-/// Siblings hashes (in preimage of nodes): `[18, 15 (inner node), 15 (leaf)]`
+/// Expected nodes hashes: `[62, 18, 44, 15, 29]`
+/// Siblings leaves (in preimage of nodes): `[15]`
 #[case::edge_one_leaf_binary(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -272,9 +293,12 @@ async fn test_fetch_patricia_paths_inner_impl(
     SubTreeHeight::new(3),
     to_preimage_map(HashMap::from([
         (62, vec![18, 44]),
+        (18, vec![1, 0, 17]),
         (44, vec![15, 29]),
         (29, vec![14, 15]),
+        (15, vec![1, 1, 13]),
     ])),
+    true,
 )]
 /// SubTree structure:
 /// ```text
@@ -287,8 +311,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 ///  8         13 14  15
 /// ```
 /// Modified leaf indices: `[8]`
-/// Expected nodes hashes: `[54, 10]`
-/// Siblings hashes (in preimage of nodes): `[44]`
+/// Expected nodes hashes: `[54, 10, 44]`
+/// Siblings leaves (in preimage of nodes): `[]`
 #[case::long_edge_one_leaf_edge(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(14, 15),
@@ -305,7 +329,9 @@ async fn test_fetch_patricia_paths_inner_impl(
     to_preimage_map(HashMap::from([
         (54, vec![10, 44]),
         (10, vec![2, 0, 8]),
+        (44, vec![15, 29]),
     ])),
+    true,
 )]
 /// SubTree structure:
 /// ```text
@@ -319,8 +345,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 ///   8   9       15
 /// ```
 /// Modified leaf indices: `[8]`
-/// Expected nodes hashes: `[38, 18, 17]`
-/// Siblings hashes (in preimage of nodes): `[20, 9]`
+/// Expected nodes hashes: `[38, 18, 20, 17]`
+/// Siblings leaves (in preimage of nodes): `[9]`
 #[case::edge_and_binary(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
@@ -337,8 +363,10 @@ async fn test_fetch_patricia_paths_inner_impl(
     to_preimage_map(HashMap::from([
         (38, vec![18, 20]),
         (18, vec![1, 0, 17]),
+        (20, vec![2, 3, 15]),
         (17, vec![8, 9]),
     ])),
+    true,
 )]
 /// Test old tree with new leaves.
 /// Old SubTree structure:
@@ -362,8 +390,8 @@ async fn test_fetch_patricia_paths_inner_impl(
 ///    8  9 10 11 12
 ///   new new    new
 /// ```
-/// Expected nodes hashes: `[24]`
-/// Siblings hashes (in preimage of nodes): `[21]`
+/// Expected nodes hashes: `[24, 21]`
+/// Siblings leaves (in preimage of nodes): `[]`
 #[case::should_return_empty_leaves(
     MapStorage(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
@@ -377,7 +405,9 @@ async fn test_fetch_patricia_paths_inner_impl(
     // edge: [length, path, bottom]
     to_preimage_map(HashMap::from([
         (24, vec![2, 1, 21]),
+        (21, vec![10, 11]),
     ])),
+    true,
 )]
 /// Python generated cases.
 #[case::python_sparse_tree_1(
@@ -409,6 +439,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         (4008, vec![1921, 2087]),
         (1921, vec![7, 61, 1853]),
     ])),
+    false,
 )]
 #[case::python_sparse_tree_2(
     MapStorage(DbHashMap::from([
@@ -440,6 +471,7 @@ async fn test_fetch_patricia_paths_inner_impl(
         (7463, vec![1580, 5883]),
         (1580, vec![8, 18, 1554]),
     ])),
+    false,
 )]
 #[case::python_pedersen(
     MapStorage(DbHashMap::from([
@@ -486,6 +518,7 @@ async fn test_fetch_patricia_paths_inner_impl(
             .unwrap()
         })),
     ]),
+    false,
 )]
 async fn test_fetch_patricia_paths_inner(
     #[case] storage: MapStorage,
@@ -493,9 +526,17 @@ async fn test_fetch_patricia_paths_inner(
     #[case] leaf_indices: Vec<u128>,
     #[case] height: SubTreeHeight,
     #[case] expected_nodes: PreimageMap,
+    #[case] should_result_equal_to_expected_nodes: bool,
 ) {
-    test_fetch_patricia_paths_inner_impl(storage, root_hash, leaf_indices, height, expected_nodes)
-        .await;
+    test_fetch_patricia_paths_inner_impl(
+        storage,
+        root_hash,
+        leaf_indices,
+        height,
+        expected_nodes,
+        should_result_equal_to_expected_nodes,
+    )
+    .await;
 }
 
 #[derive(Deserialize, Debug)]
@@ -564,6 +605,7 @@ async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
+        false,
     )
     .await;
 }
