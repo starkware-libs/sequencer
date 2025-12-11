@@ -5,6 +5,7 @@ use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::storage_reader_server::ServerConfig as StorageReaderServerConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
@@ -153,6 +154,7 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
+    pub storage_reader_server_config: StorageReaderServerConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -186,6 +188,10 @@ impl SerializeConfig for BatcherConfig {
             ),
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_config.dump(),
+            "storage_reader_server",
+        ));
         dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
@@ -227,6 +233,7 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
+            storage_reader_server_config: StorageReaderServerConfig::default(),
         }
     }
 }
