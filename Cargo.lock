@@ -12219,7 +12219,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_os_runner"
-version = "0.0.0"
+version = "0.16.0-rc.2"
 
 [[package]]
 name = "starknet_patricia"
