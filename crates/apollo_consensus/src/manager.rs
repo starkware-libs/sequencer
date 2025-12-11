@@ -416,7 +416,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Commit in case of decision.
         if let RunHeightRes::Decision(decision) = &res {
-            context.decision_reached(decision.block, decision.precommits.clone()).await?;
+            context.decision_reached(height, decision.block).await?;
         }
 
         // Cleanup after height completion.

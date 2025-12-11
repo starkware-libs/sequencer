@@ -103,12 +103,10 @@ pub trait ConsensusContext {
 
     /// Update the context that a decision has been reached for a given height.
     /// - `block` identifies the decision.
-    /// - `precommits` - All precommits must be for the same `(block, height, round)` and form a
-    ///   quorum (>2/3 of the voting power) for this height.
     async fn decision_reached(
         &mut self,
-        block: ProposalCommitment,
-        precommits: Vec<Vote>,
+        height: BlockNumber,
+        commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError>;
 
     /// Attempt to learn of a decision from the sync protocol.
