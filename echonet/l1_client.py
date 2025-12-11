@@ -4,17 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-<<<<<<< HEAD
-||||||| dd2fc66abf
-import functools
-import inspect
-import logging
-=======
 import eth_abi
-import functools
-import inspect
-import logging
->>>>>>> origin/main-v0.14.1
 import requests
 from l1_utils import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,

@@ -10,7 +10,6 @@ use apollo_state_sync_types::errors::StateSyncError;
 use async_trait::async_trait;
 use starknet_api::block::{BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio::sync::OnceCell;
 
 pub type StarknetResult<T> = Result<T, StarknetError>;
@@ -60,6 +59,7 @@ impl GatewayFixedBlockSyncStateClient {
                 L1DataAvailabilityMode::Blob => true,
                 L1DataAvailabilityMode::Calldata => false,
             },
+            starknet_version: block_header.starknet_version,
         };
 
         Ok(block_info)
