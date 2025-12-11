@@ -60,6 +60,7 @@ impl GatewayFixedBlockSyncStateClient {
                 L1DataAvailabilityMode::Blob => true,
                 L1DataAvailabilityMode::Calldata => false,
             },
+            starknet_version: block_header.starknet_version,
         };
 
         Ok(block_info)

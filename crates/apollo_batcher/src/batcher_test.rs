@@ -310,20 +310,16 @@ fn verify_decision_reached_response(
         response.central_objects.execution_infos.len(),
         expected_artifacts.execution_data.execution_infos_and_signatures.len()
     );
-<<<<<<< HEAD
     for (tx_hash, info) in &response.central_objects.execution_infos {
         assert_eq!(
             info,
             &expected_artifacts.execution_data.execution_infos_and_signatures[tx_hash].0
         );
     }
-||||||| dd2fc66abf
-=======
     assert_eq!(
         response.central_objects.parent_proposal_commitment,
         Some(parent_proposal_commitment())
     );
->>>>>>> origin/main-v0.14.1
 }
 
 fn assert_proposal_metrics(

@@ -3,11 +3,11 @@ Provides mock responses for L1 RPC calls.
 """
 
 import json
+import logging
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
-import logging
-from collections import deque
 from l1_blocks import L1Blocks
 from l1_client import L1Client
 

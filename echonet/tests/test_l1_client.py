@@ -1,22 +1,15 @@
+import copy
 import os
 import sys
-
-import copy
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import unittest
-<<<<<<< HEAD
-||||||| dd2fc66abf
-from l1_client import L1Client
-=======
-from l1_client import L1Client
-from test_utils import L1TestUtils
->>>>>>> origin/main-v0.14.1
 from unittest.mock import Mock, patch
 
 import requests
 from l1_client import L1Client
+from test_utils import L1TestUtils
 
 
 class TestL1Client(unittest.TestCase):
