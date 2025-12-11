@@ -2,18 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
+use alloy::primitives::map::HashSet;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionMode,
-    ReactiveComponentExecutionMode,
-};
 use apollo_node_config::config_utils::private_parameters;
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
-use crate::deployment_definitions::DEPLOYMENTS;
+use crate::deployment_definitions::{ComponentConfigInService, DEPLOYMENTS};
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
 
@@ -166,25 +163,19 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
 
 #[test]
 fn l1_components_state_consistency() {
-    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        let node_type = deployment.get_node_type();
-        let component_configs = node_type.get_component_configs(None);
+    for node_type in NodeType::iter() {
+        let all_components: HashSet<ComponentConfigInService> = node_type
+            .all_service_names()
+            .iter()
+            .flat_map(|node_service| node_service.get_components_in_service())
+            .collect();
 
-        let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
-            component_config.l1_gas_price_provider.execution_mode
-                != ReactiveComponentExecutionMode::Disabled
-        });
-        let l1_provider_indicator = component_configs.values().any(|component_config| {
-            component_config.l1_provider.execution_mode != ReactiveComponentExecutionMode::Disabled
-        });
-
-        let l1_gas_price_scraper_indicator = component_configs.values().any(|component_config| {
-            component_config.l1_gas_price_scraper.execution_mode
-                != ActiveComponentExecutionMode::Disabled
-        });
-        let l1_scraper_indicator = component_configs.values().any(|component_config| {
-            component_config.l1_scraper.execution_mode != ActiveComponentExecutionMode::Disabled
-        });
+        let l1_gas_price_provider_indicator =
+            all_components.contains(&ComponentConfigInService::L1GasPriceProvider);
+        let l1_provider_indicator = all_components.contains(&ComponentConfigInService::L1Provider);
+        let l1_gas_price_scraper_indicator =
+            all_components.contains(&ComponentConfigInService::L1GasPriceScraper);
+        let l1_scraper_indicator = all_components.contains(&ComponentConfigInService::L1Scraper);
 
         assert_eq!(
             l1_gas_price_provider_indicator, l1_gas_price_scraper_indicator,
