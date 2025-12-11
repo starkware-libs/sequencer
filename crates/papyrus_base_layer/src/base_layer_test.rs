@@ -17,7 +17,6 @@ pub fn in_ci() -> bool {
 fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
     // See alloy docs, functions as a queue of mocked responses, success or failure.
     let asserter = Asserter::new();
-
     let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone()).root().clone();
     let config = EthereumBaseLayerConfig::default();
     let base_layer = EthereumBaseLayerContract::new_with_provider(config, provider);
