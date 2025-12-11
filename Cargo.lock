@@ -12219,7 +12219,21 @@ dependencies = [
 
 [[package]]
 name = "starknet_os_runner"
+<<<<<<< HEAD
 version = "0.16.0-rc.2"
+=======
+<<<<<<< HEAD
+version = "0.0.0"
+=======
+version = "0.16.0-rc.2"
+dependencies = [
+ "blockifier",
+ "blockifier_reexecution",
+ "starknet_api",
+ "thiserror 1.0.69",
+]
+>>>>>>> 46d64148a (starknet_os_runner: simulate tx)
+>>>>>>> b86c75179 (starknet_os_runner: simulate tx)
 
 [[package]]
 name = "starknet_patricia"
