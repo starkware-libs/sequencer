@@ -118,7 +118,7 @@ pub fn get_integration_test_storage(
             storage_config
                 .class_manager_storage_config
                 .class_hash_storage_config
-                .class_hash_db_config
+                .db_config
                 .path_prefix = custom_storage_exec_paths
                 .get_class_manager_exec_path()
                 .join(CLASS_MANAGER_DB_PATH_SUFFIX)
