@@ -270,6 +270,7 @@ pub enum ComponentConfigInService {
     StateSync,
 }
 
+// TODO(Tsabary): consider moving from `vec` to a single element.
 impl ComponentConfigInService {
     pub fn get_component_config_names(&self) -> Vec<String> {
         match self {
@@ -278,11 +279,7 @@ impl ComponentConfigInService {
             ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
             ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
             ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
-            ComponentConfigInService::General => vec![
-                "revert_config".to_string(),
-                "versioned_constants_overrides_config".to_string(),
-                "validate_resource_bounds_config".to_string(),
-            ],
+            ComponentConfigInService::General => vec!["general_config".to_string()],
             ComponentConfigInService::Gateway => vec!["gateway_config".to_string()],
             ComponentConfigInService::HttpServer => vec!["http_server_config".to_string()],
             ComponentConfigInService::L1EndpointMonitor => {
