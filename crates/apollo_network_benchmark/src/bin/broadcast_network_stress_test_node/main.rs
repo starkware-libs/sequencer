@@ -11,8 +11,10 @@ use tracing::Level;
 mod message_test;
 
 mod message;
+mod stress_test_node;
 
 use apollo_network_benchmark::node_args::NodeArgs;
+use stress_test_node::BroadcastNetworkStressTestNode;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,5 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .describe_and_run(),
     );
 
-    Ok(())
+    // Create and run the stress test node
+    let stress_test_node = BroadcastNetworkStressTestNode::new(args).await;
+    stress_test_node.run().await
 }

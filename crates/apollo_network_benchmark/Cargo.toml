@@ -10,6 +10,7 @@ testing = []
 
 [dependencies]
 clap = { workspace = true, features = ["derive", "env"] }
+futures.workspace = true
 lazy_static.workspace = true
 metrics-exporter-prometheus.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
