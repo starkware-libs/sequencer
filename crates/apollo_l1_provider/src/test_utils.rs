@@ -43,7 +43,7 @@ macro_rules! make_bootstrapper {
                     committed_txs: [$(tx_hash!($tx)),*].into()
                 }),*
             ].into_iter().collect(),
-            catch_up_height: BlockNumber(0),
+            target_height: BlockNumber(0),
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
@@ -636,7 +636,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
 
     async fn initialize(
         &self,
-        _last_historic_l2_height: BlockNumber,
+        _start_height: BlockNumber,
         _events: Vec<Event>,
     ) -> L1ProviderClientResult<()> {
         todo!()
