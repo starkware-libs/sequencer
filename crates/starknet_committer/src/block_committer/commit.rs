@@ -10,6 +10,7 @@ use crate::block_committer::input::{
     Config,
     ConfigImpl,
     Input,
+    InputContext,
     StateDiff,
 };
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
@@ -23,8 +24,8 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block<Reader: for<'a> ForestReader<'a>>(
-    input: Input<ConfigImpl>,
+pub async fn commit_block<I: InputContext, Reader: for<'a> ForestReader<'a, I>>(
+    input: Input<ConfigImpl, I>,
     trie_reader: &mut Reader,
     mut time_measurement: Option<&mut TimeMeasurement>,
 ) -> BlockCommitmentResult<FilledForest> {
@@ -46,8 +47,7 @@ pub async fn commit_block<Reader: for<'a> ForestReader<'a>>(
     }
     let (mut original_forest, original_contracts_trie_leaves) = trie_reader
         .read(
-            input.contracts_trie_root_hash,
-            input.classes_trie_root_hash,
+            input.context,
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,

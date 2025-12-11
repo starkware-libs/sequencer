@@ -8,7 +8,7 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::{CommitterInputImpl, InputImpl};
+use crate::committer_cli::parse_input::cast::{CommitterFactsDbInputImpl, FactsDbInputImpl};
 use crate::committer_cli::parse_input::raw_input::RawInput;
 use crate::shared_utils::read::{load_input, write_to_file};
 
@@ -17,13 +17,13 @@ pub async fn parse_and_commit(
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
-    let CommitterInputImpl { input, storage } = load_input::<RawInput>(input_path)
+    let CommitterFactsDbInputImpl { input, storage } = load_input::<RawInput>(input_path)
         .try_into()
-        .expect("Failed to convert RawInput to InputImpl.");
+        .expect("Failed to convert RawInput to FactsDbInputImpl.");
     info!(
         "Parsed committer input successfully. Original Contracts Trie Root Hash: {:?},
     Original Classes Trie Root Hash: {:?}",
-        input.contracts_trie_root_hash, input.classes_trie_root_hash,
+        input.context.contracts_trie_root_hash, input.context.classes_trie_root_hash,
     );
     // Set the given log level if handle is passed.
     log_filter_handle
@@ -32,7 +32,7 @@ pub async fn parse_and_commit(
     commit(input, output_path, storage).await;
 }
 
-pub async fn commit(input: InputImpl, output_path: String, storage: MapStorage) {
+pub async fn commit(input: FactsDbInputImpl, output_path: String, storage: MapStorage) {
     let mut facts_db = FactsDb::new(storage);
     let serialized_filled_forest = SerializedForest(
         commit_block(input, &mut facts_db, None).await.expect("Failed to commit the given block."),
