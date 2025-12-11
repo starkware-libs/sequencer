@@ -30,11 +30,11 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 
-use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{
     l1_handler,
-    make_bootstrapper,
+    make_catchupper,
     ConsumedTransaction,
     FakeL1ProviderClient,
     L1ProviderContentBuilder,
@@ -49,7 +49,7 @@ fn commit_block_no_rejected(
     l1_provider.commit_block(txs.iter().copied().collect(), [].into(), block_number).unwrap();
 }
 
-fn commit_block_expect_error_just_to_start_bootstrapping(
+fn commit_block_expect_error_just_to_start_catching_up(
     l1_provider: &mut L1Provider,
     block_number: BlockNumber,
 ) {
@@ -367,33 +367,33 @@ async fn commit_block_backlog() {
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(8);
     const TARGET_HEIGHT: BlockNumber = BlockNumber(9);
     const BACKLOG_HEIGHT: BlockNumber = BlockNumber(11);
-    let bootstrapper = make_bootstrapper!(backlog: [10 => [2], 11 => [4]]);
+    let catchupper = make_catchupper!(backlog: [10 => [2], 11 => [4]]);
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper.clone())
+        .with_catchupper(catchupper.clone())
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])
         .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
-    l1_provider.state = ProviderState::Bootstrap;
-    l1_provider.bootstrapper.start_l2_sync(STARTUP_HEIGHT, TARGET_HEIGHT);
+    l1_provider.state = ProviderState::CatchingUp;
+    l1_provider.catchupper.start_l2_sync(STARTUP_HEIGHT, TARGET_HEIGHT);
 
     // Test.
     // Commit height is below target height. Doesn't trigger backlog.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], STARTUP_HEIGHT);
     let expected_l1_provider = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper.clone())
+        .with_catchupper(catchupper.clone())
         .with_txs([l1_handler(2), l1_handler(4)])
         .with_height(STARTUP_HEIGHT.unchecked_next())
-        .with_state(ProviderState::Bootstrap)
+        .with_state(ProviderState::CatchingUp)
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 
-    // This height triggers finishing the bootstrapping and applying the backlog.
+    // This height triggers finishing the catching up and applying the backlog.
     commit_block_no_rejected(&mut l1_provider, &[], TARGET_HEIGHT);
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper)
+        .with_catchupper(catchupper)
         .with_txs([])
         .with_height(BACKLOG_HEIGHT.unchecked_next())
         .with_state(ProviderState::Pending)
@@ -427,20 +427,19 @@ fn commit_block_before_add_tx_stores_tx_in_committed() {
 }
 
 #[tokio::test]
-async fn bootstrap_commit_block_received_twice_no_error() {
+async fn catching_up_commit_block_received_twice_no_error() {
     // Setup.
-    let bootstrapper = make_bootstrapper!(backlog: []);
+    let catchupper = make_catchupper!(backlog: []);
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper)
+        .with_catchupper(catchupper)
         .with_txs([l1_handler(1), l1_handler(2)])
         .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, BlockNumber(2));
+    commit_block_expect_error_just_to_start_catching_up(&mut l1_provider, BlockNumber(2));
 
     commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(2));
-    // l1_provider.start_bootstrapping(BlockNumber(2));
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -449,17 +448,17 @@ async fn bootstrap_commit_block_received_twice_no_error() {
 }
 
 #[tokio::test]
-async fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
+async fn catching_up_commit_block_received_twice_error_if_new_uncommitted_txs() {
     // Setup.
-    let bootstrapper = make_bootstrapper!(backlog: []);
+    let catchupper = make_catchupper!(backlog: []);
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper)
+        .with_catchupper(catchupper)
         .with_txs([l1_handler(1), l1_handler(2)])
         .with_state(ProviderState::Uninitialized)
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, BlockNumber(2));
+    commit_block_expect_error_just_to_start_catching_up(&mut l1_provider, BlockNumber(2));
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -1036,7 +1035,7 @@ fn validate_tx_unknown_returns_invalid_not_found() {
 }
 
 #[test]
-fn commit_block_historical_height_short_circuits_non_bootstrap() {
+fn commit_block_historical_height_short_circuits_non_catching_up() {
     // Setup.
     let l1_provider_builder = L1ProviderContentBuilder::new()
         .with_height(BlockNumber(5))
@@ -1055,25 +1054,25 @@ fn commit_block_historical_height_short_circuits_non_bootstrap() {
 }
 
 #[tokio::test]
-async fn commit_block_historical_height_short_circuits_bootstrap() {
+async fn commit_block_historical_height_short_circuits_catching_up() {
     // Setup.
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(5);
     const TARGET_HEIGHT: BlockNumber = BlockNumber(6);
 
     let batcher_height_old = 4;
-    let bootstrapper = make_bootstrapper!(backlog: []);
+    let catchupper = make_catchupper!(backlog: []);
     let l1_provider_builder = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper)
+        .with_catchupper(catchupper)
         .with_state(ProviderState::Uninitialized)
         .with_txs([l1_handler(1)]);
     let l1_provider_builder_clone = l1_provider_builder.clone();
     let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, TARGET_HEIGHT);
+    commit_block_expect_error_just_to_start_catching_up(&mut l1_provider, TARGET_HEIGHT);
 
     let expected_unchanged = l1_provider_builder_clone
         .with_height(STARTUP_HEIGHT)
-        .with_state(ProviderState::Bootstrap)
+        .with_state(ProviderState::CatchingUp)
         .build();
 
     // Check that the content is the same as expected.
@@ -1404,7 +1403,7 @@ fn consuming_multiple_txs_selective_deletion_after_timelock() {
 }
 
 #[test]
-fn bootstrap_commit_block_received_while_uninitialized() {
+fn catching_up_commit_block_received_while_uninitialized() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_state(ProviderState::Uninitialized)
@@ -1447,12 +1446,12 @@ fn receive_commit_block(
 
 // TODO(Gilad): figure out how To setup anvil on a specific L1 block (through genesis.json?) and
 // with a specified L2 block logged to L1 (hopefully without having to use real backup).
-/// This test simulates a bootstrapping flow, in which 3 blocks are synced from L2, during which two
+/// This test simulates a catching up flow, in which 3 blocks are synced from L2, during which two
 /// new blocks from past the catch-up height arrive. The expected behavior is that the synced
 /// commit_blocks are processed as they come, and the two new blocks are backlogged until the synced
 /// blocks are processed, after which they are processed in order.
 #[tokio::test]
-async fn bootstrap_e2e() {
+async fn catching_up_e2e() {
     if !in_ci() {
         return;
     }
@@ -1486,14 +1485,14 @@ async fn bootstrap_e2e() {
 
     // Test.
 
-    // Trigger the bootstrapper: this will trigger the sync task to start trying to fetch blocks
+    // Trigger the catching up: this will trigger the sync task to start trying to fetch blocks
     // from the sync client, which will always return nothing since the hash map above is still
     // empty. The sync task will busy-wait on the height until we feed the hashmap.
     // TODO(Gilad): Consider adding txs here and in the commit blocks, might make the test harder to
     // understand though.
     let scraped_l1_handler_txs = vec![]; // No txs to scrape in this test.
     l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs).await.unwrap();
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, CATCH_UP_HEIGHT);
+    commit_block_expect_error_just_to_start_catching_up(&mut l1_provider, CATCH_UP_HEIGHT);
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
@@ -1561,12 +1560,12 @@ async fn bootstrap_e2e() {
     receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     assert_eq!(l1_provider.current_height, BlockNumber(7));
 
-    // Assert that the bootstrapper has been dropped.
-    assert!(!l1_provider.state.is_bootstrapping());
+    // Assert that the catching up has been completed.
+    assert!(!l1_provider.state.is_catching_up());
 }
 
 #[tokio::test]
-async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
+async fn catching_up_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     if !in_ci() {
         return;
     }
@@ -1592,7 +1591,7 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     // Start the sync sequence, should busy-wait until the batcher height is sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
     l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs.into()).await.unwrap();
-    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, CATCH_UP_HEIGHT);
+    commit_block_expect_error_just_to_start_catching_up(&mut l1_provider, CATCH_UP_HEIGHT);
     // **Commit** a few blocks. The height starts from the provider's current height, since this
     // is a trivial catchup scenario (nothing to catch up).
     // This checks that the trivial catch_up_height doesn't mess up this flow.
@@ -1607,25 +1606,25 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     let start_height_plus_2 = height_add(STARTUP_HEIGHT, 2);
     assert_eq!(l1_provider.current_height, start_height_plus_2);
 
-    // Should still be bootstrapping, since catchup height isn't determined yet.
-    // Technically we could end bootstrapping at this point, but its simpler to let it
+    // Should still be catching up, since catching up height isn't determined yet.
+    // Technically we could end catching up at this point, but its simpler to let it
     // terminate gracefully once the batcher and sync are ready.
-    assert!(l1_provider.state.is_bootstrapping());
+    assert!(l1_provider.state.is_catching_up());
 
     // Let the sync task continue, it should short circuit.
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Assert height is unchanged from last time, no commit block was called from the sync task.
     assert_eq!(l1_provider.current_height, start_height_plus_2);
-    // Finally, commit a new block to trigger the bootstrapping check, should switch to steady
+    // Finally, commit a new block to trigger the catching up check, should switch to steady
     // state.
     receive_commit_block(&mut l1_provider, &no_txs_committed.into(), start_height_plus_2);
     assert_eq!(l1_provider.current_height, height_add(start_height_plus_2, 1));
-    // The new commit block triggered the catch-up check, which ended the bootstrapping phase.
-    assert!(!l1_provider.state.is_bootstrapping());
+    // The new commit block triggered the catch-up check, which ended the catching up phase.
+    assert!(!l1_provider.state.is_catching_up());
 }
 
 #[tokio::test]
-async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
+async fn catching_up_delayed_sync_state_with_sync_behind_batcher() {
     if !in_ci() {
         return;
     }
@@ -1679,8 +1678,8 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     // Assert commit blocks are backlogged (didn't affect start height).
     assert_eq!(l1_provider.current_height, startup_height);
-    // Should still be bootstrapping, since sync hasn't caught up to the batcher height yet.
-    assert!(l1_provider.state.is_bootstrapping());
+    // Should still be catching up, since sync hasn't caught up to the batcher height yet.
+    assert!(l1_provider.state.is_catching_up());
 
     // Simulate the state sync service finally being ready, and give the async task enough time to
     // pick this up and sync up the provider.
@@ -1698,11 +1697,11 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     l1_provider_client.flush_messages(&mut l1_provider).await;
 
     // Two things happened here: the async task sent 2 commit blocks it got from the sync_client,
-    // which bumped the provider height to batcher_height, then the backlog was applied which
+    // which bumped the provider height to catching up height, then the backlog was applied which
     // bumped it twice again.
     assert_eq!(l1_provider.current_height, batcher_height.unchecked_next().unchecked_next());
-    // Batcher height was reached, bootstrapping was completed.
-    assert!(!l1_provider.state.is_bootstrapping());
+    // Batcher height was reached, catching up was completed.
+    assert!(!l1_provider.state.is_catching_up());
 }
 
 #[tokio::test]
@@ -1727,9 +1726,9 @@ async fn test_stuck_sync() {
 
     // Start sync.
     l1_provider.initialize(STARTUP_HEIGHT, Default::default()).await.unwrap();
-    l1_provider.start_bootstrapping(TARGET_HEIGHT);
+    l1_provider.start_catching_up(TARGET_HEIGHT);
 
-    for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
+    for i in 0..=(Catchupper::MAX_HEALTH_CHECK_FAILURES + 1) {
         receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));
         tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
