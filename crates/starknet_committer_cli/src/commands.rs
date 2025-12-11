@@ -4,10 +4,11 @@ use rand::distributions::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
+    FactsDInitialRead,
     Input,
     StarknetStorageKey,
     StateDiff,
@@ -32,7 +33,7 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type InputImpl = Input<ConfigImpl, FactsDInitialRead>;
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
@@ -347,8 +348,10 @@ pub async fn run_storage_benchmark<S: Storage>(
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
         let input = InputImpl {
             state_diff: flavor.generate_state_diff(n_updates_arg, block_number, &mut rng),
-            contracts_trie_root_hash,
-            classes_trie_root_hash,
+            initial_read_context: FactsDInitialRead(StateRoots {
+                contracts_trie_root_hash,
+                classes_trie_root_hash,
+            }),
             config: ConfigImpl::default(),
         };
 
