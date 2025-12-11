@@ -3,7 +3,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
 
-use crate::state_reader::cli::get_block_numbers_for_reexecution;
+use crate::cli::get_block_numbers_for_reexecution;
 use crate::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 

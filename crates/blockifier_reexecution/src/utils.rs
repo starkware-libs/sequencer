@@ -17,7 +17,7 @@ use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress,
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::errors::ReexecutionError;
+use crate::errors::ReexecutionError;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -222,8 +222,8 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 macro_rules! assert_eq_state_diff {
     ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
         pretty_assertions::assert_eq!(
-            $crate::state_reader::utils::ComparableStateDiff::from($expected_state_diff,),
-            $crate::state_reader::utils::ComparableStateDiff::from($actual_state_diff,),
+            $crate::utils::ComparableStateDiff::from($expected_state_diff,),
+            $crate::utils::ComparableStateDiff::from($actual_state_diff,),
             "Expected and actual state diffs do not match.",
         );
     };

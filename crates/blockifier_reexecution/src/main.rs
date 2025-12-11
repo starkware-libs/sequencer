@@ -4,7 +4,7 @@ use std::path::Path;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier_reexecution::state_reader::cli::{
+use blockifier_reexecution::cli::{
     parse_block_numbers_args,
     BlockifierReexecutionCliArgs,
     Command,

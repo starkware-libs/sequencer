@@ -41,13 +41,15 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
+use crate::cli::TransactionInput;
+use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
+use crate::errors::ReexecutionResult;
 use crate::retry_request;
-use crate::state_reader::cli::TransactionInput;
-use crate::state_reader::compile::{
-    legacy_to_contract_class_v0,
-    sierra_to_versioned_contract_class_v1,
+use crate::serde_utils::{
+    deserialize_transaction_json_to_starknet_api_tx,
+    hashmap_from_raw,
+    nested_hashmap_from_raw,
 };
-use crate::state_reader::errors::ReexecutionResult;
 use crate::state_reader::offline_state_reader::{
     SerializableDataNextBlock,
     SerializableDataPrevBlock,
@@ -57,12 +59,7 @@ use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
 };
-use crate::state_reader::serde_utils::{
-    deserialize_transaction_json_to_starknet_api_tx,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
-};
-use crate::state_reader::utils::{
+use crate::utils::{
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
