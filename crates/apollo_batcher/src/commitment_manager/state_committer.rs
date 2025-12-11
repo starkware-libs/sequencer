@@ -3,7 +3,7 @@
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
-use crate::block_hash_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
+use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
 
 /// Commits state changes by calling the committer.
 pub(crate) struct StateCommitter {
