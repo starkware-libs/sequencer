@@ -7,6 +7,10 @@ license-file.workspace = true
 description = "Runs transactions through the Starknet OS and returns Cairo PIE and OS output."
 
 [dependencies]
+blockifier.workspace = true
+blockifier_reexecution = { path = "../blockifier_reexecution" }
+starknet_api.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true
