@@ -11,6 +11,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -137,6 +138,7 @@ pub struct CurrentTransactionInfo {
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
+    pub proof_facts: ProofFacts,
 }
 
 impl CurrentTransactionInfo {
@@ -149,6 +151,7 @@ impl CurrentTransactionInfo {
             fee_data_availability_mode: DataAvailabilityMode::L2,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
+            proof_facts: ProofFacts::default(),
         }
     }
 

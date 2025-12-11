@@ -22,6 +22,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
+    ProofFacts,
     Resource,
     ResourceBounds,
     Tip,
@@ -478,6 +479,8 @@ fn test_get_execution_info(
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
+            // TODO(Meshi): Add proof facts.
+            proof_facts: ProofFacts::default(),
         });
     }
 
