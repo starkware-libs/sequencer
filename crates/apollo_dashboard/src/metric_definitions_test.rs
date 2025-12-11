@@ -14,7 +14,6 @@ use apollo_consensus_manager::metrics::CONSENSUS_MANAGER_ALL_METRICS;
 use apollo_consensus_orchestrator::metrics::CONSENSUS_ORCHESTRATOR_ALL_METRICS;
 use apollo_gateway::metrics::{GATEWAY_ALL_METRICS, INFRA_ALL_METRICS as GATEWAY_INFRA_METRICS};
 use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
-use apollo_l1_endpoint_monitor_types::INFRA_ALL_METRICS as L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::{
     INFRA_ALL_METRICS as L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_ALL_METRICS,
@@ -49,7 +48,6 @@ fn metric_names_no_duplications() {
         .chain(GATEWAY_ALL_METRICS.iter())
         .chain(GATEWAY_INFRA_METRICS.iter())
         .chain(HTTP_SERVER_ALL_METRICS.iter())
-        .chain(L1_ENDPOINT_MONITOR_INFRA_METRICS.iter())
         .chain(L1_GAS_PRICE_ALL_METRICS.iter())
         .chain(L1_GAS_PRICE_INFRA_METRICS.iter())
         .chain(L1_PROVIDER_ALL_METRICS.iter())
