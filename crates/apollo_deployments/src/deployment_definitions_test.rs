@@ -2,16 +2,16 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
 use std::fs::File;
 
-use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
+use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
-use crate::deployment_definitions::{ComponentConfigInService, DEPLOYMENTS};
+use crate::deployment_definitions::ComponentConfigInService;
 use crate::service::NodeType;
-use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
+use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
@@ -27,14 +27,6 @@ fn deployment_files_are_up_to_date() {
         for node_service in node_type.all_service_names() {
             node_service.test_dump_node_service_replacer_app_config_files();
         }
-    }
-    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        serialize_to_file_test(
-            &deployment,
-            deployment.deployment_file_path().to_str().unwrap(),
-            FIX_BINARY_NAME,
-        );
-        deployment.test_dump_config_override_files();
     }
 }
 
