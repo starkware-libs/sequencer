@@ -989,6 +989,7 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
  "apollo_proc_macros",
+ "apollo_storage",
  "assert_matches",
  "async-trait",
  "blockifier",
