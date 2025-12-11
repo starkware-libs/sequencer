@@ -88,6 +88,8 @@ pub enum StarknetApiError {
          version {cairo_version:?}.", **declare_version
     )]
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
+    #[error("Failed to parse chain ID from hex: {0}")]
+    InvalidChainIdHex(String),
     #[error("Failed to parse Sierra version: {0}")]
     ParseSierraVersionError(String),
     #[error("Unsupported transaction type: {0}")]
