@@ -2112,6 +2112,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "rstest",
  "tokio",
+ "tokio-metrics",
  "tracing",
  "tracing-subscriber",
 ]
