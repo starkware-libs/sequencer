@@ -7,30 +7,30 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::block_hash_manager::state_committer::StateCommitter;
-use crate::block_hash_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
+use crate::commitment_manager::state_committer::StateCommitter;
+use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
 
 pub(crate) mod state_committer;
 pub(crate) mod types;
 
-pub(crate) struct BlockHashManagerConfig {
+pub(crate) struct CommitmentManagerConfig {
     pub(crate) tasks_channel_size: usize,
     pub(crate) results_channel_size: usize,
 }
 
 #[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
-pub(crate) struct BlockHashManager {
+pub(crate) struct CommitmentManager {
     pub(crate) tasks_sender: Sender<CommitmentTaskInput>,
     pub(crate) results_receiver: Receiver<CommitmentTaskOutput>,
     pub(crate) commitment_task_performer: JoinHandle<()>,
 }
 
-impl BlockHashManager {
-    /// Initializes the BlockHashManager. This includes starting the state committer task.
-    pub(crate) fn initialize(config: BlockHashManagerConfig) -> Self {
+impl CommitmentManager {
+    /// Initializes the CommitmentManager. This includes starting the state committer task.
+    pub(crate) fn initialize(config: CommitmentManagerConfig) -> Self {
         info!(
-            "Initializing BlockHashManager with input channel size {} and results channel size {}",
+            "Initializing CommitmentManager with input channel size {} and results channel size {}",
             config.tasks_channel_size, config.results_channel_size
         );
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
