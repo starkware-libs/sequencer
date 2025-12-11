@@ -1,3 +1,4 @@
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
@@ -22,6 +23,16 @@ pub enum TraversalError {
     PatriciaStorage(#[from] PatriciaStorageError),
 }
 
+/// An enum that specifies how to treat unmodified children during the construction of the
+/// [OriginalSkeletonTree].
+pub enum UnmodifiedChildTraversal {
+    // Indicates that the child must be read since we don't have the data to create an original
+    // tree node.
+    Traverse,
+    // Indicates that the child should be skipped as its unmodified and we have its hash.
+    Skip(HashOutput),
+}
+
 pub type TraversalResult<T> = Result<T, TraversalError>;
 
 /// A trait that allows traversing a trie without knowledge of the concrete node types and data or
@@ -29,6 +40,10 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 pub trait SubTreeTrait<'a>: Sized {
     /// Extra data a node can carry (e.g. its hash).
     type NodeData;
+
+    /// Extra context needed to deserialize a node from a raw DbValue. For more info, see
+    /// `DeserializeContext` in the `DBObject` trait.
+    type NodeDeserializeContext;
 
     /// Creates a concrete child node given its index and data.
     fn create(
@@ -97,13 +112,20 @@ pub trait SubTreeTrait<'a>: Sized {
         self.get_root_index().is_leaf()
     }
 
-    /// Indicates whether unmodified children should be traversed during the construction of the
-    /// original skeleton tree.
-    fn should_traverse_unmodified_children() -> bool;
+    /// Decide whether to traverse an unmodified child during the construction of the
+    /// `OriginalSkeletonTree`.
+    fn should_traverse_unmodified_child(data: Self::NodeData) -> UnmodifiedChildTraversal;
 
     /// Returns the [DbKeyPrefix] of the root node.
     fn get_root_prefix<L: Leaf>(
         &self,
         key_context: &<L as HasStaticPrefix>::KeyContext,
     ) -> DbKeyPrefix;
+
+    /// Returns the suffix of the root's db key.
+    fn get_root_suffix(&self) -> Vec<u8>;
+
+    /// Returns the `Self::NodeDeserializeContext` that's needed to deserialize the root node from a
+    /// raw `DbValue`.
+    fn get_root_context(&self) -> Self::NodeDeserializeContext;
 }
