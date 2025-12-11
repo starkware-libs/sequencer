@@ -5,7 +5,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{chain_id_from_hex_str, ChainId};
 
-use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
+use crate::errors::{ReexecutionError, ReexecutionResult};
 
 pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
 
