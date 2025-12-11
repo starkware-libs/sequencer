@@ -9,9 +9,11 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+apollo_network.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 lazy_static.workspace = true
+libp2p = { workspace = true, features = ["identify"] }
 metrics-exporter-prometheus.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
