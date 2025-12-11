@@ -29,6 +29,18 @@ use crate::L1ProviderConfig;
 #[path = "l1_provider_tests.rs"]
 pub mod l1_provider_tests;
 
+// Note on height specification:
+// - start_height: height of the next block after "historic" blocks, meaning blocks that were
+//   already proved and sent to L1, and will not be scraped. Transactions from blocks lower than
+//   start_height are already committed. The Provider is not interested in any block lower than
+//   start_height.
+// - current_height: height of the next block that the Provider expects to see. It means the
+//   provider has seen commits forall the previous blocks up to (not including) current_height.
+// - target_height: when bootstrapping, the height to which the bootstrapper will sync. After
+//   bootstrapping is done, we expect the current_height to be one above the target_height. If any
+//   more blocks are committed while bootstrapping, they are applied after the target_height, and
+//   the current_height will be set to one above the last block in the backlog.
+
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
 #[derive(Debug, Clone)]
@@ -84,7 +96,7 @@ impl L1Provider {
     // Start the provider, get first-scrape events, start L2 sync.
     pub async fn initialize(
         &mut self,
-        historic_l2_height: BlockNumber,
+        start_height: BlockNumber,
         events: Vec<Event>,
     ) -> L1ProviderResult<()> {
         info!("Initializing l1 provider");
@@ -103,8 +115,8 @@ impl L1Provider {
         // The current_height is set to a very old height, that doesn't include any of the events
         // sent now, or to be scraped in the future. The provider will begin bootstrapping when the
         // batcher calls commit_block with a height above the current height.
-        self.start_height = Some(historic_l2_height);
-        self.current_height = historic_l2_height;
+        self.start_height = Some(start_height);
+        self.current_height = start_height;
         self.state = ProviderState::Pending;
         self.add_events(events)?;
 
@@ -310,7 +322,7 @@ impl L1Provider {
                 if self.state.is_uninitialized() {
                     warn!(
                         "Provider received a block height ({height}) while it is uninitialized. \
-                         Cannot start bootstrapping until getting the historic_height from the \
+                         Cannot start bootstrapping until getting the start_height from the \
                          scraper during the initialize call."
                     );
                 } else {
