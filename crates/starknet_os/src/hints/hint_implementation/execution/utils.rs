@@ -17,6 +17,7 @@ use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
     AccountDeploymentData,
     Calldata,
+    ProofFacts,
     ResourceAsFelts,
     ValidResourceBounds,
 };
@@ -90,6 +91,18 @@ pub(crate) fn get_account_deployment_data<S: StateReader>(
         AccountTransaction::Declare(declare) => Ok(declare.account_deployment_data()),
         AccountTransaction::Invoke(invoke) => Ok(invoke.account_deployment_data()),
         AccountTransaction::DeployAccount(_) => Err(OsHintError::UnexpectedTxType(tx.tx_type())),
+    }
+}
+
+pub(crate) fn get_proof_facts<S: StateReader>(
+    execution_helper: &OsExecutionHelper<'_, S>,
+) -> Result<ProofFacts, OsHintError> {
+    let tx = execution_helper.tx_tracker.get_account_tx()?;
+    match tx {
+        AccountTransaction::Invoke(invoke) => Ok(invoke.proof_facts()),
+        AccountTransaction::DeployAccount(_) | AccountTransaction::Declare(_) => {
+            Err(OsHintError::UnexpectedTxType(tx.tx_type()))
+        }
     }
 }
 

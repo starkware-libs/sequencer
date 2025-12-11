@@ -123,6 +123,7 @@ use crate::hints::hint_implementation::execution::implementation::{
     tx_nonce_data_availability_mode,
     tx_paymaster_data,
     tx_paymaster_data_len,
+    tx_proof_facts,
     tx_tip,
     tx_version,
     write_old_block_to_storage,
@@ -1415,6 +1416,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         tx_account_deployment_data,
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.account_deployment_data))"
     ),
+    (TxProofFacts, tx_proof_facts, "TxProofFacts"),
     (
         GenSignatureArg,
         gen_signature_arg,
