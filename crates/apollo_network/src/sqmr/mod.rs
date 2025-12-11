@@ -196,8 +196,38 @@ pub enum GenericEvent<SessionError> {
     },
 }
 
+/// Configuration parameters for the SQMR protocol.
+///
+/// This struct contains the configuration settings that control the behavior
+/// of SQMR sessions, including timeout values and other protocol parameters.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::sqmr::Config;
+///
+/// // Create custom configuration
+/// let config = Config { session_timeout: Duration::from_secs(120) };
+///
+/// // Or use default values
+/// let default_config = Config::default();
+/// ```
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Config {
+    /// Maximum duration a session can remain active before timing out.
+    ///
+    /// This timeout applies to both inbound and outbound sessions. Sessions
+    /// that exceed this duration will be automatically terminated to prevent
+    /// resource leaks and ensure system responsiveness.
+    ///
+    /// ```
+    /// # use apollo_network::sqmr::Config;
+    /// # use std::time::Duration;
+    /// let config = Config::default();
+    /// assert_eq!(config.session_timeout, Duration::from_secs(10));
+    /// ```
     pub session_timeout: Duration,
 }
 
