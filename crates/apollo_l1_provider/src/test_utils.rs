@@ -290,7 +290,7 @@ impl L1ProviderContentBuilder {
             )
         }
         self.with_config(L1ProviderConfig {
-            new_l1_handler_cooldown_seconds: nonzero_timelock,
+            l1_handler_proposal_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
             l1_handler_consumption_timelock_seconds: nonzero_timelock,
             ..Default::default()

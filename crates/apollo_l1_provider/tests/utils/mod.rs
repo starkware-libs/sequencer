@@ -97,7 +97,7 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // L1 provider setup.
     let l1_provider_config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: COOLDOWN_DURATION,
+        l1_handler_proposal_cooldown_seconds: COOLDOWN_DURATION,
         l1_handler_cancellation_timelock_seconds: TIMELOCK_DURATION,
         l1_handler_consumption_timelock_seconds: TIMELOCK_DURATION,
         ..Default::default()

@@ -694,7 +694,7 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
     let clock = Arc::new(FakeClock::new(now));
 
     let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        l1_handler_proposal_cooldown_seconds: Duration::from_secs(cooldown),
         ..Default::default()
     };
     let mut l1_provider = L1ProviderContentBuilder::new()
