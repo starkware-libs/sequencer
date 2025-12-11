@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -147,11 +148,14 @@ impl StateSync {
             }
         }
 
+        let block_header_commitments = Option::<BlockHeaderCommitments>::try_from(&block_header)?;
+
         Ok(SyncBlock {
             state_diff: thin_state_diff,
             block_header_without_hash: block_header.block_header_without_hash,
             account_transaction_hashes,
             l1_transaction_hashes,
+            block_header_commitments,
         })
     }
 

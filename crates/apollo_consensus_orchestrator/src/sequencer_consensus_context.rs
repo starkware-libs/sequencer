@@ -503,8 +503,12 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects, .. } =
-            self.batcher_decision_reached(proposal_id).await;
+        let DecisionReachedResponse {
+            state_diff,
+            l2_gas_used,
+            central_objects,
+            block_header_commitments,
+        } = self.batcher_decision_reached(proposal_id).await;
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -601,6 +605,7 @@ impl ConsensusContext for SequencerConsensusContext {
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash,
+            block_header_commitments: Some(block_header_commitments),
         };
         self.sync_add_new_block(sync_block).await;
 

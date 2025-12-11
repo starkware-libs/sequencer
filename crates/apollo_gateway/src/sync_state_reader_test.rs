@@ -23,6 +23,7 @@ use starknet_api::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
+    StarknetVersion,
 };
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, SequencerContractAddress};
@@ -46,6 +47,7 @@ async fn test_get_block_info() {
         GasPricePerToken { price_in_wei: 6_u8.into(), price_in_fri: 7_u8.into() };
     let l2_gas_price = GasPricePerToken { price_in_wei: 8_u8.into(), price_in_fri: 9_u8.into() };
     let l1_da_mode = L1DataAvailabilityMode::get_test_instance(&mut get_rng());
+    let starknet_version = StarknetVersion::LATEST;
 
     mock_state_sync_client.expect_get_block().times(1).with(predicate::eq(block_number)).returning(
         move |_| {
@@ -61,8 +63,10 @@ async fn test_get_block_info() {
                     sequencer: SequencerContractAddress(sequencer_address),
                     timestamp: block_timestamp,
                     l1_da_mode,
+                    starknet_version,
                     ..Default::default()
                 },
+                block_header_commitments: Some(Default::default()),
             })
         },
     );
