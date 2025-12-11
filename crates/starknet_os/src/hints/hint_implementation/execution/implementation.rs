@@ -30,6 +30,7 @@ use crate::hints::hint_implementation::execution::utils::{
     extract_actual_retdata,
     get_account_deployment_data,
     get_calldata,
+    get_proof_facts,
     set_state_entry,
 };
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
@@ -521,6 +522,33 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
             .collect();
     let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
     insert_value_into_ap(vm, account_deployment_data_base)?;
+    Ok(())
+}
+
+pub(crate) fn tx_proof_facts<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let proof_facts: Vec<_> = get_proof_facts(hint_processor.get_current_execution_helper()?)?
+        .0
+        .iter()
+        .map(MaybeRelocatable::from)
+        .collect();
+    let proof_facts_base = vm.gen_arg(&proof_facts)?;
+    insert_value_from_var_name(
+        Ids::ProofFacts.into(),
+        proof_facts_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::ProofFactsSize.into(),
+        proof_facts.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
