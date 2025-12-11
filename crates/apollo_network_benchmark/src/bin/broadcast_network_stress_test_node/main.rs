@@ -11,6 +11,7 @@ use tracing::Level;
 mod message_test;
 
 mod message;
+mod protocol;
 mod stress_test_node;
 
 use apollo_network_benchmark::node_args::NodeArgs;
