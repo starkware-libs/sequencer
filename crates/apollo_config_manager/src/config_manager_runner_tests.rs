@@ -1,5 +1,6 @@
 use std::fs;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
@@ -14,6 +15,7 @@ use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
+use tokio::time::{interval, sleep, timeout};
 use tracing_test::traced_test;
 
 use crate::config_manager_runner::ConfigManagerRunner;
@@ -136,6 +138,46 @@ async fn config_manager_runner_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
+}
+
+#[tokio::test]
+async fn watcher_triggers_update_on_file_change() {
+    // Prepare temp config file and CLI args.
+    let (temp_file, cli_args, _) = create_temp_config_file_and_args();
+
+    // Channel to observe that update_config was called.
+    let (done_tx, mut done_rx) = tokio::sync::mpsc::channel(1);
+
+    let mut mock_client = MockConfigManagerClient::new();
+    mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
+        let _ = done_tx.blocking_send(());
+        Ok(())
+    });
+
+    let client: SharedConfigManagerClient = Arc::new(mock_client);
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        client,
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    // Spawn watcher loop in background task.
+    tokio::spawn(async move {
+        let _ = runner.run_watcher_loop(interval(Duration::from_secs(60))).await;
+    });
+
+    // Allow some time for watcher to initialise.
+    sleep(Duration::from_millis(200)).await;
+
+    // Modify the config file to trigger an event.
+    let _ = update_config_file(&temp_file);
+
+    // Wait until the update call is observed or timeout.
+    timeout(Duration::from_secs(2), done_rx.recv())
+        .await
+        .expect("update_config was not called within timeout");
 }
 
 #[traced_test]
