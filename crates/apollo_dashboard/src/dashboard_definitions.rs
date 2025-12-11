@@ -3,7 +3,6 @@ use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
-use apollo_l1_endpoint_monitor_types::L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
@@ -103,7 +102,6 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_component_infra_row("Class Manager", &CLASS_MANAGER_INFRA_METRICS),
             get_component_infra_row("Config Manager", &CONFIG_MANAGER_INFRA_METRICS),
             get_component_infra_row("Gateway", &GATEWAY_INFRA_METRICS),
-            get_component_infra_row("L1 Endpoint Monitor", &L1_ENDPOINT_MONITOR_INFRA_METRICS),
             get_component_infra_row("L1 Gas Price", &L1_GAS_PRICE_INFRA_METRICS),
             get_component_infra_row("L1 Provider", &L1_PROVIDER_INFRA_METRICS),
             get_component_infra_row("Mempool", &MEMPOOL_INFRA_METRICS),
