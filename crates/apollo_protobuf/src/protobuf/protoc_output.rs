@@ -305,6 +305,8 @@ pub struct InvokeV3 {
     pub nonce: ::core::option::Option<Felt252>,
     #[prost(message, repeated, tag = "11")]
     pub proof_facts: ::prost::alloc::vec::Vec<Felt252>,
+    #[prost(uint32, repeated, tag = "12")]
+    pub proof: ::prost::alloc::vec::Vec<u32>,
 }
 /// see <https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x29fd7881f14380842414cdfdd8d6c0b1f2174f8916edcfeb1ede1eb26ac3ef0>
 #[allow(clippy::derive_partial_eq_without_eq)]
