@@ -10,7 +10,6 @@ description = "Configuration types for Apollo class manager"
 apollo_config.workspace = true
 apollo_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
-starknet_api.workspace = true
 validator.workspace = true
 
 [lints]
