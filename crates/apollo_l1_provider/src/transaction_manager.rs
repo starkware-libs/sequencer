@@ -84,6 +84,17 @@ impl TransactionManager {
             .copied()
             .collect();
 
+        for &tx_hash in unstaged_tx_hashes.iter() {
+            let record = self.records.get(&tx_hash).expect("transaction should exist");
+            assert_eq!(
+                record.state,
+                TransactionState::Pending,
+                "Transaction {tx_hash} has state {:?}. Only Pending transactions should be in the \
+                 proposable index.",
+                record.state
+            );
+        }
+
         let mut txs = Vec::with_capacity(n_txs);
         let current_staging_epoch = self.current_staging_epoch; // borrow-checker constraint.
         for tx_hash in unstaged_tx_hashes {
