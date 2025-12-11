@@ -1,3 +1,4 @@
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
@@ -29,6 +30,9 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 pub trait SubTreeTrait<'a>: Sized {
     /// Extra data a node can carry (e.g. its hash).
     type NodeData;
+    /// Extra context needed to deserialize a node from a raw DbValue. For more info, see
+    /// [DeserializeContext] in the [DBObject] trait.
+    type NodeContext;
 
     /// Creates a concrete child node given its index and data.
     fn create(
@@ -97,13 +101,25 @@ pub trait SubTreeTrait<'a>: Sized {
         self.get_root_index().is_leaf()
     }
 
-    /// Indicates whether unmodified children should be traversed during the construction of the
-    /// original skeleton tree.
-    fn should_traverse_unmodified_children() -> bool;
+    /// Returns the concrete `HashOutput` of an unmodified child tree, if available.
+    ///
+    /// A return value of `Some(hash)` indicates that the trie's traversal can be optimized
+    /// by skipping the current node's child. A return value of `None` indicates that,
+    /// even if the child is known to be unmodified, it must still be traversed to
+    /// obtain its hash and use it in the construction of the [OriginalSkeletonTree].
+    fn unmodified_child_hash(data: Self::NodeData) -> Option<HashOutput>;
 
     /// Returns the [DbKeyPrefix] of the root node.
     fn get_root_prefix<L: Leaf>(
         &self,
         key_context: &<L as HasStaticPrefix>::KeyContext,
     ) -> DbKeyPrefix;
+
+    /// Returns the suffix of the root's db key. In case of index layout, this is the root index. In
+    /// the case of facts layout, this is the root's hash.
+    fn get_root_suffix(&self) -> Vec<u8>;
+
+    /// Returns the [Self::NodeContext] that's needed to deserialize the root node from a raw
+    /// [DbValue].
+    fn get_root_context(&self) -> Self::NodeContext;
 }
