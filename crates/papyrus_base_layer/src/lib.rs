@@ -85,7 +85,7 @@ pub trait BaseLayerContract {
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
 
     async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error>;
-    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
+    async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error>;
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error>;
 }
 
