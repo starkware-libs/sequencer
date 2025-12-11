@@ -15,8 +15,6 @@ const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
-// TODO(Tsabary): the l1 endpoint monitor is unused, consider removing.
-const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
 const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
 const L1_PROVIDER_PORT: u16 = 55004;
 const MEMPOOL_PORT: u16 = 55006;
@@ -113,7 +111,6 @@ pub enum InfraServicePort {
     Batcher,
     ClassManager,
     Gateway,
-    L1EndpointMonitor,
     L1GasPriceProvider,
     L1Provider,
     Mempool,
@@ -128,7 +125,6 @@ impl InfraServicePort {
             InfraServicePort::Batcher => BATCHER_PORT,
             InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
             InfraServicePort::Gateway => GATEWAY_PORT,
-            InfraServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
             InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
             InfraServicePort::L1Provider => L1_PROVIDER_PORT,
             InfraServicePort::Mempool => MEMPOOL_PORT,
@@ -182,7 +178,6 @@ pub enum ComponentConfigInService {
     General, // General configs that are not specific to any service, e.g., pointer targets.
     Gateway,
     HttpServer,
-    L1EndpointMonitor,
     L1GasPriceProvider,
     L1GasPriceScraper,
     L1Provider,
@@ -207,9 +202,6 @@ impl ComponentConfigInService {
             ComponentConfigInService::General => vec!["general_config".to_string()],
             ComponentConfigInService::Gateway => vec!["gateway_config".to_string()],
             ComponentConfigInService::HttpServer => vec!["http_server_config".to_string()],
-            ComponentConfigInService::L1EndpointMonitor => {
-                vec!["l1_endpoint_monitor_config".to_string()]
-            }
             ComponentConfigInService::L1GasPriceProvider => {
                 vec!["l1_gas_price_provider_config".to_string()]
             }

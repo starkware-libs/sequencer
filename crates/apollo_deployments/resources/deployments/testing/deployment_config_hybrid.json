@@ -123,7 +123,9 @@
         "app_configs/base_layer_config.json",
         "app_configs/config_manager_config.json",
         "app_configs/general_config.json",
-        "app_configs/l1_endpoint_monitor_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
         "app_configs/l1_gas_price_provider_config.json",
         "app_configs/l1_gas_price_scraper_config.json",
         "app_configs/l1_provider_config.json",
@@ -153,7 +155,6 @@
       "anti_affinity": false,
       "update_strategy_type": "Recreate",
       "ports": {
-        "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
         "L1Provider": 55004,
         "MonitoringEndpoint": 8082

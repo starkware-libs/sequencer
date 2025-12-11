@@ -23,11 +23,6 @@ use apollo_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use apollo_l1_endpoint_monitor::communication::{
-    LocalL1EndpointMonitorServer,
-    RemoteL1EndpointMonitorServer,
-};
-use apollo_l1_endpoint_monitor_types::L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
@@ -80,7 +75,6 @@ struct LocalServers {
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
     pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
-    pub(crate) l1_endpoint_monitor: Option<Box<LocalL1EndpointMonitorServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
     pub(crate) l1_gas_price_provider: Option<Box<LocalL1GasPriceServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
@@ -112,7 +106,6 @@ pub struct RemoteServers {
     // Note: we explicitly avoid adding a config manager runner server to the remote servers as it
     // is not used for remote connections.
     pub gateway: Option<Box<RemoteGatewayServer>>,
-    pub l1_endpoint_monitor: Option<Box<RemoteL1EndpointMonitorServer>>,
     pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
     pub l1_gas_price_provider: Option<Box<RemoteL1GasPriceServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
@@ -353,20 +346,6 @@ fn create_local_servers(
         config.components.gateway.max_concurrency
     );
 
-    let l1_endpoint_monitor_server = create_local_server!(
-        REGULAR_LOCAL_SERVER,
-        &config.components.l1_endpoint_monitor.execution_mode,
-        &mut components.l1_endpoint_monitor,
-        &config
-            .components
-            .l1_endpoint_monitor
-            .local_server_config
-            .as_ref()
-            .expect("L1 endpoint monitor local server config should be available."),
-        communication.take_l1_endpoint_monitor_rx(),
-        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_local_server_metrics()
-    );
-
     let l1_gas_price_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_gas_price_provider.execution_mode,
@@ -473,7 +452,6 @@ fn create_local_servers(
         class_manager: class_manager_server,
         config_manager: config_manager_server,
         gateway: gateway_server,
-        l1_endpoint_monitor: l1_endpoint_monitor_server,
         l1_provider: l1_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
@@ -501,7 +479,6 @@ impl LocalServers {
             server_future_and_label(self.class_manager, "Local Class Manager"),
             server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
-            server_future_and_label(self.l1_endpoint_monitor, "Local L1 Endpoint Monitor"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Local L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
@@ -543,15 +520,6 @@ pub fn create_remote_servers(
         config.components.gateway.port,
         config.components.gateway.max_concurrency,
         GATEWAY_INFRA_METRICS.get_remote_server_metrics()
-    );
-
-    let l1_endpoint_monitor_server = create_remote_server!(
-        &config.components.l1_endpoint_monitor.execution_mode,
-        || { clients.get_l1_endpoint_monitor_local_client() },
-        config.components.l1_endpoint_monitor.remote_server_config,
-        config.components.l1_endpoint_monitor.port,
-        config.components.l1_endpoint_monitor.max_concurrency,
-        L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_provider_server = create_remote_server!(
@@ -621,7 +589,6 @@ pub fn create_remote_servers(
         batcher: batcher_server,
         class_manager: class_manager_server,
         gateway: gateway_server,
-        l1_endpoint_monitor: l1_endpoint_monitor_server,
         l1_provider: l1_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
@@ -638,7 +605,6 @@ impl RemoteServers {
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
             server_future_and_label(self.gateway, "Remote Gateway"),
-            server_future_and_label(self.l1_endpoint_monitor, "Remote L1 Endpoint Monitor"),
             server_future_and_label(self.l1_provider, "Remote L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Remote L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
