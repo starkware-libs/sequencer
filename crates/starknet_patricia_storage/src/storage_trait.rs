@@ -172,15 +172,15 @@ impl Storage for NullStorage {
 }
 
 #[derive(Debug)]
-pub struct DbKeyPrefix(&'static [u8]);
+pub struct DbKeyPrefix(Vec<u8>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: &'static [u8]) -> Self {
-        Self(prefix)
+    pub fn new(prefix: &[u8]) -> Self {
+        Self(prefix.to_vec())
     }
 
-    pub fn to_bytes(&self) -> &'static [u8] {
-        self.0
+    pub fn to_bytes(&self) -> &[u8] {
+        self.0.as_slice()
     }
 }
 
