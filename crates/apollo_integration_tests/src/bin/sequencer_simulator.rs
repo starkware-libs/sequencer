@@ -115,14 +115,8 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
     .await;
 }
 
-<<<<<<< HEAD
 // TODO(Arni): Use `AnvilBaseLayer`.
-fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
-||||||| dd2fc66abf
-fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
-=======
 fn build_base_layer_config_for_testing() -> EthereumBaseLayerConfig {
->>>>>>> origin/main-v0.14.1
     let starknet_contract_address: EthereumContractAddress =
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
