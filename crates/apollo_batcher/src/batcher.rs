@@ -33,6 +33,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::block_hash_marker::BlockHashMarkerStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -1030,11 +1031,18 @@ pub fn create_batcher(
 pub trait BatcherStorageReaderTrait: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+
+    /// Returns the next height the batcher should store block hash for.
+    fn block_hash_height(&self) -> apollo_storage::StorageResult<BlockNumber>;
 }
 
 impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn block_hash_height(&self) -> apollo_storage::StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_block_hash_marker()
     }
 }
 
