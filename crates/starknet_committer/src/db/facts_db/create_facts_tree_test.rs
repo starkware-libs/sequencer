@@ -18,7 +18,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
@@ -217,6 +217,7 @@ async fn test_create_tree(
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        &EmptyKeyContext,
     )
     .await
     .unwrap();
@@ -225,7 +226,7 @@ async fn test_create_tree(
 
 pub(crate) fn create_mock_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = MockLeaf(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
 }
 
 fn create_mock_leaf_modifications(

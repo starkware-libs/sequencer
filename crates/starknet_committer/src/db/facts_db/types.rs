@@ -3,6 +3,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaPr
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
 #[derive(Debug, PartialEq)]
@@ -35,9 +36,12 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
         false
     }
 
-    fn get_root_prefix<L: Leaf>(&self) -> DbKeyPrefix {
+    fn get_root_prefix<L: Leaf>(
+        &self,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+    ) -> DbKeyPrefix {
         if self.is_leaf() {
-            PatriciaPrefix::Leaf(L::get_static_prefix()).into()
+            PatriciaPrefix::Leaf(L::get_static_prefix(key_context)).into()
         } else {
             PatriciaPrefix::InnerNode.into()
         }

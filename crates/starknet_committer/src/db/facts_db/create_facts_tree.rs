@@ -20,6 +20,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
 };
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
@@ -48,13 +49,15 @@ async fn fetch_nodes<'a, L: Leaf>(
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<()> {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
-        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
+        let filled_roots =
+            calculate_subtrees_roots::<L>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
@@ -150,6 +153,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
     sorted_leaf_indices: SortedLeafIndices<'a>,
     config: &impl OriginalSkeletonTreeConfig<L>,
     leaf_modifications: &LeafModifications<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
     if sorted_leaf_indices.is_empty() {
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
@@ -171,6 +175,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
         leaf_modifications,
         config,
         None,
+        key_context,
     )
     .await?;
     Ok(skeleton_tree)
@@ -182,6 +187,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
     sorted_leaf_indices: SortedLeafIndices<'a>,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, L>)> {
     if sorted_leaf_indices.is_empty() {
         let unmodified = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
@@ -203,6 +209,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
         leaf_modifications,
         config,
         Some(&mut leaves),
+        key_context,
     )
     .await?;
     Ok((skeleton_tree, leaves))
@@ -212,6 +219,7 @@ pub async fn get_leaves<'a, L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
     let config = NoCompareOriginalSkeletonTrieConfig::default();
     let leaf_modifications = LeafModifications::new();
@@ -221,6 +229,7 @@ pub async fn get_leaves<'a, L: Leaf>(
         sorted_leaf_indices,
         &leaf_modifications,
         &config,
+        key_context,
     )
     .await?;
     Ok(previous_leaves)
