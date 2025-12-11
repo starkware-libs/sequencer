@@ -5,7 +5,7 @@ use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::felt;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
-use starknet_patricia_storage::db_object::Deserializable;
+use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
 use starknet_patricia_storage::storage_trait::DbValue;
 use starknet_types_core::felt::Felt;
 
@@ -32,7 +32,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 ]
 fn test_leaf_serde<L: Leaf + Eq + Debug>(#[case] leaf: L) {
     let serialized = leaf.serialize();
-    let deserialized = L::deserialize(&serialized).unwrap();
+    let deserialized = L::deserialize(&serialized, &EmptyDeserializationContext).unwrap();
     assert_eq!(deserialized, leaf);
 }
 
@@ -60,7 +60,8 @@ fn test_deserialize_contract_state_without_nonce() {
         .to_vec(),
     );
 
-    let contract_state = ContractState::deserialize(&serialized).unwrap();
+    let contract_state =
+        ContractState::deserialize(&serialized, &EmptyDeserializationContext).unwrap();
 
     // Validate the fields (nonce should be the default "0")
     assert_eq!(contract_state.nonce, Nonce(Felt::ZERO));
