@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
 use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
-use apollo_gateway::rpc_state_reader::RpcStateReader;
+use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
@@ -104,18 +104,18 @@ impl Default for RetryConfig {
 }
 
 #[derive(Clone)]
-pub struct TestStateReader {
-    pub(crate) rpc_state_reader: RpcStateReader,
+pub struct RpcStateReader {
+    pub(crate) rpc_state_reader: GatewayRpcStateReader,
     pub(crate) retry_config: RetryConfig,
     pub(crate) chain_id: ChainId,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
-impl Default for TestStateReader {
+impl Default for RpcStateReader {
     fn default() -> Self {
         Self {
-            rpc_state_reader: RpcStateReader::from_latest(&get_rpc_state_reader_config()),
+            rpc_state_reader: GatewayRpcStateReader::from_latest(&get_rpc_state_reader_config()),
             retry_config: RetryConfig::default(),
             chain_id: ChainId::Mainnet,
             contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
@@ -123,7 +123,7 @@ impl Default for TestStateReader {
     }
 }
 
-impl StateReader for TestStateReader {
+impl StateReader for RpcStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
         retry_request!(self.retry_config, || self.rpc_state_reader.get_nonce_at(contract_address))
     }
@@ -167,7 +167,7 @@ impl StateReader for TestStateReader {
     }
 }
 
-impl FetchCompiledClasses for TestStateReader {
+impl FetchCompiledClasses for RpcStateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
@@ -182,7 +182,7 @@ impl FetchCompiledClasses for TestStateReader {
     }
 }
 
-impl TestStateReader {
+impl RpcStateReader {
     pub fn new(
         config: &RpcStateReaderConfig,
         chain_id: ChainId,
@@ -194,7 +194,7 @@ impl TestStateReader {
             false => None,
         }));
         Self {
-            rpc_state_reader: RpcStateReader::from_number(config, block_number),
+            rpc_state_reader: GatewayRpcStateReader::from_number(config, block_number),
             retry_config: RetryConfig::default(),
             chain_id,
             contract_class_mapping_dumper,
@@ -202,7 +202,7 @@ impl TestStateReader {
     }
 
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
-        TestStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
+        RpcStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
     }
 
     /// Get the block info of the current block.
@@ -301,8 +301,7 @@ impl TestStateReader {
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
         contract_class_manager: &ContractClassManager,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
-    {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
@@ -315,7 +314,7 @@ impl TestStateReader {
             contract_class_manager.clone(),
             class_cache_metrics,
         );
-        Ok(TransactionExecutor::<StateReaderAndContractManager<TestStateReader>>::pre_process_and_create(
+        Ok(TransactionExecutor::<StateReaderAndContractManager<RpcStateReader>>::pre_process_and_create(
             state_reader_and_contract_manager,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
@@ -377,7 +376,7 @@ impl TestStateReader {
     }
 }
 
-impl ReexecutionStateReader for TestStateReader {
+impl ReexecutionStateReader for RpcStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
         let params = json!({
             "block_id": self.rpc_state_reader.block_id,
@@ -412,13 +411,13 @@ impl ReexecutionStateReader for TestStateReader {
     }
 }
 
-pub struct ConsecutiveTestStateReaders {
-    pub last_block_state_reader: TestStateReader,
-    pub next_block_state_reader: TestStateReader,
+pub struct ConsecutiveRpcStateReaders {
+    pub last_block_state_reader: RpcStateReader,
+    pub next_block_state_reader: RpcStateReader,
     contract_class_manager: ContractClassManager,
 }
 
-impl ConsecutiveTestStateReaders {
+impl ConsecutiveRpcStateReaders {
     pub fn new(
         last_constructed_block_number: BlockNumber,
         config: Option<RpcStateReaderConfig>,
@@ -428,13 +427,13 @@ impl ConsecutiveTestStateReaders {
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
         Self {
-            last_block_state_reader: TestStateReader::new(
+            last_block_state_reader: RpcStateReader::new(
                 &config,
                 chain_id.clone(),
                 last_constructed_block_number,
                 dump_mode,
             ),
-            next_block_state_reader: TestStateReader::new(
+            next_block_state_reader: RpcStateReader::new(
                 &config,
                 chain_id,
                 last_constructed_block_number.next().expect("Overflow in block number"),
@@ -573,14 +572,13 @@ impl ConsecutiveTestStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<TestStateReader>>
-    for ConsecutiveTestStateReaders
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<RpcStateReader>>
+    for ConsecutiveRpcStateReaders
 {
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
-    {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
         self.last_block_state_reader.get_transaction_executor(
             self.next_block_state_reader.get_block_context()?,
             transaction_executor_config,
