@@ -5,6 +5,8 @@ use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::db::DbConfig;
+use apollo_storage::{StorageConfig, StorageScope};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
@@ -144,7 +146,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_config"))]
 pub struct BatcherConfig {
-    pub storage: apollo_storage::StorageConfig,
+    pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
@@ -209,13 +211,13 @@ impl SerializeConfig for BatcherConfig {
 impl Default for BatcherConfig {
     fn default() -> Self {
         Self {
-            storage: apollo_storage::StorageConfig {
-                db_config: apollo_storage::db::DbConfig {
+            storage: StorageConfig {
+                db_config: DbConfig {
                     path_prefix: "/data/batcher".into(),
                     enforce_file_exists: false,
                     ..Default::default()
                 },
-                scope: apollo_storage::StorageScope::StateOnly,
+                scope: StorageScope::StateOnly,
                 ..Default::default()
             },
             // TODO(AlonH): set a more reasonable default value.
