@@ -26,7 +26,7 @@ use crate::consensus::{
 auto_impl_get_test_instance! {
     pub struct Vote {
         pub vote_type: VoteType,
-        pub height: u64,
+        pub height: BlockNumber,
         pub round: u32,
         pub proposal_commitment: Option<ProposalCommitment>,
         pub voter: ContractAddress,

@@ -1,7 +1,13 @@
 use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
-use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricHistogram};
+use apollo_metrics::metrics::{
+    LabeledMetricCounter,
+    LossyIntoF64,
+    MetricCounter,
+    MetricGauge,
+    MetricHistogram,
+};
 use libp2p::gossipsub::{PublishError, TopicHash};
 use strum::{IntoStaticStr, VariantNames};
 use strum_macros::EnumVariantNames;
@@ -26,44 +32,16 @@ generate_permutation_labels! {
 }
 
 pub struct BroadcastNetworkMetrics {
-    pub num_sent_broadcast_messages: MetricCounter,
-    pub num_dropped_broadcast_messages: LabeledMetricCounter,
-    pub num_received_broadcast_messages: MetricCounter,
+    pub sent_broadcast_message_metrics: MessageMetrics,
+    pub dropped_broadcast_message_metrics: LabeledMessageMetrics,
+    pub received_broadcast_message_metrics: MessageMetrics,
 }
 
 impl BroadcastNetworkMetrics {
     pub fn register(&self) {
-        self.num_sent_broadcast_messages.register();
-        self.num_dropped_broadcast_messages.register();
-        self.num_received_broadcast_messages.register();
-    }
-
-    fn inc_dropped_msgs(&self, reason: BroadcastPublishDropReason) {
-        self.num_dropped_broadcast_messages
-            .increment(1, &[(LABEL_NAME_BROADCAST_DROP_REASON, reason.into())]);
-    }
-
-    pub fn increment_publish_error(&self, err: &PublishError) {
-        match err {
-            PublishError::Duplicate => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::Duplicate);
-            }
-            PublishError::SigningError(_) => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::SigningError);
-            }
-            PublishError::NoPeersSubscribedToTopic => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::NoPeersSubscribedToTopic);
-            }
-            PublishError::MessageTooLarge => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::MessageTooLarge);
-            }
-            PublishError::TransformFailed(_) => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::TransformFailed);
-            }
-            PublishError::AllQueuesFull(_) => {
-                self.inc_dropped_msgs(BroadcastPublishDropReason::AllQueuesFull);
-            }
-        }
+        self.sent_broadcast_message_metrics.register();
+        self.dropped_broadcast_message_metrics.register();
+        self.received_broadcast_message_metrics.register();
     }
 }
 
@@ -135,6 +113,76 @@ impl LatencyMetrics {
 
     pub fn update_ping_latency(&self, latency_seconds: f64) {
         self.ping_latency_seconds.record(latency_seconds);
+    }
+}
+
+pub struct MessageMetrics {
+    pub num_messages: MetricCounter,
+    pub message_size_mb: Option<MetricHistogram>,
+}
+
+impl MessageMetrics {
+    pub fn register(&self) {
+        self.num_messages.register();
+        if let Some(message_size_mb) = &self.message_size_mb {
+            message_size_mb.register();
+        }
+    }
+
+    pub fn record_message(&self, message_size_bytes: usize) {
+        self.num_messages.increment(1);
+        if let Some(message_size_mb) = &self.message_size_mb {
+            message_size_mb.record(convert_bytes_to_mb(message_size_bytes));
+        }
+    }
+}
+
+fn convert_bytes_to_mb(bytes: usize) -> f64 {
+    let bytes: f64 = bytes.into_f64();
+    bytes / 1_048_576.0
+}
+
+pub struct LabeledMessageMetrics {
+    pub num_messages: LabeledMetricCounter,
+    pub message_size_mb: Option<MetricHistogram>,
+}
+
+impl LabeledMessageMetrics {
+    pub fn register(&self) {
+        self.num_messages.register();
+        if let Some(message_size_mb) = &self.message_size_mb {
+            message_size_mb.register();
+        }
+    }
+
+    fn increment_dropped_msgs(&self, reason: BroadcastPublishDropReason) {
+        self.num_messages.increment(1, &[(LABEL_NAME_BROADCAST_DROP_REASON, reason.into())]);
+    }
+
+    pub fn record_message(&self, err: &PublishError, message_size_bytes: usize) {
+        match err {
+            PublishError::Duplicate => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::Duplicate);
+            }
+            PublishError::SigningError(_) => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::SigningError);
+            }
+            PublishError::NoPeersSubscribedToTopic => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::NoPeersSubscribedToTopic);
+            }
+            PublishError::MessageTooLarge => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::MessageTooLarge);
+            }
+            PublishError::TransformFailed(_) => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::TransformFailed);
+            }
+            PublishError::AllQueuesFull(_) => {
+                self.increment_dropped_msgs(BroadcastPublishDropReason::AllQueuesFull);
+            }
+        }
+        if let Some(message_size_mb) = &self.message_size_mb {
+            message_size_mb.record(convert_bytes_to_mb(message_size_bytes));
+        }
     }
 }
 

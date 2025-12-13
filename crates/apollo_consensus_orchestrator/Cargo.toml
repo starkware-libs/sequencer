@@ -7,8 +7,10 @@ license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
 [dependencies]
+apollo_batcher.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
+apollo_config.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_infra_utils.workspace = true
@@ -49,6 +51,7 @@ url = { workspace = true, features = ["serde"] }
 apollo_batcher.workspace = true
 apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_config.workspace = true
 apollo_infra = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }

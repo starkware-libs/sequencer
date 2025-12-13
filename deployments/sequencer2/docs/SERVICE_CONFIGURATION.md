@@ -82,6 +82,17 @@ service:
     "app.kubernetes.io/part-of": "sequencer"
   ```
 
+### `name` (string, optional)
+- **Description**: Name suffix for extra services (only used in `extraServices` list)
+- **Example**: `name: "gateway"` creates service `sequencer-{service-name}-gateway-service`
+- **Note**: This field is only relevant when defining services in the `extraServices` list
+
+### `extraServices` (array of Service objects, optional)
+- **Default**: `[]` (empty list)
+- **Description**: List of additional service definitions for the same deployment
+- **Use Case**: Create multiple services with different types, ports, or annotations for the same pods
+- **Example**: See [Multiple Services Per Deployment](#multiple-services-per-deployment) section
+
 ### `externalTrafficPolicy` (string, optional)
 - **Default**: `"Cluster"`
 - **Description**: External traffic policy for LoadBalancer and NodePort services
@@ -261,6 +272,73 @@ service:
       timeoutSeconds: 3600
 ```
 
+## Multiple Services Per Deployment
+
+You can create multiple Kubernetes services for the same deployment using the `extraServices` field. This is useful when you need to expose different ports via different service types (e.g., ClusterIP with Ingress for public access, LoadBalancer for internal access).
+
+### Basic Example
+
+```yaml
+# Primary service (exposed via Ingress)
+service:
+  type: "ClusterIP"
+  ports:
+    - name: "http-server"
+      port: 8080
+      targetPort: 8080
+      protocol: "TCP"
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+
+# Extra service (internal LoadBalancer)
+extraServices:
+  - name: "gateway"  # Optional: used as suffix in service name
+    type: "LoadBalancer"
+    ports:
+      - name: "gateway"
+        port: 55002
+        targetPort: 55002
+        protocol: "TCP"
+    annotations:
+      cloud.google.com/load-balancer-type: "Internal"
+      networking.gke.io/internal-load-balancer-allow-global-access: "true"
+```
+
+This configuration generates:
+- Primary service: `sequencer-httpserver-service` (ClusterIP, http-server port)
+- Extra service: `sequencer-httpserver-gateway-service` (LoadBalancer, gateway port)
+
+Both services target the same pods using the same pod selector (labels).
+
+### Use Cases
+
+1. **Unified Deployment with Multiple Exposures**: Combine http-server and gateway into one deployment
+   - http-server: Exposed via Ingress + external LoadBalancer (ClusterIP service)
+   - gateway: Exposed via internal Layer 4 LoadBalancer
+
+2. **Different Service Types for Different Ports**: Expose some ports via ClusterIP and others via LoadBalancer
+
+3. **Internal and External Access**: Use ClusterIP for internal cluster access and LoadBalancer for external access
+
+### Configuration Options
+
+#### `extraServices` (array of Service objects)
+- **Default**: `[]` (empty list)
+- **Description**: List of additional service definitions for the same deployment
+- **Properties**: Each item in the list supports all the same properties as the primary `service` field
+
+#### `name` (string, optional)
+- **Description**: Name suffix for the extra service
+- **Example**: If `name: "gateway"` and service name is `httpserver`, the generated service will be `sequencer-httpserver-gateway-service`
+- **Note**: If not provided, a default name like `extra-0`, `extra-1` will be used
+
+### Important Notes
+
+- All services (primary + extra) share the same pod selector (labels), so they all target the same pods
+- The primary service is used for Ingress and BackendConfig references
+- Each extra service can have its own ports, type, annotations, and labels
+- Service names are auto-generated: `sequencer-{service-name}-service` (primary) and `sequencer-{service-name}-{extra-name}-service` (extra)
+
 ## Generated Kubernetes Resource
 
 The configuration above generates a Service resource like this:
@@ -307,3 +385,5 @@ spec:
 5. **External Traffic Policy**: Use "Local" for better performance with LoadBalancer
 6. **Labels**: Use consistent labeling for better resource management
 7. **Annotations**: Use cloud provider annotations for advanced load balancer features
+8. **Multiple Services**: Use `extraServices` when you need to expose different ports via different service types (e.g., ClusterIP for Ingress, LoadBalancer for internal access)
+9. **Service Naming**: Use descriptive `name` fields in `extraServices` for better service identification

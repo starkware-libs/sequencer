@@ -1,21 +1,26 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs::read_to_string;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
-use blockifier::state::state_api::StateReader;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::global_cache::CompiledClasses;
+use blockifier::state::state_api::{StateReader, StateResult};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
@@ -38,6 +43,30 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
+
+/// Converts a [`starknet_api::contract_class::ContractClass`] into the corresponding
+/// [`CompiledClasses`].
+///
+/// For `V1` (Cairo 1) classes, a matching `SierraContractClass` must be provided.
+/// For `V0` classes, this argument should be `None`.
+pub fn contract_class_to_compiled_classes(
+    contract_class: ContractClass,
+    sierra_contract_class: Option<SierraContractClass>,
+) -> StateResult<CompiledClasses> {
+    match contract_class {
+        ContractClass::V0(deprecated_class) => {
+            Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_class)?))
+        }
+        ContractClass::V1(versioned_casm) => {
+            let sierra_contract_class =
+                sierra_contract_class.expect("V1 contract class requires Sierra class");
+            Ok(CompiledClasses::V1(
+                CompiledClassV1::try_from(versioned_casm)?,
+                Arc::new(sierra_contract_class),
+            ))
+        }
+    }
+}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
@@ -209,7 +238,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + Clone + 'static,
+    S: StateReader + Send + Sync + 'static,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
@@ -241,8 +270,17 @@ pub fn reexecute_block_for_testing(block_number: u64) {
     // In tests we are already in the blockifier_reexecution directory.
     let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
 
+    // Initialize the contract class manager.
+    let mut contract_class_manager_config = ContractClassManagerConfig::default();
+    if cfg!(feature = "cairo_native") {
+        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
+        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+    }
+    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+
     reexecute_and_verify_correctness(
-        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+        OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
+            .unwrap(),
     );
 
     println!("Reexecution test for block {block_number} passed successfully.");
@@ -253,6 +291,7 @@ pub fn write_block_reexecution_data_to_file(
     full_file_path: String,
     node_url: String,
     chain_id: ChainId,
+    contract_class_manager: ContractClassManager,
 ) {
     let config = RpcStateReaderConfig::from_url(node_url);
 
@@ -261,6 +300,7 @@ pub fn write_block_reexecution_data_to_file(
         Some(config),
         chain_id.clone(),
         true,
+        contract_class_manager,
     );
 
     let serializable_data_next_block =
@@ -272,7 +312,11 @@ pub fn write_block_reexecution_data_to_file(
     let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+        contract_class_mapping: block_state
+            .state
+            .state_reader
+            .get_contract_class_mapping_dumper()
+            .unwrap(),
     };
 
     // Write the reexecution data to a json file.
@@ -295,6 +339,7 @@ pub fn execute_single_transaction(
     node_url: String,
     chain_id: ChainId,
     tx_input: TransactionInput,
+    contract_class_manager: ContractClassManager,
 ) -> ReexecutionResult<()> {
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
@@ -305,6 +350,7 @@ pub fn execute_single_transaction(
         Some(config),
         chain_id.clone(),
         false, // dump_mode = false
+        contract_class_manager,
     );
 
     // Get transaction and hash based on input method.

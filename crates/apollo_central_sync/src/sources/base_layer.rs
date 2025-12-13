@@ -28,7 +28,7 @@ impl<Error: std::error::Error + Sync + Send> BaseLayerSourceErrorTrait for Error
 #[async_trait]
 pub trait BaseLayerSourceTrait {
     async fn latest_proved_block(
-        &self,
+        &mut self,
     ) -> Result<Option<(BlockNumber, BlockHash)>, BaseLayerSourceError>;
 }
 
@@ -39,7 +39,7 @@ impl<
 > BaseLayerSourceTrait for BaseLayerSource
 {
     async fn latest_proved_block(
-        &self,
+        &mut self,
     ) -> Result<Option<(BlockNumber, BlockHash)>, BaseLayerSourceError> {
         let finality = 0;
         let latest_l1_block_number = self

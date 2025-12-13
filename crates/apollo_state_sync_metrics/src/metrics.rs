@@ -5,7 +5,6 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
-use apollo_metrics::metrics::MetricDetails;
 use apollo_metrics::{define_infra_metrics, define_metrics};
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
 use apollo_storage::body::BodyStorageReader;
@@ -15,9 +14,6 @@ use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageTxn};
-use starknet_api::block::BlockNumber;
-use tracing::debug;
-
 define_infra_metrics!(state_sync);
 
 define_metrics!(
@@ -45,10 +41,7 @@ define_metrics!(
     },
 );
 
-pub async fn register_metrics(
-    should_replay_processed_txs_metric: bool,
-    storage_reader: StorageReader,
-) {
+pub async fn register_metrics(storage_reader: StorageReader) {
     STATE_SYNC_HEADER_MARKER.register();
     STATE_SYNC_BODY_MARKER.register();
     STATE_SYNC_STATE_MARKER.register();
@@ -61,14 +54,6 @@ pub async fn register_metrics(
     STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING.register();
     let txn = storage_reader.begin_ro_txn().unwrap();
     update_marker_metrics(&txn);
-    if should_replay_processed_txs_metric {
-        let storage_reader = storage_reader.clone();
-        let _ = tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn().unwrap();
-            reconstruct_processed_transactions_metric(&txn);
-        })
-        .await;
-    }
 }
 
 pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
@@ -82,36 +67,4 @@ pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) 
     );
     STATE_SYNC_COMPILED_CLASS_MARKER
         .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
-}
-
-// TODO(noamsp): Fix replay procedure by adding the value to the storage, this way we wont need to
-// replay all the transactions.
-fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
-    let block_marker = txn.get_body_marker().expect("Should have a body marker");
-
-    debug!("Starting to count all transactions in the storage");
-    // Early return if no blocks to process
-    if block_marker.0 == 0 {
-        return;
-    }
-
-    let mut total_transactions = 0;
-
-    // Process all blocks efficiently
-    for block_number in 0..block_marker.0 {
-        if let Ok(Some(transaction_hashes)) =
-            txn.get_block_transaction_hashes(BlockNumber(block_number))
-        {
-            total_transactions += transaction_hashes.len();
-        }
-    }
-
-    debug!(
-        "Finished counting all transactions in the storage. Incrementing {} metric with value: \
-         {total_transactions}",
-        STATE_SYNC_PROCESSED_TRANSACTIONS.get_name(),
-    );
-    // Set the metric once with the total count
-    STATE_SYNC_PROCESSED_TRANSACTIONS
-        .increment(total_transactions.try_into().expect("Failed to convert usize to u64"));
 }

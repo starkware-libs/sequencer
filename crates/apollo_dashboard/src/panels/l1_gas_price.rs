@@ -23,6 +23,10 @@ fn get_panel_eth_to_strk_error_count() -> Panel {
         increase(&ETH_TO_STRK_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
+    .with_log_query(
+        "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed \
+         to join handle for timestamp\"",
+    )
 }
 
 fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {

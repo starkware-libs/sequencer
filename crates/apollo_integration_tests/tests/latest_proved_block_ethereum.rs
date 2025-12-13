@@ -49,7 +49,7 @@ async fn latest_proved_block_ethereum() {
         ))),
     };
 
-    let base_layer = AnvilBaseLayer::new(None).await;
+    let mut base_layer = AnvilBaseLayer::new(None).await;
     let provider = &base_layer.anvil_provider;
 
     let mut current_block = provider.get_block_number().await.expect("Failed to get block number");

@@ -1,12 +1,8 @@
-use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use serde::{Serialize, Serializer};
 
 use crate::deployment::P2PCommunicationType;
-use crate::deployment_definitions::Environment;
 // Controls whether external P2P communication is enabled.
 const INTERNAL_ONLY_P2P_COMMUNICATION: bool = true;
-
-const INGRESS_ROUTE: &str = "/gateway";
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 pub enum Controller {
@@ -100,21 +96,6 @@ where
 impl IngressParams {
     pub fn new(domain: String, alternative_names: Option<Vec<String>>) -> Self {
         Self { domain, alternative_names }
-    }
-}
-
-pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Option<Ingress> {
-    Some(Ingress::new(
-        ingress_params,
-        internal,
-        vec![IngressRule::new(String::from(INGRESS_ROUTE), HTTP_SERVER_PORT, None)],
-    ))
-}
-
-pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> bool {
-    match environment {
-        Environment::CloudK8s(_) => false,
-        Environment::LocalK8s => true,
     }
 }
 

@@ -18,9 +18,9 @@ async fn new_l1_handler_tx_propose_validate_cooldown() {
     // Setup.
 
     // Setup the base layer.
-    let base_layer = setup_anvil_base_layer().await;
+    let mut base_layer = setup_anvil_base_layer().await;
 
-    let (l2_hash, _nonce) = send_message_from_l1_to_l2(&base_layer, CALL_DATA).await;
+    let (l2_hash, _nonce) = send_message_from_l1_to_l2(&mut base_layer, CALL_DATA).await;
 
     let l1_provider_client =
         setup_scraper_and_provider(base_layer.ethereum_base_layer.clone()).await;

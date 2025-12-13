@@ -1,16 +1,20 @@
+use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::Duration;
 
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use tokio::select;
+use tokio::time::sleep;
 use tracing::info;
 use url::Url;
 
 use crate::integration_test_manager::nonce_to_usize;
 use crate::monitoring_utils;
-use crate::utils::{send_consensus_txs, TestScenario};
+use crate::utils::{send_consensus_txs, ConsensusTxs, TestScenario, N_TXS_IN_FIRST_BLOCK};
 
 pub struct SequencerSimulator {
     monitoring_client: MonitoringClient,
@@ -82,6 +86,58 @@ impl SequencerSimulator {
             expected_n_batched_txs,
         )
         .await;
+    }
+
+    pub async fn run_simulation(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        run_forever: bool,
+        sender_account: AccountId,
+    ) {
+        const N_TXS: usize = 50;
+        const SLEEP_DURATION: Duration = Duration::from_secs(1);
+
+        let mut i = 1;
+        loop {
+            self.send_txs(
+                tx_generator,
+                &ConsensusTxs {
+                    n_invoke_txs: N_TXS,
+                    // TODO(Arni): Add non-zero value.
+                    n_l1_handler_txs: 0,
+                },
+                sender_account,
+            )
+            .await;
+            self.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
+
+            if !run_forever {
+                break;
+            }
+
+            sleep(SLEEP_DURATION).await;
+            i += 1;
+        }
+    }
+
+    pub async fn run_test_with_nonstop_tx_sending(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        sender_account: AccountId,
+        test_future: impl Future<Output = ()>,
+    ) {
+        // TODO(noamsp/itay): Try to refactor this to spawn threads for each task instead of using
+        // select!
+        let simulation_task = self.run_simulation(tx_generator, true, sender_account);
+        select! {
+            _ = simulation_task => {
+                panic!("Simulation task should not complete before the test task");
+            }
+            _ = test_future => {
+                // If test_future completes normally, it finished successfully.
+                // If it panicked, the panic would have already propagated.
+            }
+        }
     }
 }
 

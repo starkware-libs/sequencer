@@ -1,11 +1,91 @@
+use std::sync::OnceLock;
+
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
     MetricCounter,
     MetricGauge,
     MetricHistogram,
+    COLLECT_SEQUENCER_PROFILING_METRICS,
 };
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use serde::{Deserialize, Serialize};
 
 use crate::requests::LABEL_NAME_REQUEST_VARIANT;
+use crate::tokio_metrics::setup_tokio_metrics;
+
+pub const HISTOGRAM_BUCKETS: &[f64] = &[
+    0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+    100.0, 250.0,
+];
+
+// Ensures the metrics recorder is initialized only once and stores the Prometheus handle.
+static PROMETHEUS_HANDLE: OnceLock<Option<PrometheusHandle>> = OnceLock::new();
+
+/// Configuration for metrics collection.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct MetricsConfig {
+    /// Whether to collect metrics at all.
+    pub collect_metrics: bool,
+    /// Whether to collect profiling metrics.
+    pub collect_profiling_metrics: bool,
+}
+
+impl MetricsConfig {
+    /// Returns a config with all metrics collection enabled.
+    pub const fn enabled() -> Self {
+        Self { collect_metrics: true, collect_profiling_metrics: true }
+    }
+
+    /// Returns a config with all metrics collection disabled.
+    pub const fn disabled() -> Self {
+        Self { collect_metrics: false, collect_profiling_metrics: false }
+    }
+}
+
+/// Initializes the metrics recorder and tokio metrics if metrics collection is enabled.
+/// This should be called once during application startup, before creating components that use
+/// metrics.
+///
+/// Returns a PrometheusHandle if metrics collection is enabled, None otherwise.
+///
+/// This function is safe to call multiple times - subsequent calls will return the cached
+/// PrometheusHandle and ignore the config parameter.
+///
+/// # Example
+/// ```no_run
+/// use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
+///
+/// let config = MetricsConfig::enabled();
+/// let prometheus_handle = metrics_recorder(config);
+/// ```
+pub fn metrics_recorder(config: MetricsConfig) -> Option<PrometheusHandle> {
+    let prometheus_handle = PROMETHEUS_HANDLE.get_or_init(|| {
+        let prometheus_handle = if config.collect_metrics {
+            // TODO(Lev): add tests that show the metrics are collected / not collected based on the
+            // config value.
+            COLLECT_SEQUENCER_PROFILING_METRICS
+                .set(config.collect_profiling_metrics)
+                .expect("Should be able to set profiling metrics collection.");
+
+            Some(
+                PrometheusBuilder::new()
+                    .set_buckets(HISTOGRAM_BUCKETS)
+                    .expect("Should be able to set buckets")
+                    .install_recorder()
+                    .expect("should be able to build the recorder and install it globally"),
+            )
+        } else {
+            None
+        };
+
+        // Setup tokio metrics along with other metrics initialization
+        setup_tokio_metrics();
+
+        prometheus_handle
+    });
+
+    prometheus_handle.clone()
+}
 
 /// Metrics of a local client.
 #[derive(Clone)]

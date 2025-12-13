@@ -142,6 +142,7 @@ impl ApolloReader {
         class_hash: ClassHash,
     ) -> StateResult<(CasmContractClass, SierraContractClass)> {
         let Some(class_reader) = &self.class_reader else {
+            // Class reader is not set. Try to read directly from storage.
             let (option_casm, option_sierra) = self
                 .reader()?
                 .get_casm_and_sierra(&class_hash)
@@ -161,6 +162,7 @@ impl ApolloReader {
 
     fn read_deprecated_casm(&self, class_hash: ClassHash) -> StateResult<Option<DeprecatedClass>> {
         let Some(class_reader) = &self.class_reader else {
+            // Class reader is not set. Try to read directly from storage.
             let state_number = StateNumber(self.latest_block);
             let option_casm = self
                 .reader()?
@@ -182,7 +184,7 @@ impl ApolloReader {
         class_hash: ClassHash,
     ) -> StateResult<Option<CompiledClassHash>> {
         let Some(class_reader) = &self.class_reader else {
-            // Try to read directly from storage.
+            // Class reader is not set. Try to read directly from storage.
             let compiled_class_hash_v2 =
                 self.reader()?
                     .get_executable_class_hash_v2(&class_hash)

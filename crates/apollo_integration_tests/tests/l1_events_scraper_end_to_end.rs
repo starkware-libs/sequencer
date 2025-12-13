@@ -22,7 +22,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, Transac
 #[tokio::test]
 async fn scraper_end_to_end() {
     // Setup.
-    let base_layer = AnvilBaseLayer::new(None).await;
+    let mut base_layer = AnvilBaseLayer::new(None).await;
     let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
 
@@ -61,7 +61,7 @@ async fn scraper_end_to_end() {
         let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
         l1_handler_timestamps.push(
             base_layer
-                .get_block_header(receipt.block_number.unwrap())
+                .get_block_header_immutable(receipt.block_number.unwrap())
                 .await
                 .unwrap()
                 .unwrap()

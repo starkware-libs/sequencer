@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 
+use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_l1_provider_types::{L1ProviderSnapshot, MockL1ProviderClient};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::{
@@ -41,16 +42,6 @@ use crate::monitoring_endpoint::{
     VERSION,
 };
 use crate::test_utils::{build_post_request, build_request};
-use crate::tokio_metrics::{
-    TOKIO_GLOBAL_QUEUE_DEPTH,
-    TOKIO_MAX_BUSY_DURATION_MICROS,
-    TOKIO_MAX_PARK_COUNT,
-    TOKIO_MIN_BUSY_DURATION_MICROS,
-    TOKIO_MIN_PARK_COUNT,
-    TOKIO_TOTAL_BUSY_DURATION_MICROS,
-    TOKIO_TOTAL_PARK_COUNT,
-    TOKIO_WORKERS_COUNT,
-};
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
@@ -59,13 +50,11 @@ const TEST_VERSION: &str = "1.2.3-dev";
 const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig = MonitoringEndpointConfig {
     ip: MONITORING_ENDPOINT_DEFAULT_IP,
     port: MONITORING_ENDPOINT_DEFAULT_PORT,
-    collect_metrics: false,
-    collect_profiling_metrics: false,
 };
 
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
     let config = config.unwrap_or(CONFIG_WITHOUT_METRICS);
-    create_monitoring_endpoint(config, TEST_VERSION, None, None)
+    create_monitoring_endpoint(config, TEST_VERSION, None, None, None)
 }
 
 async fn request_app(app: Router, method: &str) -> Response {
@@ -119,8 +108,10 @@ async fn set_log_level_invalid_level() {
 
 #[tokio::test]
 async fn with_metrics() {
-    let config = MonitoringEndpointConfig { collect_metrics: true, ..Default::default() };
-    let app = setup_monitoring_endpoint(Some(config)).app();
+    let config = MonitoringEndpointConfig::default();
+    let metrics_config = MetricsConfig { collect_metrics: true, collect_profiling_metrics: false };
+    let prometheus_handle = metrics_recorder(metrics_config);
+    let app = create_monitoring_endpoint(config, TEST_VERSION, prometheus_handle, None, None).app();
 
     // Register a metric.
     let metric_name = "metric_name";
@@ -173,6 +164,7 @@ fn setup_monitoring_endpoint_with_mempool_client() -> MonitoringEndpoint {
     create_monitoring_endpoint(
         CONFIG_WITHOUT_METRICS,
         TEST_VERSION,
+        None,
         Some(shared_mock_mempool_client),
         None,
     )
@@ -236,6 +228,7 @@ fn setup_monitoring_endpoint_with_l1_provider_client() -> MonitoringEndpoint {
         CONFIG_WITHOUT_METRICS,
         TEST_VERSION,
         None,
+        None,
         Some(shared_mock_l1_provider_client),
     )
 }
@@ -287,32 +280,4 @@ async fn l1_provider_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, L1_PROVIDER_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
-}
-
-#[tokio::test]
-async fn tokio_metrics_present() {
-    use metrics::set_default_local_recorder;
-    use metrics_exporter_prometheus::PrometheusBuilder;
-
-    // Create a local recorder instead of installing a global one
-    let recorder = PrometheusBuilder::new().build_recorder();
-    let _recorder_guard = set_default_local_recorder(&recorder);
-
-    // Setup tokio metrics collection with the local recorder
-    crate::tokio_metrics::setup_tokio_metrics();
-
-    // Allow the exporter to export tokio metrics
-    tokio::task::yield_now().await;
-
-    // Get the metrics directly from the local recorder
-    let prometheus_output = recorder.handle().render();
-
-    TOKIO_TOTAL_BUSY_DURATION_MICROS.assert_exists(&prometheus_output);
-    TOKIO_MIN_BUSY_DURATION_MICROS.assert_exists(&prometheus_output);
-    TOKIO_MAX_BUSY_DURATION_MICROS.assert_exists(&prometheus_output);
-    TOKIO_TOTAL_PARK_COUNT.assert_exists(&prometheus_output);
-    TOKIO_MIN_PARK_COUNT.assert_exists(&prometheus_output);
-    TOKIO_MAX_PARK_COUNT.assert_exists(&prometheus_output);
-    TOKIO_WORKERS_COUNT.assert_exists(&prometheus_output);
-    TOKIO_GLOBAL_QUEUE_DEPTH.assert_exists(&prometheus_output);
 }

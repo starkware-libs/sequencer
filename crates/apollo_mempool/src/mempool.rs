@@ -24,7 +24,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::metrics::{
     metric_count_committed_txs,
@@ -337,6 +337,18 @@ impl Mempool {
     }
 
     /// Perform validation-only of an incoming transaction (without changing the state).
+    #[instrument(
+        level = "debug",
+        skip(self, args),
+        fields( // Log subset of (informative) fields.
+            tx_nonce = %args.tx_nonce,
+            tx_hash = %args.tx_hash,
+            tx_tip = %args.tip,
+            tx_max_l2_gas_price = %args.max_l2_gas_price,
+            address = %args.address
+        ),
+        err)
+    ]
     pub fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
         let tx_reference = (&args).into();
         self.validate_incoming_tx(tx_reference, args.account_nonce)?;
@@ -345,8 +357,46 @@ impl Mempool {
         Ok(())
     }
 
+    /// Validates an incoming transaction and handles fee escalation.
+    fn add_tx_validations(
+        &mut self,
+        tx_reference: TransactionReference,
+        tx: &InternalRpcTransaction,
+        account_nonce: Nonce,
+    ) -> MempoolResult<()> {
+        self.validate_incoming_tx(tx_reference, account_nonce)?;
+        self.handle_fee_escalation(tx_reference, false)?;
+
+        if self.exceeds_capacity(tx) {
+            self.handle_capacity_overflow(tx, account_nonce)?;
+        }
+
+        Ok(())
+    }
+
+    fn log_add_tx_error(&self, err: &MempoolError, args: &AddTransactionArgs) {
+        match err {
+            MempoolError::DuplicateTransaction { .. }
+            | MempoolError::DuplicateNonce { .. }
+            | MempoolError::NonceTooOld { .. } => {
+                // These error variants are not informative and they spam the logs.
+            }
+            _ => {
+                error!(
+                    tx_nonce = %args.tx.nonce(),
+                    tx_hash = %args.tx.tx_hash,
+                    tx_tip = %args.tx.tip(),
+                    tx_max_l2_gas_price = %args.tx.resource_bounds().l2_gas.max_price_per_unit,
+                    account_state = %args.account_state,
+                    "{err}"
+                );
+            }
+        }
+    }
+
     /// Adds a new transaction to the mempool.
     #[instrument(
+        level = "debug",
         skip(self, args),
         fields( // Log subset of (informative) fields.
             tx_nonce = %args.tx.nonce(),
@@ -363,12 +413,8 @@ impl Mempool {
         self.add_ready_declares();
 
         let tx_reference = TransactionReference::new(&args.tx);
-        self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
-        self.handle_fee_escalation(tx_reference, false)?;
-
-        if self.exceeds_capacity(&args.tx) {
-            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
-        }
+        self.add_tx_validations(tx_reference, &args.tx, args.account_state.nonce)
+            .inspect_err(|err| self.log_add_tx_error(err, &args))?;
 
         MEMPOOL_TRANSACTIONS_RECEIVED.increment(
             1,
@@ -580,7 +626,6 @@ impl Mempool {
     /// actually removing the existing transaction. If `false`, removes the existing transaction
     /// when replacement is valid.
     /// Note: This method will **not** add the new incoming transaction.
-    #[instrument(level = "debug", skip(self), err)]
     fn handle_fee_escalation(
         &mut self,
         incoming_tx_reference: TransactionReference,

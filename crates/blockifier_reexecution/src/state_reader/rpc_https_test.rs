@@ -16,6 +16,8 @@ use apollo_gateway::rpc_objects::BlockId;
 use apollo_gateway::rpc_state_reader::RpcStateReader;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
+use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::class_hash;
@@ -116,10 +118,22 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 }
 
 #[fixture]
+pub fn contract_class_manager() -> ContractClassManager {
+    ContractClassManager::start(ContractClassManagerConfig::default())
+}
+
+#[fixture]
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
+    contract_class_manager: ContractClassManager,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
+    ConsecutiveTestStateReaders::new(
+        last_constructed_block,
+        None,
+        ChainId::Mainnet,
+        false,
+        contract_class_manager,
+    )
 }
 
 /// Test that the block info can be retrieved from the RPC server.

@@ -265,7 +265,8 @@ pub fn create_node_config(
     );
     config_pointers_map.change_target_value(
         "recorder_url",
-        to_value(recorder_url).expect("Failed to serialize Url"),
+        // TODO(victork): make sure we're allowed to expose the URL here
+        to_value(recorder_url.as_ref()).expect("Failed to serialize Url"),
     );
     config_pointers_map.change_target_value(
         "starknet_url",
@@ -720,7 +721,6 @@ pub fn create_state_sync_configs(
                 port: rpc_ports.remove(0),
                 ..Default::default()
             },
-            should_replay_processed_txs_metric: true,
             ..Default::default()
         })
         .collect()

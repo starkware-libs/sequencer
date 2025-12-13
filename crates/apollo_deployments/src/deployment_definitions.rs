@@ -17,7 +17,6 @@ use url::Url;
 use crate::addresses::PEER_IDS;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
-use crate::deployments::hybrid::load_and_create_hybrid_deployments;
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
@@ -30,6 +29,7 @@ const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
+// TODO(Tsabary): the l1 endpoint monitor is unused, consider removing.
 const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
 const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
 const L1_PROVIDER_PORT: u16 = 55004;
@@ -39,27 +39,12 @@ const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
-pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH),
-    system_test_deployments,
-];
+pub const DEPLOYMENTS: &[DeploymentFn] = &[system_test_deployments];
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
-
-const MAINNET_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/mainnet.json";
-const INTEGRATION_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/sepolia_integration.json";
-const TESTNET_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/sepolia_testnet.json";
-const UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/upgrade_test.json";
 
 pub(crate) type NodeAndValidatorId = (usize, String);
 
@@ -113,7 +98,6 @@ impl DeploymentInputs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Environment {
-    CloudK8s(CloudK8sEnvironment),
     #[serde(rename = "local_k8s")]
     LocalK8s,
 }
@@ -121,7 +105,6 @@ pub enum Environment {
 impl Display for Environment {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Environment::CloudK8s(e) => write!(f, "{e}"),
             Environment::LocalK8s => write!(f, "testing"),
         }
     }
@@ -140,7 +123,6 @@ pub enum CloudK8sEnvironment {
 impl Environment {
     pub fn env_dir_path(&self) -> PathBuf {
         let env_str = match self {
-            Environment::CloudK8s(env) => env.to_string(),
             Environment::LocalK8s => "testing".to_string(),
         };
         PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(env_str)

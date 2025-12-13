@@ -122,15 +122,7 @@ impl L1Provider {
                     block_timestamp,
                     scrape_timestamp,
                 } => {
-                    let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted =
-                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
-                    if !successfully_inserted {
-                        debug!(
-                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
-                             known or committed."
-                        );
-                    }
+                    self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
                 }
                 Event::TransactionCancellationStarted {
                     tx_hash,
@@ -169,6 +161,8 @@ impl L1Provider {
                     if let Err(previously_consumed_at) =
                         self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
                     {
+                        // TODO(guyn): need to check if this is really a critical bug, or if we can
+                        // log and ignore.
                         panic!(
                             "Double consumption of {tx_hash} at {consumed_at}, previously \
                              consumed at {previously_consumed_at}."
@@ -228,15 +222,10 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending => {
-                panic!(
-                    "get_txs called while in pending state. Panicking in order to restart the \
-                     provider and bootstrap again."
-                );
-            }
-            ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionGetTransactions),
-            ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
-            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
+            _ => Err(L1ProviderError::UnexpectedProviderState {
+                expected: ProviderState::Propose,
+                found: self.state,
+            }),
         }
     }
 
@@ -258,15 +247,10 @@ impl L1Provider {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
-            ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending => {
-                panic!(
-                    "validate called while in pending state. Panicking in order to restart the \
-                     provider and bootstrap again."
-                );
-            }
-            ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionValidate),
-            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
+            _ => Err(L1ProviderError::UnexpectedProviderState {
+                expected: ProviderState::Validate,
+                found: self.state,
+            }),
         }
     }
 
@@ -286,13 +270,13 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        // TODO(guyn): this message is misleading, it checks start_height, not current_height.
-        // TODO(guyn): maybe we should indeed ignore all blocks below current_height?
-        // See other todo in bootstrap().
         if self.is_historical_height(height) {
             debug!(
-                "Skipping commit block for historical height: {}, current height is higher: {}",
-                height, self.current_height
+                "Skipping commit block for height: {height}, it is lower than start_height: {}. \
+                 Current height is {}.",
+                self.start_height
+                    .expect("is_historic_height returns false if start_height is not set"),
+                self.current_height
             );
             return Ok(());
         }

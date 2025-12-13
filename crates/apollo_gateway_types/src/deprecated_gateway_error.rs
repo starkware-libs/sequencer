@@ -100,6 +100,12 @@ impl std::fmt::Display for StarknetError {
     }
 }
 
+impl From<starknet_api::StarknetApiError> for StarknetError {
+    fn from(e: starknet_api::StarknetApiError) -> Self {
+        StarknetError::internal_with_logging("Starknet API error", e)
+    }
+}
+
 pub fn deserialize_unknown_error_code<'de, D>(de: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,

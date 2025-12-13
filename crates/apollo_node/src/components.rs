@@ -34,6 +34,7 @@ use apollo_node_config::version::VERSION_FULL;
 use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
+use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
 use tracing::info;
@@ -67,6 +68,7 @@ pub struct SequencerNodeComponents {
 pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
+    prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
     // TODO(tsabary): consider moving ownership of component configs to the components themselves
@@ -332,6 +334,7 @@ pub async fn create_node_components(
             Some(create_monitoring_endpoint(
                 monitoring_endpoint_config.clone(),
                 VERSION_FULL,
+                prometheus_handle,
                 mempool_client,
                 l1_provider_client,
             ))
@@ -380,18 +383,15 @@ pub async fn create_node_components(
             // TODO(guyn): make base layer config a pointer, to be included in the scraper config.
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
-            let l1_endpoint_monitor_config = config
-                .l1_endpoint_monitor_config
-                .as_ref()
-                .expect("L1 Endpoint Monitor config should be set");
-            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
+            // TODO(guyn): we are left in a weird situation in which the base layer config has a
+            // list of URLs but the l1 endpoing monitor also has such a list, and we use the latter.
+            // This will all go away in a subsequent PR where we remove the endpoint monitor.
             let l1_scraper_config =
                 config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let base_layer =
-                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
+            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 
@@ -482,15 +482,12 @@ pub async fn create_node_components(
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
+            // TODO(guyn): we are left in a weird situation in which the base layer config has a
+            // list of URLs but the l1 endpoing monitor also has such a list, and we use the latter.
+            // This will all go away in a subsequent PR where we remove the endpoint monitor.
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let l1_endpoint_monitor_config = config
-                .l1_endpoint_monitor_config
-                .as_ref()
-                .expect("L1 Endpoint Monitor config should be set");
-            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
-            let base_layer =
-                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
+            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 

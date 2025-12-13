@@ -8,7 +8,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-pub use apollo_protobuf::consensus::ProposalCommitment;
+pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
@@ -22,7 +22,6 @@ use starknet_api::core::ContractAddress;
 ///    signatures.
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
-pub type Round = u32;
 
 /// Interface for consensus to call out to the node.
 ///

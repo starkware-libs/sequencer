@@ -133,7 +133,6 @@ impl StateSyncRunner {
             network_config,
             revert_config,
             rpc_config,
-            should_replay_processed_txs_metric,
         } = config;
 
         let StateSyncResources {
@@ -144,8 +143,7 @@ impl StateSyncRunner {
             pending_classes,
         } = StateSyncResources::new(&storage_config);
 
-        let register_metrics_future =
-            register_metrics(should_replay_processed_txs_metric, storage_reader.clone()).boxed();
+        let register_metrics_future = register_metrics(storage_reader.clone()).boxed();
 
         // Creating the JSON-RPC server future
         // Located above the revert if block since we would like to be able to query the RPC server

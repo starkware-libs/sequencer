@@ -14,8 +14,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
 use serde_json::{json, to_value};
@@ -28,7 +34,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -139,7 +145,8 @@ impl StateReader for TestStateReader {
 
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
-                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                let sierra_contract = SierraContractClass::from(sierra);
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra_contract).unwrap();
                 Ok(RunnableCompiledClass::try_from(casm).unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {
@@ -150,6 +157,21 @@ impl StateReader for TestStateReader {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for TestStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        self.starknet_core_contract_class_to_compiled_class(contract_class)
+    }
+
+    /// This check is no needed in the reexecution context.
+    /// We assume that all the classes returned successfuly by the rpc-provider are declared.
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        Ok(true)
     }
 }
 
@@ -271,14 +293,23 @@ impl TestStateReader {
         self,
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        contract_class_manager: &ContractClassManager,
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let old_block_hash = self.get_old_block_hash(old_block_number)?;
-        Ok(TransactionExecutor::<TestStateReader>::pre_process_and_create(
+        // We don't collect class cache metrics for the reexecution.
+        let class_cache_metrics = None;
+        let state_reader_and_contract_manager = StateReaderAndContractManager::new(
             self,
+            contract_class_manager.clone(),
+            class_cache_metrics,
+        );
+        Ok(TransactionExecutor::<StateReaderAndContractManager<TestStateReader>>::pre_process_and_create(
+            state_reader_and_contract_manager,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             transaction_executor_config.unwrap_or_default(),
@@ -377,6 +408,7 @@ impl ReexecutionStateReader for TestStateReader {
 pub struct ConsecutiveTestStateReaders {
     pub last_block_state_reader: TestStateReader,
     pub next_block_state_reader: TestStateReader,
+    contract_class_manager: ContractClassManager,
 }
 
 impl ConsecutiveTestStateReaders {
@@ -385,6 +417,7 @@ impl ConsecutiveTestStateReaders {
         config: Option<RpcStateReaderConfig>,
         chain_id: ChainId,
         dump_mode: bool,
+        contract_class_manager: ContractClassManager,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
         Self {
@@ -400,6 +433,7 @@ impl ConsecutiveTestStateReaders {
                 last_constructed_block_number.next().expect("Overflow in block number"),
                 dump_mode,
             ),
+            contract_class_manager,
         }
     }
 
@@ -439,14 +473,18 @@ impl ConsecutiveTestStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<TestStateReader>>
+    for ConsecutiveTestStateReaders
+{
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         self.last_block_state_reader.get_transaction_executor(
             self.next_block_state_reader.get_block_context()?,
             transaction_executor_config,
+            &self.contract_class_manager,
         )
     }
 

@@ -5,5 +5,6 @@
   "l1_gas_price_scraper_config.starting_block": 0,
   "l1_gas_price_scraper_config.starting_block.#is_none": true,
   "l1_gas_price_scraper_config.startup_num_blocks_multiplier": 2,
-  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": false
+  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": false,
+  "l1_scraper_config.l1_block_time_seconds": 12.0
 }

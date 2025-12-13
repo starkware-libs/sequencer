@@ -47,6 +47,7 @@ pub trait StatefulValidatorTrait {
     #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
     fn block_info(&self) -> &BlockInfo;
+    // TODO(Itamar): Remove this method.
     #[allow(clippy::result_large_err)]
     fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
 }
