@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
-use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::component_execution_config::{
@@ -10,7 +9,6 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use apollo_node_config::config_utils::private_parameters;
-use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
@@ -55,43 +53,46 @@ fn replacer_config_entries_are_in_config() {
     }
 }
 
-// Test that each service config files constitute a valid config.
+// TODO(Tsabary): consider adding a test that loads a config and validates it; the challenge will be
+// to replace the values in a meaningful manner. Consider using the system test yaml files for that.
+
+// Test that each there are no duplicate config entries.
 #[test]
-fn load_and_process_service_config_files() {
+fn duplicate_config_entries() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
-    // Create a dummy secrets value to the config file paths.
-    let temp_file = NamedTempFile::new().unwrap();
-    let temp_file_path = temp_file.path().to_str().unwrap();
+    // Create a dummy secrets value and dump it as a config file.
+    let secrets_file = NamedTempFile::new().unwrap();
+    let secrets_file_path = secrets_file.path().to_str().unwrap();
     let secrets_config_override = SecretsConfigOverride::default();
-    serialize_to_file(&to_value(&secrets_config_override).unwrap(), temp_file_path);
+    serialize_to_file(&to_value(&secrets_config_override).unwrap(), secrets_file_path);
 
-    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        for mut service_config_paths in deployment.get_all_services_config_paths().into_iter() {
-            println!(
-                "Loading deployment {} in path {:?} with application files {:?} ... ",
-                deployment.get_node_type(),
-                deployment.deployment_file_path(),
-                service_config_paths
-            );
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let deployment_file_path = node_service.replacer_deployment_file_path();
+            let deployment_file = File::open(deployment_file_path).unwrap();
+
+            let mut application_config_files: Vec<String> =
+                serde_json::from_reader(deployment_file)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .unwrap();
 
             // Add the secrets config file path to the config load command.
-            service_config_paths.push(temp_file_path.to_string());
-
-            // Check that there are no duplicate entries in the config files. Although the node can
-            // override such values, we keep the deployment files clean by avoiding these.
+            application_config_files.push(secrets_file_path.to_string());
 
             let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-
-            for path in &service_config_paths {
-                let file = File::open(path).unwrap();
+            for application_config_file in &application_config_files {
+                let file = File::open(application_config_file).unwrap();
                 let json_map: Map<String, Value> = serde_json::from_reader(file)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
                     .unwrap();
 
                 for key in json_map.keys() {
-                    key_to_files.entry(key.clone()).or_default().insert(path.to_string());
+                    key_to_files
+                        .entry(key.clone())
+                        .or_default()
+                        .insert(application_config_file.to_string());
                 }
             }
 
@@ -100,39 +101,12 @@ fn load_and_process_service_config_files() {
             for (key, files) in &key_to_files {
                 if files.len() > 1 {
                     has_duplicates = true;
-                    println!("Key '{key}' found in files: {files:?}");
+                    println!(
+                        "For node type {node_type} the key '{key}' was found in files: {files:?}"
+                    );
                 }
             }
             assert!(!has_duplicates, "Found duplicate keys in service config files.");
-
-            // Load the config files into a command line argument format.
-            let config_file_args: Vec<String> = service_config_paths
-                .clone()
-                .into_iter()
-                .flat_map(|path| vec![CONFIG_FILE_ARG.to_string(), path])
-                .collect();
-
-            let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
-            config_load_command.extend(config_file_args);
-            let load_result = SequencerNodeConfig::load_and_process(config_load_command);
-
-            let mut loaded_config = load_result.unwrap_or_else(|err| {
-                panic!(
-                    "Loading deployment in path {:?} with application config files {:?}\nResulted \
-                     in error: {}",
-                    deployment.deployment_file_path(),
-                    service_config_paths,
-                    err
-                );
-            });
-
-            // The config files are set with the actual service host names, which are not
-            // DNS-resolvable in the test setting. As such, we set all host names to
-            // localhost to allow successful validation.
-            loaded_config.components.set_urls_to_localhost();
-            if let Err(error) = loaded_config.validate_node_config() {
-                panic!("Config validation failed: {error}");
-            }
         }
     }
 }
