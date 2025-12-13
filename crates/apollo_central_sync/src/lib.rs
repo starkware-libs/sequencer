@@ -447,7 +447,28 @@ impl<
              {deployed_contract_class_definitions:#?}"
         );
 
-        // TODO(noamsp): describe why we do this.
+        // Filter out classes that are already declared in the storage. Only the first deployment of
+        // a class declares it.
+        let deployed_contract_class_definitions = {
+            let txn = self.reader.begin_ro_txn()?;
+            let state_reader = txn.get_state_reader()?;
+            deployed_contract_class_definitions
+                .into_iter()
+                .filter_map(|(class_hash, deprecated_class)| {
+                    match state_reader
+                        .get_deprecated_class_definition_block_number(&class_hash)
+                    {
+                        Ok(Some(_)) => None, // Class already exists, filter it out
+                        Ok(None) => Some(Ok((class_hash, deprecated_class))), // Class doesn't exist, keep it
+                        Err(e) => Some(Err(e)), // Propagate error
+                    }
+                })
+                .collect::<Result<IndexMap<ClassHash, DeprecatedContractClass>, StorageError>>()?
+        };
+
+        // Feeder's state diff contains only classes declared by declare transaction. The old Deploy
+        // transaction is also capable of declaring classes, only if the deployed class wasn't
+        // declared yet. We modify the state diff to include those classes
         state_diff.deprecated_declared_classes.extend(
             deployed_contract_class_definitions
                 .iter()
