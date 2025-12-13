@@ -1,0 +1,13 @@
+[package]
+name = "starknet_os_runner"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Runs transactions through the Starknet OS and returns Cairo PIE and OS output."
+
+[dependencies]
+
+[lints]
+workspace = true
+
