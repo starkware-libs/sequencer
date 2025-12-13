@@ -226,7 +226,6 @@ async fn test_skip_validate(
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
-    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
@@ -236,8 +235,7 @@ async fn test_skip_validate(
 
     let runtime = tokio::runtime::Handle::current();
 
-    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
-    mock_gateway_fixed_block.expect_get_nonce().return_once(move |_| Ok(sender_nonce));
+    let mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
     let mut stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig::default(),
         blockifier_stateful_tx_validator: mock_blockifier_validator,
@@ -245,14 +243,16 @@ async fn test_skip_validate(
     };
 
     tokio::task::spawn_blocking(move || {
-        let _ = stateful_validator.extract_state_nonce_and_run_validations(
+        stateful_validator.run_validate_entry_point(
             &executable_tx,
+            sender_nonce,
             mempool_client,
             runtime,
-        );
+        )
     })
     .await
-    .unwrap();
+    .unwrap()  // Errors if the spawned task panics.
+    .unwrap() // Errors if the run_validate_entry_point call fails.
 }
 
 #[rstest]
