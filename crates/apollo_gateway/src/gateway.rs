@@ -60,7 +60,6 @@ pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
 }
@@ -79,11 +78,11 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
                     config.contract_class_manager_config.clone(),
                 ),
             }),
-            state_reader_factory,
             mempool_client,
             transaction_converter,
         }
@@ -153,7 +152,7 @@ impl Gateway {
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.clone())
+            .instantiate_validator()
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
