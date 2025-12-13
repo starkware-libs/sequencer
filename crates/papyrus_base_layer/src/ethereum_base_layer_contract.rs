@@ -147,6 +147,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
+        // Don't actually need mutability here, and using mut self doesn't work with async move in
+        // the loop below.
         let immutable_self = &*self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())

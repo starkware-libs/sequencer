@@ -32,5 +32,6 @@ validator.workspace = true
 apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 pretty_assertions.workspace = true
+rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
