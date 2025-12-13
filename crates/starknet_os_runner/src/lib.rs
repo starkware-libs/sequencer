@@ -1,2 +1,3 @@
 pub mod errors;
-mod proof_provider;
+pub mod os_input_builder;
+pub mod proof_provider;
