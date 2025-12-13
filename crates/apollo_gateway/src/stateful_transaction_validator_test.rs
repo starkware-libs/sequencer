@@ -232,6 +232,7 @@ async fn test_skip_validate(
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()
         .returning(move |_| Ok(contains_tx));
+    mock_mempool_client.expect_validate_tx().returning(|_| Ok(()));
     let mempool_client = Arc::new(mock_mempool_client);
 
     let runtime = tokio::runtime::Handle::current();
