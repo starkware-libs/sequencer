@@ -32,18 +32,19 @@ NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
 
 # Enum of base commands.
 class BaseCommand(Enum):
-    TEST = "test"
     CLIPPY = "clippy"
     DOC = "doc"
     INTEGRATION = "integration"
+    NEXTEST = "nextest"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
         for package in crates:
             package_args.extend(["--package", package])
 
-        if self == BaseCommand.TEST:
-            return [["cargo", "test"] + package_args]
+        if self == BaseCommand.NEXTEST:
+            nextest_args = package_args if len(package_args) > 0 else ["--workspace"]
+            return [["cargo", "nextest", "run"] + nextest_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
