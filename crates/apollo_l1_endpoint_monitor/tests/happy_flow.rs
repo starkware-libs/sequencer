@@ -25,9 +25,9 @@ async fn end_to_end_cycle_and_recovery() {
         current_l1_endpoint_index: 0,
         config: L1EndpointMonitorConfig {
             ordered_l1_endpoint_urls: vec![
-                bad_node_url.clone(),
-                good_url_1.clone(),
-                good_url_2.clone(),
+                bad_node_url.clone().into(),
+                good_url_1.clone().into(),
+                good_url_2.clone().into(),
             ],
             ..Default::default()
         },
@@ -35,7 +35,7 @@ async fn end_to_end_cycle_and_recovery() {
 
     // 1) First call: skip bad and take the first good one.
     let active1 = monitor.get_active_l1_endpoint().await.unwrap();
-    assert_eq!(active1, good_url_1);
+    assert_eq!(active1, good_url_1.clone().into());
     assert_eq!(monitor.current_l1_endpoint_index, 1);
 
     // 2) Anvil 1 is going down.
@@ -43,7 +43,7 @@ async fn end_to_end_cycle_and_recovery() {
 
     // Next call: now the first good node is down, switch to second good node.
     let active2 = monitor.get_active_l1_endpoint().await.unwrap();
-    assert_eq!(active2, good_url_2);
+    assert_eq!(active2, good_url_2.clone().into());
     assert_eq!(monitor.current_l1_endpoint_index, 2);
 
     // 3) Anvil 2 is now also down!
@@ -61,10 +61,10 @@ async fn end_to_end_cycle_and_recovery() {
     // Anvil is configured to use an ephemeral port, so this new node will be bound to a fresh port.
     // We cannot reuse the previous URL since the old port may no longer be available.
     let good_url_1 = good_node_1.endpoint_url();
-    monitor.config.ordered_l1_endpoint_urls[1] = good_url_1.clone();
+    monitor.config.ordered_l1_endpoint_urls[1] = good_url_1.clone().into();
     // Index wraps around from 2 to 0, 0 is still down so 1 is picked, which is operational now.
     let active3 = monitor.get_active_l1_endpoint().await.unwrap();
-    assert_eq!(active3, good_url_1);
+    assert_eq!(active3, good_url_1.clone().into());
     assert_eq!(monitor.current_l1_endpoint_index, 1);
 }
 
