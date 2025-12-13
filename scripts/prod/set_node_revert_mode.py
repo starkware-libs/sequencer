@@ -152,7 +152,7 @@ Examples:
         "--disable-revert-only", action="store_true", help="Disable revert mode"
     )
 
-    block_revert_args_group = args_builder.parser.add_mutually_exclusive_group(required=True)
+    block_revert_args_group = args_builder.parser.add_mutually_exclusive_group()
 
     block_revert_args_group.add_argument(
         "-b",
@@ -180,14 +180,28 @@ Examples:
     namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
     context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
-    should_revert = not args.disable_revert_only
+    disable_revert_only = args.disable_revert_only
+    should_revert = not disable_revert_only
     should_disable_revert = not args.revert_only
-    revert_up_to_block = (
-        args.revert_up_to_block
-        if args.revert_up_to_block is not None
-        else get_current_block_number(args.feeder_url)
-    )
+    revert_args_provided = args.revert_up_to_block is not None or args.feeder_url is not None
+
+    # If disable_revert_only is enabled, we cannot set revert arguments.
+    if disable_revert_only and revert_args_provided:
+        args_builder.parser.error(
+            "Both --revert-up-to-block (-b) and --feeder-url (-f) cannot be set when --disable-revert-only is set"
+        )
+
     if should_revert:
+        # If revert mode is enabled, we must set revert arguments.
+        if not revert_args_provided:
+            args_builder.parser.error(
+                "Either --revert-up-to-block (-b) or --feeder-url (-f) is required when revert mode is enabled"
+            )
+        revert_up_to_block = (
+            args.revert_up_to_block
+            if revert_up_to_block is not None
+            else get_current_block_number(args.feeder_url)
+        )
         enable_revert_mode(
             namespace_list,
             context_list,
@@ -199,7 +213,6 @@ Examples:
         disable_revert_mode(
             namespace_list,
             context_list,
-            revert_up_to_block,
         )
 
 
