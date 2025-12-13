@@ -14,6 +14,10 @@ use tracing::{error, info};
 
 use crate::{StorageError, StorageReader};
 
+#[cfg(test)]
+#[path = "storage_reader_server_test.rs"]
+mod storage_reader_server_test;
+
 // TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
 #[allow(dead_code)]
 /// Configuration for the storage reader server.
