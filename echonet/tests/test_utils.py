@@ -59,6 +59,13 @@ class L1TestUtils:
         "result": BLOCK,
     }
 
+    # Full JSON-RPC response from get_block_number
+    BLOCK_NUMBER_RPC_RESPONSE = {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "result": BLOCK_NUMBER_HEX,
+    }
+
     L1_EVENT = L1Client.L1Event(
         contract_address="0x616757a151c21f9be8775098d591c2807316d992bbc3bb1a5c1821630589256",
         entry_point_selector=0x1B64B1B3B690B43B9B514FB81377518F4039CD3E4F4914D8A6BDF01D679FB19,
@@ -94,6 +101,8 @@ class L1TestUtils:
         ],
         "type": "L1_HANDLER",
     }
+
+    L2_BLOCK_TIMESTAMP = 1764500673
 
     @staticmethod
     def log_with_nonce(nonce: int) -> dict:
