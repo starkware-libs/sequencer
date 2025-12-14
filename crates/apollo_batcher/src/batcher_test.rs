@@ -979,6 +979,7 @@ async fn add_sync_block() {
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
+        block_header_commitments: None,
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
@@ -1008,6 +1009,7 @@ async fn add_sync_block_mismatch_block_number() {
             block_number: INITIAL_HEIGHT.unchecked_next(),
             ..Default::default()
         },
+        block_header_commitments: None,
         ..Default::default()
     };
     let result = batcher.add_sync_block(sync_block).await;
