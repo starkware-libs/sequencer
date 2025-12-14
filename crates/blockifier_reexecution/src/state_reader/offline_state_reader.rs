@@ -26,17 +26,14 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::compile::{
-    legacy_to_contract_class_v0,
-    sierra_to_versioned_contract_class_v1,
-};
-use crate::state_reader::errors::ReexecutionResult;
+use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
+use crate::errors::ReexecutionResult;
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
 };
-use crate::state_reader::test_state_reader::StarknetContractClassMapping;
-use crate::state_reader::utils::{get_chain_info, ReexecutionStateMaps};
+use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
+use crate::utils::{get_chain_info, ReexecutionStateMaps};
 
 pub struct OfflineReexecutionData {
     offline_state_reader_prev_block: OfflineStateReader,

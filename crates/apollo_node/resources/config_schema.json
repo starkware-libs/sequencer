@@ -2704,7 +2704,7 @@
     "privacy": "Public",
     "value": 300.0
   },
-  "l1_provider_config.new_l1_handler_cooldown_seconds": {
+  "l1_provider_config.l1_handler_proposal_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
     "privacy": "Public",
     "value": 70

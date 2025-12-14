@@ -1,8 +1,6 @@
 [
   "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_revert_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_versioned_constants_overrides_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_validate_resource_bounds_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_gateway_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
   "crates/apollo_deployments/resources/deployments/replacer_deployment.json",

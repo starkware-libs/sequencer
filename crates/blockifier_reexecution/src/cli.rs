@@ -3,9 +3,9 @@ use std::fs::read_to_string;
 
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
+use starknet_api::core::{chain_id_from_hex_str, ChainId};
 
-use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
+use crate::errors::{ReexecutionError, ReexecutionResult};
 
 pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
 
@@ -38,22 +38,34 @@ impl From<SupportedChainId> for ChainId {
 }
 
 #[derive(Clone, Debug, Args)]
+#[clap(group(
+    clap::ArgGroup::new("chain_id_group")
+        .args(&["chain_id", "custom_chain_id"])
+))]
 pub struct RpcArgs {
     /// Node url.
     #[clap(long, short = 'n')]
     pub node_url: String,
 
     /// Optional chain ID (if not provided, it will be guessed from the node url).
+    /// Supported values: mainnet, testnet, integration.
     #[clap(long, short = 'c')]
     pub chain_id: Option<SupportedChainId>,
+
+    /// Optional custom chain ID as hex string (e.g., "0x534e5f4d41494e").
+    #[clap(long)]
+    pub custom_chain_id: Option<String>,
 }
 
 impl RpcArgs {
     pub fn parse_chain_id(&self) -> ChainId {
-        self.chain_id
-            .clone()
-            .map(ChainId::from)
-            .unwrap_or(guess_chain_id_from_node_url(self.node_url.as_str()).unwrap())
+        if let Some(chain_id) = &self.chain_id {
+            return chain_id.clone().into();
+        }
+        if let Some(hex_str) = &self.custom_chain_id {
+            return chain_id_from_hex_str(hex_str).expect("Failed to parse hex chain id");
+        }
+        guess_chain_id_from_node_url(self.node_url.as_str()).unwrap()
     }
 }
 
