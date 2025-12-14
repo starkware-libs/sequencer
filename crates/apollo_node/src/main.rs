@@ -10,6 +10,8 @@ use tracing::info;
 
 set_global_allocator!();
 
+// TODO(Tsabary): a msg to trigger the test.
+
 // TODO(Tsabary): remove the hook definition after we transition to proper usage of task spawning.
 fn set_exit_process_on_panic() {
     let default_panic = std::panic::take_hook();

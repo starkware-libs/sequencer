@@ -19,7 +19,7 @@ config:
     components_l1_gas_price_provider_port: 55003
     components_l1_gas_price_provider_url: sequencer-l1-service
     components_l1_provider_port: 55004
-    components_l1_provider_url: sequencer-l1-service
+    components_l1_provider_url: sequencer-lala-service
     components_mempool_port: 55006
     components_mempool_url: sequencer-mempool-service
     components_sierra_compiler_port: 55007
