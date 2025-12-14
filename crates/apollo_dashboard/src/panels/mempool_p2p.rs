@@ -1,11 +1,14 @@
 use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
+    MEMPOOL_P2P_DROPPED_MESSAGE_SIZE,
     MEMPOOL_P2P_NETWORK_EVENTS,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
     MEMPOOL_P2P_PING_LATENCY,
+    MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE,
+    MEMPOOL_P2P_SENT_MESSAGE_SIZE,
 };
 use apollo_metrics::metrics::MetricDetails;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
@@ -27,6 +30,15 @@ fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
     )
 }
 
+fn get_panel_mempool_p2p_sent_message_size() -> Panel {
+    Panel::from_hist(
+        &MEMPOOL_P2P_SENT_MESSAGE_SIZE,
+        "Mempool P2p Sent Message Size MB/sec",
+        "The rate of MB per second sent by the mempool p2p component",
+    )
+    .with_unit(Unit::MB)
+}
+
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
     Panel::new(
         "Number of received messages",
@@ -34,6 +46,15 @@ fn get_panel_mempool_p2p_num_received_messages() -> Panel {
         increase(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_mempool_p2p_received_message_size() -> Panel {
+    Panel::from_hist(
+        &MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE,
+        "Mempool P2p Received Message Size MB/sec",
+        "The rate of MB per second received by the mempool p2p component",
+    )
+    .with_unit(Unit::MB)
 }
 
 // TODO(shahak): add units.
@@ -69,6 +90,15 @@ fn get_panel_mempool_p2p_dropped_messages_by_reason() -> Panel {
     )
 }
 
+fn get_panel_mempool_p2p_dropped_message_size() -> Panel {
+    Panel::from_hist(
+        &MEMPOOL_P2P_DROPPED_MESSAGE_SIZE,
+        "Mempool P2p Dropped Message Size MB/sec",
+        "The rate of MB per second dropped by the mempool p2p component",
+    )
+    .with_unit(Unit::MB)
+}
+
 fn get_panel_mempool_p2p_ping_latency() -> Panel {
     Panel::from_hist(
         &MEMPOOL_P2P_PING_LATENCY,
@@ -84,10 +114,13 @@ pub(crate) fn get_mempool_p2p_row() -> Row {
         vec![
             get_panel_mempool_p2p_num_connected_peers(),
             get_panel_mempool_p2p_num_sent_messages(),
+            get_panel_mempool_p2p_sent_message_size(),
             get_panel_mempool_p2p_num_received_messages(),
+            get_panel_mempool_p2p_received_message_size(),
             get_panel_mempool_p2p_broadcasted_batch_size(),
             get_panel_mempool_p2p_network_events_by_type(),
             get_panel_mempool_p2p_dropped_messages_by_reason(),
+            get_panel_mempool_p2p_dropped_message_size(),
             get_panel_mempool_p2p_ping_latency(),
         ],
     )

@@ -676,7 +676,7 @@ async fn decision_reached_sends_correct_values() {
 
     let vote = Vote {
         // Currently this is the only field used by decision_reached.
-        height: 0,
+        height: BlockNumber(0),
         ..Default::default()
     };
 

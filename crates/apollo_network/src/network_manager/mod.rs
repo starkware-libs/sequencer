@@ -536,14 +536,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
 
+        let message_size = message.len();
         self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
-            broadcast_metrics.num_received_broadcast_messages.increment(1);
+            broadcast_metrics.received_broadcast_message_metrics.record_message(message_size);
         });
 
         trace!("Received broadcast message with topic hash: {topic_hash:?}");
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
-            encoded_message_length: message.len(),
+            encoded_message_length: message_size,
         };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
             panic!(
@@ -629,15 +630,18 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+        let message_size = message.len();
         self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
-            broadcast_metrics.num_sent_broadcast_messages.increment(1)
+            broadcast_metrics.sent_broadcast_message_metrics.record_message(message_size);
         });
 
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
         let result = self.swarm.broadcast_message(message, topic_hash.clone());
         if let Err(err) = result {
             self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
-                broadcast_metrics.increment_publish_error(&err);
+                broadcast_metrics
+                    .dropped_broadcast_message_metrics
+                    .record_message(&err, message_size);
             });
         }
     }

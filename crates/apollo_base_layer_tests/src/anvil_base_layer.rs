@@ -10,6 +10,7 @@ use alloy::sol_types::SolValue;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
+    CircularUrlIterator,
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
@@ -96,13 +97,13 @@ curl -L \
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config();
-        let url = Self::url();
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url },
+            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -123,6 +124,7 @@ curl -L \
     pub fn config() -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+            ordered_l1_endpoint_urls: vec![Self::url()],
             ..Default::default()
         }
     }
@@ -193,25 +195,25 @@ impl BaseLayerContract for AnvilBaseLayer {
     type Error = EthereumBaseLayerError;
 
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error> {
         self.ethereum_base_layer.get_proved_block_at(l1_block).await
     }
 
-    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error> {
+    async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error> {
         self.ethereum_base_layer.latest_l1_block_number().await
     }
 
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error> {
         self.ethereum_base_layer.l1_block_at(block_number).await
     }
 
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error> {
@@ -219,18 +221,29 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     async fn get_block_header(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
         self.ethereum_base_layer.get_block_header(block_number).await
     }
 
+    async fn get_block_header_immutable(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockHeader>, Self::Error> {
+        self.ethereum_base_layer.get_block_header_immutable(block_number).await
+    }
+
     // TODO(Arni): Consider deleting this function from the trait.
     async fn get_url(&self) -> Result<Url, Self::Error> {
-        Ok(self.ethereum_base_layer.url.clone())
+        Ok(self.ethereum_base_layer.url_iterator.get_current_url())
     }
 
     async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
+        unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
+    }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
 }

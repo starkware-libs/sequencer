@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
-use apollo_http_server_config::config::HttpServerConfig;
+use apollo_http_server_config::config::{HttpServerConfig, DEFAULT_MAX_SIERRA_PROGRAM_SIZE};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
@@ -83,7 +83,11 @@ impl HttpTestClient {
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
-    HttpServerConfig { ip: socket.ip(), port: socket.port() }
+    HttpServerConfig {
+        ip: socket.ip(),
+        port: socket.port(),
+        max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+    }
 }
 
 /// Creates an HTTP server and an HttpTestClient that can interact with it.
@@ -96,7 +100,7 @@ pub async fn http_client_server_setup(
         HttpServer::new(http_server_config.clone(), Arc::new(mock_gateway_client));
     tokio::spawn(async move { http_server.run().await });
 
-    let HttpServerConfig { ip, port } = http_server_config;
+    let HttpServerConfig { ip, port, .. } = http_server_config;
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
     // Ensure the server starts running.
@@ -151,7 +155,11 @@ pub async fn add_tx_http_client(
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
+    let http_server_config = HttpServerConfig {
+        ip,
+        port: available_ports.get_next_port(),
+        max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+    };
     http_client_server_setup(mock_gateway_client, http_server_config).await
 }
 

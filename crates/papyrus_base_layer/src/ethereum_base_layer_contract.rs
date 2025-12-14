@@ -13,7 +13,11 @@ use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol;
 use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_vec,
+    serialize_slice,
+};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
@@ -66,16 +70,45 @@ sol!(
 pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>;
 
 #[derive(Clone, Debug)]
+pub struct CircularUrlIterator {
+    urls: Vec<Url>,
+    index: usize,
+}
+
+impl CircularUrlIterator {
+    pub fn new(urls: Vec<Url>) -> Self {
+        Self { urls, index: 0 }
+    }
+
+    pub fn get_current_url(&self) -> Url {
+        self.urls.get(self.index).cloned().expect("No endpoint URLs provided")
+    }
+}
+
+impl Iterator for CircularUrlIterator {
+    type Item = Url;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.index = (self.index + 1) % self.urls.len();
+        self.urls.get(self.index).cloned()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
-    pub url: Url,
+    pub url_iterator: CircularUrlIterator,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
 }
 
 impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig, url: Url) -> Self {
-        let contract = build_contract_instance(config.starknet_contract_address, url.clone());
-        Self { url, contract, config }
+    pub fn new(config: EthereumBaseLayerConfig) -> Self {
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let contract = build_contract_instance(
+            config.starknet_contract_address,
+            url_iterator.get_current_url(),
+        );
+        Self { url_iterator, contract, config }
     }
 }
 
@@ -86,7 +119,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
         let block_id = l1_block.into();
@@ -110,17 +143,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
+        let immutable_self = &*self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())
             .events(events)
-            .address(self.config.starknet_contract_address);
+            .address(immutable_self.config.starknet_contract_address);
         let matching_logs = tokio::time::timeout(
-            self.config.timeout_millis,
-            self.contract.provider().get_logs(&filter),
+            immutable_self.config.timeout_millis,
+            immutable_self.contract.provider().get_logs(&filter),
         )
         .await??;
         // Debugging.
@@ -130,7 +164,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let block_header_futures = matching_logs.into_iter().map(|log| {
             let block_number = log.block_number.unwrap();
             async move {
-                let header = self.get_block_header(block_number).await?.unwrap();
+                let header =
+                    immutable_self.get_block_header_immutable(block_number).await?.unwrap();
                 parse_event(log, header.timestamp)
             }
         });
@@ -139,7 +174,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     #[instrument(skip(self), err)]
-    async fn latest_l1_block_number(&self) -> EthereumBaseLayerResult<L1BlockNumber> {
+    async fn latest_l1_block_number(&mut self) -> EthereumBaseLayerResult<L1BlockNumber> {
         let block_number = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_number(),
@@ -150,7 +185,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
         let block = tokio::time::timeout(
@@ -168,6 +203,13 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Query the Ethereum base layer for the header of a block.
     #[instrument(skip(self), err)]
     async fn get_block_header(
+        &mut self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
+        self.get_block_header_immutable(block_number).await
+    }
+
+    async fn get_block_header_immutable(
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
@@ -215,12 +257,19 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     async fn get_url(&self) -> Result<Url, Self::Error> {
-        Ok(self.url.clone())
+        Ok(self.url_iterator.get_current_url())
     }
 
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
+    }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
+        self.url_iterator
+            .next()
+            .expect("URL list was validated to be non-empty when config was loaded");
         Ok(())
     }
 }
@@ -260,6 +309,8 @@ impl PartialEq for EthereumBaseLayerError {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
+    #[serde(deserialize_with = "deserialize_vec")]
+    pub ordered_l1_endpoint_urls: Vec<Url>,
     pub starknet_contract_address: EthereumContractAddress,
     // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
     // Note 2: make sure to calculate the block number as activation epoch x32.
@@ -277,6 +328,7 @@ impl Validate for EthereumBaseLayerConfig {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
         let mut errors = validator::ValidationErrors::new();
 
+        // Check that the Fusaka updates are ordered chronologically.
         if self.fusaka_no_bpo_start_block_number > self.bpo1_start_block_number {
             let mut error = ValidationError::new("block_numbers_not_ordered");
             error.message =
@@ -291,6 +343,13 @@ impl Validate for EthereumBaseLayerConfig {
             errors.add("bpo1_start_block_number", error);
         }
 
+        // Check that the URL list is not empty.
+        if self.ordered_l1_endpoint_urls.is_empty() {
+            let mut error = ValidationError::new("url_list_is_empty");
+            error.message = Some("ordered_l1_endpoint_urls must not be empty".into());
+            errors.add("ordered_l1_endpoint_urls", error);
+        }
+
         if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }
@@ -298,6 +357,13 @@ impl Validate for EthereumBaseLayerConfig {
 impl SerializeConfig for EthereumBaseLayerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
+            ser_param(
+                "ordered_l1_endpoint_urls",
+                &serialize_slice(&self.ordered_l1_endpoint_urls),
+                "An ordered list of URLs for communicating with Ethereum. The list is used in \
+                 order, cyclically, switching if the current one is non-operational.",
+                ParamPrivacyInput::Private,
+            ),
             ser_param(
                 "starknet_contract_address",
                 &self.starknet_contract_address.to_string(),
@@ -339,6 +405,9 @@ impl Default for EthereumBaseLayerConfig {
             "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
 
         Self {
+            ordered_l1_endpoint_urls: vec![
+                "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY".parse().unwrap(),
+            ],
             starknet_contract_address,
             fusaka_no_bpo_start_block_number: 0,
             bpo1_start_block_number: 0,
