@@ -7,6 +7,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -65,6 +66,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &HashMap::new(),
             &OriginalSkeletonContractsTrieConfig::new(),
+            &EmptyKeyContext,
         )
         .await?)
     }
@@ -93,6 +95,7 @@ impl<S: Storage> FactsDb<S> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                &EmptyKeyContext,
             )
             .await?;
             storage_tries.insert(*address, original_skeleton);
@@ -115,6 +118,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            &EmptyKeyContext,
         )
         .await?)
     }
@@ -175,9 +179,9 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         filled_forest
             .storage_tries
             .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(filled_forest.contracts_trie.serialize())
-            .chain(filled_forest.classes_trie.serialize())
+            .flat_map(|tree| tree.serialize(&EmptyKeyContext).into_iter())
+            .chain(filled_forest.contracts_trie.serialize(&EmptyKeyContext))
+            .chain(filled_forest.classes_trie.serialize(&EmptyKeyContext))
             .collect()
     }
 
