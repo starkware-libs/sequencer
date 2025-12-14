@@ -385,9 +385,10 @@ pub(crate) fn get_invoke_transaction_v3_hash<T: InvokeTransactionV3Trait>(
     let account_deployment_data_hash = HashChain::new()
         .chain_iter(transaction.account_deployment_data().0.iter())
         .get_poseidon_hash();
+    let proof_facts_hash =
+        HashChain::new().chain_iter(transaction.proof_facts().0.iter()).get_poseidon_hash();
     let calldata_hash =
         HashChain::new().chain_iter(transaction.calldata().0.iter()).get_poseidon_hash();
-    // TODO(AvivG): Add proof_facts to hash calculation.
     Ok(TransactionHash(
         HashChain::new()
             .chain(&INVOKE)
@@ -400,6 +401,7 @@ pub(crate) fn get_invoke_transaction_v3_hash<T: InvokeTransactionV3Trait>(
             .chain(&data_availability_mode)
             .chain(&account_deployment_data_hash)
             .chain(&calldata_hash)
+            .chain(&proof_facts_hash)
             .get_poseidon_hash(),
     ))
 }
