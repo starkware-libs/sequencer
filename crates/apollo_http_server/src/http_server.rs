@@ -218,18 +218,22 @@ async fn add_tx_inner(
     // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
     // Even if the current task is cancelled, e.g., when a request is dropped while still being
     // processed, the inner task will continue to run.
-    let add_tx_result =
-        tokio::spawn(async move { app_state.gateway_client.add_tx(gateway_input).await })
-            .await
-            .expect("Should be able to get add_tx result")
-            .map_err(|e| {
-                debug!("Error while adding transaction: {}", e);
-                HttpServerError::from(Box::new(e))
-            });
+    let region = headers
+        .get(CLIENT_REGION_HEADER)
+        .and_then(|region| region.to_str().ok())
+        .unwrap_or("N/A")
+        .to_string();
+    let add_tx_result = tokio::spawn(async move {
+        let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+            debug!("Error while adding transaction: {}", e);
+            HttpServerError::from(Box::new(e))
+        });
+        record_added_transactions(&add_tx_result, &region);
+        add_tx_result
+    })
+    .await
+    .expect("Should be able to get add_tx result");
 
-    let region =
-        headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");
-    record_added_transactions(&add_tx_result, region);
     Ok(Json(add_tx_result?))
 }
 
