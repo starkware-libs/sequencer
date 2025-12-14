@@ -5,7 +5,6 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
     FactsDbInitialRead,
     Input,
-    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -18,7 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
-pub type FactsDbInputImpl = Input<ReaderConfig, FactsDbInitialRead>;
+pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 
 #[derive(Debug, PartialEq)]
 pub struct CommitterFactsDbInputImpl {

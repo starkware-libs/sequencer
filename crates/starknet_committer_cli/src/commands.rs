@@ -33,7 +33,7 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
-pub type InputImpl = Input<ReaderConfig, FactsDbInitialRead>;
+pub type InputImpl = Input<FactsDbInitialRead>;
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
