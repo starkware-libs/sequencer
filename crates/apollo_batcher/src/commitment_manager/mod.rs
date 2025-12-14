@@ -3,7 +3,7 @@
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
-use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -89,11 +89,21 @@ impl CommitmentManager {
         }
     }
 
+    /// Fetches all ready commitment results from the state committer.
     pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
-        unimplemented!()
+        let mut results = Vec::new();
+        loop {
+            match self.results_receiver.try_recv() {
+                Ok(result) => results.push(result),
+                Err(TryRecvError::Empty) => break,
+                Err(err) => {
+                    panic!("Failed to receive commitment result from state committer. error: {err}")
+                }
+            }
+        }
+        results
     }
 
-    // TODO(Amos): Pass committer client as argument.
     pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
         unimplemented!()
     }
