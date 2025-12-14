@@ -11,7 +11,18 @@ LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
     "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
 )
 
+# Function selectors for Starknet L1 contract.
+STATE_BLOCK_NUMBER_SELECTOR = "0x35befa5d"  # stateBlockNumber()
+STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
+
 
 def timestamp_to_iso(timestamp: int) -> str:
     """Convert Unix timestamp to ISO 8601 string (UTC)."""
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def format_0x_hex(value: int, width: int = 64) -> str:
+    """Formats an integer as a 0x-prefixed hex string, zero-padded to width hex chars."""
+    mod = 1 << (width * 4)
+    v = value % mod
+    return "0x" + format(v, f"0{width}x")
