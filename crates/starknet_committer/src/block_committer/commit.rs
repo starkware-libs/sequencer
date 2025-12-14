@@ -25,7 +25,7 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 // TODO(Yoav): Include InputContext and ForestReader as arguments of the Layer, when it's ready.
-pub async fn commit_block<I: InputContext, Reader: for<'a> ForestReader<'a, I>>(
+pub async fn commit_block<I: InputContext, Reader: ForestReader<I>>(
     input: Input<ConfigImpl, I>,
     trie_reader: &mut Reader,
     mut time_measurement: Option<&mut TimeMeasurement>,
