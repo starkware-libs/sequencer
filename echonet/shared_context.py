@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
@@ -134,10 +133,10 @@ class SharedContext:
             # Otherwise record as echonet-only revert
             self.revert_errors_echonet[k] = error
 
-    def get_sent_block_number(self, tx_hash: str) -> Optional[int]:
+    def get_sent_block_number(self, tx_hash: str) -> int:
         k = tx_hash.lower()
         with self.lock:
-            return self.sent_tx_hashes.get(k)
+            return self.sent_tx_hashes[k]
 
     def record_resync_cause(self, tx_hash: str, block_number: int, reason: str) -> bool:
         """
@@ -399,6 +398,6 @@ class SharedContext:
 
 shared = SharedContext()
 # Global L1Manager instance shared across modules.
-_L1_ALCHEMY_API_KEY = os.getenv("L1_ALCHEMY_API_KEY", "")
-_l1_client = L1Client(api_key=_L1_ALCHEMY_API_KEY)
+# The L1 Alchemy API key is injected at deploy-time via the L1_ALCHEMY_API_KEY
+_l1_client = L1Client(api_key=consts.L1_ALCHEMY_API_KEY)
 l1_manager: L1Manager = L1Manager(_l1_client)

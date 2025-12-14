@@ -11,6 +11,7 @@ Python wrapper to deploy echonet via Kustomize.
   -t  X-Throttling-Bypass token value for feeder requests (sets FEEDER_X_THROTTLING_BYPASS env)
   -s  starting block number (sets START_BLOCK_DEFAULT env)
   -e  resync error threshold (sets RESYNC_ERROR_THRESHOLD env)
+  -a  L1 Alchemy API key (sets L1_ALCHEMY_API_KEY env)
 """
 
 from __future__ import annotations
@@ -110,6 +111,12 @@ def main(argv: list[str] | None = None) -> int:
         metavar="COUNT",
         help="Resync error threshold (RESYNC_ERROR_THRESHOLD env).",
     )
+    parser.add_argument(
+        "-a",
+        dest="l1_alchemy_api_key",
+        metavar="API_KEY",
+        help="L1 Alchemy API key (L1_ALCHEMY_API_KEY env).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -166,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
         env_args.append(f"START_BLOCK_DEFAULT={args.start_block_default}")
     if args.resync_error_threshold:
         env_args.append(f"RESYNC_ERROR_THRESHOLD={args.resync_error_threshold}")
+    if args.l1_alchemy_api_key:
+        env_args.append(f"L1_ALCHEMY_API_KEY={args.l1_alchemy_api_key}")
 
     if env_args:
         print(f"[deploy] Setting environment variables on deployment/echonet: {' '.join(env_args)}")

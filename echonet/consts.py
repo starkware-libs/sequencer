@@ -31,6 +31,14 @@ def _get_optional_int_env(var_name: str, default: int) -> int:
     return _get_required_int_env(var_name)
 
 
+def _get_required_str_env(var_name: str) -> str:
+    """Return a non-empty string from a required environment variable."""
+    raw = os.getenv(var_name)
+    if raw is None or raw == "":
+        raise RuntimeError(f"Missing required environment variable: {var_name}")
+    return raw
+
+
 # Shared throttling headers used for feeder requests.
 # The X-Throttling-Bypass value is injected at deploy-time via the
 # FEEDER_X_THROTTLING_BYPASS environment variable
@@ -68,6 +76,7 @@ GET_STATE_UPDATE_ENDPOINT = "/feeder_gateway/get_state_update"
 GET_SIGNATURE_ENDPOINT = "/feeder_gateway/get_signature"
 GET_TRANSACTION_ENDPOINT = "/feeder_gateway/get_transaction"
 GET_CLASS_BY_HASH_ENDPOINT = "/feeder_gateway/get_class_by_hash"
+GET_COMPILED_CLASS_BY_CLASS_HASH_ENDPOINT = "/feeder_gateway/get_compiled_class_by_class_hash"
 
 # Sequencer endpoints
 ADD_TX_ENDPOINT = "/gateway/add_transaction"
@@ -81,3 +90,6 @@ BLOCKED_SENDERS = set()
 # Minimum number of errors (gateway errors + not-committed txs)
 # required before triggering a resync.
 RESYNC_ERROR_THRESHOLD = _get_optional_int_env("RESYNC_ERROR_THRESHOLD", default=1)
+
+# Required L1 Alchemy API key (used by L1Client / L1Manager and injected via deploy).
+L1_ALCHEMY_API_KEY = _get_required_str_env("L1_ALCHEMY_API_KEY")

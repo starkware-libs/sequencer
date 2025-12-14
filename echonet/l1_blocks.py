@@ -1,10 +1,11 @@
 from typing import Optional
 
-import logging
 from l1_client import L1Client
 from l1_utils import timestamp_to_iso
+from logger import get_logger
 
-logger = logging.getLogger(__name__)
+# Use the shared echonet logger namespace so L1 logs are visible with others.
+logger = get_logger("l1_blocks")
 
 
 class L1Blocks:
@@ -45,6 +46,9 @@ class L1Blocks:
         """
         Finds the L1 block number that contains the given L1 handler transaction.
         """
+        logger.info(
+            f"Finding L1 block for tx: {feeder_tx}, l2_block_timestamp: {l2_block_timestamp}"
+        )
         if "transaction_hash" not in feeder_tx:
             logger.error("Feeder tx does not contain transaction_hash.")
             return None
@@ -60,9 +64,12 @@ class L1Blocks:
 
         logs_response = client.get_logs(start_block_data, end_block_data)
         if logs_response is None:
+            logger.error(f"No logs found for block {start_block_data} to {end_block_data}")
             return None
 
-        for log in logs_response.get("result", []):
+        results = logs_response.get("result", [])
+        logger.info(f"Found {len(results)} logs")
+        for log in results:
             l1_event = L1Client.decode_log_response(log)
 
             if L1Blocks.l1_event_matches_feeder_tx(l1_event, feeder_tx):

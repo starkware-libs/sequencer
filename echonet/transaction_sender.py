@@ -169,7 +169,10 @@ class TransactionSenderService:
                 if tx.get("type") == "L1_HANDLER":
                     # Use shared L1Manager to update any L1-related cache/state based on this tx.
                     try:
-                        l1_manager.update_cache(tx, block_timestamp=src_ts)
+                        logger.info(f"Setting new tx: {tx}, src_bn: {src_bn}, src_ts: {src_ts}")
+                        l1_manager.set_new_tx(tx, src_ts)
+                        txh = tx["transaction_hash"]
+                        shared.record_sent_tx(txh, src_bn)
                     except Exception as err:
                         logger.warning(
                             f"Failed to update L1 cache for tx {tx.get('transaction_hash')}: {err}"
@@ -290,7 +293,7 @@ class TransactionSenderService:
                     sent_map: Dict[str, int] = snapshot.get("sent_tx_hashes") or {}
 
                     # Only consider errors / pending txs that are at least 10 blocks old
-                    threshold_block = int(block_number) - 10
+                    threshold_block = int(block_number) - 20
 
                     # Collect all eligible errors (gateway + not-committed) with reasons
                     candidates: List[tuple[str, int, str]] = []
@@ -375,6 +378,12 @@ class TransactionSenderService:
                                     reports._compare_reverts_from_data(
                                         payload
                                     )  # type: ignore[attr-defined]
+
+                                # Also print the reports to the application logs before resync.
+                                snapshot_str = buf_snapshot.getvalue()
+                                logger.info(
+                                    "Echonet report snapshot before resync:\n%s", snapshot_str
+                                )
                                 os.makedirs(str(consts.LOG_DIR), exist_ok=True)
                                 ts_suffix = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
                                 out_snapshot = os.path.join(

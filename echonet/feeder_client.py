@@ -12,6 +12,7 @@ from consts import (
     FEEDER_HEADERS,
     GET_BLOCK_ENDPOINT,
     GET_CLASS_BY_HASH_ENDPOINT,
+    GET_COMPILED_CLASS_BY_CLASS_HASH_ENDPOINT,
     GET_SIGNATURE_ENDPOINT,
     GET_STATE_UPDATE_ENDPOINT,
     GET_TRANSACTION_ENDPOINT,
@@ -92,6 +93,21 @@ class FeederClient:
             params["blockNumber"] = block_number
         resp = self.session.get(
             f"{self.base_url}{GET_CLASS_BY_HASH_ENDPOINT}",
+            params=params,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_compiled_class_by_class_hash(
+        self, class_hash: str, *, block_number: Optional[int | str] = None
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {"classHash": class_hash}
+        if block_number is not None:
+            params["blockNumber"] = block_number
+        resp = self.session.get(
+            f"{self.base_url}{GET_COMPILED_CLASS_BY_CLASS_HASH_ENDPOINT}",
             params=params,
             headers=self.headers,
             timeout=self.timeout,
