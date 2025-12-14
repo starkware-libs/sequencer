@@ -13,7 +13,7 @@ pub type StateSyncResult<T> = Result<T, StateSyncError>;
 ///
 /// Blocks that came from the state sync are trusted. Therefore, SyncBlock doesn't contain data
 /// needed for verifying the block
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncBlock {
     pub state_diff: ThinStateDiff,
     // TODO(Matan): decide if we want block hash, parent block hash and full classes here.

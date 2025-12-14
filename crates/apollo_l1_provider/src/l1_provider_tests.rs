@@ -107,6 +107,16 @@ fn cancellation_event(
     Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
 }
 
+fn sync_block() -> SyncBlock {
+    SyncBlock {
+        state_diff: Default::default(),
+        account_transaction_hashes: Default::default(),
+        l1_transaction_hashes: Default::default(),
+        block_header_without_hash: Default::default(),
+        block_header_commitments: Some(Default::default()),
+    }
+}
+
 #[test]
 fn get_txs_happy_flow() {
     // Setup.
@@ -1491,7 +1501,7 @@ async fn bootstrap_e2e() {
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
-    sync_response.lock().unwrap().insert(STARTUP_HEIGHT, SyncBlock::default());
+    sync_response.lock().unwrap().insert(STARTUP_HEIGHT, sync_block());
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // **Commit** 2 blocks past catchup height, should be received after the previous sync.
@@ -1503,8 +1513,8 @@ async fn bootstrap_e2e() {
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Feed sync task the remaining blocks, will be received after the commits above.
-    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 1), SyncBlock::default());
-    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 2), SyncBlock::default());
+    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 1), sync_block());
+    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 2), sync_block());
     tokio::time::sleep(2 * config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Assert that initializer task has received the stubbed responses from the sync client and sent
@@ -1676,15 +1686,12 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     // Simulate the state sync service finally being ready, and give the async task enough time to
     // pick this up and sync up the provider.
-    sync_block_response.lock().unwrap().insert(startup_height, SyncBlock::default());
+    sync_block_response.lock().unwrap().insert(startup_height, sync_block());
+    sync_block_response.lock().unwrap().insert(startup_height.unchecked_next(), sync_block());
     sync_block_response
         .lock()
         .unwrap()
-        .insert(startup_height.unchecked_next(), SyncBlock::default());
-    sync_block_response
-        .lock()
-        .unwrap()
-        .insert(startup_height.unchecked_next().unchecked_next(), SyncBlock::default());
+        .insert(startup_height.unchecked_next().unchecked_next(), sync_block());
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;

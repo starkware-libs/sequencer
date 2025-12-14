@@ -85,7 +85,15 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // Setup the state sync client.
     let mut state_sync_client = MockStateSyncClient::default();
-    state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
+    state_sync_client.expect_get_block().returning(move |_| {
+        Ok(SyncBlock {
+            state_diff: Default::default(),
+            account_transaction_hashes: Default::default(),
+            l1_transaction_hashes: Default::default(),
+            block_header_without_hash: Default::default(),
+            block_header_commitments: Some(Default::default()),
+        })
+    });
 
     // Set up the L1 provider client and server.
     // This channel connects the L1Provider client to the server.
