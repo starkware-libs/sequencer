@@ -487,13 +487,14 @@ func execute_invoke_function_transaction{
     %{ TxProofFacts %}
 
     let poseidon_ptr = builtin_ptrs.selectable.poseidon;
-    // TODO(Meshi): use the invoke transaction proof facts once implemented.
     with poseidon_ptr {
         let transaction_hash = compute_invoke_transaction_hash(
             common_fields=common_tx_fields,
             execution_context=tx_execution_context,
             account_deployment_data_size=account_deployment_data_size,
             account_deployment_data=account_deployment_data,
+            proof_facts_size=proof_facts_size,
+            proof_facts=proof_facts,
         );
     }
     update_poseidon_in_builtin_ptrs(poseidon_ptr=poseidon_ptr);
