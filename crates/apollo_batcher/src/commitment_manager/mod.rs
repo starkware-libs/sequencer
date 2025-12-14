@@ -5,19 +5,24 @@ use core::panic;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
-use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
 
+use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::StateCommitter;
 use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
 
+pub(crate) mod errors;
 pub(crate) mod state_committer;
 pub(crate) mod types;
 
+pub type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
+
 // TODO(amos): Add to Batcher config.
 #[derive(Debug)]
+
 pub(crate) struct CommitmentManagerConfig {
     pub(crate) tasks_channel_size: usize,
     pub(crate) results_channel_size: usize,
@@ -99,8 +104,16 @@ impl CommitmentManager {
         }
     }
 
-    pub(crate) async fn get_commitment_result(&mut self) -> CommitmentTaskOutput {
-        unimplemented!()
+    pub(crate) async fn get_commitment_result(
+        &mut self,
+    ) -> CommitmentManagerResult<CommitmentTaskOutput> {
+        match self.results_receiver.try_recv() {
+            Ok(result) => Ok(result),
+            Err(TryRecvError::Empty) => Err(CommitmentManagerError::ResultsChannelEmpty),
+            Err(err) => {
+                panic!("Failed to receive commitment result from StateCommitter. error: {err}");
+            }
+        }
     }
 
     // TODO(Amos): Pass committer client as argument.
