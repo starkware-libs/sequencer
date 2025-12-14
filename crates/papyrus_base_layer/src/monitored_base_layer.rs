@@ -90,7 +90,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
     type Error = MonitoredBaseLayerError<B>;
 
     async fn get_proved_block_at(
-        &self,
+        &mut self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error> {
         self.get()
@@ -100,7 +100,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
 
-    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error> {
+    async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error> {
         self.get()
             .await?
             .latest_l1_block_number()
@@ -109,7 +109,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
     }
 
     async fn l1_block_at(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error> {
         self.get()
@@ -120,7 +120,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
     }
 
     async fn events<'a>(
-        &'a self,
+        &'a mut self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error> {
@@ -132,12 +132,23 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
     }
 
     async fn get_block_header(
-        &self,
+        &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
         self.get()
             .await?
             .get_block_header(block_number)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn get_block_header_immutable(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockHeader>, Self::Error> {
+        self.get()
+            .await?
+            .get_block_header_immutable(block_number)
             .await
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
@@ -150,6 +161,14 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
         self.get()
             .await?
             .set_provider_url(url)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
+        self.get()
+            .await?
+            .cycle_provider_url()
             .await
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }

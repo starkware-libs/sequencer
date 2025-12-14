@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_api::state::ThinStateDiff;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
-    state_diff: StateDiff,
-    state_diff_commitment: StateDiffCommitment,
+    state_diff: ThinStateDiff,
+    // Field is optional because for old blocks, the state diff commitment might not be available.
+    state_diff_commitment: Option<StateDiffCommitment>,
     height: BlockNumber,
 }
 
@@ -18,7 +19,7 @@ pub struct CommitBlockResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RevertBlockRequest {
     // A synthetic state diff that undoes the state diff of the given height.
-    reversed_state_diff: StateDiff,
+    reversed_state_diff: ThinStateDiff,
     height: BlockNumber,
 }
 

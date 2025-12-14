@@ -26,7 +26,6 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::SierraContractClass;
 use starknet_core::types::{
     CompressedLegacyContractClass,
-    FlattenedSierraClass,
     LegacyContractEntryPoint,
     LegacyEntryPointsByType,
 };
@@ -76,20 +75,11 @@ pub fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
     Ok(s)
 }
 
-/// Compile a FlattenedSierraClass to a versioned ContractClass V1 (casm) using
+/// Compile a SierraContractClass to a versioned ContractClass V1 (casm) using
 /// apollo_compile_to_casm.
 pub fn sierra_to_versioned_contract_class_v1(
-    flattened_sierra: FlattenedSierraClass,
+    sierra_contract: SierraContractClass,
 ) -> StateResult<(ContractClass, SierraVersion)> {
-    let serde_value = serde_json::to_value(&flattened_sierra)
-        .unwrap_or_else(|err| panic!("Failed to serialize flattened Sierra: {err}"));
-    let sierra_contract: SierraContractClass =
-        serde_json::from_value(serde_value).unwrap_or_else(|err| {
-            panic!(
-                "Failed to deserialize SierraContractClass: {err} for flattened_sierra: \
-                 {flattened_sierra:?}"
-            );
-        });
     let sierra_version = SierraVersion::extract_from_program(&sierra_contract.sierra_program)
         .unwrap_or_else(|err| panic!("Failed to extract Sierra version: {err}"));
     let raw_class = RawClass::try_from(sierra_contract)

@@ -1087,7 +1087,6 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
@@ -1348,6 +1347,7 @@ dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager_types",
+ "apollo_config",
  "apollo_consensus",
  "apollo_consensus_orchestrator_config",
  "apollo_infra",
@@ -1433,7 +1433,6 @@ dependencies = [
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
- "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_state_sync_metrics",
  "apollo_storage",
@@ -1625,6 +1624,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio",
+ "tokio-metrics",
  "tower 0.4.13",
  "tracing",
  "tracing-subscriber",
@@ -1723,6 +1723,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "static_assertions",
  "strum 0.25.0",
  "tempfile",
  "tokio",
@@ -1784,6 +1785,7 @@ dependencies = [
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
+ "assert_matches",
  "async-trait",
  "futures",
  "lru 0.12.5",
@@ -2054,7 +2056,6 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
- "tokio-metrics",
  "tower 0.4.13",
  "tracing",
 ]
@@ -2167,6 +2168,7 @@ dependencies = [
  "apollo_state_sync_metrics",
  "apollo_state_sync_types",
  "futures",
+ "metrics-exporter-prometheus",
  "papyrus_base_layer",
  "pretty_assertions",
  "tikv-jemallocator",
@@ -2610,9 +2612,6 @@ dependencies = [
  "apollo_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
- "starknet_api",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -4454,9 +4453,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19404b3af952f1f8f1fcb68c58eafc06d5255002dc7a7c81c800676a0779004a"
+checksum = "8ce3a73f176cbb920f729bc528a152a3c717d46e0d4f1023d56096b6aad1186b"
 dependencies = [
  "aquamarine",
  "ark-ec 0.5.0",
@@ -12275,6 +12274,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
+ "starknet-core",
  "starknet-crypto",
  "starknet-types-core",
  "strum 0.25.0",
@@ -12288,6 +12288,7 @@ dependencies = [
 name = "starknet_committer"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "csv",
  "ethnum",
  "hex",

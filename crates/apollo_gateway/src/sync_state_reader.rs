@@ -23,22 +23,22 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
+use crate::gateway_fixed_block_state_reader::{
+    GatewayFixedBlockStateReader,
+    GatewayFixedBlockSyncStateClient,
+};
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
-use crate::state_reader::{
-    GatewayStateReaderWithCompiledClasses,
-    MempoolStateReader,
-    StateReaderFactory,
-};
+use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
@@ -73,7 +73,7 @@ impl SyncStateReader {
         Ok(sierra)
     }
 
-    fn get_compiled_class_from_client(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+    fn get_contract_class_from_client(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let is_class_declared = self
             .runtime
             .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
@@ -96,43 +96,9 @@ impl SyncStateReader {
     }
 }
 
-#[async_trait]
-impl MempoolStateReader for SyncStateReader {
-    async fn get_block_info(&self) -> StateResult<BlockInfo> {
-        let block = self
-            .state_sync_client
-            .get_block(self.block_number)
-            .await
-            .map_err(|e| StateError::StateReadError(e.to_string()))?;
-
-        let block_header = block.block_header_without_hash;
-        let block_info = BlockInfo {
-            block_number: block_header.block_number,
-            block_timestamp: block_header.timestamp,
-            sequencer_address: block_header.sequencer.0,
-            gas_prices: GasPrices {
-                eth_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_wei.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_wei.try_into()?,
-                },
-                strk_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_fri.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
-                },
-            },
-            use_kzg_da: block_header.l1_da_mode.is_use_kzg_da(),
-            starknet_version: block_header.starknet_version,
-        };
-
-        Ok(block_info)
-    }
-}
-
 impl FetchCompiledClasses for SyncStateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        let contract_class = self.get_compiled_class_from_client(class_hash)?;
+        let contract_class = self.get_contract_class_from_client(class_hash)?;
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
                 let sierra = self.read_sierra(class_hash)?.ok_or_else(|| {
@@ -199,7 +165,7 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = self.get_compiled_class_from_client(class_hash)?;
+        let contract_class = self.get_contract_class_from_client(class_hash)?;
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
@@ -358,20 +324,28 @@ impl StateReaderFactory for SyncStateReaderFactory {
     // TODO(guy.f): The call to `get_latest_block_number()` is not counted in the storage metrics as
     // it is done prior to the creation of SharedStateSyncClientMetricWrapper, directly via the
     // SharedStateSyncClient.
-    async fn get_state_reader_from_latest_block(
+    async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
+    ) -> StateSyncClientResult<(
+        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<dyn GatewayFixedBlockStateReader>,
+    )> {
         let latest_block_number = self
             .shared_state_sync_client
             .get_latest_block_number()
             .await?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
-        Ok(Box::new(SyncStateReader::from_number(
+        let blockifier_state_reader = SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
             latest_block_number,
             self.runtime.clone(),
-        )))
+        );
+        let gateway_fixed_block_sync_state_client = GatewayFixedBlockSyncStateClient::new(
+            self.shared_state_sync_client.clone(),
+            latest_block_number,
+        );
+        Ok((Box::new(blockifier_state_reader), Box::new(gateway_fixed_block_sync_state_client)))
     }
 }

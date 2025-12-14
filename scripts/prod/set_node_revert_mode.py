@@ -39,20 +39,11 @@ def set_revert_mode(
     restarter: ServiceRestarter,
     should_revert: bool,
     revert_up_to_block: int,
-    immediate_active_height: Optional[int] = None,
 ):
     config_overrides = {
         "revert_config.should_revert": should_revert,
         "revert_config.revert_up_to_and_including": revert_up_to_block,
     }
-    if immediate_active_height is not None:
-        assert not should_revert, "Immediate active height should not be set when reverting"
-        # We need a short variable name to avoid splitting to multiple lines which local black
-        # formatting does in a way that CI black doesn't like and fails on.
-        height = immediate_active_height
-        config_overrides["consensus_manager_config.immediate_active_height"] = height
-        config_overrides["consensus_manager_config.cende_config.skip_write_height"] = height
-
     update_config_and_restart_nodes(
         ConstConfigValuesUpdater(config_overrides),
         namespace_and_instruction_args,
@@ -106,7 +97,6 @@ def enable_revert_mode(
 def disable_revert_mode(
     namespace_list: list[str],
     context_list: Optional[list[str]],
-    immediate_active_height: int,
 ):
     print_colored("Disabling revert mode", Colors.YELLOW)
     namespace_and_instruction_args = NamespaceAndInstructionArgs(namespace_list, context_list)
@@ -119,7 +109,6 @@ def disable_revert_mode(
         False,
         # Setting to max block to max u64 to disable revert.
         2**64 - 1,
-        immediate_active_height,
     )
 
 
@@ -210,7 +199,6 @@ Examples:
         disable_revert_mode(
             namespace_list,
             context_list,
-            # Immediate active height is the block number which will be the first block proposed.
             revert_up_to_block,
         )
 

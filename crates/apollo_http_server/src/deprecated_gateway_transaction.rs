@@ -46,15 +46,13 @@ pub enum DeprecatedGatewayTransactionV3 {
     Invoke(DeprecatedGatewayInvokeTransaction),
 }
 
-impl TryFrom<DeprecatedGatewayTransactionV3> for RpcTransaction {
-    type Error = CompressionError;
-
-    fn try_from(deprecated_tx: DeprecatedGatewayTransactionV3) -> Result<Self, Self::Error> {
-        Ok(match deprecated_tx {
+impl DeprecatedGatewayTransactionV3 {
+    pub fn convert_to_rpc_tx(self, max_size: usize) -> Result<RpcTransaction, CompressionError> {
+        Ok(match self {
             DeprecatedGatewayTransactionV3::Declare(DeprecatedGatewayDeclareTransaction::V3(
                 deprecated_declare_tx,
             )) => RpcTransaction::Declare(RpcDeclareTransaction::V3(
-                deprecated_declare_tx.try_into()?,
+                deprecated_declare_tx.convert_to_rpc_declare_tx(max_size)?,
             )),
             DeprecatedGatewayTransactionV3::DeployAccount(
                 DeprecatedGatewayDeployAccountTransaction::V3(deprecated_deploy_account_tx),
@@ -226,24 +224,23 @@ pub struct DeprecatedGatewayDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-impl TryFrom<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 {
-    type Error = CompressionError;
-
-    fn try_from(
-        deprecated_declare_tx: DeprecatedGatewayDeclareTransactionV3,
-    ) -> Result<Self, Self::Error> {
+impl DeprecatedGatewayDeclareTransactionV3 {
+    pub fn convert_to_rpc_declare_tx(
+        self,
+        max_size: usize,
+    ) -> Result<RpcDeclareTransactionV3, CompressionError> {
         Ok(RpcDeclareTransactionV3 {
-            sender_address: deprecated_declare_tx.sender_address,
-            compiled_class_hash: deprecated_declare_tx.compiled_class_hash,
-            signature: deprecated_declare_tx.signature,
-            nonce: deprecated_declare_tx.nonce,
-            contract_class: deprecated_declare_tx.contract_class.try_into()?,
-            resource_bounds: deprecated_declare_tx.resource_bounds.into(),
-            tip: deprecated_declare_tx.tip,
-            paymaster_data: deprecated_declare_tx.paymaster_data,
-            account_deployment_data: deprecated_declare_tx.account_deployment_data,
-            nonce_data_availability_mode: deprecated_declare_tx.nonce_data_availability_mode,
-            fee_data_availability_mode: deprecated_declare_tx.fee_data_availability_mode,
+            sender_address: self.sender_address,
+            compiled_class_hash: self.compiled_class_hash,
+            signature: self.signature,
+            nonce: self.nonce,
+            contract_class: self.contract_class.convert_to_sierra_contract_class(max_size)?,
+            resource_bounds: self.resource_bounds.into(),
+            tip: self.tip,
+            paymaster_data: self.paymaster_data,
+            account_deployment_data: self.account_deployment_data,
+            nonce_data_availability_mode: self.nonce_data_availability_mode,
+            fee_data_availability_mode: self.fee_data_availability_mode,
         })
     }
 }
@@ -278,23 +275,17 @@ pub struct DeprecatedGatewaySierraContractClass {
     pub abi: String,
 }
 
-impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
-    type Error = CompressionError;
-
-    fn try_from(
-        rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
-    ) -> Result<Self, Self::Error> {
-        // TODO(dan): use config for this.
-        const MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
-        let sierra_program = decode_and_decompress_with_size_limit(
-            &rest_sierra_contract_class.sierra_program,
-            MAX_SIERRA_PROGRAM_SIZE,
-        )?;
+impl DeprecatedGatewaySierraContractClass {
+    pub fn convert_to_sierra_contract_class(
+        self,
+        max_size: usize,
+    ) -> Result<SierraContractClass, CompressionError> {
+        let sierra_program = decode_and_decompress_with_size_limit(&self.sierra_program, max_size)?;
         Ok(SierraContractClass {
             sierra_program,
-            contract_class_version: rest_sierra_contract_class.contract_class_version,
-            entry_points_by_type: rest_sierra_contract_class.entry_points_by_type,
-            abi: rest_sierra_contract_class.abi,
+            contract_class_version: self.contract_class_version,
+            entry_points_by_type: self.entry_points_by_type,
+            abi: self.abi.clone(),
         })
     }
 }

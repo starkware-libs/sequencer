@@ -10,6 +10,7 @@ description = "Computes and manages Starknet state."
 testing = ["starknet_patricia/testing"]
 
 [dependencies]
+async-trait.workspace = true
 csv.workspace = true
 ethnum.workspace = true
 hex.workspace = true

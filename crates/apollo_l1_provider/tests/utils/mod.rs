@@ -66,12 +66,8 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
     let mut base_layer = AnvilBaseLayer::new(None).await;
-    anvil_mine_blocks(
-        base_layer.ethereum_base_layer.config.clone(),
-        NUMBER_OF_BLOCKS_TO_MINE,
-        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
-    )
-    .await;
+    anvil_mine_blocks(base_layer.ethereum_base_layer.config.clone(), NUMBER_OF_BLOCKS_TO_MINE)
+        .await;
     // We use a really long timeout because in the tests we sometimes advance the fake time by large
     // jumps (e.g., when the runtime yields, tokio moves the fake time to the next pending timer).
     base_layer.ethereum_base_layer.config.timeout_millis = Duration::from_secs(10000);
@@ -174,15 +170,15 @@ pub(crate) async fn setup_scraper_and_provider<
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn send_message_from_l1_to_l2(
-    base_layer: &AnvilBaseLayer,
+    base_layer: &mut AnvilBaseLayer,
     call_data: &[u8],
 ) -> (TransactionHash, Uint<256, 4>) {
-    let contract = &base_layer.ethereum_base_layer.contract;
     let last_l1_block_number =
         base_layer.ethereum_base_layer.latest_l1_block_number().await.unwrap();
     assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
 
     // Send message from L1 to L2.
+    let contract = &base_layer.ethereum_base_layer.contract;
     let call_data = convert_call_data_to_u256(call_data);
     let fee = 1_u8;
     let message_to_l2 = contract
