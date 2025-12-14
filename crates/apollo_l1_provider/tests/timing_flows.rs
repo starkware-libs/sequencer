@@ -54,7 +54,7 @@ async fn timing_flows() {
     let l1_config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(cancellation_timelock),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(consumption_timelock),
-        new_l1_handler_cooldown_seconds: Duration::from_secs(new_message_cooldown),
+        l1_handler_proposal_cooldown_seconds: Duration::from_secs(new_message_cooldown),
         ..Default::default()
     };
     let mut l1_provider = L1Provider::new(

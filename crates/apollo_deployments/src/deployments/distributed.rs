@@ -17,26 +17,13 @@ use crate::deployment_definitions::{
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{
-    get_environment_ingress_internal,
-    get_ingress,
-    Controller,
-    Ingress,
-    IngressParams,
-    Resource,
-    Resources,
-    Toleration,
-};
+use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
-
-const BATCHER_STORAGE: usize = 500;
-const CLASS_MANAGER_STORAGE: usize = 500;
-const STATE_SYNC_STORAGE: usize = 500;
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -90,6 +77,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             Self::Batcher.component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = Self::ClassManager
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+<<<<<<< HEAD
         let gateway =
             Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
         let l1_endpoint_monitor =
@@ -101,6 +89,29 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let mempool =
             Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
         let sierra_compiler = Self::SierraCompiler
+||||||| dd2fc66ab
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+=======
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+>>>>>>> origin/main-v0.14.1
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
         let signature_manager = Self::SignatureManager
             .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
@@ -137,7 +148,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 Self::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
-                    l1_endpoint_monitor.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
@@ -210,6 +220,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+<<<<<<< HEAD
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -226,13 +237,39 @@ impl ServiceNameInner for DistributedNodeServiceName {
             },
             Environment::LocalK8s => None,
         }
+||||||| dd2fc66ab
+    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
+        match environment {
+            Environment::CloudK8s(_) => match self {
+                DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
+                DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
+                DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
+                DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                DistributedNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
+                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
+                DistributedNodeServiceName::SierraCompiler => {
+                    Some(Toleration::ApolloGeneralService)
+                }
+                DistributedNodeServiceName::SignatureManager => {
+                    Some(Toleration::ApolloGeneralService)
+                }
+                DistributedNodeServiceName::StateSync => Some(Toleration::ApolloGeneralService),
+            },
+            Environment::LocalK8s => None,
+        }
+=======
+    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
+        None
+>>>>>>> origin/main-v0.14.1
     }
 
     fn get_ingress(
         &self,
-        environment: &Environment,
-        ingress_params: IngressParams,
+        _environment: &Environment,
+        _ingress_params: IngressParams,
     ) -> Option<Ingress> {
+<<<<<<< HEAD
         match self {
             Self::Batcher => None,
             Self::ClassManager => None,
@@ -247,6 +284,24 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::SignatureManager => None,
             Self::StateSync => None,
         }
+||||||| dd2fc66ab
+        match self {
+            DistributedNodeServiceName::Batcher => None,
+            DistributedNodeServiceName::ClassManager => None,
+            DistributedNodeServiceName::ConsensusManager => None,
+            DistributedNodeServiceName::HttpServer => {
+                get_ingress(ingress_params, get_environment_ingress_internal(environment))
+            }
+            DistributedNodeServiceName::Gateway => None,
+            DistributedNodeServiceName::L1 => None,
+            DistributedNodeServiceName::Mempool => None,
+            DistributedNodeServiceName::SierraCompiler => None,
+            DistributedNodeServiceName::SignatureManager => None,
+            DistributedNodeServiceName::StateSync => None,
+        }
+=======
+        None
+>>>>>>> origin/main-v0.14.1
     }
 
     fn has_p2p_interface(&self) -> bool {
@@ -262,6 +317,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+<<<<<<< HEAD
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -278,6 +334,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
             },
             Environment::LocalK8s => None,
         }
+||||||| dd2fc66ab
+    fn get_storage(&self, environment: &Environment) -> Option<usize> {
+        match environment {
+            Environment::CloudK8s(_) => match self {
+                DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
+                DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
+                DistributedNodeServiceName::ConsensusManager => None,
+                DistributedNodeServiceName::HttpServer => None,
+                DistributedNodeServiceName::Gateway => None,
+                DistributedNodeServiceName::L1 => None,
+                DistributedNodeServiceName::Mempool => None,
+                DistributedNodeServiceName::SierraCompiler => None,
+                DistributedNodeServiceName::SignatureManager => None,
+                DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
+            },
+            Environment::LocalK8s => None,
+        }
+=======
+    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
+        None
+>>>>>>> origin/main-v0.14.1
     }
 
     fn get_resources(&self, _environment: &Environment) -> Resources {
@@ -288,6 +365,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         1
     }
 
+<<<<<<< HEAD
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -304,6 +382,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
             },
             Environment::LocalK8s => false,
         }
+||||||| dd2fc66ab
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::CloudK8s(_) => match self {
+                DistributedNodeServiceName::Batcher => true,
+                DistributedNodeServiceName::ClassManager => false,
+                DistributedNodeServiceName::ConsensusManager => false,
+                DistributedNodeServiceName::HttpServer => false,
+                DistributedNodeServiceName::Gateway => false,
+                DistributedNodeServiceName::L1 => false,
+                DistributedNodeServiceName::Mempool => true,
+                DistributedNodeServiceName::SierraCompiler => false,
+                DistributedNodeServiceName::SignatureManager => false,
+                DistributedNodeServiceName::StateSync => false,
+            },
+            Environment::LocalK8s => false,
+        }
+=======
+    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
+        false
+>>>>>>> origin/main-v0.14.1
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
@@ -1010,7 +1109,6 @@ fn get_http_server_component_config(
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -1019,7 +1117,7 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
+    config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.state_sync = state_sync_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();

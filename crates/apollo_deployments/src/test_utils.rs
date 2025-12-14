@@ -12,6 +12,11 @@ pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 #[derive(Serialize)]
 pub struct SecretsConfigOverride {
     #[serde(
+        rename = "base_layer_config.ordered_l1_endpoint_urls",
+        serialize_with = "serialize_slice_wrapper"
+    )]
+    base_layer_config_ordered_l1_endpoint_urls: Vec<Url>,
+    #[serde(
         rename = "consensus_manager_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
@@ -47,6 +52,10 @@ pub struct SecretsConfigOverride {
 impl Default for SecretsConfigOverride {
     fn default() -> Self {
         Self {
+            base_layer_config_ordered_l1_endpoint_urls: vec![
+                Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),
+                Url::parse("https://arbitrary.ordered_l1_endpoint_2.url").unwrap(),
+            ],
             consensus_manager_config_network_config_secret_key: None,
             l1_endpoint_monitor_config_ordered_l1_endpoint_urls: vec![
                 Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),

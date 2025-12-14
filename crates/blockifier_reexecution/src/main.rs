@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
-use blockifier_reexecution::state_reader::cli::{
+use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_reexecution::cli::{
     parse_block_numbers_args,
     BlockifierReexecutionCliArgs,
     Command,
@@ -10,12 +12,8 @@ use blockifier_reexecution::state_reader::cli::{
     FULL_RESOURCES_DIR,
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
-use blockifier_reexecution::state_reader::utils::{
-    execute_single_transaction,
-    reexecute_and_verify_correctness,
-    write_block_reexecution_data_to_file,
-};
+use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -50,6 +48,14 @@ async fn main() {
             + RESOURCES_DIR
     };
 
+    // Initialize the contract class manager.
+    let mut contract_class_manager_config = ContractClassManagerConfig::default();
+    if cfg!(feature = "cairo_native") {
+        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
+        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+    }
+    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
             println!(
@@ -57,18 +63,19 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
-
+            let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
+                ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
-                    Some(config),
+                    Some(rpc_state_reader_config),
                     rpc_args.parse_chain_id(),
                     false,
-                ))
+                    contract_class_manager,
+                )
+                .reexecute_and_verify_correctness()
             })
             .await
             .unwrap();
@@ -90,13 +97,21 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+            let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let chain_id = rpc_args.parse_chain_id();
 
-            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
+            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction(BlockNumber(block_number), node_url, chain_id, tx_input)
+                ConsecutiveRpcStateReaders::new(
+                    BlockNumber(block_number - 1),
+                    Some(rpc_state_reader_config),
+                    chain_id,
+                    false,
+                    contract_class_manager,
+                )
+                .execute_single_transaction(tx_input)
             })
             .await
             .unwrap()
@@ -115,18 +130,23 @@ async fn main() {
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+                let contract_class_manager = contract_class_manager.clone();
+
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
+                let rpc_state_reader_config = RpcStateReaderConfig::from_url(node_url);
                 task_set.spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
-                        write_block_reexecution_data_to_file(
-                            block_number,
-                            full_file_path,
-                            node_url,
+                        ConsecutiveRpcStateReaders::new(
+                            block_number.prev().expect("Should not run with block 0"),
+                            Some(rpc_state_reader_config),
                             chain_id,
+                            true,
+                            contract_class_manager,
                         )
+                        .write_block_reexecution_data_to_file(&full_file_path)
                     })
                     .await
                 });
@@ -144,10 +164,14 @@ async fn main() {
             let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
+                let contract_class_manager = contract_class_manager.clone();
                 task_set.spawn(async move {
-                    reexecute_and_verify_correctness(
-                        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
-                    );
+                    OfflineConsecutiveStateReaders::new_from_file(
+                        &full_file_path,
+                        contract_class_manager,
+                    )
+                    .unwrap()
+                    .reexecute_and_verify_correctness();
                     println!("Reexecution test for block {block} passed successfully.");
                 });
             }

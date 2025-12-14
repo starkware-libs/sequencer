@@ -91,8 +91,8 @@ mock! {
 
         async fn decision_reached(
             &mut self,
-            block: ProposalCommitment,
-            precommits: Vec<Vote>,
+            height: BlockNumber,
+            commitment: ProposalCommitment,
         ) -> Result<(), ConsensusError>;
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;
@@ -101,17 +101,28 @@ mock! {
     }
 }
 
-pub fn prevote(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
+pub fn prevote(
+    block_felt: Option<Felt>,
+    height: BlockNumber,
+    round: Round,
+    voter: ValidatorId,
+) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
     Vote { vote_type: VoteType::Prevote, height, round, proposal_commitment, voter }
 }
 
-pub fn precommit(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
+pub fn precommit(
+    block_felt: Option<Felt>,
+    height: BlockNumber,
+    round: Round,
+    voter: ValidatorId,
+) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
     Vote { vote_type: VoteType::Precommit, height, round, proposal_commitment, voter }
 }
-pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
-    ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }
+
+pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
+    ProposalInit { height, round, proposer, ..Default::default() }
 }
 
 #[derive(Debug)]

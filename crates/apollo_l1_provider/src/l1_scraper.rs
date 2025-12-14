@@ -1,6 +1,5 @@
 use std::any::type_name;
 use std::fmt::Debug;
-use std::future::Future;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
@@ -11,6 +10,7 @@ use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
+use futures::future::{BoxFuture, FutureExt};
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
@@ -33,10 +33,6 @@ use crate::metrics::{
 pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
-
-// TODO(guyn): make this a config parameter
-// Sensible lower bound.
-const L1_BLOCK_TIME: u64 = 10;
 
 pub struct L1Scraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1ScraperConfig,
@@ -66,10 +62,15 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
 
     #[instrument(skip(self), err)]
     pub async fn run(&mut self) -> L1ScraperResult<(), BaseLayerType> {
+        // Each of the following function is use as a closure sent to
+        // retry_until_base_layer_success. This will retry each of them, in turn, in an
+        // endless loop until they succeed. Since they have different return types, we have
+        // to use box/pin to pass them as a closure.
+
         // Try to get all the information needed for initialization.
         self.scrape_from_this_l1_block = Some(
             self.retry_until_base_layer_success(
-                |_| self.fetch_start_block(),
+                |this| this.fetch_start_block().boxed(),
                 "fetching start block",
             )
             .await?,
@@ -78,7 +79,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         // The last historic L2 height is returned, to be using in initialization.
         let historic_l2_height = self
             .retry_until_base_layer_success(
-                |_| self.get_last_historic_l2_height(),
+                |this| this.get_last_historic_l2_height().boxed(),
                 "fetching last historic L2 height",
             )
             .await?;
@@ -87,7 +88,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         // Update the L1 block number we need to scrape from.
         self.scrape_from_this_l1_block = Some(
             self.retry_until_base_layer_success(
-                |_| self.initialize(historic_l2_height),
+                |this| this.initialize(historic_l2_height).boxed(),
                 "initializing",
             )
             .await?,
@@ -114,7 +115,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     /// Use config.startup_rewind_time_seconds to estimate an L1 block number
     /// that is far enough back to start scraping from.
     pub async fn fetch_start_block(
-        &self,
+        &mut self,
     ) -> Result<L1BlockReference, L1ScraperError<BaseLayerType>> {
         // Define the safety margin (e.g., extra 50% over the required number of blocks).
         const SAFTEY_MARGIN_NUMERATOR: u64 = 3;
@@ -135,7 +136,8 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         debug!("Latest L1 block number: {latest_l1_block_number:?}");
 
         // Estimate the number of blocks in the interval, to rewind from the latest block.
-        let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+        let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs()
+            / self.config.l1_block_time_seconds.as_secs();
         debug!("Blocks in interval: {blocks_in_interval}");
 
         // Add 50% safety margin.
@@ -162,7 +164,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     }
 
     /// Get the last historic L2 height that was proved before the start block number.
-    async fn get_last_historic_l2_height(&self) -> L1ScraperResult<BlockNumber, BaseLayerType> {
+    async fn get_last_historic_l2_height(&mut self) -> L1ScraperResult<BlockNumber, BaseLayerType> {
         let Some(start_block) = self.scrape_from_this_l1_block else {
             panic!(
                 "Should never get last historic L2 height without first getting the last \
@@ -172,10 +174,17 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         // If the L1 chain was created less than startup_rewind ago, then L2 didn't exist at that
         // moment. Therefore, historic L2 height should be 0
         if start_block.number == 0 {
+            warn!(
+                "L1 start block is genesis (no historical L2). Setting provider historic height \
+                 to L2 genesis height"
+            );
             return Ok(BlockNumber(0));
         }
         if self.config.set_provider_historic_height_to_l2_genesis {
-            warn!("Setting provideer historic height to L2 genesis height");
+            warn!(
+                "Config set_provider_historic_height_to_l2_genesis is enabled. Setting provider \
+                 historic height to L2 genesis height"
+            );
             return Ok(BlockNumber(0));
         }
         let last_historic_l2_height = self
@@ -193,7 +202,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     /// was restarted).
     #[instrument(skip(self), err)]
     async fn initialize(
-        &self,
+        &mut self,
         historic_l2_height: BlockNumber,
     ) -> L1ScraperResult<L1BlockReference, BaseLayerType> {
         let (latest_l1_block, events) = self.fetch_events().await?;
@@ -238,7 +247,9 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     }
 
     /// Query the L1 base layer for all events since scrape_from_this_l1_block.
-    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), BaseLayerType> {
+    async fn fetch_events(
+        &mut self,
+    ) -> L1ScraperResult<(L1BlockReference, Vec<Event>), BaseLayerType> {
         let scrape_timestamp = self.clock.unix_now();
 
         let latest_l1_block_number = self
@@ -256,14 +267,11 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             .base_layer
             .l1_block_at(latest_l1_block_number)
             .await
-            .map_err(L1ScraperError::BaseLayerError)?;
+            .map_err(L1ScraperError::BaseLayerError)?
+            .ok_or(L1ScraperError::LatestL1BlockNumberNoBlockFound {
+                block_number: latest_l1_block_number,
+            })?;
 
-        let Some(latest_l1_block) = latest_l1_block else {
-            // TODO(guyn): get rid of finality_too_high, use a better error.
-            return Err(
-                L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
-            );
-        };
         let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
             panic!("Should never fetch events without first getting the last processed L1 block.");
         };
@@ -342,14 +350,15 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
 
     /// Retry the given function if it gets base layer errors. Returns the result of the function in
     /// case of success or the error in case of failure.
-    async fn retry_until_base_layer_success<T, FuncType, Fut>(
-        &self,
-        func: FuncType,
+    async fn retry_until_base_layer_success<T, FuncType>(
+        &mut self,
+        mut func: FuncType,
         description: &str,
     ) -> L1ScraperResult<T, BaseLayerType>
+    // Accept closure that takes a mutable reference to self, returning a future returning a result.
     where
-        FuncType: Fn(&Self) -> Fut,
-        Fut: Future<Output = L1ScraperResult<T, BaseLayerType>>,
+        for<'a> FuncType:
+            FnMut(&'a mut Self) -> BoxFuture<'a, Result<T, L1ScraperError<BaseLayerType>>>,
     {
         loop {
             match func(self).await {
@@ -370,7 +379,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
     /// Fetch scrape_from_this_l1_block again, check it still exists and that its hash is the same.
     /// If a reorg occurred up to this block, return an error (existing data in the provider is
     /// stale).
-    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), BaseLayerType> {
+    async fn assert_no_l1_reorgs(&mut self) -> L1ScraperResult<(), BaseLayerType> {
         let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
             panic!(
                 "Should never assert no l1 reorgs without first getting the last processed L1 \
@@ -432,6 +441,8 @@ pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync + Debug> 
          {latest_l1_block_no_finality:?}"
     )]
     FinalityTooHigh { finality: u64, latest_l1_block_no_finality: L1BlockNumber },
+    #[error("Block number {block_number} not found")]
+    LatestL1BlockNumberNoBlockFound { block_number: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
     HashCalculationError(StarknetApiError),
     // Leaky abstraction, these errors should not propagate here.
@@ -462,25 +473,6 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
             (Self::NeedsRestart, Self::NeedsRestart) => true,
             _ => false,
         }
-    }
-}
-
-// TODO(guyn): get rid of finality_too_high, just use the new error FinalityTooHigh.
-impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1ScraperError<BaseLayerType> {
-    /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
-    /// block number, return FinalityTooHigh.
-    pub async fn finality_too_high(
-        finality: u64,
-        base_layer: &BaseLayerType,
-    ) -> L1ScraperError<BaseLayerType> {
-        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number().await;
-
-        let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
-            Ok(block_number) => block_number,
-            Err(error) => return Self::BaseLayerError(error),
-        };
-
-        Self::FinalityTooHigh { finality, latest_l1_block_no_finality }
     }
 }
 

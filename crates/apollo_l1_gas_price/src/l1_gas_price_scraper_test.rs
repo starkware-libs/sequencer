@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
 use apollo_l1_gas_price_types::{GasPriceData, MockL1GasPriceProviderClient};
+use assert_matches::assert_matches;
 use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
@@ -277,6 +278,49 @@ async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
         // Low finality case, means we will trigger a reorg error.
         assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
     }
+}
+
+#[tokio::test]
+async fn base_layer_returns_block_number_below_finality_causes_error() {
+    // Setup.
+    const FINALITY: u64 = 10;
+    const INITIAL_L1_BLOCK_NUMBER: u64 = 100;
+    const WRONG_L1_BLOCK_NUMBER: u64 = 5;
+
+    let latest_l1_block_number_response = Arc::new(AtomicU64::new(INITIAL_L1_BLOCK_NUMBER));
+    let latest_l1_block_number_response_clone = latest_l1_block_number_response.clone();
+
+    let mut dummy_base_layer: MockBaseLayerContract = MockBaseLayerContract::new();
+
+    dummy_base_layer
+        .expect_latest_l1_block_number()
+        .returning(move || Ok(latest_l1_block_number_response_clone.load(Ordering::Relaxed)));
+    dummy_base_layer.expect_get_block_header().returning(move |block_number| {
+        if block_number >= INITIAL_L1_BLOCK_NUMBER {
+            Ok(None)
+        } else {
+            Ok(Some(create_l1_block_header(block_number)))
+        }
+    });
+
+    let mut scraper = L1GasPriceScraper::new(
+        L1GasPriceScraperConfig { finality: FINALITY, ..Default::default() },
+        Arc::new(MockL1GasPriceProviderClient::new()),
+        dummy_base_layer,
+    );
+
+    // Test.
+    let mut block_number = INITIAL_L1_BLOCK_NUMBER;
+    assert_matches!(scraper.update_prices(&mut block_number).await, Ok(()));
+
+    // Simulate a base layer returning a lower block number.
+    latest_l1_block_number_response.store(WRONG_L1_BLOCK_NUMBER, Ordering::Relaxed);
+
+    // The scraper should return a finality too high error.
+    assert_matches!(
+        scraper.update_prices(&mut block_number).await,
+        Err(L1GasPriceScraperError::FinalityTooHigh { .. })
+    );
 }
 
 // TODO(guyn): test scraper with a provider timeout

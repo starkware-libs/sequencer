@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -210,7 +209,39 @@ fn process_events_committed_txs() {
 }
 
 #[test]
-fn pending_state_panics() {
+fn add_tx_double_scraped_doesnt_update_scrape_timestamp() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([(l1_handler(1), 1)])
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    let expected_l1_provider = l1_provider.clone();
+
+    // Test: double scrape doesn't update the scrape timestamp.
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(1), 2.into())]).unwrap();
+    assert_eq!(l1_provider, expected_l1_provider);
+}
+
+#[test]
+#[should_panic(expected = "Only Pending transactions should be in the proposable index.")]
+fn get_txs_panics_if_transaction_on_proposable_index_is_not_pending() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_wrongly_committing_txs_in_proposable_index()
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    // Put the provider in the right mood for a proposal.
+    l1_provider.start_block(BlockNumber(0), ProposeSession).unwrap();
+
+    // Test.
+    l1_provider.get_txs(1, BlockNumber(0)).unwrap();
+}
+
+#[test]
+fn pending_state_returns_error() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_state(ProviderState::Pending)
@@ -218,11 +249,19 @@ fn pending_state_panics() {
         .build_into_l1_provider();
 
     // Test.
-    assert!(catch_unwind(AssertUnwindSafe(|| { l1_provider.get_txs(1, BlockNumber(0)) })).is_err());
-
-    assert!(
-        catch_unwind(AssertUnwindSafe(|| { l1_provider.validate(tx_hash!(1), BlockNumber(0)) }))
-            .is_err()
+    assert_eq!(
+        l1_provider.get_txs(1, BlockNumber(0)),
+        Err(L1ProviderError::UnexpectedProviderState {
+            expected: ProviderState::Propose,
+            found: ProviderState::Pending
+        })
+    );
+    assert_eq!(
+        l1_provider.validate(tx_hash!(1), BlockNumber(0)),
+        Err(L1ProviderError::UnexpectedProviderState {
+            expected: ProviderState::Validate,
+            found: ProviderState::Pending
+        })
     );
 }
 
@@ -687,7 +726,7 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
     let clock = Arc::new(FakeClock::new(now));
 
     let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        l1_handler_proposal_cooldown_seconds: Duration::from_secs(cooldown),
         ..Default::default()
     };
     let mut l1_provider = L1ProviderContentBuilder::new()

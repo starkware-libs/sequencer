@@ -68,6 +68,23 @@ class SequencerNodeChart(Chart):
             monitoring_endpoint_port=monitoring_endpoint_port,
         )
 
+        # Create extra services if configured
+        self.extra_services = []
+        if self.service_config.extraServices:
+            for idx, extra_service_spec in enumerate(self.service_config.extraServices):
+                # Use the name from the extra service spec, or generate one from index
+                service_name_suffix = extra_service_spec.name or f"extra-{idx}"
+                extra_service = ServiceConstruct(
+                    self,
+                    f"extra-service-{idx}",
+                    service_config=self.service_config,
+                    labels=labels,
+                    monitoring_endpoint_port=monitoring_endpoint_port,
+                    service_name_suffix=service_name_suffix,
+                    service_spec=extra_service_spec,
+                )
+                self.extra_services.append(extra_service)
+
         # Create Controller (Deployment or StatefulSet)
         if self.service_config.statefulSet and self.service_config.statefulSet.enabled:
             self.controller = StatefulSetConstruct(
@@ -219,9 +236,15 @@ class SequencerNodeChart(Chart):
         # Ports from common config are already merged into service_config.service.ports
         all_ports = []
 
-        # Get all ports (common ports are already merged in by the merger)
+        # Get all ports from primary service (common ports are already merged in by the merger)
         if service_config.service and service_config.service.ports:
             all_ports.extend(service_config.service.ports)
+
+        # Also check ports from extra services
+        if service_config.extraServices:
+            for extra_service in service_config.extraServices:
+                if extra_service.ports:
+                    all_ports.extend(extra_service.ports)
 
         if not all_ports:
             raise ValueError(

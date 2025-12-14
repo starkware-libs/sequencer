@@ -8,7 +8,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-pub use apollo_protobuf::consensus::ProposalCommitment;
+pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
@@ -22,7 +22,6 @@ use starknet_api::core::ContractAddress;
 ///    signatures.
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
-pub type Round = u32;
 
 /// Interface for consensus to call out to the node.
 ///
@@ -103,13 +102,11 @@ pub trait ConsensusContext {
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
     /// Update the context that a decision has been reached for a given height.
-    /// - `block` identifies the decision.
-    /// - `precommits` - All precommits must be for the same `(block, height, round)` and form a
-    ///   quorum (>2/3 of the voting power) for this height.
+    /// - `commitment` identifies the decision.
     async fn decision_reached(
         &mut self,
-        block: ProposalCommitment,
-        precommits: Vec<Vote>,
+        height: BlockNumber,
+        commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError>;
 
     /// Attempt to learn of a decision from the sync protocol.

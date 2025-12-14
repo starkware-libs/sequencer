@@ -258,6 +258,11 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_wrongly_committing_txs_in_proposable_index(mut self) -> Self {
+        self.tx_manager_content_builder.use_wrongly_committing_txs_in_proposable_index = true;
+        self
+    }
+
     pub fn build(mut self) -> L1ProviderContent {
         if let Some(config) = self.config {
             self.tx_manager_content_builder =
@@ -290,7 +295,7 @@ impl L1ProviderContentBuilder {
             )
         }
         self.with_config(L1ProviderConfig {
-            new_l1_handler_cooldown_seconds: nonzero_timelock,
+            l1_handler_proposal_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
             l1_handler_consumption_timelock_seconds: nonzero_timelock,
             ..Default::default()
@@ -308,6 +313,7 @@ struct TransactionManagerContent {
     pub consumed: Option<Vec<ConsumedTransaction>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
+    pub use_wrongly_committing_txs_in_proposable_index: bool,
 }
 
 impl TransactionManagerContent {
@@ -426,6 +432,11 @@ impl From<TransactionManagerContent> for TransactionManager {
         }
 
         let current_epoch = StagingEpoch::new();
+        if content.use_wrongly_committing_txs_in_proposable_index {
+            for (_tx_hash, record) in records.iter_mut() {
+                record.mark_committed();
+            }
+        }
         TransactionManager::create_for_testing(
             records.into(),
             proposable_index,
@@ -444,6 +455,7 @@ struct TransactionManagerContentBuilder {
     consumed: Option<Vec<ConsumedTransaction>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
+    use_wrongly_committing_txs_in_proposable_index: bool,
 }
 
 impl TransactionManagerContentBuilder {
@@ -532,6 +544,8 @@ impl TransactionManagerContentBuilder {
             rejected: self.rejected,
             cancel_requested: self.cancel_requested,
             config: self.config,
+            use_wrongly_committing_txs_in_proposable_index: self
+                .use_wrongly_committing_txs_in_proposable_index,
         })
     }
 

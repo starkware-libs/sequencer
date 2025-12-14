@@ -482,21 +482,19 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn decision_reached(
         &mut self,
-        block: ProposalCommitment,
-        precommits: Vec<Vote>,
+        height: BlockNumber,
+        commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError> {
-        let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", block.0);
+        info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
 
         self.interrupt_active_proposal().await;
         let proposal_id;
         let transactions;
         let block_info;
         {
-            let height = BlockNumber(height);
             let mut proposals = self.valid_proposals.lock().unwrap();
             (block_info, transactions, proposal_id) =
-                proposals.get_proposal(&height, &block).clone();
+                proposals.get_proposal(&height, &commitment).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
         }
@@ -563,7 +561,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let sequencer = SequencerContractAddress(block_info.builder);
 
         let block_header_without_hash = BlockHeaderWithoutHash {
-            block_number: BlockNumber(height),
+            block_number: height,
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price,
@@ -626,6 +624,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 },
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
+                proposal_commitment: commitment,
+                parent_proposal_commitment: central_objects
+                    .parent_proposal_commitment
+                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
             })
             .await
             .inspect_err(|e| {
