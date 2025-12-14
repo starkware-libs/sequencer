@@ -212,7 +212,7 @@ pub fn create_node_config(
         startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(0),
-        new_l1_handler_cooldown_seconds: Duration::from_secs(0),
+        l1_handler_proposal_cooldown_seconds: Duration::from_secs(0),
         ..Default::default()
     };
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
