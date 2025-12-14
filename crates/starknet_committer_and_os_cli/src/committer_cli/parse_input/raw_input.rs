@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
-use starknet_committer::block_committer::input::ConfigImpl;
+use starknet_committer::block_committer::input::ReaderConfig;
 use tracing::level_filters::LevelFilter;
 type RawFelt = [u8; 32];
 
@@ -43,7 +43,7 @@ pub(crate) enum PythonLogLevel {
     Debug = 10,
 }
 
-impl From<RawConfigImpl> for ConfigImpl {
+impl From<RawConfigImpl> for ReaderConfig {
     fn from(raw_config: RawConfigImpl) -> Self {
         let log_level = match raw_config.log_level {
             PythonLogLevel::NotSet => LevelFilter::TRACE,
@@ -52,7 +52,7 @@ impl From<RawConfigImpl> for ConfigImpl {
             PythonLogLevel::Warning => LevelFilter::WARN,
             PythonLogLevel::Error | PythonLogLevel::Critical => LevelFilter::ERROR,
         };
-        ConfigImpl::new(raw_config.warn_on_trivial_modifications, log_level)
+        ReaderConfig::new(raw_config.warn_on_trivial_modifications, log_level)
     }
 }
 
