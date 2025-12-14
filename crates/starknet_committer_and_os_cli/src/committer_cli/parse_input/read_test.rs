@@ -5,8 +5,8 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
-    ConfigImpl,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -217,7 +217,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true, LevelFilter::DEBUG),
+        config: ReaderConfig::new(true, LevelFilter::DEBUG),
     };
     assert_eq!(
         parse_input(input).unwrap(),

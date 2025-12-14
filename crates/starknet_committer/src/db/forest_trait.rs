@@ -9,7 +9,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
-use crate::block_committer::input::{ConfigImpl, StarknetStorageValue};
+use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -58,7 +58,7 @@ pub trait ForestReader<'a> {
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         // TODO(Yoav): Change to 'impl Config' or delete this trait
-        config: ConfigImpl,
+        config: ReaderConfig,
     ) -> impl Future<
         Output = ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>,
     > + Send;

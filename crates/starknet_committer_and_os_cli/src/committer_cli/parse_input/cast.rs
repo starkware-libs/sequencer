@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
-    ConfigImpl,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type InputImpl = Input<ReaderConfig>;
 
 #[derive(Debug, PartialEq)]
 pub struct CommitterInputImpl {

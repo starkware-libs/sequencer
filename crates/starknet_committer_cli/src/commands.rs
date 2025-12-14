@@ -7,8 +7,8 @@ use rand::{Rng, SeedableRng};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
-    ConfigImpl,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StateDiff,
 };
@@ -32,7 +32,7 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type InputImpl = Input<ReaderConfig>;
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
@@ -349,7 +349,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             state_diff: flavor.generate_state_diff(n_updates_arg, block_number, &mut rng),
             contracts_trie_root_hash,
             classes_trie_root_hash,
-            config: ConfigImpl::default(),
+            config: ReaderConfig::default(),
         };
 
         time_measurement.start_measurement(Action::EndToEnd);

@@ -8,8 +8,8 @@ use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
     contract_address_into_node_index,
     Config,
-    ConfigImpl,
     Input,
+    ReaderConfig,
     StateDiff,
 };
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
@@ -24,7 +24,7 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 pub async fn commit_block<Reader: for<'a> ForestReader<'a>>(
-    input: Input<ConfigImpl>,
+    input: Input<ReaderConfig>,
     trie_reader: &mut Reader,
     mut time_measurement: Option<&mut TimeMeasurement>,
 ) -> BlockCommitmentResult<FilledForest> {

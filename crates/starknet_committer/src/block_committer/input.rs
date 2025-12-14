@@ -130,12 +130,12 @@ pub trait Config: Debug + Eq + PartialEq {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConfigImpl {
+pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
     log_level: LevelFilter,
 }
 
-impl Config for ConfigImpl {
+impl Config for ReaderConfig {
     fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
     }
@@ -145,13 +145,13 @@ impl Config for ConfigImpl {
     }
 }
 
-impl ConfigImpl {
+impl ReaderConfig {
     pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
         Self { warn_on_trivial_modifications, log_level }
     }
 }
 
-impl Default for ConfigImpl {
+impl Default for ReaderConfig {
     fn default() -> Self {
         Self { warn_on_trivial_modifications: false, log_level: LevelFilter::INFO }
     }

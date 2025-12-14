@@ -39,8 +39,8 @@ use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    ConfigImpl,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -148,7 +148,7 @@ pub(crate) async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> StateRoots {
-    let config = ConfigImpl::default();
+    let config = ReaderConfig::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
