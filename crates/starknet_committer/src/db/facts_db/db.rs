@@ -19,7 +19,6 @@ use starknet_patricia_storage::storage_trait::{
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    Config,
     FactsDbInitialRead,
     ReaderConfig,
     StarknetStorageValue,
@@ -76,7 +75,7 @@ impl<S: Storage> FactsDb<S> {
         &mut self,
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        config: &impl Config,
+        config: &ReaderConfig,
         storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
         let mut storage_tries = HashMap::new();
@@ -108,7 +107,7 @@ impl<S: Storage> FactsDb<S> {
         &mut self,
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
-        config: &impl Config,
+        config: &ReaderConfig,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
         let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());

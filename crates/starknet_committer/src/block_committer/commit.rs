@@ -7,10 +7,8 @@ use tracing::{info, warn};
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    Config,
     Input,
     InputContext,
-    ReaderConfig,
     StateDiff,
 };
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
@@ -26,7 +24,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 // TODO(Yoav): Include InputContext and ForestReader as arguments of the Layer, when it's ready.
 pub async fn commit_block<I: InputContext, Reader: for<'a> ForestReader<'a, I>>(
-    input: Input<ReaderConfig, I>,
+    input: Input<I>,
     trie_reader: &mut Reader,
     mut time_measurement: Option<&mut TimeMeasurement>,
 ) -> BlockCommitmentResult<FilledForest> {
