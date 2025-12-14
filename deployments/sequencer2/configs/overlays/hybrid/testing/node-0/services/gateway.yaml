@@ -27,3 +27,7 @@ service:
     port: 55002
     targetPort: 55002
     protocol: TCP
+  - name: http-server
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

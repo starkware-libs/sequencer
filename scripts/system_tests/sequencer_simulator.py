@@ -133,13 +133,13 @@ def main(deployment_config_path, config_dir, node_type_str, sender_address, rece
 
     if node_type == NodeType.DISTRIBUTED:
         state_sync_service = "StateSync"
-        http_server_service = "HttpServer"
+        http_server_service = "Gateway"
     elif node_type == NodeType.CONSOLIDATED:
         state_sync_service = "Node"
         http_server_service = "Node"
     elif node_type == NodeType.HYBRID:
         state_sync_service = "Core"
-        http_server_service = "HttpServer"
+        http_server_service = "Gateway"
     else:
         print(f"❌ {node_type} node type is not supported for the sequencer simulator.")
         exit(1)
