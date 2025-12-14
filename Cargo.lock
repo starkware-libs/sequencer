@@ -2285,6 +2285,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_proof_manager"
+version = "0.0.0"
+dependencies = [
+ "starknet-types-core",
+ "starknet_api",
+]
+
+[[package]]
 name = "apollo_protobuf"
 version = "0.0.0"
 dependencies = [

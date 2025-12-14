@@ -69,6 +69,7 @@ members = [
   "crates/apollo_p2p_sync_config",
   "crates/apollo_proc_macros",
   "crates/apollo_proc_macros_tests",
+  "crates/apollo_proof_manager",
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
@@ -188,6 +189,7 @@ apollo_p2p_sync.path = "crates/apollo_p2p_sync"
 apollo_p2p_sync_config.path = "crates/apollo_p2p_sync_config"
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
+apollo_proof_manager.path = "crates/apollo_proof_manager"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
