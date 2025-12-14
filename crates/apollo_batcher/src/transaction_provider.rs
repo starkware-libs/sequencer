@@ -35,6 +35,8 @@ pub enum TransactionProviderError {
     },
     #[error(transparent)]
     L1ProviderError(#[from] L1ProviderClientError),
+    #[error("Proof validation failed for transaction {tx_hash:?}: {error}")]
+    ProofValidationFailed { tx_hash: TransactionHash, error: String },
 }
 
 pub type NextTxs = Vec<InternalConsensusTransaction>;
@@ -162,11 +164,27 @@ impl TransactionProvider for ProposeTransactionProvider {
     }
 }
 
+pub struct ProofValidator;
+
+impl ProofValidator {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Validates the proof embedded in the transaction.
+    /// Returns Ok(()) if validation succeeds, Err with error message otherwise.
+    pub fn validate_proof(&self, _tx: &InternalConsensusTransaction) -> Result<(), String> {
+        // TODO(Einat): Implement proof validation.
+        Ok(())
+    }
+}
+
 pub struct ValidateTransactionProvider {
     tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     final_n_executed_txs_receiver: tokio::sync::oneshot::Receiver<usize>,
     l1_provider_client: SharedL1ProviderClient,
     height: BlockNumber,
+    proof_validator: ProofValidator,
 }
 
 impl ValidateTransactionProvider {
@@ -175,8 +193,15 @@ impl ValidateTransactionProvider {
         final_n_executed_txs_receiver: tokio::sync::oneshot::Receiver<usize>,
         l1_provider_client: SharedL1ProviderClient,
         height: BlockNumber,
+        proof_validator: ProofValidator,
     ) -> Self {
-        Self { tx_receiver, final_n_executed_txs_receiver, l1_provider_client, height }
+        Self {
+            tx_receiver,
+            final_n_executed_txs_receiver,
+            l1_provider_client,
+            height,
+            proof_validator,
+        }
     }
 }
 
@@ -211,7 +236,12 @@ impl TransactionProvider for ValidateTransactionProvider {
                         validation_status,
                     });
                 }
+                continue;
             }
+            // TODO(Einat): Filter out transactions with empty proof field.
+            self.proof_validator.validate_proof(tx).map_err(|e| {
+                TransactionProviderError::ProofValidationFailed { tx_hash: tx.tx_hash(), error: e }
+            })?;
         }
         Ok(buffer)
     }

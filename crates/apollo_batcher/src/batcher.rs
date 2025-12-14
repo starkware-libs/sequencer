@@ -86,6 +86,7 @@ use crate::pre_confirmed_block_writer::{
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{
+    ProofValidator,
     ProposeTransactionProvider,
     TxProviderPhase,
     ValidateTransactionProvider,
@@ -355,12 +356,14 @@ impl Batcher {
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
         let (final_n_executed_txs_sender, final_n_executed_txs_receiver) =
             tokio::sync::oneshot::channel();
+        let proof_validator = ProofValidator::new();
 
         let tx_provider = ValidateTransactionProvider::new(
             input_tx_receiver,
             final_n_executed_txs_receiver,
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
+            proof_validator,
         );
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
