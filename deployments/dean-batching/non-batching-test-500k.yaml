@@ -1,0 +1,163 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: non-batching-test-500k
+  namespace: dean-batching-200k-v2-unified
+  labels:
+    test: non-batching-500k
+    disk-type: hyperdisk-balanced
+    version: v2-unified-no-batching
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: non-batching-test-500k
+        test: non-batching-500k
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        role: "apollo-core-service-c4d-standard-8"
+      tolerations:
+        - key: key
+          operator: "Equal"
+          value: "apollo-core-service-c4d-standard-8"
+          effect: "NoSchedule"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "mkdir -p /data/workspace && chmod -R 777 /data && ls -la /data/ && echo 'Permissions fixed!'"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      containers:
+      - name: non-batching-test
+        # Using current image - batching disabled via config
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-file_level_batching-151ea12
+        workingDir: /tmp
+        env:
+        - name: RUST_LOG
+          value: info
+        - name: BLOCKS_TO_SYNC
+          value: "500000"
+        # Disable batching via environment variable override
+        - name: SEQ_STATE_SYNC__ENABLE_BLOCK_BATCHING
+          value: "false"
+        - name: SEQ_STATE_SYNC__BLOCK_BATCH_SIZE
+          value: "100"
+        - name: PATH
+          value: /app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          set -e
+          
+          echo "========================================="
+          echo "COMPARISON TEST: NON-BATCHING (0-500K)"
+          echo "========================================="
+          echo ""
+          echo "Configuration:"
+          echo "  Blocks to sync: 500,000"
+          echo "  Batching: DISABLED (Original Sequential Writes)"
+          echo "  Disk: Hyperdisk Balanced 500GB"
+          echo ""
+          
+          # Setup workspace
+          cd /data/workspace
+          mkdir -p non_batching_500k_test
+          cd non_batching_500k_test
+          
+          # Clean if exists
+          rm -rf data_without_batching 2>/dev/null || true
+          
+          # Run node with batching disabled
+          echo "Starting node WITHOUT batching..."
+          echo "Start time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" | tee start_time.txt
+          
+          apollo_node \
+            --config_file /configs/base_layer_config.json \
+            --config_file /configs/batcher_config.json \
+            --config_file /configs/class_manager_config.json \
+            --config_file /configs/consensus_manager_config.json \
+            --config_file /configs/revert_config.json \
+            --config_file /configs/versioned_constants_overrides_config.json \
+            --config_file /configs/validate_resource_bounds_config.json \
+            --config_file /configs/gateway_config.json \
+            --config_file /configs/http_server_config.json \
+            --config_file /configs/l1_endpoint_monitor_config.json \
+            --config_file /configs/l1_gas_price_provider_config.json \
+            --config_file /configs/l1_gas_price_scraper_config.json \
+            --config_file /configs/l1_provider_config.json \
+            --config_file /configs/l1_scraper_config.json \
+            --config_file /configs/mempool_config.json \
+            --config_file /configs/mempool_p2p_config.json \
+            --config_file /configs/monitoring_endpoint_config.json \
+            --config_file /configs/sierra_compiler_config.json \
+            --config_file /configs/state_sync_config.json \
+            --config_file /configs/mainnet_deployment \
+            --config_file /configs/mainnet_hybrid \
+            --config_file /configs/node_config \
+            --config_file /configs/minimal_node_config.json \
+            --config_file /configs/mainnet_secrets.json \
+            --config_file /override-configs/disable_batching.json \
+            2>&1 | tee node.log &
+          
+          NODE_PID=$!
+          echo "Node PID: $NODE_PID"
+          
+          # Monitor until 500k blocks
+          while true; do
+            sleep 60
+            BLOCKS=$(grep -c "SYNC_NEW_BLOCK: Added block" node.log 2>/dev/null || echo 0)
+            echo "[$(date -u +"%H:%M:%S")] Synced: $BLOCKS / 500,000 blocks"
+            
+            if [ "$BLOCKS" -ge 500000 ]; then
+              echo "Reached 500K blocks!"
+              kill $NODE_PID
+              break
+            fi
+            
+            # Check if node crashed
+            if ! kill -0 $NODE_PID 2>/dev/null; then
+              echo "Node crashed!"
+              break
+            fi
+          done
+          
+          echo "End time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" | tee end_time.txt
+          echo "Test complete!"
+          
+        resources:
+          requests:
+            cpu: "4"
+            memory: "24Gi"
+          limits:
+            cpu: "8"
+            memory: "48Gi"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: configs
+          mountPath: /configs
+          readOnly: true
+        - name: test-scripts
+          mountPath: /test-scripts
+          readOnly: true
+        - name: override-configs
+          mountPath: /override-configs
+          readOnly: true
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dean-non-batching-500k-pvc
+      - name: configs
+        configMap:
+          name: sequencer-configs
+      - name: test-scripts
+        configMap:
+          name: dean-test-scripts
+      - name: override-configs
+        configMap:
+          name: non-batching-override-config
+

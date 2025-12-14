@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dean-non-batching-500k-pvc
+  namespace: dean-batching-200k-v2-unified
+  labels:
+    test: non-batching-500k
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hyperdisk-balanced
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 500Gi
+

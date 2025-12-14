@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: non-batching-override-config
+  namespace: dean-batching-200k-v2-unified
+data:
+  disable_batching.json: |
+    {
+      "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": false
+    }
+
