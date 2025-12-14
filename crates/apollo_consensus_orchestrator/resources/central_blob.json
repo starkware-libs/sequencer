@@ -3855,15 +3855,7 @@
       "0x4",
       "0x3"
     ]
-<<<<<<< HEAD
-  ]
-}
-||||||| f782ace50e
-  ]
-}
-=======
   ],
   "proposal_commitment": "0x80020000",
   "parent_proposal_commitment": "0x1000200"
 }
->>>>>>> origin/main-v0.14.1-committer
