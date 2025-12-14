@@ -7,10 +7,6 @@ use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::block_committer::input::{Input, ReaderConfig};
-
-pub type InputImpl = Input<ReaderConfig>;
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
     EndToEnd,

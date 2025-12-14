@@ -1,5 +1,5 @@
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::Config;
+use starknet_committer::block_committer::input::{Config, Input, ReaderConfig};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;
@@ -8,7 +8,7 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::{CommitterInputImpl, InputImpl};
+use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::raw_input::RawInput;
 use crate::shared_utils::read::{load_input, write_to_file};
 
@@ -19,7 +19,7 @@ pub async fn parse_and_commit(
 ) {
     let CommitterInputImpl { input, storage } = load_input::<RawInput>(input_path)
         .try_into()
-        .expect("Failed to convert RawInput to InputImpl.");
+        .expect("Failed to convert RawInput to Input.");
     info!(
         "Parsed committer input successfully. Original Contracts Trie Root Hash: {:?},
     Original Classes Trie Root Hash: {:?}",
@@ -32,7 +32,7 @@ pub async fn parse_and_commit(
     commit(input, output_path, storage).await;
 }
 
-pub async fn commit(input: InputImpl, output_path: String, storage: MapStorage) {
+pub async fn commit(input: Input<ReaderConfig>, output_path: String, storage: MapStorage) {
     let mut facts_db = FactsDb::new(storage);
     let serialized_filled_forest = SerializedForest(
         commit_block(input, &mut facts_db, None).await.expect("Failed to commit the given block."),

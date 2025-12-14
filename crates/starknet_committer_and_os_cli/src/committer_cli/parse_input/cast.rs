@@ -17,11 +17,9 @@ use starknet_types_core::felt::Felt;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
-pub type InputImpl = Input<ReaderConfig>;
-
 #[derive(Debug, PartialEq)]
 pub struct CommitterInputImpl {
-    pub input: InputImpl,
+    pub input: Input<ReaderConfig>,
     pub storage: MapStorage,
 }
 

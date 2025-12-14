@@ -32,8 +32,6 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
-pub type InputImpl = Input<ReaderConfig>;
-
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
 
@@ -345,7 +343,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
-        let input = InputImpl {
+        let input = Input {
             state_diff: flavor.generate_state_diff(n_updates_arg, block_number, &mut rng),
             contracts_trie_root_hash,
             classes_trie_root_hash,
