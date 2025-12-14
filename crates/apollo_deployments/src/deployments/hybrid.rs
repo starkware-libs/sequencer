@@ -26,10 +26,9 @@ pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
-    Core, // Comprises the batcher, class manager, consensus manager, and state sync.
-    HttpServer,
-    Gateway,
-    L1, // Comprises the various l1 components.
+    Core,    // Comprises the batcher, class manager, consensus manager, and state sync.
+    Gateway, // Comprises the gateway and http server
+    L1,      // Comprises the various l1 components.
     Mempool,
     SierraCompiler,
 }
@@ -95,9 +94,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     sierra_compiler.remote(),
                     signature_manager.local(),
                 ),
-                HybridNodeServiceName::HttpServer => {
-                    get_http_server_component_config(gateway.remote())
-                }
                 HybridNodeServiceName::Gateway => get_gateway_component_config(
                     gateway.local(),
                     class_manager.remote(),
@@ -131,7 +127,6 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             HybridNodeServiceName::Core
-            | HybridNodeServiceName::HttpServer
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => ScalePolicy::StaticallyScaled,
 
@@ -143,11 +138,7 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_retries(&self) -> usize {
         match self {
-            Self::Core
-            | Self::HttpServer
-            | Self::Mempool
-            | Self::Gateway
-            | Self::SierraCompiler => DEFAULT_RETRIES,
+            Self::Core | Self::Mempool | Self::Gateway | Self::SierraCompiler => DEFAULT_RETRIES,
             Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
     }
@@ -183,40 +174,15 @@ impl ServiceNameInner for HybridNodeServiceName {
                     }
                 }
             }
-            HybridNodeServiceName::HttpServer => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::HttpServer => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
             HybridNodeServiceName::Gateway => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MonitoringEndpoint => {
                                 service_ports.insert(service_port);
                             }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
+                            BusinessLogicServicePort::ConsensusP2p
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -348,37 +314,12 @@ impl ServiceNameInner for HybridNodeServiceName {
                     }
                 }
             }
-            HybridNodeServiceName::HttpServer => {
-                for component_config_in_service in ComponentConfigInService::iter() {
-                    match component_config_in_service {
-                        ComponentConfigInService::ConfigManager
-                        | ComponentConfigInService::General
-                        | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::MonitoringEndpoint => {
-                            components.insert(component_config_in_service);
-                        }
-                        ComponentConfigInService::BaseLayer
-                        | ComponentConfigInService::Batcher
-                        | ComponentConfigInService::ClassManager
-                        | ComponentConfigInService::Consensus
-                        | ComponentConfigInService::Gateway
-                        | ComponentConfigInService::L1GasPriceProvider
-                        | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
-                        | ComponentConfigInService::Mempool
-                        | ComponentConfigInService::MempoolP2p
-                        | ComponentConfigInService::SierraCompiler
-                        | ComponentConfigInService::SignatureManager
-                        | ComponentConfigInService::StateSync => {}
-                    }
-                }
-            }
             HybridNodeServiceName::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -387,7 +328,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
-                        | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -516,6 +456,7 @@ fn get_gateway_component_config(
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_local_config;
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
@@ -563,17 +504,6 @@ fn get_sierra_compiler_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.sierra_compiler = sierra_compiler_local_config;
-    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_http_server_component_config(
-    gateway_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.http_server = ActiveComponentExecutionConfig::enabled();
-    config.gateway = gateway_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
