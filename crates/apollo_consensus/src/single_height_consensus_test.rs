@@ -52,55 +52,6 @@ fn proposer() {
         assert!(reqs.is_empty());
     });
 
-<<<<<<< HEAD
-    let precommits = [
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
-        precommit(Some(Felt::TWO), 0, 0, *VALIDATOR_ID_3),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-    ];
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-    );
-    // The disagreeing vote counts towards the timeout, which uses a heterogeneous quorum, but not
-    // the decision, which uses a homogenous quorum.
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[1].clone()).await,
-        Ok(ShcReturn::Tasks(vec![timeout_precommit_task(0),]))
-    );
-    let ShcReturn::Decision(decision) =
-        shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap()
-    else {
-        panic!("Expected decision");
-    };
-    assert_eq!(decision.block, BLOCK.id);
-    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
-||||||| dd2fc66ab
-    let precommits = vec![
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
-        precommit(Some(Felt::TWO), 0, 0, *VALIDATOR_ID_3),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-    ];
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-    );
-    // The disagreeing vote counts towards the timeout, which uses a heterogeneous quorum, but not
-    // the decision, which uses a homogenous quorum.
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[1].clone()).await,
-        Ok(ShcReturn::Tasks(vec![timeout_precommit_task(0),]))
-    );
-    let ShcReturn::Decision(decision) =
-        shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap()
-    else {
-        panic!("Expected decision");
-    };
-    assert_eq!(decision.block, BLOCK.id);
-    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
-=======
     // After FinishedBuilding, expect a prevote broadcast request.
     let ret =
         shc.handle_event(&leader_fn, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), ROUND_0));
@@ -130,7 +81,6 @@ fn proposer() {
         ShcReturn::Decision(d) => assert_eq!(d.block, BLOCK.id),
         _ => panic!("expected decision"),
     }
->>>>>>> origin/main-v0.14.1
 }
 
 #[test_case(false; "single_proposal")]
@@ -154,30 +104,10 @@ fn validator(repeat_proposal: bool) {
         assert!(reqs.is_empty());
     });
 
-<<<<<<< HEAD
-    let precommits = [
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
-    ];
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-||||||| dd2fc66ab
-    let precommits = vec![
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
-    ];
-    assert_eq!(
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-=======
     // After validation finished -> expect prevote broadcast request.
     let ret = shc.handle_event(
         &leader_fn,
         StateMachineEvent::FinishedValidation(Some(BLOCK.id), proposal_init.round, None),
->>>>>>> origin/main-v0.14.1
     );
     assert_matches!(ret, ShcReturn::Requests(mut reqs) => {
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote);
@@ -313,83 +243,6 @@ fn rebroadcast_votes() {
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote && v.round == ROUND_1);
         assert!(reqs.is_empty());
     });
-<<<<<<< HEAD
-    context.expect_set_height_and_round().returning(move |_, _| ());
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
-        .returning(move |_| Ok(()));
-    // Sends proposal and prevote.
-    shc.start(&mut context).await.unwrap();
-    shc.handle_event(&mut context, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
-        .await
-        .unwrap();
-    shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await.unwrap();
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
-        .returning(move |_| Ok(()));
-    // The Node got a Prevote quorum, and set valid proposal.
-    assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
-        Ok(ShcReturn::Tasks(vec![
-            timeout_prevote_task(0),
-            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-        ]))
-    );
-    // Advance to the next round.
-    let precommits = [
-        precommit(None, 0, 0, *VALIDATOR_ID_1),
-        precommit(None, 0, 0, *VALIDATOR_ID_2),
-        precommit(None, 0, 0, *VALIDATOR_ID_3),
-    ];
-    shc.handle_vote(&mut context, precommits[0].clone()).await.unwrap();
-    shc.handle_vote(&mut context, precommits[1].clone()).await.unwrap();
-    // After NIL precommits, the proposer should re-propose.
-    context.expect_repropose().returning(move |id, init| {
-        assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(id, BLOCK.id);
-||||||| dd2fc66ab
-    context.expect_set_height_and_round().returning(move |_, _| ());
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
-        .returning(move |_| Ok(()));
-    // Sends proposal and prevote.
-    shc.start(&mut context).await.unwrap();
-    shc.handle_event(&mut context, StateMachineEvent::FinishedBuilding(Some(BLOCK.id), 0))
-        .await
-        .unwrap();
-    shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await.unwrap();
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
-        .returning(move |_| Ok(()));
-    // The Node got a Prevote quorum, and set valid proposal.
-    assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
-        Ok(ShcReturn::Tasks(vec![
-            timeout_prevote_task(0),
-            rebroadcast_precommit_task(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-        ]))
-    );
-    // Advance to the next round.
-    let precommits = vec![
-        precommit(None, 0, 0, *VALIDATOR_ID_1),
-        precommit(None, 0, 0, *VALIDATOR_ID_2),
-        precommit(None, 0, 0, *VALIDATOR_ID_3),
-    ];
-    shc.handle_vote(&mut context, precommits[0].clone()).await.unwrap();
-    shc.handle_vote(&mut context, precommits[1].clone()).await.unwrap();
-    // After NIL precommits, the proposer should re-propose.
-    context.expect_repropose().returning(move |id, init| {
-        assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(id, BLOCK.id);
-=======
 
     // Reach prevote quorum at round 1 with two other validators.
     let _ =
@@ -400,151 +253,12 @@ fn rebroadcast_votes() {
         assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, ROUND_1)));
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit && v.round == ROUND_1);
         assert!(reqs.is_empty());
->>>>>>> origin/main-v0.14.1
     });
 
-<<<<<<< HEAD
-    let precommits = [
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3),
-    ];
-    shc.handle_vote(&mut context, precommits[0].clone()).await.unwrap();
-    shc.handle_vote(&mut context, precommits[1].clone()).await.unwrap();
-    let ShcReturn::Decision(decision) =
-        shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap()
-    else {
-        panic!("Expected decision");
-    };
-    assert_eq!(decision.block, BLOCK.id);
-    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
-}
-
-#[tokio::test]
-async fn writes_voted_height_to_storage() {
-    const HEIGHT: BlockNumber = BlockNumber(123);
-
-    let mock_storage = Arc::new(Mutex::new(MockHeightVotedStorageTrait::new()));
-    let mut storage_before_broadcast_sequence = Sequence::new();
-
-    let mut context = MockTestContext::new();
-
-    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().returning(move |_, _, _| {
-        let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
-        block_receiver
-    });
-    context.expect_set_height_and_round().returning(move |_, _| ());
-
-    mock_storage
-        .lock()
-        .unwrap()
-        .expect_set_prev_voted_height()
-        .with(eq(HEIGHT))
-        .times(1)
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-
-    context
-        .expect_broadcast()
-        .times(1) // Once we see the first broadcast we expect the voted height to be written to storage.
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-
-    let mut shc = SingleHeightConsensus::new(
-        HEIGHT,
-        false,
-        *VALIDATOR_ID_1,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        mock_storage.clone(),
-    );
-
-    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
-    assert_eq!(
-        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
-        &get_proposal_init_for_height(HEIGHT)
-    );
-    assert_eq!(
-        shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
-        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(
-||||||| dd2fc66ab
-    let precommits = vec![
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3),
-    ];
-    shc.handle_vote(&mut context, precommits[0].clone()).await.unwrap();
-    shc.handle_vote(&mut context, precommits[1].clone()).await.unwrap();
-    let ShcReturn::Decision(decision) =
-        shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap()
-    else {
-        panic!("Expected decision");
-    };
-    assert_eq!(decision.block, BLOCK.id);
-    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
-}
-
-#[tokio::test]
-async fn writes_voted_height_to_storage() {
-    const HEIGHT: BlockNumber = BlockNumber(123);
-
-    let mock_storage = Arc::new(Mutex::new(MockHeightVotedStorageTrait::new()));
-    let mut storage_before_broadcast_sequence = Sequence::new();
-
-    let mut context = MockTestContext::new();
-
-    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().returning(move |_, _, _| {
-        let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
-        block_receiver
-    });
-    context.expect_set_height_and_round().returning(move |_, _| ());
-
-    mock_storage
-        .lock()
-        .unwrap()
-        .expect_set_prev_voted_height()
-        .with(eq(HEIGHT))
-        .times(1)
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-
-    context
-        .expect_broadcast()
-        .times(1) // Once we see the first broadcast we expect the voted height to be written to storage.
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-
-    let mut shc = SingleHeightConsensus::new(
-        HEIGHT,
-        false,
-        *VALIDATOR_ID_1,
-        VALIDATORS.to_vec(),
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        mock_storage.clone(),
-    );
-
-    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
-    assert_eq!(
-        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
-        &get_proposal_init_for_height(HEIGHT)
-    );
-    assert_eq!(
-        shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
-        Ok(ShcReturn::Tasks(vec![rebroadcast_prevote_task(
-=======
     // Rebroadcast with older vote (round 0) - should be ignored (no broadcast, no task).
     let ret = shc.handle_event(
         &leader_fn,
         StateMachineEvent::VoteBroadcasted(precommit(
->>>>>>> origin/main-v0.14.1
             Some(BLOCK.id.0),
             HEIGHT_0,
             ROUND_0,
@@ -563,81 +277,6 @@ async fn writes_voted_height_to_storage() {
     });
 }
 
-<<<<<<< HEAD
-    // Add enough prevotes so that we move to precommit step and set expectations for the precommit
-    // broadcast and storage write:
-
-    mock_storage
-        .lock()
-        .unwrap()
-        .expect_set_prev_voted_height()
-        .with(eq(HEIGHT))
-        .times(1)
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-    // The Node got a Prevote quorum.
-    assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
-            .await,
-        Ok(ShcReturn::Tasks(vec![
-            timeout_prevote_task(0),
-            rebroadcast_precommit_task(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1)
-        ]))
-    );
-
-    let precommits = [
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
-    ];
-    assert_eq!(
-        // This is the call that will result in the precommit broadcast and storage write.
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-||||||| dd2fc66ab
-    // Add enough prevotes so that we move to precommit step and set expectations for the precommit
-    // broadcast and storage write:
-
-    mock_storage
-        .lock()
-        .unwrap()
-        .expect_set_prev_voted_height()
-        .with(eq(HEIGHT))
-        .times(1)
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-    context
-        .expect_broadcast()
-        .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
-        .in_sequence(&mut storage_before_broadcast_sequence)
-        .returning(move |_| Ok(()));
-    // The Node got a Prevote quorum.
-    assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
-            .await,
-        Ok(ShcReturn::Tasks(vec![
-            timeout_prevote_task(0),
-            rebroadcast_precommit_task(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1)
-        ]))
-    );
-
-    let precommits = vec![
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
-    ];
-    assert_eq!(
-        // This is the call that will result in the precommit broadcast and storage write.
-        shc.handle_vote(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(Vec::new()))
-=======
 #[test]
 fn repropose() {
     let mut shc = SingleHeightConsensus::new(
@@ -647,7 +286,6 @@ fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
->>>>>>> origin/main-v0.14.1
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
     let _ = shc.start(&leader_fn);

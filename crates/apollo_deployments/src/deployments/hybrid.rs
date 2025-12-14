@@ -69,7 +69,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
         };
 
-<<<<<<< HEAD
         // TODO(Yoav): Add committer when it is ready.
         let batcher = Self::Core.component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager =
@@ -85,37 +84,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let mempool =
             Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
         let sierra_compiler = Self::SierraCompiler
-||||||| dd2fc66ab
-        let batcher = HybridNodeServiceName::Core
-            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager = HybridNodeServiceName::Core
-            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
-        let gateway = HybridNodeServiceName::Gateway
-            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_gas_price_provider = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
-        let l1_provider = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let l1_endpoint_monitor = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
-        let mempool = HybridNodeServiceName::Mempool
-            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
-=======
-        let batcher = HybridNodeServiceName::Core
-            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager = HybridNodeServiceName::Core
-            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
-        let gateway = HybridNodeServiceName::Gateway
-            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_gas_price_provider = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
-        let l1_provider = HybridNodeServiceName::L1
-            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let mempool = HybridNodeServiceName::Mempool
-            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
->>>>>>> origin/main-v0.14.1
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
         let signature_manager =
             Self::Core.component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
@@ -197,7 +165,6 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-<<<<<<< HEAD
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
             Environment::CloudK8s(cloud_env) => match self {
@@ -217,30 +184,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::LocalK8s => None,
         }
-||||||| dd2fc66ab
-    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
-        match environment {
-            Environment::CloudK8s(cloud_env) => match self {
-                HybridNodeServiceName::Core => match cloud_env {
-                    CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                        Some(Toleration::ApolloCoreService)
-                    }
-                    CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => {
-                        Some(Toleration::ApolloCoreServiceC2D56)
-                    }
-                },
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
-            },
-            Environment::LocalK8s => None,
-        }
-=======
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
->>>>>>> origin/main-v0.14.1
     }
 
     fn get_ingress(
@@ -248,7 +191,6 @@ impl ServiceNameInner for HybridNodeServiceName {
         _environment: &Environment,
         _ingress_params: IngressParams,
     ) -> Option<Ingress> {
-<<<<<<< HEAD
         match self {
             Self::Core | Self::Gateway | Self::L1 | Self::Mempool | Self::SierraCompiler => None,
             Self::HttpServer => match &environment {
@@ -258,23 +200,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 Environment::LocalK8s => None,
             },
         }
-||||||| dd2fc66ab
-        match self {
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::Gateway
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool
-            | HybridNodeServiceName::SierraCompiler => None,
-            HybridNodeServiceName::HttpServer => match &environment {
-                Environment::CloudK8s(_) => {
-                    get_ingress(ingress_params, get_environment_ingress_internal(environment))
-                }
-                Environment::LocalK8s => None,
-            },
-        }
-=======
-        None
->>>>>>> origin/main-v0.14.1
     }
 
     fn has_p2p_interface(&self) -> bool {
@@ -284,7 +209,6 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-<<<<<<< HEAD
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -303,39 +227,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                 | Self::Mempool
                 | Self::SierraCompiler => None,
             },
-||||||| dd2fc66ab
-    fn get_storage(&self, environment: &Environment) -> Option<usize> {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => Some(CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::Mempool
-                | HybridNodeServiceName::SierraCompiler => None,
-            },
-            Environment::LocalK8s => match self {
-                HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::Mempool
-                | HybridNodeServiceName::SierraCompiler => None,
-            },
-=======
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        match self {
-            HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
-            HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::Gateway
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool
-            | HybridNodeServiceName::SierraCompiler => None,
->>>>>>> origin/main-v0.14.1
         }
     }
 
-<<<<<<< HEAD
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
@@ -366,62 +260,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
         }
-||||||| dd2fc66ab
-    fn get_resources(&self, environment: &Environment) -> Resources {
-        match environment {
-            Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                    match self {
-                        HybridNodeServiceName::Core => {
-                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
-                        }
-                        HybridNodeServiceName::HttpServer => {
-                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                        }
-                        HybridNodeServiceName::Gateway => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::L1 => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::Mempool => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::SierraCompiler => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                    }
-                }
-                CloudK8sEnvironment::Mainnet | CloudK8sEnvironment::SepoliaTestnet => match self {
-                    HybridNodeServiceName::Core => {
-                        Resources::new(Resource::new(50, 200), Resource::new(50, 220))
-                    }
-                    HybridNodeServiceName::HttpServer => {
-                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                    }
-                    HybridNodeServiceName::Gateway => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::L1 => {
-                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
-                    }
-                    HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
-                    }
-                    HybridNodeServiceName::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                },
-            },
-            Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-        }
-=======
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
->>>>>>> origin/main-v0.14.1
     }
 
-<<<<<<< HEAD
     fn get_replicas(&self, environment: &Environment) -> usize {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -434,26 +274,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::LocalK8s => 1,
         }
-||||||| dd2fc66ab
-    fn get_replicas(&self, environment: &Environment) -> usize {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => 1,
-                HybridNodeServiceName::HttpServer => 1,
-                HybridNodeServiceName::Gateway => 2,
-                HybridNodeServiceName::L1 => 1,
-                HybridNodeServiceName::Mempool => 1,
-                HybridNodeServiceName::SierraCompiler => 2,
-            },
-            Environment::LocalK8s => 1,
-        }
-=======
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
->>>>>>> origin/main-v0.14.1
     }
 
-<<<<<<< HEAD
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
             Environment::CloudK8s(_) => match self {
@@ -466,23 +288,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::LocalK8s => false,
         }
-||||||| dd2fc66ab
-    fn get_anti_affinity(&self, environment: &Environment) -> bool {
-        match environment {
-            Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => true,
-                HybridNodeServiceName::HttpServer => false,
-                HybridNodeServiceName::Gateway => false,
-                HybridNodeServiceName::L1 => true,
-                HybridNodeServiceName::Mempool => true,
-                HybridNodeServiceName::SierraCompiler => false,
-            },
-            Environment::LocalK8s => false,
-        }
-=======
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
->>>>>>> origin/main-v0.14.1
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {

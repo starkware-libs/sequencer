@@ -438,15 +438,9 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
         | StarknetApiError::BlockHashVersion { .. }
         | StarknetApiError::ParseSierraVersionError(..)
         | StarknetApiError::ResourceHexToFeltConversion(..)
-<<<<<<< HEAD
         | StarknetApiError::OutOfRange { .. }
-        | StarknetApiError::MissingBlockHeaderCommitments { .. } => StarknetError {
-||||||| dd2fc66ab
-        | StarknetApiError::OutOfRange { .. } => StarknetError {
-=======
-        | StarknetApiError::OutOfRange { .. }
+        | StarknetApiError::MissingBlockHeaderCommitments { .. }
         | StarknetApiError::InvalidChainIdHex(..) => StarknetError {
->>>>>>> origin/main-v0.14.1
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },

@@ -16,15 +16,8 @@ use cairo_lang_starknet_classes::allowed_libfuncs::{
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use pretty_assertions::assert_eq;
-<<<<<<< HEAD
 use regex::Regex;
 use starknet_api::contract_class::ContractClass;
-||||||| dd2fc66ab
-use starknet_api::contract_class::{ContractClass, SierraVersion};
-=======
-use regex::Regex;
-use starknet_api::contract_class::{ContractClass, SierraVersion};
->>>>>>> origin/main-v0.14.1
 use starknet_api::state::SierraContractClass;
 
 use crate::compiler::SierraToCasmCompiler;

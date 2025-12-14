@@ -45,12 +45,8 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
-<<<<<<< HEAD
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-||||||| dd2fc66ab
-=======
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
->>>>>>> origin/main-v0.14.1
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -646,14 +642,10 @@ impl Batcher {
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
-<<<<<<< HEAD
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components().await;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
-||||||| dd2fc66ab
-=======
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
->>>>>>> origin/main-v0.14.1
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -663,19 +655,12 @@ impl Batcher {
             Some(partial_block_hash_components),
         )
         .await?;
-<<<<<<< HEAD
         let execution_infos = block_execution_artifacts
             .execution_data
             .execution_infos_and_signatures
             .into_iter()
             .map(|(tx_hash, (info, _))| (tx_hash, info))
             .collect();
-||||||| dd2fc66ab
-        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
-=======
-
-        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
->>>>>>> origin/main-v0.14.1
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
@@ -1120,14 +1105,8 @@ pub trait BatcherStorageWriter: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-<<<<<<< HEAD
         partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()>;
-||||||| dd2fc66ab
-    ) -> apollo_storage::StorageResult<()>;
-=======
-    ) -> StorageResult<()>;
->>>>>>> origin/main-v0.14.1
 
     fn revert_block(&mut self, height: BlockNumber);
 }
@@ -1137,14 +1116,8 @@ impl BatcherStorageWriter for StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-<<<<<<< HEAD
         partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()> {
-||||||| dd2fc66ab
-    ) -> apollo_storage::StorageResult<()> {
-=======
-    ) -> StorageResult<()> {
->>>>>>> origin/main-v0.14.1
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
         if let Some(ref components) = partial_block_hash_components {
