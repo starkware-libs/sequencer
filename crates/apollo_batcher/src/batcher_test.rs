@@ -975,7 +975,8 @@ async fn add_sync_block() {
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
-        ..Default::default()
+        account_transaction_hashes: Default::default(),
+        block_header_commitments: None,
     };
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
@@ -1004,7 +1005,10 @@ async fn add_sync_block_mismatch_block_number() {
             block_number: INITIAL_HEIGHT.unchecked_next(),
             ..Default::default()
         },
-        ..Default::default()
+        state_diff: Default::default(),
+        account_transaction_hashes: Default::default(),
+        l1_transaction_hashes: Default::default(),
+        block_header_commitments: None,
     };
     let result = batcher.add_sync_block(sync_block).await;
     assert_eq!(
