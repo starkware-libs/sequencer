@@ -29,6 +29,7 @@ use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+#[cfg(any(test, feature = "testing"))]
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
@@ -979,6 +980,7 @@ async fn add_sync_block() {
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
+        block_header_commitments: None,
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
@@ -1008,6 +1010,7 @@ async fn add_sync_block_mismatch_block_number() {
             block_number: INITIAL_HEIGHT.unchecked_next(),
             ..Default::default()
         },
+        block_header_commitments: None,
         ..Default::default()
     };
     let result = batcher.add_sync_block(sync_block).await;
