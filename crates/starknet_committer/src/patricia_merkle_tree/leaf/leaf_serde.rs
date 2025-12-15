@@ -5,7 +5,7 @@ use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -34,8 +34,8 @@ impl DBObject for StarknetStorageValue {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Serializes the value into a 32-byte vector.
-    fn serialize(&self) -> DbValue {
-        DbValue(self.0.to_bytes_be().to_vec())
+    fn serialize(&self) -> Result<DbValue, SerializationError> {
+        Ok(DbValue(self.0.to_bytes_be().to_vec()))
     }
 
     fn deserialize(
@@ -50,9 +50,9 @@ impl DBObject for CompiledClassHash {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> Result<DbValue, SerializationError> {
         let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
-        DbValue(json_string.into_bytes())
+        Ok(DbValue(json_string.into_bytes()))
     }
 
     fn deserialize(
@@ -72,7 +72,7 @@ impl DBObject for ContractState {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> Result<DbValue, SerializationError> {
         let json_string = format!(
             r#"{{"contract_hash": "{}", "storage_commitment_tree": {{"root": "{}", "height": {}}}, "nonce": "{}"}}"#,
             fixed_hex_string_no_prefix(&self.class_hash.0),
@@ -80,7 +80,7 @@ impl DBObject for ContractState {
             SubTreeHeight::ACTUAL_HEIGHT,
             self.nonce.0.to_hex_string(),
         );
-        DbValue(json_string.into_bytes())
+        Ok(DbValue(json_string.into_bytes()))
     }
 
     fn deserialize(

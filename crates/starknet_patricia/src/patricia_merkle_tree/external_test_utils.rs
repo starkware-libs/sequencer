@@ -10,7 +10,7 @@ use starknet_patricia_storage::db_object::{
     EmptyKeyContext,
     HasStaticPrefix,
 };
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
@@ -39,8 +39,8 @@ impl HasStaticPrefix for MockLeaf {
 impl DBObject for MockLeaf {
     type DeserializeContext = EmptyDeserializationContext;
 
-    fn serialize(&self) -> DbValue {
-        DbValue(self.0.to_bytes_be().to_vec())
+    fn serialize(&self) -> Result<DbValue, SerializationError> {
+        Ok(DbValue(self.0.to_bytes_be().to_vec()))
     }
 
     fn deserialize(
