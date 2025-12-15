@@ -41,7 +41,10 @@ use apollo_storage::block_hash_marker::{
 };
 use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
+use apollo_storage::partial_block_hash::{
+    PartialBlockHashComponentsStorageReader,
+    PartialBlockHashComponentsStorageWriter,
+};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::{
     open_storage_with_metric,
@@ -1133,6 +1136,11 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> apollo_storage::StorageResult<ThinStateDiff>;
+
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1208,6 +1216,13 @@ impl BatcherStorageReader for StorageReader {
             nonces: reversed_nonces,
             deprecated_declared_classes: Default::default(),
         })
+    }
+
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>> {
+        self.begin_ro_txn()?.get_partial_block_hash_components(&height)
     }
 }
 
