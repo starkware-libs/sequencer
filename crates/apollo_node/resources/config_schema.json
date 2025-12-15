@@ -3124,6 +3124,21 @@
     "privacy": "Public",
     "value": "FullArchive"
   },
+  "state_sync_config.storage_reader_server_config.enable": {
+    "description": "Whether to enable the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.storage_reader_server_config.ip": {
+    "description": "The IP address for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "state_sync_config.storage_reader_server_config.port": {
+    "description": "The port for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": 8080
+  },
   "strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "privacy": "TemporaryValue",
