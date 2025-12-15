@@ -357,7 +357,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = facts_db.write(&filled_forest).await;
+        let n_new_facts = facts_db.write(&filled_forest).await.unwrap();
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 

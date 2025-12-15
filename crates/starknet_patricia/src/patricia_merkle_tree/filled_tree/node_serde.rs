@@ -6,7 +6,7 @@ use starknet_patricia_storage::db_object::{
     HasDynamicPrefix,
     HasStaticPrefix,
 };
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -82,7 +82,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> Result<DbValue, SerializationError> {
         match &self.data {
             NodeData::Binary(BinaryData { left_data: left_hash, right_data: right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
@@ -91,7 +91,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
 
                 // Concatenate left and right hashes.
                 let serialized = [left, right].concat();
-                DbValue(serialized)
+                Ok(DbValue(serialized))
             }
 
             NodeData::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }) => {
@@ -103,7 +103,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
 
                 // Concatenate bottom hash, path, and path length.
                 let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
-                DbValue(serialized)
+                Ok(DbValue(serialized))
             }
 
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),
