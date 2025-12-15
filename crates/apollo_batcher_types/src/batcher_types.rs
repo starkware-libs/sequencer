@@ -148,6 +148,26 @@ pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
 
+/// Input for executing genesis transactions.
+/// This is used to bootstrap the chain with initial transactions (e.g., deploying fee tokens,
+/// declaring account contracts) before normal consensus begins.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExecuteGenesisTransactionsInput {
+    /// The block info for the genesis block (block number should be 0).
+    pub block_info: BlockInfo,
+    /// The transactions to execute in the genesis block.
+    pub transactions: Vec<InternalConsensusTransaction>,
+}
+
+/// Response from executing genesis transactions.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteGenesisTransactionsResponse {
+    /// The resulting state diff from executing the genesis transactions.
+    pub state_diff: ThinStateDiff,
+    /// The commitment for the genesis block.
+    pub commitment: ProposalCommitment,
+}
+
 // TODO(Dean): Fill in with actual storage table names and operations.
 /// Storage-related requests for the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
