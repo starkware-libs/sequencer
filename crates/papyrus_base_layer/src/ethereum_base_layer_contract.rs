@@ -152,14 +152,14 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn events<'a>(
         &'a mut self,
         block_range: RangeInclusive<u64>,
-        events: &'a [&'a str],
+        event_types_to_filter: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
         // Don't actually need mutability here, and using mut self doesn't work with async move in
         // the loop below.
         let immutable_self = &*self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())
-            .events(events)
+            .events(event_types_to_filter)
             .address(immutable_self.config.starknet_contract_address);
         let matching_logs = tokio::time::timeout(
             immutable_self.config.timeout_millis,
@@ -178,7 +178,6 @@ impl BaseLayerContract for EthereumBaseLayerContract {
                 parse_event(log, header.timestamp)
             }
         });
-
         futures::future::join_all(block_header_futures).await.into_iter().collect()
     }
 
