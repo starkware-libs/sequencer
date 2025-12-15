@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check-system-test-trigger:
+  check-system-test-trigger-hybrid-2:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
@@ -70,10 +70,10 @@ jobs:
           echo "Captured output: $should_run"
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
-  build_docker_images:
+  build-docker-images-hybrid-2:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
-    needs: check-system-test-trigger
-    if: needs.check-system-test-trigger.outputs.should_run == 'true'
+    needs: check-system-test-trigger-hybrid-2
+    if: needs.check-system-test-trigger-hybrid-2.outputs.should_run == 'true'
     permissions:
       id-token: write
       contents: read
@@ -98,9 +98,9 @@ jobs:
           push: true
           tags: ${{ env.NSC_CONTAINER_REGISTRY }}/${{ matrix.svc }}:${{ github.sha }}
 
-  system_test_hybrid:
+  system-test-hybrid-2:
     needs:
-      - build_docker_images
+      - build-docker-images-hybrid-2
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - name: Checkout repository
