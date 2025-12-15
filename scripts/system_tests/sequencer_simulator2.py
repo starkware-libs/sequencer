@@ -36,162 +36,87 @@ def get_pod_name(service_label: str) -> str:
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
+def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
+    """Actively wait until a port is open (used to confirm port-forward is ready)."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.create_connection((host, port), timeout=1):
+                return True
+        except OSError:
+            time.sleep(0.5)
+    return False
+
+
 def port_forward(
     pod_name: str,
     local_port: int,
     remote_port: int,
     wait_ready: bool = True,
-    max_attempts: int = 25,
-    max_retries: int = 5,  # Retry the port-forward command itself
+    port_forward_retries: int = 3,
+    port_forward_retry_delay: int = 2,
+    port_wait_timeout: int = 30,
 ):
-    """Port-forward with retry logic for transient kubectl connection failures."""
+    """Port-forward with retry logic matching liveness_check2.py."""
+    pf_process = None
+    port_established = False
 
-    def is_transient_error(error_msg: str) -> bool:
-        """Check if error message indicates a transient connection error."""
-        if not error_msg:
-            return False
-        error_lower = error_msg.lower()
-        return any(
-            phrase in error_lower
-            for phrase in [
-                "eof",
-                "error dialing backend",
-                "error upgrading connection",
-                "connection refused",
-            ]
-        )
+    # Retry port-forward setup
+    for attempt in range(1, port_forward_retries + 1):
+        try:
+            # Kill previous attempt if exists
+            if pf_process:
+                try:
+                    pf_process.terminate()
+                    pf_process.wait(timeout=2)
+                except Exception:
+                    pass
 
-    for retry in range(max_retries):
-        if retry > 0:
             print(
-                f"🔄 Retrying port-forward command (attempt {retry + 1}/{max_retries})...",
+                f"🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {remote_port}",
                 flush=True,
             )
-            time.sleep(5)  # Wait before retry
 
-        cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+            pf_process = subprocess.Popen(
+                ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
-        error_output_read = False
+            if not wait_ready:
+                return
 
-        def get_error_if_failed():
-            """Check if process failed and return error message, None if still running."""
-            nonlocal error_output_read
-            if error_output_read:
-                return None
-
-            if process.poll() is not None:
-                error_output_read = True
-                try:
-                    _, stderr = process.communicate(timeout=1)
-                    return stderr.strip() if stderr else "Process terminated with unknown error"
-                except subprocess.TimeoutExpired:
-                    return "Process terminated but could not read error output"
-            return None
-
-        # Give kubectl more time to establish connection in CI
-        time.sleep(1.5 if retry == 0 else 0.5)
-
-        # Check if process failed immediately (transient connection error)
-        error_msg = get_error_if_failed()
-        if error_msg:
-            if retry < max_retries - 1 and is_transient_error(error_msg):
+            # Wait for port to be ready
+            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
+                port_established = True
                 print(
-                    f"⚠️  Transient kubectl connection error (will retry): {error_msg[:150]}",
+                    f"✅ Port-forward to {pod_name}:{remote_port} is ready on localhost:{local_port}",
                     flush=True,
                 )
-                try:
-                    process.kill()
-                except:
-                    pass
-                continue  # Retry the port-forward command
+                break
             else:
-                raise RuntimeError(
-                    f"❌ Port-forward to {pod_name}:{remote_port} failed after {retry + 1} attempts.\n"
-                    f"kubectl error: {error_msg}"
+                print(
+                    f"⚠️ Port-forward attempt {attempt} failed - port not ready",
+                    flush=True,
                 )
+                if attempt < port_forward_retries:
+                    time.sleep(port_forward_retry_delay)
 
-        if not wait_ready:
-            return process
+        except Exception as e:
+            print(f"⚠️ Port-forward attempt {attempt} failed: {e}", flush=True)
+            if attempt < port_forward_retries:
+                time.sleep(port_forward_retry_delay)
 
-        # Wait for port to be accessible
-        for attempt in range(max_attempts):
-            # Check if process has failed
-            error_msg = get_error_if_failed()
-            if error_msg:
-                if retry < max_retries - 1 and is_transient_error(error_msg):
-                    print(
-                        f"⚠️  Transient error during wait (will retry): {error_msg[:150]}",
-                        flush=True,
-                    )
-                    try:
-                        process.kill()
-                    except:
-                        pass
-                    break  # Break inner loop to retry outer loop
-                else:
-                    raise RuntimeError(
-                        f"❌ Port-forward to {pod_name}:{remote_port} failed.\n"
-                        f"kubectl error: {error_msg}"
-                    )
-
+    if not port_established:
+        if pf_process:
             try:
-                with socket.create_connection(("localhost", local_port), timeout=1):
-                    print(
-                        f"✅ Port-forward to {pod_name}:{remote_port} is ready on localhost:{local_port}",
-                        flush=True,
-                    )
-                    return process
+                pf_process.terminate()
+                pf_process.wait()
             except Exception:
-                if attempt < max_attempts - 1:
-                    print(
-                        f"🔄 Port-forward to {pod_name}:{remote_port} not ready yet, attempt: {attempt + 1}/{max_attempts}",
-                        flush=True,
-                    )
-                    time.sleep(1)
-
-        # If we get here, port never became ready - retry if we have retries left
-        if retry < max_retries - 1:
-            print(
-                f"⚠️  Port-forward process still running but port not accessible, retrying...",
-                flush=True,
-            )
-            try:
-                process.kill()
-            except:
                 pass
-            continue
-        else:
-            # Final failure
-            process.terminate()
-            final_error_msg = None
-            try:
-                process.wait(timeout=2)
-                if not error_output_read:
-                    try:
-                        _, stderr = process.communicate(timeout=1)
-                        if stderr:
-                            final_error_msg = stderr.strip()
-                    except subprocess.TimeoutExpired:
-                        pass
-            except subprocess.TimeoutExpired:
-                process.kill()
-
-            error_details = f"\nkubectl error: {final_error_msg}" if final_error_msg else ""
-            raise RuntimeError(
-                f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_retries} retries and {max_attempts} attempts.\n"
-                f"Port {local_port} is not accessible. Check if the pod is running and the port is correct.\n"
-                f"Pod: {pod_name}, Local port: {local_port}, Remote port: {remote_port}{error_details}"
-            )
-
-    raise RuntimeError(
-        f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_retries} retries"
-    )
+        raise RuntimeError(
+            f"❌ Port-forward to {pod_name}:{remote_port} failed after {port_forward_retries} attempts."
+        )
 
 
 def run_simulator(http_port: int, monitoring_port: int, sender_address: str, receiver_address: str):

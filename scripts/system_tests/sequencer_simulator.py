@@ -60,27 +60,82 @@ def get_pod_name(service_label):
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
-def port_forward(pod_name, local_port, remote_port, wait_ready=True, max_attempts=25):
-    cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
-    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if not wait_ready:
-        return
-    for attempt in range(max_attempts):
+def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
+    """Actively wait until a port is open (used to confirm port-forward is ready)."""
+    start = time.time()
+    while time.time() - start < timeout:
         try:
-            with socket.create_connection(("localhost", local_port), timeout=1):
+            with socket.create_connection((host, port), timeout=1):
+                return True
+        except OSError:
+            time.sleep(0.5)
+    return False
+
+
+def port_forward(
+    pod_name,
+    local_port,
+    remote_port,
+    wait_ready=True,
+    port_forward_retries=3,
+    port_forward_retry_delay=2,
+    port_wait_timeout=30,
+):
+    """Port-forward with retry logic matching liveness_check2.py."""
+    pf_process = None
+    port_established = False
+
+    # Retry port-forward setup
+    for attempt in range(1, port_forward_retries + 1):
+        try:
+            # Kill previous attempt if exists
+            if pf_process:
+                try:
+                    pf_process.terminate()
+                    pf_process.wait(timeout=2)
+                except Exception:
+                    pass
+
+            print(
+                f"🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {remote_port}"
+            )
+
+            pf_process = subprocess.Popen(
+                ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            if not wait_ready:
+                return
+
+            # Wait for port to be ready
+            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
+                port_established = True
                 print(
                     f"✅ Port-forward to {pod_name}:{remote_port} is ready on localhost:{local_port}"
                 )
-                return
-        except Exception:
-            print(
-                f"🔄 Port-forward to {pod_name}:{remote_port} failed, attempt: {attempt}/{max_attempts}"
-            )
-            time.sleep(1)
+                break
+            else:
+                print(f"⚠️ Port-forward attempt {attempt} failed - port not ready")
+                if attempt < port_forward_retries:
+                    time.sleep(port_forward_retry_delay)
 
-    raise RuntimeError(
-        f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_attempts} attempts."
-    )
+        except Exception as e:
+            print(f"⚠️ Port-forward attempt {attempt} failed: {e}")
+            if attempt < port_forward_retries:
+                time.sleep(port_forward_retry_delay)
+
+    if not port_established:
+        if pf_process:
+            try:
+                pf_process.terminate()
+                pf_process.wait()
+            except Exception:
+                pass
+        raise RuntimeError(
+            f"❌ Port-forward to {pod_name}:{remote_port} failed after {port_forward_retries} attempts."
+        )
 
 
 def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
