@@ -26,6 +26,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -114,6 +115,7 @@ pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
+    pub committer_client: SharedCommitterClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -162,6 +164,7 @@ impl Batcher {
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReader>,
         storage_writer: Box<dyn BatcherStorageWriter>,
+        committer_client: SharedCommitterClient,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
@@ -172,6 +175,7 @@ impl Batcher {
             config,
             storage_reader,
             storage_writer,
+            committer_client,
             l1_provider_client,
             mempool_client,
             transaction_converter,
@@ -1046,6 +1050,7 @@ fn log_txs_execution_result(
 
 pub fn create_batcher(
     config: BatcherConfig,
+    committer_client: SharedCommitterClient,
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
@@ -1079,6 +1084,7 @@ pub fn create_batcher(
         config,
         storage_reader,
         storage_writer,
+        committer_client,
         l1_provider_client,
         mempool_client,
         transaction_converter,
