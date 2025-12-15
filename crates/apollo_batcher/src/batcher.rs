@@ -36,12 +36,18 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
+use apollo_storage::{
+    open_storage_with_metric,
+    StorageError,
+    StorageReader,
+    StorageResult,
+    StorageWriter,
+};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use futures::FutureExt;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
@@ -49,7 +55,7 @@ use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, Instrument};
@@ -1086,6 +1092,13 @@ pub trait BatcherStorageReader: Send + Sync {
     fn height(&self) -> StorageResult<BlockNumber>;
 
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
+
+    /// Returns the state diff that undoes the state diff at the given height.
+    /// Ignores deprecated_declared_classes.
+    fn reversed_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<ThinStateDiff>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1098,6 +1111,68 @@ impl BatcherStorageReader for StorageReader {
         height: BlockNumber,
     ) -> apollo_storage::StorageResult<Option<ThinStateDiff>> {
         self.begin_ro_txn()?.get_state_diff(height)
+    }
+
+    fn reversed_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<ThinStateDiff> {
+        let state_target = StateNumber::right_before_block(height);
+        let txn = self.begin_ro_txn()?;
+
+        let ThinStateDiff {
+            deployed_contracts,
+            storage_diffs,
+            class_hash_to_compiled_class_hash,
+            nonces,
+            ..
+        } = txn.get_state_diff(height)?.ok_or_else(|| StorageError::MissingObject {
+            object_name: "state diff".to_string(),
+            height,
+        })?;
+
+        let state_reader = txn.get_state_reader()?;
+
+        // In the following maps, set empty values to zero.
+        let mut reversed_deployed_contracts = IndexMap::new();
+        for contract_address in deployed_contracts.keys() {
+            let class_hash =
+                state_reader.get_class_hash_at(state_target, contract_address)?.unwrap_or_default();
+            reversed_deployed_contracts.insert(*contract_address, class_hash);
+        }
+
+        let mut reversed_storage_diffs = IndexMap::new();
+        for (contract_address, contract_diffs) in storage_diffs {
+            let mut reversed_contract_diffs = IndexMap::new();
+            for key in contract_diffs.keys() {
+                let value = state_reader.get_storage_at(state_target, &contract_address, key)?;
+                reversed_contract_diffs.insert(*key, value);
+            }
+            reversed_storage_diffs.insert(contract_address, reversed_contract_diffs);
+        }
+
+        let mut reversed_class_hash_to_compiled_class_hash = IndexMap::new();
+        for class_hash in class_hash_to_compiled_class_hash.keys() {
+            let compiled_class_hash = state_reader
+                .get_compiled_class_hash_at(state_target, class_hash)?
+                .unwrap_or_default();
+            reversed_class_hash_to_compiled_class_hash.insert(*class_hash, compiled_class_hash);
+        }
+
+        let mut reversed_nonces = IndexMap::new();
+        for contract_address in nonces.keys() {
+            let nonce =
+                state_reader.get_nonce_at(state_target, contract_address)?.unwrap_or_default();
+            reversed_nonces.insert(*contract_address, nonce);
+        }
+
+        Ok(ThinStateDiff {
+            deployed_contracts: reversed_deployed_contracts,
+            storage_diffs: reversed_storage_diffs,
+            class_hash_to_compiled_class_hash: reversed_class_hash_to_compiled_class_hash,
+            nonces: reversed_nonces,
+            deprecated_declared_classes: Default::default(),
+        })
     }
 }
 

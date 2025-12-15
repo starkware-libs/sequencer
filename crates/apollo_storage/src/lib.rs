@@ -707,6 +707,8 @@ pub enum StorageError {
          {block_number}."
     )]
     BlockSignatureForNonExistingBlock { block_number: BlockNumber, block_signature: BlockSignature },
+    #[error("Object {object_name} at height {height} is missing.")]
+    MissingObject { object_name: String, height: BlockNumber },
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
