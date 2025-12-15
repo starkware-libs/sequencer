@@ -61,9 +61,9 @@ pub mod gateway_test;
 pub struct Gateway(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
 
 impl Gateway {
-    pub(crate) fn new(
+    fn new(
         config: GatewayConfig,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
+        state_reader_factory: Arc<SyncStateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
@@ -87,7 +87,7 @@ impl Gateway {
 }
 
 #[derive(Clone)]
-struct GenericGateway<TStatelessValidator, TTransactionConverter>
+pub(crate) struct GenericGateway<TStatelessValidator, TTransactionConverter>
 where
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
@@ -105,13 +105,16 @@ where
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
 {
-    fn new(
+    pub(crate) fn new<StateReaderFactoryGeneric>(
         config: GatewayConfig,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
+        state_reader_factory: Arc<StateReaderFactoryGeneric>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
-    ) -> Self {
+    ) -> Self
+    where
+        StateReaderFactoryGeneric: StateReaderFactory + 'static,
+    {
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
@@ -129,7 +132,7 @@ where
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
-    async fn add_tx(
+    pub(crate) async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,

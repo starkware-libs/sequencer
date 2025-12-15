@@ -52,15 +52,22 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 
-pub struct StatefulTransactionValidatorFactory {
+pub struct StatefulTransactionValidatorFactory<TStateReaderFactory>
+where
+    TStateReaderFactory: StateReaderFactory,
+{
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
+    pub state_reader_factory: Arc<TStateReaderFactory>,
     pub contract_class_manager: ContractClassManager,
 }
 
 #[async_trait]
-impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
+impl<TStateReaderFactory> StatefulTransactionValidatorFactoryTrait
+    for StatefulTransactionValidatorFactory<TStateReaderFactory>
+where
+    TStateReaderFactory: StateReaderFactory,
+{
     async fn instantiate_validator(
         &self,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
