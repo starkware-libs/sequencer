@@ -4,12 +4,17 @@ Provides mock responses for L1 RPC calls.
 
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 import logging
 from collections import deque
 from l1_blocks import L1Blocks
 from l1_client import L1Client
+from utils import (
+    STATE_BLOCK_HASH_SELECTOR,
+    STATE_BLOCK_NUMBER_SELECTOR,
+    format_hex,
+)
 
 
 class L1Manager:
@@ -19,10 +24,13 @@ class L1Manager:
         block_data: dict
         logs: list[dict]
 
-    def __init__(self, l1_client: L1Client):
+    def __init__(
+        self, l1_client: L1Client, get_last_proved_block_callback: Callable[[], tuple[int, int]]
+    ):
         self.logger = logging.getLogger("L1Manager")
         self.l1_client = l1_client
         self.queue: deque[L1Manager.L1TxData] = deque()
+        self.get_last_proved_block = get_last_proved_block_callback
 
     def set_new_tx(self, feeder_gateway_tx: dict, l2_block_timestamp: int) -> None:
         """
@@ -144,3 +152,19 @@ class L1Manager:
                 "result": "0x2377",
             }
         )
+
+    def get_call(self, params: dict) -> str:
+        """
+        Handles eth_call for stateBlockNumber/stateBlockHash based on function selector.
+        """
+        input_data = params.get("input", "")
+        last_block_number, last_block_hash = self.get_last_proved_block()
+
+        if input_data.startswith(STATE_BLOCK_NUMBER_SELECTOR):
+            result = format_hex(last_block_number)
+        elif input_data.startswith(STATE_BLOCK_HASH_SELECTOR):
+            result = format_hex(last_block_hash)
+        else:
+            result = "0x"
+
+        return json.dumps({"jsonrpc": "2.0", "id": "1", "result": result})

@@ -6,7 +6,7 @@ import functools
 import inspect
 import logging
 import requests
-from l1_utils import (
+from utils import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
     timestamp_to_iso,
