@@ -1,7 +1,3 @@
-import json
-from datetime import datetime, timezone
-from typing import Any
-
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs
 STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
@@ -16,17 +12,3 @@ LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
 # Function selectors for Starknet L1 contract.
 STATE_BLOCK_NUMBER_SELECTOR = "0x35befa5d"  # stateBlockNumber()
 STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
-
-
-def timestamp_to_iso(timestamp: int) -> str:
-    """Convert Unix timestamp to ISO 8601 string (UTC)."""
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def rpc_response(result: Any) -> str:
-    return json.dumps({"jsonrpc": "2.0", "id": "1", "result": result})
-
-
-def format_hex(value: int, width: int = 64) -> str:
-    """Formats an integer as a 0x-prefixed hex string, zero-padded to width hex chars."""
-    return f"0x{value:0{width}x}"
