@@ -179,6 +179,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         ),
         Box::new(mock_dependencies.block_builder_factory),
         Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
+        None,
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
