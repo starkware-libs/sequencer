@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
     ConfigImpl,
+    FactsDbInitialRead,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -19,7 +20,7 @@ use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
+use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 
 #[test]
 fn test_simple_input_parsing() {
@@ -215,13 +216,15 @@ fn test_simple_input_parsing() {
             class_hash_to_compiled_class_hash: expected_class_hash_to_compiled_class_hash,
             storage_updates: expected_storage_updates,
         },
-        contracts_trie_root_hash: expected_contracts_trie_root_hash,
-        classes_trie_root_hash: expected_classes_trie_root_hash,
+        initial_read_context: FactsDbInitialRead(StateRoots {
+            contracts_trie_root_hash: expected_contracts_trie_root_hash,
+            classes_trie_root_hash: expected_classes_trie_root_hash,
+        }),
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     };
     assert_eq!(
         parse_input(input).unwrap(),
-        CommitterInputImpl { input: expected_input, storage: MapStorage(expected_storage) }
+        CommitterFactsDbInputImpl { input: expected_input, storage: MapStorage(expected_storage) }
     );
 }
 
