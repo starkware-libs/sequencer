@@ -1,5 +1,4 @@
-use apollo_gateway::gateway::Gateway;
-use apollo_gateway::test_utils::gateway_for_benchmark;
+use apollo_gateway::test_utils::{gateway_for_benchmark, GatewayForBenchmark};
 use apollo_gateway_config::config::GatewayConfig;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -58,7 +57,7 @@ impl Default for BenchTestSetupConfig {
 }
 
 pub struct BenchTestSetup {
-    gateway: Gateway,
+    gateway: GatewayForBenchmark,
     txs: Vec<RpcTransaction>,
 }
 
