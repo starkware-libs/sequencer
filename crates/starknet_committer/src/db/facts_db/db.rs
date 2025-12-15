@@ -9,6 +9,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModific
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -189,14 +190,19 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
 
 #[async_trait]
 impl<S: Storage> ForestWriter for FactsDb<S> {
-    fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap {
-        filled_forest
-            .storage_tries
-            .values()
-            .flat_map(|tree| tree.serialize(&EmptyKeyContext).into_iter())
-            .chain(filled_forest.contracts_trie.serialize(&EmptyKeyContext))
-            .chain(filled_forest.classes_trie.serialize(&EmptyKeyContext))
-            .collect()
+    fn serialize_forest(filled_forest: &FilledForest) -> Result<DbHashMap, SerializationError> {
+        let mut out = DbHashMap::new();
+
+        // storage tries
+        for tree in filled_forest.storage_tries.values() {
+            out.extend(tree.serialize(&EmptyKeyContext)?);
+        }
+
+        // other tries
+        out.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
+        out.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
+
+        Ok(out)
     }
 
     async fn write_updates(&mut self, updates: DbHashMap) -> usize {
