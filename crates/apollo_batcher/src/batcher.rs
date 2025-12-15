@@ -34,7 +34,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_storage::block_hash::BlockHashStorageWriter;
+use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::block_hash_marker::{
     BlockHashMarkerStorageReader,
     BlockHashMarkerStorageWriter,
@@ -1141,6 +1141,8 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>>;
+
+    fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1223,6 +1225,10 @@ impl BatcherStorageReader for StorageReader {
         height: BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>> {
         self.begin_ro_txn()?.get_partial_block_hash_components(&height)
+    }
+
+    fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>> {
+        self.begin_ro_txn()?.get_block_hash(&height)
     }
 }
 
