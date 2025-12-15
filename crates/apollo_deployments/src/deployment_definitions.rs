@@ -1,21 +1,13 @@
 use std::fmt::{Display, Formatter, Result};
-use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use alloy::primitives::Address as EthereumContractAddress;
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
-use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
-use serde_json::from_str;
-use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
-use strum_macros::{Display, EnumString};
-use url::Url;
+use strum_macros::Display;
 
-use crate::addresses::PEER_IDS;
-use crate::deployment::{Deployment, P2PCommunicationType};
+use crate::deployment::Deployment;
 use crate::deployment_definitions::testing::system_test_deployments;
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -46,55 +38,6 @@ pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
 
-pub(crate) type NodeAndValidatorId = (usize, String);
-
-#[derive(Debug, Deserialize)]
-pub struct DeploymentInputs {
-    pub node_and_validator_ids: Vec<NodeAndValidatorId>,
-    pub num_validators: usize,
-    pub http_server_ingress_alternative_name: String,
-    pub ingress_domain: String,
-    pub secret_name_format: Template,
-    pub node_namespace_format: Template,
-    pub starknet_contract_address: EthereumContractAddress,
-    pub chain_id_string: String,
-    pub eth_fee_token_address: ContractAddress,
-    pub starknet_gateway_url: Url,
-    pub strk_fee_token_address: ContractAddress,
-    pub l1_startup_height_override: Option<BlockNumber>,
-    pub state_sync_type: StateSyncType,
-    pub p2p_communication_type: P2PCommunicationType,
-    pub deployment_environment: Environment,
-    pub requires_k8s_service_config_params: bool,
-    pub audited_libfuncs_only: bool,
-    pub http_server_port: u16,
-    pub monitoring_endpoint_config_port: u16,
-    pub state_sync_config_rpc_config_port: u16,
-    pub mempool_p2p_config_network_config_port: u16,
-    pub consensus_manager_config_network_config_port: u16,
-}
-
-impl DeploymentInputs {
-    pub fn load_from_file(path: PathBuf) -> DeploymentInputs {
-        // Read the file into a string
-        let data = read_to_string(path).expect("Failed to read deployment input JSON file");
-
-        // Parse JSON into the DeploymentInputs struct
-        let deployment_inputs: Self =
-            from_str(&data).expect("Should be able to parse deployment input JSON");
-
-        for (node_id, _) in &deployment_inputs.node_and_validator_ids {
-            assert!(
-                *node_id < PEER_IDS.len(),
-                "Node node_id {node_id} exceeds the number of nodes {}",
-                PEER_IDS.len()
-            );
-        }
-
-        deployment_inputs
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Environment {
@@ -108,16 +51,6 @@ impl Display for Environment {
             Environment::LocalK8s => write!(f, "testing"),
         }
     }
-}
-
-#[derive(EnumString, Clone, Display, PartialEq, Debug, Serialize, Deserialize)]
-#[strum(serialize_all = "snake_case")]
-pub enum CloudK8sEnvironment {
-    Mainnet,
-    SepoliaIntegration,
-    SepoliaTestnet,
-    #[strum(serialize = "upgrade_test")]
-    UpgradeTest,
 }
 
 impl Environment {
