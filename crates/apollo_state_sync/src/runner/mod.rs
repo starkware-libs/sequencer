@@ -133,6 +133,7 @@ impl StateSyncRunner {
             network_config,
             revert_config,
             rpc_config,
+            storage_reader_server_config,
         } = config;
 
         let StateSyncResources {
