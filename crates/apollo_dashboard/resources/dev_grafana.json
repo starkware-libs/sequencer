@@ -402,7 +402,7 @@
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {
-            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\""
+            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being executed and\""
           }
         },
         {
