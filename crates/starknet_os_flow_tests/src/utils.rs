@@ -47,6 +47,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -150,7 +151,7 @@ pub(crate) async fn commit_state_diff(
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
-    filled_forest.write_to_storage(&mut facts_db.storage).await;
+    facts_db.write(&filled_forest).await;
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),

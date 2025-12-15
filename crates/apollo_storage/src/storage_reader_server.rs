@@ -36,7 +36,6 @@ impl ServerConfig {
 pub trait StorageReaderServerHandler<Request, Response> {
     /// Handles an incoming request and returns a response.
     async fn handle_request(
-        &self,
         storage_reader: &StorageReader,
         request: Request,
     ) -> Result<Response, StorageError>;
@@ -47,7 +46,7 @@ pub trait StorageReaderServerHandler<Request, Response> {
 /// A server for handling remote storage reader queries via a configurable request handler.
 pub struct StorageReaderServer<RequestHandler, Request, Response>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
@@ -57,39 +56,30 @@ where
 
 struct AppState<RequestHandler, Request, Response>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
-    request_handler: RequestHandler,
-    _req_res: PhantomData<(Request, Response)>,
+    _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
 impl<RequestHandler, Request, Response> Clone for AppState<RequestHandler, Request, Response>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     fn clone(&self) -> Self {
-        Self {
-            storage_reader: self.storage_reader.clone(),
-            request_handler: self.request_handler.clone(),
-            _req_res: PhantomData,
-        }
+        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
     }
 }
 
 impl<RequestHandler, Request, Response> StorageReaderServer<RequestHandler, Request, Response>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(
-        storage_reader: StorageReader,
-        request_handler: RequestHandler,
-        config: ServerConfig,
-    ) -> Self {
-        let app_state = AppState { storage_reader, request_handler, _req_res: PhantomData };
+    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
+        let app_state = AppState { storage_reader, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -137,12 +127,11 @@ async fn handle_request_endpoint<RequestHandler, Request, Response>(
     Json(request): Json<Request>,
 ) -> Result<Json<Response>, StorageServerError>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response> + Clone,
+    RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
-    let response =
-        app_state.request_handler.handle_request(&app_state.storage_reader, request).await?;
+    let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
 
     Ok(Json(response))
 }

@@ -36,6 +36,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -45,6 +46,7 @@ use indexmap::IndexSet;
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -104,8 +106,8 @@ type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>
 
 pub struct Batcher {
     pub config: BatcherConfig,
-    pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub storage_reader: Arc<dyn BatcherStorageReader>,
+    pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -142,14 +144,18 @@ pub struct Batcher {
 
     /// Number of proposals made since coming online.
     proposals_counter: u64,
+
+    /// The proposal commitment of the previous height.
+    /// This is returned by the decision_reached function.
+    prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 }
 
 impl Batcher {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: BatcherConfig,
-        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-        storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        storage_reader: Arc<dyn BatcherStorageReader>,
+        storage_writer: Box<dyn BatcherStorageWriter>,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
@@ -173,6 +179,7 @@ impl Batcher {
             validate_tx_streams: HashMap::new(),
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
+            prev_proposal_commitment: None,
         }
     }
 
@@ -641,6 +648,7 @@ impl Batcher {
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components().await;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
+        let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -650,6 +658,7 @@ impl Batcher {
             Some(partial_block_hash_components),
         )
         .await?;
+
         let execution_infos = block_execution_artifacts
             .execution_data
             .execution_infos_and_signatures
@@ -679,6 +688,7 @@ impl Batcher {
                     .casm_hash_computation_data_proving_gas,
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
+                parent_proposal_commitment,
             },
             block_header_commitments,
         })
@@ -701,6 +711,8 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
+        let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+
         // Commit the proposal to the storage.
         self.storage_writer
             .commit_proposal(height, state_diff, partial_block_hash_components)
@@ -709,6 +721,8 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
         info!("Successfully committed proposal for block {} to storage.", height);
+        self.prev_proposal_commitment =
+            Some((height, ProposalCommitment { state_diff_commitment }));
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
@@ -940,6 +954,47 @@ impl Batcher {
         REVERTED_BLOCKS.increment(1);
         Ok(())
     }
+
+    // Returns the proposal commitment of the previous height.
+    // NOTE: Assumes that the previous height was committed to the storage.
+    fn get_parent_proposal_commitment(
+        &mut self,
+        height: BlockNumber,
+    ) -> BatcherResult<Option<ProposalCommitment>> {
+        let Some(prev_height) = height.prev() else {
+            // This is the first block, so there is no parent proposal commitment.
+            return Ok(None);
+        };
+
+        match self.prev_proposal_commitment {
+            Some((h, commitment)) => {
+                assert_eq!(h, prev_height, "Unexpected height of parent_proposal_commitment.");
+                Ok(Some(commitment))
+            }
+            None => {
+                // Parent proposal commitment is not cached. Compute it from the stored state diff.
+                let mut state_diff = self
+                    .storage_reader
+                    .get_state_diff(prev_height)
+                    .map_err(|err| {
+                        error!(
+                            "Failed to read state diff for previous height {prev_height}: {}",
+                            err
+                        );
+                        BatcherError::InternalError
+                    })?
+                    .expect("Missing state diff for previous height.");
+
+                // Enforcing no deprecated classes (since v0.14.0).
+                // TODO(dafna): Remove once the state sync bug is fixed.
+                state_diff.deprecated_declared_classes = Vec::new();
+
+                Ok(Some(ProposalCommitment {
+                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                }))
+            }
+        }
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -991,11 +1046,9 @@ pub fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
-    let (storage_reader, storage_writer) = apollo_storage::open_storage_with_metric(
-        config.storage.clone(),
-        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-    )
-    .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer) =
+        open_storage_with_metric(config.storage.clone(), &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS)
+            .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1030,36 +1083,45 @@ pub fn create_batcher(
 }
 
 #[cfg_attr(test, automock)]
-pub trait BatcherStorageReaderTrait: Send + Sync {
+pub trait BatcherStorageReader: Send + Sync {
     /// Returns the next height that the batcher should work on.
-    fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+    fn height(&self) -> StorageResult<BlockNumber>;
+
+    fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
 }
 
-impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
-    fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
+impl BatcherStorageReader for StorageReader {
+    fn height(&self) -> StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn get_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<ThinStateDiff>> {
+        self.begin_ro_txn()?.get_state_diff(height)
     }
 }
 
 #[cfg_attr(test, automock)]
-pub trait BatcherStorageWriterTrait: Send + Sync {
+pub trait BatcherStorageWriter: Send + Sync {
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         partial_block_hash_components: Option<PartialBlockHashComponents>,
-    ) -> apollo_storage::StorageResult<()>;
+    ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
 }
 
-impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
+impl BatcherStorageWriter for StorageWriter {
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         partial_block_hash_components: Option<PartialBlockHashComponents>,
-    ) -> apollo_storage::StorageResult<()> {
+    ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
         if let Some(ref components) = partial_block_hash_components {

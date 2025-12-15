@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use starknet_core::types::EntryPointsByType as StarknetCoreEntryPointsByType;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -684,6 +685,16 @@ pub struct EntryPointByType {
 // defining the EntryPointByType struct.
 impl From<CairoLangContractEntryPoints> for EntryPointByType {
     fn from(value: CairoLangContractEntryPoints) -> Self {
+        Self {
+            constructor: value.constructor.into_iter().map(EntryPoint::from).collect(),
+            external: value.external.into_iter().map(EntryPoint::from).collect(),
+            l1handler: value.l1_handler.into_iter().map(EntryPoint::from).collect(),
+        }
+    }
+}
+
+impl From<StarknetCoreEntryPointsByType> for EntryPointByType {
+    fn from(value: StarknetCoreEntryPointsByType) -> Self {
         Self {
             constructor: value.constructor.into_iter().map(EntryPoint::from).collect(),
             external: value.external.into_iter().map(EntryPoint::from).collect(),

@@ -102,6 +102,7 @@ class Service(StrictBaseModel):
     enabled: Optional[bool] = None
     type: Optional[str] = None
     servicePort: Optional[int] = None
+    name: Optional[str] = None  # Optional name for extra services (used as suffix in service name)
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
     clusterIP: Optional[str] = None
@@ -411,6 +412,9 @@ class ServiceConfig(StrictBaseModel):
     securityContext: Optional[SecurityContext] = None
     resources: Optional[Resources] = None
     service: Optional[Service] = None
+    extraServices: List[Service] = Field(
+        default_factory=list
+    )  # Additional services for the same deployment
     ingress: Optional[Ingress] = None
     updateStrategy: UpdateStrategy = Field(default_factory=UpdateStrategy)
     tolerations: List[AnyDict] = Field(default_factory=list)

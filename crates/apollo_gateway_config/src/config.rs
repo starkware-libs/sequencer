@@ -231,7 +231,7 @@ pub struct StatefulTransactionValidatorConfig {
     pub max_allowed_nonce_gap: u32,
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
+    pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     // Minimum gas price as percentage of threshold to accept transactions.
     pub min_gas_price_percentage: u8, // E.g., 80 to require 80% of threshold.
 }
@@ -244,7 +244,9 @@ impl Default for StatefulTransactionValidatorConfig {
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             min_gas_price_percentage: 100,
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+            // TODO(Itamar): Change to None once the versioned constants overrides are optional in
+            // the config schema.
+            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
         }
     }
 }
@@ -285,7 +287,7 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
             ),
         ]);
         dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.dump(),
+            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
             "versioned_constants_overrides",
         ));
         dump

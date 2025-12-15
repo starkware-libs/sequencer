@@ -19,6 +19,8 @@ pub struct L1ScraperConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval_seconds: Duration,
     pub set_provider_historic_height_to_l2_genesis: bool,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub l1_block_time_seconds: Duration,
 }
 
 impl Default for L1ScraperConfig {
@@ -29,6 +31,7 @@ impl Default for L1ScraperConfig {
             finality: 0,
             polling_interval_seconds: Duration::from_secs(30),
             set_provider_historic_height_to_l2_genesis: false,
+            l1_block_time_seconds: Duration::from_secs(12),
         }
     }
 }
@@ -65,6 +68,12 @@ impl SerializeConfig for L1ScraperConfig {
                 &self.set_provider_historic_height_to_l2_genesis,
                 "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). \
                              This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_block_time_seconds",
+                &self.l1_block_time_seconds.as_secs(),
+                "The time it takes for a new L1 block to be created.",
                 ParamPrivacyInput::Public,
             ),
         ])

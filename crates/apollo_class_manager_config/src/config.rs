@@ -47,12 +47,27 @@ impl SerializeConfig for CachedClassStorageConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ClassHashDbConfig {
     pub path_prefix: PathBuf,
+    pub chain_id: ChainId,
     pub enforce_file_exists: bool,
     pub min_size: usize,
     pub max_size: usize,
     pub growth_step: isize,
     /// The maximum number of readers used by the database.
     pub max_readers: u32,
+}
+
+impl Default for ClassHashDbConfig {
+    fn default() -> Self {
+        Self {
+            path_prefix: "/data/class_hash_storage".into(),
+            chain_id: ChainId::Mainnet,
+            enforce_file_exists: false,
+            min_size: 1 << 20,    // 1MB
+            max_size: 1 << 40,    // 1TB
+            growth_step: 1 << 32, // 4GB
+            max_readers: 1 << 13, // 8K readers
+        }
+    }
 }
 
 impl SerializeConfig for ClassHashDbConfig {
@@ -62,6 +77,12 @@ impl SerializeConfig for ClassHashDbConfig {
                 "path_prefix",
                 &self.path_prefix,
                 "Prefix of the path of the node's storage directory.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -113,14 +134,7 @@ pub struct ClassHashStorageConfig {
 impl Default for ClassHashStorageConfig {
     fn default() -> Self {
         Self {
-            class_hash_db_config: ClassHashDbConfig {
-                path_prefix: "/data/class_hash_storage".into(),
-                enforce_file_exists: false,
-                min_size: 1 << 20,    // 1MB
-                max_size: 1 << 40,    // 1TB
-                growth_step: 1 << 32, // 4GB
-                max_readers: 1 << 13, // 8K readers
-            },
+            class_hash_db_config: Default::default(),
             mmap_file_config: MmapFileConfig {
                 max_size: 1 << 30,        // 1GB.
                 growth_step: 1 << 20,     // 1MB.
@@ -137,7 +151,7 @@ impl From<ClassHashStorageConfig> for StorageConfig {
             db_config: apollo_storage::db::DbConfig {
                 // TODO(Noamsp): move the chain id into the config and use StorageConfig instead of
                 // ClassHashStorageConfig
-                chain_id: ChainId::Other("UnusedChainID".to_string()),
+                chain_id: value.class_hash_db_config.chain_id,
                 path_prefix: value.class_hash_db_config.path_prefix,
                 enforce_file_exists: value.class_hash_db_config.enforce_file_exists,
                 min_size: value.class_hash_db_config.min_size,

@@ -33,7 +33,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
-use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -144,7 +143,7 @@ impl NodeSetup {
         .as_ref()
         .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
-        let HttpServerConfig { ip, port } = http_server_config;
+        let HttpServerConfig { ip, port, .. } = http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
         Self { node_type, executables, add_tx_http_client, storage_handles }
@@ -358,7 +357,6 @@ impl IntegrationTestManager {
         anvil_mine_blocks(
             anvil_base_layer.ethereum_base_layer.config.clone(),
             MIN_EXPECTED_BLOCK_NUMBER,
-            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
         )
         .await;
 
@@ -370,6 +368,15 @@ impl IntegrationTestManager {
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
         &self.idle_nodes
+    }
+
+    pub fn get_node_type(&self, node_idx: usize) -> NodeType {
+        let node_setup = self
+            .idle_nodes
+            .get(&node_idx)
+            .or_else(|| self.running_nodes.get(&node_idx).map(|node| &node.node_setup))
+            .expect("Node {node_idx} does not exist in idle or running nodes.");
+        node_setup.node_type
     }
 
     pub fn tx_generator(&self) -> &MultiAccountTransactionGenerator {
@@ -1111,9 +1118,9 @@ async fn get_sequencer_setup_configs(
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
         let state_sync_config = state_sync_configs.remove(0);
 
-        consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
+        consensus_manager_config.cende_config.recorder_url = recorder_url.clone().into();
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
-            url_header_list: Some(vec![eth_to_strk_oracle_url.clone()]),
+            url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()
         };
 
@@ -1132,7 +1139,6 @@ async fn get_sequencer_setup_configs(
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
-                collect_metrics: true,
                 ..Default::default()
             };
 

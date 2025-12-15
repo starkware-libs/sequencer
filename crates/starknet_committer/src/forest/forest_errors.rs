@@ -2,6 +2,7 @@ use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
+use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -11,6 +12,8 @@ pub(crate) type ForestResult<T> = Result<T, ForestError>;
 pub enum ForestError {
     #[error(transparent)]
     OriginalSkeleton(#[from] OriginalSkeletonTreeError),
+    #[error(transparent)]
+    PatriciaStorage(#[from] PatriciaStorageError),
     #[error(transparent)]
     UpdatedSkeleton(#[from] UpdatedSkeletonTreeError),
     #[error("Couldn't create Classes Trie: {0}")]

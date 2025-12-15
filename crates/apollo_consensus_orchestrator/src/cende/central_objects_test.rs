@@ -13,6 +13,7 @@ use apollo_batcher::cende_client_types::{
     TransactionExecutionStatus,
 };
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_consensus::types::ProposalCommitment;
 use apollo_infra_utils::test_utils::assert_json_eq;
 use apollo_sizeof::SizeOf;
 use apollo_starknet_client::reader::objects::state::StateDiff;
@@ -167,6 +168,8 @@ pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
 pub const CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH: &str =
     "central_casm_hash_computation_data.json";
 pub const CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH: &str = "central_preconfirmed_block.json";
+pub const CENTRAL_BLOB_EMPTY_OR_NONE_FIELDS_JSON_PATH: &str =
+    "central_blob_empty_or_none_fields.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -678,6 +681,35 @@ fn central_blob() -> AerospikeBlob {
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
         compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
+        proposal_commitment: ProposalCommitment(felt!("0x80020000")),
+        parent_proposal_commitment: Some(ProposalCommitment(felt!("0x1000200"))),
+    };
+
+    // This is to make the function sync (not async) so that it can be used as a case in the
+    // serialize_central_objects test.
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime
+        .block_on(AerospikeBlob::from_blob_parameters_and_class_manager(
+            blob_parameters,
+            Arc::new(mock_class_manager),
+        ))
+        .unwrap()
+}
+
+fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
+    let mock_class_manager = MockClassManagerClient::new();
+    let blob_parameters = BlobParameters {
+        block_info: block_info(),
+        state_diff: thin_state_diff(),
+        compressed_state_diff: None,
+        transactions_with_execution_infos: vec![],
+        bouncer_weights: central_bouncer_weights(),
+        fee_market_info: central_fee_market_info(),
+        casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
+        casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
+        compiled_class_hashes_for_migration: vec![],
+        proposal_commitment: ProposalCommitment(felt!("0x80020000")),
+        parent_proposal_commitment: None,
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -985,6 +1017,10 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
     CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH
 )]
 #[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
+#[case::empty_or_none_fields(
+    central_blob_with_empty_or_none_fields(),
+    CENTRAL_BLOB_EMPTY_OR_NONE_FIELDS_JSON_PATH
+)]
 #[case::starknet_preconfirmed_block(
     starknet_preconfiremd_block(),
     CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH
