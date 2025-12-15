@@ -33,7 +33,12 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_storage::block_hash_marker::BlockHashMarkerStorageReader;
+use apollo_storage::block_hash::BlockHashStorageWriter;
+use apollo_storage::block_hash_marker::{
+    BlockHashMarkerStorageReader,
+    BlockHashMarkerStorageWriter,
+};
+use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -51,11 +56,11 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
@@ -1191,6 +1196,16 @@ pub trait BatcherStorageWriter: Send + Sync {
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
+
+    /// Sets the global root and block hash for the given height.
+    /// Increments the block hash marker by 1.
+    /// Block hash is optional because for old blocks, the block hash was set separately.
+    fn set_global_root_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        global_root: GlobalRoot,
+        block_hash: Option<BlockHash>,
+    ) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -1211,6 +1226,22 @@ impl BatcherStorageWriter for StorageWriter {
     // This function will panic if there is a storage failure to revert the block.
     fn revert_block(&mut self, height: BlockNumber) {
         revert_block(self, height);
+    }
+
+    fn set_global_root_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        global_root: GlobalRoot,
+        block_hash: Option<BlockHash>,
+    ) -> StorageResult<()> {
+        let mut txn = self
+            .begin_rw_txn()?
+            .set_global_root(&height, global_root)?
+            .increment_block_hash_marker()?;
+        if let Some(block_hash) = block_hash {
+            txn = txn.set_block_hash(&height, block_hash)?;
+        }
+        txn.commit()
     }
 }
 
