@@ -14,6 +14,7 @@ use axum::{Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
+use validator::Validate;
 
 use crate::{StorageError, StorageReader};
 
@@ -22,7 +23,7 @@ use crate::{StorageError, StorageReader};
 mod storage_reader_server_test;
 
 /// Configuration for the storage reader server.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ServerConfig {
     /// The socket address for the server.
     pub ip: IpAddr,
