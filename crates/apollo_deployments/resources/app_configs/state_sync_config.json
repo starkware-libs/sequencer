@@ -60,5 +60,8 @@
   "state_sync_config.storage_config.mmap_file_config.growth_step": 2147483648,
   "state_sync_config.storage_config.mmap_file_config.max_object_size": 1073741824,
   "state_sync_config.storage_config.mmap_file_config.max_size": 1099511627776,
-  "state_sync_config.storage_config.scope": "FullArchive"
+  "state_sync_config.storage_config.scope": "FullArchive",
+  "state_sync_config.storage_reader_server_config.enable": false,
+  "state_sync_config.storage_reader_server_config.ip": "0.0.0.0",
+  "state_sync_config.storage_reader_server_config.port": 8080
 }
