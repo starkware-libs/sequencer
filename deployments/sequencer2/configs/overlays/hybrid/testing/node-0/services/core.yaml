@@ -51,6 +51,7 @@ config:
     state_sync_config_network_config_port: 55010
     state_sync_config_p2p_sync_client_config_is_none: false
     state_sync_config_rpc_config_port: 8090
+    state_sync_config_storage_reader_server_config_port: 55012
 
 service:
   enabled: true
