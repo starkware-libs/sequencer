@@ -23,6 +23,7 @@ use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
+use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::{
@@ -317,4 +318,13 @@ async fn sanitizing_error_message() {
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
     );
+}
+
+const DEPRECATED_GATEWAY_DECLARE_TX_BOOTSTRAP_PROGRAM_JSON_PATH: &str =
+    "bootstrap/deprecated_gateway/declare_tx_bootstrap_program.json";
+
+#[test]
+fn deprecated_gateway_declare_tx_with_bootstrap_program_deserialization() {
+    let _: DeprecatedGatewayTransactionV3 =
+        read_json_file(DEPRECATED_GATEWAY_DECLARE_TX_BOOTSTRAP_PROGRAM_JSON_PATH);
 }
