@@ -75,11 +75,13 @@ pub async fn fetch_patricia_paths<L: Leaf>(
     Ok(witnesses)
 }
 
+// TODO(Rotem): Match the python logic of fetching the nodes.
 /// Fetches the inner nodes [HashOutput] and [Preimage] in the paths to modified leaves.
-/// The siblings (witnesses) are included in the [Preimage] of their parent node.
 /// Required for `patricia_update` function in Cairo.
+/// Extra preimages (more than the data required to verify merkle paths) are required to verify
+/// correctness of final tree topology; for more details see 'traverse_edge' in 'patricia.cairo'.
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
-/// inner nodes in their paths.
+/// inner nodes in their paths and their siblings.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
@@ -95,22 +97,30 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
         let filled_roots =
             calculate_subtrees_roots::<L>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
-            // Always insert root.
-            // No need to insert an unmodified node (which is not the root), because its parent is
-            // inserted, and contains the preimage.
-            if subtree.is_unmodified() {
-                continue;
-            }
             match filled_root.data {
                 // Binary node.
+                // If it's the root: It's a modified subtree.
+                // Otherwise:
+                // If it was inserted as a child of a binary node - it's a modified subtree.
+                // If it was inserted as a child of an edge node - it should be fetched anyway
+                // (modified or unmodified).
                 NodeData::Binary(binary_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
                     let (left_subtree, right_subtree) = subtree
                         .get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
-                    next_subtrees.push(left_subtree);
-                    next_subtrees.push(right_subtree);
+
+                    if !left_subtree.is_unmodified() {
+                        next_subtrees.push(left_subtree);
+                    }
+                    if !right_subtree.is_unmodified() {
+                        next_subtrees.push(right_subtree);
+                    }
                 }
                 // Edge node.
+                // If it's the root: it's not necessarily a modified tree, because the modification
+                // might be a deletion. In this case, we want to fetch the bottom node just if it's
+                // a binary node (and not a leaf). Otherwise: It was inserted as a child of a binary
+                // node, so it's a modified subtree.
                 NodeData::Edge(edge_data) => {
                     witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
                     // Parse bottom.
@@ -123,9 +133,15 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
                             leaves_map.insert(*index, L::default());
                         }
                     }
-                    next_subtrees.push(bottom_subtree);
+                    // Insert the bottom subtree if it's modified or a binary node.
+                    if !bottom_subtree.is_unmodified() || !bottom_subtree.is_leaf() {
+                        next_subtrees.push(bottom_subtree);
+                    }
                 }
                 // Leaf node.
+                // If it was inserted as a child of a binary node - it's a modified leaf.
+                // If it was inserted as a child of an edge node - it means the edge node is
+                // modified, meaning the leaf is also modified.
                 NodeData::Leaf(leaf_data) => {
                     // Fetch the leaf if it's modified and should be fetched.
                     if let Some(ref mut leaves_map) = leaves {
