@@ -69,8 +69,7 @@ async fn test_endpoint_successful_query() {
         .commit()
         .unwrap();
 
-    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8081));
-    let config = ServerConfig::new(socket, true);
+    let config = ServerConfig::new(Ipv4Addr::LOCALHOST, 8081, true);
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -92,8 +91,7 @@ async fn test_endpoint_successful_query() {
 async fn test_endpoint_query_nonexistent_block() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
-    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8082));
-    let config = ServerConfig::new(socket, true);
+    let config = ServerConfig::new(Ipv4Addr::LOCALHOST, 8082, true);
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -128,8 +126,7 @@ async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response 
 async fn test_endpoint_handler_error() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
-    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8083));
-    let config = ServerConfig::new(socket, true);
+    let config = ServerConfig::new(Ipv4Addr::LOCALHOST, 8083, true);
 
     let server =
         StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -150,8 +147,7 @@ async fn test_endpoint_handler_error() {
 async fn test_endpoint_invalid_json() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
-    let socket = SocketAddr::from((Ipv4Addr::LOCALHOST, 8084));
-    let config = ServerConfig::new(socket, true);
+    let config = ServerConfig::new(Ipv4Addr::LOCALHOST, 8084, true);
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
