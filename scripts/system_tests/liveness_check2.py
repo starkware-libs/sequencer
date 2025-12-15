@@ -133,6 +133,22 @@ def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
     return False
 
 
+def is_transient_error(error_msg: str) -> bool:
+    """Check if error message indicates a transient connection error."""
+    if not error_msg:
+        return False
+    error_lower = error_msg.lower()
+    return any(
+        phrase in error_lower
+        for phrase in [
+            "eof",
+            "error dialing backend",
+            "error upgrading connection",
+            "connection refused",
+        ]
+    )
+
+
 def check_service_alive(
     address: str,
     timeout: int,
@@ -173,49 +189,211 @@ def run_service_check(
     interval: int,
     initial_delay: int,
     process_queue: Queue,
-    port_forward_retries: int = 3,
-    port_forward_retry_delay: int = 2,
-    port_wait_timeout: int = 30,
+    port_forward_retries: int = 5,
+    port_forward_retry_delay: int = 5,
+    max_port_wait_attempts: int = 25,
 ):
     pf_process = None
     port_established = False
     local_port = monitoring_port + offset
 
-    # Retry port-forward setup
-    for attempt in range(1, port_forward_retries + 1):
-        try:
-            # Kill previous attempt if exists
-            if pf_process:
+    # Retry port-forward setup with proper error detection
+    for retry in range(port_forward_retries):
+        if retry > 0:
+            # Exponential backoff: 5s, 10s, 15s, etc.
+            delay = port_forward_retry_delay * retry
+            print(
+                f"[{service_name}] 🔄 Retrying port-forward command (attempt {retry + 1}/{port_forward_retries}) after {delay}s delay...",
+                flush=True,
+            )
+            time.sleep(delay)
+
+        # Kill previous attempt if exists
+        if pf_process:
+            try:
+                pf_process.terminate()
+                pf_process.wait(timeout=2)
+            except Exception:
                 try:
-                    pf_process.terminate()
-                    pf_process.wait(timeout=2)
+                    pf_process.kill()
                 except Exception:
                     pass
 
-            print(
-                f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
-            )
+        print(
+            f"[{service_name}] 🚀 Port-forwarding attempt {retry + 1}/{port_forward_retries} on {local_port} -> {monitoring_port}",
+            flush=True,
+        )
 
+        try:
             pf_process = subprocess.Popen(
                 ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
             )
 
-            # Wait for port to be ready
-            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
-                port_established = True
-                print(f"[{service_name}] ✅ Port-forward established on {local_port}")
+            error_output_read = False
+
+            def get_error_if_failed():
+                """Check if process failed and return error message, None if still running."""
+                nonlocal error_output_read
+                if error_output_read:
+                    return None
+
+                if pf_process.poll() is not None:
+                    error_output_read = True
+                    try:
+                        _, stderr = pf_process.communicate(timeout=1)
+                        return stderr.strip() if stderr else "Process terminated with unknown error"
+                    except subprocess.TimeoutExpired:
+                        return "Process terminated but could not read error output"
+                return None
+
+            # Give kubectl time to establish connection
+            time.sleep(1.5 if retry == 0 else 0.5)
+
+            # Check if process failed immediately (transient connection error)
+            error_msg = get_error_if_failed()
+            if error_msg:
+                if retry < port_forward_retries - 1 and is_transient_error(error_msg):
+                    print(
+                        f"[{service_name}] ⚠️  Transient kubectl connection error (will retry): {error_msg[:150]}",
+                        flush=True,
+                    )
+                    try:
+                        pf_process.kill()
+                    except Exception:
+                        pass
+                    continue  # Retry the port-forward command
+                else:
+                    # Non-transient error or last retry
+                    final_error = error_msg
+                    if pf_process:
+                        try:
+                            pf_process.kill()
+                        except Exception:
+                            pass
+                    process_queue.put(
+                        (
+                            service_name,
+                            False,
+                            f"Port-forward failed after {retry + 1} attempts. kubectl error: {final_error[:200]}",
+                        )
+                    )
+                    return
+
+            # Wait for port to be accessible
+            for attempt in range(max_port_wait_attempts):
+                # Check if process has failed during wait
+                error_msg = get_error_if_failed()
+                if error_msg:
+                    if retry < port_forward_retries - 1 and is_transient_error(error_msg):
+                        print(
+                            f"[{service_name}] ⚠️  Transient error during wait (will retry): {error_msg[:150]}",
+                            flush=True,
+                        )
+                        try:
+                            pf_process.kill()
+                        except Exception:
+                            pass
+                        break  # Break inner loop to retry outer loop
+                    else:
+                        # Non-transient error or last retry
+                        final_error = error_msg
+                        if pf_process:
+                            try:
+                                pf_process.kill()
+                            except Exception:
+                                pass
+                        process_queue.put(
+                            (
+                                service_name,
+                                False,
+                                f"Port-forward failed during wait. kubectl error: {final_error[:200]}",
+                            )
+                        )
+                        return
+
+                # Check if port is ready
+                try:
+                    with socket.create_connection(("127.0.0.1", local_port), timeout=1):
+                        port_established = True
+                        print(
+                            f"[{service_name}] ✅ Port-forward established on {local_port}",
+                            flush=True,
+                        )
+                        break
+                except Exception:
+                    if attempt < max_port_wait_attempts - 1:
+                        time.sleep(1)
+                    else:
+                        # Port never became ready
+                        if retry < port_forward_retries - 1:
+                            print(
+                                f"[{service_name}] ⚠️  Port-forward process still running but port not accessible, retrying...",
+                                flush=True,
+                            )
+                            try:
+                                pf_process.kill()
+                            except Exception:
+                                pass
+                            break  # Retry outer loop
+                        else:
+                            # Final failure - port never became ready
+                            final_error_msg = None
+                            if pf_process:
+                                try:
+                                    pf_process.terminate()
+                                    pf_process.wait(timeout=2)
+                                    if not error_output_read:
+                                        try:
+                                            _, stderr = pf_process.communicate(timeout=1)
+                                            if stderr:
+                                                final_error_msg = stderr.strip()
+                                        except subprocess.TimeoutExpired:
+                                            pass
+                                except subprocess.TimeoutExpired:
+                                    pf_process.kill()
+
+                            error_details = (
+                                f"\nkubectl error: {final_error_msg[:200]}"
+                                if final_error_msg
+                                else ""
+                            )
+                            process_queue.put(
+                                (
+                                    service_name,
+                                    False,
+                                    f"Port-forward did not establish after {port_forward_retries} retries and {max_port_wait_attempts} attempts. "
+                                    f"Port {local_port} is not accessible.{error_details}",
+                                )
+                            )
+                            return
+
+            if port_established:
                 break
-            else:
-                print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed - port not ready")
-                if attempt < port_forward_retries:
-                    time.sleep(port_forward_retry_delay)
 
         except Exception as e:
-            print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed: {e}")
-            if attempt < port_forward_retries:
-                time.sleep(port_forward_retry_delay)
+            print(
+                f"[{service_name}] ⚠️ Port-forward attempt {retry + 1} failed with exception: {e}",
+                flush=True,
+            )
+            if pf_process:
+                try:
+                    pf_process.kill()
+                except Exception:
+                    pass
+            if retry < port_forward_retries - 1:
+                continue  # Retry
+            else:
+                process_queue.put(
+                    (
+                        service_name,
+                        False,
+                        f"Port-forward failed after {port_forward_retries} attempts with exception: {str(e)[:200]}",
+                    )
+                )
+                return
 
     if not port_established:
         if pf_process:
@@ -223,7 +401,10 @@ def run_service_check(
                 pf_process.terminate()
                 pf_process.wait()
             except Exception:
-                pass
+                try:
+                    pf_process.kill()
+                except Exception:
+                    pass
         process_queue.put(
             (
                 service_name,
@@ -277,10 +458,10 @@ def main(
         service_name = service_config["name"]
         service_label = f"sequencer-{service_name.lower()}"
 
-        # Small random delay (0-2 seconds) to stagger port-forward starts
-        # This reduces conflicts from simultaneous port-forward operations
+        # Random delay (0-5 seconds) to stagger port-forward starts
+        # This reduces conflicts from simultaneous port-forward operations and API server load
         if offset > 0:
-            delay = random.uniform(0, 2)
+            delay = random.uniform(0, 5)
             time.sleep(delay)
 
         try:
