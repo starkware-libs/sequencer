@@ -942,6 +942,11 @@ impl Batcher {
         &mut self,
         _input: ExecuteGenesisTransactionsInput,
     ) -> BatcherResult<ExecuteGenesisTransactionsResponse> {
+        let height = self.get_height_from_storage()?;
+        if height != BlockNumber(0) {
+            return Err(BatcherError::GenesisOnNonZeroHeight { current_height: height });
+        }
+
         // TODO(dan): Implement genesis transaction execution.
         error!("execute_genesis_transactions is not yet implemented");
         Err(BatcherError::InternalError)

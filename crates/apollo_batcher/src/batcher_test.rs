@@ -1047,14 +1047,35 @@ async fn revert_block_mismatch_block_number() {
 }
 
 #[tokio::test]
-async fn execute_genesis_transactions_not_implemented() {
-    let mut batcher = create_batcher(MockDependencies::default()).await;
+async fn execute_genesis_transactions_rejects_non_zero_height() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(|| Ok(BlockNumber(5)));
+
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let input =
         ExecuteGenesisTransactionsInput { block_info: BlockInfo::default(), transactions: vec![] };
     let result = batcher.execute_genesis_transactions(input).await;
 
-    // The stub implementation should return InternalError until fully implemented.
+    assert_eq!(result, Err(BatcherError::GenesisOnNonZeroHeight { current_height: BlockNumber(5) }));
+}
+
+#[tokio::test]
+async fn execute_genesis_transactions_not_implemented_at_height_zero() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
+
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let input = ExecuteGenesisTransactionsInput {
+        block_info: BlockInfo::default(),
+        transactions: vec![],
+    };
+    let result = batcher.execute_genesis_transactions(input).await;
+
+    // At height 0, the stub should return InternalError (not yet implemented).
     assert_eq!(result, Err(BatcherError::InternalError));
 }
 
