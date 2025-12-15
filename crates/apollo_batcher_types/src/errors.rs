@@ -50,4 +50,8 @@ pub enum BatcherError {
     StorageHeightMarkerMismatch { marker_height: BlockNumber, requested_height: BlockNumber },
     #[error("Time to deadline is out of range. Got {deadline}.")]
     TimeToDeadlineError { deadline: chrono::DateTime<Utc> },
+    #[error(
+        "Genesis execution requires height 0, but storage is at height {current_height}."
+    )]
+    GenesisOnNonZeroHeight { current_height: BlockNumber },
 }
