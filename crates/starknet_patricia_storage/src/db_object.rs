@@ -1,4 +1,4 @@
-use crate::errors::DeserializationError;
+use crate::errors::{DeserializationError, SerializationError};
 use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 
 pub struct EmptyKeyContext;
@@ -39,7 +39,7 @@ pub trait DBObject: Sized + HasDynamicPrefix {
     type DeserializeContext;
 
     /// Serializes the given value.
-    fn serialize(&self) -> DbValue;
+    fn serialize(&self) -> Result<DbValue, SerializationError>;
 
     /// Deserializes the given value using the provided context.
     fn deserialize(
