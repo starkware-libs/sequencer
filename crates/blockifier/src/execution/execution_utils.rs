@@ -100,7 +100,6 @@ pub fn execute_entry_point_call_wrapper(
                 call: orig_call.into(),
                 execution: CallExecution {
                     retdata: Retdata(vec![error_code]),
-                    // FIXME: Should we get the `is_cairo_native` bool?
                     failed: true,
                     gas_consumed: 0,
                     ..CallExecution::default()
