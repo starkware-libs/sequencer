@@ -3,7 +3,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
-use crate::storage_trait::DbKey;
+use crate::storage_trait::{DbKey, DbValue};
 
 #[derive(Debug, Error)]
 pub enum StorageError {
@@ -11,10 +11,14 @@ pub enum StorageError {
     MissingKey(DbKey),
 }
 
+pub type SerializationResult<T> = Result<T, SerializationError>;
+
 #[derive(thiserror::Error, Debug)]
 pub enum SerializationError {
-    #[error("Serialize error: {0}")]
-    SerializeError(#[from] serde_json::Error),
+    #[error("Failed to serialize to JSON: {0}")]
+    JsonSerializeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    IOSerializeError(#[from] std::io::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -36,6 +40,10 @@ pub enum DeserializationError {
     LeafTypeError,
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
+    // TODO(Ariel): This is only used for EdgeNode construction failures (path length etc.), add
+    // error types here and use them instead of the general ValueError.
     #[error("Invalid value for deserialization: {0}.")]
     ValueError(Box<dyn std::error::Error>),
+    #[error("Failed to deserialize raw felt: {0:?}")]
+    FeltDeserializationError(DbValue),
 }
