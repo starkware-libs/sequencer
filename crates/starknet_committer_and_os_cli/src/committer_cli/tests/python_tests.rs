@@ -27,7 +27,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
 use starknet_types_core::felt::Felt;
@@ -77,6 +77,8 @@ pub enum CommitterSpecificTestError {
     InvalidCastError(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     DeserializationTestFailure(#[from] DeserializationError),
+    #[error(transparent)]
+    SerializationError(#[from] SerializationError),
 }
 
 /// Implements conversion from a string to the test runner.
@@ -191,8 +193,17 @@ fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> Str
     let TreeFlowInput { leaf_modifications, storage, root_hash } =
         parse_input_single_storage_tree_flow_test(&input);
     // Serialize the leaf modifications to an object that can be JSON-serialized.
-    let leaf_modifications_to_print: HashMap<String, Vec<u8>> =
-        leaf_modifications.into_iter().map(|(k, v)| (k.0.to_string(), v.serialize().0)).collect();
+    let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| {
+            (
+                k.0.to_string(),
+                v.serialize()
+                    .unwrap_or_else(|error| panic!("Failed to serialize storage leaf: {error}"))
+                    .0,
+            )
+        })
+        .collect();
 
     // Create a json string to compare with the expected string in python.
     serde_json::to_string(&json!(
@@ -273,7 +284,9 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         FactDbFilledNode { data: NodeData::Binary(binary_data), hash: HashOutput(Felt::ZERO) };
 
     // Serialize the binary node and insert it into the map under the key "value".
-    let value = filled_node.serialize();
+    let value = filled_node
+        .serialize()
+        .unwrap_or_else(|error| panic!("Failed to serialize filled node: {error}"));
     map.insert("value".to_string(), value.0);
 
     // Serialize the map to a JSON string and handle serialization errors.
@@ -519,7 +532,16 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     };
 
     // Store the binary node in the storage.
-    rust_fact_storage.set(binary_rust.db_key(&EmptyKeyContext), binary_rust.serialize()).await?;
+    rust_fact_storage
+        .set(
+            binary_rust.db_key(&EmptyKeyContext),
+            binary_rust.serialize().map_err(|error| {
+                PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(
+                    error,
+                ))
+            })?,
+        )
+        .await?;
 
     // Parse the edge node data from the input.
     let edge_json = get_or_key_not_found(&data, "edge")?;
@@ -546,7 +568,16 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     };
 
     // Store the edge node in the storage.
-    rust_fact_storage.set(edge_rust.db_key(&EmptyKeyContext), edge_rust.serialize()).await?;
+    rust_fact_storage
+        .set(
+            edge_rust.db_key(&EmptyKeyContext),
+            edge_rust.serialize().map_err(|error| {
+                PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(
+                    error,
+                ))
+            })?,
+        )
+        .await?;
 
     // Parse the storage leaf data from the input.
     let storage_leaf_json = get_or_key_not_found(&data, "storage")?;
@@ -563,7 +594,14 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 
     // Store the storage leaf node in the storage.
     rust_fact_storage
-        .set(storage_leaf_rust.db_key(&EmptyKeyContext), storage_leaf_rust.serialize())
+        .set(
+            storage_leaf_rust.db_key(&EmptyKeyContext),
+            storage_leaf_rust.serialize().map_err(|error| {
+                PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(
+                    error,
+                ))
+            })?,
+        )
         .await?;
 
     // Parse the contract state leaf data from the input.
@@ -592,7 +630,11 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     rust_fact_storage
         .set(
             contract_state_leaf_rust.db_key(&EmptyKeyContext),
-            contract_state_leaf_rust.serialize(),
+            contract_state_leaf_rust.serialize().map_err(|error| {
+                PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(
+                    error,
+                ))
+            })?,
         )
         .await?;
 
@@ -614,7 +656,11 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     rust_fact_storage
         .set(
             compiled_class_leaf_rust.db_key(&EmptyKeyContext),
-            compiled_class_leaf_rust.serialize(),
+            compiled_class_leaf_rust.serialize().map_err(|error| {
+                PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(
+                    error,
+                ))
+            })?,
         )
         .await?;
 
@@ -625,7 +671,9 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 /// Generates a dummy random filled forest and serializes it to a JSON string.
 pub(crate) async fn filled_forest_output_test() -> CommitterPythonTestResult {
     let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
-    let output = dummy_forest.forest_to_output().await;
+    let output = dummy_forest.forest_to_output().await.map_err(|error| {
+        PythonTestError::SpecificError(CommitterSpecificTestError::SerializationError(error))
+    })?;
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)
 }
