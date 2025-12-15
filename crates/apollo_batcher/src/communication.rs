@@ -39,6 +39,11 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::RevertBlock(input) => {
                 BatcherResponse::RevertBlock(self.revert_block(input).await)
             }
+            BatcherRequest::ExecuteGenesisTransactions(input) => {
+                BatcherResponse::ExecuteGenesisTransactions(
+                    self.execute_genesis_transactions(input).await,
+                )
+            }
         }
     }
 }

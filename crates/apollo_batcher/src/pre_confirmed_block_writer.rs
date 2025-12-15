@@ -5,10 +5,10 @@ use apollo_batcher_config::config::PreconfirmedBlockWriterConfig;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
-use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use indexmap::map::Entry;
+use futures::stream::FuturesUnordered;
 use indexmap::IndexMap;
+use indexmap::map::Entry;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::StatusCode;

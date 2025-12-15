@@ -5,6 +5,7 @@ use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
+    ExecuteGenesisTransactionsInput,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -32,7 +33,7 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use indexmap::{indexmap, IndexSet};
+use indexmap::{IndexSet, indexmap};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -73,12 +74,12 @@ use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
+    DUMMY_FINAL_N_EXECUTED_TXS,
+    FakeProposeBlockBuilder,
+    FakeValidateBlockBuilder,
     test_l1_handler_txs,
     test_txs,
     verify_indexed_execution_infos,
-    FakeProposeBlockBuilder,
-    FakeValidateBlockBuilder,
-    DUMMY_FINAL_N_EXECUTED_TXS,
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -674,16 +675,13 @@ async fn propose_block_full_flow() {
         .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
         .await
         .unwrap();
-    assert_eq!(
-        commitment,
-        GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: proposal_commitment(),
-                final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
-                    .final_n_executed_txs
-            }
+    assert_eq!(commitment, GetProposalContentResponse {
+        content: GetProposalContent::Finished {
+            id: proposal_commitment(),
+            final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
+                .final_n_executed_txs
         }
-    );
+    });
 
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
@@ -1046,6 +1044,18 @@ async fn revert_block_mismatch_block_number() {
             requested_height: BlockNumber(3)
         })
     )
+}
+
+#[tokio::test]
+async fn execute_genesis_transactions_not_implemented() {
+    let mut batcher = create_batcher(MockDependencies::default()).await;
+
+    let input =
+        ExecuteGenesisTransactionsInput { block_info: BlockInfo::default(), transactions: vec![] };
+    let result = batcher.execute_genesis_transactions(input).await;
+
+    // The stub implementation should return InternalError until fully implemented.
+    assert_eq!(result, Err(BatcherError::InternalError));
 }
 
 #[tokio::test]

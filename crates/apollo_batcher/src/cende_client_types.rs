@@ -288,15 +288,12 @@ impl OrderedItem for OrderedL2ToL1Message {
     type UnorderedItem = L2ToL1Message;
 
     fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
-        (
-            self.order,
-            L2ToL1Message {
-                from_address,
-                to_address: EthAddress::try_from(self.message.to_address)
-                    .expect("Failed to convert L1Address to EthAddress"),
-                payload: self.message.payload.clone(),
-            },
-        )
+        (self.order, L2ToL1Message {
+            from_address,
+            to_address: EthAddress::try_from(self.message.to_address)
+                .expect("Failed to convert L1Address to EthAddress"),
+            payload: self.message.payload.clone(),
+        })
     }
 
     fn get_items_from_call_execution<'a>(
