@@ -16,6 +16,7 @@ use starknet_api::test_utils::invoke::{InvokeTxArgs, internal_invoke_tx};
 use starknet_api::tx_hash;
 
 use crate::transaction_provider::{
+    GenesisTransactionProvider,
     ProposeTransactionProvider,
     TransactionProvider,
     TransactionProviderError,
@@ -295,4 +296,53 @@ async fn validate_fails(
         Err(TransactionProviderError::L1HandlerTransactionValidationFailed { validation_status, .. })
         if validation_status == expected_validation_status
     );
+}
+
+// Genesis transaction provider tests.
+
+#[tokio::test]
+async fn genesis_provider_returns_transactions_once() {
+    let txs = vec![
+        InternalConsensusTransaction::L1Handler(L1HandlerTransaction::default()),
+        InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs::default())),
+    ];
+    let mut provider = GenesisTransactionProvider::new(txs);
+
+    // First call returns all transactions.
+    let result = provider.get_txs(10).await.unwrap();
+    assert_eq!(result.len(), 2);
+
+    // Second call returns empty.
+    let result = provider.get_txs(10).await.unwrap();
+    assert!(result.is_empty());
+}
+
+#[tokio::test]
+async fn genesis_provider_empty_transactions() {
+    let mut provider = GenesisTransactionProvider::new(vec![]);
+
+    let result = provider.get_txs(10).await.unwrap();
+    assert!(result.is_empty());
+
+    // get_final_n_executed_txs returns 0 after transactions are taken.
+    assert_eq!(provider.get_final_n_executed_txs().await, Some(0));
+}
+
+#[tokio::test]
+async fn genesis_provider_final_n_executed_txs() {
+    let txs = vec![
+        InternalConsensusTransaction::L1Handler(L1HandlerTransaction::default()),
+        InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs::default())),
+        InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs::default())),
+    ];
+    let mut provider = GenesisTransactionProvider::new(txs);
+
+    // Before taking transactions, returns None.
+    assert_eq!(provider.get_final_n_executed_txs().await, None);
+
+    // Take transactions.
+    let _ = provider.get_txs(10).await.unwrap();
+
+    // After taking transactions, returns the count.
+    assert_eq!(provider.get_final_n_executed_txs().await, Some(3));
 }

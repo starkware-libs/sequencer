@@ -227,3 +227,39 @@ impl TransactionProvider for ValidateTransactionProvider {
         panic!("Phase is only relevant to proposing transactions.")
     }
 }
+
+/// A transaction provider for genesis block execution.
+/// Provides a fixed set of transactions passed at construction time.
+pub struct GenesisTransactionProvider {
+    transactions: Option<Vec<InternalConsensusTransaction>>,
+    n_txs: usize,
+}
+
+impl GenesisTransactionProvider {
+    pub fn new(transactions: Vec<InternalConsensusTransaction>) -> Self {
+        let n_txs = transactions.len();
+        Self { transactions: Some(transactions), n_txs }
+    }
+}
+
+#[async_trait]
+impl TransactionProvider for GenesisTransactionProvider {
+    async fn get_txs(&mut self, _n_txs: usize) -> TransactionProviderResult<NextTxs> {
+        Ok(self.transactions.take().unwrap_or_default())
+    }
+
+    async fn get_final_n_executed_txs(&mut self) -> Option<usize> {
+        // Once transactions have been taken, return the total count.
+        if self.transactions.is_none() {
+            Some(self.n_txs)
+        } else {
+            None
+        }
+    }
+
+    // TODO(guyn): remove this after refactoring the batcher tests.
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase {
+        panic!("Phase is only relevant to proposing transactions.")
+    }
+}
