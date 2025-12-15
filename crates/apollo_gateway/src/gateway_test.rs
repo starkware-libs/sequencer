@@ -83,7 +83,7 @@ use strum::VariantNames;
 use tempfile::TempDir;
 
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
-use crate::gateway::Gateway;
+use crate::gateway::GenericGateway;
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -157,9 +157,9 @@ struct MockDependencies {
 }
 
 impl MockDependencies {
-    fn gateway(self) -> Gateway {
+    fn gateway(self) -> GenericGateway<MockStatelessTransactionValidatorTrait> {
         register_metrics();
-        Gateway::new(
+        GenericGateway::new(
             self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
@@ -594,7 +594,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = Gateway {
+    let gateway = GenericGateway {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
@@ -647,7 +647,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = Gateway {
+    let gateway = GenericGateway {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),

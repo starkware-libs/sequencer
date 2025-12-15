@@ -65,22 +65,53 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 pub mod gateway_test;
 
 #[derive(Clone)]
-pub struct Gateway {
-    pub config: Arc<GatewayConfig>,
-    pub stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
-    pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    pub mempool_client: SharedMempoolClient,
-    pub transaction_converter: Arc<dyn TransactionConverterTrait>,
-    pub proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
-}
+pub struct Gateway(GenericGateway<StatelessTransactionValidator>);
 
 impl Gateway {
-    pub fn new(
+    pub(crate) fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<dyn TransactionConverterTrait>,
-        stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
+        stateless_tx_validator: Arc<StatelessTransactionValidator>,
+        proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    ) -> Self {
+        Self(GenericGateway::new(
+            config,
+            state_reader_factory,
+            mempool_client,
+            transaction_converter,
+            stateless_tx_validator,
+            proof_archive_writer,
+        ))
+    }
+
+    pub async fn add_tx(
+        &self,
+        tx: RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<GatewayOutput> {
+        self.0.add_tx(tx, p2p_message_metadata).await
+    }
+}
+
+#[derive(Clone)]
+struct GenericGateway<TStatelessValidator: StatelessTransactionValidatorTrait> {
+    config: Arc<GatewayConfig>,
+    stateless_tx_validator: Arc<TStatelessValidator>,
+    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
+    mempool_client: SharedMempoolClient,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
+    proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+}
+
+impl<TStatelessValidator: StatelessTransactionValidatorTrait> GenericGateway<TStatelessValidator> {
+    fn new(
+        config: GatewayConfig,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
+        mempool_client: SharedMempoolClient,
+        transaction_converter: Arc<dyn TransactionConverterTrait>,
+        stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
         Self {
@@ -101,7 +132,7 @@ impl Gateway {
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
-    pub async fn add_tx(
+    async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
