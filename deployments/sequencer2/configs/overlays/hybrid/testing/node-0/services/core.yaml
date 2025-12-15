@@ -53,7 +53,7 @@ config:
 
 service:
   enabled: true
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: batcher
     port: 55000

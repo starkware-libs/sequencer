@@ -2,6 +2,7 @@ import argparse
 import subprocess
 import time
 from enum import Enum
+from typing import Optional
 
 import socket
 
@@ -23,17 +24,86 @@ def get_service_label(node_type: NodeType, service: str) -> str:
         raise ValueError(f"Unknown node type: {node_type}. Aborting!")
 
 
-def get_pod_name(service_label: str) -> str:
+def get_current_namespace() -> Optional[str]:
+    """Get the current namespace from kubectl context."""
+    try:
+        cmd = ["kubectl", "config", "view", "--minify", "-o", "jsonpath={..namespace}"]
+        result = subprocess.run(cmd, capture_output=True, check=False, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def get_pod_name(service_label: str, namespace: Optional[str] = None) -> str:
     cmd = [
         "kubectl",
         "get",
         "pods",
+    ]
+    if namespace:
+        cmd.extend(["-n", namespace])
+    cmd.extend([
         "-l",
         f"service={service_label}",
         "-o",
         "jsonpath={.items[0].metadata.name}",
-    ]
+    ])
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
+
+
+def is_loadbalancer_service(service_name: str, namespace: Optional[str] = None) -> bool:
+    """Check if a service is of type LoadBalancer."""
+    try:
+        cmd = ["kubectl", "get", "service", service_name]
+        if namespace:
+            cmd.extend(["-n", namespace])
+        cmd.extend(["-o", "jsonpath={.spec.type}"])
+        result = subprocess.run(cmd, capture_output=True, check=False, text=True)
+        return result.returncode == 0 and result.stdout.strip() == "LoadBalancer"
+    except Exception:
+        return False
+
+
+def get_loadbalancer_port(service_name: str, port_name: str, namespace: Optional[str] = None) -> Optional[int]:
+    """
+    Get the service port for a LoadBalancer service.
+    
+    In k3d, LoadBalancer services are exposed on localhost using the service port.
+    Returns the port if found, None otherwise.
+    """
+    try:
+        cmd = ["kubectl", "get", "service", service_name]
+        if namespace:
+            cmd.extend(["-n", namespace])
+        cmd.extend([
+            "-o",
+            f"jsonpath={{.spec.ports[?(@.name=='{port_name}')].port}}",
+        ])
+        result = subprocess.run(cmd, capture_output=True, check=False, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            return int(result.stdout.strip())
+    except (ValueError, subprocess.CalledProcessError):
+        pass
+    return None
+
+
+def check_loadbalancer_ready(port: int, max_wait: int = 30) -> bool:
+    """
+    Check if LoadBalancer service port is accessible.
+    
+    In k3d, LoadBalancer services are exposed on localhost even if EXTERNAL-IP shows <pending>.
+    We wait up to max_wait seconds for the port to become accessible.
+    """
+    start_time = time.time()
+    while time.time() - start_time < max_wait:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=2):
+                return True
+        except OSError:
+            time.sleep(1)
+    return False
 
 
 def port_forward(
@@ -210,12 +280,36 @@ def run_simulator(http_port: int, monitoring_port: int, sender_address: str, rec
     return result.returncode
 
 
-def setup_port_forwarding(service_name: str, port: int, node_type: NodeType):
-    pod_name = get_pod_name(get_service_label(node_type, service_name))
-    print(f"📡 Port-forwarding {pod_name} on local port {port}...", flush=True)
-    port_forward(pod_name, port, port)
-
-    return port
+def setup_service_access(
+    service_name: str,
+    port_name: str,
+    target_port: int,
+    node_type: NodeType,
+    namespace: Optional[str] = None,
+):
+    """
+    Setup access to a Kubernetes service using LoadBalancer first, fallback to port-forward as last resort.
+    
+    Returns the local port to use for accessing the service.
+    """
+    service_label = get_service_label(node_type, service_name)
+    k8s_service_name = f"{service_label}-service"
+    
+    # Try LoadBalancer first
+    if is_loadbalancer_service(k8s_service_name, namespace):
+        lb_port = get_loadbalancer_port(k8s_service_name, port_name, namespace)
+        if lb_port and check_loadbalancer_ready(lb_port):
+            print(f"🌐 Using LoadBalancer port {lb_port} for {service_label}:{port_name}", flush=True)
+            return lb_port
+        else:
+            print(f"⚠️ LoadBalancer port not accessible for {service_label}:{port_name}, falling back to port-forward", flush=True)
+    
+    # Last resort: port-forward
+    print(f"⚠️ LoadBalancer not available for {service_label}:{port_name}, using port-forward as last resort", flush=True)
+    pod_name = get_pod_name(service_label, namespace)
+    print(f"📡 Port-forwarding {pod_name} on local port {target_port}...", flush=True)
+    port_forward(pod_name, target_port, target_port)
+    return target_port
 
 
 def main(
@@ -224,8 +318,17 @@ def main(
     node_type_str: str,
     sender_address: str,
     receiver_address: str,
+    namespace: Optional[str] = None,
 ):
     print("🚀 Running sequencer simulator....", flush=True)
+    
+    # Auto-detect namespace if not provided
+    if not namespace:
+        namespace = get_current_namespace()
+        if namespace:
+            print(f"📋 Auto-detected namespace: {namespace}", flush=True)
+        else:
+            print("⚠️ No namespace provided and could not detect from kubectl context", flush=True)
 
     try:
         node_type = NodeType(node_type_str)
@@ -246,24 +349,28 @@ def main(
         print(f"❌ {node_type} node type is not supported for the sequencer simulator.")
         exit(1)
 
-    # Port-forward services
-    state_sync_port = setup_port_forwarding(
-        state_sync_service,
-        state_sync_monitoring_endpoint_port,
-        node_type,
+    # Setup service access (LoadBalancer first, fallback to port-forward)
+    state_sync_port = setup_service_access(
+        service_name=state_sync_service,
+        port_name="monitoring-endpoint",
+        target_port=state_sync_monitoring_endpoint_port,
+        node_type=node_type,
+        namespace=namespace,
     )
 
-    http_server_port = setup_port_forwarding(
-        http_server_service,
-        http_server_port,
-        node_type,
+    http_server_local_port = setup_service_access(
+        service_name=http_server_service,
+        port_name="http-server",
+        target_port=http_server_port,
+        node_type=node_type,
+        namespace=namespace,
     )
 
     print(
-        f"Running the simulator with http port: {http_server_port} and monitoring port: {state_sync_port}",
+        f"Running the simulator with http port: {http_server_local_port} and monitoring port: {state_sync_port}",
         flush=True,
     )
-    exit_code = run_simulator(http_server_port, state_sync_port, sender_address, receiver_address)
+    exit_code = run_simulator(http_server_local_port, state_sync_port, sender_address, receiver_address)
 
     if exit_code != 0:
         print("❌ Sequencer simulator failed!", flush=True)
@@ -274,7 +381,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run the Sequencer Simulator with port forwarding."
+        description="Run the Sequencer Simulator with LoadBalancer or port forwarding."
     )
     parser.add_argument(
         "--state_sync_monitoring_endpoint_port",
@@ -290,7 +397,7 @@ if __name__ == "__main__":
         "--node_type",
         choices=[node_type.value for node_type in NodeType],
         required=True,
-        help="Type of node to deploy: 'distributed' or 'consolidated'.",
+        help="Type of node to deploy: 'distributed', 'consolidated', or 'hybrid'.",
     )
     parser.add_argument(
         "--sender_address",
@@ -302,6 +409,12 @@ if __name__ == "__main__":
         required=True,
         help="Ethereum receiver address (e.g., 0xdef...).",
     )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        default=None,
+        help="Kubernetes namespace (optional, will try to detect if not provided).",
+    )
 
     args = parser.parse_args()
 
@@ -311,4 +424,5 @@ if __name__ == "__main__":
         args.node_type,
         args.sender_address,
         args.receiver_address,
+        namespace=args.namespace,
     )

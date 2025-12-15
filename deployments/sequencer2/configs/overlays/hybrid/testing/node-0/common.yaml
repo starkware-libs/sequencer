@@ -20,6 +20,7 @@ config:
     versioned_constants_overrides_max_n_events: 1000
 
 service:
+  type: LoadBalancer
   ports:
   - name: monitoring-endpoint
     port: 8082

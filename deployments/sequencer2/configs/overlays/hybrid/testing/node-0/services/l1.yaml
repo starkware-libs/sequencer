@@ -20,7 +20,7 @@ config:
 
 service:
   enabled: true
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: l1-endpoint-monitoring
     port: 55005

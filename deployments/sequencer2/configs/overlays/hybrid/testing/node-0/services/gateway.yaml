@@ -21,7 +21,7 @@ config:
 
 service:
   enabled: true
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: gateway
     port: 55002

@@ -20,7 +20,7 @@ config:
 
 service:
   enabled: true
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: mempool
     port: 55006

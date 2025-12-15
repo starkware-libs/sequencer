@@ -133,6 +133,63 @@ def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
     return False
 
 
+def is_loadbalancer_service(namespace: str, service_name: str) -> bool:
+    """Check if a service is of type LoadBalancer."""
+    try:
+        cmd = [
+            "kubectl",
+            "get",
+            "service",
+            service_name,
+            "-n",
+            namespace,
+            "-o",
+            "jsonpath={.spec.type}",
+        ]
+        result = run(cmd, capture_output=True, check=False)
+        return result.returncode == 0 and result.stdout.strip() == "LoadBalancer"
+    except Exception:
+        return False
+
+
+
+
+def get_loadbalancer_port(namespace: str, service_name: str, port_name: str) -> Optional[int]:
+    """
+    Get the service port for a LoadBalancer service.
+    
+    In k3d, LoadBalancer services are exposed on localhost using the service port.
+    Returns the port if found, None otherwise.
+    """
+    try:
+        cmd = [
+            "kubectl",
+            "get",
+            "service",
+            service_name,
+            "-n",
+            namespace,
+            "-o",
+            f"jsonpath={{.spec.ports[?(@.name=='{port_name}')].port}}",
+        ]
+        result = run(cmd, capture_output=True, check=False)
+        if result.returncode == 0 and result.stdout.strip():
+            return int(result.stdout.strip())
+    except (ValueError, subprocess.CalledProcessError):
+        pass
+    return None
+
+
+def check_loadbalancer_ready(host: str, port: int, max_wait: int = 5) -> bool:
+    """
+    Check if LoadBalancer service port is accessible on the given host.
+    
+    Note: In k3d, LoadBalancer services may not always expose ports on localhost.
+    This is a quick check - if not accessible, we fall back to port-forward which is reliable.
+    """
+    return wait_for_port(host, port, timeout=max_wait)
+
+
 def check_service_alive(
     address: str,
     timeout: int,
@@ -173,69 +230,74 @@ def run_service_check(
     interval: int,
     initial_delay: int,
     process_queue: Queue,
-    port_forward_retries: int = 3,
-    port_forward_retry_delay: int = 2,
-    port_wait_timeout: int = 30,
+    namespace: str,
 ):
-    pf_process = None
-    port_established = False
-    local_port = monitoring_port + offset
-
-    # Retry port-forward setup
-    for attempt in range(1, port_forward_retries + 1):
-        try:
-            # Kill previous attempt if exists
-            if pf_process:
-                try:
-                    pf_process.terminate()
-                    pf_process.wait(timeout=2)
-                except Exception:
-                    pass
-
-            print(
-                f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
-            )
-
-            pf_process = subprocess.Popen(
-                ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
-            # Wait for port to be ready
-            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
-                port_established = True
-                print(f"[{service_name}] ✅ Port-forward established on {local_port}")
-                break
-            else:
-                print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed - port not ready")
-                if attempt < port_forward_retries:
-                    time.sleep(port_forward_retry_delay)
-
-        except Exception as e:
-            print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed: {e}")
-            if attempt < port_forward_retries:
-                time.sleep(port_forward_retry_delay)
-
-    if not port_established:
-        if pf_process:
+    """
+    Run health check on a service using LoadBalancer first, fallback to port-forward as last resort.
+    """
+    service_label = f"sequencer-{service_name.lower()}"
+    k8s_service_name = f"{service_label}-service"
+    port_name = "monitoring-endpoint"
+    
+    # Try LoadBalancer first
+    # Since all services use port 8082, we can't distinguish them via localhost:8082
+    # Instead, we'll use kubectl to access each service via its DNS name from within the cluster
+    if is_loadbalancer_service(namespace, k8s_service_name):
+        lb_port = get_loadbalancer_port(namespace, k8s_service_name, port_name)
+        
+        if lb_port:
+            # Access service via Kubernetes DNS name to distinguish between services using same port
+            service_dns = f"{k8s_service_name}.{namespace}.svc.cluster.local"
+            print(f"[{service_name}] 🌐 Using LoadBalancer service via DNS: {service_dns}:{lb_port}")
+            
+            # Use kubectl exec to run health checks from within cluster
+            # This allows us to access each service individually via DNS
             try:
-                pf_process.terminate()
-                pf_process.wait()
-            except Exception:
-                pass
-        process_queue.put(
-            (
-                service_name,
-                False,
-                f"Port-forward did not establish after {port_forward_retries} attempts",
-            )
-        )
-        return
-
-    # Continue with health check
+                success = check_service_alive_via_kubectl(
+                    namespace=namespace,
+                    service_name=k8s_service_name,
+                    port=lb_port,
+                    timeout=timeout,
+                    interval=interval,
+                    initial_delay=initial_delay,
+                )
+                if success:
+                    print(f"[{service_name}] ✅ Passed for {timeout}s")
+                    process_queue.put((service_name, True, "Health check passed"))
+                else:
+                    print(f"[{service_name}] ❌ Failed health check")
+                    process_queue.put((service_name, False, "Health check failed"))
+                return
+            except Exception as e:
+                print(f"[{service_name}] ⚠️ LoadBalancer health check via DNS failed: {e}")
+                print(f"[{service_name}] 🔄 Falling back to port-forward as last resort...")
+    
+    # Last resort: port-forward
+    print(f"[{service_name}] ⚠️ LoadBalancer not available, using port-forward as last resort")
+    pf_process = None
+    local_port = monitoring_port + offset
+    
     try:
+        print(f"[{service_name}] 🚀 Setting up port-forward on {local_port} -> {monitoring_port}")
+        pf_process = subprocess.Popen(
+            ["kubectl", "port-forward", "-n", namespace, pod_name, f"{local_port}:{monitoring_port}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        
+        if not wait_for_port("127.0.0.1", local_port, timeout=30):
+            process_queue.put(
+                (
+                    service_name,
+                    False,
+                    "Port-forward did not establish (last resort fallback failed)",
+                )
+            )
+            return
+        
+        print(f"[{service_name}] ✅ Port-forward established on {local_port}")
         address = f"http://localhost:{local_port}/monitoring/alive"
+        
         success = check_service_alive(
             address=address,
             timeout=timeout,
@@ -326,6 +388,7 @@ def main(
                 interval,
                 initial_delay,
                 process_queue,
+                namespace,
             ),
         )
         process.start()

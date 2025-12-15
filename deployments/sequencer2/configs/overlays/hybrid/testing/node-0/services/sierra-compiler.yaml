@@ -12,7 +12,7 @@ config:
 
 service:
   enabled: true
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: sierra-compiler
     port: 55007
