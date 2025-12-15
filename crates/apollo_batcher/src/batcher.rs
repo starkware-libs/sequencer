@@ -5,6 +5,9 @@ use std::sync::Arc;
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
+    BatcherStorageReaderServerHandler,
+    BatcherStorageRequest,
+    BatcherStorageResponse,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -35,7 +38,13 @@ use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
+use apollo_storage::storage_reader_server::StorageReaderServer;
+use apollo_storage::{
+    open_storage_with_metric_and_server,
+    StorageReader,
+    StorageResult,
+    StorageWriter,
+};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -100,6 +109,11 @@ use crate::utils::{
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
+type BatcherStorageReaderServer = StorageReaderServer<
+    BatcherStorageReaderServerHandler,
+    BatcherStorageRequest,
+    BatcherStorageResponse,
+>;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -145,6 +159,11 @@ pub struct Batcher {
     /// The proposal commitment of the previous height.
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
+
+    // TODO(Nadin): Remove #[allow(dead_code)].
+    /// Optional storage reader server for handling remote storage reader queries.
+    #[allow(dead_code)]
+    storage_reader_server: Option<BatcherStorageReaderServer>,
 }
 
 impl Batcher {
@@ -158,6 +177,7 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
+        storage_reader_server: Option<BatcherStorageReaderServer>,
     ) -> Self {
         Self {
             config,
@@ -177,6 +197,7 @@ impl Batcher {
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
             prev_proposal_commitment: None,
+            storage_reader_server,
         }
     }
 
@@ -1020,9 +1041,13 @@ pub fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
-    let (storage_reader, storage_writer) =
-        open_storage_with_metric(config.storage.clone(), &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS)
-            .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer, storage_reader_server) =
+        open_storage_with_metric_and_server(
+            config.storage.clone(),
+            &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
+            config.storage_reader_server_config.clone(),
+        )
+        .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1053,6 +1078,7 @@ pub fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
+        storage_reader_server,
     )
 }
 
