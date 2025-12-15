@@ -557,7 +557,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     mock_stateful_transaction_validator
         .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _, _| Err(expected_error));
+        .return_once(|_, _| Err(expected_error));
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
