@@ -191,17 +191,15 @@ impl IntoResponse for StorageServerError {
 /// Creates and returns an optional StorageReaderServer based on the enable flag.
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
-    socket: SocketAddr,
-    enable: bool,
+    storage_reader_server_config: ServerConfig,
 ) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if enable {
-        let config = ServerConfig::new(socket, enable);
-        Some(StorageReaderServer::new(storage_reader, config))
+    if storage_reader_server_config.enable {
+        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
     } else {
         None
     }
