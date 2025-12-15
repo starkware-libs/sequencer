@@ -1146,7 +1146,9 @@
           "exprs": [
             "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"network_manager\""
+          }
         },
         {
           "title": "Consensus Proposals Sent Message Size MB/sec",
@@ -1310,13 +1312,15 @@
     "MempoolP2p": {
       "panels": [
         {
-          "title": "Apollo Mempool P2p Num Connected Peers",
-          "description": "The number of connected peers to the mempool p2p component",
-          "type": "timeseries",
+          "title": "Number of Connected Peers",
+          "description": "The number of connected peers in Mempool P2P",
+          "type": "stat",
           "exprs": [
             "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"network_manager\""
+          }
         },
         {
           "title": "Number of sent messages",
