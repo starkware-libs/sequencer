@@ -5,6 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
@@ -63,28 +64,28 @@ pub trait ForestReader<I: InputContext> {
 #[async_trait]
 pub trait ForestWriter: ForestMetadata + Send {
     /// Serializes a filled forest into a hash map.
-    fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap;
+    fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap>;
 
     /// Writes the updates map to storage. Returns the number of new updates written to storage.
     async fn write_updates(&mut self, updates: DbHashMap) -> usize;
 
     /// Writes the serialized filled forest to storage. Returns the number of new updates written to
     /// storage.
-    async fn write(&mut self, filled_forest: &FilledForest) -> usize {
-        let updates = Self::serialize_forest(filled_forest);
-        self.write_updates(updates).await
+    async fn write(&mut self, filled_forest: &FilledForest) -> SerializationResult<usize> {
+        let updates = Self::serialize_forest(filled_forest)?;
+        Ok(self.write_updates(updates).await)
     }
 
     async fn write_with_metadata(
         &mut self,
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
-    ) -> usize {
-        let mut updates = Self::serialize_forest(filled_forest);
+    ) -> SerializationResult<usize> {
+        let mut updates = Self::serialize_forest(filled_forest)?;
         for (metadata_type, value) in metadata {
             Self::insert_metadata(&mut updates, metadata_type, value);
         }
-        self.write_updates(updates).await
+        Ok(self.write_updates(updates).await)
     }
 }
 

@@ -155,7 +155,7 @@ pub(crate) async fn commit_state_diff(
     let input = Input { state_diff, initial_read_context, config };
     let filled_forest =
         commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
-    facts_db.write(&filled_forest).await;
+    facts_db.write(&filled_forest).await.except("Failed to write filled forest to storage");
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),

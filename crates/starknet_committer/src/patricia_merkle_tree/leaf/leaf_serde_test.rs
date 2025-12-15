@@ -31,7 +31,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
    })
 ]
 fn test_leaf_serde<L: Leaf + Eq + Debug>(#[case] leaf: L) {
-    let serialized = leaf.serialize();
+    let serialized = leaf.serialize().unwrap();
     let deserialized = L::deserialize(&serialized, &EmptyDeserializationContext).unwrap();
     assert_eq!(deserialized, leaf);
 }
