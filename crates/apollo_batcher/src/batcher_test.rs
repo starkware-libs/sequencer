@@ -36,7 +36,7 @@ use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -46,7 +46,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReader, MockBatcherStorageWriter};
+use crate::batcher::{
+    Batcher,
+    MockBatcherStorageReader,
+    MockBatcherStorageWriter,
+    StorageCommitmentBlockHash,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderError,
@@ -948,7 +953,11 @@ async fn add_sync_block() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
+        .with(
+            eq(INITIAL_HEIGHT),
+            eq(test_state_diff()),
+            eq(StorageCommitmentBlockHash::ParentHash(BlockHash::default())),
+        )
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -1120,7 +1129,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(Some(expected_partial_block_hash)),
+            eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
         )
         .returning(|_, _, _| Ok(()));
 

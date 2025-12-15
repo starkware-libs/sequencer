@@ -33,6 +33,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::block_hash_marker::BlockHashMarkerStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
@@ -51,7 +52,7 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -586,9 +587,12 @@ impl Batcher {
             state_diff,
             account_transaction_hashes,
             l1_transaction_hashes,
-            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+            block_header_without_hash: BlockHeaderWithoutHash { block_number, parent_hash, .. },
             ..
         } = sync_block;
+
+        // TODO(Nimrod): Use correct value based on sync_block.block_header_commitments.
+        let storage_commitment_block_hash = StorageCommitmentBlockHash::ParentHash(parent_hash);
 
         let height = self.get_height_from_storage()?;
         if height != block_number {
@@ -610,7 +614,7 @@ impl Batcher {
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
-            None,
+            storage_commitment_block_hash,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -660,7 +664,7 @@ impl Batcher {
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
-            Some(partial_block_hash_components),
+            StorageCommitmentBlockHash::Partial(partial_block_hash_components),
         )
         .await?;
 
@@ -708,7 +712,7 @@ impl Batcher {
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
-        partial_block_hash_components: Option<PartialBlockHashComponents>,
+        storage_commitment_block_hash: StorageCommitmentBlockHash,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -720,7 +724,7 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer
-            .commit_proposal(height, state_diff, partial_block_hash_components)
+            .commit_proposal(height, state_diff, storage_commitment_block_hash)
             .map_err(|err| {
                 error!("Failed to commit proposal to storage: {}", err);
                 BatcherError::InternalError
@@ -1187,7 +1191,7 @@ pub trait BatcherStorageWriter: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-        partial_block_hash_components: Option<PartialBlockHashComponents>,
+        storage_commitment_block_hash: StorageCommitmentBlockHash,
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1198,12 +1202,20 @@ impl BatcherStorageWriter for StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-        partial_block_hash_components: Option<PartialBlockHashComponents>,
+        storage_commitment_block_hash: StorageCommitmentBlockHash,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
-        if let Some(ref components) = partial_block_hash_components {
-            txn = txn.set_partial_block_hash_components(&height, components)?;
+        match storage_commitment_block_hash {
+            StorageCommitmentBlockHash::ParentHash(parent_block_hash) => {
+                if let Some(parent_block) = height.prev() {
+                    txn = txn.set_block_hash(&parent_block, parent_block_hash)?
+                }
+            }
+            StorageCommitmentBlockHash::Partial(partial_block_hash_components) => {
+                txn =
+                    txn.set_partial_block_hash_components(&height, &partial_block_hash_components)?
+            }
         }
         txn.commit()
     }
@@ -1224,4 +1236,13 @@ impl ComponentStarter for Batcher {
             .expect("Failed to get height from storage during batcher creation.");
         register_metrics(storage_height);
     }
+}
+
+/// When committing a block into storage, in `commit_proposal_and_block`, we either set the
+/// parent hash for old blocks (pre 0.13.2) coming from sync, or the partial block hash components
+/// for new blocks.
+#[derive(Debug, PartialEq)]
+pub enum StorageCommitmentBlockHash {
+    ParentHash(BlockHash),
+    Partial(PartialBlockHashComponents),
 }
