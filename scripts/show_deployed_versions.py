@@ -8,7 +8,9 @@ import sys
 from typing import Optional
 
 import collections
+import csv
 import logging
+from itertools import chain
 
 
 # --- Helper Functions ---
@@ -156,6 +158,54 @@ class Runner:
         self.contexts = collections.defaultdict(list)
         self.logger = logging.getLogger("Runner")
 
+    def context_name_to_env_info(self, context_name: str) -> Optional[EnvInfo]:
+        """Matches a K8s context name to a configured Environment."""
+        for env in self.active_envs:
+            if re.match(env.cluster_re, context_name):
+                return env
+        return None
+
+    def collect_contexts(self):
+        """Scans current kubeconfig and collects data for matching contexts."""
+        config = run_kubectl(["config", "view", "-o", "json"])
+        # Extract tuples of (context_name, cluster_name)
+        contexts = [
+            (ctx["name"], ctx["context"]["cluster"])
+            for ctx in json.loads(config).get("contexts", [])
+        ]
+
+        for context_name, cluster in contexts:
+            # We match against the cluster name in the config
+            env = self.context_name_to_env_info(cluster)
+            if not env:
+                self.logger.debug(f"Skipping context {cluster} - no env match")
+                continue
+
+            self.logger.debug(f"Collecting context {context_name} for env {env.desc}")
+            kube_ctx = KubeContext(context_name, env.namespace_re, env.pod_re)
+            kube_ctx.collect_namespaces()
+            self.contexts[env.desc].append(kube_ctx)
+
+    def summarize(self):
+        """Generates the CSV report to stdout."""
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["ENV", "NAMESPACE", "POD", "IMAGE"])
+
+        for env_desc, ctxs in self.contexts.items():
+            # Flatten namespaces from all contexts in this env
+            namespaces = list(chain.from_iterable(ctx.namespaces for ctx in ctxs))
+            # Sort namespaces numerically
+            namespaces.sort(key=lambda ns: int(ctxs[0].namespaces_re.search(ns.namespace).group(1)))
+
+            for ns in namespaces:
+                all_images = set(ns.pods.values())
+                if len(all_images) == 1:
+                    image = all_images.pop()
+                    writer.writerow([env_desc, ns.namespace, "ALL", image])
+                else:
+                    for pod_name, image in ns.pods.items():
+                        writer.writerow([env_desc, ns.namespace, pod_name, image])
+
 
 # --- Main Entry Point ---
 def main():
@@ -184,6 +234,8 @@ def main():
     # Initialize runner to verify config works
     runner = Runner(args)
     logging.debug(f"Runner initialized for {len(runner.active_envs)} environments")
+    runner.collect_contexts()
+    runner.summarize()
 
 
 if __name__ == "__main__":
