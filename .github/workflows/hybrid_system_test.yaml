@@ -10,6 +10,9 @@ on:
         type: number
 
   pull_request:
+    branches:
+      - main
+      - main-v0.14.0
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
