@@ -354,6 +354,16 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "batcher_config.storage_reader_server_config.enable": {
+    "description": "Whether to enable the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.storage_reader_server_config.socket": {
+    "description": "The socket address for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "privacy": "TemporaryValue",
