@@ -91,7 +91,7 @@ pub async fn single_tree_flow_test<
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize(&EmptyKeyContext));
+    let json_storage = &json!(filled_tree.serialize(&EmptyKeyContext).unwrap());
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }
