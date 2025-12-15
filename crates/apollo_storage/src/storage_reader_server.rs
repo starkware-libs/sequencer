@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -24,22 +24,24 @@ mod storage_reader_server_test;
 /// Configuration for the storage reader server.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServerConfig {
-    /// The socket address to bind the server to.
-    pub socket: SocketAddr,
+    /// The socket address for the server.
+    pub ip: IpAddr,
+    /// The port for the server.
+    pub port: u16,
     /// Whether the server is enabled.
     pub enable: bool,
 }
 
 impl ServerConfig {
     /// Creates a new server configuration.
-    pub fn new(socket: SocketAddr, enable: bool) -> Self {
-        Self { socket, enable }
+    pub fn new(ip: Ipv4Addr, port: u16, enable: bool) -> Self {
+        Self { ip: ip.into(), port, enable }
     }
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        Self { socket: (Ipv4Addr::UNSPECIFIED, 8080).into(), enable: false }
+        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8080, enable: false }
     }
 }
 
@@ -47,9 +49,15 @@ impl SerializeConfig for ServerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "socket",
-                &self.socket.to_string(),
-                "The socket address for the storage reader HTTP server.",
+                "ip",
+                &self.ip.to_string(),
+                "The IP address for the storage reader HTTP server.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "port",
+                &self.port,
+                "The port for the storage reader HTTP server.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -140,12 +148,13 @@ where
             info!("Storage reader server is disabled, not starting");
             return Ok(());
         }
-        info!("Starting storage reader server on {}", self.config.socket);
+        let socket = SocketAddr::from((self.config.ip, self.config.port));
+        info!("Starting storage reader server on {}", socket);
         let app = self.app();
-        info!("Storage reader server listening on {}", self.config.socket);
+        info!("Storage reader server listening on {}", socket);
 
         // Start the server
-        axum::Server::bind(&self.config.socket).serve(app.into_make_service()).await.map_err(|e| {
+        axum::Server::bind(&socket).serve(app.into_make_service()).await.map_err(|e| {
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
         })
