@@ -26,12 +26,14 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
 };
+use starknet_api::transaction::fields::TransactionSignature;
 use tracing::{debug, warn};
 
 use crate::errors::{
@@ -130,25 +132,8 @@ impl Gateway {
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
-        let internal_tx =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-                },
-            )?;
-
-        let executable_tx = self
-            .transaction_converter
-            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
-            .await
-            .map_err(|e| {
-                warn!(
-                    "Failed to convert internal RPC transaction to executable transaction: {}",
-                    e
-                );
-                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-            })?;
+        let (internal_tx, executable_tx) =
+            self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
@@ -207,6 +192,31 @@ impl Gateway {
             });
         }
         Ok(())
+    }
+
+    async fn convert_rpc_tx_to_internal_and_executable_txs(
+        &self,
+        tx: RpcTransaction,
+        tx_signature: &TransactionSignature,
+    ) -> Result<(InternalRpcTransaction, AccountTransaction), StarknetError> {
+        let internal_tx =
+            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
+                |e| {
+                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                    transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+                },
+            )?;
+
+        let executable_tx = self
+            .transaction_converter
+            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert internal RPC transaction to executable transaction: {e}");
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
+
+        Ok((internal_tx, executable_tx))
     }
 }
 
