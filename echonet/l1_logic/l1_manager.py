@@ -5,7 +5,8 @@ from typing import Callable
 import logging
 from l1_blocks import L1Blocks
 from l1_client import L1Client
-from utils import (
+
+from echonet.utils import (
     STATE_BLOCK_HASH_SELECTOR,
     STATE_BLOCK_NUMBER_SELECTOR,
     format_hex,

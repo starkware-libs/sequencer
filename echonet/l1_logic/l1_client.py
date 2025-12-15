@@ -6,7 +6,8 @@ import functools
 import inspect
 import logging
 import requests
-from utils import (
+
+from echonet.utils import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
     timestamp_to_iso,
