@@ -226,7 +226,7 @@ async fn test_create_tree(
 
 pub(crate) fn create_mock_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = MockLeaf(Felt::from(val));
-    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize().unwrap())
 }
 
 fn create_mock_leaf_modifications(
