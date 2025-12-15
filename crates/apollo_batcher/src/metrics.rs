@@ -8,8 +8,8 @@ use apollo_infra::metrics::{
 };
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use blockifier::metrics::{
-    CacheMetrics,
     CALLS_RUNNING_NATIVE,
+    CacheMetrics,
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,

@@ -5,13 +5,13 @@ use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterError,
     TransactionConverterResult,
     TransactionConverterTrait,
 };
-use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
@@ -52,11 +52,11 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::{
-    record_block_close_reason,
-    BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
+    BlockCloseReason,
     PROPOSER_DEFERRED_TXS,
     VALIDATOR_WASTED_TXS,
+    record_block_close_reason,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;

@@ -8,6 +8,8 @@ use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
+    ExecuteGenesisTransactionsInput,
+    ExecuteGenesisTransactionsResponse,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -24,9 +26,9 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -35,7 +37,7 @@ use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
+use apollo_storage::{StorageReader, StorageResult, StorageWriter, open_storage_with_metric};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -50,7 +52,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{Instrument, debug, error, info, instrument, trace};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -63,8 +65,6 @@ use crate::block_builder::{
 };
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::metrics::{
-    register_metrics,
-    ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_PROVIDER_ERRORS,
     LAST_BATCHED_BLOCK_HEIGHT,
@@ -72,12 +72,14 @@ use crate::metrics::{
     LAST_SYNCED_BLOCK_HEIGHT,
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
+    ProposalMetricsHandle,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
+    register_metrics,
 };
 use crate::pre_confirmed_block_writer::{
     PreconfirmedBlockWriterFactory,
@@ -91,11 +93,11 @@ use crate::transaction_provider::{
     ValidateTransactionProvider,
 };
 use crate::utils::{
+    ProposalResult,
+    ProposalTask,
     deadline_as_instant,
     proposal_status_from,
     verify_block_input,
-    ProposalResult,
-    ProposalTask,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
@@ -931,6 +933,18 @@ impl Batcher {
         STORAGE_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
+    }
+
+    /// Executes genesis transactions to bootstrap the chain.
+    /// This should only be called when the storage is at height 0.
+    #[instrument(skip(self, _input), err)]
+    pub async fn execute_genesis_transactions(
+        &mut self,
+        _input: ExecuteGenesisTransactionsInput,
+    ) -> BatcherResult<ExecuteGenesisTransactionsResponse> {
+        // TODO(dan): Implement genesis transaction execution.
+        error!("execute_genesis_transactions is not yet implemented");
+        Err(BatcherError::InternalError)
     }
 
     // Returns the proposal commitment of the previous height.

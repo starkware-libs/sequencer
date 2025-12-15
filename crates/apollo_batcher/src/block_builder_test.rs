@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_l1_provider_types::InvalidValidationStatus;
 use apollo_l1_provider_types::InvalidValidationStatus::{
     AlreadyIncludedInProposedBlock,
@@ -27,15 +27,15 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 use itertools::chain;
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
 use mockall::Sequence;
+use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -49,7 +49,7 @@ use crate::block_builder::{
     BlockTransactionExecutionData,
     FailOnErrorCause,
 };
-use crate::metrics::{BlockCloseReason, BLOCK_CLOSE_REASON, LABEL_NAME_BLOCK_CLOSE_REASON};
+use crate::metrics::{BLOCK_CLOSE_REASON, BlockCloseReason, LABEL_NAME_BLOCK_CLOSE_REASON};
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;
@@ -662,16 +662,14 @@ async fn verify_build_block_output(
     // Verify the block artifacts.
     assert_eq!(result_block_artifacts, expected_block_artifacts);
 
-    BLOCK_CLOSE_REASON.assert_eq::<u64>(
-        metrics,
-        expected_full_blocks_metric,
-        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::FullBlock.into())],
-    );
-    BLOCK_CLOSE_REASON.assert_eq::<u64>(
-        metrics,
-        expected_idle_execution_timeout_metric,
-        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::IdleExecutionTimeout.into())],
-    );
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(metrics, expected_full_blocks_metric, &[(
+        LABEL_NAME_BLOCK_CLOSE_REASON,
+        BlockCloseReason::FullBlock.into(),
+    )]);
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(metrics, expected_idle_execution_timeout_metric, &[(
+        LABEL_NAME_BLOCK_CLOSE_REASON,
+        BlockCloseReason::IdleExecutionTimeout.into(),
+    )]);
 }
 
 async fn run_build_block(
@@ -723,11 +721,10 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     BLOCK_CLOSE_REASON.register();
     let metrics = recorder.handle().render();
-    BLOCK_CLOSE_REASON.assert_eq::<u64>(
-        &metrics,
-        0,
-        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::FullBlock.into())],
-    );
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(&metrics, 0, &[(
+        LABEL_NAME_BLOCK_CLOSE_REASON,
+        BlockCloseReason::FullBlock.into(),
+    )]);
 
     let (output_tx_sender, output_tx_receiver) = output_channel();
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();

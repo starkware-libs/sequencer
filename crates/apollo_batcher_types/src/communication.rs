@@ -19,6 +19,8 @@ use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
     DecisionReachedResponse,
+    ExecuteGenesisTransactionsInput,
+    ExecuteGenesisTransactionsResponse,
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -79,6 +81,13 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+    /// Executes genesis transactions to bootstrap the chain.
+    /// This should only be called when the batcher's storage is at height 0.
+    /// The transactions are executed and the resulting state is committed as the genesis block.
+    async fn execute_genesis_transactions(
+        &self,
+        input: ExecuteGenesisTransactionsInput,
+    ) -> BatcherClientResult<ExecuteGenesisTransactionsResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -97,6 +106,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
+    ExecuteGenesisTransactions(ExecuteGenesisTransactionsInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -118,6 +128,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
+    ExecuteGenesisTransactions(BatcherResult<ExecuteGenesisTransactionsResponse>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -236,6 +247,20 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             RevertBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn execute_genesis_transactions(
+        &self,
+        input: ExecuteGenesisTransactionsInput,
+    ) -> BatcherClientResult<ExecuteGenesisTransactionsResponse> {
+        let request = BatcherRequest::ExecuteGenesisTransactions(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            ExecuteGenesisTransactions,
             BatcherClientError,
             BatcherError,
             Direct

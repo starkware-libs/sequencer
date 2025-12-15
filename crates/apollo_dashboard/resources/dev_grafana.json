@@ -1590,6 +1590,32 @@
           "extra_params": {}
         },
         {
+          "title": "execute_genesis_transactions (client-side)",
+          "description": "client-side infra metrics for request type execute_genesis_transactions",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.50 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.95 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.50 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "execute_genesis_transactions (server-side)",
+          "description": "server-side infra metrics for request type execute_genesis_transactions",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"execute_genesis_transactions\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_current_height (client-side)",
           "description": "client-side infra metrics for request type get_current_height",
           "type": "timeseries",
