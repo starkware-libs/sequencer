@@ -33,7 +33,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_storage::block_hash::BlockHashStorageWriter;
+use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::block_hash_marker::{
     BlockHashMarkerStorageReader,
     BlockHashMarkerStorageWriter,
@@ -1116,6 +1116,8 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>>;
+
+    fn get_parent_hash(&self, height: BlockNumber) -> StorageResult<BlockHash>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1198,6 +1200,21 @@ impl BatcherStorageReader for StorageReader {
         height: BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>> {
         self.begin_ro_txn()?.get_partial_block_hash_components(&height)
+    }
+
+    fn get_parent_hash(&self, height: BlockNumber) -> StorageResult<BlockHash> {
+        match height.prev() {
+            Some(parent_height) => {
+                self.begin_ro_txn()?.get_block_hash(&parent_height)?.ok_or_else(|| {
+                    StorageError::MissingObject {
+                        object_name: "block hash".to_string(),
+                        height: parent_height,
+                    }
+                })
+            }
+            // The genesis block's parent hash is 0.
+            None => Ok(BlockHash::default()),
+        }
     }
 }
 
