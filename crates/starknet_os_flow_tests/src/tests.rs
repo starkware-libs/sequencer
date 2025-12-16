@@ -134,7 +134,6 @@ const UNCOVERED_HINTS: Expect = expect![[r#"
         "DeprecatedSyscallHint(Deploy)",
         "OsHint(GetClassHashAndCompiledClassFact)",
         "OsHint(InitializeAliasCounter)",
-        "OsHint(LoadBottom)",
         "StatelessHint(SetApToSegmentHashPoseidon)",
     ]
 "#]];
@@ -3083,4 +3082,32 @@ async fn test_deploy_no_ctor_contract() {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_load_bottom() {
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo0),
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    // Run some transactions that go through the load_bottom hint.
+    let address = 12u8;
+    for (key, value) in
+        [(address, address), (address + 2, address + 2), (address + 3, address + 3), (address, 0)]
+    {
+        let (key, value) = (Felt::from(key), Felt::from(value));
+        let calldata = create_calldata(test_contract_address, "set_value", &[key, value]);
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+    test_manager.divide_transactions_into_n_blocks(test_manager.total_txs());
+
+    // Run the test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_load_bottom");
 }
