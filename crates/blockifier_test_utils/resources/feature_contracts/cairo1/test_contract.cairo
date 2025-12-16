@@ -151,6 +151,7 @@ mod TestContract {
         res.span()
     }
 
+
     #[external(v0)]
     fn test_revert_helper(
         ref self: ContractState, replacement_class_hash: ClassHash, to_panic: bool,
@@ -495,6 +496,50 @@ mod TestContract {
             class_hash, contract_address_salt, calldata.span(), deploy_from_zero,
         )
             .unwrap_syscall();
+    }
+
+    #[external(v0)]
+    fn deploy_and_fail(
+        self: @ContractState,
+        class_hash: ClassHash,
+        contract_address_salt: felt252,
+        expected_deploy_address: ContractAddress,
+    ) {
+        match syscalls::deploy_syscall(class_hash, contract_address_salt, array![].span(), false) {
+            Ok((address, _)) => assert(address == expected_deploy_address, 'WRONG_DEPLOY_ADDRESS'),
+            Err(_revert_reason) => panic_with_felt252('deploy failed'),
+        }
+        panic_with_felt252('Designed fail');
+    }
+
+    #[external(v0)]
+    fn test_get_class_hash_after_failed_deploy(
+        self: @ContractState,
+        class_hash: ClassHash,
+        self_address: ContractAddress,
+        contract_address_salt: felt252,
+        expected_deploy_address: ContractAddress,
+    ) {
+        let zero_class_hash = ClassHashZero::zero();
+        let current_class_hash = syscalls::get_class_hash_at_syscall(expected_deploy_address)
+            .unwrap_syscall();
+        assert(current_class_hash == zero_class_hash, 'ALREADY_DEPLOYED');
+        match syscalls::call_contract_syscall(
+            self_address,
+            selector!("deploy_and_fail"),
+            array![class_hash.into(), contract_address_salt, expected_deploy_address.into(),]
+                .span(),
+        ) {
+            Ok(_) => panic_with_felt252('Should fail inner'),
+            Err(revert_reason) => {
+                assert(*revert_reason.at(0) == 'Designed fail', 'WRONG_REVERT_REASON');
+                let current_class_hash = syscalls::get_class_hash_at_syscall(
+                    expected_deploy_address
+                )
+                    .unwrap_syscall();
+                assert(current_class_hash == zero_class_hash, 'NONZERO_HASH');
+            },
+        }
     }
 
     #[external(v0)]
