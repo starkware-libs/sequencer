@@ -307,6 +307,10 @@ impl RunningNode {
         let handle = self.node_setup.run_service(service);
         self.executable_handles.insert(service, handle);
     }
+
+    pub fn get_node_index(&self) -> usize {
+        self.node_setup.get_node_index().unwrap()
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -642,9 +646,9 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
+            await_txs_accepted(monitoring_client, running_node.get_node_index(), target_n_txs)
         })
         .await;
     }
@@ -784,7 +788,7 @@ impl IntegrationTestManager {
     /// Waits until all running nodes reach the specified block number.
     /// Queries the batcher and state sync metrics to verify progress.
     async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
@@ -792,7 +796,7 @@ impl IntegrationTestManager {
                 batcher_monitoring_client,
                 state_sync_monitoring_client,
                 expected_block_number,
-                sequencer_idx,
+                running_node.get_node_index(),
             )
         })
         .await;
@@ -813,7 +817,7 @@ impl IntegrationTestManager {
         let condition =
             |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+        self.perform_action_on_all_running_nodes(|running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
             let expected_height = expected_block_number.unchecked_next();
@@ -822,7 +826,8 @@ impl IntegrationTestManager {
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for sync height metric to reach block {expected_height} in sequencer \
-                     {sequencer_idx}.",
+                     {}.",
+                    running_node.get_node_index(),
                 )),
             );
             await_sync_block(5000, condition, 50, monitoring_client, logger).await.unwrap();
@@ -838,11 +843,15 @@ impl IntegrationTestManager {
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             // We use state syncs processed txs metric via its monitoring client to verify that the
             // transactions were accepted.
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs)
+            verify_txs_accepted(
+                monitoring_client,
+                running_node.get_node_index(),
+                expected_n_accepted_txs,
+            )
         })
         .await;
     }
@@ -853,14 +862,14 @@ impl IntegrationTestManager {
         f: F,
     ) -> HashMap<usize, R>
     where
-        F: Fn(usize, &'a RunningNode) -> Fut,
+        F: Fn(&'a RunningNode) -> Fut,
         Fut: Future<Output = R> + 'a,
     {
         let futures = node_indices.into_iter().map(|node_idx| {
             let running_node =
                 self.running_nodes.get(&node_idx).expect("Running node should exist");
             running_node.propagate_executable_panic();
-            let fut = f(node_idx, running_node);
+            let fut = f(running_node);
             async move { (node_idx, fut.await) }
         });
         join_all(futures).await.into_iter().collect()
@@ -868,7 +877,7 @@ impl IntegrationTestManager {
 
     async fn perform_action_on_all_running_nodes<'a, F, Fut, R>(&'a self, f: F) -> HashMap<usize, R>
     where
-        F: Fn(usize, &'a RunningNode) -> Fut,
+        F: Fn(&'a RunningNode) -> Fut,
         Fut: Future<Output = R> + 'a,
     {
         let running_node_indices = self.get_running_node_indices();
@@ -917,7 +926,8 @@ impl IntegrationTestManager {
     }
 
     pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+        self.perform_action_on_all_running_nodes(|running_node| async move {
+            let sequencer_idx = running_node.get_node_index();
             let monitoring_client = running_node.node_setup.batcher_monitoring_client();
             assert_no_reverted_txs(monitoring_client, sequencer_idx).await;
         })
