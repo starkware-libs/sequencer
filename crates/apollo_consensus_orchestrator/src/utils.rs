@@ -2,14 +2,12 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{
-    StateSyncClient,
-    StateSyncClientError,
-    StateSyncClientResult,
-};
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -30,9 +28,71 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-use crate::build_proposal::BuildProposalError;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::validate_proposal::ValidateProposalError;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum RetrospectiveBlockHashError {
+    #[error(
+        "Failed retrieving block hash for block {block_number:?}, because both Batcher & 
+    State Sync returned errors, and both errors weren't caused from simply not being ready.
+    Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}"
+    )]
+    FailedRetrievingHash {
+        block_number: BlockNumber,
+        batcher_error: BatcherClientError,
+        state_sync_error: StateSyncClientError,
+    },
+    #[error(
+        "Failed retrieving block hash for block {block_number:?}. Both returned errors, at least
+    one isn't ready.
+    Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}"
+    )]
+    NotReady {
+        block_number: BlockNumber,
+        batcher_error: BatcherClientError,
+        state_sync_error: StateSyncClientError,
+    },
+}
+
+pub(crate) type RetrospectiveBlockHashResult<T> = Result<T, RetrospectiveBlockHashError>;
+
+impl RetrospectiveBlockHashError {
+    pub(crate) fn from_errors(
+        block_number: BlockNumber,
+        batcher_error: BatcherClientError,
+        state_sync_error: StateSyncClientError,
+    ) -> Self {
+        match (batcher_error, state_sync_error) {
+            (
+                BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)),
+                state_sync_error,
+            ) => RetrospectiveBlockHashError::NotReady {
+                block_number,
+                batcher_error: BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(
+                    block_number,
+                )),
+                state_sync_error,
+            },
+            (
+                batcher_error,
+                StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(block_number)),
+            ) => RetrospectiveBlockHashError::NotReady {
+                block_number,
+                batcher_error,
+                state_sync_error: StateSyncClientError::StateSyncError(
+                    StateSyncError::BlockNotFound(block_number),
+                ),
+            },
+            (batcher_error, state_sync_error) => {
+                RetrospectiveBlockHashError::FailedRetrievingHash {
+                    block_number,
+                    batcher_error,
+                    state_sync_error,
+                }
+            }
+        }
+    }
+}
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -55,28 +115,6 @@ pub(crate) struct GasPriceParams {
     pub override_l1_gas_price_wei: Option<GasPrice>,
     pub override_l1_data_gas_price_wei: Option<GasPrice>,
     pub override_eth_to_fri_rate: Option<u128>,
-}
-
-impl From<StateSyncClientError> for BuildProposalError {
-    fn from(e: StateSyncClientError) -> Self {
-        match e {
-            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
-                BuildProposalError::StateSyncNotReady(e)
-            }
-            e => BuildProposalError::StateSyncClientError(e.to_string()),
-        }
-    }
-}
-
-impl From<StateSyncClientError> for ValidateProposalError {
-    fn from(e: StateSyncClientError) -> Self {
-        match e {
-            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
-                ValidateProposalError::StateSyncNotReady(e)
-            }
-            e => ValidateProposalError::StateSyncClientError(e.to_string()),
-        }
-    }
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
@@ -206,15 +244,37 @@ pub(crate) fn convert_to_sn_api_block_info(
     })
 }
 
+/// Get the block hash for the retrospective block.
+/// First try to get the block hash from the batcher. If that fails, fall back to state sync.
 pub(crate) async fn retrospective_block_hash(
+    batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
-) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-            let block_hash = state_sync_client.get_block_hash(block_number).await?;
+            let block_hash = match batcher_client.get_block_hash(block_number).await {
+                Ok(block_hash) => block_hash,
+                Err(batcher_error) => {
+                    let block_hash = state_sync_client.get_block_hash(block_number).await.map_err(
+                        |state_sync_error| {
+                            RetrospectiveBlockHashError::from_errors(
+                                block_number,
+                                batcher_error.clone(),
+                                state_sync_error,
+                            )
+                        },
+                    )?;
+                    // TODO(Rotem): Add an alert to alert we used a block hash from the state sync.
+                    warn!(
+                        "Successfully retrieved retrospective block hash from state sync after \
+                         failing to get it from the Batcher."
+                    );
+                    block_hash
+                }
+            };
             Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
         }
         None => {
@@ -227,30 +287,54 @@ pub(crate) async fn retrospective_block_hash(
     }
 }
 
+// TODO(Rotem): Once the fallback option is removed, and the block hash is always read from the
+// Batcher's storage, the Batcher should read the block hash from its storage instead of receiving
+// it from the Consensus Manager.
 pub(crate) async fn wait_for_retrospective_block_hash(
+    batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
     clock: &dyn Clock,
     deadline: DateTime,
     retry_interval: Duration,
-) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
     let mut attempts = 0;
     let start_time = clock.now();
     let result = loop {
         attempts += 1;
-        let result = retrospective_block_hash(state_sync_client.clone(), block_info).await;
+        let result =
+            retrospective_block_hash(batcher_client.clone(), state_sync_client.clone(), block_info)
+                .await;
 
         // If the block is not found, try again after the retry interval. In any other case, return
         // the result.
         match result {
-            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+            Err(RetrospectiveBlockHashError::NotReady {
+                block_number,
+                batcher_error,
+                state_sync_error,
+            }) => {
                 let effective_retry_interval = min(
                     retry_interval,
                     (deadline - clock.now()).to_std().unwrap_or(Duration::ZERO),
                 );
 
                 if effective_retry_interval == Duration::ZERO {
-                    break result;
+                    warn!(
+                        "Deadline reached, stopping trying to get block hash of block \
+                         {block_number:?}."
+                    );
+                    break Err(RetrospectiveBlockHashError::NotReady {
+                        block_number,
+                        batcher_error,
+                        state_sync_error,
+                    });
+                } else {
+                    let warn_msg = format!(
+                        "Attempt to retrieve retrospective block hash failed. Batcher error: \
+                         {batcher_error:?}, State sync error: {state_sync_error:?}.",
+                    );
+                    warn!("{warn_msg}\nRetrying in {effective_retry_interval:?}.");
                 }
 
                 tokio::time::sleep(effective_retry_interval).await;
