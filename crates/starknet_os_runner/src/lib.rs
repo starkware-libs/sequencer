@@ -1,3 +1,5 @@
 pub mod errors;
-pub mod os_input_builder;
 pub mod proof_provider;
+
+#[cfg(test)]
+mod proof_provider_test;

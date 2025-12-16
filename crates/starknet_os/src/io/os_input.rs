@@ -54,6 +54,14 @@ impl Default for CommitmentInfo {
     }
 }
 
+/// Collection of commitment infos for all tries.
+#[derive(Debug)]
+pub struct CommitmentInfos {
+    pub contracts_trie: CommitmentInfo,
+    pub classes_trie: CommitmentInfo,
+    pub storage_tries: HashMap<ContractAddress, CommitmentInfo>,
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]

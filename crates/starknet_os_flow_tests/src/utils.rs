@@ -58,7 +58,7 @@ use starknet_committer::patricia_merkle_tree::types::{
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
-use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
+use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo, CommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
@@ -217,12 +217,6 @@ pub(crate) fn create_declare_tx(
     AccountTransaction::Declare(tx)
 }
 
-pub(crate) struct CommitmentInfos {
-    pub(crate) contracts_trie_commitment_info: CommitmentInfo,
-    pub(crate) classes_trie_commitment_info: CommitmentInfo,
-    pub(crate) storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
-}
-
 /// Creates the commitment infos and the cached state input for the OS.
 pub(crate) async fn create_cached_state_input_and_commitment_infos(
     previous_state_roots: &StateRoots,
@@ -313,19 +307,19 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         },
     )
     .await;
-    let contracts_trie_commitment_info = CommitmentInfo {
+    let contracts_trie = CommitmentInfo {
         previous_root: previous_state_roots.contracts_trie_root_hash,
         updated_root: new_state_roots.contracts_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
     };
-    let classes_trie_commitment_info = CommitmentInfo {
+    let classes_trie = CommitmentInfo {
         previous_root: previous_state_roots.classes_trie_root_hash,
         updated_root: new_state_roots.classes_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
     };
-    let storage_tries_commitment_infos = address_to_previous_storage_root_hash
+    let storage_tries = address_to_previous_storage_root_hash
         .iter()
         .map(|(address, previous_root_hash)| {
             // Not all contracts in `address_to_previous_storage_root_hash` are in
@@ -356,11 +350,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
             address_to_nonce: address_to_previous_nonce,
             class_hash_to_compiled_class_hash,
         },
-        CommitmentInfos {
-            contracts_trie_commitment_info,
-            classes_trie_commitment_info,
-            storage_tries_commitment_infos,
-        },
+        CommitmentInfos { contracts_trie, classes_trie, storage_tries },
     )
 }
 
