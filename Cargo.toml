@@ -99,6 +99,7 @@ members = [
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
   "crates/shared_execution_objects",
+  "crates/simulate_tx_bench",
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
