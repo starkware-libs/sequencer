@@ -21,7 +21,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::bootstrapper::Bootstrapper;
+use crate::catchupper::Catchupper;
 use crate::transaction_manager::TransactionManager;
 use crate::L1ProviderConfig;
 
@@ -35,11 +35,11 @@ pub mod l1_provider_tests;
 ///   start_height are already committed. The Provider is not interested in any block lower than
 ///   start_height.
 /// - current_height: height of the next block that the Provider expects to see. It means the
-///   provider has seen commits forall the previous blocks up to (not including) current_height.
-/// - target_height: when bootstrapping, the height to which the bootstrapper will sync. After
-///   bootstrapping is done, we expect the current_height to be one above the target_height. If any
-///   more blocks are committed while bootstrapping, they are applied after the target_height, and
-///   the current_height will be set to one above the last block in the backlog.
+///   provider has seen commits for all the previous blocks up to (not including) current_height.
+/// - target_height: when catching up, the height to which the catchupper will sync. After catching
+///   up is done, we expect the current_height to be one above the target_height. If any more blocks
+///   are committed while catching up, they are applied after the target_height, and the
+///   current_height will be set to one above the last block in the backlog.
 
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
@@ -47,7 +47,7 @@ pub mod l1_provider_tests;
 pub struct L1Provider {
     pub config: L1ProviderConfig,
     /// Used for catching up at startup or after a crash.
-    pub bootstrapper: Bootstrapper,
+    pub catchupper: Catchupper,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
@@ -65,14 +65,14 @@ impl L1Provider {
         state_sync_client: SharedStateSyncClient,
         clock: Option<Arc<dyn Clock>>,
     ) -> Self {
-        let bootstrapper = Bootstrapper::new(
+        let catchupper = Catchupper::new(
             l1_provider_client,
             state_sync_client,
             config.startup_sync_sleep_retry_interval_seconds,
         );
         Self {
             config,
-            bootstrapper,
+            catchupper,
             current_height: BlockNumber(0),
             tx_manager: TransactionManager::new(
                 config.l1_handler_proposal_cooldown_seconds,
@@ -84,10 +84,10 @@ impl L1Provider {
             start_height: None,
         }
     }
-    pub fn reset_bootstrapper(&mut self) {
-        self.bootstrapper = Bootstrapper::new(
-            self.bootstrapper.l1_provider_client.clone(),
-            self.bootstrapper.sync_client.clone(),
+    pub fn reset_catchupper(&mut self) {
+        self.catchupper = Catchupper::new(
+            self.catchupper.l1_provider_client.clone(),
+            self.catchupper.sync_client.clone(),
             self.config.startup_sync_sleep_retry_interval_seconds,
         );
     }
@@ -113,7 +113,7 @@ impl L1Provider {
 
         // The provider now goes into Pending state.
         // The current_height is set to a very old height, that doesn't include any of the events
-        // sent now, or to be scraped in the future. The provider will begin bootstrapping when the
+        // sent now, or to be scraped in the future. The provider will begin catching up when the
         // batcher calls commit_block with a height above the current height.
         self.start_height = Some(start_height);
         self.current_height = start_height;
@@ -300,14 +300,14 @@ impl L1Provider {
             return Ok(());
         }
 
-        // Reroute this block to bootstrapper, either adding it to the backlog, or applying it and
-        // ending the bootstrap.
-        if self.state.is_bootstrapping() {
-            // Once bootstrap completes it will transition to Pending state by itself.
-            return self.accept_commit_while_bootstrapping(committed_txs, height);
+        // Reroute this block to catchupper, either adding it to the backlog, or applying it and
+        // ending the catchup.
+        if self.state.is_catching_up() {
+            // Once catchup completes it will transition to Pending state by itself.
+            return self.accept_commit_while_catching_up(committed_txs, height);
         }
 
-        // If not historical height and not bootstrapping, must go into bootstrap state upon getting
+        // If not historical height and not catching up, must go into catchup state upon getting
         // wrong height.
         match self.check_height_with_error(height) {
             Ok(_) => {
@@ -322,16 +322,16 @@ impl L1Provider {
                 if self.state.is_uninitialized() {
                     warn!(
                         "Provider received a block height ({height}) while it is uninitialized. \
-                         Cannot start bootstrapping until getting the start_height from the \
-                         scraper during the initialize call."
+                         Cannot start catching up until getting the start_height from the scraper \
+                         during the initialize call."
                     );
                 } else {
                     info!(
                         "Provider received a block_height ({height}) that is higher than the \
-                         current height ({}), starting bootstrapping.",
+                         current height ({}), starting catch-up process.",
                         self.current_height
                     );
-                    self.start_bootstrapping(height);
+                    self.start_catching_up(height);
                 }
                 Err(err)
             }
@@ -340,11 +340,11 @@ impl L1Provider {
 
     // Functions called internally.
 
-    /// Go from current state to Bootstrap state and start the L2 sync.
-    pub fn start_bootstrapping(&mut self, target_height: BlockNumber) {
-        self.reset_bootstrapper();
-        self.state = ProviderState::Bootstrap;
-        self.bootstrapper.start_l2_sync(self.current_height, target_height);
+    /// Go from current state to CatchingUp state and start the L2 sync.
+    pub fn start_catching_up(&mut self, target_height: BlockNumber) {
+        self.reset_catchupper();
+        self.state = ProviderState::CatchingUp;
+        self.catchupper.start_l2_sync(self.current_height, target_height);
     }
 
     /// Commit the given transactions, and increment the current height.
@@ -361,19 +361,19 @@ impl L1Provider {
         self.current_height = self.current_height.unchecked_next();
     }
 
-    /// Any commit_block call gets rerouted to this function when in bootstrap state.
+    /// Any commit_block call gets rerouted to this function when in CatchingUp state.
     /// - If block number is higher than current height, block is backlogged.
     /// - If provider gets a block consistent with current_height, apply it and then the rest of the
     ///   backlog, then transition to Pending state.
     /// - Blocks lower than current height are checked for consistency with existing transactions.
-    fn accept_commit_while_bootstrapping(
+    fn accept_commit_while_catching_up(
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
         debug!(
-            "Bootstrapper processing commit-block at height: {new_height}, current height is \
+            "Catchupper processing commit-block at height: {new_height}, current height is \
              {current_height}"
         );
         match new_height.cmp(&current_height) {
@@ -397,7 +397,7 @@ impl L1Provider {
                     return Ok(());
                 } else {
                     // This is either a configuration error or a bug in the
-                    // batcher/sync/bootstrapper.
+                    // batcher/sync/catching up code.
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, with DIFFERENT transaction_hashes: \
@@ -413,8 +413,8 @@ impl L1Provider {
             Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
-                self.bootstrapper.add_commit_block_to_backlog(committed_txs, new_height);
-                // No need to check the backlog or bootstrap completion, since those are only
+                self.catchupper.add_commit_block_to_backlog(committed_txs, new_height);
+                // No need to check the backlog or catchup completion, since those are only
                 // applicable if we just increased the provider's height, like in the `Equal` case.
                 return Ok(());
             }
@@ -423,12 +423,12 @@ impl L1Provider {
         // If caught up, apply the backlog and transition to Pending.
         // Note that at this point self.current_height is already incremented to the next height, it
         // is one more than the latest block that was committed.
-        if self.bootstrapper.is_caught_up(self.current_height) {
+        if self.catchupper.is_caught_up(self.current_height) {
             info!(
-                "Bootstrapper sync completed, provider height is now {}, processing backlog...",
+                "Catch up sync completed, provider height is now {}, processing backlog...",
                 self.current_height
             );
-            let backlog = std::mem::take(&mut self.bootstrapper.commit_block_backlog);
+            let backlog = std::mem::take(&mut self.catchupper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
                     || self.current_height == backlog.first().unwrap().height
@@ -451,8 +451,8 @@ impl L1Provider {
             }
 
             info!(
-                "Bootstrapping done: commit-block backlog was processed, now transitioning to \
-                 Pending state at new height: {}.",
+                "Catch up done: commit-block backlog was processed, now transitioning to Pending \
+                 state at new height: {}.",
                 self.current_height
             );
 

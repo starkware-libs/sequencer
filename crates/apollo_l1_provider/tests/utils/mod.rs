@@ -159,7 +159,7 @@ pub(crate) async fn setup_scraper_and_provider<
         }
     });
 
-    // Start the L1 provider's bootstrapping process up to the target L2 height
+    // Start the L1 provider's catching up process up to the target L2 height
     let expect_error =
         l1_provider_client.commit_block([].into(), [].into(), TARGET_L2_HEIGHT).await;
     assert!(expect_error.is_err());
