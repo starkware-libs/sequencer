@@ -1,7 +1,7 @@
 use core::panic;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
+use apollo_starknet_os_program::test_programs::{ALIASES_TEST_BYTES, DUMMY_TEST_BYTES};
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -52,6 +52,21 @@ fn test_constants() {
             initial_available_alias.into(),
             alias_contract_address.into(),
         ],
+        &[],
+        &[],
+        &[],
+        HashMap::new(),
+    )
+}
+
+#[rstest]
+#[should_panic]
+fn test_dummy(#[values(0, 1, 2)] offset_increase: u8) {
+    test_cairo_function(
+        &EntryPointRunnerConfig::default(),
+        DUMMY_TEST_BYTES,
+        "dummy",
+        &[Felt::from(offset_increase).into()],
         &[],
         &[],
         &[],
