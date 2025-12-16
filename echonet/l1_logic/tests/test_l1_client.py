@@ -59,6 +59,18 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(logs, empty_response)
 
     @patch("l1_client.requests.post")
+    def test_get_block_number_returns_rpc_response(self, mock_post):
+        response_ok = Mock()
+        response_ok.raise_for_status.return_value = None
+        response_ok.json.return_value = L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE
+        mock_post.return_value = response_ok
+
+        client = L1Client(api_key="api_key")
+        result = client.get_block_number()
+
+        self.assertEqual(result, L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE)
+
+    @patch("l1_client.requests.post")
     def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
 
