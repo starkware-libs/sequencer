@@ -11,7 +11,10 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::metrics::TRANSACTION_TIME_SPENT_UNTIL_COMMITTED;
+use crate::metrics::{
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
+};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -33,6 +36,9 @@ pub struct TransactionPool {
     txs_by_submission_time: TimedTransactionMap,
     // Tracks the size of the pool.
     size: PoolSize,
+    // For txs that were returned by `get_txs` (i.e. taken for batching). Used to record
+    // `TRANSACTION_TIME_SPENT_UNTIL_BATCHED` only once they actually commit.
+    taken_for_batching_time: HashMap<TransactionHash, DateTime>,
 }
 
 impl TransactionPool {
@@ -41,6 +47,7 @@ impl TransactionPool {
             tx_pool: HashMap::new(),
             txs_by_account: AccountTransactionIndex::default(),
             txs_by_submission_time: TimedTransactionMap::new(clock),
+            taken_for_batching_time: HashMap::new(),
             size: PoolSize::default(),
         }
     }
@@ -94,6 +101,7 @@ impl TransactionPool {
         // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
+        self.taken_for_batching_time.remove(&tx_hash);
 
         // Remove reference from other mappings.
         let removed_tx = vec![TransactionReference::new(&tx)];
@@ -123,12 +131,37 @@ impl TransactionPool {
                 .unwrap()
                 .as_secs_f64();
             TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent);
+
+            if let Some(taken_for_batching_at) =
+                self.taken_for_batching_time.remove(&tx_ref.tx_hash)
+            {
+                let time_until_batched = (taken_for_batching_at - submission_time)
+                    .to_std()
+                    .expect("taken_for_batching_at must be later than submission_time")
+                    .as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_BATCHED.record(time_until_batched);
+            }
         }
 
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_timed_mapping(&removed_txs);
 
         removed_txs.len()
+    }
+
+    /// Marks the transaction as "taken for batching" (returned by `get_txs`).
+    pub fn mark_taken_for_batching(&mut self, tx_hash: TransactionHash) {
+        let now = self.txs_by_submission_time.clock.now();
+        self.taken_for_batching_time.entry(tx_hash).or_insert(now);
+    }
+
+    /// Clears any "taken for batching" marks for all transactions of the given address.
+    pub fn clear_taken_for_batching_for_address(&mut self, address: ContractAddress) {
+        let tx_hashes: Vec<TransactionHash> =
+            self.account_txs_sorted_by_nonce(address).map(|tx| tx.tx_hash).collect();
+        for tx_hash in tx_hashes {
+            self.taken_for_batching_time.remove(&tx_hash);
+        }
     }
 
     pub fn remove_txs_older_than(
@@ -199,6 +232,7 @@ impl TransactionPool {
                      appear in the main mapping.",
                 )
             });
+            self.taken_for_batching_time.remove(tx_hash);
             self.size.remove(tx.total_bytes());
         }
     }
