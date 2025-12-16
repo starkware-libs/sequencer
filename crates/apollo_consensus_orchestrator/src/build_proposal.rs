@@ -24,7 +24,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
 };
 use apollo_time::time::DateTime;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -41,6 +41,7 @@ use crate::utils::{
     get_oracle_rate_and_prices,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
+    ClientsError,
     GasPriceParams,
     StreamSender,
 };
@@ -77,10 +78,8 @@ type BuildProposalResult<T> = Result<T, BuildProposalError>;
 pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    ClientsError(#[from] ClientsError),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -152,14 +151,14 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
+        args.deps.batcher.as_ref(),
         args.deps.state_sync_client.clone(),
         &block_info,
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
     )
-    .await
-    .map_err(BuildProposalError::from)?;
+    .await?;
 
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,

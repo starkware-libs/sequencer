@@ -49,6 +49,7 @@ use crate::utils::{
     get_oracle_rate_and_prices,
     retrospective_block_hash,
     truncate_to_executed_txs,
+    ClientsError,
     GasPriceParams,
 };
 
@@ -99,10 +100,8 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    ClientsError(#[from] ClientsError),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -399,7 +398,7 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info)
+        retrospective_block_hash: retrospective_block_hash(batcher, state_sync_client, &block_info)
             .await
             .map_err(ValidateProposalError::from)?,
         block_info: convert_to_sn_api_block_info(&block_info)?,

@@ -2,14 +2,12 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{
-    StateSyncClient,
-    StateSyncClientError,
-    StateSyncClientResult,
-};
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -30,9 +28,38 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-use crate::build_proposal::BuildProposalError;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::validate_proposal::ValidateProposalError;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ClientsError {
+    #[error("Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}")]
+    Both { batcher_error: BatcherClientError, state_sync_error: StateSyncClientError },
+    #[error("Batcher and/or state sync are not ready: block number {0} not found.")]
+    NotReady(BlockNumber),
+}
+
+pub(crate) type ClientsResult<T> = Result<T, ClientsError>;
+
+impl ClientsError {
+    pub(crate) fn from_errors(
+        batcher_error: BatcherClientError,
+        state_sync_error: StateSyncClientError,
+    ) -> Self {
+        match (batcher_error, state_sync_error) {
+            (
+                BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)),
+                _,
+            )
+            | (
+                _,
+                StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(block_number)),
+            ) => ClientsError::NotReady(block_number),
+            (batcher_error, state_sync_error) => {
+                ClientsError::Both { batcher_error, state_sync_error }
+            }
+        }
+    }
+}
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -55,28 +82,6 @@ pub(crate) struct GasPriceParams {
     pub override_l1_gas_price_wei: Option<GasPrice>,
     pub override_l1_data_gas_price_wei: Option<GasPrice>,
     pub override_eth_to_fri_rate: Option<u128>,
-}
-
-impl From<StateSyncClientError> for BuildProposalError {
-    fn from(e: StateSyncClientError) -> Self {
-        match e {
-            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
-                BuildProposalError::StateSyncNotReady(e)
-            }
-            e => BuildProposalError::StateSyncClientError(e.to_string()),
-        }
-    }
-}
-
-impl From<StateSyncClientError> for ValidateProposalError {
-    fn from(e: StateSyncClientError) -> Self {
-        match e {
-            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
-                ValidateProposalError::StateSyncNotReady(e)
-            }
-            e => ValidateProposalError::StateSyncClientError(e.to_string()),
-        }
-    }
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
@@ -206,15 +211,34 @@ pub(crate) fn convert_to_sn_api_block_info(
     })
 }
 
+/// Get the block hash for the retrospective block.
+/// First try to get the block hash from the batcher. If that fails, fall back to state sync.
 pub(crate) async fn retrospective_block_hash(
+    batcher_client: &dyn BatcherClient,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
-) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+) -> ClientsResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-            let block_hash = state_sync_client.get_block_hash(block_number).await?;
+            let block_hash = match batcher_client.get_block_hash(block_number).await {
+                Ok(block_hash) => block_hash,
+                Err(batcher_error) => {
+                    let block_hash = state_sync_client.get_block_hash(block_number).await.map_err(
+                        |state_sync_error| {
+                            ClientsError::from_errors(batcher_error.clone(), state_sync_error)
+                        },
+                    )?;
+                    // TODO(Rotem): Add a metric to track if we fall back to state sync and it
+                    // succeeds.
+                    warn!(
+                        "Failed to get block hash for block {block_number} from batcher, fell \
+                         back to state sync and succeeded. Error: {batcher_error:?}"
+                    );
+                    block_hash
+                }
+            };
             Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
         }
         None => {
@@ -227,23 +251,27 @@ pub(crate) async fn retrospective_block_hash(
     }
 }
 
+// TODO(Rotem): When we trust the batcher, we can move this function to the batcher and get the
+// retrospective block hash via the batcher client.
 pub(crate) async fn wait_for_retrospective_block_hash(
+    batcher_client: &dyn BatcherClient,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
     clock: &dyn Clock,
     deadline: DateTime,
     retry_interval: Duration,
-) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+) -> ClientsResult<Option<BlockHashAndNumber>> {
     let mut attempts = 0;
     let start_time = clock.now();
     let result = loop {
         attempts += 1;
-        let result = retrospective_block_hash(state_sync_client.clone(), block_info).await;
+        let result =
+            retrospective_block_hash(batcher_client, state_sync_client.clone(), block_info).await;
 
         // If the block is not found, try again after the retry interval. In any other case, return
         // the result.
         match result {
-            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+            Err(ClientsError::NotReady(_)) => {
                 let effective_retry_interval = min(
                     retry_interval,
                     (deadline - clock.now()).to_std().unwrap_or(Duration::ZERO),

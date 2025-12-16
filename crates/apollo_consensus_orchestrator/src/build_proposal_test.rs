@@ -8,6 +8,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
 };
 use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
@@ -22,6 +23,7 @@ use apollo_time::time::DateTime;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
+use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -40,7 +42,7 @@ use crate::test_utils::{
     STATE_DIFF_COMMITMENT,
     TIMEOUT,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
+use crate::utils::{make_gas_price_params, ClientsError, GasPriceParams, StreamSender};
 
 // TODO(Dafna): Remove this struct and use ProposalBuildArguments directly.
 struct TestProposalBuildArguments {
@@ -153,34 +155,98 @@ async fn build_proposal_succeed() {
 }
 
 #[tokio::test]
-async fn state_sync_client_error() {
+async fn batcher_error_state_sync_succeed() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // Setup batcher client to return an error.
+    proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::InternalError)));
+    // Setup state sync client to return a block hash.
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(BlockHash::default()));
+    // Setup batcher client to return Ok on propose_block.
+    proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
+    // Setup batcher client to return Ok on get_proposal_content.
+    proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                final_n_executed_txs: 0,
+            },
+        })
+    });
+
+    let res = build_proposal(proposal_args.into()).await.unwrap();
+    assert_eq!(res, ConsensusProposalCommitment::default());
+}
+
+#[tokio::test]
+async fn clients_error() {
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // Setup batcher client to return an error.
+    proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::InternalError)));
     // Setup state sync client to return an error.
     proposal_args.deps.state_sync_client.expect_get_block_hash().returning(|_| {
         Err(StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
 
     let res = build_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(BuildProposalError::StateSyncClientError(_))));
+    assert!(matches!(res, Err(BuildProposalError::ClientsError(ClientsError::Both { .. }))));
 }
 
+#[rstest]
+#[case::both(
+    BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(BlockNumber::default())),
+    StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(BlockNumber::default()))
+)]
+#[case::batcher_not_ready(
+    BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(BlockNumber::default())),
+    StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))]
+#[case::state_sync_not_ready(
+    BatcherClientError::BatcherError(BatcherError::InternalError),
+    StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(BlockNumber::default()))
+)]
 #[tokio::test]
-async fn state_sync_not_ready_error() {
+async fn clients_not_ready_error(
+    #[case] batcher_error: BatcherClientError,
+    #[case] state_sync_error: StateSyncClientError,
+) {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // Setup batcher client to return BlockHashNotFound error.
+    {
+        let batcher_error = batcher_error.clone();
+        proposal_args
+            .deps
+            .batcher
+            .expect_get_block_hash()
+            .times(2..11)
+            .returning(move |_| Err(batcher_error.clone()));
+    }
     // Setup state sync client to return BlockNotFound error.
     proposal_args
         .deps
         .state_sync_client
         .expect_get_block_hash()
         .times(2..11) // At least twice, but no more than 10 times.
-        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
+        .returning(move |_| {Err(state_sync_error.clone())});
 
     let res = build_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(BuildProposalError::StateSyncNotReady(_))));
+    assert!(matches!(res, Err(BuildProposalError::ClientsError(ClientsError::NotReady(_)))));
 }
 
 #[tokio::test]
@@ -200,8 +266,12 @@ async fn state_sync_ready_after_a_while() {
     // Make sure cende returns on time.
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // state_sync_client is being called only if the batcher client returns an error.
+    proposal_args.deps.batcher.expect_get_block_hash().returning(|block_number| {
+        Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+    });
     // Setup state sync client to return BlockNotFound error in the first attempt.
     proposal_args
         .deps
@@ -217,6 +287,45 @@ async fn state_sync_ready_after_a_while() {
         .times(1)
         .returning(|_| Ok(BlockHash::default()));
 
+    let res = build_proposal(proposal_args.into()).await.unwrap();
+    assert_eq!(res, ConsensusProposalCommitment::default());
+}
+
+#[tokio::test]
+async fn batcher_ready_after_a_while() {
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
+
+    // Setup batcher.
+    proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
+    proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                final_n_executed_txs: 0,
+            },
+        })
+    });
+
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // Setup batcher client to return BlockHashNotFound error in the first attempt.
+    proposal_args.deps.batcher.expect_get_block_hash().times(1).returning(|block_number| {
+        Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+    });
+    // Setup batcher client to return a block hash in the second attempt.
+    proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .times(1)
+        .returning(|_| Ok(BlockHash::default()));
+
+    // Setup state sync client to return BlockNotFound error.
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
     let res = build_proposal(proposal_args.into()).await.unwrap();
     assert_eq!(res, ConsensusProposalCommitment::default());
 }
