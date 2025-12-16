@@ -264,6 +264,21 @@
     "privacy": "Public",
     "value": 2
   },
+  "batcher_config.first_block_with_partial_block_hash.block_hash": {
+    "description": "The hash of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.first_block_with_partial_block_hash.block_number": {
+    "description": "The number of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": {
+    "description": "The hash of the parent block of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",
@@ -379,38 +394,38 @@
     "privacy": "Public",
     "value": 4089446
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.chain_id": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.enforce_file_exists": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.enforce_file_exists": {
     "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
     "privacy": "Public",
     "value": false
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.growth_step": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.growth_step": {
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
     "value": 4294967296
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_readers": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.max_readers": {
     "description": "The maximum number of readers used by the database.",
     "privacy": "Public",
     "value": 8192
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_size": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
     "privacy": "Public",
     "value": 1099511627776
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.min_size": {
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.min_size": {
     "description": "The minimum size of the node's storage in bytes.",
     "privacy": "Public",
     "value": 1048576
   },
-  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.path_prefix": {
-    "description": "Prefix of the path of the node's storage directory.",
+  "class_manager_config.class_storage_config.class_hash_storage_config.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
     "privacy": "Public",
     "value": "/data/class_hash_storage"
   },
@@ -718,6 +733,11 @@
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.committer.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
   },
   "components.committer.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
@@ -2704,7 +2724,7 @@
     "privacy": "Public",
     "value": 300.0
   },
-  "l1_provider_config.new_l1_handler_cooldown_seconds": {
+  "l1_provider_config.l1_handler_proposal_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
     "privacy": "Public",
     "value": 70

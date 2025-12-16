@@ -11,7 +11,7 @@ use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieC
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
+use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::parse_from_python::{
     parse_input_single_storage_tree_flow_test,
@@ -40,7 +40,7 @@ impl<'de> Deserialize<'de> for FactMap {
     }
 }
 
-impl<'de> Deserialize<'de> for CommitterInputImpl {
+impl<'de> Deserialize<'de> for CommitterFactsDbInputImpl {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -51,7 +51,7 @@ impl<'de> Deserialize<'de> for CommitterInputImpl {
 
 #[derive(Deserialize)]
 struct CommitterRegressionInput {
-    committer_input: CommitterInputImpl,
+    committer_input: CommitterFactsDbInputImpl,
     contract_states_root: String,
     contract_classes_root: String,
     expected_facts: FactMap,

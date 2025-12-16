@@ -7,9 +7,7 @@
       "config_paths": [
         "app_configs/batcher_config.json",
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
@@ -45,9 +43,7 @@
       "config_paths": [
         "app_configs/class_manager_config.json",
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
@@ -78,14 +74,48 @@
       }
     },
     {
+      "name": "Committer",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/committer_config.json",
+        "app_configs/config_manager_config.json",
+        "app_configs/general_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/committer.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Committer": 55011,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
         "app_configs/config_manager_config.json",
         "app_configs/consensus_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
@@ -120,9 +150,7 @@
       "controller": "Deployment",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/http_server_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
@@ -158,9 +186,7 @@
       "controller": "Deployment",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/gateway_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
@@ -197,9 +223,7 @@
       "config_paths": [
         "app_configs/base_layer_config.json",
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/l1_endpoint_monitor_config.json",
         "app_configs/l1_gas_price_provider_config.json",
         "app_configs/l1_gas_price_scraper_config.json",
@@ -241,9 +265,7 @@
       "controller": "Deployment",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/mempool_config.json",
         "app_configs/mempool_p2p_config.json",
         "app_configs/monitoring_endpoint_config.json",
@@ -280,9 +302,7 @@
       "controller": "Deployment",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/sierra_compiler_config.json",
         "deployments/testing/deployment_config_override.json",
@@ -318,9 +338,7 @@
       "controller": "StatefulSet",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
@@ -355,9 +373,7 @@
       "controller": "StatefulSet",
       "config_paths": [
         "app_configs/config_manager_config.json",
-        "app_configs/revert_config.json",
-        "app_configs/versioned_constants_overrides_config.json",
-        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/general_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/state_sync_config.json",
         "deployments/testing/deployment_config_override.json",

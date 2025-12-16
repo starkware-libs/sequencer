@@ -23,7 +23,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -34,6 +34,7 @@ pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 pub enum DistributedNodeServiceName {
     Batcher,
     ClassManager,
+    Committer,
     ConsensusManager,
     HttpServer,
     Gateway,
@@ -72,11 +73,12 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             }
         };
 
-        // TODO(Yoav): Add committer when it is ready.
         let batcher =
             Self::Batcher.component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = Self::ClassManager
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let committer =
+            Self::Committer.component_config_pair(service_ports[&InfraServicePort::Committer]);
         let gateway =
             Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
         let l1_gas_price_provider =
@@ -98,9 +100,13 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 Self::Batcher => get_batcher_component_config(
                     batcher.local(),
                     class_manager.remote(),
+                    committer.remote(),
                     l1_provider.remote(),
                     mempool.remote(),
                 ),
+                Self::Committer => {
+                    get_committer_component_config(committer.local(), batcher.remote())
+                }
                 Self::ClassManager => get_class_manager_component_config(
                     class_manager.local(),
                     sierra_compiler.remote(),
@@ -153,6 +159,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match self {
             Self::Batcher => Controller::StatefulSet,
             Self::ClassManager => Controller::StatefulSet,
+            Self::Committer => Controller::StatefulSet,
             Self::ConsensusManager => Controller::StatefulSet,
             Self::HttpServer => Controller::Deployment,
             Self::Gateway => Controller::Deployment,
@@ -169,6 +176,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match self {
             Self::Batcher
             | Self::ClassManager
+            | Self::Committer
             | Self::ConsensusManager
             | Self::HttpServer
             | Self::L1
@@ -183,6 +191,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match self {
             Self::Batcher
             | Self::ClassManager
+            | Self::Committer
             | Self::ConsensusManager
             | Self::HttpServer
             | Self::Mempool
@@ -211,6 +220,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::ConsensusManager | Self::Mempool | Self::StateSync => true,
             Self::Batcher
             | Self::ClassManager
+            | Self::Committer
             | Self::HttpServer
             | Self::Gateway
             | Self::L1
@@ -255,6 +265,36 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SignatureManager
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SierraCompiler => {}
+                        },
+                    }
+                }
+            }
+            Self::Committer => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2p
+                            | BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Committer => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -283,6 +323,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Batcher
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -309,6 +350,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -335,6 +377,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -365,6 +408,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -395,6 +439,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::Mempool
                             | InfraServicePort::SignatureManager
@@ -421,6 +466,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -449,6 +495,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -477,6 +524,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -505,6 +553,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
@@ -536,6 +585,35 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            Self::Committer => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Committer
+                        | ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -563,6 +641,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -591,6 +670,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -618,6 +698,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1EndpointMonitor
@@ -645,6 +726,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -676,6 +758,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -700,6 +783,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -726,6 +810,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -753,6 +838,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -780,6 +866,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -803,6 +890,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match self {
             Self::Batcher => UpdateStrategy::RollingUpdate,
             Self::ClassManager => UpdateStrategy::Recreate,
+            Self::Committer => UpdateStrategy::RollingUpdate,
             Self::ConsensusManager => UpdateStrategy::Recreate,
             Self::HttpServer => UpdateStrategy::RollingUpdate,
             Self::Gateway => UpdateStrategy::RollingUpdate,
@@ -815,9 +903,22 @@ impl ServiceNameInner for DistributedNodeServiceName {
     }
 }
 
+fn get_committer_component_config(
+    committer_local_config: ReactiveComponentExecutionConfig,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.committer = committer_local_config;
+    config.batcher = batcher_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
 fn get_batcher_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
+    committer_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -825,6 +926,7 @@ fn get_batcher_component_config(
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
+    config.committer = committer_remote_config;
     config.l1_provider = l1_provider_remote_config;
     config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();

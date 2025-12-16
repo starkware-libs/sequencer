@@ -168,6 +168,14 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::TWO))
+        .return_once(move |_, _| Ok(()));
 
     let mut manager = MultiHeightManager::new(
         consensus_config,
@@ -216,9 +224,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |block, votes| {
-            *block == ProposalCommitment(Felt::TWO) && votes[0].height == HEIGHT_2
-        })
+        .withf(move |h, c| *c == ProposalCommitment(Felt::TWO) && *h == HEIGHT_2)
         .return_once(move |_, _| {
             decision_tx.send(()).unwrap();
             Ok(())
@@ -299,6 +305,10 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
             Ok(())
         });
     context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
 
     // Ensure our validator id matches the expectation in the broadcast assertion.
     let mut manager = MultiHeightManager::new(
@@ -448,6 +458,14 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         });
     // Handle all other broadcasts normally.
     context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ZERO))
+        .return_once(move |_, _| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
 
     let mut manager = MultiHeightManager::new(
         consensus_config,
@@ -575,6 +593,10 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         });
     // Handle all other set_height_and_round calls normally.
     context.expect_set_height_and_round().returning(move |_, _| ());
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
 
     let mut manager = MultiHeightManager::new(
         consensus_config,
@@ -673,7 +695,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let (decision_tx, decision_rx) = oneshot::channel();
     context
         .expect_decision_reached()
-        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(HEIGHT_2))
+        .withf(move |h, _| *h == HEIGHT_2)
         .return_once(move |_, _| {
             let _ = decision_tx.send(());
             Ok(())
@@ -798,6 +820,10 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
 
     let mut manager = MultiHeightManager::new(
         consensus_config,
@@ -963,6 +989,11 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         vec![TestProposalPart::Init(proposal_init(HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
+
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == block_id)
+        .return_once(move |_, _| Ok(()));
 
     let mut manager = MultiHeightManager::new(
         consensus_config,

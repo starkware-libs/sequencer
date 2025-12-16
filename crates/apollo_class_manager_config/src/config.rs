@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::db::DbConfig;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
 use validator::Validate;
 
 const DEFAULT_MAX_COMPILED_CONTRACT_CLASS_OBJECT_SIZE: usize = 4089446;
@@ -43,158 +43,29 @@ impl SerializeConfig for CachedClassStorageConfig {
     }
 }
 
-/// Configuration for class hash database.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
-pub struct ClassHashDbConfig {
-    pub path_prefix: PathBuf,
-    pub chain_id: ChainId,
-    pub enforce_file_exists: bool,
-    pub min_size: usize,
-    pub max_size: usize,
-    pub growth_step: isize,
-    /// The maximum number of readers used by the database.
-    pub max_readers: u32,
-}
-
-impl Default for ClassHashDbConfig {
-    fn default() -> Self {
-        Self {
-            path_prefix: "/data/class_hash_storage".into(),
-            chain_id: ChainId::Mainnet,
-            enforce_file_exists: false,
-            min_size: 1 << 20,    // 1MB
-            max_size: 1 << 40,    // 1TB
-            growth_step: 1 << 32, // 4GB
-            max_readers: 1 << 13, // 8K readers
-        }
-    }
-}
-
-impl SerializeConfig for ClassHashDbConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "path_prefix",
-                &self.path_prefix,
-                "Prefix of the path of the node's storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "enforce_file_exists",
-                &self.enforce_file_exists,
-                "Whether to enforce that the path exists. If true, `open_env` fails when the \
-                 mdbx.dat file does not exist.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_size",
-                &self.min_size,
-                "The minimum size of the node's storage in bytes.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_size",
-                &self.max_size,
-                "The maximum size of the node's storage in bytes.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "growth_step",
-                &self.growth_step,
-                "The growth step in bytes, must be greater than zero to allow the database to \
-                 grow.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_readers",
-                &self.max_readers,
-                "The maximum number of readers used by the database.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-/// Configuration for class hash storage.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
-pub struct ClassHashStorageConfig {
-    #[validate(nested)]
-    pub class_hash_db_config: ClassHashDbConfig,
-    #[validate(nested)]
-    pub mmap_file_config: MmapFileConfig,
-    pub scope: StorageScope,
-}
-
-impl Default for ClassHashStorageConfig {
-    fn default() -> Self {
-        Self {
-            class_hash_db_config: Default::default(),
-            mmap_file_config: MmapFileConfig {
-                max_size: 1 << 30,        // 1GB.
-                growth_step: 1 << 20,     // 1MB.
-                max_object_size: 1 << 10, // 1KB; a class hash is 32B.
-            },
-            scope: StorageScope::StateOnly,
-        }
-    }
-}
-
-impl From<ClassHashStorageConfig> for StorageConfig {
-    fn from(value: ClassHashStorageConfig) -> Self {
-        Self {
-            db_config: apollo_storage::db::DbConfig {
-                // TODO(Noamsp): move the chain id into the config and use StorageConfig instead of
-                // ClassHashStorageConfig
-                chain_id: value.class_hash_db_config.chain_id,
-                path_prefix: value.class_hash_db_config.path_prefix,
-                enforce_file_exists: value.class_hash_db_config.enforce_file_exists,
-                min_size: value.class_hash_db_config.min_size,
-                max_size: value.class_hash_db_config.max_size,
-                growth_step: value.class_hash_db_config.growth_step,
-                max_readers: value.class_hash_db_config.max_readers,
-            },
-            scope: value.scope,
-            mmap_file_config: value.mmap_file_config,
-        }
-    }
-}
-
-impl SerializeConfig for ClassHashStorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dumped_config = BTreeMap::from([ser_param(
-            "scope",
-            &self.scope,
-            "The categories of data saved in storage.",
-            ParamPrivacyInput::Public,
-        )]);
-        dumped_config
-            .append(&mut prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
-        dumped_config.append(&mut prepend_sub_config_name(
-            self.class_hash_db_config.dump(),
-            "class_hash_db_config",
-        ));
-        dumped_config
-    }
-}
-
 /// Configuration for filesystem class storage.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct FsClassStorageConfig {
     pub persistent_root: PathBuf,
-    pub class_hash_storage_config: ClassHashStorageConfig,
+    pub class_hash_storage_config: StorageConfig,
 }
 
 impl Default for FsClassStorageConfig {
     fn default() -> Self {
         Self {
             persistent_root: "/data/classes".into(),
-            class_hash_storage_config: Default::default(),
+            class_hash_storage_config: StorageConfig {
+                db_config: DbConfig {
+                    path_prefix: "/data/class_hash_storage".into(),
+                    ..Default::default()
+                },
+                mmap_file_config: MmapFileConfig {
+                    max_size: 1 << 30,        // 1GB.
+                    growth_step: 1 << 20,     // 1MB.
+                    max_object_size: 1 << 10, // 1KB; a class hash is 32B.
+                },
+                scope: StorageScope::StateOnly,
+            },
         }
     }
 }

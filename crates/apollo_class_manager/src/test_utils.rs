@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
-use apollo_class_manager_config::config::{
-    ClassHashDbConfig,
-    ClassHashStorageConfig,
-    FsClassStorageConfig,
-};
+use apollo_class_manager_config::config::FsClassStorageConfig;
+use apollo_storage::db::DbConfig;
 use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
@@ -22,18 +19,13 @@ impl Default for FsClassStorageBuilderForTesting {
         let class_hash_storage_handle = tempfile::tempdir().unwrap();
         let persistent_root_handle = tempfile::tempdir().unwrap();
         let persistent_root = persistent_root_handle.path().to_path_buf();
-        let config = FsClassStorageConfig {
-            persistent_root,
-            class_hash_storage_config: ClassHashStorageConfig {
-                class_hash_db_config: ClassHashDbConfig {
-                    path_prefix: class_hash_storage_handle.path().to_path_buf(),
-                    max_size: 1 << 30,    // 1GB.
-                    min_size: 1 << 10,    // 1KB.
-                    growth_step: 1 << 26, // 64MB.
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+        let mut config = FsClassStorageConfig { persistent_root, ..Default::default() };
+        config.class_hash_storage_config.db_config = DbConfig {
+            path_prefix: class_hash_storage_handle.path().to_path_buf(),
+            max_size: 1 << 30,    // 1GB.
+            min_size: 1 << 10,    // 1KB.
+            growth_step: 1 << 26, // 64MB.
+            ..Default::default()
         };
         Self { config, handles: Some((class_hash_storage_handle, persistent_root_handle)) }
     }
@@ -45,7 +37,7 @@ impl FsClassStorageBuilderForTesting {
         class_hash_storage_path_prefix: PathBuf,
         persistent_path: PathBuf,
     ) -> Self {
-        self.config.class_hash_storage_config.class_hash_db_config.path_prefix =
+        self.config.class_hash_storage_config.db_config.path_prefix =
             class_hash_storage_path_prefix;
         self.config.persistent_root = persistent_path;
         self.handles = None;
@@ -53,7 +45,7 @@ impl FsClassStorageBuilderForTesting {
     }
 
     pub fn with_chain_id(mut self, chain_id: ChainId) -> Self {
-        self.config.class_hash_storage_config.class_hash_db_config.chain_id = chain_id;
+        self.config.class_hash_storage_config.db_config.chain_id = chain_id;
         self
     }
 

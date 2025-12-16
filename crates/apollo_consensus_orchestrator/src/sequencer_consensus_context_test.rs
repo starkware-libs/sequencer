@@ -1,6 +1,5 @@
 use std::future::ready;
 use std::sync::Arc;
-use std::vec;
 
 use apollo_batcher_types::batcher_types::{CentralObjects, DecisionReachedResponse};
 use apollo_batcher_types::communication::BatcherClientError;
@@ -20,7 +19,6 @@ use apollo_protobuf::consensus::{
     ProposalInit,
     ProposalPart,
     TransactionBatch,
-    Vote,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
 use apollo_time::time::MockClock;
@@ -674,14 +672,8 @@ async fn decision_reached_sends_correct_values() {
     let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
-    let vote = Vote {
-        // Currently this is the only field used by decision_reached.
-        height: BlockNumber(0),
-        ..Default::default()
-    };
-
     context
-        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![vote])
+        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
         .await
         .unwrap();
 
@@ -859,13 +851,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     // Decision reached
 
-    context
-        .decision_reached(
-            proposal_commitment,
-            vec![Vote { proposal_commitment: Some(proposal_commitment), ..Default::default() }],
-        )
-        .await
-        .unwrap();
+    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
     let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
@@ -1015,7 +1001,7 @@ async fn override_prices_behavior(
     }
 
     context
-        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
+        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
         .await
         .unwrap();
 

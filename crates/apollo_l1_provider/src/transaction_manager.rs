@@ -46,13 +46,13 @@ pub struct TransactionManager {
 
 impl TransactionManager {
     pub fn new(
-        new_l1_handler_tx_cooldown_secs: Duration,
+        l1_handler_proposal_cooldown_seconds: Duration,
         l1_handler_cancellation_timelock_seconds: Duration,
         l1_handler_consumption_timelock_seconds: Duration,
     ) -> Self {
         Self {
             config: TransactionManagerConfig {
-                new_l1_handler_tx_cooldown_secs,
+                l1_handler_proposal_cooldown_seconds,
                 l1_handler_cancellation_timelock_seconds,
                 l1_handler_consumption_timelock_seconds,
             },
@@ -73,7 +73,7 @@ impl TransactionManager {
         //  |<---  passed  --->|                 |           |
         //  |<--- cooldown --->|                 |           |
         // t-------------------------------------------------->
-        let cutoff = now.saturating_sub(self.config.new_l1_handler_tx_cooldown_secs.as_secs());
+        let cutoff = now.saturating_sub(self.config.l1_handler_proposal_cooldown_seconds.as_secs());
         let past_cooldown_txs = self.proposable_index.range(..cutoff);
 
         // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
@@ -465,7 +465,7 @@ impl Sub<u128> for StagingEpoch {
 pub struct TransactionManagerConfig {
     // How long to wait before allowing new L1 handler transactions to be proposed (validation is
     // available immediately), from the moment they are scraped.
-    pub new_l1_handler_tx_cooldown_secs: Duration,
+    pub l1_handler_proposal_cooldown_seconds: Duration,
     /// How long to allow a transaction requested for cancellation to be validated against
     /// (proposals are banned upon receiving a cancellation request).
     pub l1_handler_cancellation_timelock_seconds: Duration,

@@ -18,12 +18,14 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
     OriginalSkeletonTreeResult,
 };
-use starknet_patricia::patricia_merkle_tree::traversal::SubTree;
+use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
-use crate::db::traversal::calculate_subtrees_roots;
+use crate::db::facts_db::traversal::calculate_subtrees_roots;
+use crate::db::facts_db::types::FactsSubTree;
 
 #[cfg(test)]
 #[path = "create_facts_tree_test.rs"]
@@ -42,18 +44,20 @@ macro_rules! log_trivial_modification {
 /// encountering a trivial modification. Fills the previous leaf values if it is not none.
 async fn fetch_nodes<'a, L: Leaf>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    subtrees: Vec<SubTree<'a>>,
+    subtrees: Vec<FactsSubTree<'a>>,
     storage: &mut impl Storage,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<()> {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
-        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
+        let filled_roots =
+            calculate_subtrees_roots::<L>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
@@ -149,6 +153,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
     sorted_leaf_indices: SortedLeafIndices<'a>,
     config: &impl OriginalSkeletonTreeConfig<L>,
     leaf_modifications: &LeafModifications<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
     if sorted_leaf_indices.is_empty() {
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
@@ -161,7 +166,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
         )?;
         return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     fetch_nodes::<L>(
         &mut skeleton_tree,
@@ -170,6 +175,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
         leaf_modifications,
         config,
         None,
+        key_context,
     )
     .await?;
     Ok(skeleton_tree)
@@ -181,6 +187,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
     sorted_leaf_indices: SortedLeafIndices<'a>,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, L>)> {
     if sorted_leaf_indices.is_empty() {
         let unmodified = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
@@ -192,7 +199,7 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
             sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
         ));
     }
-    let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
     let mut leaves = HashMap::new();
     fetch_nodes::<L>(
@@ -202,15 +209,20 @@ pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
         leaf_modifications,
         config,
         Some(&mut leaves),
+        key_context,
     )
     .await?;
     Ok((skeleton_tree, leaves))
 }
 
+/// Prepares the OS inputs by fetching paths to the given leaves (i.e. their induced Skeleton tree).
+/// Note that ATM, the Rust committer does not manage history and is not used for storage proofs;
+/// Thus, this function assumes facts layout.
 pub async fn get_leaves<'a, L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
     let config = NoCompareOriginalSkeletonTrieConfig::default();
     let leaf_modifications = LeafModifications::new();
@@ -220,6 +232,7 @@ pub async fn get_leaves<'a, L: Leaf>(
         sorted_leaf_indices,
         &leaf_modifications,
         &config,
+        key_context,
     )
     .await?;
     Ok(previous_leaves)
@@ -229,8 +242,8 @@ pub async fn get_leaves<'a, L: Leaf>(
 /// referred subtree or not.
 fn handle_subtree<'a>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    next_subtrees: &mut Vec<SubTree<'a>>,
-    subtree: SubTree<'a>,
+    next_subtrees: &mut Vec<FactsSubTree<'a>>,
+    subtree: FactsSubTree<'a>,
     should_fetch_modified_leaves: bool,
 ) {
     if !subtree.is_leaf() || (should_fetch_modified_leaves && !subtree.is_unmodified()) {
