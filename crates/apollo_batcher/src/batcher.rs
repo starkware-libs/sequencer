@@ -228,6 +228,11 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        assert!(
+            !self.config.should_revert,
+            "Batcher can't propose blocks when in revert mode. Turn off revert mode in config and \
+             restart the Batcher."
+        );
         let block_number = propose_block_input.block_info.block_number;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
@@ -354,6 +359,11 @@ impl Batcher {
         &mut self,
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
+        assert!(
+            !self.config.should_revert,
+            "Batcher can't validate blocks when in revert mode. Turn off revert mode in config \
+             and restart the Batcher."
+        );
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
@@ -592,6 +602,11 @@ impl Batcher {
 
     #[instrument(skip(self, sync_block), err)]
     pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        assert!(
+            !self.config.should_revert,
+            "Batcher can't learn blocks when in revert mode. Turn off revert mode in config and \
+             restart the Batcher."
+        );
         trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
@@ -965,6 +980,11 @@ impl Batcher {
     #[instrument(skip(self), err)]
     // This function will panic if there is a storage failure to revert the block.
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
+        assert!(
+            self.config.should_revert,
+            "Batcher can only revert blocks when in revert mode. Turn on revert mode in config \
+             and restart the Batcher."
+        );
         info!("Reverting block at height {}.", input.height);
         let height = self.get_height_from_storage()?.prev().ok_or(
             BatcherError::StorageHeightMarkerMismatch {
