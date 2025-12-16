@@ -20,8 +20,8 @@ use starknet_patricia_storage::storage_trait::{
 use crate::block_committer::input::{
     contract_address_into_node_index,
     Config,
-    ConfigImpl,
     FactsDbInitialRead,
+    ReaderConfig,
     StarknetStorageValue,
 };
 use crate::db::facts_db::create_facts_tree::{
@@ -142,7 +142,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
-        config: ConfigImpl,
+        config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         let (contracts_trie, original_contracts_trie_leaves) = self
             .create_contracts_trie(

@@ -26,9 +26,9 @@ use tracing::level_filters::LevelFilter;
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    ConfigImpl,
     FactsDbInitialRead,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -148,7 +148,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
             contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
             classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         }),
-        config: ConfigImpl::new(true, LevelFilter::DEBUG),
+        config: ReaderConfig::new(true, LevelFilter::DEBUG),
     },
     MapStorage(DbHashMap::from([
         // Roots.
@@ -297,7 +297,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         vec![7, 6, 0],
 )]
 async fn test_create_original_skeleton_forest(
-    #[case] input: Input<ConfigImpl, FactsDbInitialRead>,
+    #[case] input: Input<ReaderConfig, FactsDbInitialRead>,
     #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
@@ -324,7 +324,7 @@ async fn test_create_original_skeleton_forest(
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,
-            ConfigImpl::new(false, LevelFilter::DEBUG),
+            ReaderConfig::new(false, LevelFilter::DEBUG),
         )
         .await
         .unwrap();
