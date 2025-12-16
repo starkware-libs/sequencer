@@ -72,7 +72,7 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
             runtime.block_on({
-                let CommitterFactsDbInputImpl { input, storage } =
+                let CommitterFactsDbInputImpl { input, storage, .. } =
                     parse_input(committer_input_string).expect("Failed to parse the given input.");
                 // Set the given log level if handle is passed.
                 commit(input, OUTPUT_PATH.to_owned(), storage)
