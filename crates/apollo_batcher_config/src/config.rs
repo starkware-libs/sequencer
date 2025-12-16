@@ -5,6 +5,7 @@ use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_reverts::RevertConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
@@ -188,6 +189,8 @@ pub struct BatcherConfig {
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
     pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
+    // Used to verify the Batcher is restarted before switching to / from revert mode.
+    pub revert_config: RevertConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -241,6 +244,7 @@ impl SerializeConfig for BatcherConfig {
             self.first_block_with_partial_block_hash.dump(),
             "first_block_with_partial_block_hash",
         ));
+        dump.append(&mut prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
         dump
     }
 }
@@ -268,6 +272,7 @@ impl Default for BatcherConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             // TODO(Rotem): set a more reasonable default value.
             first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
+            revert_config: RevertConfig::default(),
         }
     }
 }

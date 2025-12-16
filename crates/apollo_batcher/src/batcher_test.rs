@@ -127,6 +127,7 @@ struct MockDependencies {
     block_builder_factory: MockBlockBuilderFactoryTrait,
     pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
     class_manager_client: SharedClassManagerClient,
+    batcher_config: BatcherConfig,
 }
 
 impl Default for MockDependencies {
@@ -156,6 +157,10 @@ impl Default for MockDependencies {
             mock_writer.expect_run().return_once(|| Ok(()));
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
+        let batcher_config = BatcherConfig {
+            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+            ..Default::default()
+        };
 
         Self {
             storage_reader,
@@ -167,13 +172,14 @@ impl Default for MockDependencies {
             pre_confirmed_block_writer_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
+            batcher_config,
         }
     }
 }
 
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     let mut batcher = Batcher::new(
-        BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
+        mock_dependencies.batcher_config,
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
         Arc::new(mock_dependencies.committer_client),
@@ -741,6 +747,9 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
     batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
 
     for i in 0..N_PROPOSALS {
+        // The revert config shouldn't be toggled without restarting the Batcher. But in the context
+        // of the test it should be ok.
+        batcher.config.revert_config.should_revert = false;
         batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
         batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
         let content = batcher
@@ -757,6 +766,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         }
 
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+        batcher.config.revert_config.should_revert = true;
         batcher
             .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
             .await
@@ -1071,6 +1081,8 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
+    mock_dependencies.batcher_config.revert_config.should_revert = true;
+
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let metrics = recorder.handle().render();
@@ -1086,7 +1098,9 @@ async fn revert_block() {
 
 #[tokio::test]
 async fn revert_block_mismatch_block_number() {
-    let mut batcher = create_batcher(MockDependencies::default()).await;
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.batcher_config.revert_config.should_revert = true;
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
     let result = batcher.revert_block(revert_input).await;
@@ -1104,7 +1118,8 @@ async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
     storage_reader.expect_block_hash_height().returning(|| Ok(BlockNumber(0)));
-    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    mock_dependencies.batcher_config.revert_config.should_revert = true;
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let revert_input = RevertBlockInput { height: BlockNumber(0) };
