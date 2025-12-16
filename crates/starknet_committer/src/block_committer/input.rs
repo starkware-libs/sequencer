@@ -1,7 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StateRoots;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -118,7 +120,7 @@ impl From<ThinStateDiff> for StateDiff {
 }
 
 /// All optional configurations of the committer.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
 }
@@ -133,6 +135,17 @@ impl ReaderConfig {
     /// the modified leaves. Otherwise, it is not required.
     pub fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
+    }
+}
+
+impl SerializeConfig for ReaderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "warn_on_trivial_modifications",
+            &self.warn_on_trivial_modifications,
+            "Whether to warn on trivial state update.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
 
