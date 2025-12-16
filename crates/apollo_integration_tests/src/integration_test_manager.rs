@@ -847,16 +847,32 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn perform_action_on_all_running_nodes<'a, F, Fut>(&'a self, f: F)
+    async fn perform_action_on_running_nodes<'a, F, Fut, R>(
+        &'a self,
+        node_indices: HashSet<usize>,
+        f: F,
+    ) -> HashMap<usize, R>
     where
         F: Fn(usize, &'a RunningNode) -> Fut,
-        Fut: Future<Output = ()> + 'a,
+        Fut: Future<Output = R> + 'a,
     {
-        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+        let futures = node_indices.into_iter().map(|node_idx| {
+            let running_node =
+                self.running_nodes.get(&node_idx).expect("Running node should exist");
             running_node.propagate_executable_panic();
-            f(*sequencer_idx, running_node)
+            let fut = f(node_idx, running_node);
+            async move { (node_idx, fut.await) }
         });
-        join_all(futures).await;
+        join_all(futures).await.into_iter().collect()
+    }
+
+    async fn perform_action_on_all_running_nodes<'a, F, Fut, R>(&'a self, f: F) -> HashMap<usize, R>
+    where
+        F: Fn(usize, &'a RunningNode) -> Fut,
+        Fut: Future<Output = R> + 'a,
+    {
+        let running_node_indices = self.get_running_node_indices();
+        self.perform_action_on_running_nodes(running_node_indices, f).await
     }
 
     pub fn chain_id(&self) -> ChainId {
