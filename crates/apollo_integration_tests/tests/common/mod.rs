@@ -33,6 +33,8 @@ pub struct EndToEndFlowArgs {
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
     pub allow_bootstrap_txs: bool,
+    /// If true, start with completely empty storage (no genesis block, no accounts, no contracts).
+    pub empty_storage: bool,
 }
 
 impl EndToEndFlowArgs {
@@ -48,6 +50,7 @@ impl EndToEndFlowArgs {
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
             allow_bootstrap_txs: false,
+            empty_storage: false,
         }
     }
 
@@ -62,6 +65,12 @@ impl EndToEndFlowArgs {
     pub fn allow_bootstrap_txs(self) -> Self {
         Self { allow_bootstrap_txs: true, ..self }
     }
+
+    /// Start with completely empty storage - no genesis block, no accounts, no contracts.
+    /// Useful for bootstrap tests where the system is initialized from scratch.
+    pub fn empty_storage(self) -> Self {
+        Self { empty_storage: true, ..self }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -75,6 +84,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_full_blocks,
         expecting_reverted_transactions,
         allow_bootstrap_txs,
+        empty_storage,
     } = args;
     configure_tracing().await;
 
@@ -85,13 +95,19 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
 
     const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
-    let mock_running_system = FlowTestSetup::new_from_tx_generator(
-        &tx_generator,
-        test_identifier.into(),
-        block_max_capacity_gas,
-        allow_bootstrap_txs,
-    )
-    .await;
+    let mock_running_system = if empty_storage {
+        // Start with completely empty storage - no genesis block, no accounts, no contracts.
+        FlowTestSetup::new_empty(test_identifier.into(), block_max_capacity_gas, allow_bootstrap_txs)
+            .await
+    } else {
+        FlowTestSetup::new_from_tx_generator(
+            &tx_generator,
+            test_identifier.into(),
+            block_max_capacity_gas,
+            allow_bootstrap_txs,
+        )
+        .await
+    };
 
     tokio::join!(
         wait_for_sequencer_node(&mock_running_system.sequencer_0),

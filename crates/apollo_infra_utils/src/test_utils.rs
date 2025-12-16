@@ -41,6 +41,7 @@ pub enum TestIdentifier {
     SystemTestDumpSingleNodeConfig,
     HttpServerUnitTests,
     SyncFlowIntegrationTest,
+    BootstrapSystemFlowTest,
 }
 
 #[derive(Debug)]

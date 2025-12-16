@@ -201,6 +201,70 @@ impl StorageTestSetup {
             ),
         }
     }
+
+    /// Creates a storage setup with completely empty databases.
+    /// No genesis block, no accounts, no contracts - truly empty storage.
+    /// Useful for bootstrap tests where the system is initialized from scratch.
+    pub fn new_empty(
+        chain_info: &ChainInfo,
+        storage_exec_paths: Option<StorageExecutablePaths>,
+    ) -> Self {
+        // Create batcher storage - empty, no initialization
+        let batcher_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_batcher_path_with_db_suffix());
+        let (_, batcher_storage_config, batcher_storage_handle) =
+            TestStorageBuilder::new(batcher_db_path)
+                .scope(StorageScope::StateOnly)
+                .chain_id(chain_info.chain_id.clone())
+                .build();
+
+        // Create state_sync storage - empty, no initialization
+        let state_sync_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_state_sync_path_with_db_suffix());
+        let (_, state_sync_storage_config, state_sync_storage_handle) =
+            TestStorageBuilder::new(state_sync_db_path)
+                .scope(StorageScope::FullArchive)
+                .chain_id(chain_info.chain_id.clone())
+                .build();
+
+        // Create class_manager storage - empty, no classes
+        let fs_class_storage_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_class_manager_path_with_db_suffix());
+        let mut fs_class_storage_builder = FsClassStorageBuilderForTesting::default();
+        if let Some(class_manager_path) = fs_class_storage_db_path.as_ref() {
+            let class_hash_storage_path_prefix =
+                class_manager_path.join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
+            let persistent_root = class_manager_path.join(CLASSES_STORAGE_DB_PATH_SUFFIX);
+            fs_class_storage_builder = fs_class_storage_builder
+                .with_existing_paths(class_hash_storage_path_prefix, persistent_root);
+        }
+        let (_, class_manager_storage_config, class_manager_storage_handles) =
+            fs_class_storage_builder.build();
+
+        // Create consensus storage - empty, no initialization
+        let consensus_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_consensus_path_with_db_suffix());
+        let (_, consensus_storage_config, consensus_storage_handle) =
+            TestStorageBuilder::new(consensus_db_path)
+                .scope(StorageScope::StateOnly)
+                .chain_id(chain_info.chain_id.clone())
+                .build();
+
+        Self {
+            storage_config: StorageTestConfig::new(
+                batcher_storage_config,
+                state_sync_storage_config,
+                class_manager_storage_config,
+                consensus_storage_config,
+            ),
+            storage_handles: StorageTestHandles::new(
+                batcher_storage_handle,
+                state_sync_storage_handle,
+                class_manager_storage_handles,
+                consensus_storage_handle,
+            ),
+        }
+    }
 }
 
 #[derive(Clone)]

@@ -182,6 +182,98 @@ impl FlowTestSetup {
         Self { sequencer_0, sequencer_1, anvil_base_layer, accumulated_txs }
     }
 
+    /// Creates a flow test setup with completely empty storage.
+    /// No genesis block, no accounts, no contracts - truly empty storage.
+    /// Useful for bootstrap tests where the system is initialized from scratch.
+    #[instrument(level = "debug")]
+    pub async fn new_empty(
+        test_unique_index: u16,
+        block_max_capacity_gas: GasAmount,
+        allow_bootstrap_txs: bool,
+    ) -> Self {
+        let chain_info = ChainInfo::create_for_testing();
+        let mut available_ports = AvailablePorts::new(test_unique_index, 0);
+
+        // No accounts - system starts empty
+        let (consensus_manager_configs, consensus_proposals_channels) =
+            create_consensus_manager_configs_and_channels(
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS + 1),
+                &chain_info.chain_id,
+            );
+        let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config] =
+            consensus_manager_configs.try_into().unwrap();
+
+        let ports = available_ports.get_next_ports(NUM_OF_SEQUENCERS);
+        let mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
+        let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config] =
+            mempool_p2p_configs.try_into().unwrap();
+
+        let [sequencer_0_state_sync_config, sequencer_1_state_sync_config] =
+            create_state_sync_configs(
+                StorageConfig::default(),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+            )
+            .try_into()
+            .unwrap();
+
+        let anvil_base_layer = AnvilBaseLayer::new(None).await;
+        let base_layer_url = anvil_base_layer.get_url().await.unwrap();
+        let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
+
+        // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
+        let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
+        let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
+        make_block_history_on_anvil(
+            sender_address,
+            receiver_address,
+            base_layer_config.clone(),
+            NUM_L1_TRANSACTIONS,
+        )
+        .await;
+
+        // Spawn a thread that listens to proposals and collects batched transactions.
+        let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
+        let tx_collector_task = TxCollector {
+            consensus_proposals_channels,
+            accumulated_txs: accumulated_txs.clone(),
+            chain_id: chain_info.chain_id.clone(),
+        };
+
+        tokio::spawn(tx_collector_task.collect_streamd_txs().in_current_span());
+
+        // Create nodes with empty storage
+        let sequencer_0 = FlowSequencerSetup::new_empty(
+            SEQUENCER_0,
+            chain_info.clone(),
+            base_layer_config.clone(),
+            base_layer_url.clone(),
+            sequencer_0_consensus_manager_config,
+            sequencer_0_mempool_p2p_config,
+            AvailablePorts::new(test_unique_index, 1),
+            sequencer_0_state_sync_config,
+            block_max_capacity_gas,
+            allow_bootstrap_txs,
+        )
+        .await;
+
+        let sequencer_1 = FlowSequencerSetup::new_empty(
+            SEQUENCER_1,
+            chain_info,
+            base_layer_config,
+            base_layer_url,
+            sequencer_1_consensus_manager_config,
+            sequencer_1_mempool_p2p_config,
+            AvailablePorts::new(test_unique_index, 2),
+            sequencer_1_state_sync_config,
+            block_max_capacity_gas,
+            allow_bootstrap_txs,
+        )
+        .await;
+
+        Self { sequencer_0, sequencer_1, anvil_base_layer, accumulated_txs }
+    }
+
     pub fn chain_id(&self) -> &ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
         &self
@@ -243,6 +335,95 @@ impl FlowSequencerSetup {
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
             StorageTestSetup::new(accounts, &chain_info, path);
+
+        let (recorder_url, _join_handle) =
+            spawn_local_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url.into();
+
+        let (eth_to_strk_oracle_url_headers, _join_handle) =
+            spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
+        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers.into()]),
+            ..Default::default()
+        };
+
+        let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
+
+        let component_config = ComponentConfig::default();
+
+        let monitoring_endpoint_config = MonitoringEndpointConfig {
+            port: available_ports.get_next_port(),
+            ..Default::default()
+        };
+
+        // Derive the configuration for the sequencer node.
+        let (mut node_config, _config_pointers_map) = create_node_config(
+            &mut available_ports,
+            chain_info,
+            storage_config,
+            state_sync_config,
+            consensus_manager_config,
+            eth_to_strk_oracle_config,
+            mempool_p2p_config,
+            monitoring_endpoint_config,
+            component_config,
+            base_layer_config,
+            base_layer_url,
+            block_max_capacity_gas,
+            validator_id,
+            allow_bootstrap_txs,
+        );
+        let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
+        node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
+        node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
+
+        debug!("Sequencer config: {:#?}", node_config);
+        let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
+        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
+
+        let MonitoringEndpointConfig { ip, port, .. } =
+            node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
+        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
+
+        let HttpServerConfig { ip, port, .. } =
+            node_config.http_server_config.as_ref().unwrap().to_owned();
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+
+        // Run the sequencer node.
+        tokio::spawn(run_component_servers(servers));
+
+        Self {
+            node_index,
+            add_tx_http_client,
+            storage_handles,
+            node_config,
+            monitoring_client,
+            clients,
+        }
+    }
+
+    /// Creates a sequencer setup with completely empty storage.
+    /// No genesis block, no accounts, no contracts - truly empty storage.
+    /// Useful for bootstrap tests where the system is initialized from scratch.
+    #[allow(clippy::too_many_arguments)]
+    #[instrument(skip(chain_info, consensus_manager_config), level = "debug")]
+    pub async fn new_empty(
+        node_index: usize,
+        chain_info: ChainInfo,
+        base_layer_config: EthereumBaseLayerConfig,
+        base_layer_url: Url,
+        mut consensus_manager_config: ConsensusManagerConfig,
+        mempool_p2p_config: MempoolP2pConfig,
+        mut available_ports: AvailablePorts,
+        state_sync_config: StateSyncConfig,
+        block_max_capacity_gas: GasAmount,
+        allow_bootstrap_txs: bool,
+    ) -> Self {
+        let path = None;
+        let StorageTestSetup { storage_config, storage_handles } =
+            StorageTestSetup::new_empty(&chain_info, path);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
