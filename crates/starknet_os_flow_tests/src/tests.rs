@@ -131,8 +131,6 @@ const UNCOVERED_HINTS: Expect = expect![[r#"
         "AggregatorHint(GetPublicKeysFromAggregatorInput)",
         "AggregatorHint(GetUseKzgDaFromInput)",
         "AggregatorHint(WriteDaSegment)",
-        "DeprecatedSyscallHint(DelegateCall)",
-        "DeprecatedSyscallHint(DelegateL1Handler)",
         "DeprecatedSyscallHint(Deploy)",
         "OsHint(GetClassHashAndCompiledClassFact)",
         "OsHint(InitializeAliasCounter)",
@@ -519,6 +517,54 @@ async fn test_reverted_l1_handler_tx(
     let contract_type =
         if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
     test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_deprecated_call_contract_variants() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract2 = FeatureContract::TestContract2;
+    let (mut test_manager, [test_contract_address, test_contract2_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract2, calldata![]),
+        ])
+        .await;
+
+    // Test delegate call and delegate L1 handler.
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_delegate_call",
+        &[
+            **test_contract2_address,
+            selector_from_name("test_storage_write").0,
+            Felt::TWO,
+            Felt::from(555),
+            Felt::from(666),
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_delegate_l1_handler",
+        &[
+            **test_contract2_address,
+            selector_from_name("test_l1_handler_storage_write").0,
+            Felt::THREE,
+            Felt::from(85),
+            Felt::from(777),
+            Felt::from(888),
+        ],
+    );
+    let signature = TransactionSignature(Arc::new(vec![Felt::from(100)]));
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata, signature });
+
+    // Run the test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_deprecated_call_contract_variants");
 }
 
 #[rstest]
