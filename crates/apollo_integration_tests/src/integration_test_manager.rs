@@ -390,15 +390,14 @@ impl IntegrationTestManager {
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
-        // TODO(noamsp): Add size of nodes_to_run to the log.
-        info!("Running specified nodes.");
+        info!("Running nodes: {nodes_to_run:?}.");
 
         nodes_to_run.into_iter().for_each(|index| {
             let node_setup = self
                 .idle_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} does not exist in idle_nodes."));
-            info!("Running node {}.", index);
+            info!("Running node {index}.");
             let running_node = node_setup.run();
             assert!(
                 self.running_nodes.insert(index, running_node).is_none(),
