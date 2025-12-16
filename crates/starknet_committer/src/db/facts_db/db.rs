@@ -131,11 +131,12 @@ impl FactsDb<MapStorage> {
     }
 }
 
-impl<'a, S: Storage> ForestReader<'a, FactsDbInitialRead> for FactsDb<S> {
+#[async_trait]
+impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
-    async fn read(
+    async fn read<'a>(
         &mut self,
         context: FactsDbInitialRead,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
