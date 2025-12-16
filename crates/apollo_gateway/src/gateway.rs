@@ -88,6 +88,11 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
+        info!(
+            target: "apollo_gateway::debug_tx",
+            tx = ?tx,
+            "Gateway received transaction (debug dump)."
+        );
         let is_p2p = p2p_message_metadata.is_some();
 
         let start_time = std::time::Instant::now();
@@ -228,6 +233,12 @@ impl ProcessTxBlockingTask {
                 warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
                 transaction_converter_err_to_deprecated_gw_err(e)
             })?;
+        info!(
+            target: "apollo_gateway::debug_tx",
+            tx_signature = ?tx_signature,
+            tx_hash = ?internal_tx.tx_hash,
+            "Gateway computed transaction hash for received tx."
+        );
 
         let executable_tx = self
             .runtime
