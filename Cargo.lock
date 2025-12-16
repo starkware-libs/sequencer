@@ -9623,7 +9623,6 @@ version = "0.16.0-rc.2"
 dependencies = [
  "alloy",
  "apollo_config",
- "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",
  "futures",
