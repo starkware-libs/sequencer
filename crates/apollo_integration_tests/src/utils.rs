@@ -77,6 +77,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
+use starknet_committer::block_committer::input::ReaderConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
@@ -198,7 +199,7 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_gas,
     );
-    let committer_config = CommitterConfig { enable_committer: true };
+    let committer_config = CommitterConfig { reader_config: ReaderConfig::default() };
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
