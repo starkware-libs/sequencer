@@ -12,7 +12,13 @@ use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
-use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
+use apollo_state_sync_types::state_sync_types::{
+    StateSyncResult,
+    StateSyncStorageReaderServerHandler,
+    StateSyncStorageRequest,
+    StateSyncStorageResponse,
+    SyncBlock,
+};
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
@@ -30,6 +36,11 @@ use starknet_types_core::felt::Felt;
 use crate::runner::StateSyncRunner;
 
 const BUFFER_SIZE: usize = 100000;
+type StateSyncStorageReaderServer = StorageReaderServer<
+    StateSyncStorageReaderServerHandler,
+    StateSyncStorageRequest,
+    StateSyncStorageResponse,
+>;
 
 pub fn create_state_sync_and_runner(
     config: StateSyncConfig,
@@ -46,6 +57,10 @@ pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
     starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
+    // TODO(Nadin): Remove #[allow(dead_code)].
+    /// Optional storage reader server for handling remote storage reader queries.
+    #[allow(dead_code)]
+    storage_reader_server: Option<StateSyncStorageReaderServer>,
 }
 
 impl StateSync {
@@ -69,7 +84,12 @@ impl StateSync {
             );
             starknet_client
         });
-        Self { storage_reader, new_block_sender, starknet_client }
+        Self {
+            storage_reader,
+            new_block_sender,
+            starknet_client,
+            storage_reader_server: config.storage_reader_server,
+        }
     }
 }
 

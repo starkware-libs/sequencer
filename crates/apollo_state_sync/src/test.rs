@@ -24,8 +24,12 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let state_sync =
-        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client: None };
+    let state_sync = StateSync {
+        storage_reader,
+        new_block_sender: channel(0).0,
+        starknet_client: None,
+        storage_reader_server: None,
+    };
     (state_sync, storage_writer)
 }
 
@@ -125,8 +129,12 @@ async fn test_get_block_hash_fallback_to_starknet_client() {
     let starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>> =
         Some(Arc::new(starknet_client));
     let ((storage_reader, _storage_writer), _) = get_test_storage();
-    let mut state_sync =
-        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client };
+    let mut state_sync = StateSync {
+        storage_reader,
+        new_block_sender: channel(0).0,
+        starknet_client,
+        storage_reader_server: None,
+    };
 
     // The block is not in storage, so it should fall back to starknet_client
     let response = state_sync.handle_request(StateSyncRequest::GetBlockHash(block_number)).await;

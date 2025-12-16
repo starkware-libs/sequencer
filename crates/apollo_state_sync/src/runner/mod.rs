@@ -101,10 +101,16 @@ pub struct StateSyncResources {
 }
 
 impl StateSyncResources {
-    pub fn new(storage_config: &StorageConfig) -> Self {
-        let (storage_reader, storage_writer) =
-            open_storage_with_metric(storage_config.clone(), &SYNC_STORAGE_OPEN_READ_TRANSACTIONS)
-                .expect("StateSyncRunner failed opening storage");
+    pub fn new(
+        storage_config: &StorageConfig,
+        storage_reader_server_config: Option<StateSyncStorageReaderServer>,
+    ) -> Self {
+        let (storage_reader, storage_writer) = open_storage_with_metric_and_server(
+            storage_config.clone(),
+            &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
+            storage_reader_server_config,
+        )
+        .expect("StateSyncRunner failed opening storage");
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
@@ -133,7 +139,7 @@ impl StateSyncRunner {
             network_config,
             revert_config,
             rpc_config,
-            storage_reader_server_config: _,
+            storage_reader_server_config,
         } = config;
 
         let StateSyncResources {
@@ -142,7 +148,7 @@ impl StateSyncRunner {
             shared_highest_block,
             pending_data,
             pending_classes,
-        } = StateSyncResources::new(&storage_config);
+        } = StateSyncResources::new(&storage_config, storage_reader_server_config);
 
         let register_metrics_future = register_metrics(storage_reader.clone()).boxed();
 
