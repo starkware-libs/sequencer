@@ -880,6 +880,7 @@ dependencies = [
  "apollo_batcher_config",
  "apollo_batcher_types",
  "apollo_class_manager_types",
+ "apollo_committer_types",
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
@@ -928,6 +929,7 @@ dependencies = [
  "apollo_storage",
  "blockifier",
  "serde",
+ "starknet_api",
  "url",
  "validator",
 ]
@@ -1030,7 +1032,6 @@ dependencies = [
  "apollo_config",
  "apollo_storage",
  "serde",
- "starknet_api",
  "validator",
 ]
 

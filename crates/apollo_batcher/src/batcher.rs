@@ -26,6 +26,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -33,23 +34,30 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::block_hash_marker::BlockHashMarkerStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
+use apollo_storage::{
+    open_storage_with_metric,
+    StorageError,
+    StorageReader,
+    StorageResult,
+    StorageWriter,
+};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use futures::FutureExt;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, Instrument};
@@ -108,6 +116,7 @@ pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
+    pub committer_client: SharedCommitterClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -156,6 +165,7 @@ impl Batcher {
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReader>,
         storage_writer: Box<dyn BatcherStorageWriter>,
+        committer_client: SharedCommitterClient,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
@@ -166,6 +176,7 @@ impl Batcher {
             config,
             storage_reader,
             storage_writer,
+            committer_client,
             l1_provider_client,
             mempool_client,
             transaction_converter,
@@ -582,8 +593,10 @@ impl Batcher {
             state_diff,
             account_transaction_hashes,
             l1_transaction_hashes,
-            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+            block_header_without_hash,
+            block_header_commitments,
         } = sync_block;
+        let block_number = block_header_without_hash.block_number;
 
         let height = self.get_height_from_storage()?;
         if height != block_number {
@@ -599,13 +612,31 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        let partial_block_hash_components =
+            if block_header_without_hash.starknet_version.has_partial_block_hash_components() {
+                match block_header_commitments {
+                    Some(header_commitments) => Some(PartialBlockHashComponents {
+                        header_commitments,
+                        block_number,
+                        l1_gas_price: block_header_without_hash.l1_gas_price,
+                        l1_data_gas_price: block_header_without_hash.l1_data_gas_price,
+                        l2_gas_price: block_header_without_hash.l2_gas_price,
+                        sequencer: block_header_without_hash.sequencer,
+                        timestamp: block_header_without_hash.timestamp,
+                        starknet_version: block_header_without_hash.starknet_version,
+                    }),
+                    None => return Err(BatcherError::MissingHeaderCommitments { block_number }),
+                }
+            } else {
+                None
+            };
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
-            None,
+            partial_block_hash_components,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -694,8 +725,8 @@ impl Batcher {
         })
     }
 
-    // The `partial_block_hash_components` is optional as it's not needed for blocks coming from
-    // sync as they contain the full block hash.
+    // The `partial_block_hash_components` is optional as it doesn't exist for old blocks coming
+    // from sync.
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
@@ -1041,6 +1072,7 @@ fn log_txs_execution_result(
 
 pub fn create_batcher(
     config: BatcherConfig,
+    committer_client: SharedCommitterClient,
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
@@ -1074,6 +1106,7 @@ pub fn create_batcher(
         config,
         storage_reader,
         storage_writer,
+        committer_client,
         l1_provider_client,
         mempool_client,
         transaction_converter,
@@ -1087,7 +1120,17 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> StorageResult<BlockNumber>;
 
+    /// Returns the next height the batcher should store block hash for.
+    fn block_hash_height(&self) -> StorageResult<BlockNumber>;
+
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
+
+    /// Returns the state diff that undoes the state diff at the given height.
+    /// Ignores deprecated_declared_classes.
+    fn reversed_state_diff(
+        &self,
+        height: BlockNumber,
+    ) -> apollo_storage::StorageResult<ThinStateDiff>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1095,11 +1138,74 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_state_marker()
     }
 
-    fn get_state_diff(
+    fn block_hash_height(&self) -> StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_block_hash_marker()
+    }
+
+    fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
+        self.begin_ro_txn()?.get_state_diff(height)
+    }
+
+    fn reversed_state_diff(
         &self,
         height: BlockNumber,
-    ) -> apollo_storage::StorageResult<Option<ThinStateDiff>> {
-        self.begin_ro_txn()?.get_state_diff(height)
+    ) -> apollo_storage::StorageResult<ThinStateDiff> {
+        let state_target = StateNumber::right_before_block(height);
+        let txn = self.begin_ro_txn()?;
+
+        let ThinStateDiff {
+            deployed_contracts,
+            storage_diffs,
+            class_hash_to_compiled_class_hash,
+            nonces,
+            ..
+        } = txn.get_state_diff(height)?.ok_or_else(|| StorageError::MissingObject {
+            object_name: "state diff".to_string(),
+            height,
+        })?;
+
+        let state_reader = txn.get_state_reader()?;
+
+        // In the following maps, set empty values to zero.
+        let mut reversed_deployed_contracts = IndexMap::new();
+        for contract_address in deployed_contracts.keys() {
+            let class_hash =
+                state_reader.get_class_hash_at(state_target, contract_address)?.unwrap_or_default();
+            reversed_deployed_contracts.insert(*contract_address, class_hash);
+        }
+
+        let mut reversed_storage_diffs = IndexMap::new();
+        for (contract_address, contract_diffs) in storage_diffs {
+            let mut reversed_contract_diffs = IndexMap::new();
+            for key in contract_diffs.keys() {
+                let value = state_reader.get_storage_at(state_target, &contract_address, key)?;
+                reversed_contract_diffs.insert(*key, value);
+            }
+            reversed_storage_diffs.insert(contract_address, reversed_contract_diffs);
+        }
+
+        let mut reversed_class_hash_to_compiled_class_hash = IndexMap::new();
+        for class_hash in class_hash_to_compiled_class_hash.keys() {
+            let compiled_class_hash = state_reader
+                .get_compiled_class_hash_at(state_target, class_hash)?
+                .unwrap_or_default();
+            reversed_class_hash_to_compiled_class_hash.insert(*class_hash, compiled_class_hash);
+        }
+
+        let mut reversed_nonces = IndexMap::new();
+        for contract_address in nonces.keys() {
+            let nonce =
+                state_reader.get_nonce_at(state_target, contract_address)?.unwrap_or_default();
+            reversed_nonces.insert(*contract_address, nonce);
+        }
+
+        Ok(ThinStateDiff {
+            deployed_contracts: reversed_deployed_contracts,
+            storage_diffs: reversed_storage_diffs,
+            class_hash_to_compiled_class_hash: reversed_class_hash_to_compiled_class_hash,
+            nonces: reversed_nonces,
+            deprecated_declared_classes: Default::default(),
+        })
     }
 }
 

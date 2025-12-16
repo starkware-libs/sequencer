@@ -40,13 +40,14 @@ use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
     ConfigImpl,
+    FactsDbInitialRead,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::create_facts_tree::get_leaves;
-use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
+use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
@@ -60,6 +61,7 @@ use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -148,7 +150,9 @@ pub(crate) async fn commit_state_diff(
     state_diff: StateDiff,
 ) -> StateRoots {
     let config = ConfigImpl::default();
-    let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
+    let initial_read_context =
+        FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
+    let input = Input { state_diff, initial_read_context, config };
     let filled_forest =
         commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
     facts_db.write(&filled_forest).await;
@@ -257,6 +261,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         commitments,
         previous_state_roots.classes_trie_root_hash,
         sorted_class_leaf_indices,
+        &EmptyKeyContext,
     )
     .await
     .unwrap();
@@ -284,6 +289,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
             commitments,
             address_to_previous_storage_root_hash[&address],
             sorted_leaf_indices,
+            &EmptyKeyContext,
         )
         .await
         .unwrap();
@@ -372,14 +378,22 @@ pub(crate) async fn get_previous_states_and_new_storage_roots<
     // Get previous contract state leaves.
     let sorted_contract_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
     // Get the previous and the new contract states.
-    let previous_contract_states =
-        get_leaves(commitments, previous_contract_trie_root, sorted_contract_leaf_indices)
-            .await
-            .unwrap();
-    let new_contract_states: HashMap<NodeIndex, ContractState> =
-        get_leaves(commitments, new_contract_trie_root, sorted_contract_leaf_indices)
-            .await
-            .unwrap();
+    let previous_contract_states = get_leaves(
+        commitments,
+        previous_contract_trie_root,
+        sorted_contract_leaf_indices,
+        &EmptyKeyContext,
+    )
+    .await
+    .unwrap();
+    let new_contract_states: HashMap<NodeIndex, ContractState> = get_leaves(
+        commitments,
+        new_contract_trie_root,
+        sorted_contract_leaf_indices,
+        &EmptyKeyContext,
+    )
+    .await
+    .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
         .into_iter()
         .map(|(idx, contract_state)| {

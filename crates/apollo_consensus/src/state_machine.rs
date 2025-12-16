@@ -166,14 +166,6 @@ impl StateMachine {
         self.round
     }
 
-    pub(crate) fn total_weight(&self) -> u64 {
-        self.total_weight
-    }
-
-    pub(crate) fn quorum(&self) -> &VotesThreshold {
-        &self.quorum
-    }
-
     pub(crate) fn height(&self) -> BlockNumber {
         self.height
     }
@@ -184,10 +176,6 @@ impl StateMachine {
 
     pub(crate) fn has_proposal_for_round(&self, round: Round) -> bool {
         self.proposals.contains_key(&round)
-    }
-
-    pub(crate) fn proposal_id_for_round(&self, round: Round) -> Option<ProposalCommitment> {
-        self.proposals.get(&round).and_then(|(id, _)| *id)
     }
 
     pub(crate) fn last_self_prevote(&self) -> Option<Vote> {

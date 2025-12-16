@@ -1,7 +1,8 @@
 use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use assert_matches::assert_matches;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
-use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::account_transaction::ExecutionFlags;
@@ -14,12 +15,10 @@ use starknet_api::test_utils::MAX_FEE;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
-use crate::state_reader::compile::{
-    legacy_to_contract_class_v0,
-    sierra_to_versioned_contract_class_v1,
-};
-use crate::state_reader::errors::ReexecutionResult;
-use crate::state_reader::utils::contract_class_to_compiled_classes;
+use crate::assert_eq_state_diff;
+use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
+use crate::errors::ReexecutionResult;
+use crate::utils::contract_class_to_compiled_classes;
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -119,7 +118,9 @@ pub trait ReexecutionStateReader {
 }
 
 /// Trait of the functions \ queries required for reexecution.
-pub trait ConsecutiveReexecutionStateReaders<S: StateReader> {
+pub trait ConsecutiveReexecutionStateReaders<S: StateReader + Send + Sync + 'static>:
+    Sized
+{
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
@@ -128,4 +129,37 @@ pub trait ConsecutiveReexecutionStateReaders<S: StateReader> {
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
+
+    /// Reexecutes a block and returns the block state along with the expected and actual state
+    /// diffs. Does not verify that the state diffs match.
+    fn reexecute_block(self) -> (Option<CachedState<S>>, CommitmentStateDiff, CommitmentStateDiff) {
+        let expected_state_diff = self.get_next_block_state_diff().unwrap();
+
+        let all_txs_in_next_block = self.get_next_block_txs().unwrap();
+
+        let mut transaction_executor = self.pre_process_and_create_executor(None).unwrap();
+
+        let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
+        // Verify all transactions executed successfully.
+        for res in execution_results.iter() {
+            assert_matches!(res, Ok(_));
+        }
+
+        // Finalize block and read actual statediff; using non_consuming_finalize to keep the
+        // block_state.
+        let actual_state_diff = transaction_executor
+            .non_consuming_finalize()
+            .expect("Couldn't finalize block")
+            .state_diff;
+
+        (transaction_executor.block_state, expected_state_diff, actual_state_diff)
+    }
+
+    fn reexecute_and_verify_correctness(self) -> Option<CachedState<S>> {
+        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block();
+
+        assert_eq_state_diff!(expected_state_diff, actual_state_diff);
+
+        block_state
+    }
 }

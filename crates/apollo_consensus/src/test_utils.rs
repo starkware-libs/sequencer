@@ -91,8 +91,8 @@ mock! {
 
         async fn decision_reached(
             &mut self,
-            block: ProposalCommitment,
-            precommits: Vec<Vote>,
+            height: BlockNumber,
+            commitment: ProposalCommitment,
         ) -> Result<(), ConsensusError>;
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;

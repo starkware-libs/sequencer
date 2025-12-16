@@ -7,6 +7,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -20,9 +21,10 @@ use crate::block_committer::input::{
     contract_address_into_node_index,
     Config,
     ConfigImpl,
+    FactsDbInitialRead,
     StarknetStorageValue,
 };
-use crate::db::create_facts_tree::{
+use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
@@ -65,6 +67,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &HashMap::new(),
             &OriginalSkeletonContractsTrieConfig::new(),
+            &EmptyKeyContext,
         )
         .await?)
     }
@@ -93,6 +96,7 @@ impl<S: Storage> FactsDb<S> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                &EmptyKeyContext,
             )
             .await?;
             storage_tries.insert(*address, original_skeleton);
@@ -115,6 +119,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            &EmptyKeyContext,
         )
         .await?)
     }
@@ -126,14 +131,13 @@ impl FactsDb<MapStorage> {
     }
 }
 
-impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
+impl<'a, S: Storage> ForestReader<'a, FactsDbInitialRead> for FactsDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     async fn read(
         &mut self,
-        contracts_trie_root_hash: HashOutput,
-        classes_trie_root_hash: HashOutput,
+        context: FactsDbInitialRead,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -141,7 +145,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         let (contracts_trie, original_contracts_trie_leaves) = self
             .create_contracts_trie(
-                contracts_trie_root_hash,
+                context.0.contracts_trie_root_hash,
                 forest_sorted_indices.contracts_trie_sorted_indices,
             )
             .await?;
@@ -156,7 +160,7 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
         let classes_trie = self
             .create_classes_trie(
                 classes_updates,
-                classes_trie_root_hash,
+                context.0.classes_trie_root_hash,
                 &config,
                 forest_sorted_indices.classes_trie_sorted_indices,
             )
@@ -175,9 +179,9 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         filled_forest
             .storage_tries
             .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(filled_forest.contracts_trie.serialize())
-            .chain(filled_forest.classes_trie.serialize())
+            .flat_map(|tree| tree.serialize(&EmptyKeyContext).into_iter())
+            .chain(filled_forest.contracts_trie.serialize(&EmptyKeyContext))
+            .chain(filled_forest.classes_trie.serialize(&EmptyKeyContext))
             .collect()
     }
 

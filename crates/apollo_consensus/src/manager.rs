@@ -135,6 +135,7 @@ where
                 }
             }
         }
+
         match manager
             .run_height(&mut context, current_height, &mut vote_receiver, &mut proposals_receiver)
             .await?
@@ -153,7 +154,6 @@ where
                     round, proposer, decision
                 );
                 CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
-                context.decision_reached(decision.block, decision.precommits).await?;
             }
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
@@ -389,9 +389,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
     /// Run the consensus algorithm for a single height.
     ///
+    /// IMPORTANT: An error implies that consensus cannot continue, not just that the current height
+    /// failed.
+    ///
     /// A height of consensus ends either when the node learns of a decision, either by consensus
     /// directly or via the sync protocol.
-    /// - An error implies that consensus cannot continue, not just that the current height failed.
+    /// - In both cases, the height is committed to the context.
     ///
     /// This is the "top level" task of consensus, which is able to multiplex across activities:
     /// network messages and self generated events.
@@ -411,24 +414,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let res =
             self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await?;
 
-        // Clear any existing votes and proposals for previous heights as well as the current just
-        // completed height using the dedicated cache manager.
-        self.cache.clear_past_and_current_heights(height);
-
-        // Clear any votes/proposals that might have arrived *during* the final await/cleanup,
-        // which still belong to the completed height or lower.
-        while let Some(message) =
-            broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
-        {
-            // Discard any votes for this height or lower by sending a None SHC.
-            self.handle_vote(context, height, None, message, broadcast_channels).await?;
-        }
-        while let Ok(content_receiver) = proposals_receiver.try_next() {
-            self.handle_proposal(context, height, None, content_receiver).await?;
+        // Commit in case of decision.
+        if let RunHeightRes::Decision(decision) = &res {
+            context.decision_reached(height, decision.block).await?;
         }
 
-        // Height completed; clear any content streams associated with current and lower heights.
-        self.current_height_proposals_streams.retain(|(h, _), _| *h > height);
+        // Cleanup after height completion.
+        self.cleanup_post_height(context, height, broadcast_channels, proposals_receiver).await?;
 
         Ok(res)
     }
@@ -555,7 +547,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
-            match shc.start(&leader_fn)? {
+            match shc.start(&leader_fn) {
                 ShcReturn::Decision(decision) => {
                     // Start should generate either StartValidateProposal (validator) or
                     // StartBuildProposal (proposer). We do not enforce this
@@ -572,7 +564,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         for (init, content_receiver) in cached_proposals {
             match self
                 .handle_proposal_known_init(context, height, shc, init, content_receiver)
-                .await?
+                .await
             {
                 ShcReturn::Decision(decision) => {
                     return Ok(Some(decision));
@@ -585,7 +577,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
-            match shc.handle_vote(&leader_fn, msg)? {
+            match shc.handle_vote(&leader_fn, msg) {
                 ShcReturn::Decision(decision) => {
                     return Ok(Some(decision));
                 }
@@ -630,7 +622,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 Some(shc_event) = shc_events.next() => {
                     let leader_fn = make_leader_fn(context, height);
-                    shc.handle_event(&leader_fn, shc_event)?
+                    shc.handle_event(&leader_fn, shc_event)
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -658,6 +650,35 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             }
         }
+    }
+
+    async fn cleanup_post_height(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        broadcast_channels: &mut BroadcastVoteChannel,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    ) -> Result<(), ConsensusError> {
+        // Clear any existing votes and proposals for previous heights as well as the current just
+        // completed height using the dedicated cache manager.
+        self.cache.clear_past_and_current_heights(height);
+
+        // Clear any votes/proposals that might have arrived *during* the final await/cleanup,
+        // which still belong to the completed height or lower.
+        while let Some(message) =
+            broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
+        {
+            // Discard any votes for this height or lower by sending a None SHC.
+            self.handle_vote(context, height, None, message, broadcast_channels).await?;
+        }
+        while let Ok(content_receiver) = proposals_receiver.try_next() {
+            self.handle_proposal(context, height, None, content_receiver).await?;
+        }
+
+        // Height completed; clear any content streams associated with current and lower heights.
+        self.current_height_proposals_streams.retain(|(h, _), _| *h > height);
+
+        Ok(())
     }
 
     // Handle a new proposal receiver from the network.
@@ -715,14 +736,15 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         shc.current_round(),
                         &proposal_init,
                     ) {
-                        self.handle_proposal_known_init(
-                            context,
-                            height,
-                            shc,
-                            proposal_init,
-                            content_receiver,
-                        )
-                        .await
+                        Ok(self
+                            .handle_proposal_known_init(
+                                context,
+                                height,
+                                shc,
+                                proposal_init,
+                                content_receiver,
+                            )
+                            .await)
                     } else {
                         Ok(ShcReturn::Requests(VecDeque::new()))
                     }
@@ -742,7 +764,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         proposal_init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
-    ) -> Result<ShcReturn, ConsensusError> {
+    ) -> ShcReturn {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams
             .insert((height, proposal_init.round), content_receiver);
@@ -809,7 +831,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc) => {
                     if self.cache.should_cache_vote(&height, shc.current_round(), &message) {
                         let leader_fn = make_leader_fn(context, height);
-                        shc.handle_vote(&leader_fn, message)
+                        Ok(shc.handle_vote(&leader_fn, message))
                     } else {
                         Ok(ShcReturn::Requests(VecDeque::new()))
                     }

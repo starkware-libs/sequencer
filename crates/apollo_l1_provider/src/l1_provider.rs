@@ -63,7 +63,7 @@ impl L1Provider {
             bootstrapper,
             current_height: BlockNumber(0),
             tx_manager: TransactionManager::new(
-                config.new_l1_handler_cooldown_seconds,
+                config.l1_handler_proposal_cooldown_seconds,
                 config.l1_handler_cancellation_timelock_seconds,
                 config.l1_handler_consumption_timelock_seconds,
             ),

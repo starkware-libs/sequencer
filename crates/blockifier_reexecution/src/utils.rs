@@ -1,43 +1,23 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
-use std::fs::read_to_string;
 use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use assert_matches::assert_matches;
-use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
-use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::global_cache::CompiledClasses;
-use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
-use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
-use crate::assert_eq_state_diff;
-use crate::state_reader::cli::TransactionInput;
-use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
-use crate::state_reader::offline_state_reader::{
-    OfflineConsecutiveStateReaders,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
-};
-use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecutionStateReader,
-};
-use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
-use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+use crate::errors::ReexecutionError;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -237,173 +217,13 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
     }
 }
 
-pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + 'static,
-    T: ConsecutiveReexecutionStateReaders<S>,
->(
-    consecutive_state_readers: T,
-) -> Option<CachedState<S>> {
-    let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
-
-    let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
-
-    let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
-
-    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
-    // Verify all transactions executed successfully.
-    for res in execution_results.iter() {
-        assert_matches!(res, Ok(_));
-    }
-
-    // Finalize block and read actual statediff; using non_consuming_finalize to keep the
-    // block_state.
-    let actual_state_diff =
-        transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
-
-    assert_eq_state_diff!(expected_state_diff, actual_state_diff);
-
-    transaction_executor.block_state
-}
-
-pub fn reexecute_block_for_testing(block_number: u64) {
-    // In tests we are already in the blockifier_reexecution directory.
-    let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
-
-    // Initialize the contract class manager.
-    let mut contract_class_manager_config = ContractClassManagerConfig::default();
-    if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
-        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
-    }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
-
-    reexecute_and_verify_correctness(
-        OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
-            .unwrap(),
-    );
-
-    println!("Reexecution test for block {block_number} passed successfully.");
-}
-
-pub fn write_block_reexecution_data_to_file(
-    block_number: BlockNumber,
-    full_file_path: String,
-    node_url: String,
-    chain_id: ChainId,
-    contract_class_manager: ContractClassManager,
-) {
-    let config = RpcStateReaderConfig::from_url(node_url);
-
-    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
-        block_number.prev().expect("Should not run with block 0"),
-        Some(config),
-        chain_id.clone(),
-        true,
-        contract_class_manager,
-    );
-
-    let serializable_data_next_block =
-        consecutive_state_readers.get_serializable_data_next_block().unwrap();
-
-    let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
-
-    // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
-    let serializable_data_prev_block = SerializableDataPrevBlock {
-        state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state
-            .state
-            .state_reader
-            .get_contract_class_mapping_dumper()
-            .unwrap(),
-    };
-
-    // Write the reexecution data to a json file.
-    SerializableOfflineReexecutionData {
-        serializable_data_prev_block,
-        serializable_data_next_block,
-        chain_id,
-        old_block_hash,
-    }
-    .write_to_file(&full_file_path)
-    .unwrap();
-
-    println!("RPC replies required for reexecuting block {block_number} written to json file.");
-}
-
-/// Executes a single transaction from a JSON file or given a transaction hash, using RPC to fetch
-/// block context. Does not assert correctness, only prints the execution result.
-pub fn execute_single_transaction(
-    block_number: BlockNumber,
-    node_url: String,
-    chain_id: ChainId,
-    tx_input: TransactionInput,
-    contract_class_manager: ContractClassManager,
-) -> ReexecutionResult<()> {
-    // Create RPC config.
-    let config = RpcStateReaderConfig::from_url(node_url);
-
-    // Create ConsecutiveTestStateReaders first.
-    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
-        block_number.prev().expect("Should not run with block 0"),
-        Some(config),
-        chain_id.clone(),
-        false, // dump_mode = false
-        contract_class_manager,
-    );
-
-    // Get transaction and hash based on input method.
-    let (transaction, transaction_hash) = match tx_input {
-        TransactionInput::FromHash { tx_hash } => {
-            // Fetch transaction from the next block (the block containing the transaction to
-            // execute).
-            let transaction =
-                consecutive_state_readers.next_block_state_reader.get_tx_by_hash(&tx_hash)?;
-            let transaction_hash = TransactionHash(Felt::from_hex_unchecked(&tx_hash));
-
-            (transaction, transaction_hash)
-        }
-        TransactionInput::FromFile { tx_path } => {
-            // Load the transaction from a local JSON file.
-            let json_content = read_to_string(&tx_path)
-                .unwrap_or_else(|_| panic!("Failed to read transaction JSON file: {}.", tx_path));
-            let json_value: Value = serde_json::from_str(&json_content)?;
-            let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
-            let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
-
-            (transaction, transaction_hash)
-        }
-    };
-
-    // Convert transaction to BlockifierTransaction using api_txs_to_blockifier_txs_next_block.
-    let blockifier_tx = consecutive_state_readers
-        .next_block_state_reader
-        .api_txs_to_blockifier_txs_next_block(vec![(transaction, transaction_hash)])?;
-
-    // Create transaction executor.
-    let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None)?;
-
-    // Execute transaction (should be single element).
-    let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
-
-    // We expect exactly one execution result since we executed a single transaction.
-    let res =
-        execution_results.first().expect("Expected exactly one execution result, but got none");
-
-    println!("Execution result: {:?}", res);
-
-    Ok(())
-}
-
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
     ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
         pretty_assertions::assert_eq!(
-            $crate::state_reader::utils::ComparableStateDiff::from($expected_state_diff,),
-            $crate::state_reader::utils::ComparableStateDiff::from($actual_state_diff,),
+            $crate::utils::ComparableStateDiff::from($expected_state_diff,),
+            $crate::utils::ComparableStateDiff::from($actual_state_diff,),
             "Expected and actual state diffs do not match.",
         );
     };

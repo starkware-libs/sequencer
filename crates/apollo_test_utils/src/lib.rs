@@ -253,7 +253,14 @@ fn get_rand_test_block_with_events(
     keys: Option<Vec<Vec<EventKey>>>,
 ) -> Block {
     Block {
-        header: BlockHeader::default(),
+        header: BlockHeader {
+            receipt_commitment: Some(ReceiptCommitment::default()),
+            state_diff_commitment: Some(StateDiffCommitment::default()),
+            transaction_commitment: Some(TransactionCommitment::default()),
+            event_commitment: Some(EventCommitment::default()),
+            state_diff_length: Some(0),
+            ..Default::default()
+        },
         body: get_rand_test_body_with_events(
             rng,
             transaction_count,

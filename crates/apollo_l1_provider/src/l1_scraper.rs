@@ -174,10 +174,17 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         // If the L1 chain was created less than startup_rewind ago, then L2 didn't exist at that
         // moment. Therefore, historic L2 height should be 0
         if start_block.number == 0 {
+            warn!(
+                "L1 start block is genesis (no historical L2). Setting provider historic height \
+                 to L2 genesis height"
+            );
             return Ok(BlockNumber(0));
         }
         if self.config.set_provider_historic_height_to_l2_genesis {
-            warn!("Setting provideer historic height to L2 genesis height");
+            warn!(
+                "Config set_provider_historic_height_to_l2_genesis is enabled. Setting provider \
+                 historic height to L2 genesis height"
+            );
             return Ok(BlockNumber(0));
         }
         let last_historic_l2_height = self

@@ -26,7 +26,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
-use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
@@ -36,7 +36,7 @@ use thiserror;
 use tracing::{debug, error, info, warn};
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
+use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::parse_from_python::{
     parse_input_single_storage_tree_flow_test,
@@ -288,7 +288,7 @@ pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestRe
 }
 
 fn create_output_to_python(
-    CommitterInputImpl { input: actual_input, storage }: CommitterInputImpl,
+    CommitterFactsDbInputImpl { input: actual_input, storage }: CommitterFactsDbInputImpl,
 ) -> String {
     let (storage_keys_hash, storage_values_hash) = hash_storage(&storage);
     let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
@@ -312,8 +312,8 @@ fn create_output_to_python(
         actual_input.state_diff.address_to_nonce.len(),
         actual_input.state_diff.class_hash_to_compiled_class_hash.len(),
         actual_input.state_diff.storage_updates.len(),
-        actual_input.contracts_trie_root_hash.0.to_bytes_be(),
-        actual_input.classes_trie_root_hash.0.to_bytes_be(),
+        actual_input.initial_read_context.0.contracts_trie_root_hash.0.to_bytes_be(),
+        actual_input.initial_read_context.0.classes_trie_root_hash.0.to_bytes_be(),
         storage_keys_hash,
         storage_values_hash,
         state_diff_keys_hash,
@@ -421,17 +421,17 @@ pub(crate) fn test_node_db_key() -> String {
         data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
         hash,
     };
-    let binary_node_key = binary_node.db_key().0;
+    let binary_node_key = binary_node.db_key(&EmptyKeyContext).0;
 
     let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Edge(EdgeData { bottom_hash: hash, path_to_bottom: Default::default() }),
         hash,
     };
 
-    let edge_node_key = edge_node.db_key().0;
+    let edge_node_key = edge_node.db_key(&EmptyKeyContext).0;
 
     let storage_leaf = FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
-    let storage_leaf_key = storage_leaf.db_key().0;
+    let storage_leaf_key = storage_leaf.db_key(&EmptyKeyContext).0;
 
     let state_tree_leaf = FilledNode {
         data: NodeData::Leaf(ContractState {
@@ -441,10 +441,10 @@ pub(crate) fn test_node_db_key() -> String {
         }),
         hash,
     };
-    let state_tree_leaf_key = state_tree_leaf.db_key().0;
+    let state_tree_leaf_key = state_tree_leaf.db_key(&EmptyKeyContext).0;
 
     let compiled_class_leaf = FilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash };
-    let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
+    let compiled_class_leaf_key = compiled_class_leaf.db_key(&EmptyKeyContext).0;
 
     // Store keys in a HashMap.
     let mut map: HashMap<String, Vec<u8>> = HashMap::new();
@@ -518,7 +518,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     };
 
     // Store the binary node in the storage.
-    rust_fact_storage.set(binary_rust.db_key(), binary_rust.serialize()).await?;
+    rust_fact_storage.set(binary_rust.db_key(&EmptyKeyContext), binary_rust.serialize()).await?;
 
     // Parse the edge node data from the input.
     let edge_json = get_or_key_not_found(&data, "edge")?;
@@ -545,7 +545,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     };
 
     // Store the edge node in the storage.
-    rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize()).await?;
+    rust_fact_storage.set(edge_rust.db_key(&EmptyKeyContext), edge_rust.serialize()).await?;
 
     // Parse the storage leaf data from the input.
     let storage_leaf_json = get_or_key_not_found(&data, "storage")?;
@@ -561,7 +561,9 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     };
 
     // Store the storage leaf node in the storage.
-    rust_fact_storage.set(storage_leaf_rust.db_key(), storage_leaf_rust.serialize()).await?;
+    rust_fact_storage
+        .set(storage_leaf_rust.db_key(&EmptyKeyContext), storage_leaf_rust.serialize())
+        .await?;
 
     // Parse the contract state leaf data from the input.
     let contract_state_leaf = get_or_key_not_found(&data, "contract_state_leaf")?;
@@ -587,7 +589,10 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 
     // Store the contract state leaf node in the storage.
     rust_fact_storage
-        .set(contract_state_leaf_rust.db_key(), contract_state_leaf_rust.serialize())
+        .set(
+            contract_state_leaf_rust.db_key(&EmptyKeyContext),
+            contract_state_leaf_rust.serialize(),
+        )
         .await?;
 
     // Parse the compiled class leaf data from the input.
@@ -606,7 +611,10 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 
     // Store the compiled class leaf node in the storage.
     rust_fact_storage
-        .set(compiled_class_leaf_rust.db_key(), compiled_class_leaf_rust.serialize())
+        .set(
+            compiled_class_leaf_rust.db_key(&EmptyKeyContext),
+            compiled_class_leaf_rust.serialize(),
+        )
         .await?;
 
     // Serialize the storage to a JSON string and handle serialization errors.

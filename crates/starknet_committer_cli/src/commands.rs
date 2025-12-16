@@ -4,17 +4,18 @@ use rand::distributions::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
+    FactsDbInitialRead,
     Input,
     StarknetStorageKey,
     StateDiff,
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
@@ -32,7 +33,7 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
-pub type InputImpl = Input<ConfigImpl>;
+pub type InputImpl = Input<ConfigImpl, FactsDbInitialRead>;
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
@@ -347,8 +348,10 @@ pub async fn run_storage_benchmark<S: Storage>(
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
         let input = InputImpl {
             state_diff: flavor.generate_state_diff(n_updates_arg, block_number, &mut rng),
-            contracts_trie_root_hash,
-            classes_trie_root_hash,
+            initial_read_context: FactsDbInitialRead(StateRoots {
+                contracts_trie_root_hash,
+                classes_trie_root_hash,
+            }),
             config: ConfigImpl::default(),
         };
 

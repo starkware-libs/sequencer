@@ -23,6 +23,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use apollo_committer_types::communication::MockCommitterClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -36,7 +37,8 @@ use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -119,6 +121,7 @@ fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
 struct MockDependencies {
     storage_reader: MockBatcherStorageReader,
     storage_writer: MockBatcherStorageWriter,
+    committer_client: MockCommitterClient,
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -130,6 +133,7 @@ impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReader::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
@@ -156,6 +160,7 @@ impl Default for MockDependencies {
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriter::new(),
+            committer_client: MockCommitterClient::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
@@ -171,6 +176,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
+        Arc::new(mock_dependencies.committer_client),
         Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
         TransactionConverter::new(
@@ -463,6 +469,7 @@ async fn consecutive_heights_success() {
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
@@ -762,6 +769,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
@@ -776,6 +784,7 @@ async fn propose_block_without_retrospective_block_hash() {
     storage_reader
         .expect_height()
         .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut batcher =
         create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
@@ -933,18 +942,28 @@ async fn proposal_startup_failure_allows_new_proposals() {
 }
 
 #[rstest]
+#[case::new_sync_block(Some(PartialBlockHashComponents {
+    block_number: INITIAL_HEIGHT,
+    ..Default::default()
+}))]
+#[case::old_sync_block(None)]
 #[tokio::test]
-async fn add_sync_block() {
+async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlockHashComponents>) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
     let mut mock_dependencies = MockDependencies::default();
+    let (starknet_version, block_header_commitments) = if partial_block_hash_components.is_some() {
+        (StarknetVersion::LATEST, Some(Default::default()))
+    } else {
+        (StarknetVersion::V0_13_1, None)
+    };
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(None))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(partial_block_hash_components))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -971,10 +990,12 @@ async fn add_sync_block() {
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
             block_number: INITIAL_HEIGHT,
+            starknet_version,
             ..Default::default()
         },
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
+        block_header_commitments,
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
@@ -1004,6 +1025,7 @@ async fn add_sync_block_mismatch_block_number() {
             block_number: INITIAL_HEIGHT.unchecked_next(),
             ..Default::default()
         },
+        block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
     let result = batcher.add_sync_block(sync_block).await;
@@ -1014,6 +1036,26 @@ async fn add_sync_block_mismatch_block_number() {
             requested_height: BlockNumber(4)
         })
     )
+}
+
+#[rstest]
+#[tokio::test]
+async fn add_sync_block_missing_block_header_commitments() {
+    let mut batcher = create_batcher(MockDependencies::default()).await;
+
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: INITIAL_HEIGHT,
+            starknet_version: StarknetVersion::LATEST,
+            ..Default::default()
+        },
+        state_diff: Default::default(),
+        account_transaction_hashes: Default::default(),
+        l1_transaction_hashes: Default::default(),
+        block_header_commitments: None,
+    };
+    let result = batcher.add_sync_block(sync_block).await;
+    assert_eq!(result, Err(BatcherError::MissingHeaderCommitments { block_number: INITIAL_HEIGHT }))
 }
 
 #[tokio::test]
@@ -1061,7 +1103,7 @@ async fn revert_block_mismatch_block_number() {
 async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
-
+    storage_reader.expect_block_hash_height().returning(|| Ok(BlockNumber(0)));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     let mut batcher = create_batcher(mock_dependencies).await;
 

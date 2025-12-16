@@ -2858,6 +2858,16 @@ async fn test_declare_and_deploy_in_separate_blocks() {
     test_output.expect_hint_coverage("test_declare_and_deploy_in_separate_blocks");
 }
 
+#[rstest]
+#[tokio::test]
+async fn test_single_empty_block() {
+    let (test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
+
 /// Test the behavior of an empty multi-block.
 /// We test the case n_blocks_in_multi_block = `STORED_BLOCK_HASH_BUFFER` to additionally verify
 /// that the last block in the multi-block contains the block-hash of the first block in this case.
