@@ -1193,6 +1193,16 @@ impl Batcher {
 
         Ok(())
     }
+
+    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        self.storage_reader
+            .get_block_hash(block_number)
+            .map_err(|err| {
+                error!("Failed to get block hash from storage: {}", err);
+                BatcherError::InternalError
+            })?
+            .ok_or(BatcherError::BlockHashNotFound(block_number))
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
