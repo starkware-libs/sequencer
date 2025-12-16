@@ -11,9 +11,6 @@ from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
 )
-from echonet.helpers import (
-    timestamp_to_iso,
-)
 
 
 class L1Client:
@@ -161,35 +158,6 @@ class L1Client:
 
         # Timestamp is hex string, convert to int.
         return int(block["timestamp"], 16)
-
-    def get_block_number_by_timestamp(self, timestamp: int) -> Optional[int]:
-        """
-        Get the block number at/after a given timestamp using blocks-by-timestamp API.
-        Tries up to retries_count times. On failure, logs an error and returns None.
-        """
-        timestamp_iso = timestamp_to_iso(timestamp)
-
-        params = {
-            "networks": "eth-mainnet",
-            "timestamp": timestamp_iso,
-            "direction": "AFTER",
-        }
-
-        request_func = functools.partial(requests.get, self.data_api_url, params=params)
-        data = self._run_request_with_retry(
-            request_func=request_func,
-            additional_log_context={"url": self.data_api_url, "timestamp": timestamp},
-        )
-
-        if data is None:
-            return None
-
-        items = data.get("data", [])
-        if not items:
-            return None
-
-        block = items[0].get("block", {})
-        return block.get("number")
 
     @staticmethod
     def decode_log_response(log: dict) -> "L1Client.L1Event":
