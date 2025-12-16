@@ -118,36 +118,28 @@ impl From<ThinStateDiff> for StateDiff {
     }
 }
 
-/// Trait contains all optional configurations of the committer.
-pub trait Config: Debug + Eq + PartialEq {
-    /// Indicates whether a warning should be given in case of a trivial state update.
-    /// If the configuration is set, it requires that the storage will contain the original data for
-    /// the modified leaves. Otherwise, it is not required.
-    fn warn_on_trivial_modifications(&self) -> bool;
-
-    /// Indicates from which log level output should be printed out to console.
-    fn logger_level(&self) -> LevelFilter;
-}
-
+/// All optional configurations of the committer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
     log_level: LevelFilter,
 }
 
-impl Config for ReaderConfig {
-    fn warn_on_trivial_modifications(&self) -> bool {
-        self.warn_on_trivial_modifications
-    }
-
-    fn logger_level(&self) -> LevelFilter {
-        self.log_level
-    }
-}
-
 impl ReaderConfig {
     pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
         Self { warn_on_trivial_modifications, log_level }
+    }
+
+    /// Indicates whether a warning should be given in case of a trivial state update.
+    /// If the configuration is set, it requires that the storage will contain the original data for
+    /// the modified leaves. Otherwise, it is not required.
+    pub fn warn_on_trivial_modifications(&self) -> bool {
+        self.warn_on_trivial_modifications
+    }
+
+    /// Indicates from which log level output should be printed out to console.
+    pub fn logger_level(&self) -> LevelFilter {
+        self.log_level
     }
 }
 
@@ -167,11 +159,11 @@ pub struct FactsDbInitialRead(pub StateRoots);
 impl InputContext for FactsDbInitialRead {}
 
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Input<C: Config, I: InputContext> {
+pub struct Input<I: InputContext> {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
     pub initial_read_context: I,
-    pub config: C,
+    pub config: ReaderConfig,
 }
 
 pub trait IsSubset<T> {

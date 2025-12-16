@@ -55,7 +55,6 @@ pub trait ForestReader<I: InputContext> {
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
-        // TODO(Yoav): Change to 'impl Config' or delete this trait
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
 }

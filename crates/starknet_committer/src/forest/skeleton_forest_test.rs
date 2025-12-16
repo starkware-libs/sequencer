@@ -297,7 +297,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         vec![7, 6, 0],
 )]
 async fn test_create_original_skeleton_forest(
-    #[case] input: Input<ReaderConfig, FactsDbInitialRead>,
+    #[case] input: Input<FactsDbInitialRead>,
     #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
