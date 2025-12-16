@@ -50,6 +50,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    RetrospectiveBlockHashError,
 };
 
 const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
@@ -99,10 +100,8 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -165,7 +164,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     initiate_validation(
-        args.deps.batcher.as_ref(),
+        args.deps.batcher.clone(),
         args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
@@ -386,7 +385,7 @@ async fn await_second_proposal_part(
 }
 
 async fn initiate_validation(
-    batcher: &dyn BatcherClient,
+    batcher: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
@@ -399,9 +398,13 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info)
-            .await
-            .map_err(ValidateProposalError::from)?,
+        retrospective_block_hash: retrospective_block_hash(
+            batcher.clone(),
+            state_sync_client,
+            &block_info,
+        )
+        .await
+        .map_err(ValidateProposalError::from)?,
         block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
