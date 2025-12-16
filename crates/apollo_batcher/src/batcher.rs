@@ -1113,6 +1113,16 @@ impl Batcher {
         }
     }
 
+    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        self.storage_reader
+            .get_block_hash(block_number)
+            .map_err(|err| {
+                error!("Failed to get block hash from storage: {}", err);
+                BatcherError::InternalError
+            })?
+            .ok_or(BatcherError::BlockHashNotFound(block_number))
+    }
+
     #[track_caller]
     fn assert_not_in_revert_mode(&self) {
         assert!(

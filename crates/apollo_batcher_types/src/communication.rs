@@ -11,6 +11,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::{BlockHash, BlockNumber};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
@@ -44,6 +45,8 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 pub trait BatcherClient: Send + Sync {
     /// Starts the process of building a proposal.
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
+    /// Gets the block hash for a given block number.
+    async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -90,6 +93,7 @@ pub trait BatcherClient: Send + Sync {
 #[allow(clippy::large_enum_variant)]
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
+    GetBlockHash(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
@@ -111,6 +115,7 @@ generate_permutation_labels! {
 #[derive(Serialize, Deserialize, AsRefStr)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
+    GetBlockHash(BatcherResult<BlockHash>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -140,6 +145,17 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             ProposeBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash> {
+        let request = BatcherRequest::GetBlockHash(block_number);
+        handle_all_response_variants!(
+            BatcherResponse,
+            GetBlockHash,
             BatcherClientError,
             BatcherError,
             Direct

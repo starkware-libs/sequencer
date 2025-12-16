@@ -35,8 +35,9 @@ use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::db::DbError;
 use apollo_storage::test_utils::get_test_storage;
-use apollo_storage::{StorageReader, StorageWriter};
+use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::{indexmap, IndexSet};
@@ -1591,4 +1592,38 @@ async fn set_and_get_block_hash_with_real_storage() {
     assert_eq!(batcher.storage_reader.get_block_hash(height).unwrap(), Some(block_hash));
     // Check unset block hash.
     assert_eq!(batcher.storage_reader.get_block_hash(height.unchecked_next()).unwrap(), None);
+}
+
+#[tokio::test]
+async fn get_block_hash() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies
+        .storage_reader
+        .expect_get_block_hash()
+        .returning(|_| Ok(Some(BlockHash::default())));
+
+    let batcher = create_batcher(mock_dependencies).await;
+    let result = batcher.get_block_hash(INITIAL_HEIGHT);
+    assert_eq!(result, Ok(BlockHash::default()));
+}
+
+#[tokio::test]
+async fn get_block_hash_not_found() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.storage_reader.expect_get_block_hash().returning(|_| Ok(None));
+    let batcher = create_batcher(mock_dependencies).await;
+    let result = batcher.get_block_hash(INITIAL_HEIGHT);
+    assert_eq!(result, Err(BatcherError::BlockHashNotFound(INITIAL_HEIGHT)));
+}
+
+#[tokio::test]
+async fn get_block_hash_error() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies
+        .storage_reader
+        .expect_get_block_hash()
+        .returning(|_| Err(StorageError::InnerError(DbError::InnerDeserialization)));
+    let batcher = create_batcher(mock_dependencies).await;
+    let result = batcher.get_block_hash(INITIAL_HEIGHT);
+    assert_eq!(result, Err(BatcherError::InternalError));
 }
