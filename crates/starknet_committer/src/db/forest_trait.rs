@@ -17,6 +17,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 pub enum ForestMetadataType {
     CommitmentOffset,
     StateDiffHash(BlockNumber),
+    StateRoot(BlockNumber),
 }
 
 #[async_trait]
