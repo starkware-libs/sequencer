@@ -225,7 +225,7 @@ impl ProcessTxBlockingTask {
 
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
-
+        let tx_signature = self.tx.signature().clone();
         let internal_tx = self
             .runtime
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
