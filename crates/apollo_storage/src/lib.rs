@@ -698,6 +698,8 @@ pub enum StorageError {
     EventNotFound { event_index: EventIndex, from_address: ContractAddress },
     #[error("DB in inconsistent state: {msg:?}.")]
     DBInconsistency { msg: String },
+    #[error("{resource_type} not found: {resource_id}")]
+    NotFound { resource_type: String, resource_id: String },
     /// Errors related to the underlying files.
     #[error(transparent)]
     MMapFileError(#[from] MMapFileError),
