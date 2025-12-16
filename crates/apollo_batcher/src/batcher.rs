@@ -244,6 +244,8 @@ impl Batcher {
         Ok(())
     }
 
+    // TODO(Rotem): Once the fallback option to state sync is removed - remove
+    // `retrospective_block_hash` from the input and get it from storage instead.
     #[instrument(skip(self), err)]
     pub async fn propose_block(
         &mut self,
