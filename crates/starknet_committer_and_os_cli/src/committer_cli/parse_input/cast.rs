@@ -5,6 +5,7 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
     FactsDbInitialRead,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -14,6 +15,7 @@ use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
+use tracing::level_filters::LevelFilter;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
@@ -22,6 +24,7 @@ pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 #[derive(Debug, PartialEq)]
 pub struct CommitterFactsDbInputImpl {
     pub input: FactsDbInputImpl,
+    pub log_level: LevelFilter,
     pub storage: MapStorage,
 }
 
@@ -97,9 +100,9 @@ impl TryFrom<RawInput> for CommitterFactsDbInputImpl {
                 class_hash_to_compiled_class_hash,
                 storage_updates,
             },
-            config: raw_input.config.into(),
+            config: ReaderConfig::new(raw_input.config.warn_on_trivial_modifications),
         };
-        Ok(Self { input, storage })
+        Ok(Self { input, log_level: raw_input.config.log_level.into(), storage })
     }
 }
 
