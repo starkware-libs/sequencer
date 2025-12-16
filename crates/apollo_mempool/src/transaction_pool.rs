@@ -11,7 +11,10 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::metrics::TRANSACTION_TIME_SPENT_UNTIL_COMMITTED;
+use crate::metrics::{
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
+};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -114,21 +117,34 @@ impl TransactionPool {
     ) -> usize {
         let removed_txs = self.txs_by_account.remove_up_to_nonce(address, nonce);
 
+        let now = self.txs_by_submission_time.clock.now();
         for tx_ref in &removed_txs {
             let submission_time = self
                 .get_submission_time(tx_ref.tx_hash)
                 .expect("Transaction must still be in Mempool when recording commit latency");
-            let time_spent = (self.txs_by_submission_time.clock.now() - submission_time)
-                .to_std()
-                .unwrap()
-                .as_secs_f64();
+            let time_spent = (now - submission_time).to_std().unwrap().as_secs_f64();
             TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent);
+
+            if let Some(batching_time) =
+                self.txs_by_submission_time.take_batching_time(tx_ref.tx_hash)
+            {
+                let time_until_batched = (batching_time - submission_time)
+                    .to_std()
+                    .expect("batching_time must be later than submission_time")
+                    .as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_BATCHED.record(time_until_batched);
+            }
         }
 
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_timed_mapping(&removed_txs);
 
         removed_txs.len()
+    }
+
+    /// Marks the transaction as "taken for batching" (returned by `get_txs`).
+    pub fn mark_taken_for_batching(&mut self, tx_hash: TransactionHash, now: DateTime) {
+        self.txs_by_submission_time.mark_taken_for_batching(tx_hash, now);
     }
 
     pub fn remove_txs_older_than(
@@ -326,11 +342,22 @@ impl PoolSize {
 }
 
 /// Uniquely identify a transaction submission.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 struct SubmissionID {
     submission_time: DateTime,
     tx_hash: TransactionHash,
+    // For txs that were returned by `get_txs` (i.e. taken for batching). Used to record
+    // `TRANSACTION_TIME_SPENT_UNTIL_BATCHED` only once they actually commit.
+    batching_time: Option<DateTime>,
 }
+
+impl PartialEq for SubmissionID {
+    fn eq(&self, other: &Self) -> bool {
+        self.submission_time == other.submission_time && self.tx_hash == other.tx_hash
+    }
+}
+
+impl Eq for SubmissionID {}
 
 // Implementing the `Ord` trait based on the transaction's duration in the pool. I.e. a transaction
 // that has been in the pool for a longer time will be considered "greater" than a transaction that
@@ -368,7 +395,11 @@ impl TimedTransactionMap {
     /// If a transaction with the same transaction hash already exists in the mapping, the previous
     /// submission ID is returned.
     fn insert(&mut self, tx: TransactionReference) -> Option<SubmissionID> {
-        let submission_id = SubmissionID { submission_time: self.clock.now(), tx_hash: tx.tx_hash };
+        let submission_id = SubmissionID {
+            submission_time: self.clock.now(),
+            tx_hash: tx.tx_hash,
+            batching_time: None,
+        };
         self.txs_by_submission_time.insert(submission_id.clone(), tx);
         self.hash_to_submission_id.insert(tx.tx_hash, submission_id)
     }
@@ -391,6 +422,7 @@ impl TimedTransactionMap {
         let split_off_value = SubmissionID {
             submission_time: self.clock.now() - duration,
             tx_hash: Default::default(),
+            batching_time: None,
         };
         let old_txs = self.txs_by_submission_time.split_off(&split_off_value);
 
@@ -409,5 +441,19 @@ impl TimedTransactionMap {
         }
 
         removed_txs
+    }
+
+    /// Marks the transaction as "taken for batching" (returned by `get_txs`).
+    fn mark_taken_for_batching(&mut self, tx_hash: TransactionHash, now: DateTime) {
+        let submission_id = self.hash_to_submission_id.get_mut(&tx_hash).expect(
+            "Transaction pool consistency error: tried to mark tx as taken for batching, but it \
+             has no submission ID.",
+        );
+        // Overwrite each time the tx is returned by `get_txs`.
+        submission_id.batching_time = Some(now);
+    }
+
+    fn take_batching_time(&mut self, tx_hash: TransactionHash) -> Option<DateTime> {
+        self.hash_to_submission_id.get_mut(&tx_hash)?.batching_time.take()
     }
 }
