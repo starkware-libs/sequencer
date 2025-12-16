@@ -9,7 +9,6 @@ use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
-use tracing::level_filters::LevelFilter;
 
 use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
 
@@ -119,15 +118,14 @@ impl From<ThinStateDiff> for StateDiff {
 }
 
 /// All optional configurations of the committer.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
-    log_level: LevelFilter,
 }
 
 impl ReaderConfig {
-    pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
-        Self { warn_on_trivial_modifications, log_level }
+    pub fn new(warn_on_trivial_modifications: bool) -> Self {
+        Self { warn_on_trivial_modifications }
     }
 
     /// Indicates whether a warning should be given in case of a trivial state update.
@@ -135,17 +133,6 @@ impl ReaderConfig {
     /// the modified leaves. Otherwise, it is not required.
     pub fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
-    }
-
-    /// Indicates from which log level output should be printed out to console.
-    pub fn logger_level(&self) -> LevelFilter {
-        self.log_level
-    }
-}
-
-impl Default for ReaderConfig {
-    fn default() -> Self {
-        Self { warn_on_trivial_modifications: false, log_level: LevelFilter::INFO }
     }
 }
 

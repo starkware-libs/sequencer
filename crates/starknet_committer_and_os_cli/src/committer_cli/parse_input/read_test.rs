@@ -220,11 +220,15 @@ fn test_simple_input_parsing() {
             contracts_trie_root_hash: expected_contracts_trie_root_hash,
             classes_trie_root_hash: expected_classes_trie_root_hash,
         }),
-        config: ReaderConfig::new(true, LevelFilter::DEBUG),
+        config: ReaderConfig::new(true),
     };
     assert_eq!(
         parse_input(input).unwrap(),
-        CommitterFactsDbInputImpl { input: expected_input, storage: MapStorage(expected_storage) }
+        CommitterFactsDbInputImpl {
+            input: expected_input,
+            log_level: LevelFilter::DEBUG,
+            storage: MapStorage(expected_storage)
+        }
     );
 }
 
