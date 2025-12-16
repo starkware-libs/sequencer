@@ -890,16 +890,20 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "async-trait",
+ "axum",
  "blockifier",
  "chrono",
  "derive_more 0.99.20",
  "indexmap 2.12.0",
  "mockall",
  "serde",
+ "serde_json",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
 ]
 
 [[package]]

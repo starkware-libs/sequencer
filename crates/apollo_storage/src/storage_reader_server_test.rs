@@ -3,14 +3,13 @@ use std::net::{IpAddr, Ipv4Addr};
 use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockNumber};
 use tower::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
-use crate::storage_reader_server_test_utils::{send_storage_query, to_bytes};
+use crate::storage_reader_server_test_utils::{get_response, send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
 
@@ -76,12 +75,7 @@ async fn test_endpoint_successful_query() {
 
     // Test query for existing block
     let request = TestRequest { block_number: 0 };
-    let response = send_storage_query(app.clone(), &request).await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = to_bytes(response).await;
-    let test_response: TestResponse = serde_json::from_slice(&body).unwrap();
+    let test_response: TestResponse = get_response(app.clone(), &request, StatusCode::OK).await;
 
     assert!(test_response.found);
 }
@@ -98,12 +92,7 @@ async fn test_endpoint_query_nonexistent_block() {
 
     // Test query for non-existent block
     let request = TestRequest { block_number: 999 };
-    let response = send_storage_query(app, &request).await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = to_bytes(response).await;
-    let test_response: TestResponse = serde_json::from_slice(&body).unwrap();
+    let test_response: TestResponse = get_response(app, &request, StatusCode::OK).await;
 
     assert!(!test_response.found);
 }
