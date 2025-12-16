@@ -692,16 +692,9 @@ impl IntegrationTestManager {
             .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
             .expect("There should be at least one running or idle node");
 
-        for executable_setup in node_setup.get_executables() {
-            if let Some(state_sync_config) = executable_setup.get_config().clone().state_sync_config
-            {
-                return SocketAddr::from((
-                    state_sync_config.rpc_config.ip,
-                    state_sync_config.rpc_config.port,
-                ));
-            }
-        }
-        unreachable!("No executable with a set state sync config.")
+        let state_sync_config =
+            node_setup.get_state_sync().get_config().clone().state_sync_config.unwrap();
+        SocketAddr::from((state_sync_config.rpc_config.ip, state_sync_config.rpc_config.port))
     }
 
     // Verify with JSON RPC server if the last block is the expected one.
