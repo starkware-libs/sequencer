@@ -196,7 +196,7 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_gas,
     );
-    let committer_config = CommitterConfig { enable_committer: true };
+    let committer_config = CommitterConfig::default();
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);

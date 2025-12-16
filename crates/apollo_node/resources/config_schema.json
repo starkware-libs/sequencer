@@ -479,8 +479,8 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "committer_config.enable_committer": {
-    "description": "Placeholder configuration.",
+  "committer_config.reader_config.warn_on_trivial_modifications": {
+    "description": "Whether to warn on trivial state update.",
     "privacy": "Public",
     "value": false
   },
