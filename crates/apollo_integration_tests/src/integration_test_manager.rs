@@ -895,19 +895,15 @@ impl IntegrationTestManager {
     /// the given node indices.
     /// It queries the state sync monitoring client to get the latest value of the processed txs
     /// metric.
-    // TODO(noamsp): await on multiple nodes instead of a loop.
     pub async fn get_num_accepted_txs_on_running_nodes(
         &self,
         node_indices: &HashSet<usize>,
     ) -> HashMap<usize, usize> {
-        let mut result = HashMap::new();
-        for node_idx in node_indices {
-            let running_node = self.running_nodes.get(node_idx).expect("Running node should exist");
+        self.perform_action_on_running_nodes(node_indices.clone(), |running_node| async {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            let num_accepted = sequencer_num_accepted_txs(monitoring_client).await;
-            result.insert(*node_idx, num_accepted);
-        }
-        result
+            sequencer_num_accepted_txs(monitoring_client).await
+        })
+        .await
     }
 
     /// This function returns the number of accepted transactions on all running nodes.
