@@ -28,7 +28,10 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+use crate::metrics::{
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ClientsError {
@@ -230,12 +233,11 @@ pub(crate) async fn retrospective_block_hash(
                             ClientsError::from_errors(batcher_error.clone(), state_sync_error)
                         },
                     )?;
-                    // TODO(Rotem): Add a metric to track if we fall back to state sync and it
-                    // succeeds.
                     warn!(
                         "Failed to get block hash for block {block_number} from batcher, fell \
                          back to state sync and succeeded. Error: {batcher_error:?}"
                     );
+                    CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC.increment(1);
                     block_hash
                 }
             };

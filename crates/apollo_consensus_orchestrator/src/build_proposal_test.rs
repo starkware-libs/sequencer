@@ -23,6 +23,7 @@ use apollo_time::time::DateTime;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -32,6 +33,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+use crate::metrics::CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
@@ -156,6 +158,8 @@ async fn build_proposal_succeed() {
 
 #[tokio::test]
 async fn batcher_error_state_sync_succeed() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
@@ -185,6 +189,11 @@ async fn batcher_error_state_sync_succeed() {
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
     assert_eq!(res, ConsensusProposalCommitment::default());
+    assert_eq!(
+        CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC
+            .parse_numeric_metric::<u64>(&recorder.handle().render()),
+        Some(1)
+    );
 }
 
 #[tokio::test]
