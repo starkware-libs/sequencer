@@ -6,6 +6,7 @@ use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use strum::Display;
 
@@ -15,21 +16,23 @@ use crate::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 #[derive(Debug, thiserror::Error)]
 pub enum Cairo0EntryPointRunnerError {
     #[error(transparent)]
+    BuiltinMismatchError(#[from] BuiltinMismatchError),
+    #[error(transparent)]
     ExplicitArg(#[from] ExplicitArgError),
     #[error(transparent)]
-    VirtualMachine(#[from] VirtualMachineError),
-    #[error(transparent)]
     ImplicitArg(#[from] ImplicitArgError),
+    #[error(transparent)]
+    LoadReturnValue(#[from] LoadReturnValueError),
     #[error(transparent)]
     Program(#[from] ProgramError),
     #[error(transparent)]
     ProgramSerde(#[from] serde_json::Error),
     #[error(transparent)]
-    BuiltinMismatchError(#[from] BuiltinMismatchError),
-    #[error(transparent)]
     RunCairoEndpoint(#[from] Box<CairoRunError>),
     #[error(transparent)]
-    LoadReturnValue(#[from] LoadReturnValueError),
+    VirtualMachine(#[from] VirtualMachineError),
+    #[error(transparent)]
+    VmRunner(#[from] RunnerError),
 }
 
 #[derive(Debug, thiserror::Error)]
