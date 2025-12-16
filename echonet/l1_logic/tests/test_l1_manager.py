@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 
@@ -21,11 +20,11 @@ class TestL1Manager(unittest.TestCase):
         )
 
     def test_empty_queue_returns_defaults(self):
-        block_number = json.loads(self.manager.get_block_number())
+        block_number = self.manager.get_block_number()
         self.assertEqual(block_number, {"jsonrpc": "2.0", "id": "1", "result": None})
 
         block_number_hex = hex(1)
-        block = json.loads(self.manager.get_block_by_number(block_number_hex))
+        block = self.manager.get_block_by_number(block_number_hex)
         self.assertEqual(
             block,
             {
@@ -35,7 +34,7 @@ class TestL1Manager(unittest.TestCase):
             },
         )
 
-        logs = json.loads(self.manager.get_logs(0, 100))
+        logs = self.manager.get_logs(0, 100)
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
 
     @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
@@ -47,13 +46,13 @@ class TestL1Manager(unittest.TestCase):
         self.manager.set_new_tx(L1TestUtils.FEEDER_TX, L1TestUtils.L2_BLOCK_TIMESTAMP)
 
         # Test.
-        block_number = json.loads(self.manager.get_block_number())
+        block_number = self.manager.get_block_number()
         self.assertEqual(block_number, L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE)
 
-        block = json.loads(self.manager.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX))
+        block = self.manager.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
         self.assertEqual(block, L1TestUtils.BLOCK_RPC_RESPONSE)
 
-        logs = json.loads(self.manager.get_logs(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER))
+        logs = self.manager.get_logs(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
     @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
@@ -74,11 +73,11 @@ class TestL1Manager(unittest.TestCase):
             self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
 
         # get_block_number returns latest block in manager.
-        result = json.loads(self.manager.get_block_number())
+        result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30))
 
         # get_logs merges all logs in range.
-        result = json.loads(self.manager.get_logs(10, 30))
+        result = self.manager.get_logs(10, 30)
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
@@ -91,7 +90,7 @@ class TestL1Manager(unittest.TestCase):
         self.assertEqual(result, expected_logs)
 
         # get_logs with partial range (only 20 exists in 15-25).
-        result = json.loads(self.manager.get_logs(15, 25))
+        result = self.manager.get_logs(15, 25)
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
@@ -118,16 +117,16 @@ class TestL1Manager(unittest.TestCase):
 
         # get_block_by_number removed older blocks (< 20).
         self.manager.get_block_by_number(hex(20))
-        result = json.loads(self.manager.get_block_by_number(hex(10)))
+        result = self.manager.get_block_by_number(hex(10))
         # Block 10 was cleaned up, should return default block.
         self.assertEqual(result["result"], L1Manager.default_l1_block(hex(10)))
-        result = json.loads(self.manager.get_block_by_number(hex(20)))
+        result = self.manager.get_block_by_number(hex(20))
         self.assertEqual(result["result"]["number"], hex(20))
-        result = json.loads(self.manager.get_block_by_number(hex(30)))
+        result = self.manager.get_block_by_number(hex(30))
         self.assertEqual(result["result"]["number"], hex(30))
 
         # get_block_number still returns 30.
-        result = json.loads(self.manager.get_block_number())
+        result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30))
 
 
