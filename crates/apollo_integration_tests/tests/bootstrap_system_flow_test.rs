@@ -4,14 +4,28 @@
 //! The system starts with no genesis block, no accounts, no contracts - truly empty storage.
 //! Bootstrap transactions are used to initialize the system from scratch.
 
+use std::fs::File;
+use std::path::PathBuf;
+
 use apollo_infra_utils::test_utils::TestIdentifier;
-use mempool_test_utils::starknet_api_test_utils::generate_bootstrap_declare;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::common::{end_to_end_flow, EndToEndFlowArgs, TestScenario};
 
 mod common;
+
+/// Loads the bootstrap declare transaction from the JSON file.
+fn load_bootstrap_declare_tx() -> RpcTransaction {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let json_path = manifest_dir.join("tests/test_data/bootstrap_declare.json");
+
+    let file = File::open(&json_path)
+        .unwrap_or_else(|e| panic!("Failed to open {}: {}", json_path.display(), e));
+    serde_json::from_reader(file)
+        .unwrap_or_else(|e| panic!("Failed to parse {}: {}", json_path.display(), e))
+}
 
 /// Creates test scenarios for bootstrapping the system.
 /// Each scenario sends bootstrap transactions to declare and deploy contracts.
@@ -19,8 +33,8 @@ fn create_bootstrap_scenarios() -> Vec<TestScenario> {
     vec![
         // First scenario: Send a bootstrap declare transaction
         TestScenario {
-            // Use generated bootstrap declare transaction (from the special bootstrap address)
-            create_rpc_txs_fn: |_tx_generator| vec![generate_bootstrap_declare()],
+            // Load the bootstrap declare transaction from JSON file
+            create_rpc_txs_fn: |_tx_generator| vec![load_bootstrap_declare_tx()],
             create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_bootstrap_tx,
         },
