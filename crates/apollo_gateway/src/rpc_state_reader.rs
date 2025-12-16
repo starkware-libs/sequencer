@@ -168,7 +168,9 @@ impl BlockifierStateReader for RpcStateReader {
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        todo!()
+        // Return a dummy compiled class hash - this is only used for simulation
+        // and the actual value doesn't affect execution when validation is skipped.
+        Ok(CompiledClassHash(Felt::ONE))
     }
 }
 

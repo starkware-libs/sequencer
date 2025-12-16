@@ -165,6 +165,16 @@ impl StateReader for RpcStateReader {
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.rpc_state_reader.get_compiled_class_hash(class_hash)
     }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        _class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        // Return a dummy compiled class hash - this is used for simulation
+        // and the actual value doesn't affect execution when validation is skipped.
+        Ok(CompiledClassHash(Felt::ONE))
+    }
 }
 
 impl FetchCompiledClasses for RpcStateReader {
@@ -498,7 +508,8 @@ impl ConsecutiveRpcStateReaders {
         let block_context = transaction_executor.block_context.as_ref().clone();
 
         let (tx_execution_info, state_diff) = transaction_executor.execute(blockifier_tx)?;
-        let initial_reads = transaction_executor.block_state.as_ref().unwrap().get_initial_reads()?;
+        let initial_reads =
+            transaction_executor.block_state.as_ref().unwrap().get_initial_reads()?;
         Ok(((tx_execution_info, state_diff), initial_reads, block_context))
     }
 
