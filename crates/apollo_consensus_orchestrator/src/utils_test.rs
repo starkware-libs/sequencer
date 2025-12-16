@@ -5,11 +5,13 @@ use apollo_protobuf::consensus::ConsensusBlockInfo;
 use apollo_state_sync_types::communication::{StateSyncClientError, StateSyncClientResult};
 use apollo_state_sync_types::errors::StateSyncError;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
+use crate::metrics::CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC;
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
     get_l1_prices_in_fri_and_wei,
@@ -56,6 +58,8 @@ async fn retrospective_block_hash_happy_flow(
     #[case] batcher_result: BatcherClientResult<BlockHash>,
     #[case] state_sync_result: Option<StateSyncClientResult<BlockHash>>,
 ) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client.
@@ -66,8 +70,8 @@ async fn retrospective_block_hash_happy_flow(
         .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
         .times(1)
         .returning(move |_| batcher_result.clone());
-    // Setup state sync client only if batcher fails.
-    if let Some(state_sync_result) = state_sync_result {
+    // Setup state sync client and set metrics value only if batcher fails.
+    let metrics_value = state_sync_result.map(|state_sync_result| {
         test_proposal_args
             .deps
             .state_sync_client
@@ -75,7 +79,8 @@ async fn retrospective_block_hash_happy_flow(
             .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
             .times(1)
             .returning(move |_| state_sync_result.clone());
-    }
+        1
+    });
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
     let block_info = get_block_info(&proposal_args).await;
@@ -89,6 +94,11 @@ async fn retrospective_block_hash_happy_flow(
     assert_eq!(
         res,
         Some(BlockHashAndNumber { number: RETRO_BLOCK_NUMBER, hash: RETRO_BLOCK_HASH })
+    );
+    assert_eq!(
+        CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC
+            .parse_numeric_metric::<u64>(&recorder.handle().render()),
+        metrics_value
     );
 }
 
