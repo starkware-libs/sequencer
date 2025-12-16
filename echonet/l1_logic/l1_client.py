@@ -109,6 +109,24 @@ class L1Client:
             },
         )
 
+    def get_block_number(self) -> Optional[Dict]:
+        """
+        Get the latest block number using eth_blockNumber RPC method.
+        Tries up to retries_count times. On failure, logs an error and returns None.
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_blockNumber",
+            "params": [],
+            "id": 1,
+        }
+
+        request_func = functools.partial(requests.post, self.rpc_url, json=payload)
+        return self._run_request_with_retry(
+            request_func=request_func,
+            additional_log_context={"url": self.rpc_url},
+        )
+
     def get_block_by_number(self, block_number: str) -> Optional[Dict]:
         """
         Get block details by block number using eth_getBlockByNumber RPC method.
