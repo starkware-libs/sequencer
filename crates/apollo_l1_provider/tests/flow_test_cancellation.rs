@@ -133,9 +133,8 @@ async fn new_l1_handler_tx_propose_validate_cancellation_timelock() {
     );
 
     // The first tx is still cancelled.
-    // TODO(guyn): after we implement cancellation deletion we should update this to "not found".
     assert_eq!(
         l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
-        ValidationStatus::Invalid(InvalidValidationStatus::CancelledOnL2)
+        ValidationStatus::Invalid(InvalidValidationStatus::NotFound)
     );
 }

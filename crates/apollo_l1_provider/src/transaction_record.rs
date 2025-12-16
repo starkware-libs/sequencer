@@ -100,6 +100,14 @@ impl TransactionRecord {
         }
     }
 
+    /// Mark a transaction as cancelled on L1.
+    // This happens just before the tx is removed from the transaction manager.
+    // It is useful to change the state so that maintain_indices can remove it from the proposable
+    // index.
+    pub fn mark_cancellation_finalized_on_l1(&mut self) {
+        self.state = TransactionState::CancellationFinalizedOnL1;
+    }
+
     /// Mark a transaction as consumed on L1.
     /// The timestamp is the L1 block timestamp where this tx was marked consumed.
     /// If tx was not already consumed (expected result), return None.
@@ -251,6 +259,7 @@ impl From<TransactionHash> for TransactionPayload {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TransactionState {
     CancellationStartedOnL2,
+    CancellationFinalizedOnL1,
     CancelledOnL2,
     Committed,
     Consumed,
