@@ -237,6 +237,8 @@ define_string_enum! {
         (PrevAliasesStateEntry),
         (PrevRoot),
         (PrevValue),
+        (ProofFacts),
+        (ProofFactsSize),
         (PublicKeys),
         (SnPrivateKeys),
         (RangeCheck96Ptr, "range_check96_ptr"),

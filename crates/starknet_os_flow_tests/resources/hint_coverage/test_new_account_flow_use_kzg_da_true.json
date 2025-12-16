@@ -315,6 +315,9 @@
     "OsHint": "TxAccountDeploymentData"
   },
   {
+    "OsHint": "TxProofFacts"
+  },
+  {
     "OsHint": "GenSignatureArg"
   },
   {

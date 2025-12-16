@@ -723,7 +723,8 @@ impl InvokeTransaction {
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData),
-        (account_deployment_data, AccountDeploymentData)
+        (account_deployment_data, AccountDeploymentData),
+        (proof_facts, ProofFacts)
     );
 
     pub fn nonce(&self) -> Nonce {

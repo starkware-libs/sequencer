@@ -482,6 +482,10 @@ func execute_invoke_function_transaction{
     local account_deployment_data: felt* = cast(
         nondet %{ segments.gen_arg(tx.account_deployment_data) %}, felt*
     );
+    local proof_facts_size;
+    local proof_facts: felt*;
+    %{ TxProofFacts %}
+
     let poseidon_ptr = builtin_ptrs.selectable.poseidon;
     // TODO(Meshi): use the invoke transaction proof facts once implemented.
     with poseidon_ptr {
@@ -502,14 +506,13 @@ func execute_invoke_function_transaction{
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
-    // TODO(Meshi): use the invoke transaction proof facts once implemented.
     fill_account_tx_info(
         transaction_hash=transaction_hash,
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=account_deployment_data_size,
         account_deployment_data=account_deployment_data,
-        proof_facts_size=0,
-        proof_facts=cast(0, felt*),
+        proof_facts_size=proof_facts_size,
+        proof_facts=proof_facts,
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=tx_execution_context.deprecated_tx_info,
     );
