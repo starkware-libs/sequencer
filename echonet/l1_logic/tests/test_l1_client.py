@@ -106,7 +106,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = L1TestUtils.BLOCK_RPC_RESPONSE
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER)
 
         self.assertEqual(result, L1TestUtils.BLOCK_TIMESTAMP)
         mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER_HEX)
@@ -118,7 +118,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = None
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER)
 
         self.assertIsNone(result)
 
@@ -129,7 +129,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = L1TestUtils.block_rpc_response_with_block(None)
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER)
 
         self.assertIsNone(result)
 

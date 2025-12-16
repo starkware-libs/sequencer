@@ -145,12 +145,12 @@ class L1Client:
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
 
-    def get_timestamp_of_block(self, block_number: str) -> Optional[int]:
+    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        response = self.get_block_by_number(block_number)
+        response = self.get_block_by_number(hex(block_number))
         if response is None:
             return None
 
