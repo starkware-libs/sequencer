@@ -128,9 +128,9 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
         let latest_l1_block_number = latest_l1_block_number.checked_sub(finality).ok_or(
-            L1ScraperError::FinalityTooHigh {
-                finality,
+            L1ScraperError::LatestBlockNumberTooLow {
                 latest_l1_block_no_finality: latest_l1_block_number,
+                finality,
             },
         )?;
         debug!("Latest L1 block number: {latest_l1_block_number:?}");
@@ -259,7 +259,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             .map_err(L1ScraperError::BaseLayerError)?;
         let latest_l1_block_number = latest_l1_block_number
             .checked_sub(self.config.finality)
-            .ok_or(L1ScraperError::FinalityTooHigh {
+            .ok_or(L1ScraperError::LatestBlockNumberTooLow {
                 finality: self.config.finality,
                 latest_l1_block_no_finality: latest_l1_block_number,
             })?;
@@ -437,10 +437,10 @@ pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync + Debug> 
     #[error("Base layer error: {0}")]
     BaseLayerError(BaseLayerType::Error),
     #[error(
-        "Could not find block number. Finality {finality:?}, latest block: \
-         {latest_l1_block_no_finality:?}"
+        "Latest L1 block number is too low: latest L1 block number: \
+         {latest_l1_block_no_finality:?}, finality: {finality:?}"
     )]
-    FinalityTooHigh { finality: u64, latest_l1_block_no_finality: L1BlockNumber },
+    LatestBlockNumberTooLow { latest_l1_block_no_finality: L1BlockNumber, finality: u64 },
     #[error("Block number {block_number} not found")]
     LatestL1BlockNumberNoBlockFound { block_number: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
@@ -462,9 +462,10 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::BaseLayerError(e1), Self::BaseLayerError(e2)) => e1 == e2,
-            (this @ Self::FinalityTooHigh { .. }, other @ Self::FinalityTooHigh { .. }) => {
-                this == other
-            }
+            (
+                this @ Self::LatestBlockNumberTooLow { .. },
+                other @ Self::LatestBlockNumberTooLow { .. },
+            ) => this == other,
             (Self::HashCalculationError(e1), Self::HashCalculationError(e2)) => e1 == e2,
             (Self::NetworkError(e1), Self::NetworkError(e2)) => e1 == e2,
             (this @ Self::L1ReorgDetected { .. }, other @ Self::L1ReorgDetected { .. }) => {
