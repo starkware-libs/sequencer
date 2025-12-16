@@ -9,6 +9,7 @@ description = "Configuration types for Apollo committer"
 [dependencies]
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet_committer.workspace = true
 validator.workspace = true
 
 [lints]

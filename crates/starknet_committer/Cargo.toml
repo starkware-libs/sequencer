@@ -10,6 +10,7 @@ description = "Computes and manages Starknet state."
 testing = ["starknet_patricia/testing"]
 
 [dependencies]
+apollo_config.workspace = true
 async-trait.workspace = true
 csv.workspace = true
 ethnum.workspace = true

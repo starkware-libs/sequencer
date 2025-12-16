@@ -1074,6 +1074,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "starknet_committer",
  "validator",
 ]
 
@@ -1724,6 +1725,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "static_assertions",
  "strum 0.25.0",
  "tempfile",
@@ -12282,6 +12284,7 @@ dependencies = [
 name = "starknet_committer"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_config",
  "async-trait",
  "csv",
  "ethnum",
