@@ -118,7 +118,7 @@ pub(crate) trait Reader<V: ValueSerde> {
 }
 
 /// Represents a location in the file.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LocationInFile {
     /// Offset in the file.
     offset: usize,
