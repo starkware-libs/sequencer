@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BlockBuilderConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -52,6 +56,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
+use starknet_types_core::felt::Felt;
 use validator::Validate;
 
 use crate::batcher::{
@@ -95,6 +100,8 @@ use crate::test_utils::{
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber = INITIAL_HEIGHT.unchecked_next();
+const DUMMY_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0xdeadbeef"));
 const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
 const STREAMING_CHUNK_SIZE: usize = 3;
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
@@ -184,7 +191,15 @@ impl Default for MockDependencies {
 
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     let mut batcher = Batcher::new(
-        BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
+        BatcherConfig {
+            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+            first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash {
+                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                parent_block_hash: DUMMY_BLOCK_HASH,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
         Arc::new(mock_dependencies.committer_client),
@@ -1077,6 +1092,113 @@ async fn add_sync_block_missing_block_header_commitments() {
     };
     let result = batcher.add_sync_block(sync_block).await;
     assert_eq!(result, Err(BatcherError::MissingHeaderCommitments { block_number: INITIAL_HEIGHT }))
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "is at least the first block configured to include a partial hash")]
+async fn add_sync_block_missing_block_header_commitments_for_new_block() {
+    let block_number = FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.unchecked_next();
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(move || Ok(block_number));
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    // Block number > FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH but starknet_version does not
+    // have partial block hash components, and block_header_commitments is None.
+    // This should trigger the assertion.
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number,
+            starknet_version: StarknetVersion::V0_13_1,
+            ..Default::default()
+        },
+        state_diff: Default::default(),
+        account_transaction_hashes: Default::default(),
+        l1_transaction_hashes: Default::default(),
+        block_header_commitments: None,
+    };
+    let _ = batcher.add_sync_block(sync_block).await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn add_sync_block_for_first_new_block() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+
+    // Expect setting the block hash for the last old block (i.e the parent of the first new block).
+    mock_dependencies
+        .storage_writer
+        .expect_set_block_hash()
+        .times(1)
+        .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()), eq(DUMMY_BLOCK_HASH))
+        .returning(|_, _| Ok(()));
+    mock_dependencies
+        .storage_writer
+        .expect_commit_proposal()
+        .times(1)
+        .with(
+            eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH),
+            eq(ThinStateDiff::default()),
+            eq(StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
+                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                ..Default::default()
+            })),
+        )
+        .returning(|_, _, _| Ok(()));
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_commit_block()
+        .times(1)
+        .with(
+            eq(IndexSet::new()),
+            eq(IndexSet::new()),
+            eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH),
+        )
+        .returning(|_, _, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+            starknet_version: StarknetVersion::LATEST,
+            parent_hash: DUMMY_BLOCK_HASH,
+            ..Default::default()
+        },
+        block_header_commitments: Some(Default::default()),
+        ..Default::default()
+    };
+    batcher.add_sync_block(sync_block).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "does not match the configured parent block hash")]
+async fn add_sync_block_parent_hash_mismatch() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    // Provide a parent_hash that doesn't match the configured DUMMY_BLOCK_HASH.
+    let wrong_parent_hash = BlockHash(Felt::from_hex_unchecked("0xbadbeef"));
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+            starknet_version: StarknetVersion::LATEST,
+            parent_hash: wrong_parent_hash,
+            ..Default::default()
+        },
+        block_header_commitments: Some(Default::default()),
+        ..Default::default()
+    };
+    let _ = batcher.add_sync_block(sync_block).await;
 }
 
 #[tokio::test]

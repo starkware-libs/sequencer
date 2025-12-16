@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     BatcherStorageReaderServerHandler,
@@ -634,9 +634,18 @@ impl Batcher {
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
 
-        // TODO(Nimrod): Handle the very specific case where the given block is the first new block.
         let storage_commitment_block_hash =
             if block_header_without_hash.starknet_version.has_partial_block_hash_components() {
+                // Check if the sync reached the first block with partial block hash components.
+                if height == self.config.first_block_with_partial_block_hash.block_number {
+                    self.handle_first_block_with_partial_block_hash(
+                        block_header_without_hash.parent_hash,
+                    )
+                    .map_err(|err| {
+                        error!("Error handling first block with partial block hash: {}", err);
+                        BatcherError::InternalError
+                    })?;
+                }
                 match block_header_commitments {
                     Some(header_commitments) => {
                         StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
@@ -653,8 +662,15 @@ impl Batcher {
                     None => return Err(BatcherError::MissingHeaderCommitments { block_number }),
                 }
             } else {
+                assert!(
+                    height < self.config.first_block_with_partial_block_hash.block_number,
+                    "Height {height} is at least the first block configured to include a partial \
+                     hash ({}) but does not include one.",
+                    self.config.first_block_with_partial_block_hash.block_number
+                );
                 StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
             };
+
         self.commit_proposal_and_block(
             height,
             state_diff,
@@ -949,6 +965,40 @@ impl Batcher {
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.abort_signal_sender.send(()).ok();
         }
+    }
+
+    /// Handles the first block with partial block hash components by setting the parent hash
+    /// written in [BatcherConfig::first_block_with_partial_block_hash].
+    fn handle_first_block_with_partial_block_hash(
+        &mut self,
+        parent_block_hash_from_sync: BlockHash,
+    ) -> StorageResult<()> {
+        let FirstBlockWithPartialBlockHash { block_number, parent_block_hash, .. } =
+            self.config.first_block_with_partial_block_hash;
+
+        // Sanity check: verify that the parent block hash from sync matches the configured one.
+        assert_eq!(
+            parent_block_hash, parent_block_hash_from_sync,
+            "The parent block hash from sync ({parent_block_hash_from_sync:?}) does not match the \
+             configured parent block hash ({parent_block_hash:?}) of the first new block"
+        );
+
+        info!(
+            "The first block with partial block hash components ({block_number}) has been \
+             reached. Subsequent blocks will include partial block hash components."
+        );
+        match block_number.prev() {
+            Some(parent_block_number) => {
+                self.storage_writer.set_block_hash(parent_block_number, parent_block_hash)?
+            }
+            None => {
+                info!(
+                    "The first block with partial block hash components is the genesis block. No \
+                     parent block hash to verify."
+                );
+            }
+        }
+        Ok(())
     }
 
     pub async fn await_active_proposal(
