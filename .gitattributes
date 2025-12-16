@@ -5,4 +5,4 @@ crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json -d
 
 # Hint coverage of specific test cases do not require review - we use these artifacts to compute the
 # list of all uncovered hints, which *should* be reviewed.
-crates/starknet_os_flow_tests/resources/hint_coverage/*.json -diff
+crates/starknet_os/resources/hint_coverage/*.json -diff
