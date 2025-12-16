@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -618,7 +618,11 @@ impl Batcher {
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
 
-        // TODO(Nimrod): Handle the very specific case where the given block is the first new block.
+        // Check if the sync reached the first block with partial block hash components.
+        if height == self.config.first_block_with_partial_block_hash.block_number {
+            self.handle_first_block_with_partial_block_hash()
+        }
+
         let storage_commitment_block_hash =
             if block_header_without_hash.starknet_version.has_partial_block_hash_components() {
                 match block_header_commitments {
@@ -932,6 +936,31 @@ impl Batcher {
         self.active_proposal.lock().await.take();
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.abort_signal_sender.send(()).ok();
+        }
+    }
+
+    /// Handles the first block with partial block hash components by setting the parent hash
+    /// written in [BatcherConfig::first_block_with_partial_block_hash].
+    fn handle_first_block_with_partial_block_hash(&mut self) {
+        let FirstBlockWithPartialBlockHash { block_number, parent_block_hash, .. } =
+            self.config.first_block_with_partial_block_hash;
+        info!(
+            "The first block with partial block hash components ({}) has been reached. Subsequent \
+             blocks will include partial block hash components.",
+            block_number
+        );
+        match block_number.prev() {
+            Some(parent_block_number) => self
+                .storage_writer
+                .set_block_hash(parent_block_number, parent_block_hash)
+                .expect("Failed to set the parent block hash of the first new block."),
+
+            None => {
+                info!(
+                    "The first block with partial block hash components is the genesis block. No \
+                     parent block hash to verify."
+                );
+            }
         }
     }
 

@@ -91,6 +91,7 @@ impl CommitmentManager {
 
     /// Fetches all ready commitment results from the state committer.
     pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
+        // TODO(Nimrod): Once this function is used, take into account the first new block.
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {

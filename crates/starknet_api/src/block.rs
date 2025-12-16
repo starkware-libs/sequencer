@@ -296,7 +296,7 @@ pub struct BlockNumber(pub u64);
 
 impl BlockNumber {
     /// Returns the next block number, without checking if it's in range.
-    pub fn unchecked_next(&self) -> BlockNumber {
+    pub const fn unchecked_next(&self) -> BlockNumber {
         BlockNumber(self.0 + 1)
     }
 
