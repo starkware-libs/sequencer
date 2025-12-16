@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use apollo_starknet_os_program::AGGREGATOR_PROGRAM;
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM_BYTES};
 use ark_bls12_381::Fr;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_pie::{
     BuiltinAdditionalData,
     OutputBuiltinAdditionalData,
@@ -26,6 +27,11 @@ use crate::hint_processor::aggregator_hint_processor::{
     AggregatorInput,
     DataAvailability,
 };
+use crate::hints::hint_implementation::aggregator::utils::{
+    write_full_os_output,
+    FullOsOutputsData,
+    FullStateDiffWriter,
+};
 use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
     BLS_PRIME,
@@ -36,9 +42,18 @@ use crate::io::os_input::OsChainInfo;
 use crate::io::os_output_types::{
     FullContractChanges,
     FullContractStorageUpdate,
+    TryFromOutputIter,
     N_UPDATES_SMALL_PACKING_BOUND,
 };
 use crate::runner::{run_program, RunnerReturnObject};
+use crate::test_utils::cairo_runner::{
+    initialize_cairo_runner,
+    run_cairo_0_entrypoint,
+    EndpointArg,
+    EntryPointRunnerConfig,
+    ImplicitArg,
+    ValueArg,
+};
 use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
@@ -626,6 +641,94 @@ fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> 
         block1,
     ]
     .concat()
+}
+
+#[rstest]
+fn test_parse_and_output(
+    #[values(0, 1)] block_idx: usize,
+    #[values(false, true)] full_output_result: bool,
+) {
+    // Prepare input.
+    let full_output = true;
+    let bootloader_output_data = bootloader_output(full_output, FailureModifier::None);
+    let FullOsOutputsData { outputs, n_outputs, .. } =
+        FullOsOutputsData::try_from_output_iter(&mut bootloader_output_data.into_iter(), None)
+            .unwrap();
+    assert_eq!(n_outputs, 2);
+    let os_output = &outputs.0[block_idx];
+
+    // Initialize runner.
+    let output_arg = ImplicitArg::Builtin(BuiltinName::output);
+    let range_check_arg = ImplicitArg::Builtin(BuiltinName::range_check);
+    let ec_op_arg = ImplicitArg::Builtin(BuiltinName::ec_op);
+    let poseidon_arg = ImplicitArg::Builtin(BuiltinName::poseidon);
+    let implicit_args = [output_arg, range_check_arg, ec_op_arg, poseidon_arg];
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::starknet,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    };
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        "starkware.starknet.core.os.output.serialize_os_output",
+        &implicit_args,
+        HashMap::new(),
+    )
+    .unwrap();
+    let runner = &mut runner;
+    let vm = &mut runner.vm;
+
+    // Write the input (OS output) to the VM memory.
+    let os_output_segment = vm.add_memory_segment();
+    let diff_writer = &mut FullStateDiffWriter::new(vm);
+    write_full_os_output(os_output, vm, os_output_segment, diff_writer, full_output_result)
+        .unwrap();
+
+    // Write public keys (empty list) to the VM memory.
+    let public_keys: Vec<MaybeRelocatable> = vec![];
+    let public_keys_segment = vm.add_memory_segment();
+    vm.write_arg(public_keys_segment, &public_keys).unwrap();
+
+    // Prepare explicit args.
+    let replace_keys_with_aliases = Felt::from(false);
+    let n_public_keys = Felt::from(public_keys.len());
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(os_output_segment.into())),
+        EndpointArg::Value(ValueArg::Single(replace_keys_with_aliases.into())),
+        EndpointArg::Value(ValueArg::Single(n_public_keys.into())),
+        EndpointArg::Value(ValueArg::Single(public_keys_segment.into())),
+    ];
+
+    // Run the entrypoint.
+    let state_reader = None;
+    let expected_explicit_return_values = [];
+    let (implicit_return_values, _explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
+
+    // Verify the output is as expected.
+    let [EndpointArg::Value(ValueArg::Array(output_array)), _rc, _ec, _poseidon] =
+        implicit_return_values.as_slice()
+    else {
+        panic!("Unexpected implicit return value structure, got: {implicit_return_values:?}.");
+    };
+    let output_array = output_array.iter().map(|f| f.get_int().unwrap()).collect::<Vec<Felt>>();
+    if block_idx == 0 {
+        assert_eq!(output_array, multi_block0_output(full_output_result));
+    } else {
+        assert_eq!(block_idx, 1);
+        assert_eq!(output_array, multi_block1_output(full_output_result, FailureModifier::None));
+    }
 }
 
 #[rstest]
