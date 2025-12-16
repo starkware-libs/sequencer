@@ -48,6 +48,7 @@ pub struct FactsDb<S: Storage> {
 impl<S: Storage> FactsDb<S> {
     pub const COMMITMENT_OFFSET_KEY: &[u8; 17] = b"commitment_offset";
     pub const STATE_DIFF_HASH_PREFIX: &[u8; 15] = b"state_diff_hash";
+    pub const STATE_ROOT_PREFIX: &[u8; 10] = b"state_root";
 
     pub fn new(storage: S) -> Self {
         Self { storage }
@@ -205,6 +206,10 @@ impl<S: Storage> ForestMetadata for FactsDb<S> {
             ForestMetadataType::StateDiffHash(block_number) => {
                 let state_diff_hash_key_prefix = DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX);
                 create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
+            }
+            ForestMetadataType::StateRoot(block_number) => {
+                let state_root_key_prefix = DbKeyPrefix::new(Self::STATE_ROOT_PREFIX);
+                create_db_key(state_root_key_prefix, &block_number.0.to_be_bytes())
             }
         }
     }

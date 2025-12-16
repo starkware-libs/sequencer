@@ -1,11 +1,26 @@
 use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Deserialize, Error, Serialize)]
 pub enum CommitterError {
-    #[error("Failed to commit block: {0}")]
-    Commitment(String),
+    #[error("The next height to commit is {committer_offset}, got greater height {input_height}.")]
+    HeightHole { input_height: BlockNumber, committer_offset: BlockNumber },
+    #[error("Failed to commit block number {height}: {message}")]
+    Internal { height: BlockNumber, message: String },
+    #[error(
+        "Height {height} already committed with state diff commitment {stored_commitment}, got \
+         {input_commitment}."
+    )]
+    InvalidStateDiffCommitment {
+        input_commitment: StateDiffCommitment,
+        stored_commitment: StateDiffCommitment,
+        height: BlockNumber,
+    },
+    #[error("State root for the committed block number {height} is missing.")]
+    MissingStateRoot { height: BlockNumber },
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;
