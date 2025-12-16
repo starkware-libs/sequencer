@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from typing import Callable
 
@@ -85,7 +84,7 @@ class L1Manager:
 
     # Mock RPC responses.
 
-    def get_logs(self, from_block: int, to_block: int) -> str:
+    def get_logs(self, from_block: int, to_block: int) -> dict:
         """Returns merged logs for stored blocks in [from_block, to_block], or empty logs list if empty."""
         logs = []
         for block_num in range(from_block, to_block + 1):
@@ -96,7 +95,7 @@ class L1Manager:
         self.logger.debug(f"get_logs({from_block}, {to_block}): returning {len(logs)} logs")
         return rpc_response(logs)
 
-    def get_block_by_number(self, block_number_hex: str) -> str:
+    def get_block_by_number(self, block_number_hex: str) -> dict:
         """Returns block data for block_number, or default block if not found. Removes all stored blocks < block_number."""
         block_number = int(block_number_hex, 16)
         # Cleanup older blocks
@@ -110,7 +109,7 @@ class L1Manager:
         block_data = self.blocks.get(block_number)
         if block_data:
             self.logger.debug(f"get_block_by_number({block_number}): returning block data")
-            return json.dumps(block_data.block_data)
+            return block_data.block_data
 
         # Returns default values when the block is not found.
         # During initialization, blocks from ~1 hour ago are fetched (startup_rewind_time_seconds).
@@ -119,7 +118,7 @@ class L1Manager:
         )
         return rpc_response(self.default_l1_block(block_number_hex))
 
-    def get_block_number(self) -> str:
+    def get_block_number(self) -> dict:
         """Returns the latest stored block number, or None if empty."""
         if not self.blocks:
             self.logger.debug("get_block_number: no blocks stored, returning None")
@@ -129,7 +128,7 @@ class L1Manager:
         self.logger.debug(f"get_block_number: returning {latest}")
         return rpc_response(hex(latest))
 
-    def get_call(self, params: dict) -> str:
+    def get_call(self, params: dict) -> dict:
         """
         Handles eth_call for stateBlockNumber/stateBlockHash based on function selector.
         """
@@ -143,4 +142,4 @@ class L1Manager:
         else:
             result = "0x"
 
-        return json.dumps({"jsonrpc": "2.0", "id": "1", "result": result})
+        return rpc_response(result)
