@@ -1223,7 +1223,7 @@ fn metrics_correctness() {
     //    invoke_2  |    2    | Committed
     //    invoke_4  |    3    | Rejected
     //    invoke_4  |    3    | Duplicate hash
-    //    invoke_5  |    4    | Staged
+    //    invoke_5  |    4    | Taken + Committed
     //    invoke_6  |    5    | Pending queue
     //    declare_1 |    6    | Priority queue
     //    declare_2 |    7    | Delayed declare
@@ -1292,22 +1292,22 @@ fn metrics_correctness() {
         mempool.size_in_bytes() + invoke_9.tx.total_bytes();
     add_tx(&mut mempool, &invoke_9);
     fake_clock.advance(Duration::from_secs(20));
-    commit_block(&mut mempool, [("0x9", 1)], []);
+    commit_block(&mut mempool, [("0x9", 1), ("0x3", 1)], []);
 
     let expected_metrics = MempoolMetrics {
         txs_received_invoke: 8,
         txs_received_declare: 2,
         txs_received_deploy_account: 0,
-        txs_committed: 2,
+        txs_committed: 3,
         txs_dropped_expired: 1,
         txs_dropped_rejected: 1,
         txs_dropped_evicted: 1,
-        pool_size: 4,
-        priority_queue_size: 3,
+        pool_size: 3,
+        priority_queue_size: 2,
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-        total_size_in_bytes: 1952,
+        total_size_in_bytes: 1552,
         evictions_count: 1,
         transaction_time_spent_until_batched: HistogramValue {
             sum: 2.0,
@@ -1315,8 +1315,8 @@ fn metrics_correctness() {
             ..Default::default()
         },
         transaction_time_spent_until_committed: HistogramValue {
-            sum: 20.0,
-            count: 2,
+            sum: 42.0,
+            count: 3,
             ..Default::default()
         },
     };
