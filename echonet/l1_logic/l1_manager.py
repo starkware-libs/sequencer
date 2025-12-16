@@ -6,12 +6,11 @@ import logging
 from l1_blocks import L1Blocks
 from l1_client import L1Client
 
-from echonet.utils import (
+from echonet.constants import (
     STATE_BLOCK_HASH_SELECTOR,
     STATE_BLOCK_NUMBER_SELECTOR,
-    format_hex,
-    rpc_response,
 )
+from echonet.helpers import format_hex, rpc_response
 
 
 class L1Manager:

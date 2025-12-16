@@ -7,9 +7,11 @@ import inspect
 import logging
 import requests
 
-from echonet.utils import (
+from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
+)
+from echonet.helpers import (
     timestamp_to_iso,
 )
 
