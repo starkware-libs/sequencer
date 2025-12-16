@@ -14,7 +14,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::{expect, expect_file, Expect};
+use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
@@ -43,7 +43,6 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
-use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -63,6 +62,7 @@ use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_types_core::felt::Felt;
 
+use crate::coverage::expect_hint_coverage;
 use crate::initial_state::{
     create_default_initial_state_data,
     get_initial_deploy_account_tx,
@@ -296,12 +296,7 @@ impl<S: FlowTestState> OsTestOutput<S> {
     }
 
     pub(crate) fn expect_hint_coverage(&self, test_name: &str) {
-        let covered_hints = AllHints::all_iter()
-            .filter(|hint| !self.runner_output.unused_hints.contains(hint))
-            .sorted()
-            .collect::<Vec<_>>();
-        expect_file![format!("../resources/hint_coverage/{test_name}.json")]
-            .assert_eq(&serde_json::to_string_pretty(&covered_hints).unwrap());
+        expect_hint_coverage(&self.runner_output.unused_hints, test_name);
     }
 }
 
