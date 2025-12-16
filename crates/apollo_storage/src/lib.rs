@@ -610,6 +610,15 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         }
         Ok(self.txn.open_table(table_id)?)
     }
+
+    /// Returns the location of the state diff in the mmap file for the given block number.
+    pub fn get_state_diff_location(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<LocationInFile>> {
+        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
+        Ok(state_diffs_table.get(&self.txn, &block_number)?)
+    }
 }
 
 /// Returns the names of the tables in the storage.
@@ -698,6 +707,8 @@ pub enum StorageError {
     EventNotFound { event_index: EventIndex, from_address: ContractAddress },
     #[error("DB in inconsistent state: {msg:?}.")]
     DBInconsistency { msg: String },
+    #[error("{resource_type} not found: {resource_id}")]
+    NotFound { resource_type: String, resource_id: String },
     /// Errors related to the underlying files.
     #[error(transparent)]
     MMapFileError(#[from] MMapFileError),
