@@ -74,6 +74,7 @@ use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
+    get_state_diff_location,
     FileHandlers,
     MarkerKind,
     MarkersTable,
@@ -179,8 +180,7 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
         Ok(markers_table.get(&self.txn, &MarkerKind::State)?.unwrap_or_default())
     }
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
-        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        let state_diff_location = state_diffs_table.get(&self.txn, &block_number)?;
+        let state_diff_location = &self.txn.get_state_diff_location(block_number);
         match state_diff_location {
             None => Ok(None),
             Some(state_diff_location) => {

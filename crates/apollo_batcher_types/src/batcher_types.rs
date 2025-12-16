@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use apollo_storage::mmap_file::LocationInFile;
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::storage_reader_server::StorageReaderServerHandler;
 use apollo_storage::{StorageError, StorageReader};
 use async_trait::async_trait;
@@ -10,7 +12,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockHeader, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
@@ -155,16 +157,14 @@ pub struct RevertBlockInput {
 /// Storage-related requests for the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageRequest {
-    /// Request to read data in Table1 for the given block height.
-    Table1Replacer(BlockNumber),
+    StateDiffLocation(BlockNumber),
 }
 
 // TODO(Dean): Fill in with actual response types matching the request variants.
 /// Response for batcher storage requests.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageResponse {
-    /// Table1 data for the requested operation.
-    Table1Replacer(BlockHeader),
+    StateDiffLocation(LocationInFile),
 }
 
 pub struct BatcherStorageReaderServerHandler;
@@ -174,11 +174,23 @@ impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
     for BatcherStorageReaderServerHandler
 {
     async fn handle_request(
-        _storage_reader: &StorageReader,
-        _request: BatcherStorageRequest,
+        storage_reader: &StorageReader,
+        request: BatcherStorageRequest,
     ) -> Result<BatcherStorageResponse, StorageError> {
-        // TODO(Dean/Nadin): Implement the logic for the batcher storage reader server handler.
-        unimplemented!()
+        let txn = storage_reader.begin_ro_txn()?;
+        match request {
+            BatcherStorageRequest::StateDiffLocation(block_number) => {
+                let state_diff_location = txn.get_state_diff_location(block_number)?.ok_or(
+                    StorageError::DBInconsistency {
+                        msg: format!(
+                            "State diff location not found for block number {}.",
+                            block_number
+                        ),
+                    },
+                );
+                Ok(BatcherStorageResponse::StateDiffLocation(state_diff_location))
+            }
+        }
     }
 }
 
