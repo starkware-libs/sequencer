@@ -276,7 +276,6 @@ impl FlowSequencerSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
-            base_layer_url,
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,

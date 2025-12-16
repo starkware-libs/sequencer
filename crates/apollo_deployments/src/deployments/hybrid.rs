@@ -24,7 +24,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
 const TEST_CORE_STORAGE: usize = 1;
 
@@ -236,7 +236,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -259,7 +258,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -288,7 +286,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -311,9 +308,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider => {
+                            InfraServicePort::L1GasPriceProvider | InfraServicePort::L1Provider => {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Batcher
@@ -344,7 +339,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -372,7 +366,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -406,7 +399,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -431,7 +423,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -458,7 +449,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -477,7 +467,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -514,7 +503,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -540,7 +528,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -622,7 +609,6 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
