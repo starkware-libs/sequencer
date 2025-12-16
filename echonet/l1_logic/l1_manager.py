@@ -19,7 +19,7 @@ class L1Manager:
 
     - get_block_number: returns the latest stored block number, or None if empty.
     - get_logs: returns logs for all stored blocks in the requested range, or empty logs list if empty.
-    - get_block_by_number: returns block data and cleans up older blocks, or None if not found.
+    - get_block_by_number: returns block data and cleans up older blocks, or default block (with hash and timestamp) if not found.
     """
 
     @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class L1Manager:
         return rpc_response(logs)
 
     def get_block_by_number(self, block_number_hex: str) -> str:
-        """Returns block data for block_number, or None if not found. Removes all stored blocks < block_number."""
+        """Returns block data for block_number, or default block if not found. Removes all stored blocks < block_number."""
         block_number = int(block_number_hex, 16)
         # Cleanup older blocks
         blocks_to_remove = [bn for bn in self.blocks.keys() if bn < block_number]
@@ -88,8 +88,15 @@ class L1Manager:
             self.logger.debug(f"get_block_by_number({block_number}): returning block data")
             return json.dumps(block_data.block_data)
 
-        self.logger.debug(f"get_block_by_number({block_number}): block not found, returning None")
-        return rpc_response(None)
+        default_block = {
+            "number": block_number_hex,
+            "hash": format_hex(0),
+            "timestamp": "0x0",
+        }
+        self.logger.debug(
+            f"get_block_by_number({block_number}): block not found, returning default block"
+        )
+        return rpc_response(default_block)
 
     def get_block_number(self) -> str:
         """Returns the latest stored block number, or None if empty."""
