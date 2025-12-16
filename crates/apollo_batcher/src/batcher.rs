@@ -1256,6 +1256,8 @@ pub trait BatcherStorageWriter: Send + Sync {
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
     ) -> StorageResult<()>;
+
+    fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -1300,6 +1302,10 @@ impl BatcherStorageWriter for StorageWriter {
             txn = txn.set_block_hash(&height, block_hash)?;
         }
         txn.commit()
+    }
+
+    fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
+        self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
     }
 }
 
