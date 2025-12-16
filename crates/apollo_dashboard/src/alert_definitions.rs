@@ -12,6 +12,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
+    CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC,
 };
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
@@ -293,6 +294,28 @@ fn get_consensus_conflicting_votes() -> Alert {
     )
 }
 
+fn get_consensus_retrospective_fallback_to_state_sync() -> Alert {
+    Alert::new(
+        "consensus_retrospective_fallback_to_state_sync",
+        "Consensus retrospective block hash fallback to State Sync",
+        AlertGroup::Consensus,
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::Regular,
+        ObserverApplicability::NotApplicable,
+        AlertEnvFiltering::All,
+    )
+}
+
 fn get_eth_to_strk_error_count_alert() -> Alert {
     Alert::new(
         "eth_to_strk_error_count",
@@ -528,6 +551,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_p2p_disconnections(),
+        get_consensus_retrospective_fallback_to_state_sync(),
         get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
