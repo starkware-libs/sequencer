@@ -10,7 +10,7 @@ use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -44,7 +44,9 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+// TODO(Ariel, 14/12/2025): generalize this to both layouts (e.g. via a new trait). ATM db_key is
+// only used in the filled tree serialize function, which assumes facts layout.
+impl<L: Leaf> FactDbFilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
     }
@@ -54,7 +56,7 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
-impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+impl<L: Leaf> HasDynamicPrefix for FilledNode<L, HashOutput> {
     // Inherit the KeyContext from the HasStaticPrefix implementation of the leaf.
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
 
@@ -74,7 +76,7 @@ pub struct FactNodeDeserializationContext {
     pub node_hash: HashOutput,
 }
 
-impl<L: Leaf> DBObject for FilledNode<L> {
+impl<L: Leaf> DBObject for FactDbFilledNode<L> {
     type DeserializeContext = FactNodeDeserializationContext;
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
