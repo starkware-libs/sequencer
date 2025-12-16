@@ -169,11 +169,11 @@ impl L1Provider {
                             );
                         });
                 }
-                Event::TransactionCanceled(event_data) => {
+                Event::TransactionCanceled { tx_hash } => {
                     // TODO(guyn): delete the transaction from the provider.
                     info!(
-                        "Cancellation finalized with data: {event_data:?}. THIS DOES NOT DELETE \
-                         THE TRANSACTION FROM THE PROVIDER YET."
+                        "Cancellation finalized for tx_hash: {tx_hash}. THIS DOES NOT DELETE THE \
+                         TRANSACTION FROM THE PROVIDER YET."
                     );
                 }
                 Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {

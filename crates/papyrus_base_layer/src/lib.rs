@@ -130,7 +130,9 @@ pub enum L1Event {
         // cancellation itself, nor is it the timestamp of the transaction that was cancelled.
         cancellation_request_timestamp: BlockTimestamp,
     },
-    MessageToL2Canceled(EventData),
+    MessageToL2Canceled {
+        cancelled_tx: L1HandlerTransaction,
+    },
 }
 
 /// Shared fields in Starknet messaging.

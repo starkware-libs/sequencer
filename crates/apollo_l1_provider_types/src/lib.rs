@@ -13,14 +13,11 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::{EventData, L1Event};
+use papyrus_base_layer::L1Event;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::core::ChainId;
-use starknet_api::executable_transaction::{
-    L1HandlerTransaction as ExecutableL1HandlerTransaction,
-    L1HandlerTransaction,
-};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::StarknetApiError;
 use strum::{EnumVariantNames, VariantNames};
@@ -272,7 +269,9 @@ pub enum Event {
         block_timestamp: BlockTimestamp,
         scrape_timestamp: UnixTimestamp,
     },
-    TransactionCanceled(EventData),
+    TransactionCanceled {
+        tx_hash: TransactionHash,
+    },
     TransactionCancellationStarted {
         tx_hash: TransactionHash,
         cancellation_request_timestamp: BlockTimestamp,
@@ -291,7 +290,7 @@ impl Event {
     ) -> Result<Self, StarknetApiError> {
         Ok(match l1_event {
             L1Event::LogMessageToL2 { tx, fee, block_timestamp, .. } => {
-                let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
+                let tx = L1HandlerTransaction::create(tx, chain_id, fee)?;
                 Self::L1HandlerTransaction { l1_handler_tx: tx, block_timestamp, scrape_timestamp }
             }
             L1Event::MessageToL2CancellationStarted {
@@ -303,7 +302,12 @@ impl Event {
 
                 Self::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
             }
-            L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
+            L1Event::MessageToL2Canceled { cancelled_tx } => {
+                let tx_hash =
+                    cancelled_tx.calculate_transaction_hash(chain_id, &cancelled_tx.version)?;
+                Self::TransactionCanceled { tx_hash }
+            }
+
             L1Event::ConsumedMessageToL2 { tx, timestamp } => {
                 let tx_hash = tx.calculate_transaction_hash(
                     chain_id,
@@ -358,7 +362,7 @@ impl Display for Event {
                     tx.tx_hash, block_timestamp, scrape_timestamp
                 )
             }
-            Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({data})"),
+            Event::TransactionCanceled { tx_hash } => write!(f, "TransactionCanceled({tx_hash})"),
             Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp } => {
                 write!(
                     f,
