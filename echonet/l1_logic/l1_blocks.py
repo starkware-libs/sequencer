@@ -1,14 +1,80 @@
+from dataclasses import dataclass
 from typing import Optional
 
 import logging
 from l1_client import L1Client
 
+from echonet.constants import ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
 from echonet.helpers import timestamp_to_iso
 
 logger = logging.getLogger(__name__)
 
 
 class L1Blocks:
+    _MAX_BLOCK_SEARCH_ITERATIONS = 10
+    _MAX_ALLOWED_TIMESTAMP_DIFF_SECONDS = 20
+
+    @dataclass(frozen=True)
+    class BlockInfo:
+        number: int
+        timestamp: int
+
+    @staticmethod
+    def _get_latest_block_info(client: L1Client) -> Optional["L1Blocks.BlockInfo"]:
+        block_number_response = client.get_block_number()
+        if not block_number_response or "result" not in block_number_response:
+            logger.error("Failed to get latest L1 block number")
+            return None
+
+        block_number = int(block_number_response["result"], 16)
+
+        timestamp = client.get_timestamp_of_block(block_number)
+        if timestamp is None:
+            logger.error(f"Failed to get timestamp for block {block_number}")
+            return None
+
+        return L1Blocks.BlockInfo(number=block_number, timestamp=timestamp)
+
+    @staticmethod
+    def _find_block_near_timestamp(
+        client: L1Client,
+        target_timestamp: int,
+        reference_block: "L1Blocks.BlockInfo",
+    ) -> Optional[int]:
+        current_reference = reference_block
+
+        for iteration in range(L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS):
+            time_diff = current_reference.timestamp - target_timestamp
+
+            if abs(time_diff) <= L1Blocks._MAX_ALLOWED_TIMESTAMP_DIFF_SECONDS:
+                logger.debug(
+                    f"Found block {current_reference.number} (diff: {time_diff}s) after {iteration + 1} iterations"
+                )
+                return current_reference.number
+
+            # Positive diff means the reference block is too new (need to go back), negative means too old (go forward).
+            estimated_block_number = (
+                current_reference.number - time_diff // ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
+            )
+            estimated_block_number = max(0, estimated_block_number)
+
+            block_timestamp = client.get_timestamp_of_block(estimated_block_number)
+            if block_timestamp is None:
+                logger.error(f"Failed to get timestamp for block {estimated_block_number}")
+                return None
+
+            # Update reference block to the last checked block.
+            current_reference = L1Blocks.BlockInfo(
+                number=estimated_block_number, timestamp=block_timestamp
+            )
+
+            logger.debug(
+                f"Iteration {iteration + 1}: diff={time_diff}s, moved to block {estimated_block_number}"
+            )
+
+        logger.error(f"Block search reached max iterations for timestamp {target_timestamp}")
+        return None
+
     @staticmethod
     def l1_event_matches_feeder_tx(l1_event: L1Client.L1Event, feeder_tx: dict) -> bool:
         """
@@ -50,16 +116,24 @@ class L1Blocks:
             logger.error("Feeder tx does not contain transaction_hash.")
             return None
 
+        reference_block = L1Blocks._get_latest_block_info(client)
+        if reference_block is None:
+            return None
+
         search_start_timestamp = l2_block_timestamp - (search_minutes_before * 60)
         search_end_timestamp = l2_block_timestamp
 
-        start_block_data = client.get_block_number_by_timestamp(search_start_timestamp)
-        end_block_data = client.get_block_number_by_timestamp(search_end_timestamp)
+        start_block = L1Blocks._find_block_near_timestamp(
+            client, search_start_timestamp, reference_block
+        )
+        end_block = L1Blocks._find_block_near_timestamp(
+            client, search_end_timestamp, reference_block
+        )
 
-        if not start_block_data or not end_block_data:
+        if not start_block or not end_block:
             return None
 
-        logs_response = client.get_logs(start_block_data, end_block_data)
+        logs_response = client.get_logs(start_block, end_block)
         if logs_response is None:
             return None
 
