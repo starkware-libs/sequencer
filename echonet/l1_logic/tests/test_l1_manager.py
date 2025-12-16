@@ -24,8 +24,16 @@ class TestL1Manager(unittest.TestCase):
         block_number = json.loads(self.manager.get_block_number())
         self.assertEqual(block_number, {"jsonrpc": "2.0", "id": "1", "result": None})
 
-        block = json.loads(self.manager.get_block_by_number("0x1"))
-        self.assertEqual(block, {"jsonrpc": "2.0", "id": "1", "result": None})
+        block_number_hex = hex(1)
+        block = json.loads(self.manager.get_block_by_number(block_number_hex))
+        self.assertEqual(
+            block,
+            {
+                "jsonrpc": "2.0",
+                "id": "1",
+                "result": L1Manager.default_l1_block(block_number_hex),
+            },
+        )
 
         logs = json.loads(self.manager.get_logs(0, 100))
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
@@ -111,7 +119,8 @@ class TestL1Manager(unittest.TestCase):
         # get_block_by_number removed older blocks (< 20).
         self.manager.get_block_by_number(hex(20))
         result = json.loads(self.manager.get_block_by_number(hex(10)))
-        self.assertIsNone(result["result"])
+        # Block 10 was cleaned up, should return default block.
+        self.assertEqual(result["result"], L1Manager.default_l1_block(hex(10)))
         result = json.loads(self.manager.get_block_by_number(hex(20)))
         self.assertEqual(result["result"]["number"], hex(20))
         result = json.loads(self.manager.get_block_by_number(hex(30)))

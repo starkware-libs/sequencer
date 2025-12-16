@@ -19,7 +19,7 @@ class L1Manager:
 
     - get_block_number: returns the latest stored block number, or None if empty.
     - get_logs: returns logs for all stored blocks in the requested range, or empty logs list if empty.
-    - get_block_by_number: returns block data and cleans up older blocks, or None if not found.
+    - get_block_by_number: returns block data and cleans up older blocks, or default block if not found.
     """
 
     @dataclass(frozen=True)
@@ -27,6 +27,30 @@ class L1Manager:
         block_number: int
         block_data: dict
         logs_result: list[dict]
+
+    @staticmethod
+    def default_l1_block(block_number_hex: str) -> dict:
+        return {
+            "number": block_number_hex,
+            "hash": format_hex(0),
+            "parentHash": format_hex(0),
+            "sha3Uncles": format_hex(0),
+            "miner": format_hex(0, 40),
+            "stateRoot": format_hex(0),
+            "transactionsRoot": format_hex(0),
+            "receiptsRoot": format_hex(0),
+            "logsBloom": format_hex(0, 512),
+            "difficulty": "0x0",
+            "gasLimit": "0x0",
+            "gasUsed": "0x0",
+            "timestamp": "0x0",
+            "extraData": "0x",
+            "mixHash": format_hex(0),
+            "nonce": format_hex(0, 16),
+            "size": "0x0",
+            "transactions": [],
+            "uncles": [],
+        }
 
     def __init__(
         self, l1_client: L1Client, get_last_proved_block_callback: Callable[[], tuple[int, int]]
@@ -73,7 +97,7 @@ class L1Manager:
         return rpc_response(logs)
 
     def get_block_by_number(self, block_number_hex: str) -> str:
-        """Returns block data for block_number, or None if not found. Removes all stored blocks < block_number."""
+        """Returns block data for block_number, or default block if not found. Removes all stored blocks < block_number."""
         block_number = int(block_number_hex, 16)
         # Cleanup older blocks
         blocks_to_remove = [bn for bn in self.blocks.keys() if bn < block_number]
@@ -88,8 +112,12 @@ class L1Manager:
             self.logger.debug(f"get_block_by_number({block_number}): returning block data")
             return json.dumps(block_data.block_data)
 
-        self.logger.debug(f"get_block_by_number({block_number}): block not found, returning None")
-        return rpc_response(None)
+        # Returns default values when the block is not found.
+        # During initialization, blocks from ~1 hour ago are fetched (startup_rewind_time_seconds).
+        self.logger.debug(
+            f"get_block_by_number({block_number}): block not found, returning default block"
+        )
+        return rpc_response(self.default_l1_block(block_number_hex))
 
     def get_block_number(self) -> str:
         """Returns the latest stored block number, or None if empty."""
