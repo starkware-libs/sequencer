@@ -288,7 +288,7 @@ pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestRe
 }
 
 fn create_output_to_python(
-    CommitterFactsDbInputImpl { input: actual_input, storage }: CommitterFactsDbInputImpl,
+    CommitterFactsDbInputImpl { input: actual_input, storage, .. }: CommitterFactsDbInputImpl,
 ) -> String {
     let (storage_keys_hash, storage_values_hash) = hash_storage(&storage);
     let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
