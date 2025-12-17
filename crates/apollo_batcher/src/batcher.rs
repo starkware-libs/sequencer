@@ -80,6 +80,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
+use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -164,6 +165,11 @@ pub struct Batcher {
     /// The proposal commitment of the previous height.
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
+
+    /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
+    /// commitment manager because commitments are reverted in a blocking call.
+    #[allow(unused)]
+    commitment_manager: Option<CommitmentManager>,
 }
 
 impl Batcher {
@@ -178,6 +184,7 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
+        commitment_manager: Option<CommitmentManager>,
     ) -> Self {
         Self {
             config,
@@ -198,6 +205,7 @@ impl Batcher {
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
             prev_proposal_commitment: None,
+            commitment_manager,
         }
     }
 
@@ -1129,6 +1137,10 @@ pub fn create_batcher(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
+    // TODO(Amos): Add commitment manager config to batcher config and use it here.
+    let commitment_manager =
+        CommitmentManager::new_or_none(&CommitmentManagerConfig::default(), &config.revert_config);
+
     Batcher::new(
         config,
         storage_reader,
@@ -1139,6 +1151,7 @@ pub fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
+        commitment_manager,
     )
 }
 
