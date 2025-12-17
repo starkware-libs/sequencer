@@ -1,5 +1,4 @@
 [
-  "crates/apollo_deployments/resources/app_configs/replacer_batcher_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_class_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_consensus_manager_config.json",
