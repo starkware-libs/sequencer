@@ -1,8 +1,10 @@
 use std::error::Error;
 
 use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_committer::block_committer::input::StarknetStorageValue;
@@ -14,12 +16,12 @@ use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
-#[allow(dead_code)]
 /// Apollo committer. Applies commits and reverts to owned storage.
 pub struct Committer<S: Storage> {
     /// Storage for forest operations.
     forest_storage: MockForestStorage<S>,
     /// Committer config.
+    #[allow(dead_code)]
     config: CommitterConfig,
     /// The next block number to commit.
     offset: BlockNumber,
@@ -44,7 +46,44 @@ impl<S: Storage> Committer<S> {
         Self { forest_storage, config, offset }
     }
 
-    #[allow(dead_code)]
+    /// Commits a block to the forest.
+    /// In the happy flow, the given height equals to the committer offset.
+    pub async fn commit_block(
+        &mut self,
+        CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
+    ) -> CommitterResult<CommitBlockResponse> {
+        if height > self.offset {
+            // Request to commit a future height.
+            // Returns an error, indicating the committer has a hole in the state diff series.
+            return Err(CommitterError::HeightHole {
+                input_height: height,
+                committer_offset: self.offset,
+            });
+        }
+
+        if height < self.offset {
+            // Request to commit an old height.
+            // Might be ok if the caller didn't get the results properly.
+            let input_state_diff_commitment =
+                state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
+            let stored_state_diff_commitment = self.load_state_diff_commitment(height).await?;
+            // Verify the input state diff matches the stored one by comparing the commitments.
+            if input_state_diff_commitment != stored_state_diff_commitment {
+                return Err(CommitterError::InvalidStateDiffCommitment {
+                    input_commitment: input_state_diff_commitment,
+                    stored_commitment: stored_state_diff_commitment,
+                    height,
+                });
+            }
+            // Returns the precomputed global root.
+            let db_state_root = self.load_global_root(height).await?;
+            return Ok(CommitBlockResponse { state_root: db_state_root });
+        }
+
+        // Happy flow. Commits the state diff and returns the computed global root.
+        unimplemented!()
+    }
+
     async fn load_state_diff_commitment(
         &mut self,
         block_number: BlockNumber,
@@ -55,7 +94,6 @@ impl<S: Storage> Committer<S> {
         Ok(StateDiffCommitment(PoseidonHash(self.deserialize_felt(db_value)?)))
     }
 
-    #[allow(dead_code)]
     async fn load_global_root(&mut self, block_number: BlockNumber) -> CommitterResult<GlobalRoot> {
         let db_value =
             self.read_metadata(ForestMetadataType::StateRoot(DbBlockNumber(block_number))).await?;
