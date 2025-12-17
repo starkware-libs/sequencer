@@ -9,10 +9,14 @@ license.workspace = true
 testing = []
 
 [dependencies]
+apollo_committer_config.workspace = true
 apollo_committer_types.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia_storage.workspace = true
 
 [lints]
 workspace = true
