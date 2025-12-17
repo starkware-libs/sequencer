@@ -19,6 +19,22 @@ class TestL1Manager(unittest.TestCase):
             l1_client=self.mock_client, get_last_proved_block_callback=lambda: (0, 0)
         )
 
+    def _mock_handle_feeder_tx_and_store_l1_block(self, l1_block_number: int):
+        """Simulates processing a feeder gateway transaction and storing its matched L1 block data."""
+        with patch("l1_manager.L1Blocks.find_l1_block_for_tx") as mock_find_l1_block_for_tx:
+            mock_find_l1_block_for_tx.return_value = l1_block_number
+            self.mock_client.get_block_by_number.return_value = {
+                "jsonrpc": "2.0",
+                "id": "1",
+                "result": {"number": hex(l1_block_number), "timestamp": "0x123"},
+            }
+            self.mock_client.get_logs.return_value = {
+                "jsonrpc": "2.0",
+                "id": "1",
+                "result": [{"blockNumber": hex(l1_block_number), "data": "0x"}],
+            }
+            self.manager.set_new_tx({"transaction_hash": f"0x{l1_block_number}"}, 0)
+
     def test_empty_queue_returns_defaults(self):
         block_number = self.manager.get_block_number()
         self.assertEqual(block_number, {"jsonrpc": "2.0", "id": "1", "result": None})
@@ -58,22 +74,10 @@ class TestL1Manager(unittest.TestCase):
         logs = self.manager.get_logs(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
-    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
-    def test_multiple_blocks(self, mock_find_l1_block_for_tx):
+    def test_multiple_blocks(self):
         # Setup: add blocks 10, 20, 30.
         for block_num in [10, 20, 30]:
-            mock_find_l1_block_for_tx.return_value = block_num
-            self.mock_client.get_block_by_number.return_value = {
-                "jsonrpc": "2.0",
-                "id": "1",
-                "result": {"number": hex(block_num), "timestamp": "0x123"},
-            }
-            self.mock_client.get_logs.return_value = {
-                "jsonrpc": "2.0",
-                "id": "1",
-                "result": [{"blockNumber": hex(block_num), "data": "0x"}],
-            }
-            self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
+            self._mock_handle_feeder_tx_and_store_l1_block(block_num)
 
         # get_block_number returns latest block in manager + finality.
         result = self.manager.get_block_number()
@@ -101,22 +105,10 @@ class TestL1Manager(unittest.TestCase):
         }
         self.assertEqual(result, expected_logs)
 
-    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
-    def test_cleanup_old_blocks(self, mock_find_l1_block_for_tx):
+    def test_cleanup_old_blocks(self):
         # Setup: add blocks 10, 20, 30.
         for block_num in [10, 20, 30]:
-            mock_find_l1_block_for_tx.return_value = block_num
-            self.mock_client.get_block_by_number.return_value = {
-                "jsonrpc": "2.0",
-                "id": "1",
-                "result": {"number": hex(block_num), "timestamp": "0x123"},
-            }
-            self.mock_client.get_logs.return_value = {
-                "jsonrpc": "2.0",
-                "id": "1",
-                "result": [{"blockNumber": hex(block_num), "data": "0x"}],
-            }
-            self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
+            self._mock_handle_feeder_tx_and_store_l1_block(block_num)
 
         # get_block_by_number removed older blocks (< 20).
         self.manager.get_block_by_number(hex(20))
@@ -132,22 +124,10 @@ class TestL1Manager(unittest.TestCase):
         result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
-    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
-    def test_clear_stored_blocks(self, mock_find_l1_block_for_tx):
+    def test_clear_stored_blocks(self):
         # Setup.
         block_num = 10
-        mock_find_l1_block_for_tx.return_value = block_num
-        self.mock_client.get_block_by_number.return_value = {
-            "jsonrpc": "2.0",
-            "id": "1",
-            "result": {"number": hex(block_num), "timestamp": "0x123"},
-        }
-        self.mock_client.get_logs.return_value = {
-            "jsonrpc": "2.0",
-            "id": "1",
-            "result": [{"blockNumber": hex(block_num), "data": "0x"}],
-        }
-        self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
+        self._mock_handle_feeder_tx_and_store_l1_block(block_num)
 
         # Verify block exists.
         result = self.manager.get_block_number()
