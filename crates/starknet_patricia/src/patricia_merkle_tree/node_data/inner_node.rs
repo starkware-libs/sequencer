@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use ethnum::U256;
 use starknet_api::hash::HashOutput;
+use starknet_rust_core::types::MerkleNode;
 use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::node_data::errors::{
@@ -236,6 +237,39 @@ impl Preimage {
         match self {
             Self::Binary(binary) => binary.flatten(),
             Self::Edge(edge) => edge.flatten(),
+        }
+    }
+}
+
+impl From<&MerkleNode> for Preimage {
+    fn from(node: &MerkleNode) -> Self {
+        match node {
+            MerkleNode::BinaryNode(binary_node) => Preimage::Binary(BinaryData {
+                left_data: HashOutput(binary_node.left),
+                right_data: HashOutput(binary_node.right),
+            }),
+            MerkleNode::EdgeNode(edge_node) => {
+                let length = u8::try_from(edge_node.length).unwrap_or_else(|_| {
+                    panic!(
+                        "EdgeNode length {} exceeds u8::MAX when converting to Preimage",
+                        edge_node.length
+                    )
+                });
+                Preimage::Edge(EdgeData {
+                    bottom_data: HashOutput(edge_node.child),
+                    path_to_bottom: PathToBottom::new(
+                        EdgePath(U256::from_be_bytes(edge_node.path.to_bytes_be())),
+                        EdgePathLength(length),
+                    )
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "Failed to create PathToBottom from MerkleNode edge: path={:?}, \
+                             length={}",
+                            edge_node.path, edge_node.length
+                        )
+                    }),
+                })
+            }
         }
     }
 }
