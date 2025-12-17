@@ -963,9 +963,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
             SMRequest::DecisionReached(_, _) => {
                 // Should be handled by SHC, not manager.
-                Err(ConsensusError::InternalInconsistency(
-                    "Manager received DecisionReached request".to_string(),
-                ))
+                unreachable!("Manager received DecisionReached request");
             }
         }
     }

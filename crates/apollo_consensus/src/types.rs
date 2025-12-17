@@ -144,8 +144,6 @@ impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
 #[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ConsensusError {
     #[error(transparent)]
-    Canceled(#[from] oneshot::Canceled),
-    #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
@@ -153,13 +151,6 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
-    #[error("{0}")]
-    SyncError(String),
-    // For example the state machine and SHC are out of sync.
-    #[error("{0}")]
-    InternalInconsistency(String),
     #[error("Block info conversion error: {0}")]
     BlockInfoConversion(#[from] starknet_api::StarknetApiError),
-    #[error("{0}")]
-    Other(String),
 }
