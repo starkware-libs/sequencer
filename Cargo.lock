@@ -12687,12 +12687,15 @@ dependencies = [
  "blockifier",
  "blockifier_reexecution",
  "indexmap 2.12.0",
+ "rstest",
  "starknet-rust",
  "starknet-rust-core 0.16.0",
+ "starknet-types-core",
  "starknet_api",
  "starknet_os",
  "starknet_patricia",
  "thiserror 1.0.69",
+ "tokio",
  "url",
 ]
 
