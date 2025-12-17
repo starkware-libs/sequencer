@@ -547,7 +547,7 @@ impl ConsecutiveRpcStateReaders {
 
         let block_state = block_state.unwrap();
         let serializable_data_prev_block = SerializableDataPrevBlock {
-            state_maps: block_state.get_initial_reads().unwrap().into(),
+            state_maps: block_state.get_initial_reads().unwrap(),
             contract_class_mapping: block_state
                 .state
                 .state_reader
