@@ -23,6 +23,8 @@ impl StateCommitter {
         mut tasks_receiver: Receiver<CommitmentTaskInput>,
         mut results_sender: Sender<CommitmentTaskOutput>,
     ) {
-        unimplemented!()
+        // Placeholder: simply drain the receiver and do nothing.
+        // TODO(Amos): Implement the actual commitment tasks logic.
+        while let Some(_task) = tasks_receiver.recv().await {}
     }
 }

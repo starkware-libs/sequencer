@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
+use apollo_reverts::RevertConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
@@ -14,6 +15,9 @@ use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput
 pub(crate) mod state_committer;
 pub(crate) mod types;
 
+pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
+pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
+
 // TODO(amos): Add to Batcher config.
 #[derive(Debug)]
 pub(crate) struct CommitmentManagerConfig {
@@ -21,6 +25,16 @@ pub(crate) struct CommitmentManagerConfig {
     pub(crate) results_channel_size: usize,
     // Wait for tasks channel to be available before sending.
     pub(crate) wait_for_tasks_channel: bool,
+}
+
+impl Default for CommitmentManagerConfig {
+    fn default() -> Self {
+        Self {
+            tasks_channel_size: DEFAULT_TASKS_CHANNEL_SIZE,
+            results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
+            wait_for_tasks_channel: true,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -33,6 +47,18 @@ pub(crate) struct CommitmentManager {
 }
 
 impl CommitmentManager {
+    /// Initializes and returns the Commitment manager, or None when in revert mode.
+    pub(crate) fn new_or_none(
+        config: &CommitmentManagerConfig,
+        revert_config: &RevertConfig,
+    ) -> Option<Self> {
+        if revert_config.should_revert {
+            None
+        } else {
+            Some(CommitmentManager::initialize(CommitmentManagerConfig::default()))
+        }
+    }
+
     /// Initializes the CommitmentManager. This includes starting the state committer task.
     pub(crate) fn initialize(config: CommitmentManagerConfig) -> Self {
         info!("Initializing CommitmentManager with config {config:?}");
