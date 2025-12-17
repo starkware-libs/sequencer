@@ -4,3 +4,6 @@ pub mod virtual_block_executor;
 #[cfg(test)]
 mod virtual_block_executor_test;
 pub mod storage_proofs;
+
+#[cfg(test)]
+mod storage_proofs_test;
