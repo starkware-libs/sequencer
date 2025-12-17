@@ -4,7 +4,7 @@ use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
-use apollo_committer::committer::Committer;
+use apollo_committer::committer::{create_committer, Committer};
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
@@ -36,6 +36,7 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -43,7 +44,7 @@ use crate::clients::SequencerNodeClients;
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
-    pub committer: Option<Committer>,
+    pub committer: Option<Committer<MapStorage>>,
     pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
@@ -135,7 +136,12 @@ pub async fn create_node_components(
 
     let committer = match config.components.committer.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(Committer {}),
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
+            create_committer(
+                config.committer_config.clone().expect("Committer config should be set"),
+            )
+            .await,
+        ),
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 

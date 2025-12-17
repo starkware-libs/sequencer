@@ -1066,10 +1066,15 @@ dependencies = [
 name = "apollo_committer"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_committer_config",
  "apollo_committer_types",
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia_storage",
+ "tracing",
 ]
 
 [[package]]
@@ -1093,6 +1098,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
@@ -2117,6 +2123,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "papyrus_base_layer",
  "pretty_assertions",
+ "starknet_patricia_storage",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",
