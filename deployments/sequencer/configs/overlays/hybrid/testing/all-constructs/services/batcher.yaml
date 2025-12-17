@@ -1,13 +1,13 @@
-# Core service configuration with all constructs enabled
-name: core
+# Batcher service configuration with all constructs enabled
+name: batcher
 
-# StatefulSet enabled (core uses StatefulSet)
+# StatefulSet enabled (batcher uses StatefulSet)
 statefulSet:
   enabled: true
   annotations:
-    statefulset-type: "core"
+    statefulset-type: "batcher"
   labels:
-    service: "core"
+    service: "batcher"
   podManagementPolicy: "OrderedReady"
   updateStrategy:
     type: "RollingUpdate"
@@ -20,25 +20,16 @@ service:
   enabled: true
   type: ClusterIP
   ports:
-    - name: class-manager
-      port: 55001
-      targetPort: 55001
+    - name: batcher
+      port: 55000
+      targetPort: 55000
       protocol: TCP
     - name: monitoring-endpoint
       port: 8082
       targetPort: 8082
       protocol: TCP
 
-# Ingress enabled for core
-ingress:
-  enabled: true
-  ingressClassName: "nginx"
-  hosts:
-    - "core.sequencer-test.local"
-  path: "/"
-  pathType: "Prefix"
-
-# PersistentVolume enabled for core (StatefulSet needs storage)
+# PersistentVolume enabled for batcher (StatefulSet needs storage)
 persistentVolume:
   enabled: true
   accessModes:
