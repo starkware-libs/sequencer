@@ -10,16 +10,12 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
+  # readOnly: true  # Whether the config map is read only. Defaults to true.
 
-  sequencerConfig:
-    components_batcher_port: 55000
-    components_batcher_url: "sequencer-core-service"
-    components_l1_gas_price_provider_port: 55003
-    components_l1_gas_price_provider_url: "sequencer-l1-service"
-    components_l1_provider_port: 55004
-    components_l1_provider_url: "sequencer-l1-service"
-    components_state_sync_port: 55009
-    components_state_sync_url: "sequencer-core-service"
+  sequencerConfig: {}
+  # example:
+  # sequencerConfig:
+    # components_batcher_port: 55000
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -66,19 +62,12 @@ serviceAccount:
 service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
-  ports: # List of service ports
-    - name: l1-endpoint-monitoring
-      port: 55005
-      targetPort: 55005
-      protocol: TCP
-    - name: l1-gas-price-provider
-      port: 55003
-      targetPort: 55003
-      protocol: TCP
-    - name: l1-provider
-      port: 55004
-      targetPort: 55004
-      protocol: TCP
+  ports: [] # List of service ports
+    # - name: l1-endpoint-monitoring
+    #   port: 55005
+    #   targetPort: 55005
+    #   protocol: TCP
+
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels
   # servicePort: null  #  Legacy port configuration
@@ -214,6 +203,7 @@ secret:
   # immutable: false  #  Whether secret is immutable
   # mountPath: "/etc/secrets"  #  Override default mount path (default: "/etc/secrets")
   # Note: Secret is mounted as secret.json at /etc/secrets/secret.json using subPath. Must contain a key named 'secret.json'. All keys must end with '.json'.
+  # readOnly: true  # Whether the secret is read only. Defaults to true.
 
 # ExternalSecret Configuration
 # See docs/EXTERNAL_SECRET_CONFIGURATION.md for all available options
@@ -234,6 +224,7 @@ externalSecret:
   # Note: ExternalSecret is mounted as external-secret.json at /etc/secrets/external-secret.json using subPath. Any key name is fine - will always mount as external-secret.json. Remote secret content must be valid JSON.
   # template: {}  #  Custom template for secret generation
   # metadata: {}  #  Custom metadata for the secret
+  # readOnly: true  # Whether the secret is read only. Defaults to true.
 
 # Volume Configuration
 # See docs/VOLUME_CONFIGURATION.md for all available options
@@ -249,6 +240,7 @@ persistentVolume:
   # storageClass: ""  #  Storage class (uses default if empty)
   # volumeMode: "Filesystem"  #  Volume mode (Filesystem, Block)
   # volumeName: ""  #  Specific volume name
+  # readOnly: false  # Whether the volume_mount is read only. Defaults to false.
 
 # GCP BackendConfig Configuration
 # See docs/GCP_BACKEND_CONFIG_CONFIGURATION.md for all available options

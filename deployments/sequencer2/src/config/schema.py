@@ -147,6 +147,7 @@ class PersistentVolume(StrictBaseModel):
     annotations: StrDict = Field(default_factory=dict)
     existingClaim: Optional[str] = None
     mountPath: Optional[str] = None
+    readOnly: Optional[bool] = None  # Whether the volume mount is read-only. Defaults to False.
     size: Optional[str] = None
     storageClass: Optional[str] = None
     volumeName: Optional[str] = None
@@ -204,6 +205,9 @@ class ExternalSecret(StrictBaseModel):
     targetName: Optional[str] = None  # Custom target secret name
     data: List[ExternalSecretData] = Field(default_factory=list)
     mountPath: Optional[str] = None  # Where to mount the external secret (default: /etc/secrets)
+    readOnly: Optional[
+        bool
+    ] = None  # Whether the external secret mount is read-only. Defaults to True.
     # Advanced options
     template: Optional[AnyDict] = None  # Custom template for secret generation
     metadata: Optional[AnyDict] = None  # Custom metadata for the secret
@@ -244,6 +248,7 @@ class Secret(StrictBaseModel):
     labels: StrDict = Field(default_factory=dict)
     immutable: Optional[bool] = None
     mountPath: Optional[str] = None  # Where to mount the secret (default: /etc/secrets)
+    readOnly: Optional[bool] = None  # Whether the secret mount is read-only. Defaults to True.
 
     def model_post_init(self, __context):
         """Validate that secret content is valid JSON."""
@@ -387,6 +392,7 @@ class Config(StrictBaseModel):
         str
     ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
+    readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
     sequencerConfig: Optional[
         AnyDict
     ] = None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
