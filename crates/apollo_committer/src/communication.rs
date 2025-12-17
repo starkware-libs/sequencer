@@ -14,9 +14,8 @@ pub type RemoteCommitterServer = RemoteComponentServer<CommitterRequest, Committ
 impl<S: Storage> ComponentRequestHandler<CommitterRequest, CommitterResponse> for Committer<S> {
     async fn handle_request(&mut self, request: CommitterRequest) -> CommitterResponse {
         match request {
-            CommitterRequest::CommitBlock(_) => {
-                // TODO(Yoav): Call the committer.
-                unimplemented!()
+            CommitterRequest::CommitBlock(commit_block_request) => {
+                CommitterResponse::CommitBlock(self.commit_block(commit_block_request).await)
             }
             CommitterRequest::RevertBlock(_) => {
                 // TODO(Yoav): Call the committer.
