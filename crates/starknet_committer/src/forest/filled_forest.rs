@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -37,6 +37,13 @@ impl FilledForest {
 
     pub fn get_compiled_class_root_hash(&self) -> HashOutput {
         self.classes_trie.get_root_hash()
+    }
+
+    pub fn state_roots(&self) -> StateRoots {
+        StateRoots {
+            contracts_trie_root_hash: self.get_contract_root_hash(),
+            classes_trie_root_hash: self.get_compiled_class_root_hash(),
+        }
     }
 
     /// Creates a filled forest. Assumes the storage updates and the updated skeletons of the
