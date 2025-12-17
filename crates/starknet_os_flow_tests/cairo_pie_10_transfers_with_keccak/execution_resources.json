@@ -1,0 +1,1 @@
+{"n_steps":258633,"n_memory_holes":48992,"builtin_instance_counter":{"pedersen_builtin":312,"output_builtin":29,"range_check_builtin":10035,"keccak_builtin":1,"poseidon_builtin":187,"mul_mod_builtin":0,"bitwise_builtin":6,"range_check96_builtin":0,"ecdsa_builtin":0,"add_mod_builtin":0,"ec_op_builtin":0}}
