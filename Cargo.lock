@@ -12228,6 +12228,71 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet-rust-core"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b1a74f23d96f4edf47d496b1625a863f0d17fc2f206b04767770705d8057a79"
+dependencies = [
+ "base64 0.21.7",
+ "crypto-bigint",
+ "flate2",
+ "foldhash 0.1.5",
+ "hex",
+ "indexmap 2.12.0",
+ "num-traits",
+ "semver 1.0.27",
+ "serde",
+ "serde_json",
+ "serde_json_pythonic",
+ "serde_with",
+ "sha3",
+ "starknet-rust-core-derive",
+ "starknet-rust-crypto",
+ "starknet-types-core",
+]
+
+[[package]]
+name = "starknet-rust-core-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77fe79a81e657d7f500b9a3706a42cdb3691fd36049845e1ea4b7ea8181860cd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+]
+
+[[package]]
+name = "starknet-rust-crypto"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9955e2572fc8e24bff60f238af9969c4062c4238680907423636a7d5e9aa736f"
+dependencies = [
+ "blake2",
+ "crypto-bigint",
+ "digest 0.10.7",
+ "hex",
+ "hmac 0.12.1",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "rfc6979",
+ "sha2 0.10.9",
+ "starknet-rust-curve",
+ "starknet-types-core",
+ "zeroize",
+]
+
+[[package]]
+name = "starknet-rust-curve"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1977caca63a4e6439968abe0c9d8c0d2074df7641f1153e8a551f8200470d8da"
+dependencies = [
+ "starknet-types-core",
+]
+
+[[package]]
 name = "starknet-types-core"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12464,6 +12529,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet-rust-core",
  "starknet-types-core",
  "starknet_api",
  "starknet_patricia_storage",

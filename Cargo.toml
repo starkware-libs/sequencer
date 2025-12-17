@@ -353,6 +353,7 @@ simple_logger = "4.0.0"
 socket2 = "0.5.8"
 starknet-core = "0.16.0"
 starknet-crypto = "0.8.1"
+starknet-rust-core = "0.16.0"
 starknet-types-core = "0.2.4"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_committer.path = "crates/starknet_committer"
