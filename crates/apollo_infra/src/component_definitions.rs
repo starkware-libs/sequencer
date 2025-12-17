@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::Instant;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::component_client::ClientResult;
 use crate::requests::LabeledRequest;

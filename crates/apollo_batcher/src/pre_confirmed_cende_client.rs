@@ -6,7 +6,7 @@ use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, trace, warn};
 use url::Url;
 
 use crate::cende_client_types::CendePreconfirmedBlock;
