@@ -23,6 +23,23 @@ use starknet_rust_core::types::{
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
+/// Provides Patricia Merkle proofs for the initial state used in transaction execution.
+///
+/// This trait abstracts the retrieval of storage proofs, which are essential for OS input
+/// generation. The proofs allow the OS to verify that the initial state values (read during
+/// execution) are consistent with the global state commitment (Patricia root).
+///
+/// The returned `StorageProofs` contains:
+/// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
+/// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
+pub trait StorageProofProvider {
+    fn get_storage_proofs(
+        &self,
+        block_number: BlockNumber,
+        execution_data: &VirtualBlockExecutionData,
+    ) -> Result<StorageProofs, ProofProviderError>;
+}
+
 /// Query parameters for fetching storage proofs from RPC.
 pub struct RpcStorageProofsQuery {
     pub class_hashes: Vec<Felt>,
@@ -195,5 +212,21 @@ impl RpcStorageProofsProvider {
                 ))
             })
             .collect()
+    }
+}
+
+impl StorageProofProvider for RpcStorageProofsProvider {
+    fn get_storage_proofs(
+        &self,
+        block_number: BlockNumber,
+        execution_data: &VirtualBlockExecutionData,
+    ) -> Result<StorageProofs, ProofProviderError> {
+        let query = Self::prepare_query(execution_data);
+        let contract_addresses = query.contract_addresses.clone();
+
+        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        let rpc_proof = runtime.block_on(self.fetch_proofs(block_number, &query))?;
+
+        Ok(Self::to_storage_proofs(&rpc_proof, &contract_addresses))
     }
 }
