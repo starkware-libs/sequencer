@@ -31,7 +31,6 @@ use apollo_gateway_config::config::{
 };
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
 use apollo_l1_gas_price_provider_config::config::{
     EthToStrkOracleConfig,
@@ -186,7 +185,6 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
-    base_layer_url: Url,
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
@@ -213,12 +211,6 @@ pub fn create_node_config(
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(0),
         l1_handler_proposal_cooldown_seconds: Duration::from_secs(0),
-        ..Default::default()
-    };
-    let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
-        // This is the Anvil URL, initialized at the callsite.
-        // TODO(Gilad): make this explicit in the Anvil refactor.
-        ordered_l1_endpoint_urls: vec![base_layer_url.clone()],
         ..Default::default()
     };
     let validate_resource_bounds = !allow_bootstrap_txs;
@@ -298,8 +290,6 @@ pub fn create_node_config(
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
     let http_server_config = wrap_if_component_config_expected!(http_server, http_server_config);
-    let l1_endpoint_monitor_config =
-        wrap_if_component_config_expected!(l1_endpoint_monitor, l1_endpoint_monitor_config);
     let l1_gas_price_provider_config =
         wrap_if_component_config_expected!(l1_gas_price_provider, l1_gas_price_provider_config);
     let l1_gas_price_scraper_config =
@@ -325,7 +315,6 @@ pub fn create_node_config(
         consensus_manager_config,
         gateway_config,
         http_server_config,
-        l1_endpoint_monitor_config,
         l1_gas_price_provider_config,
         l1_gas_price_scraper_config,
         l1_provider_config,

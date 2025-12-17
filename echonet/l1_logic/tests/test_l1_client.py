@@ -3,6 +3,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import unittest
 from unittest.mock import Mock, patch
@@ -58,6 +59,18 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(logs, empty_response)
 
     @patch("l1_client.requests.post")
+    def test_get_block_number_returns_rpc_response(self, mock_post):
+        response_ok = Mock()
+        response_ok.raise_for_status.return_value = None
+        response_ok.json.return_value = L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE
+        mock_post.return_value = response_ok
+
+        client = L1Client(api_key="api_key")
+        result = client.get_block_number()
+
+        self.assertEqual(result, L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE)
+
+    @patch("l1_client.requests.post")
     def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
 
@@ -93,7 +106,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = L1TestUtils.BLOCK_RPC_RESPONSE
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER)
 
         self.assertEqual(result, L1TestUtils.BLOCK_TIMESTAMP)
         mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER_HEX)
@@ -105,7 +118,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = None
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER)
 
         self.assertIsNone(result)
 
@@ -116,7 +129,7 @@ class TestL1Client(unittest.TestCase):
         mock_get_block_by_number.return_value = L1TestUtils.block_rpc_response_with_block(None)
 
         client = L1Client(api_key="api_key")
-        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_timestamp_of_block(block_number=L1TestUtils.BLOCK_NUMBER)
 
         self.assertIsNone(result)
 

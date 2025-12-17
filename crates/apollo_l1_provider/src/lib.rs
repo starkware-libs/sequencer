@@ -1,4 +1,4 @@
-pub mod bootstrapper;
+pub mod catchupper;
 
 pub mod communication;
 pub mod l1_provider;
@@ -36,9 +36,13 @@ impl From<L1ProviderConfig> for TransactionManagerConfig {
 
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
     &[
+        // LogMessageToL2(address,uint256,uint256,uint256[],uint256,uint256)
         LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+        // MessageToL2CancellationStarted(address,uint256,uint256)
         MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+        // MessageToL2Canceled(address,uint256,uint256,uint256[],uint256,uint256)
         MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+        // ConsumedMessageToL2(address,uint256,uint256,uint256[],uint256,uint256)
         CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     ]
 }

@@ -23,7 +23,13 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
+<<<<<<< HEAD
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
+||||||| cb7fe477c5
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+=======
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
+>>>>>>> origin/main-v0.14.1
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -267,7 +273,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -325,7 +330,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             InfraServicePort::Batcher
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -352,7 +356,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -379,7 +382,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -408,8 +410,13 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+<<<<<<< HEAD
                             | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
+||||||| cb7fe477c5
+                            | InfraServicePort::L1EndpointMonitor
+=======
+>>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -432,9 +439,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider => {
+                            InfraServicePort::L1GasPriceProvider | InfraServicePort::L1Provider => {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Batcher
@@ -468,7 +473,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::SignatureManager
@@ -497,7 +501,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -526,7 +529,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -555,7 +557,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -617,7 +618,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -645,7 +645,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -673,7 +672,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Committer
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -701,7 +699,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -729,7 +726,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -748,7 +744,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -787,7 +782,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -814,7 +808,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -842,7 +835,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -870,7 +862,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -1049,7 +1040,6 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.state_sync = state_sync_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();

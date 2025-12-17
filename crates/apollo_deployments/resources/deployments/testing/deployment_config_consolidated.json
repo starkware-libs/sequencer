@@ -14,7 +14,6 @@
         "app_configs/general_config.json",
         "app_configs/gateway_config.json",
         "app_configs/http_server_config.json",
-        "app_configs/l1_endpoint_monitor_config.json",
         "app_configs/l1_gas_price_provider_config.json",
         "app_configs/l1_gas_price_scraper_config.json",
         "app_configs/l1_provider_config.json",

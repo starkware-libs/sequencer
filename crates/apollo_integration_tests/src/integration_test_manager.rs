@@ -12,7 +12,6 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -307,6 +306,10 @@ impl RunningNode {
         let handle = self.node_setup.run_service(service);
         self.executable_handles.insert(service, handle);
     }
+
+    pub fn get_node_index(&self) -> usize {
+        self.node_setup.get_node_index().unwrap()
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -346,17 +349,9 @@ impl IntegrationTestManager {
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
-
-        assert!(
-            num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
-            "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
-            num_blocks_needed_on_l1,
-            MIN_EXPECTED_BLOCK_NUMBER
-        );
-
         anvil_mine_blocks(
             anvil_base_layer.ethereum_base_layer.config.clone(),
-            MIN_EXPECTED_BLOCK_NUMBER,
+            num_blocks_needed_on_l1,
         )
         .await;
 
@@ -390,15 +385,14 @@ impl IntegrationTestManager {
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
-        // TODO(noamsp): Add size of nodes_to_run to the log.
-        info!("Running specified nodes.");
+        info!("Running nodes: {nodes_to_run:?}.");
 
         nodes_to_run.into_iter().for_each(|index| {
             let node_setup = self
                 .idle_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} does not exist in idle_nodes."));
-            info!("Running node {}.", index);
+            info!("Running node {index}.");
             let running_node = node_setup.run();
             assert!(
                 self.running_nodes.insert(index, running_node).is_none(),
@@ -642,9 +636,9 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
+            await_txs_accepted(monitoring_client, running_node.get_node_index(), target_n_txs)
         })
         .await;
     }
@@ -692,16 +686,9 @@ impl IntegrationTestManager {
             .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
             .expect("There should be at least one running or idle node");
 
-        for executable_setup in node_setup.get_executables() {
-            if let Some(state_sync_config) = executable_setup.get_config().clone().state_sync_config
-            {
-                return SocketAddr::from((
-                    state_sync_config.rpc_config.ip,
-                    state_sync_config.rpc_config.port,
-                ));
-            }
-        }
-        unreachable!("No executable with a set state sync config.")
+        let state_sync_config =
+            node_setup.get_state_sync().get_config().clone().state_sync_config.unwrap();
+        SocketAddr::from((state_sync_config.rpc_config.ip, state_sync_config.rpc_config.port))
     }
 
     // Verify with JSON RPC server if the last block is the expected one.
@@ -791,7 +778,7 @@ impl IntegrationTestManager {
     /// Waits until all running nodes reach the specified block number.
     /// Queries the batcher and state sync metrics to verify progress.
     async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
@@ -799,7 +786,7 @@ impl IntegrationTestManager {
                 batcher_monitoring_client,
                 state_sync_monitoring_client,
                 expected_block_number,
-                sequencer_idx,
+                running_node.get_node_index(),
             )
         })
         .await;
@@ -820,7 +807,7 @@ impl IntegrationTestManager {
         let condition =
             |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+        self.perform_action_on_all_running_nodes(|running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
             let expected_height = expected_block_number.unchecked_next();
@@ -829,7 +816,8 @@ impl IntegrationTestManager {
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for sync height metric to reach block {expected_height} in sequencer \
-                     {sequencer_idx}.",
+                     {}.",
+                    running_node.get_node_index(),
                 )),
             );
             await_sync_block(5000, condition, 50, monitoring_client, logger).await.unwrap();
@@ -845,25 +833,45 @@ impl IntegrationTestManager {
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+        self.perform_action_on_all_running_nodes(|running_node| {
             // We use state syncs processed txs metric via its monitoring client to verify that the
             // transactions were accepted.
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs)
+            verify_txs_accepted(
+                monitoring_client,
+                running_node.get_node_index(),
+                expected_n_accepted_txs,
+            )
         })
         .await;
     }
 
-    async fn perform_action_on_all_running_nodes<'a, F, Fut>(&'a self, f: F)
+    async fn perform_action_on_running_nodes<'a, F, Fut, R>(
+        &'a self,
+        node_indices: HashSet<usize>,
+        f: F,
+    ) -> HashMap<usize, R>
     where
-        F: Fn(usize, &'a RunningNode) -> Fut,
-        Fut: Future<Output = ()> + 'a,
+        F: Fn(&'a RunningNode) -> Fut,
+        Fut: Future<Output = R> + 'a,
     {
-        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+        let futures = node_indices.into_iter().map(|node_idx| {
+            let running_node =
+                self.running_nodes.get(&node_idx).expect("Running node should exist");
             running_node.propagate_executable_panic();
-            f(*sequencer_idx, running_node)
+            let fut = f(running_node);
+            async move { (node_idx, fut.await) }
         });
-        join_all(futures).await;
+        join_all(futures).await.into_iter().collect()
+    }
+
+    async fn perform_action_on_all_running_nodes<'a, F, Fut, R>(&'a self, f: F) -> HashMap<usize, R>
+    where
+        F: Fn(&'a RunningNode) -> Fut,
+        Fut: Future<Output = R> + 'a,
+    {
+        let running_node_indices = self.get_running_node_indices();
+        self.perform_action_on_running_nodes(running_node_indices, f).await
     }
 
     pub fn chain_id(&self) -> ChainId {
@@ -908,7 +916,8 @@ impl IntegrationTestManager {
     }
 
     pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
-        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+        self.perform_action_on_all_running_nodes(|running_node| async move {
+            let sequencer_idx = running_node.get_node_index();
             let monitoring_client = running_node.node_setup.batcher_monitoring_client();
             assert_no_reverted_txs(monitoring_client, sequencer_idx).await;
         })
@@ -1093,7 +1102,6 @@ async fn get_sequencer_setup_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
     let base_layer_config = AnvilBaseLayer::config();
-    let base_layer_url = AnvilBaseLayer::url();
 
     let mut nodes = Vec::new();
 
@@ -1153,7 +1161,6 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
-                base_layer_url.clone(),
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,

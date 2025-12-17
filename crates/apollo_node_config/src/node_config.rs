@@ -7,6 +7,7 @@ use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_committer_config::config::CommitterConfig;
 use apollo_config::dumping::{
+    generate_optional_struct_pointer,
     generate_struct_pointer,
     prepend_sub_config_name,
     ser_optional_sub_config,
@@ -25,7 +26,6 @@ use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
@@ -154,9 +154,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ]),
         ),
     ];
-    let mut common_execution_config = generate_struct_pointer(
+    let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
         "versioned_constants_overrides".to_owned(),
-        &VersionedConstantsOverrides::default(),
+        None,
         set_pointing_param_paths(&[
             "batcher_config.block_builder_config.versioned_constants_overrides",
             "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
@@ -206,8 +206,6 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub http_server_config: Option<HttpServerConfig>,
     #[validate(nested)]
-    pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
-    #[validate(nested)]
     pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
     #[validate(nested)]
     pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
@@ -245,7 +243,6 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.mempool_config, "mempool_config"),
             ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
             ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
-            ser_optional_sub_config(&self.l1_endpoint_monitor_config, "l1_endpoint_monitor_config"),
             ser_optional_sub_config(
                 &self.l1_gas_price_provider_config,
                 "l1_gas_price_provider_config",
@@ -279,7 +276,6 @@ impl Default for SequencerNodeConfig {
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
-            l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
             l1_provider_config: Some(L1ProviderConfig::default()),
@@ -377,11 +373,6 @@ impl SequencerNodeConfig {
             config_manager_config
         );
         validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            l1_endpoint_monitor,
-            l1_endpoint_monitor_config
-        );
         validate_component_config_is_set_iff_running_locally!(
             self,
             l1_provider,

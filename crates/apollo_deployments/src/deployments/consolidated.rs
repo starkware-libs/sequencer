@@ -114,7 +114,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     | InfraServicePort::ClassManager
                     | InfraServicePort::Committer
                     | InfraServicePort::Gateway
-                    | InfraServicePort::L1EndpointMonitor
                     | InfraServicePort::L1GasPriceProvider
                     | InfraServicePort::L1Provider
                     | InfraServicePort::SierraCompiler
@@ -151,7 +150,6 @@ fn get_consolidated_config() -> ComponentConfig {
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
         gateway: base.clone(),
         http_server: ActiveComponentExecutionConfig::enabled(),
-        l1_endpoint_monitor: base.clone(),
         l1_provider: base.clone(),
         l1_scraper: ActiveComponentExecutionConfig::enabled(),
         l1_gas_price_provider: base.clone(),
