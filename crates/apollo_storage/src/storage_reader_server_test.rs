@@ -1,10 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use async_trait::async_trait;
-use axum::body::{Body, Bytes, HttpBody};
+use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::response::Response;
-use axum::Router;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockNumber};
@@ -12,6 +10,7 @@ use tower::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
+use crate::storage_reader_server_test_utils::{send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
 
@@ -109,19 +108,6 @@ async fn test_endpoint_query_nonexistent_block() {
     assert!(!test_response.found);
 }
 
-async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response {
-    app.oneshot(
-        Request::builder()
-            .method("POST")
-            .uri("/storage/query")
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_string(request).unwrap()))
-            .unwrap(),
-    )
-    .await
-    .unwrap()
-}
-
 #[tokio::test]
 async fn test_endpoint_handler_error() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
@@ -168,9 +154,4 @@ async fn test_endpoint_invalid_json() {
 
     // Should return error status code
     assert!(!response.status().is_success());
-}
-
-// Helper function to convert response body to bytes
-async fn to_bytes(res: Response) -> Bytes {
-    res.into_body().collect().await.unwrap().to_bytes()
 }

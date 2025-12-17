@@ -109,6 +109,9 @@ mod open_storage_test;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
+#[cfg(any(feature = "testing", test))]
+pub mod storage_reader_server_test_utils;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
