@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
-use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::CairoRunConfig;
@@ -102,13 +101,7 @@ pub fn run_os<S: StateReader>(
     layout: LayoutName,
     OsHints {
         os_hints_config,
-        os_input:
-            StarknetOsInput {
-                os_block_inputs,
-                cached_state_inputs,
-                deprecated_compiled_classes,
-                compiled_classes,
-            },
+        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
@@ -116,7 +109,6 @@ pub fn run_os<S: StateReader>(
         layout,
         os_hints_config,
         &os_block_inputs,
-        cached_state_inputs,
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
@@ -130,7 +122,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     layout: LayoutName,
     os_hints_config: OsHintsConfig,
     os_block_inputs: &'a [OsBlockInput],
-    cached_state_inputs: Vec<StateMaps>,
     deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
@@ -142,7 +133,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
         &OS_PROGRAM,
         os_hints_config, // moved here
         os_block_inputs.iter().collect(),
-        cached_state_inputs,
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
@@ -199,13 +189,7 @@ pub fn run_os_for_testing<S: StateReader>(
     layout: LayoutName,
     OsHints {
         os_hints_config,
-        os_input:
-            StarknetOsInput {
-                os_block_inputs,
-                cached_state_inputs,
-                deprecated_compiled_classes,
-                compiled_classes,
-            },
+        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
@@ -214,7 +198,6 @@ pub fn run_os_for_testing<S: StateReader>(
             layout,
             os_hints_config,
             &os_block_inputs,
-            cached_state_inputs,
             deprecated_compiled_classes,
             compiled_classes,
             state_readers,
