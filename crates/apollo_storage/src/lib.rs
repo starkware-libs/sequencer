@@ -622,6 +622,14 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
         Ok(state_diffs_table.get(&self.txn, &block_number)?)
     }
+
+    /// Returns the thin state diff stored in the mmap file at the given location.
+    pub fn get_state_diff_from_location(
+        &self,
+        state_diff_location: LocationInFile,
+    ) -> StorageResult<ThinStateDiff> {
+        self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
+    }
 }
 
 /// Returns the names of the tables in the storage.

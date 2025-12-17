@@ -182,11 +182,7 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
         let state_diff_location = self.get_state_diff_location(block_number)?;
         match state_diff_location {
             None => Ok(None),
-            Some(state_diff_location) => {
-                let state_diff =
-                    self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)?;
-                Ok(Some(state_diff))
-            }
+            Some(location) => Ok(Some(self.get_state_diff_from_location(location)?)),
         }
     }
 
