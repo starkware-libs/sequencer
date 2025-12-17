@@ -18,7 +18,6 @@ use crate::deployment_definitions::{
 };
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -88,12 +87,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         match self {
             ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
-        }
-    }
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
         }
     }
 }

@@ -19,7 +19,6 @@ use crate::deployment_definitions::{
 use crate::deployments::distributed::RETRIES_FOR_L1_SERVICES;
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
@@ -481,17 +480,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             }
         }
         components
-    }
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            HybridNodeServiceName::Core => UpdateStrategy::RollingUpdate,
-            HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
-            HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
-            HybridNodeServiceName::L1 => UpdateStrategy::Recreate,
-            HybridNodeServiceName::Mempool => UpdateStrategy::Recreate,
-            HybridNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
-        }
     }
 }
 
