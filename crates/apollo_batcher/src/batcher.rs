@@ -49,25 +49,14 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-<<<<<<< HEAD
+use apollo_storage::storage_reader_server::StorageReaderServer;
 use apollo_storage::{
-    open_storage_with_metric,
+    open_storage_with_metric_and_server,
     StorageError,
     StorageReader,
     StorageResult,
     StorageWriter,
 };
-||||||| cb7fe477c5
-use apollo_storage::{open_storage_with_metric, StorageReader, StorageResult, StorageWriter};
-=======
-use apollo_storage::storage_reader_server::StorageReaderServer;
-use apollo_storage::{
-    open_storage_with_metric_and_server,
-    StorageReader,
-    StorageResult,
-    StorageWriter,
-};
->>>>>>> origin/main-v0.14.1
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;

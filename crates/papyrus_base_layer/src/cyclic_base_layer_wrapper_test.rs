@@ -9,7 +9,7 @@ use crate::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockReference, MockBaseLayerContract, MockError};
 
 fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Url, MockError> {
-    if num_url_calls_made.load(Ordering::Relaxed) % 2 == 0 {
+    if num_url_calls_made.load(Ordering::Relaxed).is_multiple_of(2) {
         Ok(Url::parse("http://first_endpoint").unwrap())
     } else {
         Ok(Url::parse("http://second_endpoint").unwrap())

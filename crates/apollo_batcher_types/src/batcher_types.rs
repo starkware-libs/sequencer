@@ -11,14 +11,8 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD
-use starknet_api::block::{BlockHashAndNumber, BlockHeader, BlockInfo, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-||||||| cb7fe477c5
-use starknet_api::block::{BlockHashAndNumber, BlockHeader, BlockInfo, BlockNumber};
-=======
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
->>>>>>> origin/main-v0.14.1
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;

@@ -24,13 +24,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-<<<<<<< HEAD
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
-||||||| cb7fe477c5
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
-=======
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
->>>>>>> origin/main-v0.14.1
 
 const TEST_CORE_STORAGE: usize = 1;
 
@@ -243,7 +237,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -272,16 +265,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
                             }
-<<<<<<< HEAD
                             InfraServicePort::Committer
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
-=======
-                            InfraServicePort::Gateway
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -304,13 +289,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-<<<<<<< HEAD
                             | InfraServicePort::Committer
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            | InfraServicePort::L1EndpointMonitor
-=======
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -339,13 +318,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-<<<<<<< HEAD
                             | InfraServicePort::Committer
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            | InfraServicePort::L1EndpointMonitor
-=======
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -400,13 +373,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-<<<<<<< HEAD
                             | InfraServicePort::Committer
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            | InfraServicePort::L1EndpointMonitor
-=======
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -434,13 +401,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-<<<<<<< HEAD
                             | InfraServicePort::Committer
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            | InfraServicePort::L1EndpointMonitor
-=======
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::StateSync
@@ -473,7 +434,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider

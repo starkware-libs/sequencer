@@ -193,12 +193,8 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
-<<<<<<< HEAD
     pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
-||||||| cb7fe477c5
-=======
     pub storage_reader_server_config: ServerConfig,
->>>>>>> origin/main-v0.14.1
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -281,13 +277,9 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
-<<<<<<< HEAD
             // TODO(Rotem): set a more reasonable default value.
             first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
-||||||| cb7fe477c5
-=======
             storage_reader_server_config: ServerConfig::default(),
->>>>>>> origin/main-v0.14.1
         }
     }
 }

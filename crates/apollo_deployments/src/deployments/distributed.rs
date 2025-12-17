@@ -23,13 +23,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-<<<<<<< HEAD
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
-||||||| cb7fe477c5
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
-=======
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
->>>>>>> origin/main-v0.14.1
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -301,7 +295,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -410,13 +403,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-<<<<<<< HEAD
                             | InfraServicePort::Committer
-                            | InfraServicePort::L1EndpointMonitor
-||||||| cb7fe477c5
-                            | InfraServicePort::L1EndpointMonitor
-=======
->>>>>>> origin/main-v0.14.1
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -590,7 +577,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider

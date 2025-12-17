@@ -64,15 +64,11 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.block_builder_config.execute_config.n_workers",
     "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
     "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist",
-<<<<<<< HEAD
     "batcher_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.first_block_with_partial_block_hash.block_hash",
     "batcher_config.first_block_with_partial_block_hash.parent_block_hash",
-||||||| cb7fe477c5
-=======
     "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "chain_id",
->>>>>>> origin/main-v0.14.1
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",

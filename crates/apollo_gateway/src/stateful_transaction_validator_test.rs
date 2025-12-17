@@ -92,62 +92,6 @@ async fn test_run_pre_validation_checks(
 ) {
     let account_nonce = nonce!(0);
 
-<<<<<<< HEAD
-    let expected_result = if expect_ok {
-        Ok(account_nonce)
-    } else {
-        Err(BlockifierStatefulValidatorError::TransactionPreValidationError(
-            TransactionPreValidationError::TransactionFeeError(Box::new(
-                TransactionFeeError::GasBoundsExceedBalance {
-                    resource: Resource::L1DataGas,
-                    max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
-                    max_price: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
-                    balance: BigUint::ZERO,
-                },
-            )),
-        ))
-    };
-    let expected_result_as_stateful_transaction_validator_result = expected_result
-        .as_ref()
-        .map(|validate_result| *validate_result)
-        .map_err(|blockifier_error| StarknetError {
-            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-            message: format!("{blockifier_error}"),
-        });
-
-    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
-    mock_blockifier_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
-    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
-
-||||||| cb7fe477c5
-    let expected_result = if expect_ok {
-        Ok(account_nonce)
-    } else {
-        Err(BlockifierStatefulValidatorError::TransactionPreValidationError(
-            TransactionPreValidationError::TransactionFeeError(Box::new(
-                TransactionFeeError::GasBoundsExceedBalance {
-                    resource: Resource::L1DataGas,
-                    max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
-                    max_price: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
-                    balance: BigUint::ZERO,
-                },
-            )),
-        ))
-    };
-    let expected_result_as_stateful_transaction_result = expected_result
-        .as_ref()
-        .map(|validate_result| *validate_result)
-        .map_err(|blockifier_error| StarknetError {
-            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-            message: format!("{blockifier_error}"),
-        });
-
-    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
-    mock_blockifier_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
-    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
-
-=======
->>>>>>> origin/main-v0.14.1
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| {
         // The mempool does not have any transactions from the sender.
@@ -166,29 +110,6 @@ async fn test_run_pre_validation_checks(
         gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
     };
 
-<<<<<<< HEAD
-    let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
-            mempool_client,
-            runtime,
-        )
-    })
-    .await
-    .unwrap();
-    assert_eq!(result, expected_result_as_stateful_transaction_validator_result);
-||||||| cb7fe477c5
-    let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
-            mempool_client,
-            runtime,
-        )
-    })
-    .await
-    .unwrap();
-    assert_eq!(result, expected_result_as_stateful_transaction_result);
-=======
     let resource_bounds = if zero_gas_fee {
         ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds { max_price_per_unit: 0_u128.into(), ..Default::default() },
@@ -203,7 +124,6 @@ async fn test_run_pre_validation_checks(
         .run_pre_validation_checks(&executable_tx, account_nonce, mempool_client)
         .await;
     assert_eq!(result, expected_result);
->>>>>>> origin/main-v0.14.1
 }
 
 #[rstest]
