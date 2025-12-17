@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_patricia_storage::storage_trait::DbValue;
 use starknet_types_core::felt::Felt;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub struct DbBlockNumber(pub BlockNumber);
 
 impl DbBlockNumber {
