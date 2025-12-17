@@ -33,7 +33,12 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 rstest.workspace = true
+
+[[bench]]
+name = "simulate_transfer"
+harness = false
 
 [lints]
 workspace = true
