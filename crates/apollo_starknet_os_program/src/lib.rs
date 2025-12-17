@@ -18,13 +18,27 @@ pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(||
     serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/cairo_files_map.json")))
         .unwrap_or_else(|error| panic!("Failed to deserialize cairo_files_map.json: {error:?}."))
 });
-
 pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
 pub const AGGREGATOR_PROGRAM_BYTES: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/starknet_aggregator_bytes"));
 
 pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
-    Program::from_bytes(OS_PROGRAM_BYTES, Some("main")).expect("Failed to load the OS bytes.")
+    // Parse the program bytes as JSON and double the data array
+    let mut program_json: serde_json::Value =
+        serde_json::from_slice(OS_PROGRAM_BYTES).expect("Failed to parse OS program as JSON");
+
+    // Duplicate the data array to double the program size
+    if let Some(data) = program_json.get_mut("data") {
+        if let Some(data_array) = data.as_array_mut() {
+            let original_data = data_array.clone();
+            data_array.extend(original_data);
+        }
+    }
+
+    // Serialize back to bytes and create the program
+    let doubled_bytes =
+        serde_json::to_vec(&program_json).expect("Failed to serialize doubled program");
+    Program::from_bytes(&doubled_bytes, Some("main")).expect("Failed to load the doubled OS bytes.")
 });
 pub static AGGREGATOR_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
     Program::from_bytes(AGGREGATOR_PROGRAM_BYTES, Some("main"))
