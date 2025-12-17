@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
@@ -31,24 +31,37 @@ use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeaderWithoutHash,
+    BlockInfo,
+    BlockNumber,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReader, MockBatcherStorageWriter};
+use crate::batcher::{
+    Batcher,
+    BatcherStorageReader,
+    BatcherStorageWriter,
+    MockBatcherStorageReader,
+    MockBatcherStorageWriter,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderError,
@@ -118,6 +131,95 @@ fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
     }
 }
 
+struct MockBatcherStorageData {
+    block_hashes: HashMap<BlockNumber, BlockHash>,
+    state_roots: HashMap<BlockNumber, GlobalRoot>,
+    height: BlockNumber,
+    block_hash_height: BlockNumber,
+    partial_block_hash_components: HashMap<BlockNumber, PartialBlockHashComponents>,
+    state_diffs: HashMap<BlockNumber, ThinStateDiff>,
+}
+
+struct MockBatcherStorage {
+    data: Mutex<MockBatcherStorageData>,
+}
+
+impl BatcherStorageReader for MockBatcherStorage {
+    fn height(&self) -> StorageResult<BlockNumber> {
+        Ok(self.data.lock().unwrap().height)
+    }
+
+    fn block_hash_height(&self) -> StorageResult<BlockNumber> {
+        Ok(self.data.lock().unwrap().block_hash_height)
+    }
+
+    fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
+        Ok(self.data.lock().unwrap().state_diffs.get(&height).cloned())
+    }
+
+    fn reversed_state_diff(&self, _height: BlockNumber) -> StorageResult<ThinStateDiff> {
+        unimplemented!()
+    }
+
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>> {
+        Ok(self.data.lock().unwrap().partial_block_hash_components.get(&height).cloned())
+    }
+
+    fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>> {
+        Ok(self.data.lock().unwrap().block_hashes.get(&height).cloned())
+    }
+}
+
+/// A wrapper around `Arc<MockBatcherStorage>` that implements `BatcherStorageWriter`.
+/// This allows the same `MockBatcherStorage` instance to be used for both reading and writing.
+struct MockBatcherStorageWriterWrapper {
+    storage: Arc<MockBatcherStorage>,
+}
+
+impl BatcherStorageWriter for MockBatcherStorageWriterWrapper {
+    fn commit_proposal(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
+    ) -> StorageResult<()> {
+        let mut data = self.storage.data.lock().unwrap();
+        data.state_diffs.insert(height, state_diff);
+        if let Some(components) = partial_block_hash_components {
+            data.partial_block_hash_components.insert(height, components);
+        }
+        // Mimic the behavior of `update_marker_to_next_block`.
+        if data.height == height {
+            data.height = data.height.unchecked_next();
+        } else {
+            panic!("Unexpected height.")
+        }
+        Ok(())
+    }
+
+    fn revert_block(&mut self, _height: BlockNumber) {
+        unimplemented!()
+    }
+
+    fn set_global_root_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        global_root: GlobalRoot,
+        block_hash: Option<BlockHash>,
+    ) -> StorageResult<()> {
+        let mut data = self.storage.data.lock().unwrap();
+        data.state_roots.insert(height, global_root);
+        if let Some(hash) = block_hash {
+            data.block_hashes.insert(height, hash);
+        }
+        data.block_hash_height = data.block_hash_height.unchecked_next();
+        Ok(())
+    }
+}
+
 struct MockDependencies {
     storage_reader: MockBatcherStorageReader,
     storage_writer: MockBatcherStorageWriter,
@@ -135,6 +237,54 @@ impl Default for MockDependencies {
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
+
+        let non_storage_deps = MockNonStorageDependencies::default();
+
+        Self {
+            storage_reader,
+            storage_writer: MockBatcherStorageWriter::new(),
+            committer_client: non_storage_deps.committer_client,
+            l1_provider_client: non_storage_deps.l1_provider_client,
+            mempool_client: non_storage_deps.mempool_client,
+            block_builder_factory: non_storage_deps.block_builder_factory,
+            pre_confirmed_block_writer_factory: non_storage_deps.pre_confirmed_block_writer_factory,
+            class_manager_client: non_storage_deps.class_manager_client,
+        }
+    }
+}
+
+async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
+    let mut batcher = Batcher::new(
+        BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
+        Arc::new(mock_dependencies.storage_reader),
+        Box::new(mock_dependencies.storage_writer),
+        Arc::new(mock_dependencies.committer_client),
+        Arc::new(mock_dependencies.l1_provider_client),
+        Arc::new(mock_dependencies.mempool_client),
+        TransactionConverter::new(
+            mock_dependencies.class_manager_client,
+            CHAIN_ID_FOR_TESTS.clone(),
+        ),
+        Box::new(mock_dependencies.block_builder_factory),
+        Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
+    );
+    // Call post-creation functionality (e.g., metrics registration).
+    batcher.start().await;
+    batcher
+}
+
+/// Non-storage mock dependencies for use with `create_batcher_with_mock_storage`.
+struct MockNonStorageDependencies {
+    committer_client: MockCommitterClient,
+    mempool_client: MockMempoolClient,
+    l1_provider_client: MockL1ProviderClient,
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+    pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
+    class_manager_client: SharedClassManagerClient,
+}
+
+impl Default for MockNonStorageDependencies {
+    fn default() -> Self {
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
             .block_info
@@ -158,8 +308,6 @@ impl Default for MockDependencies {
         });
 
         Self {
-            storage_reader,
-            storage_writer: MockBatcherStorageWriter::new(),
             committer_client: MockCommitterClient::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
@@ -171,11 +319,15 @@ impl Default for MockDependencies {
     }
 }
 
-async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
+async fn create_batcher_with_mock_storage(
+    mock_storage: Arc<MockBatcherStorage>,
+    mock_dependencies: MockNonStorageDependencies,
+) -> Batcher {
+    let storage_writer = MockBatcherStorageWriterWrapper { storage: Arc::clone(&mock_storage) };
     let mut batcher = Batcher::new(
         BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
-        Arc::new(mock_dependencies.storage_reader),
-        Box::new(mock_dependencies.storage_writer),
+        mock_storage,
+        Box::new(storage_writer),
         Arc::new(mock_dependencies.committer_client),
         Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
@@ -1013,6 +1165,64 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
         SYNCED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(n_synced_transactions)
     );
+}
+
+#[tokio::test]
+async fn add_sync_block_with_mock_storage() {
+    let l1_transaction_hashes = test_tx_hashes();
+
+    // Create mock storage with initial height.
+    let mock_storage = Arc::new(MockBatcherStorage {
+        data: Mutex::new(MockBatcherStorageData {
+            block_hashes: HashMap::new(),
+            state_roots: HashMap::new(),
+            height: INITIAL_HEIGHT,
+            block_hash_height: INITIAL_HEIGHT,
+            partial_block_hash_components: HashMap::new(),
+            state_diffs: HashMap::new(),
+        }),
+    });
+
+    // Set up non-storage mock dependencies.
+    let mut mock_dependencies = MockNonStorageDependencies::default();
+
+    mock_dependencies
+        .mempool_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(CommitBlockArgs {
+            address_to_nonce: test_contract_nonces(),
+            rejected_tx_hashes: [].into(),
+        }))
+        .returning(|_| Ok(()));
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(l1_transaction_hashes.clone()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
+        .returning(|_, _, _| Ok(()));
+
+    let mut batcher =
+        create_batcher_with_mock_storage(Arc::clone(&mock_storage), mock_dependencies).await;
+
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: INITIAL_HEIGHT,
+            starknet_version: StarknetVersion::LATEST,
+            ..Default::default()
+        },
+        state_diff: test_state_diff(),
+        l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
+        ..Default::default()
+    };
+
+    batcher.add_sync_block(sync_block).await.unwrap();
+
+    // Verify that the state diff was written to storage.
+    let storage_data = mock_storage.data.lock().unwrap();
+    assert_eq!(storage_data.state_diffs.get(&INITIAL_HEIGHT), Some(&test_state_diff()));
+    assert_eq!(storage_data.height, INITIAL_HEIGHT.unchecked_next());
 }
 
 #[rstest]
