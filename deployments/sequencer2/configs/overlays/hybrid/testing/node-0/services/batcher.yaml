@@ -1,0 +1,49 @@
+name: batcher
+
+replicas: 1
+
+config:
+  sequencerConfig:
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_n_events: 5000
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_state_diff_size: 4000
+    batcher_config_block_builder_config_execute_config_n_workers: 28
+    batcher_config_block_builder_config_proposer_idle_detection_delay_millis: 2000
+    batcher_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    batcher_config_contract_class_manager_config_cairo_native_run_config_native_classes_whitelist: "All"
+    components_class_manager_port: 55001
+    components_class_manager_url: sequencer-core-service
+    components_l1_gas_price_provider_port: 55003
+    components_l1_gas_price_provider_url: sequencer-l1-service
+    components_l1_provider_port: 55004
+    components_l1_provider_url: sequencer-l1-service
+    components_mempool_port: 55006
+    components_mempool_url: sequencer-mempool-service
+    components_sierra_compiler_port: 55007
+    components_sierra_compiler_url: sequencer-sierracompiler-service
+    components_signature_manager_port: 55008
+    components_signature_manager_url: sequencer-core-service
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: batcher
+    port: 55000
+    targetPort: 55000
+    protocol: TCP
+  - name: signature-manager
+    port: 55008
+    targetPort: 55008
+    protocol: TCP
+
+statefulSet:
+  enabled: true
+
+persistentVolume:
+  enabled: true
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  mountPath: /data
+  size: 2Gi
+  storageClass: ""

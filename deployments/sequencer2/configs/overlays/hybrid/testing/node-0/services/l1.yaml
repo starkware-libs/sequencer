@@ -10,7 +10,7 @@ config:
     base_layer_config_fusaka_no_bpo_start_block_number: 13164544
     base_layer_config_starknet_contract_address: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
     components_batcher_port: 55000
-    components_batcher_url: sequencer-core-service
+    components_batcher_url: sequencer-batcher-service
     components_l1_gas_price_provider_port: 55003
     components_l1_gas_price_provider_url: sequencer-l1-service
     components_l1_provider_port: 55004
