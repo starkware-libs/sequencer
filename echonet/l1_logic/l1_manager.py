@@ -1,8 +1,8 @@
 import json
+import logging
 from dataclasses import dataclass
 from typing import Callable
 
-import logging
 from l1_blocks import L1Blocks
 from l1_client import L1Client
 
