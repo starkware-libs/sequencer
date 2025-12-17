@@ -228,11 +228,12 @@ impl<S: Storage> ForestMetadata for FactsDb<S> {
         match metadata_type {
             ForestMetadataType::CommitmentOffset => DbKey(Self::COMMITMENT_OFFSET_KEY.to_vec()),
             ForestMetadataType::StateDiffHash(block_number) => {
-                let state_diff_hash_key_prefix = DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX);
+                let state_diff_hash_key_prefix =
+                    DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX.into());
                 create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
             }
             ForestMetadataType::StateRoot(block_number) => {
-                let state_root_key_prefix = DbKeyPrefix::new(Self::STATE_ROOT_PREFIX);
+                let state_root_key_prefix = DbKeyPrefix::new(Self::STATE_ROOT_PREFIX.into());
                 create_db_key(state_root_key_prefix, &block_number.0.to_be_bytes())
             }
         }
