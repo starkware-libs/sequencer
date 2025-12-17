@@ -82,6 +82,10 @@ class L1Manager:
             f"Stored L1 data for block {l1_block_number}, for L2 tx {feeder_gateway_tx['transaction_hash']}"
         )
 
+    def clear_stored_blocks(self) -> None:
+        self.blocks.clear()
+        self.logger.debug("Cleared all stored L1 blocks")
+
     # Mock RPC responses.
 
     def get_logs(self, from_block: int, to_block: int) -> dict:

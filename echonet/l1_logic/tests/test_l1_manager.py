@@ -129,6 +129,41 @@ class TestL1Manager(unittest.TestCase):
         result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30))
 
+    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
+    def test_clear_stored_blocks(self, mock_find_l1_block_for_tx):
+        # Setup: add one block.
+        block_num = 10
+        mock_find_l1_block_for_tx.return_value = block_num
+        self.mock_client.get_block_by_number.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": {"number": hex(block_num), "timestamp": "0x123"},
+        }
+        self.mock_client.get_logs.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": [{"blockNumber": hex(block_num), "data": "0x"}],
+        }
+        self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
+
+        # Verify block exists.
+        result = self.manager.get_block_number()
+        self.assertEqual(result["result"], hex(block_num))
+
+        # Clear all blocks.
+        self.manager.clear_stored_blocks()
+
+        # Verify all methods behave as if empty.
+        result = self.manager.get_block_number()
+        self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": None})
+        result = self.manager.get_logs(10, 10)
+        self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": []})
+        result = self.manager.get_block_by_number(hex(block_num))
+        self.assertEqual(
+            result,
+            {"jsonrpc": "2.0", "id": "1", "result": L1Manager.default_l1_block(hex(block_num))},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
