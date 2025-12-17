@@ -62,8 +62,7 @@ impl Stream for Behaviour {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::into_inner(self).poll(cx) {
             Poll::Pending => Poll::Pending,
-            #[allow(unreachable_code)]
-            Poll::Ready(event) => Poll::Ready(Some(event.map_in(|e| e.left().unwrap()))),
+            Poll::Ready(event) => Poll::Ready(Some(event.map_in(|_| unreachable!()))),
         }
     }
 }
