@@ -38,6 +38,7 @@ use crate::scale_policy::ScalePolicy;
 use crate::test_utils::FIX_BINARY_NAME;
 
 const SERVICES_DIR_NAME: &str = "services/";
+const REMOTE_SERVICE_URL_PLACEHOLDER: &str = "remote_service";
 
 // TODO(Tsabary): remove ports and mempool ttl from this list.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
@@ -245,12 +246,6 @@ pub(crate) trait ServiceNameInner: Display {
         ports
     }
 
-    // Kubernetes service name as defined by CDK8s.
-    fn k8s_service_name(&self) -> String {
-        let formatted_service_name = self.to_string().replace('_', "");
-        format!("sequencer-{formatted_service_name}-service")
-    }
-
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
 }
 
@@ -411,7 +406,7 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     /// connections from remote components.
     fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
+            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
@@ -422,7 +417,7 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
         let idle_connections = self.get_scale_policy().idle_connections();
         let retries = self.get_retries();
         ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
+            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
