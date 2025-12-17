@@ -434,6 +434,9 @@ impl<'a> SyscallHintProcessor<'a> {
                 let (tx_account_deployment_data_start_ptr, tx_account_deployment_data_end_ptr) =
                     &self.allocate_data_segment(vm, &context.account_deployment_data.0)?;
 
+                let (tx_proof_facts_start_ptr, tx_proof_facts_end_ptr) =
+                    &self.allocate_data_segment(vm, &context.proof_facts.0)?;
+
                 tx_data.extend_from_slice(&[
                     tx_resource_bounds_start_ptr.into(),
                     tx_resource_bounds_end_ptr.into(),
@@ -444,6 +447,8 @@ impl<'a> SyscallHintProcessor<'a> {
                     Felt::from(context.fee_data_availability_mode).into(),
                     tx_account_deployment_data_start_ptr.into(),
                     tx_account_deployment_data_end_ptr.into(),
+                    tx_proof_facts_start_ptr.into(),
+                    tx_proof_facts_end_ptr.into(),
                 ]);
             }
             TransactionInfo::Deprecated(_) => {
