@@ -26,7 +26,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 use url::Url;
 use validator::{Validate, ValidationError};
 
@@ -431,6 +431,10 @@ fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
     node_url: Url,
 ) -> StarknetL1Contract {
+    info!(
+        "Building contract instance for Starknet contract address: {} and node URL: {}",
+        starknet_contract_address, node_url
+    );
     let l1_client = ProviderBuilder::default().connect_http(node_url);
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
