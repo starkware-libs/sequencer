@@ -36,7 +36,6 @@ use crate::replacers::insert_replacer_annotations;
 use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
-use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
 
@@ -161,14 +160,6 @@ impl NodeService {
         self.as_inner().get_components_in_service()
     }
 
-    pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_service_port_mapping()
-    }
-
-    pub fn get_update_strategy(&self) -> UpdateStrategy {
-        self.as_inner().get_update_strategy()
-    }
-
     fn replacer_app_config_files(&self) -> Vec<(Value, String)> {
         let components_in_service = self
             .get_components_in_service()
@@ -237,16 +228,6 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort>;
 
-    fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        let mut ports = BTreeMap::new();
-
-        for service_port in self.get_service_ports() {
-            let port = service_port.get_port();
-            ports.insert(service_port, port);
-        }
-        ports
-    }
-
     fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
         let mut ports = BTreeMap::new();
 
@@ -271,8 +252,6 @@ pub(crate) trait ServiceNameInner: Display {
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
-
-    fn get_update_strategy(&self) -> UpdateStrategy;
 }
 
 impl NodeType {

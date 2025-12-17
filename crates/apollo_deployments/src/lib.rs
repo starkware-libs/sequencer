@@ -7,5 +7,4 @@ pub(crate) mod scale_policy;
 pub mod service;
 #[cfg(test)]
 pub mod test_utils;
-pub(crate) mod update_strategy;
 pub(crate) mod utils;

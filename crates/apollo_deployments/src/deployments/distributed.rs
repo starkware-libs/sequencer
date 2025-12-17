@@ -18,7 +18,6 @@ use crate::deployment_definitions::{
 };
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
@@ -722,21 +721,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             }
         }
         components
-    }
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            DistributedNodeServiceName::Batcher => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::ClassManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::ConsensusManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Mempool => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::SignatureManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
-        }
     }
 }
 
