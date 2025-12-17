@@ -20,6 +20,7 @@ use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::test_utils::FakeClock;
+use apollo_time::time::Clock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -39,6 +40,7 @@ use crate::test_utils::{
     FakeL1ProviderClient,
     L1ProviderContentBuilder,
 };
+use crate::transaction_record::TransactionState;
 use crate::L1ProviderConfig;
 
 fn commit_block_no_rejected(
@@ -1773,4 +1775,46 @@ async fn provider_initialized_in_pending_is_same_as_uninitialized_after_getting_
 
     // Assert.
     assert_eq!(provider_starts_uninitialized, provider_starts_pending);
+}
+
+#[tokio::test]
+async fn tx_cancelled_while_pending_taken_off_proposable_index() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_txs([tx.clone()]).build_into_l1_provider();
+    let snapshot = l1_provider.tx_manager.snapshot();
+    assert!(!snapshot.proposable_index.is_empty());
+    let scrape_timestamp = snapshot.proposable_index.keys().next().unwrap();
+    l1_provider
+        .add_events(vec![cancellation_event(tx.tx_hash, BlockTimestamp(scrape_timestamp + 1))])
+        .unwrap();
+
+    let snapshot = l1_provider.tx_manager.snapshot();
+    assert!(snapshot.cancellation_started_on_l2.contains(&tx.tx_hash));
+    assert!(snapshot.proposable_index.is_empty());
+}
+
+#[tokio::test]
+async fn tx_cancelled_during_initialization_never_reaches_proposable_index() {
+    // Setup.
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
+    let clock = Arc::new(FakeClock::new(50));
+
+    let tx = l1_handler(1);
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Uninitialized)
+        .with_clock(clock.clone())
+        .build_into_l1_provider();
+    let t = clock.now().timestamp().try_into().unwrap();
+    l1_provider
+        .initialize(STARTUP_HEIGHT, vec![cancellation_event(tx.tx_hash, BlockTimestamp(t))])
+        .await
+        .unwrap();
+
+    let snapshot = l1_provider.tx_manager.snapshot();
+    assert!(snapshot.proposable_index.is_empty());
+    assert!(snapshot.cancellation_started_on_l2.contains(&tx.tx_hash));
+    let cancelled_tx = l1_provider.tx_manager.records.get(&tx.tx_hash).unwrap();
+    assert_eq!(cancelled_tx.state, TransactionState::CancellationStartedOnL2);
 }
