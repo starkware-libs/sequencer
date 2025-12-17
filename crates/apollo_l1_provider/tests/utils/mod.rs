@@ -43,6 +43,7 @@ use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::channel;
 use tokio::time::Instant;
 
+pub(crate) const ONE_SEC: Duration = Duration::from_secs(1);
 pub(crate) const POLLING_INTERVAL_DURATION: Duration = Duration::from_secs(10);
 pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_secs(30);
 pub(crate) const TIMELOCK_DURATION: Duration = Duration::from_secs(30);
