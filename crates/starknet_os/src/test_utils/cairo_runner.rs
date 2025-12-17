@@ -676,13 +676,12 @@ pub fn run_cairo_0_entrypoint<'a>(
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
     info!("Converted explicit & implicit args to Cairo args.");
 
-    let (os_hints_config, os_state_input) = (None, None);
+    let os_hints_config = None;
     let mut hint_processor = SnosHintProcessor::new_for_testing(
         state_reader,
         program,
         os_hints_config,
         &EMPTY_BLOCK_INPUT,
-        os_state_input,
     )
     .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");

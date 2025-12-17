@@ -41,7 +41,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
     pub fn new(
         os_block_input: &'a OsBlockInput,
         state_reader: S,
-        state_input: StateMaps,
+        state_input: &StateMaps,
         debug_mode: bool,
     ) -> Result<Self, StarknetOsError> {
         Ok(Self {
@@ -60,12 +60,13 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
 
     fn initialize_cached_state(
         state_reader: S,
-        state_input: StateMaps,
+        state_input: &StateMaps,
     ) -> Result<CachedState<S>, StarknetOsError> {
         let mut empty_cached_state = CachedState::new(state_reader);
 
         // Update the cached state.
-        empty_cached_state.update_cache(&state_input, HashMap::new());
+        // TODO(Yoni): avoid the implicit clone inside update_cache.
+        empty_cached_state.update_cache(state_input, HashMap::new());
 
         Ok(empty_cached_state)
     }
