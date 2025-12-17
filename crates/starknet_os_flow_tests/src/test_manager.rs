@@ -684,9 +684,9 @@ impl<S: FlowTestState> TestManager<S> {
             let prev_block_hash = BlockHash(new_block_hash.0 - Felt::ONE);
             let class_hashes_to_migrate = HashMap::new();
             let os_block_input = OsBlockInput {
-                contract_state_commitment_info: commitment_infos.contracts_trie_commitment_info,
-                contract_class_commitment_info: commitment_infos.classes_trie_commitment_info,
-                address_to_storage_commitment_info: commitment_infos.storage_tries_commitment_infos,
+                contract_state_commitment_info: commitment_infos.contracts_trie,
+                contract_class_commitment_info: commitment_infos.classes_trie,
+                address_to_storage_commitment_info: commitment_infos.storage_tries,
                 transactions: block_txs.into_iter().map(Into::into).collect(),
                 tx_execution_infos,
                 declared_class_hash_to_component_hashes: self
