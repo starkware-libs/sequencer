@@ -1,9 +1,7 @@
 // TODO(Tsabary): reduce visibility when possible.
 pub(crate) mod addresses;
-pub(crate) mod deployment;
 pub mod deployment_definitions;
 pub mod deployments;
-pub(crate) mod k8s;
 pub(crate) mod replacers;
 pub(crate) mod scale_policy;
 pub mod service;

@@ -13,20 +13,16 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
 use crate::deployments::distributed::RETRIES_FOR_L1_SERVICES;
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
-
-const TEST_CORE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -133,17 +129,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for HybridNodeServiceName {
-    fn get_controller(&self) -> Controller {
-        match self {
-            HybridNodeServiceName::Core => Controller::StatefulSet,
-            HybridNodeServiceName::HttpServer => Controller::Deployment,
-            HybridNodeServiceName::Gateway => Controller::Deployment,
-            HybridNodeServiceName::L1 => Controller::Deployment,
-            HybridNodeServiceName::Mempool => Controller::Deployment,
-            HybridNodeServiceName::SierraCompiler => Controller::Deployment,
-        }
-    }
-
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             HybridNodeServiceName::Core
@@ -166,51 +151,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Self::SierraCompiler => DEFAULT_RETRIES,
             Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
-    }
-
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => true,
-            HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::Gateway
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::SierraCompiler => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        match self {
-            HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
-            HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::Gateway
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool
-            | HybridNodeServiceName::SierraCompiler => None,
-        }
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
