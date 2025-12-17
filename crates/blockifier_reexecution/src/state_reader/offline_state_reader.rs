@@ -33,7 +33,7 @@ use crate::state_reader::reexecution_state_reader::{
     ReexecutionStateReader,
 };
 use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
-use crate::utils::{get_chain_info, ReexecutionStateMaps};
+use crate::utils::get_chain_info;
 
 pub struct OfflineReexecutionData {
     offline_state_reader_prev_block: OfflineStateReader,
@@ -53,7 +53,7 @@ pub struct SerializableDataNextBlock {
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializableDataPrevBlock {
-    pub state_maps: ReexecutionStateMaps,
+    pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
 }
 
@@ -100,11 +100,8 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             old_block_hash,
         } = value;
 
-        let offline_state_reader_prev_block = OfflineStateReader {
-            state_maps: state_maps.try_into().expect("Failed to deserialize state maps."),
-            contract_class_mapping,
-            old_block_hash,
-        };
+        let offline_state_reader_prev_block =
+            OfflineStateReader { state_maps, contract_class_mapping, old_block_hash };
 
         // Use the declared classes from the next block to allow retrieving the class info.
         let transactions_next_block =

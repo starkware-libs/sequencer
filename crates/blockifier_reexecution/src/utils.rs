@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::env;
 use std::sync::{Arc, LazyLock};
 
@@ -6,18 +6,15 @@ use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
-use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
-use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
-
-use crate::errors::ReexecutionError;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -84,60 +81,6 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
     // verify union length is sum of lengths (disjoint union)
     assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
     union_map
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ReexecutionStateMaps {
-    nonces: HashMap<ContractAddress, Nonce>,
-    class_hashes: HashMap<ContractAddress, ClassHash>,
-    storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
-    compiled_class_hashes: HashMap<ClassHash, CompiledClassHash>,
-    declared_contracts: HashMap<ClassHash, bool>,
-}
-
-impl From<StateMaps> for ReexecutionStateMaps {
-    fn from(value: StateMaps) -> Self {
-        let mut storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>> = HashMap::new();
-        for ((address, key), v) in value.storage {
-            match storage.get_mut(&address) {
-                Some(entry) => {
-                    entry.insert(key, v);
-                }
-                None => {
-                    let mut entry = HashMap::new();
-                    entry.insert(key, v);
-                    storage.insert(address, entry);
-                }
-            }
-        }
-        ReexecutionStateMaps {
-            nonces: value.nonces,
-            class_hashes: value.class_hashes,
-            storage,
-            compiled_class_hashes: value.compiled_class_hashes,
-            declared_contracts: value.declared_contracts,
-        }
-    }
-}
-
-impl TryFrom<ReexecutionStateMaps> for StateMaps {
-    type Error = ReexecutionError;
-
-    fn try_from(value: ReexecutionStateMaps) -> Result<Self, Self::Error> {
-        let mut storage: HashMap<(ContractAddress, StorageKey), Felt> = HashMap::new();
-        for (address, inner_map) in value.storage {
-            for (key, v) in inner_map {
-                storage.insert((address, key), v);
-            }
-        }
-        Ok(StateMaps {
-            nonces: value.nonces,
-            class_hashes: value.class_hashes,
-            storage,
-            compiled_class_hashes: value.compiled_class_hashes,
-            declared_contracts: value.declared_contracts,
-        })
-    }
 }
 
 #[macro_export]
