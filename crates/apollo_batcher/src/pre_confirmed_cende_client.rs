@@ -85,7 +85,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
 
         let request_builder = self
             .client
-            .post(self.write_pre_confirmed_block_url.clone().into())
+            .post(self.write_pre_confirmed_block_url.clone().expose_inner())
             .json(&pre_confirmed_block);
 
         trace!(
