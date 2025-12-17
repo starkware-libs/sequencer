@@ -9,8 +9,15 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 [dependencies]
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
+indexmap.workspace = true
 starknet_api.workspace = true
+starknet_os.workspace = true
+starknet_patricia.workspace = true
+starknet-rust.workspace = true
+starknet-rust-core.workspace = true
+starknet-types-core.workspace = true
 thiserror.workspace = true
+url.workspace = true
 
 [lints]
 workspace = true
