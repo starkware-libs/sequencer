@@ -322,9 +322,49 @@ impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>
 pub struct StateMaps {
     pub nonces: HashMap<ContractAddress, Nonce>,
     pub class_hashes: HashMap<ContractAddress, ClassHash>,
+    // TODO(Yoni): consider changing type to HashMap<ContractAddress, HashMap<StorageKey, Felt>>.
+    #[cfg_attr(feature = "transaction_serde", serde(with = "storage_map_serializer"))]
     pub storage: HashMap<StorageEntry, Felt>,
     pub compiled_class_hashes: HashMap<ClassHash, CompiledClassHash>,
     pub declared_contracts: HashMap<ClassHash, bool>,
+}
+
+/// Custom serde implementation for a flat storage map that serializes to and deserializes from a
+/// nested map storage.
+#[cfg(feature = "transaction_serde")]
+mod storage_map_serializer {
+    use std::collections::HashMap;
+
+    use serde::{Deserializer, Serializer};
+    use starknet_api::core::ContractAddress;
+    use starknet_api::state::StorageKey;
+    use starknet_types_core::felt::Felt;
+
+    use super::StorageEntry;
+
+    type StorageMap = HashMap<ContractAddress, HashMap<StorageKey, Felt>>;
+
+    pub fn serialize<S>(map: &HashMap<StorageEntry, Felt>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut nested_map: StorageMap = HashMap::new();
+        for ((addr, key), val) in map {
+            nested_map.entry(*addr).or_default().insert(*key, *val);
+        }
+        serialize(&nested_map, serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<StorageEntry, Felt>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let nested_map: StorageMap = deserialize(deserializer)?;
+        Ok(nested_map
+            .into_iter()
+            .flat_map(|(addr, inner)| inner.into_iter().map(move |(key, val)| ((addr, key), val)))
+            .collect())
+    }
 }
 
 impl StateMaps {
