@@ -1071,6 +1071,7 @@ dependencies = [
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
+ "starknet-types-core",
  "starknet_api",
  "starknet_committer",
  "starknet_patricia_storage",

@@ -17,6 +17,7 @@ async-trait.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_patricia_storage.workspace = true
+starknet-types-core.workspace = true
 tracing.workspace = true
 
 [lints]

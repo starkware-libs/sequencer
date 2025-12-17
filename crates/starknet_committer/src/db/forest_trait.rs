@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -15,7 +16,7 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub struct DbBlockNumber(pub BlockNumber);
 
 impl DbBlockNumber {
@@ -30,7 +31,7 @@ impl DbBlockNumber {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub enum ForestMetadataType {
     CommitmentOffset,
     StateDiffHash(DbBlockNumber),
