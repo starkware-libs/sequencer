@@ -1,0 +1,48 @@
+NONCE=$(curl -s -X POST http://pathfinder.aviv-pathfinder-mainnet.svc.cluster.local:9545 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"starknet_getNonce","params":{"block_id":"latest","contract_address":"0x271e7b3b1c8e8fb6f93866edd386f50ae02e9a67b63f90e9e800bdb1e48785"}}' | grep -o '"result":"[^"]*"' | cut -d'"' -f4)
+
+echo "Nonce: $NONCE"
+echo "Running simulation..."
+
+curl -s -X POST http://pathfinder.aviv-pathfinder-mainnet.svc.cluster.local:9545 \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"jsonrpc\": \"2.0\",
+    \"id\": 1,
+    \"method\": \"starknet_simulateTransactions\",
+    \"params\": {
+      \"block_id\": \"latest\",
+      \"transactions\": [{
+        \"type\": \"INVOKE\",
+        \"version\": \"0x3\",
+        \"sender_address\": \"0x271e7b3b1c8e8fb6f93866edd386f50ae02e9a67b63f90e9e800bdb1e48785\",
+        \"calldata\": [
+          \"0xa\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1001\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1002\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1003\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1004\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1005\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1006\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1007\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1008\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x1009\", \"0x1\", \"0x0\",
+          \"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\", \"0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e\", \"0x3\", \"0x100a\", \"0x1\", \"0x0\"
+        ],
+        \"signature\": [\"0x1\", \"0x2\"],
+        \"nonce\": \"$NONCE\",
+        \"resource_bounds\": {
+          \"l1_gas\": {\"max_amount\": \"0x0\", \"max_price_per_unit\": \"0x0\"},
+          \"l1_data_gas\": {\"max_amount\": \"0xf4240\", \"max_price_per_unit\": \"0x174876e800\"},
+          \"l2_gas\": {\"max_amount\": \"0x989680\", \"max_price_per_unit\": \"0x174876e800\"}
+        },
+        \"tip\": \"0x0\",
+        \"paymaster_data\": [],
+        \"account_deployment_data\": [],
+        \"nonce_data_availability_mode\": \"L1\",
+        \"fee_data_availability_mode\": \"L1\"
+      }],
+      \"simulation_flags\": [\"SKIP_VALIDATE\", \"SKIP_FEE_CHARGE\"]
+    }
+  }" | python3 -c "import sys,json; r=json.load(sys.stdin); print(json.dumps(r.get('result',[{}])[0].get('transaction_trace',{}).get('state_diff',{}), indent=2))"

@@ -1,0 +1,19 @@
+[package]
+name = "simulate_tx_bench"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+tokio = { workspace = true, features = ["full"] }
+
+[[bin]]
+name = "simulate_tx_bench"
+path = "src/main.rs"
