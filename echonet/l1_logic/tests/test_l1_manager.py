@@ -40,7 +40,10 @@ class TestL1Manager(unittest.TestCase):
 
         # Test.
         block_number = json.loads(self.manager.get_block_number())
-        self.assertEqual(block_number, L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE)
+        self.assertEqual(
+            block_number["result"],
+            hex(L1TestUtils.BLOCK_NUMBER + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE),
+        )
 
         block = json.loads(self.manager.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX))
         self.assertEqual(block, L1TestUtils.BLOCK_RPC_RESPONSE)
@@ -65,9 +68,9 @@ class TestL1Manager(unittest.TestCase):
             }
             self.manager.set_new_tx({"transaction_hash": f"0x{block_num}"}, 0)
 
-        # get_block_number returns latest block in manager.
+        # get_block_number returns latest block in manager + finality.
         result = json.loads(self.manager.get_block_number())
-        self.assertEqual(result["result"], hex(30))
+        self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
         # get_logs merges all logs in range.
         result = json.loads(self.manager.get_logs(10, 30))
@@ -117,9 +120,9 @@ class TestL1Manager(unittest.TestCase):
         result = json.loads(self.manager.get_block_by_number(hex(30)))
         self.assertEqual(result["result"]["number"], hex(30))
 
-        # get_block_number still returns 30.
+        # get_block_number still returns 30 + finality.
         result = json.loads(self.manager.get_block_number())
-        self.assertEqual(result["result"], hex(30))
+        self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
 
 if __name__ == "__main__":

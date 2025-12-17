@@ -22,6 +22,8 @@ class L1Manager:
     - get_block_by_number: returns block data and cleans up older blocks, or None if not found.
     """
 
+    L1_SCRAPER_FINALITY_CONFIG_VALUE = 10
+
     @dataclass(frozen=True)
     class L1TxData:
         block_number: int
@@ -97,9 +99,13 @@ class L1Manager:
             self.logger.debug("get_block_number: no blocks stored, returning None")
             return rpc_response(None)
 
-        latest = max(self.blocks.keys())
-        self.logger.debug(f"get_block_number: returning {latest}")
-        return rpc_response(hex(latest))
+        latest_block_number = max(self.blocks.keys())
+        finalized_block_number = latest_block_number + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE
+        self.logger.debug(
+            f"get_block_number: returning finalized_block_number={finalized_block_number} "
+            f"(latest_block_number={latest_block_number} + finality={L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE})"
+        )
+        return rpc_response(hex(finalized_block_number))
 
     def get_call(self, params: dict) -> str:
         """
