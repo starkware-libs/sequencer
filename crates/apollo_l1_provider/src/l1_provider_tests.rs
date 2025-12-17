@@ -1403,6 +1403,26 @@ fn consuming_multiple_txs_selective_deletion_after_timelock() {
 }
 
 #[test]
+fn finalizing_cancellation_deletes_tx_from_records_and_proposable_index() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_txs([tx.clone()]).build_into_l1_provider();
+    let snapshot = l1_provider.tx_manager.snapshot();
+
+    assert!(!snapshot.proposable_index.is_empty());
+    let scrape_timestamp = snapshot.proposable_index.keys().next().unwrap();
+
+    // Test.
+    l1_provider.add_events(vec![Event::TransactionCanceled { tx_hash: tx.tx_hash }]).unwrap();
+
+    let snapshot = l1_provider.tx_manager.snapshot();
+    assert!(!snapshot.cancellation_started_on_l2.contains(&tx.tx_hash));
+    assert!(!snapshot.cancelled_on_l2.contains(&tx.tx_hash));
+    assert!(!snapshot.proposable_index.contains_key(scrape_timestamp));
+}
+
+#[test]
 fn catching_up_commit_block_received_while_uninitialized() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
