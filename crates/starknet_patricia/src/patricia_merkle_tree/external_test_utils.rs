@@ -26,13 +26,15 @@ use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 
+pub(crate) const TEST_PREFIX: &[u8] = &[0];
+
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub Felt);
 
 impl HasStaticPrefix for MockLeaf {
     type KeyContext = EmptyKeyContext;
     fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
-        DbKeyPrefix::new(&[0])
+        DbKeyPrefix::new(TEST_PREFIX.into())
     }
 }
 
