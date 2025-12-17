@@ -6,7 +6,7 @@
 //! Messages are scheduled with random delays to simulate network jitter.
 
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 
 use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
@@ -15,6 +15,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
+use test_case::test_case;
 
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
@@ -22,7 +23,6 @@ use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
-const PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(Felt::ONE);
 const TOTAL_NODES: usize = 100;
 const THRESHOLD: usize = (2 * TOTAL_NODES / 3) + 1;
 const SIMULATION_SEED: u64 = 100;
@@ -75,6 +75,12 @@ impl Ord for TimedEvent {
     }
 }
 
+/// Generates a deterministic commitment for the given round.
+/// Each round gets a unique commitment based on the round number.
+fn proposal_commitment_for_round(round: Round) -> ProposalCommitment {
+    ProposalCommitment(Felt::from(u64::from(round)))
+}
+
 /// Discrete event simulation for consensus protocol.
 ///
 /// Uses a timeline-based approach where events are scheduled at specific
@@ -86,16 +92,22 @@ struct DiscreteEventSimulation {
     shc: SingleHeightConsensus,
     /// All validators in the network.
     validators: Vec<ValidatorId>,
+    /// The current maximum round being processed.
+    current_max_round: Round,
     /// Priority queue of pending events that have yet to be processed (min-heap by tick).
     pending_events: BinaryHeap<TimedEvent>,
     /// Current simulation tick.
     current_tick: u64,
     /// History of all processed events.
     processed_history: Vec<InputEvent>,
+    /// Tracks what the node actually voted for in each round.
+    node_votes: HashMap<Round, Vote>,
+    /// The keep ratio for the network (probability that messages are not dropped).
+    keep_ratio: f64,
 }
 
 impl DiscreteEventSimulation {
-    fn new(total_nodes: usize, seed: u64) -> Self {
+    fn new(total_nodes: usize, seed: u64, keep_ratio: f64) -> Self {
         let rng = StdRng::seed_from_u64(seed);
         let validators: Vec<ValidatorId> =
             (0..total_nodes).map(|i| ValidatorId::from(u64::try_from(i).unwrap())).collect();
@@ -113,9 +125,12 @@ impl DiscreteEventSimulation {
             rng,
             shc,
             validators,
+            current_max_round: 0,
             pending_events: BinaryHeap::new(),
             current_tick: 0,
             processed_history: Vec::new(),
+            node_votes: HashMap::new(),
+            keep_ratio,
         }
     }
 
@@ -140,11 +155,22 @@ impl DiscreteEventSimulation {
     }
 
     /// Schedules an event to occur after the specified delay.
+    /// Internal events are always scheduled.
+    /// Other events are scheduled with probability keep_ratio.
     fn schedule(&mut self, delay: u64, event: InputEvent) {
-        self.pending_events.push(TimedEvent { tick: self.current_tick + delay, event });
+        match &event {
+            InputEvent::Internal(_) => {
+                self.pending_events.push(TimedEvent { tick: self.current_tick + delay, event });
+            }
+            _ => {
+                if self.rng.gen_bool(self.keep_ratio) {
+                    self.pending_events.push(TimedEvent { tick: self.current_tick + delay, event });
+                }
+            }
+        }
     }
 
-    /// Generates traffic for a specific round with only honest nodes.
+    /// Generates traffic for a specific round with a given keep ratio.
     ///
     /// - Proposer sends: Proposal -> Prevote -> Precommit (in order)
     /// - Other validators send: Prevote -> Precommit (in order)
@@ -153,8 +179,8 @@ impl DiscreteEventSimulation {
     /// but each node's messages maintain correct ordering.
     fn generate_round_traffic(&mut self, round: Round) {
         let leader_id = Self::get_leader(round);
+        let proposal_commitment = Some(proposal_commitment_for_round(round));
 
-        // 1. Proposal from leader (if not self)
         if leader_id != *VALIDATOR_ID {
             self.schedule(
                 1,
@@ -167,39 +193,40 @@ impl DiscreteEventSimulation {
             );
         }
 
-        // 2. Votes from other honest validators
-        // Skip index 0 (self) - our votes are handled by the state machine
         for i in 1..self.validators.len() {
             let voter = self.validators[i];
-            let commitment = Some(PROPOSAL_COMMITMENT);
 
             // Random delays to simulate network jitter
             let prevote_delay = self.rng.gen_range(2..20);
             let precommit_delta = self.rng.gen_range(5..20);
 
-            // Schedule prevote
             self.schedule(
                 prevote_delay,
                 InputEvent::Vote(Vote {
                     vote_type: VoteType::Prevote,
                     height: HEIGHT_0,
                     round,
-                    proposal_commitment: commitment,
+                    proposal_commitment,
                     voter,
                 }),
             );
-
-            // Schedule precommit (after prevote)
             self.schedule(
                 prevote_delay + precommit_delta,
                 InputEvent::Vote(Vote {
                     vote_type: VoteType::Precommit,
                     height: HEIGHT_0,
                     round,
-                    proposal_commitment: commitment,
+                    proposal_commitment,
                     voter,
                 }),
             );
+        }
+    }
+
+    fn check_and_generate_next_round(&mut self, request_round: Round) {
+        if request_round > self.current_max_round {
+            self.current_max_round = request_round;
+            self.generate_round_traffic(request_round);
         }
     }
 
@@ -245,27 +272,31 @@ impl DiscreteEventSimulation {
     ///
     /// This simulates the manager's role in handling consensus requests,
     /// such as validation results, proposal building, and timeouts.
+    /// Also tracks BroadcastVote requests to know what the node actually voted for.
     fn handle_requests(&mut self, reqs: VecDeque<SMRequest>) {
         for req in reqs {
             match req {
                 SMRequest::StartValidateProposal(init) => {
                     let delay = self.rng.gen_range(15..30);
+                    let proposal_commitment = Some(proposal_commitment_for_round(init.round));
                     let result = StateMachineEvent::FinishedValidation(
-                        Some(PROPOSAL_COMMITMENT),
+                        proposal_commitment,
                         init.round,
                         None,
                     );
                     self.schedule(delay, InputEvent::Internal(result));
                 }
                 SMRequest::StartBuildProposal(round) => {
+                    self.check_and_generate_next_round(round);
                     let delay = self.rng.gen_range(15..30);
-                    let result =
-                        StateMachineEvent::FinishedBuilding(Some(PROPOSAL_COMMITMENT), round);
+                    let proposal_commitment = Some(proposal_commitment_for_round(round));
+                    let result = StateMachineEvent::FinishedBuilding(proposal_commitment, round);
                     self.schedule(delay, InputEvent::Internal(result));
                 }
                 SMRequest::ScheduleTimeout(step, round) => {
                     let (delay, event) = match step {
                         Step::Propose => {
+                            self.check_and_generate_next_round(round);
                             (self.rng.gen_range(15..30), StateMachineEvent::TimeoutPropose(round))
                         }
                         Step::Prevote => {
@@ -277,6 +308,9 @@ impl DiscreteEventSimulation {
                     };
                     self.schedule(delay, InputEvent::Internal(event));
                 }
+                SMRequest::BroadcastVote(vote) => {
+                    self.node_votes.insert(vote.round, vote);
+                }
                 _ => {
                     // Ignore other request types
                 }
@@ -285,97 +319,167 @@ impl DiscreteEventSimulation {
     }
 }
 
-/// Verifies that the simulation reached a valid decision with honest nodes.
-///
-/// Checks:
-/// - Decision was reached (not None)
-/// - Correct block commitment
-/// - Decision in round 0
-/// - Quorum threshold is met
-fn verify_honest_success(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
-    let decision = result.unwrap_or_else(|| {
-        panic!(
-            "FAILURE: Simulation timed out! Honest network should always decide. History: {:?}",
-            sim.processed_history
-        )
-    });
+fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
+    #[derive(Default)]
+    struct RoundStats {
+        peer_precommits: usize,
+        finished_proposal: bool,
+        expected_commitment: ProposalCommitment,
+    }
 
-    let decided_block = decision.block;
-    let decided_round = decision.precommits[0].round;
+    let mut stats: HashMap<Round, RoundStats> = HashMap::new();
 
-    // 1. Verify correct block commitment
-    assert_eq!(
-        decided_block, PROPOSAL_COMMITMENT,
-        "Block commitment mismatch. History: {:?}",
-        sim.processed_history
-    );
-
-    // 2. Verify decision in round 0 (honest network should decide immediately)
-    assert_eq!(
-        decided_round, 0,
-        "Honest network should decide in Round 0. History: {:?}",
-        sim.processed_history
-    );
-
-    // 3. Verify that decision has the same precommits as history.
-    let history_precommits: HashSet<_> = sim
-        .processed_history
-        .iter()
-        .filter_map(|e| {
-            if let InputEvent::Vote(v) = e {
-                if v.vote_type == VoteType::Precommit
-                    && v.round == decided_round
-                    && v.proposal_commitment == Some(decided_block)
-                {
-                    Some(v.clone())
-                } else {
-                    None
+    // Aggregate stats from the processed history.
+    for event in &sim.processed_history {
+        match event {
+            // Track peer precommits.
+            InputEvent::Vote(v) => {
+                if v.vote_type == VoteType::Precommit {
+                    if let Some(proposal_commitment) = v.proposal_commitment {
+                        let entry = stats.entry(v.round).or_insert_with(|| RoundStats {
+                            expected_commitment: proposal_commitment_for_round(v.round),
+                            ..Default::default()
+                        });
+                        if proposal_commitment == entry.expected_commitment {
+                            entry.peer_precommits += 1;
+                        }
+                    }
                 }
-            } else {
-                None
             }
-        })
-        .collect();
+            // Track proposal knowledge.
+            InputEvent::Internal(StateMachineEvent::FinishedValidation(c, r, _))
+            | InputEvent::Internal(StateMachineEvent::FinishedBuilding(c, r)) => {
+                if let Some(proposal_commitment) = *c {
+                    let entry = stats.entry(*r).or_insert_with(|| RoundStats {
+                        expected_commitment: proposal_commitment_for_round(*r),
+                        ..Default::default()
+                    });
+                    if proposal_commitment == entry.expected_commitment {
+                        entry.finished_proposal = true;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 
-    let decision_precommits: HashSet<_> = decision.precommits.iter().cloned().collect();
+    // 2. Determine Expected Decision
+    // Use the actual votes the node broadcast (from BroadcastVote requests)
+    // instead of inferring from timeouts
+    let mut expected_decision: Option<(Round, ProposalCommitment)> = None;
 
-    // Decision should contain all history precommits, plus possibly the self vote
-    assert!(
-        history_precommits.is_subset(&decision_precommits),
-        "Decision precommits don't contain all history precommits. Decision: {:?}, History: {:?}",
-        decision,
-        sim.processed_history
-    );
+    for r in 0..=sim.current_max_round {
+        if let Some(s) = stats.get(&r) {
+            // Check what the node actually voted for in this round
+            // If the node voted precommit for the valid commitment, count it
+            let expected_commitment = proposal_commitment_for_round(r);
+            let self_vote = sim.node_votes.get(&r).map_or(0, |v| {
+                if v.vote_type == VoteType::Precommit
+                    && v.proposal_commitment == Some(expected_commitment)
+                {
+                    1
+                } else {
+                    0
+                }
+            });
 
-    // Decision should have at most one extra vote (the self vote)
-    let extra_votes = decision_precommits.difference(&history_precommits).count();
-    assert!(
-        extra_votes <= 1,
-        "Decision has {} extra precommits, expected at most 1 (self vote). Decision: {:?}, \
-         History: {:?}",
-        extra_votes,
-        decision,
-        sim.processed_history
-    );
+            let total_precommits = s.peer_precommits + self_vote;
 
-    // Verify quorum threshold is met
-    assert!(
-        decision.precommits.len() >= THRESHOLD,
-        "Insufficient precommits in decision: {}/{}. Decision: {:?}, History: {:?}",
-        decision.precommits.len(),
-        THRESHOLD,
-        decision,
-        sim.processed_history
-    );
+            if s.finished_proposal && total_precommits >= THRESHOLD {
+                expected_decision = Some((r, expected_commitment));
+                break;
+            }
+        }
+    }
+
+    // 3. Compare with Actual Result
+    match (result, expected_decision) {
+        (Some(actual), Some((expected_round, expected_commitment))) => {
+            let decided_round = actual.precommits[0].round;
+            let decided_block = actual.block;
+            assert_eq!(
+                decided_block, expected_commitment,
+                "Decision block mismatch. History: {:?}",
+                sim.processed_history
+            );
+            assert_eq!(
+                decided_round, expected_round,
+                "Decision round mismatch expected: {:?}, actual: {:?}. History: {:?}",
+                expected_round, decided_round, sim.processed_history
+            );
+
+            // 4. Verify that decision has the same precommits as history for the decided round
+            let history_precommits: HashSet<_> = sim
+                .processed_history
+                .iter()
+                .filter_map(|e| {
+                    if let InputEvent::Vote(v) = e {
+                        if v.vote_type == VoteType::Precommit
+                            && v.round == decided_round
+                            && v.proposal_commitment == Some(decided_block)
+                        {
+                            Some(v.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            let decision_precommits: HashSet<_> = actual.precommits.iter().cloned().collect();
+
+            // Decision should contain all history precommits, plus possibly the self vote
+            assert!(
+                history_precommits.is_subset(&decision_precommits),
+                "Decision precommits don't contain all history precommits. Decision: {:?}, \
+                 History: {:?}",
+                actual,
+                sim.processed_history
+            );
+
+            // Decision should have at most one extra vote (the self vote)
+            let extra_votes = decision_precommits.difference(&history_precommits).count();
+            assert!(
+                extra_votes <= 1,
+                "Decision has {} extra precommits, expected at most 1 (self vote). Decision: \
+                 {:?}, History: {:?}",
+                extra_votes,
+                actual,
+                sim.processed_history
+            );
+
+            // Verify quorum threshold is met
+            assert!(
+                actual.precommits.len() >= THRESHOLD,
+                "Insufficient precommits in decision: {}/{}. Decision: {:?}, History: {:?}",
+                actual.precommits.len(),
+                THRESHOLD,
+                actual,
+                sim.processed_history
+            );
+        }
+        (None, None) => {
+            // SUCCESS: No decision reached. History confirms conditions were never met.
+        }
+        _ => {
+            panic!(
+                "FAILURE: returned {result:?}, expected {expected_decision:?}. History: {:?}",
+                sim.processed_history
+            );
+        }
+    }
 }
 
-#[test]
-fn test_honest_nodes_only() {
-    let mut sim = DiscreteEventSimulation::new(TOTAL_NODES, SIMULATION_SEED);
+#[test_case(1.0; "keep_all")]
+#[test_case(0.7; "keep_70%")]
+fn test_honest_nodes_only(keep_ratio: f64) {
+    let mut sim = DiscreteEventSimulation::new(TOTAL_NODES, SIMULATION_SEED, keep_ratio);
 
     sim.generate_round_traffic(0);
 
     let result = sim.run(DEADLINE_TICKS);
 
-    verify_honest_success(&sim, result.as_ref());
+    verify_result(&sim, result.as_ref());
 }
