@@ -1066,10 +1066,14 @@ dependencies = [
 name = "apollo_committer"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_committer_config",
  "apollo_committer_types",
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia_storage",
 ]
 
 [[package]]
