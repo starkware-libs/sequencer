@@ -15,6 +15,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
+use test_case::test_case;
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
@@ -22,7 +23,6 @@ use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
-const PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(Felt::ONE);
 const TOTAL_NODES: usize = 100;
 const THRESHOLD: usize = (2 * TOTAL_NODES / 3) + 1;
 const DEADLINE_TICKS: u64 = 200;
@@ -74,6 +74,12 @@ impl Ord for TimedEvent {
     }
 }
 
+/// Generates a deterministic commitment for the given round.
+/// Each round gets a unique commitment based on the round number.
+fn proposal_commitment_for_round(round: Round) -> ProposalCommitment {
+    ProposalCommitment(Felt::from(u64::from(round)))
+}
+
 /// Discrete event simulation for consensus protocol.
 ///
 /// Uses a timeline-based approach where events are scheduled at specific
@@ -100,10 +106,12 @@ struct DiscreteEventSimulation {
     build_finish_info: HashMap<Round, (u64, Option<ProposalCommitment>)>,
     /// Tracks what the node actually voted for in each round.
     node_votes: HashMap<Round, Vote>,
+    /// The keep ratio for the network (probability that messages are not dropped).
+    keep_ratio: f64,
 }
 
 impl DiscreteEventSimulation {
-    fn new(total_nodes: usize, seed: u64) -> Self {
+    fn new(total_nodes: usize, seed: u64, keep_ratio: f64) -> Self {
         let rng = StdRng::seed_from_u64(seed);
         let validators: Vec<ValidatorId> =
             (0..total_nodes).map(|i| ValidatorId::from(u64::try_from(i).unwrap())).collect();
@@ -128,6 +136,7 @@ impl DiscreteEventSimulation {
             processed_history: Vec::new(),
             build_finish_info: HashMap::new(),
             node_votes: HashMap::new(),
+            keep_ratio,
         }
     }
 
@@ -152,11 +161,17 @@ impl DiscreteEventSimulation {
     }
 
     /// Schedules an event to occur after the specified delay.
+    /// Internal events are always scheduled.
+    /// Other events are scheduled with probability keep_ratio.
     fn schedule(&mut self, delay: u64, event: InputEvent) {
-        self.pending_events.push(TimedEvent { tick: self.current_tick + delay, event });
+        let should_enqueue =
+            matches!(event, InputEvent::Internal(_)) || self.rng.gen_bool(self.keep_ratio);
+        if should_enqueue {
+            self.pending_events.push(TimedEvent { tick: self.current_tick + delay, event });
+        }
     }
 
-    /// Generates traffic for a specific round with only honest nodes.
+    /// Generates traffic for a specific round with a given keep ratio.
     ///
     /// - Proposer sends: Proposal -> Prevote -> Precommit (in order)
     /// - Other validators send: Prevote -> Precommit (in order)
@@ -165,8 +180,8 @@ impl DiscreteEventSimulation {
     /// but each node's messages maintain correct ordering.
     fn generate_round_traffic(&mut self, round: Round) {
         let leader_id = Self::get_leader(self.seed, round);
+        let proposal_commitment = Some(proposal_commitment_for_round(round));
 
-        // 1. Proposal from leader (if not self)
         if leader_id != *NODE_0 {
             let delay = self.rng.gen_range(2..20);
             self.schedule(
@@ -180,11 +195,8 @@ impl DiscreteEventSimulation {
             );
         }
 
-        // 2. Votes from other honest validators
-        // Skip index 0 (self) - our votes are handled by the state machine
         for i in 1..self.validators.len() {
             let voter = self.validators[i];
-            let commitment = Some(PROPOSAL_COMMITMENT);
 
             // Random delays to simulate network jitter
             // TODO(Asmaa): currently ignore the proposal commitment value, since we are in the
@@ -194,26 +206,23 @@ impl DiscreteEventSimulation {
             let prevote_delay = base + self.rng.gen_range(2..20);
             let precommit_delta = self.rng.gen_range(5..20);
 
-            // Schedule prevote
             self.schedule(
                 prevote_delay,
                 InputEvent::Vote(Vote {
                     vote_type: VoteType::Prevote,
                     height: HEIGHT_0,
                     round,
-                    proposal_commitment: commitment,
+                    proposal_commitment,
                     voter,
                 }),
             );
-
-            // Schedule precommit (after prevote)
             self.schedule(
                 prevote_delay + precommit_delta,
                 InputEvent::Vote(Vote {
                     vote_type: VoteType::Precommit,
                     height: HEIGHT_0,
                     round,
-                    proposal_commitment: commitment,
+                    proposal_commitment,
                     voter,
                 }),
             );
@@ -271,13 +280,15 @@ impl DiscreteEventSimulation {
     ///
     /// This simulates the manager's role in handling consensus requests,
     /// such as validation results, proposal building, and timeouts.
+    /// Also tracks BroadcastVote requests to know what the node actually voted for.
     fn handle_requests(&mut self, reqs: VecDeque<SMRequest>) -> Option<Decision> {
         for req in reqs {
             match req {
                 SMRequest::StartValidateProposal(init) => {
                     let delay = self.rng.gen_range(15..30);
+                    let proposal_commitment = Some(proposal_commitment_for_round(init.round));
                     let result = StateMachineEvent::FinishedValidation(
-                        Some(PROPOSAL_COMMITMENT),
+                        proposal_commitment,
                         init.round,
                         None,
                     );
@@ -285,9 +296,9 @@ impl DiscreteEventSimulation {
                 }
                 SMRequest::StartBuildProposal(round) => {
                     let delay = self.rng.gen_range(15..30);
-                    let result =
-                        StateMachineEvent::FinishedBuilding(Some(PROPOSAL_COMMITMENT), round);
-                    self.build_finish_info.insert(round, (delay, Some(PROPOSAL_COMMITMENT)));
+                    let proposal_commitment = Some(proposal_commitment_for_round(round));
+                    let result = StateMachineEvent::FinishedBuilding(proposal_commitment, round);
+                    self.build_finish_info.insert(round, (delay, proposal_commitment));
                     self.schedule(delay, InputEvent::Internal(result));
                 }
                 SMRequest::ScheduleTimeout(step, round) => {
@@ -338,7 +349,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 if v.vote_type == VoteType::Precommit {
                     if let Some(proposal_commitment) = v.proposal_commitment {
                         let entry = stats.entry(v.round).or_insert_with(|| RoundStats {
-                            expected_commitment: PROPOSAL_COMMITMENT,
+                            expected_commitment: proposal_commitment_for_round(v.round),
                             ..Default::default()
                         });
                         if proposal_commitment == entry.expected_commitment {
@@ -352,7 +363,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
             | InputEvent::Internal(StateMachineEvent::FinishedBuilding(c, r)) => {
                 if let Some(proposal_commitment) = *c {
                     let entry = stats.entry(*r).or_insert_with(|| RoundStats {
-                        expected_commitment: PROPOSAL_COMMITMENT,
+                        expected_commitment: proposal_commitment_for_round(*r),
                         ..Default::default()
                     });
                     if proposal_commitment == entry.expected_commitment {
@@ -373,7 +384,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
         if let Some(s) = stats.get(&r) {
             // Check what the node actually voted for in this round
             // If the node voted precommit for the valid commitment, count it
-            let expected_commitment = PROPOSAL_COMMITMENT;
+            let expected_commitment = proposal_commitment_for_round(r);
             let self_vote = sim.node_votes.get(&r).map_or(0, |v| {
                 if v.vote_type == VoteType::Precommit
                     && v.proposal_commitment == Some(expected_commitment)
@@ -475,12 +486,16 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
     }
 }
 
-#[test]
-fn test_honest_nodes_only() {
+#[test_case(1.0; "keep_all")]
+#[test_case(0.7; "keep_70%")]
+fn test_honest_nodes_only(keep_ratio: f64) {
     let seed = rand::thread_rng().gen();
-    println!("Running consensus simulation with total nodes {TOTAL_NODES} and seed: {seed}");
+    println!(
+        "Running consensus simulation with total nodes {TOTAL_NODES}, keep ratio {keep_ratio} and \
+         seed: {seed}"
+    );
 
-    let mut sim = DiscreteEventSimulation::new(TOTAL_NODES, seed);
+    let mut sim = DiscreteEventSimulation::new(TOTAL_NODES, seed, keep_ratio);
 
     let result = sim.run(DEADLINE_TICKS);
 
