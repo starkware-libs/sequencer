@@ -108,8 +108,6 @@ async fn new_l1_handler_tx_propose_validate_cancellation_timelock() {
     // fractional seconds.
     tokio::time::advance(POLLING_INTERVAL_DURATION + Duration::from_secs(1)).await;
 
-    // TODO(guyn): check that the event gets deleted, after we add that functionality.
-
     // Check that the scraper and provider are still working.
     let (new_l2_hash, _nonce) = send_message_from_l1_to_l2(&mut base_layer, CALL_DATA_2).await;
 
