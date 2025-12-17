@@ -1,8 +1,8 @@
 [
+  "crates/apollo_deployments/resources/app_configs/replacer_batcher_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_class_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_consensus_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_state_sync_config.json",
-  "crates/apollo_deployments/resources/services/hybrid/replacer_core.json"
+  "crates/apollo_deployments/resources/services/hybrid/replacer_batcher.json"
 ]
