@@ -4,8 +4,7 @@ use blockifier::state::cached_state::StateMaps;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_api::state::StorageKey;
-use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo, CommitmentInfos};
+use starknet_os::io::os_input::{CommitmentInfo, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     flatten_preimages,
     Preimage,
@@ -20,9 +19,26 @@ use starknet_rust_core::types::{
     Felt,
     StorageProof as RpcStorageProof,
 };
-use starknet_types_core::felt::Felt as TypesFelt;
 
 use crate::errors::ProofProviderError;
+use crate::virtual_block_executor::VirtualBlockExecutionData;
+
+/// Provides Patricia Merkle proofs for the initial state used in transaction execution.
+///
+/// This trait abstracts the retrieval of storage proofs, which are essential for OS input
+/// generation. The proofs allow the OS to verify that the initial state values (read during
+/// execution) are consistent with the global state commitment (Patricia root).
+///
+/// The returned `StorageProofs` contains:
+/// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
+/// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
+pub trait StorageProofProvider {
+    fn get_storage_proofs(
+        &self,
+        block_number: BlockNumber,
+        execution_data: &VirtualBlockExecutionData,
+    ) -> Result<StorageProofs, ProofProviderError>;
+}
 
 /// Query parameters for fetching storage proofs from RPC.
 pub struct RpcStorageProofsQuery {
@@ -33,8 +49,11 @@ pub struct RpcStorageProofsQuery {
 
 /// Complete OS input data built from RPC proofs.
 pub struct StorageProofs {
-    pub cached_state_input: CachedStateInput,
-    pub commitment_infos: CommitmentInfos,
+    /// State information discovered in the Patricia proof (nonces, class hashes)
+    /// that might not have been explicitly read during transaction execution.
+    /// This data is required by the OS to verify the contract state leaves.
+    pub proof_state: StateMaps,
+    pub commitment_infos: StateCommitmentInfos,
 }
 
 /// Converts RPC merkle nodes (hash → MerkleNode mapping) to a PreimageMap.
@@ -55,12 +74,11 @@ impl RpcStorageProofsProvider {
     }
 
     /// Extract query parameters from StateMaps.
-    pub fn prepare_query(
-        initial_reads: &StateMaps,
-        executed_class_hashes: &HashSet<ClassHash>,
-    ) -> RpcStorageProofsQuery {
-        let class_hashes: Vec<Felt> = executed_class_hashes.iter().map(|ch| ch.0).collect();
+    pub fn prepare_query(execution_data: &VirtualBlockExecutionData) -> RpcStorageProofsQuery {
+        let class_hashes: Vec<Felt> =
+            execution_data.executed_class_hashes.iter().map(|ch| ch.0).collect();
 
+        let initial_reads = &execution_data.initial_reads;
         let contract_addresses: Vec<ContractAddress> =
             initial_reads.get_contract_addresses().into_iter().collect();
 
@@ -107,49 +125,26 @@ impl RpcStorageProofsProvider {
     /// Converts an RPC storage proof response to OS input format.
     pub fn to_storage_proofs(
         rpc_proof: &RpcStorageProof,
-        initial_reads: &StateMaps,
         contract_addresses: &[ContractAddress],
     ) -> StorageProofs {
-        let cached_state_input =
-            Self::build_cached_state_input(rpc_proof, initial_reads, contract_addresses);
+        let mut proof_state = StateMaps::default();
         let commitment_infos = Self::build_commitment_infos(rpc_proof, contract_addresses);
 
-        StorageProofs { cached_state_input, commitment_infos }
-    }
-
-    fn build_cached_state_input(
-        rpc_proof: &RpcStorageProof,
-        initial_reads: &StateMaps,
-        contract_addresses: &[ContractAddress],
-    ) -> CachedStateInput {
-        let (address_to_class_hash, address_to_nonce) = rpc_proof
-            .contracts_proof
-            .contract_leaves_data
-            .iter()
-            .zip(contract_addresses)
-            .map(|(leaf, addr)| ((*addr, ClassHash(leaf.class_hash)), (*addr, Nonce(leaf.nonce))))
-            .unzip();
-
-        let storage = initial_reads.storage.iter().fold(
-            HashMap::<ContractAddress, HashMap<StorageKey, TypesFelt>>::new(),
-            |mut acc, ((addr, key), val)| {
-                acc.entry(*addr).or_default().insert(*key, *val);
-                acc
-            },
-        );
-
-        CachedStateInput {
-            storage,
-            address_to_class_hash,
-            address_to_nonce,
-            class_hash_to_compiled_class_hash: initial_reads.compiled_class_hashes.clone(),
+        // Update proof_state with class hashes and nonces from the proof.
+        for (leaf, addr) in
+            rpc_proof.contracts_proof.contract_leaves_data.iter().zip(contract_addresses)
+        {
+            proof_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            proof_state.nonces.insert(*addr, Nonce(leaf.nonce));
         }
+
+        StorageProofs { proof_state, commitment_infos }
     }
 
     fn build_commitment_infos(
         rpc_proof: &RpcStorageProof,
         contract_addresses: &[ContractAddress],
-    ) -> CommitmentInfos {
+    ) -> StateCommitmentInfos {
         let contracts_tree_root = HashOutput(rpc_proof.global_roots.contracts_tree_root);
         let classes_tree_root = HashOutput(rpc_proof.global_roots.classes_tree_root);
 
@@ -174,7 +169,7 @@ impl RpcStorageProofsProvider {
         let storage_tries_commitment_infos =
             Self::build_storage_commitment_infos(rpc_proof, contract_addresses);
 
-        CommitmentInfos {
+        StateCommitmentInfos {
             contracts_trie_commitment_info,
             classes_trie_commitment_info,
             storage_tries_commitment_infos,
@@ -217,5 +212,21 @@ impl RpcStorageProofsProvider {
                 ))
             })
             .collect()
+    }
+}
+
+impl StorageProofProvider for RpcStorageProofsProvider {
+    fn get_storage_proofs(
+        &self,
+        block_number: BlockNumber,
+        execution_data: &VirtualBlockExecutionData,
+    ) -> Result<StorageProofs, ProofProviderError> {
+        let query = Self::prepare_query(execution_data);
+        let contract_addresses = query.contract_addresses.clone();
+
+        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        let rpc_proof = runtime.block_on(self.fetch_proofs(block_number, &query))?;
+
+        Ok(Self::to_storage_proofs(&rpc_proof, &contract_addresses))
     }
 }
