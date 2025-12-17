@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 
 use apollo_committer_config::config::CommitterConfig;
@@ -7,9 +8,19 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
-use starknet_committer::db::forest_trait::{ForestMetadata, ForestMetadataType};
-use starknet_committer::db::mock_forest_storage::MockForestStorage;
-use starknet_committer::db::serde_db_utils::{deserialize_felt_no_packing, DbBlockNumber};
+use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::input::Input;
+use starknet_committer::db::forest_trait::{
+    ForestMetadata,
+    ForestMetadataType,
+    ForestWriterWithMetadata,
+};
+use starknet_committer::db::mock_forest_storage::{MockForestStorage, MockIndexInitialRead};
+use starknet_committer::db::serde_db_utils::{
+    deserialize_felt_no_packing,
+    serialize_felt_no_packing,
+    DbBlockNumber,
+};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
@@ -32,7 +43,6 @@ pub struct Committer<S: Storage + StorageConstructor> {
     /// Storage for forest operations.
     forest_storage: MockForestStorage<S>,
     /// Committer config.
-    #[allow(dead_code)]
     config: CommitterConfig,
     /// The next block number to commit.
     offset: BlockNumber,
@@ -74,16 +84,16 @@ impl<S: Storage + StorageConstructor> Committer<S> {
             });
         }
 
+        let state_diff_commitment =
+            state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
         if height < self.offset {
             // Request to commit an old height.
             // Might be ok if the caller didn't get the results properly.
-            let input_state_diff_commitment =
-                state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
             let stored_state_diff_commitment = self.load_state_diff_commitment(height).await?;
             // Verify the input state diff matches the stored one by comparing the commitments.
-            if input_state_diff_commitment != stored_state_diff_commitment {
+            if state_diff_commitment != stored_state_diff_commitment {
                 return Err(CommitterError::InvalidStateDiffCommitment {
-                    input_commitment: input_state_diff_commitment,
+                    input_commitment: state_diff_commitment,
                     stored_commitment: stored_state_diff_commitment,
                     height,
                 });
@@ -94,7 +104,37 @@ impl<S: Storage + StorageConstructor> Committer<S> {
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
-        unimplemented!()
+        let input = Input {
+            state_diff: state_diff.into(),
+            initial_read_context: MockIndexInitialRead {},
+            config: self.config.reader_config.clone(),
+        };
+        let filled_forest = commit_block(input, &mut self.forest_storage, None)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        let global_root = filled_forest.state_roots().global_root();
+
+        let next_offset = height.unchecked_next();
+        let metadata = HashMap::from([
+            (
+                ForestMetadataType::CommitmentOffset,
+                DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
+            ),
+            (
+                ForestMetadataType::StateRoot(DbBlockNumber(height)),
+                serialize_felt_no_packing(global_root.0),
+            ),
+            (
+                ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
+                serialize_felt_no_packing(state_diff_commitment.0.0),
+            ),
+        ]);
+        self.forest_storage
+            .write_with_metadata(&filled_forest, metadata)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        self.offset = next_offset;
+        Ok(CommitBlockResponse { state_root: global_root })
     }
 
     async fn load_state_diff_commitment(
