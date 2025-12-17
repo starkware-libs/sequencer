@@ -4,6 +4,12 @@
 //! with validation and fee charging disabled (equivalent to SKIP_VALIDATE + SKIP_FEE_CHARGE
 //! simulation flags).
 //!
+//! The benchmark runs two transactions per iteration:
+//! - tx1: First transaction (cold state cache)
+//! - tx2: Second transaction (warm state cache - benefits from tx1's state reads)
+//!
+//! Both transactions share the same class cache (warmed up before benchmarking).
+//!
 //! ## Usage
 //!
 //! Single run (for testing):
@@ -38,6 +44,8 @@ use blockifier_reexecution::state_reader::rpc_state_reader::{
 };
 use clap::Parser;
 use criterion::{BatchSize, Criterion};
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -108,22 +116,31 @@ fn parse_chain_id(chain_id: &str) -> ChainId {
     }
 }
 
-/// Build multicall calldata for multiple ERC20 transfers.
+/// Seed for deterministic random recipient generation (for reproducibility).
+const RANDOM_SEED: u64 = 42;
+
+/// Build multicall calldata for multiple ERC20 transfers with random recipients.
 /// Format: [num_calls, (contract, selector, calldata_len, ...calldata)...]
-fn build_multicall_transfer_calldata(num_transfers: usize) -> Vec<Felt> {
+/// Uses deterministic random recipients for reproducibility.
+fn build_multicall_transfer_calldata(num_transfers: usize, seed_offset: u64) -> Vec<Felt> {
     let token_address = parse_felt(STRK_TOKEN_ADDRESS);
     let transfer_selector = parse_felt(TRANSFER_SELECTOR);
 
+    // Create deterministic RNG with seed + offset for different txs
+    let mut rng = StdRng::seed_from_u64(RANDOM_SEED.wrapping_add(seed_offset));
+
     let mut calldata = vec![Felt::from(num_transfers as u64)];
 
-    for i in 0..num_transfers {
+    for _ in 0..num_transfers {
         // Each call: contract_address, entry_point_selector, calldata_len, ...calldata
         calldata.push(token_address); // Contract to call (ERC20)
         calldata.push(transfer_selector); // Entry point selector
         calldata.push(Felt::from(3u64)); // Calldata length
 
         // Transfer calldata: recipient, amount_low, amount_high
-        calldata.push(Felt::from(0x1000u64 + i as u64)); // Different recipient for each transfer
+        // Generate random recipient address
+        let random_recipient: u128 = rng.gen();
+        calldata.push(Felt::from(random_recipient));
         calldata.push(Felt::ONE); // Amount low (1 token)
         calldata.push(Felt::ZERO); // Amount high
     }
@@ -132,12 +149,14 @@ fn build_multicall_transfer_calldata(num_transfers: usize) -> Vec<Felt> {
 }
 
 /// Build an InvokeTransactionV3 for the simulation.
+/// `seed_offset` is used to generate different random recipients for each transaction.
 fn build_invoke_transaction(
     sender_address: ContractAddress,
     nonce: Nonce,
     num_transfers: usize,
+    seed_offset: u64,
 ) -> Transaction {
-    let calldata = build_multicall_transfer_calldata(num_transfers);
+    let calldata = build_multicall_transfer_calldata(num_transfers, seed_offset);
 
     let invoke_tx = InvokeTransactionV3 {
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
@@ -198,7 +217,7 @@ fn get_latest_block_number(config: &RpcStateReaderConfig, _chain_id: &ChainId) -
     BlockNumber(block_number)
 }
 
-/// Run a single execution and print timing results.
+/// Run a single execution and print timing results for both tx1 and tx2.
 fn run_single_execution(args: &Args) {
     println!("=== Single Execution Mode ===");
     println!("Node URL: {}", args.node_url);
@@ -225,8 +244,8 @@ fn run_single_execution(args: &Args) {
     let contract_class_manager_config = ContractClassManagerConfig::default();
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
-    // Create consecutive state readers
-    let readers = ConsecutiveRpcStateReaders::new(
+    // Create consecutive state readers for warmup
+    let warmup_readers = ConsecutiveRpcStateReaders::new(
         block_number,
         Some(config.clone()),
         chain_id.clone(),
@@ -237,27 +256,28 @@ fn run_single_execution(args: &Args) {
     // Fetch nonce from node
     let sender_address = ContractAddress::try_from(parse_felt(&args.sender_address))
         .expect("Invalid sender address");
-    let nonce =
-        readers.last_block_state_reader.get_nonce_at(sender_address).expect("Failed to get nonce");
+    let nonce = warmup_readers
+        .last_block_state_reader
+        .get_nonce_at(sender_address)
+        .expect("Failed to get nonce");
     println!("Current nonce: {:?}", nonce);
 
-    // Build transaction
-    let tx = build_invoke_transaction(sender_address, nonce, args.num_transfers);
-    let tx_hash = tx.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
-    println!("Transaction hash: {:?}", tx_hash);
-
-    // Convert to blockifier transaction with simulation flags
-    let blockifier_tx = api_tx_to_blockifier_tx_with_simulation_flags(tx, tx_hash);
+    // Build warmup transaction
+    let warmup_tx = build_invoke_transaction(sender_address, nonce, args.num_transfers, 0);
+    let warmup_tx_hash =
+        warmup_tx.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    let blockifier_warmup_tx =
+        api_tx_to_blockifier_tx_with_simulation_flags(warmup_tx, warmup_tx_hash);
 
     // Create executor for warmup
-    let mut warmup_executor = readers
+    let mut warmup_executor = warmup_readers
         .pre_process_and_create_executor(Some(TransactionExecutorConfig::default()))
         .expect("Failed to create executor");
 
     // Warmup run to fill class cache
     println!("\n=== Warmup Run (filling class cache) ===");
     let warmup_start = Instant::now();
-    let warmup_result = warmup_executor.execute(&blockifier_tx);
+    let warmup_result = warmup_executor.execute(&blockifier_warmup_tx);
     let warmup_elapsed = warmup_start.elapsed();
     match warmup_result {
         Ok((info, _)) => {
@@ -275,26 +295,42 @@ fn run_single_execution(args: &Args) {
         }
     }
 
-    // Create new executor for actual measurement (same class manager, so cache is warm)
-    let readers2 = ConsecutiveRpcStateReaders::new(
+    // Create new executor for actual measurement (same class manager, so class cache is warm)
+    let readers = ConsecutiveRpcStateReaders::new(
         block_number,
         Some(config.clone()),
         chain_id.clone(),
         false,
         contract_class_manager,
     );
-    let mut executor = readers2
+
+    // Build tx1 with nonce N (seed=1 for random recipients)
+    let tx1 = build_invoke_transaction(sender_address, nonce, args.num_transfers, 1);
+    let tx1_hash = tx1.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    println!("\nTx1 hash: {:?}", tx1_hash);
+    let blockifier_tx1 = api_tx_to_blockifier_tx_with_simulation_flags(tx1, tx1_hash);
+
+    // Build tx2 with nonce N+1 but SAME recipients as tx1 (same seed=1)
+    // This ensures tx2 benefits from state cache (same storage slots accessed)
+    let nonce_plus_1 = Nonce(nonce.0 + Felt::ONE);
+    let tx2 = build_invoke_transaction(sender_address, nonce_plus_1, args.num_transfers, 1);
+    let tx2_hash = tx2.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    println!("Tx2 hash: {:?}", tx2_hash);
+    let blockifier_tx2 = api_tx_to_blockifier_tx_with_simulation_flags(tx2, tx2_hash);
+
+    let mut executor = readers
         .pre_process_and_create_executor(Some(TransactionExecutorConfig::default()))
         .expect("Failed to create executor");
 
-    println!("\n=== Actual Execution (warm cache) ===");
-    let start = Instant::now();
-    let result = executor.execute(&blockifier_tx);
-    let elapsed = start.elapsed();
+    // Execute tx1 (cold state cache, warm class cache)
+    println!("\n=== Tx1 Execution (cold state cache, warm class cache) ===");
+    let tx1_start = Instant::now();
+    let tx1_result = executor.execute(&blockifier_tx1);
+    let tx1_elapsed = tx1_start.elapsed();
 
-    match result {
+    match tx1_result {
         Ok((execution_info, _state_diff)) => {
-            println!("✓ Execution succeeded in {:?}", elapsed);
+            println!("✓ Tx1 succeeded in {:?}", tx1_elapsed);
             if execution_info.is_reverted() {
                 println!("  ⚠ Transaction reverted: {:?}", execution_info.revert_error);
             } else {
@@ -303,17 +339,51 @@ fn run_single_execution(args: &Args) {
             }
         }
         Err(e) => {
-            println!("✗ Execution failed in {:?}: {:?}", elapsed, e);
+            println!("✗ Tx1 failed in {:?}: {:?}", tx1_elapsed, e);
+            return;
         }
     }
+
+    // Execute tx2 (warm state cache + warm class cache)
+    println!("\n=== Tx2 Execution (warm state cache, warm class cache) ===");
+    let tx2_start = Instant::now();
+    let tx2_result = executor.execute(&blockifier_tx2);
+    let tx2_elapsed = tx2_start.elapsed();
+
+    match tx2_result {
+        Ok((execution_info, _state_diff)) => {
+            println!("✓ Tx2 succeeded in {:?}", tx2_elapsed);
+            if execution_info.is_reverted() {
+                println!("  ⚠ Transaction reverted: {:?}", execution_info.revert_error);
+            } else {
+                println!("  Transaction completed successfully");
+                println!("  Gas used: {:?}", execution_info.receipt.gas);
+            }
+        }
+        Err(e) => {
+            println!("✗ Tx2 failed in {:?}: {:?}", tx2_elapsed, e);
+        }
+    }
+
+    // Summary
+    println!("\n=== Summary ===");
+    println!("Warmup (cold class cache): {:?}", warmup_elapsed);
+    println!("Tx1 (cold state, warm class): {:?}", tx1_elapsed);
+    println!("Tx2 (warm state, warm class): {:?}", tx2_elapsed);
 }
 
-/// Setup function for criterion benchmark - returns transaction and executor.
+/// Setup function for criterion benchmark - returns two transactions and an executor.
 /// Uses a shared ContractClassManager so class cache is warm across all iterations.
+/// Returns (tx1, tx2, executor) where tx1 has nonce N and tx2 has nonce N+1.
 fn setup_benchmark(
     args: &Args,
     contract_class_manager: ContractClassManager,
-) -> (BlockifierTransaction, TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>) {
+    iteration: u64,
+) -> (
+    BlockifierTransaction,
+    BlockifierTransaction,
+    TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>,
+) {
     let config = RpcStateReaderConfig::from_url(args.node_url.clone());
     let chain_id = parse_chain_id(&args.chain_id);
 
@@ -341,23 +411,32 @@ fn setup_benchmark(
     let nonce =
         readers.last_block_state_reader.get_nonce_at(sender_address).expect("Failed to get nonce");
 
-    // Build transaction
-    let tx = build_invoke_transaction(sender_address, nonce, args.num_transfers);
-    let tx_hash = tx.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    // Build tx1 with nonce N (use iteration as seed for random recipients)
+    let tx1 = build_invoke_transaction(sender_address, nonce, args.num_transfers, iteration);
+    let tx1_hash = tx1.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    let blockifier_tx1 = api_tx_to_blockifier_tx_with_simulation_flags(tx1, tx1_hash);
 
-    // Convert to blockifier transaction with simulation flags
-    let blockifier_tx = api_tx_to_blockifier_tx_with_simulation_flags(tx, tx_hash);
+    // Build tx2 with nonce N+1 but SAME recipients as tx1 (same seed)
+    // This ensures tx2 benefits from state cache (same storage slots accessed)
+    let nonce_plus_1 = Nonce(nonce.0 + Felt::ONE);
+    let tx2 = build_invoke_transaction(sender_address, nonce_plus_1, args.num_transfers, iteration);
+    let tx2_hash = tx2.calculate_transaction_hash(&chain_id).expect("Failed to calculate tx hash");
+    let blockifier_tx2 = api_tx_to_blockifier_tx_with_simulation_flags(tx2, tx2_hash);
 
     // Create executor
     let executor = readers
         .pre_process_and_create_executor(Some(TransactionExecutorConfig::default()))
         .expect("Failed to create executor");
 
-    (blockifier_tx, executor)
+    (blockifier_tx1, blockifier_tx2, executor)
 }
 
-/// Run criterion benchmark.
+/// Run criterion benchmark with two transactions per iteration.
+/// tx1: cold state cache (but warm class cache)
+/// tx2: warm state cache (benefits from tx1's state reads) + warm class cache
 fn run_criterion_benchmark(c: &mut Criterion, args: Args) {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     println!("Setting up benchmark...");
     println!("Node URL: {}", args.node_url);
     println!("Sender: {}", args.sender_address);
@@ -370,9 +449,10 @@ fn run_criterion_benchmark(c: &mut Criterion, args: Args) {
 
     // Warmup run to fill the class cache before benchmarking
     println!("\n=== Warmup Run (filling class cache) ===");
-    let (warmup_tx, mut warmup_executor) = setup_benchmark(&args, contract_class_manager.clone());
+    let (warmup_tx1, _, mut warmup_executor) =
+        setup_benchmark(&args, contract_class_manager.clone(), 0);
     let warmup_start = Instant::now();
-    let warmup_result = warmup_executor.execute(&warmup_tx);
+    let warmup_result = warmup_executor.execute(&warmup_tx1);
     let warmup_elapsed = warmup_start.elapsed();
     match warmup_result {
         Ok((info, _)) => {
@@ -391,11 +471,24 @@ fn run_criterion_benchmark(c: &mut Criterion, args: Args) {
     }
     println!("=== Starting Benchmark ===\n");
 
-    c.bench_function(&format!("simulate_{}_transfers", args.num_transfers), |b| {
+    // Iteration counter for unique random recipients
+    let iteration_counter = AtomicU64::new(1);
+
+    // Create a benchmark group for both tx1 and tx2
+    let mut group = c.benchmark_group(format!("{}_transfers", args.num_transfers));
+
+    // Benchmark tx1 (cold state cache)
+    let args_clone = args.clone();
+    let ccm_clone = contract_class_manager.clone();
+    let iter_counter_ref = &iteration_counter;
+    group.bench_function("tx1_cold_state", |b| {
         b.iter_batched(
-            || setup_benchmark(&args, contract_class_manager.clone()),
-            |(tx, mut executor)| {
-                let result = executor.execute(&tx);
+            || {
+                let iter = iter_counter_ref.fetch_add(1, Ordering::SeqCst);
+                setup_benchmark(&args_clone, ccm_clone.clone(), iter)
+            },
+            |(tx1, _tx2, mut executor)| {
+                let result = executor.execute(&tx1);
                 assert!(result.is_ok(), "Execution failed: {:?}", result.err());
                 let (execution_info, _) = result.unwrap();
                 assert!(
@@ -407,6 +500,43 @@ fn run_criterion_benchmark(c: &mut Criterion, args: Args) {
             BatchSize::SmallInput,
         )
     });
+
+    // Benchmark tx2 (warm state cache - tx1 is executed first, then tx2 is measured)
+    let args_clone2 = args.clone();
+    let ccm_clone2 = contract_class_manager.clone();
+    group.bench_function("tx2_warm_state", |b| {
+        b.iter_batched(
+            || {
+                let iter = iter_counter_ref.fetch_add(1, Ordering::SeqCst);
+                let (tx1, tx2, mut executor) =
+                    setup_benchmark(&args_clone2, ccm_clone2.clone(), iter);
+                // Execute tx1 first (not measured) to warm up state cache
+                let result = executor.execute(&tx1);
+                assert!(result.is_ok(), "tx1 execution failed: {:?}", result.err());
+                let (execution_info, _) = result.unwrap();
+                assert!(
+                    !execution_info.is_reverted(),
+                    "tx1 reverted: {:?}",
+                    execution_info.revert_error
+                );
+                // Return tx2 and executor (with warm state cache)
+                (tx2, executor)
+            },
+            |(tx2, mut executor)| {
+                let result = executor.execute(&tx2);
+                assert!(result.is_ok(), "tx2 execution failed: {:?}", result.err());
+                let (execution_info, _) = result.unwrap();
+                assert!(
+                    !execution_info.is_reverted(),
+                    "tx2 reverted: {:?}",
+                    execution_info.revert_error
+                );
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
 }
 
 fn parse_args_from_criterion() -> Args {
