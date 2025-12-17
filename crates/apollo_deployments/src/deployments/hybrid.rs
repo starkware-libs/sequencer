@@ -26,7 +26,8 @@ pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
-    Core,    // Comprises the batcher, class manager, consensus manager, and state sync.
+    Batcher, // Comprises the batcher and the class manager.
+    Core,    // Comprises the consensus manager and state sync.
     Gateway, // Comprises the gateway and http server
     L1,      // Comprises the various l1 components.
     Mempool,
@@ -63,9 +64,9 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
         };
 
-        let batcher = HybridNodeServiceName::Core
+        let batcher = HybridNodeServiceName::Batcher
             .component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager = HybridNodeServiceName::Core
+        let class_manager = HybridNodeServiceName::Batcher
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
         let gateway = HybridNodeServiceName::Gateway
             .component_config_pair(service_ports[&InfraServicePort::Gateway]);
@@ -84,8 +85,14 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
-                HybridNodeServiceName::Core => get_core_component_config(
+                HybridNodeServiceName::Batcher => get_batcher_component_config(
                     batcher.local(),
+                    class_manager.remote(),
+                    l1_provider.remote(),
+                    mempool.remote(),
+                ),
+                HybridNodeServiceName::Core => get_core_component_config(
+                    batcher.remote(),
                     class_manager.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
@@ -126,7 +133,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
 impl ServiceNameInner for HybridNodeServiceName {
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            HybridNodeServiceName::Core
+            HybridNodeServiceName::Batcher
+            | HybridNodeServiceName::Core
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => ScalePolicy::StaticallyScaled,
 
@@ -138,7 +146,9 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_retries(&self) -> usize {
         match self {
-            Self::Core | Self::Mempool | Self::Gateway | Self::SierraCompiler => DEFAULT_RETRIES,
+            Self::Batcher | Self::Core | Self::Mempool | Self::Gateway | Self::SierraCompiler => {
+                DEFAULT_RETRIES
+            }
             Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
     }
@@ -147,6 +157,34 @@ impl ServiceNameInner for HybridNodeServiceName {
         let mut service_ports = BTreeSet::new();
 
         match self {
+            HybridNodeServiceName::Batcher => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2p
+                            | BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::SignatureManager => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Gateway
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
             HybridNodeServiceName::Core => {
                 for service_port in ServicePort::iter() {
                     match service_port {
@@ -158,14 +196,14 @@ impl ServiceNameInner for HybridNodeServiceName {
                             BusinessLogicServicePort::HttpServer
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
+
                         ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SignatureManager => {
+                            InfraServicePort::StateSync | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
                             }
-                            InfraServicePort::Gateway
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
@@ -288,11 +326,36 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         let mut components = BTreeSet::new();
         match self {
-            HybridNodeServiceName::Core => {
+            HybridNodeServiceName::Batcher => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SignatureManager => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::Core => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
@@ -302,6 +365,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             components.insert(component_config_in_service);
                         }
                         ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -423,9 +487,26 @@ impl ServiceNameInner for HybridNodeServiceName {
     }
 }
 
+fn get_batcher_component_config(
+    batcher_local_config: ReactiveComponentExecutionConfig,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    mempool_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.batcher = batcher_local_config;
+    config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
+    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
+    config.l1_provider = l1_provider_remote_config;
+    config.mempool = mempool_remote_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
 #[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
-    batcher_local_config: ReactiveComponentExecutionConfig,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
@@ -435,7 +516,7 @@ fn get_core_component_config(
     signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-    config.batcher = batcher_local_config;
+    config.batcher = batcher_remote_config;
     config.class_manager = class_manager_local_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
