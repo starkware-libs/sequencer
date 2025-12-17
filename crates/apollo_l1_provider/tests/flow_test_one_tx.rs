@@ -1,4 +1,6 @@
+#![cfg(any(test, feature = "testing"))]
 mod utils;
+
 use std::time::Duration;
 
 use apollo_l1_provider_types::{L1ProviderClient, SessionState, ValidationStatus};

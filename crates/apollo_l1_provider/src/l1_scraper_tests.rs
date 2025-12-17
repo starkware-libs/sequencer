@@ -193,15 +193,15 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
     // The scraper should return a finality too high error.
     assert_matches!(
         scraper.send_events_to_l1_provider().await,
-        Err(L1ScraperError::FinalityTooHigh { .. })
+        Err(L1ScraperError::LatestBlockNumberTooLow { .. })
     );
 }
 
 #[test]
 #[ignore = "similar to backlog_happy_flow, only shorter, and sprinkle some start_block/get_txs \
-            attempts while its bootstrapping (and assert failure on height), then assert that they \
-            succeed after bootstrapping ends."]
-fn bootstrap_completion() {
+            attempts while its catching up (and assert failure on height), then assert that they \
+            succeed after catching up ends."]
+fn catching_up_completion() {
     todo!()
 }
 

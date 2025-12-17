@@ -10,15 +10,20 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE,
     MEMPOOL_P2P_SENT_MESSAGE_SIZE,
 };
-use apollo_metrics::metrics::MetricDetails;
+use apollo_metrics::metrics::{MetricDetails, MetricQueryName};
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
-// TODO(shahak): Properly name and describe these panels.
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
-    Panel::from_gauge(&MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
+    Panel::new(
+        "Number of Connected Peers",
+        "The number of connected peers in Mempool P2P",
+        MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+    .with_log_query("network_manager")
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {

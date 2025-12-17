@@ -37,7 +37,13 @@ use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeaderWithoutHash,
+    BlockInfo,
+    BlockNumber,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -48,7 +54,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReader, MockBatcherStorageWriter};
+use crate::batcher::{
+    Batcher,
+    MockBatcherStorageReader,
+    MockBatcherStorageWriter,
+    StorageCommitmentBlockHash,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderError,
@@ -185,6 +196,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         ),
         Box::new(mock_dependencies.block_builder_factory),
         Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
+        None,
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
@@ -953,17 +965,26 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
     let mut mock_dependencies = MockDependencies::default();
-    let (starknet_version, block_header_commitments) = if partial_block_hash_components.is_some() {
-        (StarknetVersion::LATEST, Some(Default::default()))
-    } else {
-        (StarknetVersion::V0_13_1, None)
-    };
+    let (starknet_version, block_header_commitments, storage_commitment_block_hash) =
+        if let Some(ref partial_block_hash_components) = partial_block_hash_components {
+            (
+                StarknetVersion::LATEST,
+                Some(Default::default()),
+                StorageCommitmentBlockHash::Partial(partial_block_hash_components.clone()),
+            )
+        } else {
+            (
+                StarknetVersion::V0_13_1,
+                None,
+                StorageCommitmentBlockHash::ParentHash(BlockHash::default()),
+            )
+        };
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(partial_block_hash_components))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(storage_commitment_block_hash))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
@@ -1158,7 +1179,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(Some(expected_partial_block_hash)),
+            eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
         )
         .returning(|_, _, _| Ok(()));
 

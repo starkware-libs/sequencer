@@ -37,9 +37,9 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": 16106127360,
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": false,
   "batcher_config.contract_class_manager_config.native_compiler_config.optimization_level": 2,
-  "batcher_config.first_block_with_partial_block_hash.block_hash": "0x0",
-  "batcher_config.first_block_with_partial_block_hash.block_number": 0,
-  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": "0x0",
+  "batcher_config.first_block_with_partial_block_hash.block_hash": "$$$_BATCHER_CONFIG-FIRST_BLOCK_WITH_PARTIAL_BLOCK_HASH-BLOCK_HASH_$$$",
+  "batcher_config.first_block_with_partial_block_hash.block_number": "$$$_BATCHER_CONFIG-FIRST_BLOCK_WITH_PARTIAL_BLOCK_HASH-BLOCK_NUMBER_$$$",
+  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": "$$$_BATCHER_CONFIG-FIRST_BLOCK_WITH_PARTIAL_BLOCK_HASH-PARENT_BLOCK_HASH_$$$",
   "batcher_config.input_stream_content_buffer_size": 4000,
   "batcher_config.max_l1_handler_txs_per_block_proposal": 200,
   "batcher_config.outstream_content_buffer_size": 64,
@@ -55,5 +55,8 @@
   "batcher_config.storage.mmap_file_config.growth_step": 2147483648,
   "batcher_config.storage.mmap_file_config.max_object_size": 1073741824,
   "batcher_config.storage.mmap_file_config.max_size": 1099511627776,
-  "batcher_config.storage.scope": "StateOnly"
+  "batcher_config.storage.scope": "StateOnly",
+  "batcher_config.storage_reader_server_config.enable": false,
+  "batcher_config.storage_reader_server_config.ip": "0.0.0.0",
+  "batcher_config.storage_reader_server_config.port": "$$$_BATCHER_CONFIG-STORAGE_READER_SERVER_CONFIG-PORT_$$$"
 }

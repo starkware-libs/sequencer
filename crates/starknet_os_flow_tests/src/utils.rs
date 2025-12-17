@@ -39,9 +39,9 @@ use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    ConfigImpl,
     FactsDbInitialRead,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -149,7 +149,7 @@ pub(crate) async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> StateRoots {
-    let config = ConfigImpl::default();
+    let config = ReaderConfig::default();
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };

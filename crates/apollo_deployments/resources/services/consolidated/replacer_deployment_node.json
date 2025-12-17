@@ -8,7 +8,6 @@
   "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_gateway_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_http_server_config.json",
-  "crates/apollo_deployments/resources/app_configs/replacer_l1_endpoint_monitor_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_l1_gas_price_provider_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_l1_gas_price_scraper_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_l1_provider_config.json",
@@ -18,7 +17,5 @@
   "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_sierra_compiler_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_state_sync_config.json",
-  "crates/apollo_deployments/resources/deployments/replacer_deployment.json",
-  "crates/apollo_deployments/resources/deployments/replacer_instance.json",
   "crates/apollo_deployments/resources/services/consolidated/replacer_node.json"
 ]

@@ -16,10 +16,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerContract,
     Starknet,
 };
-use papyrus_base_layer::test_utils::{
-    make_block_history_on_anvil,
-    DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
-};
+use papyrus_base_layer::test_utils::{anvil_mine_blocks, DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS};
 use serde_json::Value;
 use tracing::info;
 use url::Url;
@@ -104,15 +101,11 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
     let base_layer_config = build_base_layer_config_for_testing();
 
     let ethereum_base_layer_contract = EthereumBaseLayerContract::new(base_layer_config.clone());
+    info!("Deploying Starknet contract to Anvil");
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
 
-    make_block_history_on_anvil(
-        sender_address,
-        receiver_address,
-        base_layer_config,
-        NUM_BLOCKS_NEEDED_ON_L1,
-    )
-    .await;
+    info!("Mining block history on Anvil");
+    anvil_mine_blocks(base_layer_config, NUM_BLOCKS_NEEDED_ON_L1.try_into().unwrap()).await;
 }
 
 // TODO(Arni): Use `AnvilBaseLayer`.

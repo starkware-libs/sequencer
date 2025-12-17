@@ -12,7 +12,8 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
-use apollo_storage::StorageConfig;
+use apollo_storage::db::DbConfig;
+use apollo_storage::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -111,12 +112,12 @@ impl Default for ConsensusStaticConfig {
         Self {
             startup_delay: Duration::from_secs(5),
             storage_config: StorageConfig {
-                db_config: apollo_storage::db::DbConfig {
+                db_config: DbConfig {
                     path_prefix: "/data/consensus".into(),
                     enforce_file_exists: false,
                     ..Default::default()
                 },
-                scope: apollo_storage::StorageScope::StateOnly,
+                scope: StorageScope::StateOnly,
                 ..Default::default()
             },
         }

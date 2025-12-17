@@ -9,7 +9,6 @@ use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
-use tracing::level_filters::LevelFilter;
 
 use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
 
@@ -118,42 +117,22 @@ impl From<ThinStateDiff> for StateDiff {
     }
 }
 
-/// Trait contains all optional configurations of the committer.
-pub trait Config: Debug + Eq + PartialEq {
+/// All optional configurations of the committer.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ReaderConfig {
+    warn_on_trivial_modifications: bool,
+}
+
+impl ReaderConfig {
+    pub fn new(warn_on_trivial_modifications: bool) -> Self {
+        Self { warn_on_trivial_modifications }
+    }
+
     /// Indicates whether a warning should be given in case of a trivial state update.
     /// If the configuration is set, it requires that the storage will contain the original data for
     /// the modified leaves. Otherwise, it is not required.
-    fn warn_on_trivial_modifications(&self) -> bool;
-
-    /// Indicates from which log level output should be printed out to console.
-    fn logger_level(&self) -> LevelFilter;
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConfigImpl {
-    warn_on_trivial_modifications: bool,
-    log_level: LevelFilter,
-}
-
-impl Config for ConfigImpl {
-    fn warn_on_trivial_modifications(&self) -> bool {
+    pub fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
-    }
-
-    fn logger_level(&self) -> LevelFilter {
-        self.log_level
-    }
-}
-
-impl ConfigImpl {
-    pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
-        Self { warn_on_trivial_modifications, log_level }
-    }
-}
-
-impl Default for ConfigImpl {
-    fn default() -> Self {
-        Self { warn_on_trivial_modifications: false, log_level: LevelFilter::INFO }
     }
 }
 
@@ -167,11 +146,11 @@ pub struct FactsDbInitialRead(pub StateRoots);
 impl InputContext for FactsDbInitialRead {}
 
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Input<C: Config, I: InputContext> {
+pub struct Input<I: InputContext> {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
     pub initial_read_context: I,
-    pub config: C,
+    pub config: ReaderConfig,
 }
 
 pub trait IsSubset<T> {

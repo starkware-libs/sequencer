@@ -112,7 +112,10 @@ fn get_panel_block_close_reasons() -> Panel {
         ),
         PanelType::Stat,
     )
-    .with_log_query("\"Block builder deadline reached.\" OR \"Block is full.\"")
+    .with_log_query(
+        "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being \
+         executed and\"",
+    )
 }
 
 fn get_panel_num_batches_in_proposal() -> Panel {

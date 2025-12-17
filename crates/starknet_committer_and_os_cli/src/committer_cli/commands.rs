@@ -1,5 +1,4 @@
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::Config;
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;
@@ -17,9 +16,10 @@ pub async fn parse_and_commit(
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
-    let CommitterFactsDbInputImpl { input, storage } = load_input::<RawInput>(input_path)
-        .try_into()
-        .expect("Failed to convert RawInput to FactsDbInputImpl.");
+    let CommitterFactsDbInputImpl { input, log_level, storage } =
+        load_input::<RawInput>(input_path)
+            .try_into()
+            .expect("Failed to convert RawInput to FactsDbInputImpl.");
     info!(
         "Parsed committer input successfully. Original Contracts Trie Root Hash: {:?},
     Original Classes Trie Root Hash: {:?}",
@@ -27,9 +27,7 @@ pub async fn parse_and_commit(
         input.initial_read_context.0.classes_trie_root_hash,
     );
     // Set the given log level if handle is passed.
-    log_filter_handle
-        .modify(|filter| *filter = input.config.logger_level())
-        .expect("Failed to set the log level.");
+    log_filter_handle.modify(|filter| *filter = log_level).expect("Failed to set the log level.");
     commit(input, output_path, storage).await;
 }
 

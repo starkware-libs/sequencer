@@ -1,11 +1,16 @@
 use ethnum::U256;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{
+    DBObject,
+    EmptyDeserializationContext,
+    HasDynamicPrefix,
+    HasStaticPrefix,
+};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -39,7 +44,9 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+// TODO(Ariel, 14/12/2025): generalize this to both layouts (e.g. via a new trait). ATM db_key is
+// only used in the filled tree serialize function, which assumes facts layout.
+impl<L: Leaf> FactDbFilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
     }
@@ -49,27 +56,35 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
-impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+impl<L: Leaf> HasDynamicPrefix for FilledNode<L, HashOutput> {
     // Inherit the KeyContext from the HasStaticPrefix implementation of the leaf.
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
 
-    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
+    fn get_prefix(&self, _key_context: &Self::KeyContext) -> DbKeyPrefix {
         match &self.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
-            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(key_context)),
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(_key_context)),
         }
         .into()
     }
 }
 
-impl<L: Leaf> DBObject for FilledNode<L> {
+/// Extra context required to deserialize [FilledNode<L, HashOutput>].
+/// See [DBObject::DeserializeContext] for more information
+pub struct FactNodeDeserializationContext {
+    pub is_leaf: bool,
+    pub node_hash: HashOutput,
+}
+
+impl<L: Leaf> DBObject for FactDbFilledNode<L> {
+    type DeserializeContext = FactNodeDeserializationContext;
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
     fn serialize(&self) -> DbValue {
         match &self.data {
-            NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+            NodeData::Binary(BinaryData { left_data: left_hash, right_data: right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
                 let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
                 let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
@@ -79,7 +94,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
                 DbValue(serialized)
             }
 
-            NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+            NodeData::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }) => {
                 // Serialize bottom hash, path, and path length to byte arrays.
                 let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
                 let path: [u8; SERIALIZE_HASH_BYTES] =
@@ -94,27 +109,26 @@ impl<L: Leaf> DBObject for FilledNode<L> {
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),
         }
     }
-}
 
-impl<L: Leaf> FilledNode<L> {
-    /// Deserializes filled nodes.
-    pub fn deserialize(
-        node_hash: HashOutput,
+    fn deserialize(
         value: &DbValue,
-        is_leaf: bool,
+        deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
-        if is_leaf {
-            return Ok(Self { hash: node_hash, data: NodeData::Leaf(L::deserialize(value)?) });
+        if deserialize_context.is_leaf {
+            return Ok(Self {
+                hash: deserialize_context.node_hash,
+                data: NodeData::Leaf(L::deserialize(value, &EmptyDeserializationContext)?),
+            });
         }
 
         if value.0.len() == BINARY_BYTES {
             Ok(Self {
-                hash: node_hash,
+                hash: deserialize_context.node_hash,
                 data: NodeData::Binary(BinaryData {
-                    left_hash: HashOutput(Felt::from_bytes_be_slice(
+                    left_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[..SERIALIZE_HASH_BYTES],
                     )),
-                    right_hash: HashOutput(Felt::from_bytes_be_slice(
+                    right_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[SERIALIZE_HASH_BYTES..],
                     )),
                 }),
@@ -129,9 +143,9 @@ impl<L: Leaf> FilledNode<L> {
                 BINARY_BYTES
             );
             Ok(Self {
-                hash: node_hash,
+                hash: deserialize_context.node_hash,
                 data: NodeData::Edge(EdgeData {
-                    bottom_hash: HashOutput(Felt::from_bytes_be_slice(
+                    bottom_data: HashOutput(Felt::from_bytes_be_slice(
                         &value.0[..SERIALIZE_HASH_BYTES],
                     )),
                     path_to_bottom: PathToBottom::new(
