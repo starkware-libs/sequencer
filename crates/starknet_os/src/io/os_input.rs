@@ -43,6 +43,14 @@ pub struct CommitmentInfo {
     pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
 }
 
+// TODO(Aviv): Use this struct in `OsBlockInput`
+/// Contains all commitment information for a block's state trees.
+pub struct StateCommitmentInfos {
+    pub contracts_trie_commitment_info: CommitmentInfo,
+    pub classes_trie_commitment_info: CommitmentInfo,
+    pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
+}
+
 #[cfg(any(feature = "testing", test))]
 impl Default for CommitmentInfo {
     fn default() -> CommitmentInfo {
