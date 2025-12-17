@@ -8,7 +8,7 @@ use apollo_l1_endpoint_monitor_types::{
 use async_trait::async_trait;
 use starknet_api::block::BlockHashAndNumber;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{error, info};
+use tracing::info;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::EthereumBaseLayerContract;

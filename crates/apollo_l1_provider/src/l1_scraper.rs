@@ -19,7 +19,7 @@ use starknet_api::StarknetApiError;
 use static_assertions::const_assert;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::metrics::{
     register_scraper_metrics,

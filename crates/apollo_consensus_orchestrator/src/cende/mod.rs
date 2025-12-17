@@ -41,7 +41,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
-use tracing::{error, info, warn, Instrument};
+use tracing::{info, warn, Instrument};
 use url::Url;
 
 use crate::fee_market::FeeMarketInfo;

@@ -34,12 +34,11 @@ use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{
     l1_handler,
-    make_bootstrapper,
     ConsumedTransaction,
     FakeL1ProviderClient,
     L1ProviderContentBuilder,
 };
-use crate::L1ProviderConfig;
+use crate::{make_bootstrapper, L1ProviderConfig};
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,

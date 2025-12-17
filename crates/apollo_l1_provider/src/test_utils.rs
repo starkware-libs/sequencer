@@ -34,6 +34,7 @@ use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionMa
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::L1ProviderConfig;
 
+#[macro_export]
 macro_rules! make_bootstrapper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{
         Bootstrapper {
@@ -52,8 +53,6 @@ macro_rules! make_bootstrapper {
         }
     }};
 }
-
-pub(crate) use make_bootstrapper;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));
