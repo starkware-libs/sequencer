@@ -13,11 +13,9 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
@@ -152,22 +150,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn get_controller(&self) -> Controller {
-        match self {
-            DistributedNodeServiceName::Batcher => Controller::StatefulSet,
-            DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
-            DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
-            DistributedNodeServiceName::HttpServer => Controller::Deployment,
-            DistributedNodeServiceName::Gateway => Controller::Deployment,
-            DistributedNodeServiceName::L1 => Controller::Deployment,
-            DistributedNodeServiceName::Mempool => Controller::Deployment,
-            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
-            DistributedNodeServiceName::StateSync => Controller::StatefulSet,
-            // TODO(Nadin): Decide on controller for the SignatureManager.
-            DistributedNodeServiceName::SignatureManager => Controller::StatefulSet,
-        }
-    }
-
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             DistributedNodeServiceName::Batcher
@@ -197,49 +179,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Self::SierraCompiler => DEFAULT_RETRIES,
             Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
-    }
-
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            DistributedNodeServiceName::ConsensusManager
-            | DistributedNodeServiceName::Mempool
-            | DistributedNodeServiceName::StateSync => true,
-            DistributedNodeServiceName::Batcher
-            | DistributedNodeServiceName::ClassManager
-            | DistributedNodeServiceName::HttpServer
-            | DistributedNodeServiceName::Gateway
-            | DistributedNodeServiceName::L1
-            | DistributedNodeServiceName::SierraCompiler
-            | DistributedNodeServiceName::SignatureManager => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        None
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
