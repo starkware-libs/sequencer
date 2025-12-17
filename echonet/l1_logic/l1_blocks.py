@@ -2,7 +2,8 @@ import logging
 from typing import Optional
 
 from l1_client import L1Client
-from l1_utils import timestamp_to_iso
+
+from echonet.helpers import timestamp_to_iso
 
 logger = logging.getLogger(__name__)
 

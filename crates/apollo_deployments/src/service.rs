@@ -24,7 +24,6 @@ use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::config_override::{deployment_replacer_file_path, instance_replacer_file_path};
 use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{
     ComponentConfigInService,
@@ -54,11 +53,12 @@ use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
 
+// TODO(Tsabary): remove ports and mempool ttl from this list.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.bpo1_start_block_number",
     "base_layer_config.bpo2_start_block_number",
     "base_layer_config.fusaka_no_bpo_start_block_number",
-    "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "base_layer_config.starknet_contract_address",
     "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
     "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.block_builder_config.execute_config.n_workers",
@@ -67,25 +67,49 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.first_block_with_partial_block_hash.block_hash",
     "batcher_config.first_block_with_partial_block_hash.parent_block_hash",
+    "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "chain_id",
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
     "consensus_manager_config.context_config.build_proposal_margin_millis",
-    "consensus_manager_config.context_config.override_eth_to_fri_rate",
+    "consensus_manager_config.context_config.num_validators",
     "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none",
-    "consensus_manager_config.context_config.override_l1_data_gas_price_wei",
+    "consensus_manager_config.context_config.override_eth_to_fri_rate",
     "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none",
-    "consensus_manager_config.context_config.override_l1_gas_price_wei",
+    "consensus_manager_config.context_config.override_l1_data_gas_price_wei",
     "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none",
-    "consensus_manager_config.context_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.override_l1_gas_price_wei",
     "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none",
-    "gateway_config.authorized_declarer_accounts",
+    "consensus_manager_config.context_config.override_l2_gas_price_fri",
+    "consensus_manager_config.network_config.advertised_multiaddr.#is_none",
+    "consensus_manager_config.network_config.advertised_multiaddr",
+    "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none",
+    "consensus_manager_config.network_config.bootstrap_peer_multiaddr",
+    "consensus_manager_config.network_config.port",
+    "eth_fee_token_address",
     "gateway_config.authorized_declarer_accounts.#is_none",
+    "gateway_config.authorized_declarer_accounts",
     "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.stateless_tx_validator_config.min_gas_price",
+    "http_server_config.port",
     "mempool_config.dynamic_config.transaction_ttl",
+    "mempool_p2p_config.network_config.advertised_multiaddr.#is_none",
+    "mempool_p2p_config.network_config.advertised_multiaddr",
+    "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none",
+    "mempool_p2p_config.network_config.bootstrap_peer_multiaddr",
+    "mempool_p2p_config.network_config.port",
+    "monitoring_endpoint_config.port",
+    "sierra_compiler_config.audited_libfuncs_only",
     "sierra_compiler_config.max_bytecode_size",
+    "starknet_url",
+    "state_sync_config.central_sync_client_config.#is_none",
+    "state_sync_config.network_config.#is_none",
+    "state_sync_config.p2p_sync_client_config.#is_none",
+    "state_sync_config.rpc_config.port",
+    "strk_fee_token_address",
+    "validator_id",
     "versioned_constants_overrides.max_n_events",
 };
 
@@ -366,11 +390,8 @@ impl NodeService {
             .zip(replacer_components_in_service.clone())
             .collect();
 
-        let replacer_config_filenames: Vec<String> =
-            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
         let replacer_config_paths: Vec<String> = replacer_components_in_service
             .into_iter()
-            .chain(replacer_config_filenames)
             .chain(once(self.get_replacer_service_file_path()))
             .collect();
         let replacer_deployment_file_path = self.replacer_deployment_file_path();

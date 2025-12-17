@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs
 STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
@@ -11,7 +9,6 @@ LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
     "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
 )
 
-
-def timestamp_to_iso(timestamp: int) -> str:
-    """Convert Unix timestamp to ISO 8601 string (UTC)."""
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+# Function selectors for Starknet L1 contract.
+STATE_BLOCK_NUMBER_SELECTOR = "0x35befa5d"  # stateBlockNumber()
+STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()

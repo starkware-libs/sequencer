@@ -26,7 +26,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 use url::Url;
 use validator::{Validate, ValidationError};
 
@@ -110,6 +110,13 @@ impl EthereumBaseLayerContract {
         );
         Self { url_iterator, contract, config }
     }
+    #[cfg(any(test, feature = "testing"))]
+    pub fn new_with_provider(config: EthereumBaseLayerConfig, provider: RootProvider) -> Self {
+        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let starknet_contract_address = config.starknet_contract_address;
+        let contract = Starknet::new(starknet_contract_address, provider);
+        Self { url_iterator, contract, config }
+    }
 }
 
 #[async_trait]
@@ -145,18 +152,22 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn events<'a>(
         &'a mut self,
         block_range: RangeInclusive<u64>,
-        events: &'a [&'a str],
+        event_types_to_filter: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
+        // Don't actually need mutability here, and using mut self doesn't work with async move in
+        // the loop below.
         let immutable_self = &*self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())
-            .events(events)
+            .events(event_types_to_filter)
             .address(immutable_self.config.starknet_contract_address);
+
         let matching_logs = tokio::time::timeout(
             immutable_self.config.timeout_millis,
             immutable_self.contract.provider().get_logs(&filter),
         )
         .await??;
+
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
@@ -169,7 +180,6 @@ impl BaseLayerContract for EthereumBaseLayerContract {
                 parse_event(log, header.timestamp)
             }
         });
-
         futures::future::join_all(block_header_futures).await.into_iter().collect()
     }
 
@@ -421,6 +431,10 @@ fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
     node_url: Url,
 ) -> StarknetL1Contract {
+    info!(
+        "Building contract instance for Starknet contract address: {} and node URL: {}",
+        starknet_contract_address, node_url
+    );
     let l1_client = ProviderBuilder::default().connect_http(node_url);
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.

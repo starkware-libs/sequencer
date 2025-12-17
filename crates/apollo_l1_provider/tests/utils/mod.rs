@@ -1,3 +1,5 @@
+#![cfg(any(test, feature = "testing"))]
+#![allow(dead_code)]
 use std::error::Error;
 use std::fmt::Debug;
 use std::future::Future;
@@ -47,10 +49,9 @@ pub(crate) const TIMELOCK_DURATION: Duration = Duration::from_secs(30);
 pub(crate) const WAIT_FOR_ASYNC_PROCESSING_DURATION: Duration = Duration::from_millis(50);
 const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
 const CHAIN_ID: ChainId = ChainId::Mainnet;
-pub(crate) const L1_CONTRACT_ADDRESS: &str = "0x12";
-pub(crate) const L2_ENTRY_POINT: &str = "0x34";
+pub(crate) const L1_CONTRACT_ADDRESS: u64 = 1;
+pub(crate) const L2_ENTRY_POINT: u64 = 34;
 pub(crate) const CALL_DATA: &[u8] = &[1_u8, 2_u8];
-#[allow(dead_code)]
 pub(crate) const CALL_DATA_2: &[u8] = &[3_u8, 4_u8];
 
 const START_L1_BLOCK: L1BlockReference = L1BlockReference { number: 0, hash: L1BlockHash([0; 32]) };
@@ -158,7 +159,7 @@ pub(crate) async fn setup_scraper_and_provider<
         }
     });
 
-    // Start the L1 provider's bootstrapping process up to the target L2 height
+    // Start the L1 provider's catching up process up to the target L2 height
     let expect_error =
         l1_provider_client.commit_block([].into(), [].into(), TARGET_L2_HEIGHT).await;
     assert!(expect_error.is_err());
@@ -182,11 +183,7 @@ pub(crate) async fn send_message_from_l1_to_l2(
     let call_data = convert_call_data_to_u256(call_data);
     let fee = 1_u8;
     let message_to_l2 = contract
-        .sendMessageToL2(
-            L1_CONTRACT_ADDRESS.parse().unwrap(),
-            L2_ENTRY_POINT.parse().unwrap(),
-            call_data,
-        )
+        .sendMessageToL2(U256::from(L1_CONTRACT_ADDRESS), U256::from(L2_ENTRY_POINT), call_data)
         .value(U256::from(fee));
     let receipt = message_to_l2.send().await.unwrap().get_receipt().await.unwrap();
 
@@ -239,8 +236,8 @@ pub(crate) async fn send_cancellation_request(
     let contract = &base_layer.ethereum_base_layer.contract;
     let call_data = convert_call_data_to_u256(call_data);
     let cancellation_request = contract.startL1ToL2MessageCancellation(
-        L1_CONTRACT_ADDRESS.parse().unwrap(),
-        L2_ENTRY_POINT.parse().unwrap(),
+        U256::from(L1_CONTRACT_ADDRESS),
+        U256::from(L2_ENTRY_POINT),
         call_data,
         nonce,
     );
@@ -261,8 +258,8 @@ pub(crate) async fn send_cancellation_finalization(
     let contract = &base_layer.ethereum_base_layer.contract;
     let call_data = convert_call_data_to_u256(call_data);
     let cancellation_finalization = contract.cancelL1ToL2Message(
-        L1_CONTRACT_ADDRESS.parse().unwrap(),
-        L2_ENTRY_POINT.parse().unwrap(),
+        U256::from(L1_CONTRACT_ADDRESS),
+        U256::from(L2_ENTRY_POINT),
         call_data,
         nonce,
     );

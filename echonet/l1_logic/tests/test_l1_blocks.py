@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 from l1_blocks import L1Blocks
 from l1_client import L1Client

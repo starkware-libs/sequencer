@@ -15,8 +15,8 @@ use starknet_api::transaction::L1HandlerTransaction;
 use url::Url;
 
 pub mod constants;
+pub mod cyclic_base_layer_wrapper;
 pub mod ethereum_base_layer_contract;
-pub mod monitored_base_layer;
 
 pub(crate) mod eth_events;
 
@@ -44,7 +44,10 @@ impl std::fmt::Display for L1BlockHash {
 
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum MockError {}
+pub enum MockError {
+    #[error("Mock error")]
+    MockError,
+}
 
 /// Interface for getting data from the Starknet base contract.
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
@@ -127,7 +130,9 @@ pub enum L1Event {
         // cancellation itself, nor is it the timestamp of the transaction that was cancelled.
         cancellation_request_timestamp: BlockTimestamp,
     },
-    MessageToL2Canceled(EventData),
+    MessageToL2Canceled {
+        cancelled_tx: L1HandlerTransaction,
+    },
 }
 
 /// Shared fields in Starknet messaging.

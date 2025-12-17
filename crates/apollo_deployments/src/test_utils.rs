@@ -22,11 +22,6 @@ pub struct SecretsConfigOverride {
     )]
     consensus_manager_config_network_config_secret_key: Option<Vec<u8>>,
     #[serde(
-        rename = "l1_endpoint_monitor_config.ordered_l1_endpoint_urls",
-        serialize_with = "serialize_slice_wrapper"
-    )]
-    l1_endpoint_monitor_config_ordered_l1_endpoint_urls: Vec<Url>,
-    #[serde(
         rename = "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list",
         serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
     )]
@@ -57,10 +52,6 @@ impl Default for SecretsConfigOverride {
                 Url::parse("https://arbitrary.ordered_l1_endpoint_2.url").unwrap(),
             ],
             consensus_manager_config_network_config_secret_key: None,
-            l1_endpoint_monitor_config_ordered_l1_endpoint_urls: vec![
-                Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),
-                Url::parse("https://arbitrary.ordered_l1_endpoint_2.url").unwrap(),
-            ],
             l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list: Some(
                 vec![UrlAndHeaders {
                     url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),

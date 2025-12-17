@@ -6,9 +6,12 @@ from typing import Any, Callable, Dict, List, Optional
 
 import eth_abi
 import requests
-from l1_utils import (
+
+from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
+)
+from echonet.helpers import (
     timestamp_to_iso,
 )
 
@@ -106,6 +109,24 @@ class L1Client:
             },
         )
 
+    def get_block_number(self) -> Optional[Dict]:
+        """
+        Get the latest block number using eth_blockNumber RPC method.
+        Tries up to retries_count times. On failure, logs an error and returns None.
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_blockNumber",
+            "params": [],
+            "id": 1,
+        }
+
+        request_func = functools.partial(requests.post, self.rpc_url, json=payload)
+        return self._run_request_with_retry(
+            request_func=request_func,
+            additional_log_context={"url": self.rpc_url},
+        )
+
     def get_block_by_number(self, block_number: str) -> Optional[Dict]:
         """
         Get block details by block number using eth_getBlockByNumber RPC method.
@@ -124,12 +145,12 @@ class L1Client:
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
 
-    def get_timestamp_of_block(self, block_number: str) -> Optional[int]:
+    def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        response = self.get_block_by_number(block_number)
+        response = self.get_block_by_number(hex(block_number))
         if response is None:
             return None
 

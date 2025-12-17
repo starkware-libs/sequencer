@@ -26,13 +26,15 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use tracing::{debug, warn, Span};
+use starknet_api::transaction::fields::TransactionSignature;
+use tracing::{debug, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -60,7 +62,6 @@ pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
 }
@@ -79,11 +80,11 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
                     config.contract_class_manager_config.clone(),
                 ),
             }),
-            state_reader_factory,
             mempool_client,
             transaction_converter,
         }
@@ -131,56 +132,19 @@ impl Gateway {
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
-        let internal_tx =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-                },
-            )?;
-
-        let executable_tx = self
-            .transaction_converter
-            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
-            .await
-            .map_err(|e| {
-                warn!(
-                    "Failed to convert internal RPC transaction to executable transaction: {}",
-                    e
-                );
-                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-            })?;
+        let (internal_tx, executable_tx) =
+            self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.clone())
+            .instantiate_validator()
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
-        let curr_span = Span::current();
-        let mempool_client = self.mempool_client.clone();
-        let nonce = tokio::task::spawn_blocking(move || {
-            curr_span.in_scope(|| {
-                stateful_transaction_validator.extract_state_nonce_and_run_validations(
-                    &executable_tx,
-                    mempool_client,
-                    tokio::runtime::Handle::current(),
-                )
-            })
-        })
-        .await
-        .map_err(|e| {
-            // Handle panics in the spawned thread (see tokio::task::JoinHandle).
-            let err = StarknetError {
-                code: StarknetErrorCode::UnknownErrorCode(
-                    "StarknetErrorCode.InternalError".to_string(),
-                ),
-                message: format!("Validation task failed to complete: {e}"),
-            };
-            metric_counters.record_add_tx_failure(&err);
-            err
-        })?
-        .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
+        let nonce = stateful_transaction_validator
+            .extract_state_nonce_and_run_validations(&executable_tx, self.mempool_client.clone())
+            .await
+            .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         let gateway_output = create_gateway_output(&internal_tx);
 
@@ -228,6 +192,31 @@ impl Gateway {
             });
         }
         Ok(())
+    }
+
+    async fn convert_rpc_tx_to_internal_and_executable_txs(
+        &self,
+        tx: RpcTransaction,
+        tx_signature: &TransactionSignature,
+    ) -> Result<(InternalRpcTransaction, AccountTransaction), StarknetError> {
+        let internal_tx =
+            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
+                |e| {
+                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                    transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+                },
+            )?;
+
+        let executable_tx = self
+            .transaction_converter
+            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert internal RPC transaction to executable transaction: {e}");
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
+
+        Ok((internal_tx, executable_tx))
     }
 }
 

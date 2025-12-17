@@ -9,7 +9,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tracing::debug;
 
-// When the Provider gets a commit_block that is too high, it starts bootstrapping.
+// When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
 // commit, including that height. The sync task continues until reaching the target height,
 // inclusive, and only after the commit_block (from sync) causes the Provider's current height to be
@@ -19,8 +19,8 @@ use tracing::debug;
 
 /// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
-pub struct Bootstrapper {
-    pub catch_up_height: BlockNumber,
+pub struct Catchupper {
+    pub target_height: BlockNumber,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_provider_client: SharedL1ProviderClient,
@@ -30,7 +30,7 @@ pub struct Bootstrapper {
     pub n_sync_health_check_failures: Arc<AtomicU8>,
 }
 
-impl Bootstrapper {
+impl Catchupper {
     // FIXME: this isn't added to configs, since this test shouldn't be made here, it should be
     // handled through a task management layer.
     pub const MAX_HEALTH_CHECK_FAILURES: u8 = 5;
@@ -48,14 +48,14 @@ impl Bootstrapper {
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
             // This is overriden when starting the sync task (e.g., when provider starts
-            // bootstrapping).
-            catch_up_height: BlockNumber(0),
+            // catching up).
+            target_height: BlockNumber(0),
         }
     }
 
-    /// Check if the caller has caught up with the bootstrapper.
+    /// Check if the caller has caught up with the catchupper.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        let is_caught_up = current_provider_height > self.catch_up_height;
+        let is_caught_up = current_provider_height > self.target_height;
 
         self.sync_task_health_check(is_caught_up);
 
@@ -84,9 +84,9 @@ impl Bootstrapper {
     pub fn start_l2_sync(
         &mut self,
         current_provider_height: BlockNumber,
-        catch_up_height: BlockNumber,
+        target_height: BlockNumber,
     ) {
-        self.catch_up_height = catch_up_height;
+        self.target_height = target_height;
         // FIXME: spawning a task like this is evil.
         // However, we aren't using the task executor, so no choice :(
         // Once we start using a centralized threadpool, spawn through it instead of the
@@ -95,19 +95,15 @@ impl Bootstrapper {
             self.l1_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            catch_up_height,
+            target_height,
             self.sync_retry_interval,
         ));
 
         self.sync_task_handle = SyncTaskHandle::Started(sync_task_handle.into());
     }
 
-    pub fn catch_up_height(&self) -> BlockNumber {
-        self.catch_up_height
-    }
-
-    pub fn sync_started(&self) -> bool {
-        matches!(self.sync_task_handle, SyncTaskHandle::Started(_))
+    pub fn target_height(&self) -> BlockNumber {
+        self.target_height
     }
 
     fn sync_task_health_check(&self, is_caught_up: bool) {
@@ -131,19 +127,19 @@ impl Bootstrapper {
     }
 }
 
-impl PartialEq for Bootstrapper {
+impl PartialEq for Catchupper {
     fn eq(&self, other: &Self) -> bool {
-        self.catch_up_height == other.catch_up_height
+        self.target_height == other.target_height
             && self.commit_block_backlog == other.commit_block_backlog
     }
 }
 
-impl Eq for Bootstrapper {}
+impl Eq for Catchupper {}
 
-impl std::fmt::Debug for Bootstrapper {
+impl std::fmt::Debug for Catchupper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Bootstrapper")
-            .field("catch_up_height", &self.catch_up_height)
+        f.debug_struct("Catchupper")
+            .field("target_height", &self.target_height)
             .field("commit_block_backlog", &self.commit_block_backlog)
             .field("sync_task_handle", &self.sync_task_handle)
             .finish_non_exhaustive()
@@ -154,14 +150,14 @@ async fn l2_sync_task(
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
-    catch_up_height: BlockNumber,
+    target_height: BlockNumber,
     retry_interval: Duration,
 ) {
-    while current_height <= catch_up_height {
+    while current_height <= target_height {
         // TODO(Gilad): add tracing instrument.
         debug!(
             "Syncing L1Provider with L2 height: {} to target height: {}",
-            current_height, catch_up_height
+            current_height, target_height
         );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 

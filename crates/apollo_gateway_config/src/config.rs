@@ -7,6 +7,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
+    ser_optional_sub_config,
     ser_param,
     SerializeConfig,
 };
@@ -244,9 +245,7 @@ impl Default for StatefulTransactionValidatorConfig {
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             min_gas_price_percentage: 100,
-            // TODO(Itamar): Change to None once the versioned constants overrides are optional in
-            // the config schema.
-            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
+            versioned_constants_overrides: None,
         }
     }
 }
@@ -286,8 +285,8 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump

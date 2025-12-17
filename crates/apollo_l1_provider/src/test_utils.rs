@@ -28,22 +28,22 @@ use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 
-use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::L1ProviderConfig;
 
-macro_rules! make_bootstrapper {
+macro_rules! make_catchupper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{
-        Bootstrapper {
+        Catchupper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {
                     height: BlockNumber($height),
                     committed_txs: [$(tx_hash!($tx)),*].into()
                 }),*
             ].into_iter().collect(),
-            catch_up_height: BlockNumber(0),
+            target_height: BlockNumber(0),
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
@@ -53,7 +53,7 @@ macro_rules! make_bootstrapper {
     }};
 }
 
-pub(crate) use make_bootstrapper;
+pub(crate) use make_catchupper;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));
@@ -67,7 +67,7 @@ pub struct L1ProviderContent {
     config: Option<L1ProviderConfig>,
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
-    bootstrapper: Option<Bootstrapper>,
+    catchupper: Option<Catchupper>,
     current_height: Option<BlockNumber>,
     clock: Option<Arc<dyn Clock>>,
 }
@@ -93,15 +93,17 @@ impl L1ProviderContent {
 
 impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
-        let bootstrapper = match content.bootstrapper {
-            Some(bootstrapper) => bootstrapper,
-            None => make_bootstrapper!(backlog: []),
+        let catchupper = match content.catchupper {
+            Some(catchupper) => catchupper,
+            None => make_catchupper!(backlog: []),
         };
         L1Provider {
             config: content.config.unwrap_or_default(),
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
-            state: content.state.unwrap_or(ProviderState::Uninitialized),
-            bootstrapper,
+            // The real Provider starts as Uninitialized by default, but for testing purposes we
+            // start it as Pending.
+            state: content.state.unwrap_or(ProviderState::Pending),
+            catchupper,
             current_height: content.current_height.unwrap_or_default(),
             start_height: content.current_height,
             clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
@@ -114,7 +116,7 @@ pub struct L1ProviderContentBuilder {
     config: Option<L1ProviderConfig>,
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
-    bootstrapper: Option<Bootstrapper>,
+    catchupper: Option<Catchupper>,
     current_height: Option<BlockNumber>,
     clock: Option<Arc<dyn Clock>>,
 }
@@ -134,8 +136,8 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn with_bootstrapper(mut self, bootstrapper: Bootstrapper) -> Self {
-        self.bootstrapper = Some(bootstrapper);
+    pub fn with_catchupper(mut self, catchupper: Catchupper) -> Self {
+        self.catchupper = Some(catchupper);
         self
     }
 
@@ -273,7 +275,7 @@ impl L1ProviderContentBuilder {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
-            bootstrapper: self.bootstrapper,
+            catchupper: self.catchupper,
             current_height: self.current_height,
             clock: self.clock,
         }
@@ -634,7 +636,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
 
     async fn initialize(
         &self,
-        _last_historic_l2_height: BlockNumber,
+        _start_height: BlockNumber,
         _events: Vec<Event>,
     ) -> L1ProviderClientResult<()> {
         todo!()
