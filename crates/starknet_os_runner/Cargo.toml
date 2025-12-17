@@ -16,7 +16,13 @@ starknet_api.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+blockifier = { workspace = true, features = ["testing"] }
+rstest.workspace = true
+starknet-types-core.workspace = true
 
 [lints]
 workspace = true
