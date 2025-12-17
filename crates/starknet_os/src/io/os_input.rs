@@ -70,7 +70,6 @@ pub struct OsHints {
 #[derive(Debug)]
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
-    pub cached_state_inputs: Vec<StateMaps>,
     pub deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
@@ -140,6 +139,8 @@ pub struct OsBlockInput {
     pub old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
     // A map from Class hashes to Compiled class hashes v2 for all classes that require migration.
     pub class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHash>,
+    // The initial reads of the block.
+    pub initial_reads: StateMaps,
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
