@@ -5,15 +5,15 @@ use starknet_api::state::ThinStateDiff;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
-    state_diff: ThinStateDiff,
+    pub state_diff: ThinStateDiff,
     // Field is optional because for old blocks, the state diff commitment might not be available.
-    state_diff_commitment: Option<StateDiffCommitment>,
-    height: BlockNumber,
+    pub state_diff_commitment: Option<StateDiffCommitment>,
+    pub height: BlockNumber,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CommitBlockResponse {
-    state_root: GlobalRoot,
+    pub state_root: GlobalRoot,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
