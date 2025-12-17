@@ -1,6 +1,10 @@
 use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{GlobalRoot, StateDiffCommitment};
+use starknet_api::hash::PoseidonHash;
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::facts_db::db::MockForestStorage;
 use starknet_committer::db::forest_trait::{DbBlockNumber, ForestMetadata, ForestMetadataType};
@@ -9,7 +13,6 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::error;
 
-#[allow(dead_code)]
 enum FeltValueMetadata {
     StateDiffCommitment(DbBlockNumber),
     StateRoot(DbBlockNumber),
@@ -28,9 +31,9 @@ impl From<FeltValueMetadata> for ForestMetadataType {
     }
 }
 
-#[allow(dead_code)]
 pub struct Committer<S: Storage> {
     forest_storage: MockForestStorage<S>,
+    #[allow(dead_code)]
     config: CommitterConfig,
     offset: BlockNumber,
 }
@@ -54,7 +57,41 @@ impl<S: Storage> Committer<S> {
         Self { forest_storage, config, offset }
     }
 
-    #[allow(dead_code)]
+    pub async fn commit_block(
+        &mut self,
+        CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
+    ) -> CommitterResult<CommitBlockResponse> {
+        if height > self.offset {
+            return Err(CommitterError::HeightHole {
+                input_height: height,
+                committer_offset: self.offset,
+            });
+        }
+
+        if height < self.offset {
+            let state_diff_commitment =
+                state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
+            let stored_state_diff_commitment = StateDiffCommitment(PoseidonHash(
+                self.read_metadata(FeltValueMetadata::StateDiffCommitment(DbBlockNumber(height)))
+                    .await?
+                    .0,
+            ));
+            if state_diff_commitment != stored_state_diff_commitment {
+                return Err(CommitterError::InvalidStateDiffCommitment {
+                    input_commitment: state_diff_commitment,
+                    stored_commitment: stored_state_diff_commitment,
+                    height,
+                });
+            }
+            let db_state_root = GlobalRoot(
+                self.read_metadata(FeltValueMetadata::StateRoot(DbBlockNumber(height))).await?.0,
+            );
+            return Ok(CommitBlockResponse { state_root: db_state_root });
+        }
+
+        unimplemented!()
+    }
+
     async fn read_metadata(
         &mut self,
         metadata: FeltValueMetadata,
