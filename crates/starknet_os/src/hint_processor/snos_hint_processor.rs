@@ -5,7 +5,6 @@ use std::collections::{BTreeMap, HashSet};
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, SyscallUsageMap};
-use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -147,7 +146,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
-        cached_state_inputs: Vec<StateMaps>,
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
         state_readers: Vec<S>,
@@ -162,13 +160,12 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         let rng_seed = Self::rng_seed(&os_block_inputs, &os_hints_config.rng_seed_salt);
         let execution_helpers = os_block_inputs
             .into_iter()
-            .zip(cached_state_inputs.into_iter())
             .zip(state_readers.into_iter())
-            .map(|((os_block_input, cached_state_input), state_reader)| {
+            .map(|(os_block_input, state_reader)| {
                 OsExecutionHelper::new(
                     os_block_input,
                     state_reader,
-                    cached_state_input,
+                    &os_block_input.initial_reads,
                     os_hints_config.debug_mode,
                 )
             })
@@ -351,18 +348,15 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         os_program: &'a Program,
         os_hints_config: Option<OsHintsConfig>,
         os_block_input: &'a OsBlockInput,
-        os_state_input: Option<StateMaps>,
     ) -> Result<Self, StarknetOsError> {
         let state_reader = state_reader.unwrap_or_default();
         let block_inputs = vec![os_block_input];
-        let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
 
         let mut hint_processor = SnosHintProcessor::new(
             os_program,
             os_hints_config,
             block_inputs,
-            state_inputs,
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
