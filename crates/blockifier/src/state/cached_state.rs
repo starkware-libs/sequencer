@@ -317,6 +317,7 @@ impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateMaps {
     pub nonces: HashMap<ContractAddress, Nonce>,
