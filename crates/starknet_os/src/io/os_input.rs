@@ -1,16 +1,17 @@
 use std::collections::{BTreeMap, HashMap};
 
+use blockifier::state::cached_state::StateMaps;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 #[cfg(feature = "deserialize")]
 use starknet_api::core::deserialize_chain_id_from_hex;
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::HashOutput;
-use starknet_api::state::{ContractClassComponentHashes, StorageKey};
+use starknet_api::state::ContractClassComponentHashes;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -69,7 +70,7 @@ pub struct OsHints {
 #[derive(Debug)]
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
-    pub cached_state_inputs: Vec<CachedStateInput>,
+    pub cached_state_inputs: Vec<StateMaps>,
     pub deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
@@ -158,16 +159,6 @@ impl OsHintsConfig {
     pub fn log_level(&self) -> LevelFilter {
         if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
     }
-}
-
-#[derive(Default, Debug)]
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-pub struct CachedStateInput {
-    pub storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
-    pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[derive(Debug, thiserror::Error)]

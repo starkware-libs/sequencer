@@ -58,7 +58,7 @@ use starknet_committer::patricia_merkle_tree::types::{
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
-use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
+use starknet_os::io::os_input::CommitmentInfo;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
@@ -229,7 +229,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
-) -> (CachedStateInput, CommitmentInfos) {
+) -> (StateMaps, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),
@@ -293,12 +293,19 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         )
         .await
         .unwrap();
-        let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
-            .into_iter()
-            .map(|(idx, v)| (StorageKey(try_node_index_into_patricia_key(&idx).unwrap()), v.0))
-            .collect();
-        storage.insert(address, previous_storage_leaves);
+        for (idx, v) in previous_storage_leaves {
+            let key = StorageKey(try_node_index_into_patricia_key(&idx).unwrap());
+            storage.insert((address, key), v.0);
+        }
     }
+
+    let state_maps = StateMaps {
+        nonces: address_to_previous_nonce,
+        class_hashes: address_to_previous_class_hash,
+        compiled_class_hashes: class_hash_to_compiled_class_hash,
+        storage,
+        declared_contracts: HashMap::new(),
+    };
 
     let storage_proofs = fetch_storage_proofs_from_state_maps(
         extended_state_diff,
@@ -350,12 +357,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         .collect();
 
     (
-        CachedStateInput {
-            storage,
-            address_to_class_hash: address_to_previous_class_hash,
-            address_to_nonce: address_to_previous_nonce,
-            class_hash_to_compiled_class_hash,
-        },
+        state_maps,
         CommitmentInfos {
             contracts_trie_commitment_info,
             classes_trie_commitment_info,

@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, SyscallUsageMap};
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -47,13 +48,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::hints::vars::CairoStruct;
-use crate::io::os_input::{
-    CachedStateInput,
-    CommitmentInfo,
-    OsBlockInput,
-    OsHintsConfig,
-    OsInputError,
-};
+use crate::io::os_input::{CommitmentInfo, OsBlockInput, OsHintsConfig, OsInputError};
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
@@ -152,7 +147,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
-        cached_state_inputs: Vec<CachedStateInput>,
+        cached_state_inputs: Vec<StateMaps>,
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
         state_readers: Vec<S>,
@@ -356,7 +351,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         os_program: &'a Program,
         os_hints_config: Option<OsHintsConfig>,
         os_block_input: &'a OsBlockInput,
-        os_state_input: Option<CachedStateInput>,
+        os_state_input: Option<StateMaps>,
     ) -> Result<Self, StarknetOsError> {
         let state_reader = state_reader.unwrap_or_default();
         let block_inputs = vec![os_block_input];
