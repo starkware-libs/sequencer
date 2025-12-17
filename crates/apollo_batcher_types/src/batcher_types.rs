@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use apollo_storage::mmap_file::LocationInFile;
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::storage_reader_server::StorageReaderServerHandler;
 use apollo_storage::{StorageError, StorageReader};
 use async_trait::async_trait;
@@ -158,6 +159,7 @@ pub struct RevertBlockInput {
 pub enum BatcherStorageRequest {
     StateDiffLocation(BlockNumber),
     ThinStateDiff(LocationInFile),
+    StateMarker,
 }
 
 // TODO(Dean): Fill in with actual response types matching the request variants.
@@ -166,6 +168,7 @@ pub enum BatcherStorageRequest {
 pub enum BatcherStorageResponse {
     StateDiffLocation(LocationInFile),
     ThinStateDiff(ThinStateDiff),
+    StateMarker(BlockNumber),
 }
 
 pub struct BatcherStorageReaderServerHandler;
@@ -196,6 +199,10 @@ impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
                     },
                 )?;
                 Ok(BatcherStorageResponse::ThinStateDiff(state_diff))
+            }
+            BatcherStorageRequest::StateMarker => {
+                let block_number = txn.get_state_marker()?;
+                Ok(BatcherStorageResponse::StateMarker(block_number))
             }
         }
     }
