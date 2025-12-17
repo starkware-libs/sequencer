@@ -38,7 +38,7 @@ pub enum PatriciaPrefix {
 impl From<PatriciaPrefix> for DbKeyPrefix {
     fn from(value: PatriciaPrefix) -> Self {
         match value {
-            PatriciaPrefix::InnerNode => Self::new(b"patricia_node"),
+            PatriciaPrefix::InnerNode => Self::new(b"patricia_node".into()),
             PatriciaPrefix::Leaf(prefix) => prefix,
         }
     }
@@ -60,10 +60,10 @@ impl<L: Leaf> HasDynamicPrefix for FilledNode<L, HashOutput> {
     // Inherit the KeyContext from the HasStaticPrefix implementation of the leaf.
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
 
-    fn get_prefix(&self, _key_context: &Self::KeyContext) -> DbKeyPrefix {
+    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
         match &self.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
-            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(_key_context)),
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(key_context)),
         }
         .into()
     }
