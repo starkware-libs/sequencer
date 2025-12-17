@@ -85,6 +85,10 @@ service:
     port: 55011
     targetPort: 55011
     protocol: TCP
+  - name: state-sync-storage-reader
+    port: 55012
+    targetPort: 55012
+    protocol: TCP
 
 statefulSet:
   enabled: true
