@@ -15,7 +15,7 @@ pub(crate) mod state_committer;
 pub(crate) mod types;
 
 // TODO(amos): Add to Batcher config.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct CommitmentManagerConfig {
     pub(crate) tasks_channel_size: usize,
     pub(crate) results_channel_size: usize,
