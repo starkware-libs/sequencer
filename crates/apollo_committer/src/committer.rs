@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
@@ -5,12 +7,18 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
-use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::input::{IndexInitialRead, Input, StarknetStorageValue};
 use starknet_committer::db::facts_db::db::MockForestStorage;
-use starknet_committer::db::forest_trait::{DbBlockNumber, ForestMetadata, ForestMetadataType};
+use starknet_committer::db::forest_trait::{
+    DbBlockNumber,
+    ForestMetadata,
+    ForestMetadataType,
+    ForestWriterWithMetadata,
+};
 use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
 
 enum FeltValueMetadata {
@@ -33,7 +41,6 @@ impl From<FeltValueMetadata> for ForestMetadataType {
 
 pub struct Committer<S: Storage> {
     forest_storage: MockForestStorage<S>,
-    #[allow(dead_code)]
     config: CommitterConfig,
     offset: BlockNumber,
 }
@@ -89,7 +96,38 @@ impl<S: Storage> Committer<S> {
             return Ok(CommitBlockResponse { state_root: db_state_root });
         }
 
-        unimplemented!()
+        let input = Input {
+            state_diff: state_diff.into(),
+            initial_read_context: IndexInitialRead {},
+            config: self.config.reader_config.clone(),
+        };
+        let filled_forest = commit_block(input, &mut self.forest_storage, None)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        let global_root = filled_forest.state_roots().global_root();
+
+        let next_offset = height.next().expect("Failed to set next block number");
+        let metadata = HashMap::from([
+            (ForestMetadataType::CommitmentOffset, DbValue(DbBlockNumber(next_offset).serialize())),
+            (
+                ForestMetadataType::StateRoot(DbBlockNumber(height)),
+                StarknetStorageValue(global_root.0)
+                    .serialize()
+                    .map_err(|err| self.map_internal_error(err))?,
+            ),
+            (
+                ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
+                StarknetStorageValue(state_diff_commitment.unwrap_or_default().0.0)
+                    .serialize()
+                    .map_err(|err| self.map_internal_error(err))?,
+            ),
+        ]);
+        self.forest_storage
+            .write_with_metadata(&filled_forest, metadata)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        self.offset = next_offset;
+        Ok(CommitBlockResponse { state_root: global_root })
     }
 
     async fn read_metadata(
