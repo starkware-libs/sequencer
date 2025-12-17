@@ -10,10 +10,12 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
+  # readOnly: true  # Whether the config map is read only. Defaults to true.
 
-  sequencerConfig:
-    components_sierra_compiler_port: 55007
-    components_sierra_compiler_url: "sequencer-sierracompiler-service"
+  sequencerConfig: {}
+  # example:
+  # sequencerConfig:
+    # components_sierra_compiler_port: 55007
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -60,11 +62,12 @@ serviceAccount:
 service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
-  ports: # List of service ports
-    - name: sierra-compiler
-      port: 55007
-      targetPort: 55007
-      protocol: TCP
+  ports: [] # List of service ports
+    # - name: sierra-compiler
+    #   port: 55007
+    #   targetPort: 55007
+    #   protocol: TCP
+
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels
   # servicePort: null  #  Legacy port configuration
@@ -200,6 +203,7 @@ secret:
   # immutable: false  #  Whether secret is immutable
   # mountPath: "/etc/secrets"  #  Override default mount path (default: "/etc/secrets")
   # Note: Secret is mounted as secret.json at /etc/secrets/secret.json using subPath. Must contain a key named 'secret.json'. All keys must end with '.json'.
+  # readOnly: true  # Whether the secret is read only. Defaults to true.
 
 # ExternalSecret Configuration
 # See docs/EXTERNAL_SECRET_CONFIGURATION.md for all available options
@@ -220,6 +224,7 @@ externalSecret:
   # Note: ExternalSecret is mounted as external-secret.json at /etc/secrets/external-secret.json using subPath. Any key name is fine - will always mount as external-secret.json. Remote secret content must be valid JSON.
   # template: {}  #  Custom template for secret generation
   # metadata: {}  #  Custom metadata for the secret
+  # readOnly: true  # Whether the secret is read only. Defaults to true.
 
 # Volume Configuration
 # See docs/VOLUME_CONFIGURATION.md for all available options
@@ -235,6 +240,7 @@ persistentVolume:
   # storageClass: ""  #  Storage class (uses default if empty)
   # volumeMode: "Filesystem"  #  Volume mode (Filesystem, Block)
   # volumeName: ""  #  Specific volume name
+  # readOnly: false  # Whether the volume_mount is read only. Defaults to false.
 
 # GCP BackendConfig Configuration
 # See docs/GCP_BACKEND_CONFIG_CONFIGURATION.md for all available options
