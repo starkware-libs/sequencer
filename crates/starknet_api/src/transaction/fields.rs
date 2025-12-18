@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{GasPrice, NonzeroGasPrice};
+use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::crypto::utils::HashChain;
 use crate::execution_resources::{GasAmount, GasVector};
 use crate::hash::StarkHash;
@@ -616,6 +616,9 @@ impl AccountDeploymentData {
     }
 }
 
+// Represent the `VIRTUAL_SNOS` as a Felt.
+pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
+
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
 #[derive(
@@ -631,6 +634,62 @@ impl ProofFacts {
     pub fn hash(&self) -> Felt {
         HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
+
+    fn get_field_at_idx(&self, idx: usize, expected_field_name: &str) -> StarknetApiResult<Felt> {
+        self.0.get(idx).cloned().ok_or_else(|| {
+            StarknetApiError::InvalidProofFacts(format!(
+                "there was no value at index {idx}. In SNOS proof facts we assume field \
+                 {expected_field_name} is at index {idx}."
+            ))
+        })
+    }
+}
+
+/// Represents the variants of proof facts associated with a transaction.
+///
+/// Currently, only SNOS proof facts are supported. The `Empty` variant indicates that the
+/// transaction does not utilize the client-side proving feature.
+pub enum ProofFactsVariants {
+    Empty,
+    Snos(SnosProofFacts),
+}
+
+impl TryFrom<&ProofFacts> for ProofFactsVariants {
+    type Error = StarknetApiError;
+    fn try_from(proof_facts: &ProofFacts) -> Result<Self, Self::Error> {
+        if proof_facts.is_empty() {
+            Ok(ProofFactsVariants::Empty)
+        } else if proof_facts.0[0] == Felt::from(VIRTUAL_SNOS) {
+            Ok(ProofFactsVariants::Snos(SnosProofFacts {
+                program_hash: proof_facts.get_field_at_idx(1, "program hash")?,
+                block_number: BlockNumber(
+                    proof_facts.get_field_at_idx(2, "block number")?.try_into().map_err(|_| {
+                        StarknetApiError::InvalidProofFacts(
+                            "block number was not a valid u64".to_string(),
+                        )
+                    })?,
+                ),
+                block_hash: BlockHash(proof_facts.get_field_at_idx(3, "block hash")?),
+                config_hash: proof_facts.get_field_at_idx(4, "config hash")?,
+            }))
+        } else {
+            Err(StarknetApiError::InvalidProofFacts(format!(
+                "Non empty ProofFacts first field should be {} (VIRTUAL_SNOS) got {}",
+                Felt::from(VIRTUAL_SNOS),
+                proof_facts.0[0]
+            )))
+        }
+    }
+}
+
+/// Contains the required fields for valid SNOS proof facts.
+///
+/// A valid SNOS proof facts structure must include these fields as its first five entries.
+pub struct SnosProofFacts {
+    pub program_hash: StarkHash,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
+    pub config_hash: StarkHash,
 }
 
 impl From<Vec<Felt>> for ProofFacts {
