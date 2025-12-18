@@ -173,12 +173,16 @@ impl StateReader for OfflineStateReader {
         }
     }
 
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        Ok(*self
-            .state_maps
-            .compiled_class_hashes
-            .get(&class_hash)
-            .ok_or(StateError::UndeclaredClassHash(class_hash))?)
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        ReexecutionStateReader::get_compiled_class_hash(self)
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        _class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        ReexecutionStateReader::get_compiled_class_hash_v2(self)
     }
 }
 
