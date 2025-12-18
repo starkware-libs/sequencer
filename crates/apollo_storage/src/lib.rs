@@ -97,6 +97,7 @@ pub mod state;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
 pub mod storage_reader;
+pub mod storage_reader_communication;
 mod version;
 
 mod deprecated;
