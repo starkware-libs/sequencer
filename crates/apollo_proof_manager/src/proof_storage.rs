@@ -126,4 +126,31 @@ impl FsProofStorage {
 
         Ok(Proof(Arc::new(proof_data)))
     }
+
+    fn write_proof_atomically(&self, facts_hash: Felt, proof: Proof) -> FsProofStorageResult<()> {
+        // Write proof to a temporary directory.
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(facts_hash)?;
+        self.write_proof_to_file(&tmp_dir.join("proof"), &proof)?;
+
+        // Atomically rename directory to persistent one.
+        let persistent_dir = self.get_persistent_dir_with_create(facts_hash)?;
+        std::fs::rename(tmp_dir, persistent_dir)?;
+        Ok(())
+    }
+}
+
+impl ProofStorage for FsProofStorage {
+    type Error = FsProofStorageError;
+
+    fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error> {
+        self.write_proof_atomically(facts_hash, proof)?;
+        Ok(())
+    }
+
+    fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error> {
+        match self.read_proof_from_file(facts_hash) {
+            Ok(proof) => Ok(Some(proof)),
+            Err(e) => Err(e),
+        }
+    }
 }
