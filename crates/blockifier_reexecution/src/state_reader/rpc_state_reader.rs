@@ -61,6 +61,7 @@ use crate::state_reader::offline_state_reader::{
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
+    DUMMY_COMPILED_CLASS_HASH,
 };
 use crate::utils::{
     disjoint_hashmap_union,
@@ -162,8 +163,23 @@ impl StateReader for RpcStateReader {
         }
     }
 
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    /// Returns a dummy compiled class hash for reexecution purposes.
+    ///
+    /// This method is required since v0.14.1 for checking if compiled class hashes
+    /// need to be migrated from v1 to v2 format.
+    /// In reexecution we use a dummy value for both get_compiled_class_hash and
+    /// get_compiled_class_hash_v2, to avoid the migration process.
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(DUMMY_COMPILED_CLASS_HASH)
+    }
+
+    /// returns the same value as get_compiled_class_hash, to avoid the migration process.
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.get_compiled_class_hash(class_hash)
     }
 }
 
