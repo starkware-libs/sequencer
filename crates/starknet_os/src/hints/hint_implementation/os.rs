@@ -7,6 +7,11 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
+    PartialBlockHashComponents,
+};
+use starknet_api::hash::StateRoots;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -97,6 +102,25 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
+
+    // Make sure the block hash is consistent with the block info and commitments.
+    // TODO(Yonatan): Remove this once the OS verifies the block hash.
+    let calculated_block_hash = calculate_block_hash(
+        &PartialBlockHashComponents::new(
+            &os_input.block_info,
+            os_input.block_hash_commitments.clone(),
+        ),
+        StateRoots {
+            contracts_trie_root_hash: os_input.contract_state_commitment_info.updated_root,
+            classes_trie_root_hash: os_input.contract_class_commitment_info.updated_root,
+        }
+        .global_root(),
+        os_input.prev_block_hash,
+    )?;
+    assert_eq!(
+        calculated_block_hash, os_input.new_block_hash,
+        "Calculated block hash does not match new block hash"
+    );
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 

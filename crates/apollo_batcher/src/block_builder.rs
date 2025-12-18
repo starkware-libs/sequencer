@@ -44,7 +44,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     TransactionHashingData,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
@@ -141,26 +141,17 @@ impl BlockExecutionArtifacts {
         final_n_executed_txs: usize,
     ) -> Self {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
-        let starknet_version = block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
         let header_commitments = calculate_block_commitments(
             &transactions_data,
             commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
             l1_da_mode,
-            &starknet_version,
+            &block_info.starknet_version,
         )
         .await;
-        let partial_block_hash_components = PartialBlockHashComponents {
-            header_commitments,
-            block_number: block_info.block_number,
-            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
-            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
-            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
-            sequencer: SequencerContractAddress(block_info.sequencer_address),
-            timestamp: block_info.block_timestamp,
-            starknet_version,
-        };
+        let partial_block_hash_components =
+            PartialBlockHashComponents::new(&block_info, header_commitments);
         let l2_gas_used = execution_data.l2_gas_used();
         Self {
             execution_data,

@@ -5,6 +5,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 #[cfg(feature = "deserialize")]
 use starknet_api::core::deserialize_chain_id_from_hex;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
@@ -139,6 +140,7 @@ pub struct OsBlockInput {
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     pub declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
     pub block_info: BlockInfo,
+    pub block_hash_commitments: BlockHeaderCommitments,
     pub prev_block_hash: BlockHash,
     pub new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
