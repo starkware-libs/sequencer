@@ -314,6 +314,7 @@ impl Panel {
         name: impl ToString,
         description: impl ToString,
         sum_by: impl AsRef<str>,
+        range: impl AsRef<str>,
     ) -> Self {
         Self::new(
             metric_name_to_panel_title(name.to_string()),
@@ -322,10 +323,10 @@ impl Panel {
                 .iter()
                 .map(|q| {
                     format!(
-                        "histogram_quantile({q:.2}, sum by ({}) \
-                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                        "histogram_quantile({q:.2}, sum by ({}) (rate({}[{}])))",
                         sum_by.as_ref(),
                         metric_name_with_filter.as_ref(),
+                        range.as_ref(),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -338,7 +339,13 @@ impl Panel {
         name: impl ToString,
         description: impl ToString,
     ) -> Self {
-        Self::from_hist_helper(metric.get_name_with_filter(), name, description, "le")
+        Self::from_hist_helper(
+            metric.get_name_with_filter(),
+            name,
+            description,
+            "le",
+            HISTOGRAM_TIME_RANGE,
+        )
     }
 
     pub(crate) fn from_labeled_hist(
@@ -352,6 +359,7 @@ impl Panel {
             name,
             description,
             format!("le, {}", group_label),
+            HISTOGRAM_TIME_RANGE,
         )
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }
