@@ -6,11 +6,46 @@ import functools
 import inspect
 import logging
 import requests
+from collections import defaultdict
 
 from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
 )
+from echonet.helpers import rpc_response
+
+
+class L1ClientCache:
+    def __init__(self):
+        self.block_response_cache: dict[int, Dict] = {}
+        self.logs_result_cache: defaultdict[int, list[dict]] = defaultdict(list)
+
+    def get_block_response(self, block_number: int) -> Optional[Dict]:
+        return self.block_response_cache.get(block_number)
+
+    def set_block_response(self, block_number: int, response: Optional[Dict]) -> None:
+        if response is None:
+            return
+
+        self.block_response_cache[block_number] = response
+
+    def get_logs_result(self, from_block: int, to_block: int) -> tuple[list[dict], Optional[int]]:
+        cached_logs = []
+        first_missing_block = None
+
+        for block_num in range(from_block, to_block + 1):
+            logs = self.logs_result_cache.get(block_num)
+            if logs is None:
+                first_missing_block = block_num
+                break
+            cached_logs.extend(logs)
+
+        return cached_logs, first_missing_block
+
+    def set_logs_result(self, logs_result: list[dict]) -> None:
+        for log in logs_result:
+            block_number = int(log.get("blockNumber"), 16)
+            self.logs_result_cache[block_number].append(log)
 
 
 class L1Client:
@@ -42,6 +77,7 @@ class L1Client:
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
         self.data_api_url = self.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
+        self.cache = L1ClientCache()
 
     def _run_request_with_retry(
         self,
@@ -77,17 +113,24 @@ class L1Client:
     def get_logs(self, from_block: int, to_block: int) -> Optional[Dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
+        Caches results to avoid redundant API calls.
+        INVARIANT: missing blocks are always newer.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
         if from_block > to_block:
             raise ValueError("from_block must be less than or equal to to_block")
+
+        cached_logs, first_missing_block = self.cache.get_logs_result(from_block, to_block)
+        if first_missing_block is None:
+            # All blocks cached, return cached response.
+            return rpc_response(cached_logs)
 
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getLogs",
             "params": [
                 {
-                    "fromBlock": hex(from_block),
+                    "fromBlock": hex(first_missing_block),
                     "toBlock": hex(to_block),
                     "address": STARKNET_L1_CONTRACT_ADDRESS,
                     "topics": [LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
@@ -97,14 +140,34 @@ class L1Client:
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        return self._run_request_with_retry(
+        response = self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={
                 "url": self.rpc_url,
-                "from_block": from_block,
+                "from_block": first_missing_block,
                 "to_block": to_block,
             },
         )
+
+        if response is None:
+            if cached_logs:
+                self.logger.warning(
+                    "get_logs: returning partial cached logs due to eth_getLogs request failure",
+                    extra={
+                        "url": self.rpc_url,
+                        "requested_from_block": from_block,
+                        "requested_to_block": to_block,
+                        "missing_from_block": first_missing_block,
+                    },
+                )
+                return rpc_response(cached_logs)
+            return None
+
+        fetched_logs = response.get("result", [])
+        self.cache.set_logs_result(fetched_logs)
+        all_logs = cached_logs + fetched_logs
+
+        return rpc_response(all_logs)
 
     def get_block_number(self) -> Optional[Dict]:
         """
@@ -127,20 +190,26 @@ class L1Client:
     def get_block_by_number(self, block_number: int) -> Optional[Dict]:
         """
         Get block details by block number using eth_getBlockByNumber RPC method.
+        Caches results to avoid redundant API calls.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
+        cached_block_response = self.cache.get_block_response(block_number)
+        if cached_block_response:
+            return cached_block_response
+
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
             "params": [hex(block_number), False],
             "id": 1,
         }
-
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        return self._run_request_with_retry(
+        response = self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
+        self.cache.set_block_response(block_number, response)
+        return response
 
     def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
