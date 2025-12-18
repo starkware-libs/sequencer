@@ -616,6 +616,9 @@ impl AccountDeploymentData {
     }
 }
 
+// Represent the `VIRTUAL_SNOS` as a Felt.
+pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
+
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
 #[derive(
@@ -631,6 +634,53 @@ impl ProofFacts {
     pub fn hash(&self) -> Felt {
         HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
+
+    pub fn get_fields(&self) -> StarknetApiResult<ProofFactsType> {
+        if self.is_empty() {
+            Ok(ProofFactsType::Empty)
+        } else if self.0[0] == Felt::from(VIRTUAL_SNOS) {
+            Ok(ProofFactsType::Snos(ProofFactsFields {
+                program_hash: self.get_field_at_idx(1, "program hash")?,
+                block_number: self.get_field_at_idx(2, "block number")?,
+                block_hash: self.get_field_at_idx(3, "block hash")?,
+                config_hash: self.get_field_at_idx(4, "config hash")?,
+            }))
+        } else {
+            Err(StarknetApiError::InvalidProofFacts(format!(
+                "Non empty ProofFacts first field should be {} (VIRTUAL_SNOS) got {}",
+                Felt::from(VIRTUAL_SNOS),
+                self.0[0]
+            )))
+        }
+    }
+
+    fn get_field_at_idx(&self, idx: usize, expected_field_name: &str) -> StarknetApiResult<Felt> {
+        self.0.get(idx).cloned().ok_or_else(|| {
+            StarknetApiError::InvalidProofFacts(format!(
+                "there was no value at index {idx}. In SNOS proof facts we assume field \
+                 {expected_field_name} is at index {idx}."
+            ))
+        })
+    }
+}
+
+/// Represents the type of proof facts associated with a transaction.
+///
+/// Currently, only SNOS proof facts are supported. The `Empty` variant indicates that the
+/// transaction does not utilize the client-side proving feature.
+pub enum ProofFactsType {
+    Empty,
+    Snos(ProofFactsFields),
+}
+
+/// Contains the required fields for valid SNOS proof facts.
+///
+/// A valid SNOS proof facts structure must include these fields as its first five entries.
+pub struct ProofFactsFields {
+    pub program_hash: Felt,
+    pub block_number: Felt,
+    pub block_hash: Felt,
+    pub config_hash: Felt,
 }
 
 impl From<Vec<Felt>> for ProofFacts {
