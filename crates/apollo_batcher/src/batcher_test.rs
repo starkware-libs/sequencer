@@ -294,8 +294,14 @@ async fn create_batcher_impl(
 ) -> Batcher {
     // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
     // TODO(Amos): Add missing commitment tasks.
-    let commitment_manager =
-        CommitmentManager::new_or_none(&CommitmentManagerConfig::default(), &config.revert_config);
+    let block_hash_height =
+        storage_reader.block_hash_height().expect("Failed to get block hash height from storage.");
+
+    let commitment_manager = CommitmentManager::new_or_none(
+        &CommitmentManagerConfig::default(),
+        &config.revert_config,
+        block_hash_height,
+    );
     let mut batcher = Batcher::new(
         config,
         storage_reader,
@@ -1177,7 +1183,11 @@ async fn add_sync_block_mismatch_block_number() {
 #[rstest]
 #[tokio::test]
 async fn add_sync_block_missing_block_header_commitments() {
-    let mut batcher = create_batcher(MockDependencies::default()).await;
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
@@ -1201,6 +1211,7 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
     let block_number = FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.unchecked_next();
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(move || Ok(block_number));
+    storage_reader.expect_block_hash_height().returning(move || Ok(block_number));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
@@ -1227,6 +1238,9 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
 async fn add_sync_block_for_first_new_block() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader
+        .expect_block_hash_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     // Expect setting the block hash for the last old block (i.e the parent of the first new block).
@@ -1282,6 +1296,9 @@ async fn add_sync_block_for_first_new_block() {
 async fn add_sync_block_parent_hash_mismatch() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader
+        .expect_block_hash_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
