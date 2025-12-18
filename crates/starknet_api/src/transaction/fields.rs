@@ -626,6 +626,37 @@ impl ProofFacts {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn is_snos(&self) -> Option<Felt> {
+        self.get_field(0, "is snos flag")
+    }
+
+    pub fn program_hash(&self) -> Option<Felt> {
+        self.get_field(1, "program hash")
+    }
+
+    pub fn block_number(&self) -> Option<Felt> {
+        self.get_field(2, "block number")
+    }
+
+    pub fn block_hash(&self) -> Option<Felt> {
+        self.get_field(3, "block hash")
+    }
+
+    pub fn config_hash(&self) -> Option<Felt> {
+        self.get_field(4, "config hash")
+    }
+
+    fn get_field(&self, idx: usize, field_name: &str) -> Option<Felt> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(
+            *self.0.get(idx).unwrap_or_else(|| {
+                panic!("ProofFacts should have the {field_name} at index {idx}")
+            }),
+        )
+    }
 }
 
 /// Client-provided proof used for client-side proving.
