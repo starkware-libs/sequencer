@@ -62,44 +62,11 @@ apply_shaping() {
   fi
 
   # If latency is set, add netem (delay in ms)
-  # Calculate queue limit to prevent packet drops with large delays
-  # Formula: limit = (expected_throughput_bps * delay_seconds) / (avg_packet_size_bytes * 8)
-  # For safety, we use a generous default: assume 1500 byte packets and calculate for 1 second of buffering
-  # This gives us: (throughput_kbps * 1000 * delay_ms / 1000) / (1500 * 8) = (throughput_kbps * delay_ms) / 12000
+  # Use maximum queue limit to prevent packet drops
   if [ ! -z "${LATENCY}" ]; then
-    if [ ! -z "${THROUGHPUT}" ]; then
-      # Calculate limit based on throughput and latency
-      # Throughput is in KB/s, latency in ms
-      # Buffer for at least 2x the delay to handle bursts
-      PACKET_SIZE=1500  # bytes
-      BUFFER_MULTIPLIER=2
-      LIMIT=$(( (THROUGHPUT * 1000 * LATENCY * BUFFER_MULTIPLIER) / (PACKET_SIZE * 8) ))
-      # Ensure minimum limit of 1000 packets
-      if [ $LIMIT -lt 1000 ]; then
-        LIMIT=1000
-      fi
-      # Cap at reasonable maximum (100k packets) to avoid excessive memory usage
-      if [ $LIMIT -gt 100000 ]; then
-        LIMIT=100000
-      fi
-      tc qdisc add dev $dev parent $netem_parent netem delay ${LATENCY}ms limit ${LIMIT} || true
-      echo "Applied netem delay ${LATENCY}ms with queue limit ${LIMIT} packets"
-    else
-      # No throughput limit, use a generous default based on latency alone
-      # Assume we might need to buffer packets arriving at 100 Mbps for the delay duration
-      PACKET_SIZE=1500
-      ASSUMED_RATE_MBPS=100
-      BUFFER_MULTIPLIER=2
-      LIMIT=$(( (ASSUMED_RATE_MBPS * 1000 * 1000 * LATENCY * BUFFER_MULTIPLIER) / (1000 * PACKET_SIZE * 8) ))
-      if [ $LIMIT -lt 1000 ]; then
-        LIMIT=1000
-      fi
-      if [ $LIMIT -gt 100000 ]; then
-        LIMIT=100000
-      fi
-      tc qdisc add dev $dev parent $netem_parent netem delay ${LATENCY}ms limit ${LIMIT} || true
-      echo "Applied netem delay ${LATENCY}ms with queue limit ${LIMIT} packets (default calculation)"
-    fi
+    LIMIT=1000000
+    tc qdisc add dev $dev parent $netem_parent netem delay ${LATENCY}ms limit ${LIMIT} || true
+    echo "Applied netem delay ${LATENCY}ms with queue limit ${LIMIT} packets"
   fi
 }
 
