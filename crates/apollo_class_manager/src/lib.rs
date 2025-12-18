@@ -2,6 +2,7 @@ pub mod class_manager;
 mod class_storage;
 pub mod communication;
 pub mod metrics;
+pub mod storage_reader_handler;
 
 // Re-export selected items from the now-private class_storage module.
 pub use class_storage::{
