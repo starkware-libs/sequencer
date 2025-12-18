@@ -72,7 +72,7 @@ class L1Manager:
         if l1_block_number is None:
             return
 
-        l1_block_data = self.l1_client.get_block_by_number(hex(l1_block_number))
+        l1_block_data = self.l1_client.get_block_by_number(l1_block_number)
         assert l1_block_data is not None, f"Block {l1_block_number} must exist"
 
         logs_response = self.l1_client.get_logs(l1_block_number, l1_block_number)
