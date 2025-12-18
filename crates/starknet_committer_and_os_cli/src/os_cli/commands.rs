@@ -76,11 +76,6 @@ fn validate_single_input(os_block_input: &OsBlockInput) {
 
 /// Validate a list of os_block_input.
 pub(crate) fn validate_os_input(os_input: &StarknetOsInput) {
-    assert_eq!(
-        os_input.os_block_inputs.len(),
-        os_input.cached_state_inputs.len(),
-        "The number of blocks and number of state inputs should be equal."
-    );
     for os_block_input in os_input.os_block_inputs.iter() {
         validate_single_input(os_block_input);
     }

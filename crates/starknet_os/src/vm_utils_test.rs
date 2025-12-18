@@ -156,7 +156,6 @@ fn test_run_os_with_code_snippet() {
     let os_hints_config = OsHintsConfig::default();
     let os_input = StarknetOsInput {
         os_block_inputs: vec![],
-        cached_state_inputs: vec![],
         deprecated_compiled_classes: BTreeMap::new(),
         compiled_classes: BTreeMap::new(),
     };
