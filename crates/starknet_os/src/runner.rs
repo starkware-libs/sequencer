@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::CairoRunConfig;
@@ -26,13 +27,7 @@ use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{
-    CachedStateInput,
-    OsBlockInput,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
-};
+use crate::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::{AggregatorMetrics, OsMetrics};
 use crate::vm_utils::vm_error_with_code_snippet;
@@ -135,7 +130,7 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     layout: LayoutName,
     os_hints_config: OsHintsConfig,
     os_block_inputs: &'a [OsBlockInput],
-    cached_state_inputs: Vec<CachedStateInput>,
+    cached_state_inputs: Vec<StateMaps>,
     deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
