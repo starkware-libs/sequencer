@@ -605,17 +605,8 @@ impl HasSelector for EntryPointV1 {
 }
 
 impl EntryPointHashable for EntryPointV1 {
-    fn get_selector(&self) -> Felt {
-        self.selector.0
-    }
     fn get_offset(&self) -> Felt {
         Felt::from(self.offset.0)
-    }
-    fn get_builtins(&self) -> Vec<Felt> {
-        self.builtins
-            .iter()
-            .map(|builtin| Felt::from_bytes_be_slice(builtin.to_str().as_bytes()))
-            .collect_vec()
     }
 }
 
