@@ -348,10 +348,20 @@ impl Panel {
         )
     }
 
+    pub(crate) fn from_hist_with_range(
+        metric: &MetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+        range: impl AsRef<str>,
+    ) -> Self {
+        Self::from_hist_helper(metric.get_name_with_filter(), name, description, "le", range)
+    }
+
     pub(crate) fn from_labeled_hist(
         metric: &LabeledMetricHistogram,
         name: impl ToString,
         description: impl ToString,
+        range: impl AsRef<str>,
     ) -> Self {
         let group_label = metric.get_label_name();
         Self::from_hist_helper(
@@ -359,7 +369,7 @@ impl Panel {
             name,
             description,
             format!("le, {}", group_label),
-            HISTOGRAM_TIME_RANGE,
+            range,
         )
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }
