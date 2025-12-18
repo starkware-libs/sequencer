@@ -34,7 +34,7 @@ class TestL1Manager(unittest.TestCase):
             },
         )
 
-        logs = self.manager.get_logs(0, 100)
+        logs = self.manager.get_logs({"fromBlock": hex(0), "toBlock": hex(100)})
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
 
     @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
@@ -55,7 +55,13 @@ class TestL1Manager(unittest.TestCase):
         block = self.manager.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
         self.assertEqual(block, L1TestUtils.BLOCK_RPC_RESPONSE)
 
-        logs = self.manager.get_logs(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
+        logs = self.manager.get_logs(
+            {
+                "fromBlock": L1TestUtils.BLOCK_NUMBER_HEX,
+                "toBlock": L1TestUtils.BLOCK_NUMBER_HEX,
+            }
+        )
+
         self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
     @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
@@ -80,7 +86,7 @@ class TestL1Manager(unittest.TestCase):
         self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
         # get_logs merges all logs in range.
-        result = self.manager.get_logs(10, 30)
+        result = self.manager.get_logs({"fromBlock": hex(10), "toBlock": hex(30)})
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
@@ -93,7 +99,7 @@ class TestL1Manager(unittest.TestCase):
         self.assertEqual(result, expected_logs)
 
         # get_logs with partial range (only 20 exists in 15-25).
-        result = self.manager.get_logs(15, 25)
+        result = self.manager.get_logs({"fromBlock": hex(15), "toBlock": hex(25)})
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
