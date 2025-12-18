@@ -77,9 +77,9 @@ fn test_l1_handler_executable_transaction_conversion(
     mut transactions_data: Vec<TransactionTestData>,
 ) {
     // Extract L1 Handler transaction data.
-    let transaction_data = transactions_data.remove(10);
+    let transaction_data = transactions_data.remove(11);
     let Transaction::L1Handler(l1_handler_tx) = transaction_data.transaction.clone() else {
-        panic!("Transaction_hash.json is expected to have L1 Handler as the 11th transaction.")
+        panic!("Transaction_hash.json is expected to have L1 Handler as the 12th transaction.")
     };
 
     let expected_executable_tx = ExecutableTransaction::L1Handler(L1HandlerTransaction {
