@@ -99,7 +99,7 @@ async fn l1_handler_tx_consumed_txs() {
         Ok(all_events[start..end_exclusive].to_vec())
     });
 
-    let l1_provider_client = setup_scraper_and_provider(base_layer).await;
+    let l1_provider_client = setup_scraper_and_provider(base_layer, None).await;
 
     tokio::time::pause();
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
