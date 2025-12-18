@@ -12,7 +12,7 @@ pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass
 /// Data structs that are serialized into the database.
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct IndexedDeprecatedContractClass {
+pub struct IndexedDeprecatedContractClass {
     pub block_number: BlockNumber,
     pub location_in_file: LocationInFile,
 }

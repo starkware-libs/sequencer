@@ -94,6 +94,7 @@ pub mod header;
 pub mod mmap_file;
 mod serialization;
 pub mod state;
+pub mod storage_reader;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
 mod version;
@@ -779,20 +780,29 @@ pub struct DbStats {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
-// A marker is the first block number for which the corresponding data doesn't exist yet.
-// Invariants:
-// - CompiledClass <= Class <= State <= Header
-// - Body <= Header
-// - BaseLayerBlock <= Header
-// Event is currently unsupported.
-pub(crate) enum MarkerKind {
+/// A marker is the first block number for which the corresponding data doesn't exist yet.
+/// Invariants:
+/// - CompiledClass <= Class <= State <= Header
+/// - Body <= Header
+/// - BaseLayerBlock <= Header
+/// - Event is currently unsupported.
+pub enum MarkerKind {
+    /// Header marker - indicates the first block number without a header.
     Header,
+    /// Body marker - indicates the first block number without transaction/event data.
     Body,
+    /// Event marker - currently unsupported.
     Event,
+    /// State marker - indicates the first block number without state diff data.
     State,
+    /// Class marker - indicates the first block number without class declaration data.
     Class,
+    /// Compiled class marker - indicates the first block number without compiled class data.
     CompiledClass,
+    /// Base layer block marker - indicates the first block number not yet processed on L1.
     BaseLayerBlock,
+    /// Class manager block marker - indicates the first block number not yet processed by class
+    /// manager.
     ClassManagerBlock,
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
