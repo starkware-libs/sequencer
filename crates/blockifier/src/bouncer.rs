@@ -969,7 +969,7 @@ pub fn get_patricia_update_resources(
 
     let resources_per_tree_access = ExecutionResources {
         n_steps: TREE_HEIGHT_UPPER_BOUND * STEPS_IN_TREE_PER_HEIGHT,
-        builtin_instance_counter: HashMap::from([(
+        builtin_instance_counter: BTreeMap::from([(
             BuiltinName::pedersen,
             TREE_HEIGHT_UPPER_BOUND * PEDERSENS_PER_HEIGHT,
         )]),

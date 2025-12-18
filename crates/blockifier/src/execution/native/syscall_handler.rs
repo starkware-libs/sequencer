@@ -8,6 +8,7 @@ use cairo_native::starknet::{
     BlockInfo,
     ExecutionInfo,
     ExecutionInfoV2,
+    ExecutionInfoV3,
     Secp256k1Point,
     Secp256r1Point,
     StarknetSyscallHandler,
@@ -317,6 +318,15 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             contract_address: Felt::from(self.base.call.storage_address),
             entry_point_selector: self.base.call.entry_point_selector.0,
         })
+    }
+
+    fn get_execution_info_v3(
+        &mut self,
+        _remaining_gas: &mut u64,
+    ) -> SyscallResult<ExecutionInfoV3> {
+        // There is no need to implement it now. Once we
+        // actually need it we can take it from upstream.
+        todo!()
     }
 
     fn deploy(

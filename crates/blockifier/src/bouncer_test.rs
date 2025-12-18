@@ -577,7 +577,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
 #[case::tx_builtins_plus_os_tx_builtins(
     &[],
     ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: std::collections::BTreeMap::from([
             (BuiltinName::bitwise, 1),
         ]),
         ..Default::default()
@@ -596,7 +596,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         (FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)), 1),
     ],
     ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: std::collections::BTreeMap::from([
             (BuiltinName::range_check, 1),
             (BuiltinName::bitwise, 2),
         ]),
@@ -607,6 +607,8 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     #[case] contract_instances: &[(FeatureContract, u16)],
     #[case] os_vm_resources: ExecutionResources,
 ) {
+    use std::collections::BTreeMap;
+
     let block_context = BlockContext::create_for_account_testing();
     let state = test_state(&block_context.chain_info, Fee(0), contract_instances);
 
@@ -615,8 +617,8 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         contract_instances.iter().map(|(contract, _)| contract.get_class_hash()).collect();
 
     // Transaction builtin counters.
-    let mut tx_builtin_counters =
-        HashMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
+    let tx_builtin_counters =
+        BTreeMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
 
     let tx_resources = TransactionResources {
         computation: ComputationResources {
@@ -661,14 +663,17 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &tx_resources,
         &StateMaps::default().keys(), // state changes keys
         &block_context.versioned_constants,
-        &tx_builtin_counters,
+        &tx_builtin_counters.clone().into_iter().collect(),
         &block_context.bouncer_config,
     )
     .unwrap();
 
     // Combine TX + TX overhead (OS) + CASM and patricia builtin usage.
-    add_maps(&mut tx_builtin_counters, &os_vm_resources.builtin_instance_counter);
-    add_maps(&mut tx_builtin_counters, &additional_os_resources);
+    add_maps(
+        &mut tx_builtin_counters.clone().into_iter().collect(),
+        &os_vm_resources.builtin_instance_counter.into_iter().collect(),
+    );
+    add_maps(&mut tx_builtin_counters.clone().into_iter().collect(), &additional_os_resources);
 
     // Compute expected gas delta from builtin delta (absolute difference between Stwo and Stone).
     let (total_stwo_gas, total_stone_gas) = tx_builtin_counters

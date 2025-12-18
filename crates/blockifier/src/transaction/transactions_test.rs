@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
@@ -316,7 +316,7 @@ fn expected_validate_call_info(
             ExecutionResources {
                 n_steps,
                 n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(
+                builtin_instance_counter: BTreeMap::from([(
                     BuiltinName::range_check,
                     n_range_checks,
                 )]),
@@ -570,7 +570,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
             n_steps: 62,
             n_memory_holes:  0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
         },
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
@@ -2784,7 +2784,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     let mut expected_os_execution_resources = ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::pedersen, 11 + payload_size),
             (
                 BuiltinName::range_check,

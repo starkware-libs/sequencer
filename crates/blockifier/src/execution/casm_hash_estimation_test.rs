@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -21,7 +21,11 @@ impl EstimatedExecutionResources {
         builtin_instance_counter: HashMap<BuiltinName, usize>,
     ) -> Self {
         Self::V1Hash {
-            resources: ExecutionResources { n_steps, n_memory_holes, builtin_instance_counter },
+            resources: ExecutionResources {
+                n_steps,
+                n_memory_holes,
+                builtin_instance_counter: builtin_instance_counter.into_iter().collect(),
+            },
         }
     }
 
@@ -33,7 +37,11 @@ impl EstimatedExecutionResources {
         blake_count: usize,
     ) -> Self {
         Self::V2Hash {
-            resources: ExecutionResources { n_steps, n_memory_holes, builtin_instance_counter },
+            resources: ExecutionResources {
+                n_steps,
+                n_memory_holes,
+                builtin_instance_counter: builtin_instance_counter.into_iter().collect(),
+            },
             blake_count,
         }
     }
@@ -64,7 +72,7 @@ fn add_assign_estimated_resources_panics_on_variant_mismatch(
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 2,
-        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 3)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::poseidon, 3)]),
     },
     // Expected blake count.
     None,
@@ -76,7 +84,7 @@ fn add_assign_estimated_resources_panics_on_variant_mismatch(
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 2,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
     },
     // Expected blake count.
     Some(3),

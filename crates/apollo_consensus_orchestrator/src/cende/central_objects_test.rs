@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 
@@ -473,7 +473,7 @@ fn execution_resources() -> ExecutionResources {
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 3,
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::range_check, 31),
             (BuiltinName::pedersen, 4),
         ]),
@@ -538,6 +538,8 @@ fn call_info() -> CallInfo {
             (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
             (SyscallSelector::EmitEvent, SyscallUsage { call_count: 2, linear_factor: 0 }),
         ]),
+        time: Default::default(),
+        call_counter: Default::default(),
     }
 }
 

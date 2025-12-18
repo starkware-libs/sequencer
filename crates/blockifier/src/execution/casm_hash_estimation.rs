@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ops::AddAssign;
 
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -448,10 +448,10 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             Self::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
         let builtin_instance_counter = match felt_size_groups.n_felts() {
             // The empty case does not use builtins at all.
-            0 => HashMap::new(),
+            0 => BTreeMap::new(),
             // One `range_check` per input felt to validate its size + Overhead for the non empty
             // case.
-            _ => HashMap::from([(
+            _ => BTreeMap::from([(
                 BuiltinName::range_check,
                 felt_size_groups.n_felts() + BASE_RANGE_CHECK_NON_EMPTY,
             )]),

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use cairo_vm::serde::deserialize_program::{
     deserialize_array_of_bigint_hex,
@@ -378,6 +378,6 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
             + (data_length % 2) * 3
             + 21,
         n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -152,7 +152,7 @@ fn test_nested_library_call() {
     let storage_entry_point_resources = ExecutionResources {
         n_steps: 228,
         n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
     };
     let storage_entry_point_syscalls_usage = HashMap::from([
         (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
@@ -176,7 +176,7 @@ fn test_nested_library_call() {
             + &ExecutionResources {
                 n_steps: 39,
                 n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+                builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
             };
     library_call_resources += &storage_entry_point_resources;
     let library_call_info = CallInfo {
@@ -211,7 +211,7 @@ fn test_nested_library_call() {
             + &ExecutionResources {
                 n_steps: 45,
                 n_memory_holes: 0,
-                builtin_instance_counter: HashMap::new(),
+                builtin_instance_counter: BTreeMap::new(),
             };
     main_call_resources += &(&library_call_resources * 2);
     let expected_call_info = CallInfo {
@@ -317,7 +317,7 @@ fn test_call_contract() {
         resources: ExecutionResources {
             n_steps: 228,
             n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
         },
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![value],
@@ -344,7 +344,7 @@ fn test_call_contract() {
             + &ExecutionResources {
                 n_steps: 267,
                 n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+                builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
             },
         builtin_counters: HashMap::from([(BuiltinName::range_check, 19)]),
         syscalls_usage: HashMap::from([(

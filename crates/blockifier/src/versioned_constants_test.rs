@@ -278,7 +278,7 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
     "#,
     VariableResourceParams::Constant(ExecutionResources {
         n_steps: 1,
-        builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 2)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, 2)]),
         n_memory_holes: 3,
     })
 )]
@@ -304,12 +304,12 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
     VariableResourceParams::WithFactor(ResourcesParams {
         constant: ExecutionResources {
             n_steps: 4,
-            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 5)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, 5)]),
             n_memory_holes: 6,
         },
         calldata_factor: VariableCallDataFactor::Unscaled(ExecutionResources {
             n_steps: 7,
-            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 8)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, 8)]),
             n_memory_holes: 9,
         }),
     })
@@ -339,13 +339,13 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
     VariableResourceParams::WithFactor(ResourcesParams {
         constant: ExecutionResources {
             n_steps: 10,
-            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 11)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, 11)]),
             n_memory_holes: 12,
         },
         calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
             resources: ExecutionResources {
                 n_steps: 13,
-                builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 14)]),
+                builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, 14)]),
                 n_memory_holes: 15,
             },
             scaling_factor: 16,
