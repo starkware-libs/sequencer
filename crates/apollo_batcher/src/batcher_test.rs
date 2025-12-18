@@ -56,6 +56,7 @@ use validator::Validate;
 
 use crate::batcher::{
     Batcher,
+    BatcherStorageReader,
     MockBatcherStorageReader,
     MockBatcherStorageWriter,
     StorageCommitmentBlockHash,
@@ -192,9 +193,14 @@ impl Default for MockDependencies {
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
     // TODO(Amos): Add missing commitment tasks.
+    let block_hash_height = mock_dependencies
+        .storage_reader
+        .block_hash_height()
+        .expect("Failed to get block hash height from storage.");
     let commitment_manager = CommitmentManager::new_or_none(
         &CommitmentManagerConfig::default(),
         &mock_dependencies.batcher_config.revert_config,
+        block_hash_height,
     );
     let mut batcher = Batcher::new(
         mock_dependencies.batcher_config,

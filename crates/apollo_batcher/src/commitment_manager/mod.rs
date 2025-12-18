@@ -44,6 +44,7 @@ pub(crate) struct CommitmentManager {
     pub(crate) results_receiver: Receiver<CommitmentTaskOutput>,
     pub(crate) commitment_task_performer: JoinHandle<()>,
     pub(crate) config: CommitmentManagerConfig,
+    pub(crate) commitment_task_offset: BlockNumber,
 }
 
 impl CommitmentManager {
@@ -51,16 +52,23 @@ impl CommitmentManager {
     pub(crate) fn new_or_none(
         config: &CommitmentManagerConfig,
         revert_config: &RevertConfig,
+        block_hash_height: BlockNumber,
     ) -> Option<Self> {
         if revert_config.should_revert {
             None
         } else {
-            Some(CommitmentManager::initialize(CommitmentManagerConfig::default()))
+            Some(CommitmentManager::initialize(
+                CommitmentManagerConfig::default(),
+                block_hash_height,
+            ))
         }
     }
 
     /// Initializes the CommitmentManager. This includes starting the state committer task.
-    pub(crate) fn initialize(config: CommitmentManagerConfig) -> Self {
+    pub(crate) fn initialize(
+        config: CommitmentManagerConfig,
+        block_hash_height: BlockNumber,
+    ) -> Self {
         info!("Initializing CommitmentManager with config {config:?}");
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
         let (results_sender, results_receiver) = channel(config.results_channel_size);
@@ -69,15 +77,37 @@ impl CommitmentManager {
 
         let commitment_task_performer = state_committer.run();
 
-        Self { tasks_sender, results_receiver, commitment_task_performer, config }
+        Self {
+            tasks_sender,
+            results_receiver,
+            commitment_task_performer,
+            config,
+            commitment_task_offset: block_hash_height,
+        }
+    }
+
+    /// Returns the range of block heights for which commitment tasks are missing (i.e.,
+    /// [commitment_task_offset, current_block_height)).
+    /// The returned range is inclusive of the start and exclusive of the end.
+    pub(crate) fn get_missing_commitment_tasks_heights(
+        &self,
+        current_block_height: BlockNumber,
+    ) -> (BlockNumber, BlockNumber) {
+        (self.commitment_task_offset, current_block_height)
     }
 
     pub(crate) async fn add_commitment_task(
-        &self,
+        &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         state_diff_commitment: Option<StateDiffCommitment>,
     ) {
+        assert!(
+            height == self.commitment_task_offset,
+            "Attempted to add commitment task for block {height}, but the expected block height \
+             is {}. Commitment tasks must be added in order.",
+            self.commitment_task_offset
+        );
         let commitment_task_input =
             CommitmentTaskInput { height, state_diff, state_diff_commitment };
         let error_message = format!(
@@ -95,12 +125,18 @@ impl CommitmentManager {
                  {state_diff_commitment:?} to state committer."
             );
             match self.tasks_sender.send(commitment_task_input).await {
-                Ok(_) => info!(success_message),
+                Ok(_) => {
+                    info!(success_message);
+                    self.increase_commitment_task_offset();
+                }
                 Err(err) => panic!("{error_message}. error: {err}"),
             };
         } else {
             match self.tasks_sender.try_send(commitment_task_input) {
-                Ok(_) => info!(success_message),
+                Ok(_) => {
+                    info!(success_message);
+                    self.increase_commitment_task_offset();
+                }
                 Err(TrySendError::Full(_)) => {
                     let channel_size = self.tasks_sender.max_capacity();
                     panic!(
@@ -132,5 +168,10 @@ impl CommitmentManager {
 
     pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
         unimplemented!()
+    }
+
+    fn increase_commitment_task_offset(&mut self) {
+        self.commitment_task_offset =
+            self.commitment_task_offset.next().expect("Block number overflowed.");
     }
 }

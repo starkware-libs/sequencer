@@ -1162,8 +1162,13 @@ pub fn create_batcher(
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
     // TODO(Amos): Add missing commitment tasks.
-    let commitment_manager =
-        CommitmentManager::new_or_none(&CommitmentManagerConfig::default(), &config.revert_config);
+    let block_hash_height =
+        storage_reader.block_hash_height().expect("Failed to get block hash height from storage.");
+    let commitment_manager = CommitmentManager::new_or_none(
+        &CommitmentManagerConfig::default(),
+        &config.revert_config,
+        block_hash_height,
+    );
 
     Batcher::new(
         config,
