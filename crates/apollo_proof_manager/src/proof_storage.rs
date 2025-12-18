@@ -1,5 +1,9 @@
+use std::convert::TryInto;
 use std::error::Error;
-use std::path::PathBuf;
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use starknet_api::transaction::fields::Proof;
 use starknet_types_core::felt::Felt;
@@ -81,5 +85,45 @@ impl FsProofStorage {
         // Returning `TempDir` since without it the handle would drop immediately and the temp
         // directory would be removed before writes/rename.
         Ok((tmp_root, tmp_dir))
+    }
+
+    /// Writes a proof to a file in binary format.
+    /// The file is named `proof` inside the given directory.
+    #[allow(dead_code)]
+    fn write_proof_to_file(&self, path: &Path, proof: &Proof) -> FsProofStorageResult<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Open a file for writing, deleting any existing content.
+        let file = OpenOptions::new().create(true).write(true).truncate(true).open(path)?;
+
+        let mut writer = BufWriter::new(file);
+
+        for &value in proof.iter() {
+            writer.write_all(&value.to_le_bytes())?;
+        }
+
+        writer.flush()?;
+        Ok(())
+    }
+
+    /// Reads a proof from a file in binary format.
+    #[allow(dead_code)]
+    fn read_proof_from_file(&self, facts_hash: Felt) -> FsProofStorageResult<Proof> {
+        let file_path = self.get_persistent_dir(facts_hash).join("proof");
+        let mut file = std::fs::File::open(file_path)?;
+
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+
+        if buffer.len() % 4 != 0 {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Corrupt file").into());
+        }
+
+        let proof_data =
+            buffer.chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+
+        Ok(Proof(Arc::new(proof_data)))
     }
 }
