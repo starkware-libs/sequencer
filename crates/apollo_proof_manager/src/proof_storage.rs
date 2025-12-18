@@ -9,6 +9,10 @@ use starknet_api::transaction::fields::Proof;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "proof_storage_test.rs"]
+mod proof_storage_test;
+
 pub trait ProofStorage: Send + Sync {
     type Error: Error;
     fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error>;
@@ -89,7 +93,6 @@ impl FsProofStorage {
 
     /// Writes a proof to a file in binary format.
     /// The file is named `proof` inside the given directory.
-    #[allow(dead_code)]
     fn write_proof_to_file(&self, path: &Path, proof: &Proof) -> FsProofStorageResult<()> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -150,6 +153,9 @@ impl ProofStorage for FsProofStorage {
     fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error> {
         match self.read_proof_from_file(facts_hash) {
             Ok(proof) => Ok(Some(proof)),
+            Err(FsProofStorageError::IoError(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+                Ok(None)
+            }
             Err(e) => Err(e),
         }
     }
