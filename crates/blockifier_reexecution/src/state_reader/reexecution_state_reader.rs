@@ -9,16 +9,18 @@ use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::MAX_FEE;
 use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_core::types::ContractClass as StarknetContractClass;
+use starknet_core::types::{ContractClass as StarknetContractClass, Felt};
 
 use crate::assert_eq_state_diff;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
 use crate::errors::ReexecutionResult;
 use crate::utils::contract_class_to_compiled_classes;
+
+pub const DUMMY_COMPILED_CLASS_HASH: CompiledClassHash = CompiledClassHash(Felt::ONE);
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -114,6 +116,22 @@ pub trait ReexecutionStateReader {
                 Ok(contract_class_to_compiled_classes(class_v0, None)?)
             }
         }
+    }
+
+    /// Returns a dummy compiled class hash for reexecution purposes.
+    ///
+    /// This method is required since v0.14.1 for checking if compiled class hashes
+    /// need to be migrated from v1 to v2 format.
+    /// In reexecution we use a dummy value for both get_compiled_class_hash and
+    /// get_compiled_class_hash_v2, to avoid the migration process.
+    fn get_compiled_class_hash(&self) -> StateResult<CompiledClassHash> {
+        Ok(DUMMY_COMPILED_CLASS_HASH)
+    }
+
+    /// returns the same value as get_compiled_class_hash,
+    /// sto avoid the migration process.
+    fn get_compiled_class_hash_v2(&self) -> StateResult<CompiledClassHash> {
+        self.get_compiled_class_hash()
     }
 }
 
