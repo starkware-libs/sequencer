@@ -1,11 +1,10 @@
-import json
 from datetime import datetime, timezone
 from typing import Any
 
 
-def rpc_response(result: Any) -> str:
+def rpc_response(result: Any) -> dict:
     """Wraps a result in a JSON-RPC 2.0 response."""
-    return json.dumps({"jsonrpc": "2.0", "id": "1", "result": result})
+    return {"jsonrpc": "2.0", "id": "1", "result": result}
 
 
 def timestamp_to_iso(timestamp: int) -> str:
