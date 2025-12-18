@@ -450,5 +450,6 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             ),
             message: err.to_string(),
         },
+        StarknetApiError::InvalidProofFacts(_) => todo!(),
     }
 }

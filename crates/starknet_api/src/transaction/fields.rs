@@ -626,6 +626,47 @@ impl ProofFacts {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn get_fields(&self) -> StarknetApiResult<ProofFactsType> {
+        if self.is_empty() {
+            Ok(ProofFactsType::Empty)
+        } else if self.0[0] == Felt::from(0) {
+            Ok(ProofFactsType::NonSnos)
+        } else if self.0[0] == Felt::from(1) {
+            Ok(ProofFactsType::Snos(ProofFactsFields {
+                program_hash: self.get_filed(1, "program hash")?,
+                block_number: self.get_filed(2, "block number")?,
+                block_hash: self.get_filed(3, "block hash")?,
+                config_hash: self.get_filed(4, "config hash")?,
+            }))
+        } else {
+            Err(StarknetApiError::InvalidProofFacts(format!(
+                "ProofFacts first field should be 0 or 1 got {0}",
+                self.0[0]
+            )))
+        }
+    }
+
+    fn get_filed(&self, idx: usize, field: &str) -> StarknetApiResult<Felt> {
+        self.0.get(idx).cloned().ok_or_else(|| {
+            StarknetApiError::InvalidProofFacts(format!(
+                "ProofFacts should have the field {field} at index {idx}"
+            ))
+        })
+    }
+}
+
+pub enum ProofFactsType {
+    Empty,
+    NonSnos,
+    Snos(ProofFactsFields),
+}
+
+pub struct ProofFactsFields {
+    pub program_hash: Felt,
+    pub block_number: Felt,
+    pub block_hash: Felt,
+    pub config_hash: Felt,
 }
 
 /// Client-provided proof used for client-side proving.
