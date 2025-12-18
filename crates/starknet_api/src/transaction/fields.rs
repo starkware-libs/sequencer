@@ -616,11 +616,14 @@ impl AccountDeploymentData {
     }
 }
 
+// Represent the `VIRTUAL_SNOS` as a Felt.
+pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
 #[derive(
     Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
 )]
+
 pub struct ProofFacts(pub Arc<Vec<Felt>>);
 
 impl ProofFacts {
@@ -631,6 +634,45 @@ impl ProofFacts {
     pub fn hash(&self) -> Felt {
         HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
+
+    pub fn get_fields(&self) -> StarknetApiResult<ProofFactsType> {
+        if self.is_empty() {
+            Ok(ProofFactsType::Empty)
+        } else if self.0[0] == Felt::from(VIRTUAL_SNOS) {
+            Ok(ProofFactsType::Snos(ProofFactsFields {
+                program_hash: self.get_filed(1, "program hash")?,
+                block_number: self.get_filed(2, "block number")?,
+                block_hash: self.get_filed(3, "block hash")?,
+                config_hash: self.get_filed(4, "config hash")?,
+            }))
+        } else {
+            Err(StarknetApiError::InvalidProofFacts(format!(
+                "Non empty ProofFacts first field should be {} (VIRTUAL_SNOS) got {}",
+                Felt::from(VIRTUAL_SNOS),
+                self.0[0]
+            )))
+        }
+    }
+
+    fn get_filed(&self, idx: usize, field: &str) -> StarknetApiResult<Felt> {
+        self.0.get(idx).cloned().ok_or_else(|| {
+            StarknetApiError::InvalidProofFacts(format!(
+                "ProofFacts should have the field {field} at index {idx}"
+            ))
+        })
+    }
+}
+
+pub enum ProofFactsType {
+    Empty,
+    Snos(ProofFactsFields),
+}
+
+pub struct ProofFactsFields {
+    pub program_hash: Felt,
+    pub block_number: Felt,
+    pub block_hash: Felt,
+    pub config_hash: Felt,
 }
 
 impl From<Vec<Felt>> for ProofFacts {
