@@ -86,8 +86,11 @@ class L1Manager:
 
     # Mock RPC responses.
 
-    def get_logs(self, from_block: int, to_block: int) -> dict:
-        """Returns merged logs for stored blocks in [from_block, to_block], or empty logs list if empty."""
+    def get_logs(self, params: dict) -> dict:
+        """Returns merged logs for stored blocks in [fromBlock, toBlock], or empty logs list if empty."""
+        from_block = int(params["fromBlock"], 16)
+        to_block = int(params["toBlock"], 16)
+
         logs = []
         for block_num in range(from_block, to_block + 1):
             block = self.blocks.get(block_num)
