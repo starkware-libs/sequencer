@@ -327,10 +327,16 @@ impl L1Provider {
                     );
                 } else {
                     info!(
-                        "Provider received a block_height ({height}) that is higher than the \
+                        "Provider received a block_height ({height}) that is different than the \
                          current height ({}), starting catch-up process.",
                         self.current_height
                     );
+                    // TODO(guyn): in case block_height is lower than current_height, should we
+                    // still go to catchup? Perhaps it is better to return an
+                    // error and let the batcher keep going without the Provider?
+                    // Do we need to check that the blocks getting committed are consistent with the
+                    // provider records? Can we just accept the block without an
+                    // error if we do that check?
                     self.start_catching_up(height);
                 }
                 Err(err)
