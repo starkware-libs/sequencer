@@ -6,8 +6,6 @@ use apollo_batcher_config::config::BatcherConfig;
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -38,6 +36,7 @@ use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+use apollo_storage::storage_reader_communication::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::storage_reader_server::StorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -111,8 +110,8 @@ type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsens
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 type BatcherStorageReaderServer = StorageReaderServer<
     BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
+    StorageReaderRequest,
+    StorageReaderResponse,
 >;
 
 pub struct Batcher {
