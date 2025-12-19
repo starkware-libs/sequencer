@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Monitoring and observability endpoints for the Starknet sequencer."
 
 [features]
 testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tower"]

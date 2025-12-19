@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Protocol buffer definitions and serialization for P2P communication."
 
 [features]
 testing = ["apollo_test_utils", "rand", "rand_chacha"]

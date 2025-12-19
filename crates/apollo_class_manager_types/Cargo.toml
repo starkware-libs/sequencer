@@ -4,6 +4,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+description = "Type definitions and interfaces for the Apollo class manager component."
 
 [features]
 testing = ["mockall"]

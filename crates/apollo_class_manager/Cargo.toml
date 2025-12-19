@@ -4,6 +4,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+description = "Manages Sierra and CASM contract classes, including storage and compilation coordination."
 
 [features]
 testing = []
