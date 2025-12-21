@@ -14,6 +14,7 @@ use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput
 
 pub(crate) mod state_committer;
 pub(crate) mod types;
+pub(crate) mod utils;
 
 pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
@@ -55,8 +56,10 @@ impl CommitmentManager {
         block_hash_height: BlockNumber,
     ) -> Option<Self> {
         if revert_config.should_revert {
+            info!("Revert mode is enabled, not initializing commitment manager.");
             None
         } else {
+            info!("Initializing commitment manager.");
             Some(CommitmentManager::initialize(
                 CommitmentManagerConfig::default(),
                 block_hash_height,
