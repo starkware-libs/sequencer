@@ -1,10 +1,18 @@
+use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
-use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 
-use crate::db::index_db::leaves::TrieType;
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::traversal::SubTreeTrait;
+
+// TODO(Ariel): Delete this enum and use `CommitmentType` instead.
+#[derive(Debug, PartialEq)]
+pub enum TrieType {
+    ContractsTrie,
+    ClassesTrie,
+    StorageTrie(ContractAddress),
+}
 
 /// Specifies the trie db layout.
 pub trait NodeLayout<'a, L: Leaf> {
@@ -13,8 +21,8 @@ pub trait NodeLayout<'a, L: Leaf> {
     /// NodeData is empty for index layout, and HashOutput for facts layout. The `From<HashOutput>`
     /// constraint is used in two cases where we're generic in the layout but hold a concrete
     /// HashOutput:
-    /// 1. When [starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait::create] is called
-    ///    in the beginning of the original skeleton tree creation.
+    /// 1. When [crate::patricia_merkle_tree::traversal::SubTreeTrait::create] is called in the
+    ///    beginning of the original skeleton tree creation.
     /// 2. When Layout::get_db_object is called in the serialization of a FilledTree.
     type NodeData: Clone + From<HashOutput>;
 
