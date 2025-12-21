@@ -2,7 +2,7 @@ use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::core::{GLOBAL_STATE_VERSION, L2_ADDRESS_UPPER_BOUND};
-use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::hash_function::hash::{TreeHashFunctionImpl, CONTRACT_CLASS_LEAF_V0};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
@@ -26,7 +26,7 @@ fn test_blob_constants() {
 fn test_contract_class_hash_version() {
     assert_eq!(
         Const::ContractClassLeafVersion.fetch_from_os_program().unwrap(),
-        Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).unwrap()
+        CONTRACT_CLASS_LEAF_V0
     );
 }
 
