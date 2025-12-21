@@ -38,6 +38,9 @@ __pycache__/
 scripts/__pycache__
 monitoring_venv/
 
+# echonet deploy-time generated bundle for kustomize
+echonet/k8s/echonet/generated/
+
 # Papyrus p2p sync test artifacts.
 scripts/papyrus/p2p_sync_e2e_test/data_client/
 scripts/papyrus/p2p_sync_e2e_test/data_server/
