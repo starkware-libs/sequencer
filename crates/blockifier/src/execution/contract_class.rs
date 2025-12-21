@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::{Arc, LazyLock};
 
@@ -367,7 +367,7 @@ impl CompiledClassV0 {
         ExecutionResources {
             n_steps,
             n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, hashed_data_size)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::pedersen, hashed_data_size)]),
         }
     }
 

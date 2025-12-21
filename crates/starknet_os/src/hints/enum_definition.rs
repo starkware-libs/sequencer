@@ -23,11 +23,7 @@ use crate::hints::hint_implementation::aggregator::implementation::{
     set_state_update_pointers_to_none,
     write_da_segment,
 };
-use crate::hints::hint_implementation::blake2s::implementation::{
-    check_packed_values_end_and_size,
-    naive_unpack_felt252_to_u32s,
-    unpack_felts_to_u32s,
-};
+use crate::hints::hint_implementation::blake2s::implementation::naive_unpack_felt252_to_u32s;
 use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,
@@ -679,28 +675,7 @@ memory[ap] = 1 if case != 'both' else 0"#
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
     (StarknetOsInput, starknet_os_input),
     (AllocateSegmentsForMessages, allocate_segments_for_messages),
-    (
-        CheckPackedValuesEndAndSize,
-        check_packed_values_end_and_size,
-        "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
-         (memory[ids.packed_values] < 2**63))"
-    ),
     (NaiveUnpackFelt252ToU32s, naive_unpack_felt252_to_u32s),
-    (
-        UnpackFeltsToU32s,
-        unpack_felts_to_u32s,
-        indoc! {r#"
-    offset = 0
-    for i in range(ids.packed_values_len):
-        val = (memory[ids.packed_values + i] % PRIME)
-        val_len = 2 if val < 2**63 else 8
-        if val_len == 8:
-            val += 2**255
-        for i in range(val_len - 1, -1, -1):
-            val, memory[ids.unpacked_u32s + offset + i] = divmod(val, 2**32)
-        assert val == 0
-        offset += val_len"#}
-    ),
     (
         GenerateKeysUsingSha256Hash,
         calculate_keys_using_sha256_hash,
