@@ -87,12 +87,8 @@ impl EthToStrkOracleClient {
             index: Arc::new(AtomicUsize::new(0)),
             url_header_list: Arc::new(url_header_list),
             client: reqwest::Client::new(),
-            cached_prices: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
-            ))),
-            queries: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
-            ))),
+            cached_prices: create_cache(config.max_cache_size),
+            queries: create_cache(config.max_cache_size),
         }
     }
 
@@ -144,6 +140,10 @@ impl EthToStrkOracleClient {
         };
         AbortOnDropHandle::new(tokio::spawn(future))
     }
+}
+
+fn create_cache<T>(cache_size: usize) -> Arc<Mutex<LruCache<u64, T>>> {
+    Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(cache_size).expect("Invalid cache size"))))
 }
 
 fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
