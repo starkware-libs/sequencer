@@ -302,7 +302,7 @@ pub enum RPCStateReaderError {
     #[error("Failed to parse gas price {:?}", 0)]
     GasPriceParsingFailure(GasPrice),
     #[error("Invalid params: {0:?}")]
-    InvalidParams(RpcErrorResponse),
+    InvalidParams(Box<RpcErrorResponse>),
     #[error("RPC error: {0}")]
     RPCError(StatusCode),
     #[error(transparent)]
