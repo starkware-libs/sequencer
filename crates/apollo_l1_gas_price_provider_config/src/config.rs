@@ -21,6 +21,7 @@ use starknet_api::core::ChainId;
 use url::Url;
 use validator::Validate;
 
+// This entire config is dynamic.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct EthToStrkOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
