@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::hash_function::hash::TreeHashFunctionImpl;
+use crate::hash_function::hash::{TreeHashFunctionImpl, CONTRACT_CLASS_LEAF_V0};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
@@ -134,7 +134,7 @@ fn test_tree_hash_function_impl_edge_node(
 #[rstest]
 fn test_constant_contract_class_leaf_v0() {
     assert_eq!(
-        hex::decode(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
+        hex::decode(CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
         b"CONTRACT_CLASS_LEAF_V0".as_slice()
     );
 }
