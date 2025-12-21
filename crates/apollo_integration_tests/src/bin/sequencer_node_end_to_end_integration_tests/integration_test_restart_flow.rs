@@ -101,5 +101,6 @@ async fn main() {
         .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
+    panic!("Intentional test failure.");
     info!("Restart flow integration test completed successfully!");
 }
