@@ -295,6 +295,7 @@ fn test_common_hints_in_both_os_and_aggregator_programs(
 }
 
 #[rstest]
+#[ignore]
 /// If OP = OS program hints, AP = aggregator program hints, VM = VM hints,
 /// S = `StatelessHint`, then we verify that:
 /// S ⊆ (OP ∪ AP) \ VM

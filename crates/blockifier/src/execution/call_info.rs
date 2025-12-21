@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
@@ -108,7 +108,7 @@ pub struct CallSummary {
     pub n_calls_running_native: u64,
 }
 
-pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
+pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {

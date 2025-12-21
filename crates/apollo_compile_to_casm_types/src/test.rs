@@ -22,9 +22,9 @@ fn test_size_of_serialized() {
 
 #[test]
 fn compact_serialization() {
-    const EXPECTED: &str = "{\"V1\":[{\"bytecode\":[\"0x1\",\"0x1\",\"0x1\"],\"compiler_version\":\
-                            \"\",\"entry_points_by_type\":{\"CONSTRUCTOR\":[],\"EXTERNAL\":[],\"\
-                            L1_HANDLER\":[]},\"hints\":[],\"prime\":\"0x0\"},\"1.7.0\"]}";
+    const EXPECTED: &str = "{\"V1\":[{\"prime\":\"0x0\",\"compiler_version\":\"\",\"bytecode\":[\"\
+                            0x1\",\"0x1\",\"0x1\"],\"hints\":[],\"entry_points_by_type\":{\"\
+                            EXTERNAL\":[],\"L1_HANDLER\":[],\"CONSTRUCTOR\":[]}},\"1.7.0\"]}";
     let raw_executable_class = RawExecutableClass::test_casm_contract_class();
     let serialized = serde_json::to_string(&raw_executable_class.0).unwrap();
 
