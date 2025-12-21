@@ -160,12 +160,116 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
 }
 
 #[tokio::test]
+async fn eth_to_fri_rate_clears_cache_when_config_changes() {
+    const EXPECTED_RATE: u128 = 123456;
+    let expected_rate_hex = format!("0x{EXPECTED_RATE:x}");
+    const LAG_INTERVAL_SECONDS: u64 = 60;
+    const MAX_CACHE_SIZE: usize = 100;
+    const QUERY_TIMEOUT_SEC: u64 = 10;
+
+    const TIMESTAMP: u64 = 1234567890;
+
+    let mut server = mockito::Server::new_async().await;
+
+    // Define a mock response for a GET request with the expected rate.
+    let _mock_response1 = server
+        .mock("GET", "/") // Match the base path only.
+        .match_query(mockito::Matcher::Any)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            json!({
+                "price": expected_rate_hex,
+                "decimals": 18
+            })
+            .to_string(),
+        )
+        .create();
+
+    let url_and_headers = UrlAndHeaders {
+        url: Url::parse(&server.url()).unwrap(),
+        headers: BTreeMap::new(), // No additional headers needed for this test.
+    };
+    let url_header_list = Some(vec![url_and_headers.into()]);
+    let config = EthToStrkOracleConfig {
+        url_header_list: url_header_list.clone(),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        max_cache_size: MAX_CACHE_SIZE,
+        query_timeout_sec: QUERY_TIMEOUT_SEC,
+    };
+    let mut client = EthToStrkOracleClient::new(config.clone());
+
+    // First request should fail because the cache is empty.
+    assert!(client.eth_to_fri_rate(TIMESTAMP).await.is_err());
+    // Wait for the query to resolve.
+    while client.eth_to_fri_rate(TIMESTAMP).await.is_err() {
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+    let rate1 = client.eth_to_fri_rate(TIMESTAMP).await.unwrap();
+    assert_eq!(rate1, EXPECTED_RATE);
+
+    // Update the config to a new lag interval.
+    let new_config = EthToStrkOracleConfig {
+        url_header_list: url_header_list.clone(),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS * 2,
+        max_cache_size: MAX_CACHE_SIZE,
+        query_timeout_sec: QUERY_TIMEOUT_SEC,
+    };
+    client.update_dynamic_config(new_config);
+
+    // Again the first request should fail because the cache has been cleared.
+    assert!(client.eth_to_fri_rate(TIMESTAMP).await.is_err());
+    // Wait for the query to resolve.
+    while client.eth_to_fri_rate(TIMESTAMP).await.is_err() {
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+    let rate2 = client.eth_to_fri_rate(TIMESTAMP).await.unwrap();
+    assert_eq!(rate2, EXPECTED_RATE);
+
+    // Update the config to a new max cache size.
+    let new_config = EthToStrkOracleConfig {
+        url_header_list: url_header_list.clone(),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS * 2,
+        max_cache_size: MAX_CACHE_SIZE * 2,
+        query_timeout_sec: QUERY_TIMEOUT_SEC,
+    };
+    client.update_dynamic_config(new_config);
+
+    // Again the first request should fail because the cache has been cleared.
+    assert!(client.eth_to_fri_rate(TIMESTAMP).await.is_err());
+    // Wait for the query to resolve.
+    while client.eth_to_fri_rate(TIMESTAMP).await.is_err() {
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+    let rate2 = client.eth_to_fri_rate(TIMESTAMP).await.unwrap();
+    assert_eq!(rate2, EXPECTED_RATE);
+
+    // Update the config to a new query timeout.
+    let new_config = EthToStrkOracleConfig {
+        url_header_list,
+        lag_interval_seconds: LAG_INTERVAL_SECONDS * 2,
+        max_cache_size: MAX_CACHE_SIZE * 2,
+        query_timeout_sec: QUERY_TIMEOUT_SEC * 2,
+    };
+    client.update_dynamic_config(new_config);
+
+    // Again the first request should fail because the cache has been cleared.
+    assert!(client.eth_to_fri_rate(TIMESTAMP).await.is_err());
+    // Wait for the query to resolve.
+    while client.eth_to_fri_rate(TIMESTAMP).await.is_err() {
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+    let rate2 = client.eth_to_fri_rate(TIMESTAMP).await.unwrap();
+    assert_eq!(rate2, EXPECTED_RATE);
+}
+
+#[tokio::test]
 async fn eth_to_fri_rate_two_urls() {
     const EXPECTED_RATE: u128 = 123456;
     let expected_rate_hex = format!("0x{EXPECTED_RATE:x}");
     const LAG_INTERVAL_SECONDS: u64 = 60;
     const TIMESTAMP1: u64 = 1234567890;
     const TIMESTAMP2: u64 = TIMESTAMP1 + LAG_INTERVAL_SECONDS * 2; // New quantized bucket
+    const TIMESTAMP3: u64 = TIMESTAMP2 + LAG_INTERVAL_SECONDS * 2; // New quantized bucket
     let mut server1 = mockito::Server::new_async().await;
     let mut server2 = mockito::Server::new_async().await;
 
@@ -192,7 +296,7 @@ async fn eth_to_fri_rate_two_urls() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let mut client = EthToStrkOracleClient::new(config.clone());
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
@@ -215,6 +319,36 @@ async fn eth_to_fri_rate_two_urls() {
             Err(EthToStrkOracleClientError::AllUrlsFailedError(_, index)) => {
                 assert!(index == 1, "Last error should be index 1 (server2).");
                 break; // This is the expected error, since server1 and 2 returned bad JSON.
+            }
+            Err(e) => panic!("Unexpected error: {e:?}"),
+        }
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+
+    // Update the config to only use one URL (for server2).
+    let new_config = EthToStrkOracleConfig {
+        url_header_list: Some(vec![
+            UrlAndHeaders {
+                url: Url::parse(&server2.url()).unwrap(),
+                headers: BTreeMap::new(), // No additional headers needed for this test.
+            }
+            .into(),
+        ]),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        ..Default::default()
+    };
+    client.update_dynamic_config(new_config);
+
+    // First request should fail because the cache is empty.
+    assert!(client.eth_to_fri_rate(TIMESTAMP3).await.is_err());
+    // Wait for the query to resolve.
+    loop {
+        match client.eth_to_fri_rate(TIMESTAMP3).await {
+            Ok(_) => panic!("Both servers should be returning bad JSON!"),
+            Err(EthToStrkOracleClientError::QueryNotReadyError(_)) => {}
+            Err(EthToStrkOracleClientError::AllUrlsFailedError(_, index)) => {
+                assert!(index == 0, "Last error should be index 0 (only server2 in the config).");
+                break; // This is the expected error, since only server2 is in the config.
             }
             Err(e) => panic!("Unexpected error: {e:?}"),
         }

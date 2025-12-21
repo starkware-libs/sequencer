@@ -131,6 +131,30 @@ impl EthToStrkOracleClient {
         };
         AbortOnDropHandle::new(tokio::spawn(future))
     }
+
+    // TODO(guyn): Remove this once we use dynamic config to update the config.
+    #[allow(dead_code)]
+    pub(crate) fn update_dynamic_config(
+        &mut self,
+        eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    ) {
+        let need_recreate_cache = self.config.max_cache_size
+            != eth_to_strk_oracle_config.max_cache_size
+            || self.config.query_timeout_sec != eth_to_strk_oracle_config.query_timeout_sec
+            || self.config.lag_interval_seconds != eth_to_strk_oracle_config.lag_interval_seconds;
+        if need_recreate_cache {
+            self.cached_prices = create_cache(eth_to_strk_oracle_config.max_cache_size);
+            self.queries = create_cache(eth_to_strk_oracle_config.max_cache_size);
+        }
+        let need_recreate_url_header_list =
+            self.config.url_header_list != eth_to_strk_oracle_config.url_header_list;
+        if need_recreate_url_header_list {
+            self.url_header_list =
+                create_url_header_list(&eth_to_strk_oracle_config.url_header_list);
+            self.index.store(0, Ordering::SeqCst);
+        }
+        self.config = eth_to_strk_oracle_config;
+    }
 }
 
 fn create_url_header_list(
