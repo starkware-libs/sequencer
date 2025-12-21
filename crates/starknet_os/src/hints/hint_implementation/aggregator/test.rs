@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::LazyLock;
 
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM_BYTES};
@@ -237,7 +237,7 @@ impl FactTopology {
     /// the additional attributes of the output builtin.
     fn get_page_sizes_from_page_dict(
         output_size: usize,
-        pages: &HashMap<usize, PublicMemoryPage>,
+        pages: &BTreeMap<usize, PublicMemoryPage>,
     ) -> Vec<usize> {
         // Make sure the pages are adjacent to each other.
 

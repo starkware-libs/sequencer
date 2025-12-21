@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -36,7 +36,7 @@ pub fn estimate_os_kzg_commitment_computation_resources(
             + 214
             + (n_blobs - 1) * 138,
         n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::poseidon, 1),
             (
                 BuiltinName::range_check,

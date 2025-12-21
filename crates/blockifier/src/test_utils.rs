@@ -10,7 +10,7 @@ pub mod syscall;
 pub mod test_templates;
 pub mod transfers_generator;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::slice::Iter;
 use std::sync::LazyLock;
 
@@ -397,7 +397,7 @@ pub fn get_vm_resource_usage() -> ExecutionResources {
     ExecutionResources {
         n_steps: 10000,
         n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::pedersen, 10),
             (BuiltinName::range_check, 24),
             (BuiltinName::ecdsa, 1),
