@@ -13,7 +13,11 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::hash_function::hash::{
+    TreeHashFunctionImpl,
+    CONTRACT_CLASS_LEAF_V0,
+    CONTRACT_STATE_HASH_VERSION,
+};
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
@@ -492,10 +496,8 @@ pub(crate) async fn storage_serialize_test() -> CommitterPythonTestResult {
 fn python_hash_constants_compare() -> String {
     format!(
         "[{:?}, {:?}]",
-        TreeHashFunctionImpl::CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
-        Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).expect(
-        "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
-        ).to_bytes_be()
+        CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
+        CONTRACT_CLASS_LEAF_V0.to_bytes_be()
     )
 }
 
