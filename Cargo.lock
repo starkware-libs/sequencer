@@ -2240,11 +2240,23 @@ dependencies = [
 name = "apollo_proof_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_proof_manager_config",
  "hex",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "tempfile",
  "thiserror 1.0.69",
+ "validator",
+]
+
+[[package]]
+name = "apollo_proof_manager_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "validator",
 ]
 
 [[package]]
