@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::core::{ClassHash, Nonce, PATRICIA_KEY_UPPER_BOUND};
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::TrieType;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::LeafResult;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::{
@@ -16,7 +17,6 @@ use starknet_types_core::felt::Felt;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
-
 // Wrap the leaves types so that we can implement the [DBObject] trait differently in index
 // layout.
 #[derive(
@@ -46,23 +46,13 @@ static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
 static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::ONE).to_bytes_be());
 
-// TODO(Ariel): Delete this enum and use `CommitmentType` instead.
-#[derive(Debug, PartialEq)]
-pub enum TrieType {
-    ContractsTrie,
-    ClassesTrie,
-    StorageTrie(ContractAddress),
-}
-
-impl TrieType {
-    fn db_prefix(&self) -> DbKeyPrefix {
-        match self {
-            Self::ContractsTrie => DbKeyPrefix::new((&CONTRACTS_TREE_PREFIX[..]).into()),
-            Self::ClassesTrie => DbKeyPrefix::new((&CLASSES_TREE_PREFIX[..]).into()),
-            Self::StorageTrie(contract_address) => {
-                let prefix = contract_address.to_bytes_be().to_vec();
-                DbKeyPrefix::new(prefix.into())
-            }
+fn db_prefix(trie_type: &TrieType) -> DbKeyPrefix {
+    match trie_type {
+        TrieType::ContractsTrie => DbKeyPrefix::new((&CONTRACTS_TREE_PREFIX[..]).into()),
+        TrieType::ClassesTrie => DbKeyPrefix::new((&CLASSES_TREE_PREFIX[..]).into()),
+        TrieType::StorageTrie(contract_address) => {
+            let prefix = contract_address.to_bytes_be().to_vec();
+            DbKeyPrefix::new(prefix.into())
         }
     }
 }
@@ -73,7 +63,7 @@ macro_rules! impl_has_static_prefix_for_index_layouts {
             impl HasStaticPrefix for $ty {
                 type KeyContext = TrieType;
                 fn get_static_prefix(key_context: &Self::KeyContext) -> DbKeyPrefix {
-                    key_context.db_prefix()
+                    db_prefix(key_context)
                 }
             }
         )*
