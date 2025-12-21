@@ -7,9 +7,10 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
-from l1_blocks import L1Blocks
-from l1_client import L1Client
 from test_utils import L1TestUtils
+
+from echonet.l1_logic.l1_blocks import L1Blocks
+from echonet.l1_logic.l1_client import L1Client
 
 
 class TestL1Blocks(unittest.TestCase):
