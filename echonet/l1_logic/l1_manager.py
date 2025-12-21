@@ -1,15 +1,14 @@
 from dataclasses import dataclass
 from typing import Callable
 
-import logging
-from l1_blocks import L1Blocks
-from l1_client import L1Client
-
 from echonet.constants import (
     STATE_BLOCK_HASH_SELECTOR,
     STATE_BLOCK_NUMBER_SELECTOR,
 )
 from echonet.helpers import format_hex, rpc_response
+from echonet.l1_logic.l1_blocks import L1Blocks
+from echonet.l1_logic.l1_client import L1Client
+from echonet.logger import get_logger
 
 
 class L1Manager:
@@ -56,7 +55,7 @@ class L1Manager:
     def __init__(
         self, l1_client: L1Client, get_last_proved_block_callback: Callable[[], tuple[int, int]]
     ):
-        self.logger = logging.getLogger("L1Manager")
+        self.logger = get_logger("l1_manager")
         self.l1_client = l1_client
         self.blocks: dict[int, L1Manager.L1TxData] = {}
         self.get_last_proved_block_callback = get_last_proved_block_callback
