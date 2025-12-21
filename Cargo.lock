@@ -12690,6 +12690,7 @@ version = "0.0.0"
 dependencies = [
  "blockifier",
  "blockifier_reexecution",
+ "cairo-lang-starknet-classes",
  "indexmap 2.12.0",
  "rstest",
  "starknet-rust",
