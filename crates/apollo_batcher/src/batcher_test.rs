@@ -31,6 +31,8 @@ use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::test_utils::get_test_storage;
+use apollo_storage::{StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::{indexmap, IndexSet};
@@ -52,10 +54,13 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
+use tempfile::TempDir;
 use validator::Validate;
 
 use crate::batcher::{
     Batcher,
+    BatcherStorageReader,
+    BatcherStorageWriter,
     MockBatcherStorageReader,
     MockBatcherStorageWriter,
     StorageCommitmentBlockHash,
@@ -140,12 +145,17 @@ struct MockDependencies {
     class_manager_client: SharedClassManagerClient,
 }
 
-impl Default for MockDependencies {
+struct MockClients {
+    committer_client: MockCommitterClient,
+    mempool_client: MockMempoolClient,
+    l1_provider_client: MockL1ProviderClient,
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+    pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
+    class_manager_client: SharedClassManagerClient,
+}
+
+impl Default for MockClients {
     fn default() -> Self {
-        let mut storage_reader = MockBatcherStorageReader::new();
-        storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-        storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
-        storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
         let mut mempool_client = MockMempoolClient::new();
         let expected_gas_price = propose_block_input(PROPOSAL_ID)
             .block_info
@@ -169,8 +179,6 @@ impl Default for MockDependencies {
         });
 
         Self {
-            storage_reader,
-            storage_writer: MockBatcherStorageWriter::new(),
             committer_client: MockCommitterClient::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
@@ -182,20 +190,90 @@ impl Default for MockDependencies {
     }
 }
 
+impl Default for MockDependencies {
+    fn default() -> Self {
+        let mut storage_reader = MockBatcherStorageReader::new();
+        storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
+
+        let mock_clients = MockClients::default();
+        Self {
+            storage_reader,
+            storage_writer: MockBatcherStorageWriter::new(),
+            committer_client: mock_clients.committer_client,
+            l1_provider_client: mock_clients.l1_provider_client,
+            mempool_client: mock_clients.mempool_client,
+            block_builder_factory: mock_clients.block_builder_factory,
+            pre_confirmed_block_writer_factory: mock_clients.pre_confirmed_block_writer_factory,
+            class_manager_client: mock_clients.class_manager_client,
+        }
+    }
+}
+
+struct MockDependenciesWithRealStorage {
+    storage_reader: StorageReader,
+    storage_writer: StorageWriter,
+    clients: MockClients,
+    _temp_dir: TempDir, // Keep the temp dir alive.
+}
+
+impl Default for MockDependenciesWithRealStorage {
+    fn default() -> Self {
+        let ((storage_reader, storage_writer), temp_dir) = get_test_storage();
+
+        Self {
+            storage_reader,
+            storage_writer,
+            clients: MockClients::default(),
+            _temp_dir: temp_dir,
+        }
+    }
+}
+
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
-    let mut batcher = Batcher::new(
-        BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
+    create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
-        Arc::new(mock_dependencies.committer_client),
-        Arc::new(mock_dependencies.l1_provider_client),
-        Arc::new(mock_dependencies.mempool_client),
-        TransactionConverter::new(
-            mock_dependencies.class_manager_client,
-            CHAIN_ID_FOR_TESTS.clone(),
-        ),
-        Box::new(mock_dependencies.block_builder_factory),
-        Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
+        MockClients {
+            committer_client: mock_dependencies.committer_client,
+            l1_provider_client: mock_dependencies.l1_provider_client,
+            mempool_client: mock_dependencies.mempool_client,
+            class_manager_client: mock_dependencies.class_manager_client,
+            block_builder_factory: mock_dependencies.block_builder_factory,
+            pre_confirmed_block_writer_factory: mock_dependencies
+                .pre_confirmed_block_writer_factory,
+        },
+    )
+    .await
+}
+
+async fn create_batcher_with_real_storage(
+    mock_dependencies: MockDependenciesWithRealStorage,
+) -> Batcher {
+    create_batcher_impl(
+        Arc::new(mock_dependencies.storage_reader),
+        Box::new(mock_dependencies.storage_writer),
+        mock_dependencies.clients,
+    )
+    .await
+}
+
+async fn create_batcher_impl(
+    storage_reader: Arc<dyn BatcherStorageReader>,
+    storage_writer: Box<dyn BatcherStorageWriter>,
+    clients: MockClients,
+) -> Batcher {
+    let mut batcher = Batcher::new(
+        BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
+        storage_reader,
+        storage_writer,
+        Arc::new(clients.committer_client),
+        Arc::new(clients.l1_provider_client),
+        Arc::new(clients.mempool_client),
+        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
+        Box::new(clients.block_builder_factory),
+        Box::new(clients.pre_confirmed_block_writer_factory),
         None,
     );
     // Call post-creation functionality (e.g., metrics registration).
@@ -1340,4 +1418,28 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
 
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
     assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn get_height_with_real_storage() {
+    // Real storage starts at height 0.
+    let batcher =
+        create_batcher_with_real_storage(MockDependenciesWithRealStorage::default()).await;
+
+    let result = batcher.get_height().await;
+    assert_eq!(result, Ok(GetHeightResponse { height: BlockNumber(0) }));
+}
+
+#[tokio::test]
+async fn set_and_get_block_hash_with_real_storage() {
+    let mut batcher =
+        create_batcher_with_real_storage(MockDependenciesWithRealStorage::default()).await;
+    let height = BlockNumber(42);
+    let block_hash = BlockHash(12345_u32.into());
+
+    batcher.storage_writer.set_block_hash(height, block_hash).unwrap();
+    // Check the set of block hash.
+    assert_eq!(batcher.storage_reader.get_block_hash(height).unwrap(), Some(block_hash));
+    // Check unset block hash.
+    assert_eq!(batcher.storage_reader.get_block_hash(height.unchecked_next()).unwrap(), None);
 }
