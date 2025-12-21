@@ -11,6 +11,11 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+pub const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
+
+// The hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' in big-endian.
+pub const CONTRACT_CLASS_LEAF_V0: &str = "0x434f4e54524143545f434c4153535f4c4541465f5630";
+
 /// Implementation of HashFunction for Pedersen hash function.
 pub struct PedersenHashFunction;
 impl HashFunction for PedersenHashFunction {
@@ -29,31 +34,29 @@ impl HashFunction for PoseidonHashFunction {
 
 pub struct TreeHashFunctionImpl;
 
-impl TreeHashFunctionImpl {
-    // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
-    pub const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
-
-    // The hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' in big-endian.
-    pub const CONTRACT_CLASS_LEAF_V0: &'static str =
-        "0x434f4e54524143545f434c4153535f4c4541465f5630";
-}
-
 /// Implementation of TreeHashFunction for contracts trie.
 /// The implementation is based on the following reference:
 /// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
 impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
     fn compute_leaf_hash(contract_state: &ContractState) -> HashOutput {
-        HashOutput(Pedersen::hash(
-            &Pedersen::hash(
-                &Pedersen::hash(&contract_state.class_hash.0, &contract_state.storage_root_hash.0),
-                &contract_state.nonce.0,
-            ),
-            &Self::CONTRACT_STATE_HASH_VERSION,
-        ))
+        compute_contract_state_leaf_hash(contract_state)
     }
     fn compute_node_hash(node_data: &NodeData<ContractState, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
+}
+
+fn compute_contract_state_leaf_hash<L: AsRef<ContractState>>(
+    contract_state_leaf: &L,
+) -> HashOutput {
+    let contract_state: &ContractState = contract_state_leaf.as_ref();
+    HashOutput(Pedersen::hash(
+        &Pedersen::hash(
+            &Pedersen::hash(&contract_state.class_hash.0, &contract_state.storage_root_hash.0),
+            &contract_state.nonce.0,
+        ),
+        &CONTRACT_STATE_HASH_VERSION,
+    ))
 }
 
 /// Implementation of TreeHashFunction for the classes trie.
@@ -61,15 +64,19 @@ impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
 /// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
 impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
     fn compute_leaf_hash(compiled_class_hash: &CompiledClassHash) -> HashOutput {
-        let contract_class_leaf_version: Felt = Felt::from_hex(Self::CONTRACT_CLASS_LEAF_V0)
-            .expect(
-                "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
-            );
-        HashOutput(Poseidon::hash(&contract_class_leaf_version, &compiled_class_hash.0))
+        compute_compiled_class_leaf_hash(compiled_class_hash)
     }
     fn compute_node_hash(node_data: &NodeData<CompiledClassHash, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PoseidonHashFunction>(node_data)
     }
+}
+
+fn compute_compiled_class_leaf_hash<L: AsRef<CompiledClassHash>>(
+    compiled_class_hash_leaf: &L,
+) -> HashOutput {
+    let compiled_class_hash: &CompiledClassHash = compiled_class_hash_leaf.as_ref();
+    let contract_class_leaf_version: Felt = Felt::from_hex_unchecked(CONTRACT_CLASS_LEAF_V0);
+    HashOutput(Poseidon::hash(&contract_class_leaf_version, &compiled_class_hash.0))
 }
 
 /// Implementation of TreeHashFunction for the storage trie.
