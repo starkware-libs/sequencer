@@ -1,5 +1,6 @@
 import copy
-from l1_client import L1Client
+
+from echonet.l1_logic.l1_client import L1Client
 
 
 class L1TestUtils:
