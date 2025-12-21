@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
+use starknet_patricia::db_layout::NodeLayout;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
-use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
