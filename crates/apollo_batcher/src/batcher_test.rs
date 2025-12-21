@@ -56,7 +56,6 @@ use validator::Validate;
 
 use crate::batcher::{
     Batcher,
-    BatcherStorageReader,
     MockBatcherStorageReader,
     MockBatcherStorageWriter,
     StorageCommitmentBlockHash,
@@ -69,7 +68,8 @@ use crate::block_builder::{
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
-use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
+use crate::commitment_manager::utils::create_commitment_manager_or_none;
+use crate::commitment_manager::CommitmentManagerConfig;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK_HEIGHT,
@@ -192,16 +192,12 @@ impl Default for MockDependencies {
 
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
-    // TODO(Amos): Add missing commitment tasks.
-    let block_hash_height = mock_dependencies
-        .storage_reader
-        .block_hash_height()
-        .expect("Failed to get block hash height from storage.");
-    let commitment_manager = CommitmentManager::new_or_none(
+    let commitment_manager = create_commitment_manager_or_none(
+        &mock_dependencies.batcher_config,
         &CommitmentManagerConfig::default(),
-        &mock_dependencies.batcher_config.revert_config,
-        block_hash_height,
-    );
+        &mock_dependencies.storage_reader,
+    )
+    .await;
     let mut batcher = Batcher::new(
         mock_dependencies.batcher_config,
         Arc::new(mock_dependencies.storage_reader),
@@ -499,6 +495,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
     storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
@@ -817,16 +814,15 @@ async fn get_height() {
 #[tokio::test]
 async fn propose_block_without_retrospective_block_hash() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader
-        .expect_height()
-        .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
-    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    let initial_block_height = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
+    storage_reader.expect_height().returning(move || Ok(initial_block_height));
+    storage_reader.expect_block_hash_height().returning(move || Ok(initial_block_height));
 
     let mut batcher =
         create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
     batcher
-        .start_height(StartHeightInput { height: BlockNumber(constants::STORED_BLOCK_HASH_BUFFER) })
+        .start_height(StartHeightInput { height: BlockNumber(initial_block_height.0) })
         .await
         .unwrap();
     let result = batcher.propose_block(propose_block_input(PROPOSAL_ID)).await;
