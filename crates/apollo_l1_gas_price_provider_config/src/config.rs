@@ -91,6 +91,22 @@ impl Default for EthToStrkOracleConfig {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1GasPriceProviderDynamicConfig {
+    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
+}
+
+impl SerializeConfig for L1GasPriceProviderDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(
+            self.eth_to_strk_oracle_config.dump(),
+            "eth_to_strk_oracle_config",
+        ));
+        config
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceProviderConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
@@ -103,7 +119,7 @@ pub struct L1GasPriceProviderConfig {
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
     #[validate(nested)]
-    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    pub dynamic_config: L1GasPriceProviderDynamicConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -114,7 +130,7 @@ impl Default for L1GasPriceProviderConfig {
             lag_margin_seconds: Duration::from_secs(60),
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
-            eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
+            dynamic_config: L1GasPriceProviderDynamicConfig::default(),
         }
     }
 }
@@ -149,10 +165,7 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(prepend_sub_config_name(
-            self.eth_to_strk_oracle_config.dump(),
-            "eth_to_strk_oracle_config",
-        ));
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
         config
     }
 }

@@ -36,6 +36,7 @@ use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
 use apollo_l1_gas_price_provider_config::config::{
     EthToStrkOracleConfig,
     L1GasPriceProviderConfig,
+    L1GasPriceProviderDynamicConfig,
     L1GasPriceScraperConfig,
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
@@ -226,7 +227,7 @@ pub fn create_node_config(
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: Duration::from_secs(0),
-        eth_to_strk_oracle_config,
+        dynamic_config: L1GasPriceProviderDynamicConfig { eth_to_strk_oracle_config },
         ..Default::default()
     };
     let http_server_config =

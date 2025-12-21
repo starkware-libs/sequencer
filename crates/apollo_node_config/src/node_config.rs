@@ -28,6 +28,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
+    L1GasPriceProviderDynamicConfig,
     L1GasPriceScraperConfig,
 };
 use apollo_l1_provider_config::config::L1ProviderConfig;
@@ -299,6 +300,8 @@ pub struct NodeDynamicConfig {
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+    #[validate(nested)]
+    pub l1_gas_price_provider_dynamic_config: Option<L1GasPriceProviderDynamicConfig>,
 }
 
 impl SerializeConfig for NodeDynamicConfig {
@@ -306,6 +309,10 @@ impl SerializeConfig for NodeDynamicConfig {
         let sub_configs = [
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+            ser_optional_sub_config(
+                &self.l1_gas_price_provider_dynamic_config,
+                "l1_gas_price_provider_dynamic_config",
+            ),
         ];
         sub_configs.into_iter().flatten().collect()
     }
@@ -323,7 +330,15 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, mempool_dynamic_config }
+        let l1_gas_price_provider_dynamic_config =
+            sequencer_node_config.l1_gas_price_provider_config.as_ref().map(
+                |l1_gas_price_provider_config| l1_gas_price_provider_config.dynamic_config.clone(),
+            );
+        Self {
+            consensus_dynamic_config,
+            mempool_dynamic_config,
+            l1_gas_price_provider_dynamic_config,
+        }
     }
 }
 

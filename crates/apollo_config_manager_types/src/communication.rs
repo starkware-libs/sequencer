@@ -4,6 +4,7 @@ use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderDynamicConfig;
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
@@ -34,6 +35,10 @@ pub trait ConfigManagerClient: Send + Sync {
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
 
+    async fn get_l1_gas_price_provider_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<L1GasPriceProviderDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -49,6 +54,7 @@ pub trait ConfigManagerClient: Send + Sync {
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
     GetMempoolDynamicConfig,
+    GetL1GasPriceProviderDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -66,6 +72,7 @@ generate_permutation_labels! {
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetL1GasPriceProviderDynamicConfig(ConfigManagerResult<L1GasPriceProviderDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -101,6 +108,19 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_l1_gas_price_provider_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<L1GasPriceProviderDynamicConfig> {
+        let request = ConfigManagerRequest::GetL1GasPriceProviderDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetL1GasPriceProviderDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
