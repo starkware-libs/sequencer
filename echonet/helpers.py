@@ -15,3 +15,7 @@ def timestamp_to_iso(timestamp: int) -> str:
 def format_hex(value: int, width: int = 64) -> str:
     """Formats an integer as a 0x-prefixed hex string, zero-padded to width hex chars."""
     return f"0x{value:0{width}x}"
+
+
+def utc_now() -> datetime:
+    return datetime.now(tz=timezone.utc)
