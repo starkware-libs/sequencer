@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -208,7 +208,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 7)]),
         syscalls_usage: HashMap::from([
             (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
             (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
@@ -229,7 +229,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 26)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 26)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::LibraryCall,
             SyscallUsage::with_call_count(1),
@@ -254,7 +254,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             ..Default::default()
         },
         tracked_resource,
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 7)]),
         syscalls_usage: HashMap::from([
             (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
             (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
@@ -275,7 +275,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 41)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 41)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::LibraryCall,
             SyscallUsage::with_call_count(2),

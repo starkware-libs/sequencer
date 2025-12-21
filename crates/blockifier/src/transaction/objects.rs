@@ -321,7 +321,7 @@ impl ExecutionResourcesTraits for ExecutionResources {
 
         // See "total_n_steps" documentation.
         builtins.remove(&BuiltinName::segment_arena);
-        builtins
+        BuiltinCounterMap::from_iter(builtins.into_iter())
     }
 
     fn div_ceil(&self, rhs: usize) -> ExecutionResources {

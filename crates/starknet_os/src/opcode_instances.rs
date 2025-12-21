@@ -104,20 +104,21 @@ fn is_blake_opcode(
 
 /// Count Blake opcodes from the Cairo runner's execution trace.
 pub fn get_opcode_instances(runner: &CairoRunner) -> OpcodeInstanceCounts {
-    let Ok(info) = runner.get_prover_input_info() else {
+    let Ok(relocatable_trace) = runner.get_relocatable_trace() else {
         eprintln!("Failed to get prover input info. Returning zero count.");
         return OpcodeInstanceCounts { blake_opcode_count: 0 };
     };
 
-    let count = info
-        .relocatable_trace
+    let relocatable_memory = runner.get_relocatable_memory();
+
+    let count = relocatable_trace
         .iter()
         .filter(|entry| {
             (|| {
                 let seg = usize::try_from(entry.pc.segment_index).ok()?;
-                let value = info.relocatable_memory.get(seg)?.get(entry.pc.offset)?.as_ref()?;
+                let value = relocatable_memory.get(seg)?.get(entry.pc.offset)?.as_ref()?;
                 let MaybeRelocatable::Int(felt) = value else { return None };
-                let instr = instruction_to_u128(felt).ok()?;
+                let instr = instruction_to_u128(&felt).ok()?;
                 let (unwanted_flags, op1_fp, op1_ap, opcode_ext) = decode_instruction(instr);
                 Some(is_blake_opcode(unwanted_flags, op1_fp, op1_ap, &opcode_ext))
             })()
