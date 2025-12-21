@@ -7,14 +7,15 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
-from l1_blocks import L1Blocks
-from l1_client import L1Client
 from test_utils import L1TestUtils
+
+from echonet.l1_logic.l1_blocks import L1Blocks
+from echonet.l1_logic.l1_client import L1Client
 
 
 class TestL1Blocks(unittest.TestCase):
-    @patch("l1_blocks.L1Blocks._find_block_near_timestamp")
-    @patch("l1_blocks.L1Blocks._get_latest_block_info")
+    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_success(
         self, mock_get_latest_block_info, mock_find_block_near_timestamp
     ):
@@ -31,8 +32,8 @@ class TestL1Blocks(unittest.TestCase):
 
         self.assertEqual(result, L1TestUtils.BLOCK_NUMBER)
 
-    @patch("l1_blocks.L1Blocks._find_block_near_timestamp")
-    @patch("l1_blocks.L1Blocks._get_latest_block_info")
+    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_multiple_logs_finds_second(
         self, mock_get_latest_block_info, mock_find_block_near_timestamp
     ):
@@ -56,8 +57,8 @@ class TestL1Blocks(unittest.TestCase):
             result, L1TestUtils.BLOCK_NUMBER
         )  # Should return second log's block number
 
-    @patch("l1_blocks.L1Blocks._find_block_near_timestamp")
-    @patch("l1_blocks.L1Blocks._get_latest_block_info")
+    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_logs_dont_match(
         self, mock_get_latest_block_info, mock_find_block_near_timestamp
     ):
@@ -76,8 +77,8 @@ class TestL1Blocks(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch("l1_blocks.L1Blocks._find_block_near_timestamp")
-    @patch("l1_blocks.L1Blocks._get_latest_block_info")
+    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_no_logs_found(
         self, mock_get_latest_block_info, mock_find_block_near_timestamp
     ):
