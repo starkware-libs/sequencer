@@ -111,4 +111,8 @@ jobs:
         run: ./target/debug/${{ matrix.test_binary }}
         env:
           SEED: 0
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+          http_proxy: ""
+          https_proxy: ""
 
