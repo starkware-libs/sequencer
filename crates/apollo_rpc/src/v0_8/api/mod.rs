@@ -689,6 +689,7 @@ pub struct TransactionTraceWithHash {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum CompiledContractClass {
     V0(StarknetApiDeprecatedContractClass),
     V1(CasmContractClass),

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
@@ -217,7 +217,7 @@ impl ResourceCounter {
 
     pub fn sub_counter(&self, enter_counter: &Self) -> OsLoggerResult<ExecutionResources> {
         // Subtract pointers to count usage.
-        let mut builtins_count_ptr: HashMap<BuiltinName, usize> = HashMap::new();
+        let mut builtins_count_ptr: BTreeMap<BuiltinName, usize> = BTreeMap::new();
         for (builtin_name, builtin_ptr) in self.builtin_ptrs_dict.iter() {
             let enter_counter_ptr = enter_counter
                 .builtin_ptrs_dict

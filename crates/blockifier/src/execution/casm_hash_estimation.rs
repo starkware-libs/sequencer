@@ -457,6 +457,10 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             )]),
         };
 
+        // Convert builtin_instance_counter from HashMap to BTreeMap to match the expected type.
+        let builtin_instance_counter: std::collections::BTreeMap<_, _> =
+            builtin_instance_counter.into_iter().collect();
+
         let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
 
         EstimatedExecutionResources::V2Hash {

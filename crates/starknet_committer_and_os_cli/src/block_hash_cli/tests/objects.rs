@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::call_info::{
     CallExecution,
@@ -130,7 +130,7 @@ fn create_execution_resources(
     ExecutionResources {
         n_steps: steps,
         n_memory_holes: memory_holes,
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, range_check_builtin),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, pedersen_builtin),
             (cairo_vm::types::builtin_name::BuiltinName::bitwise, 1),
@@ -211,7 +211,7 @@ fn create_call_info(
         resources: create_execution_resources(1000, 0, 10, 5),
         tracked_resource: blockifier::execution::contract_class::TrackedResource::CairoSteps,
         storage_access_tracker: Default::default(),
-        builtin_counters: HashMap::from([
+        builtin_counters: BTreeMap::from([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, 10),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
         ]),

@@ -40,13 +40,13 @@ fn hinted_hash_from_file(file_path: &str) -> Felt {
 )]
 #[case(
     "deprecated_proxy.json",
-    "0x3F256EA66406A20C9E1C6A7DA6BD5443923200291A832DAF5F111D5357B469E",
-    "0xD0E183745E9DAE3E4E78A8FFEDCCE0903FC4900BEACE4E0ABF192D4C202DA3"
+    "0x3f256ea66406a20c9e1c6a7da6bd5443923200291a832daf5f111d5357b469e",
+    "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3"
 )]
 #[case(
     "nested_tuple_value_contract.json",
-    "0x24CB45DE406D17148C9C3DDEC7BB80ADBABFFBB64F9D7A521AD3F83285444CD",
-    "0x6DC10E7703C1B63E0B5A4E8E7842293D3255FD4E53D4E730ADF435C3DFFABB"
+    "0x24cb45de406d17148c9c3ddec7bb80adbabffbb64f9d7a521ad3f83285444cd",
+    "0x6dc10e7703c1b63e0b5a4e8e7842293d3255fd4e53d4e730adf435c3dffabb"
 )]
 fn test_compute_cairo_class_hash(
     #[case] contract_path_string: &str,
