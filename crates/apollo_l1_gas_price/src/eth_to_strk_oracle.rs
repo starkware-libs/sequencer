@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use apollo_config::converters::UrlAndHeaders;
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
@@ -72,20 +73,10 @@ impl EthToStrkOracleClient {
             config.url_header_list, config.lag_interval_seconds
         );
         register_eth_to_strk_metrics();
-        let url_header_list = config
-            .url_header_list
-            .as_ref()
-            .expect("url_header_list should be set in the config")
-            .iter()
-            .map(|uh| UrlAndHeaderMap {
-                url: uh.as_ref().url.clone(),
-                headers: btreemap_to_headermap(uh.as_ref().headers.clone()).into(),
-            })
-            .collect::<Vec<_>>();
         Self {
             config: config.clone(),
             index: Arc::new(AtomicUsize::new(0)),
-            url_header_list: Arc::new(url_header_list),
+            url_header_list: create_url_header_list(&config.url_header_list),
             client: reqwest::Client::new(),
             cached_prices: create_cache(config.max_cache_size),
             queries: create_cache(config.max_cache_size),
@@ -140,6 +131,22 @@ impl EthToStrkOracleClient {
         };
         AbortOnDropHandle::new(tokio::spawn(future))
     }
+}
+
+fn create_url_header_list(
+    url_header_list: &Option<Vec<Sensitive<UrlAndHeaders>>>,
+) -> Arc<Vec<UrlAndHeaderMap>> {
+    Arc::new(
+        url_header_list
+            .as_ref()
+            .expect("url_header_list should be set in the config")
+            .iter()
+            .map(|uh| UrlAndHeaderMap {
+                url: uh.as_ref().url.clone(),
+                headers: btreemap_to_headermap(uh.as_ref().headers.clone()).into(),
+            })
+            .collect::<Vec<_>>(),
+    )
 }
 
 fn create_cache<T>(cache_size: usize) -> Arc<Mutex<LruCache<u64, T>>> {
