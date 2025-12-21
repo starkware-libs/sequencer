@@ -5,10 +5,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import unittest
-from l1_client import L1Client
-from l1_manager import L1Manager
 from test_utils import L1TestUtils
 from unittest.mock import Mock, patch
+
+from echonet.l1_logic.l1_blocks import L1Blocks
+from echonet.l1_logic.l1_client import L1Client
+from echonet.l1_logic.l1_manager import L1Manager
 
 
 class TestL1Manager(unittest.TestCase):
@@ -25,7 +27,7 @@ class TestL1Manager(unittest.TestCase):
     def _mock_handle_feeder_tx_and_store_l1_block(self, l1_block_number: int):
         """Simulates processing a feeder gateway transaction and storing its matched L1 block data."""
         l1_block_number_hex = hex(l1_block_number)
-        with patch("l1_manager.L1Blocks.find_l1_block_for_tx") as mock_find_l1_block_for_tx:
+        with patch.object(L1Blocks, "find_l1_block_for_tx") as mock_find_l1_block_for_tx:
             mock_find_l1_block_for_tx.return_value = l1_block_number
             self.mock_client.get_block_by_number.return_value = {
                 "jsonrpc": "2.0",
@@ -57,7 +59,7 @@ class TestL1Manager(unittest.TestCase):
         logs = self.manager.get_logs(self.get_logs_input(0, 100))
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
 
-    @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
+    @patch.object(L1Blocks, "find_l1_block_for_tx")
     def test_single_block(self, mock_find_l1_block_for_tx):
         # Setup.
         mock_find_l1_block_for_tx.return_value = L1TestUtils.BLOCK_NUMBER
@@ -147,7 +149,7 @@ class TestL1Manager(unittest.TestCase):
         # Verify blocks cleared (defaults returned).
         result = self.manager.get_block_number()
         self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": None})
-        result = self.manager.get_logs(10, 10)
+        result = self.manager.get_logs(self.get_logs_input(10, 10))
         self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": []})
         result = self.manager.get_block_by_number(hex(block_num))
         self.assertEqual(
