@@ -7,7 +7,7 @@ use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::errors::VirtualBlockExecutorError;
@@ -40,7 +40,7 @@ impl VirtualBlockExecutor for TestRpcVirtualBlockExecutor {
 
     // Override the default implementation to skip validation.
     fn convert_invoke_txs(
-        txs: Vec<(Transaction, TransactionHash)>,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
         // Call the default trait implementation.
         let mut blockifier_txs = RpcVirtualBlockExecutor::convert_invoke_txs(txs)?;
@@ -60,7 +60,7 @@ impl VirtualBlockExecutor for TestRpcVirtualBlockExecutor {
 ///
 /// Since we skip validation and fee charging, we can use dummy values for signature,
 /// nonce, and resource bounds.
-fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
+fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
     let sender = ContractAddress::try_from(SENDER_ADDRESS).unwrap();
 
@@ -85,9 +85,10 @@ fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
         nonce: Nonce(felt!("0x1000000")),
     });
 
-    let tx = Transaction::Invoke(invoke_tx);
-    let tx_hash = tx.calculate_transaction_hash(&ChainId::Mainnet).unwrap();
-    (tx, tx_hash)
+    let tx_hash = Transaction::Invoke(invoke_tx.clone())
+        .calculate_transaction_hash(&ChainId::Mainnet)
+        .unwrap();
+    (invoke_tx, tx_hash)
 }
 
 /// Integration test for RpcVirtualBlockExecutor with a constructed transaction.

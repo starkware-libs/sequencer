@@ -13,9 +13,18 @@ pub enum VirtualBlockExecutorError {
 
     #[error("Block state unavailable after execution")]
     StateUnavailable,
+}
 
-    #[error("Unsupported transaction type: only Invoke transactions are supported")]
-    UnsupportedTransactionType,
+#[derive(Debug, Error)]
+pub enum RunnerError {
+    #[error(transparent)]
+    ClassesProvider(#[from] ClassesProviderError),
+    #[error(transparent)]
+    ProofProvider(#[from] ProofProviderError),
+    #[error(transparent)]
+    VirtualBlockExecutor(#[from] VirtualBlockExecutorError),
+    #[error("OS Input generation failed: {0}")]
+    InputGenerationError(String),
 }
 
 #[derive(Debug, Error)]

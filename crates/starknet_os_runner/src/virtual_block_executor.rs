@@ -18,7 +18,7 @@ use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 
 use crate::errors::VirtualBlockExecutorError;
 
@@ -76,12 +76,12 @@ pub trait VirtualBlockExecutor {
     /// # Returns
     ///
     /// Returns `VirtualBlockExecutionData` containing execution outputs for all
-    /// transactions, or an error if any transaction fails or is not an Invoke.
+    /// transactions, or an error if any transaction fails.
     fn execute(
         &self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
-        txs: Vec<(Transaction, TransactionHash)>,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let blockifier_txs = Self::convert_invoke_txs(txs)?;
         let block_context = self.block_context(block_number)?;
@@ -137,38 +137,31 @@ pub trait VirtualBlockExecutor {
 
     /// Converts Invoke transactions to blockifier transactions.
     ///
-    /// Uses execution flags that skip fee charging and nonce check.
-    /// Returns an error if any transaction is not an Invoke.
+    /// Uses execution flags that skip strict nonce check for virtual block execution.
     fn convert_invoke_txs(
-        txs: Vec<(Transaction, TransactionHash)>,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
         txs.into_iter()
-            .map(|(tx, tx_hash)| {
-                if let Transaction::Invoke(invoke_tx) = tx {
-                    // Execute with validation, conditional fee charging based on resource bounds,
-                    // but skip strict nonce check for virtual block execution.
-                    let execution_flags = ExecutionFlags {
-                        only_query: false,
-                        charge_fee: invoke_tx.resource_bounds().max_possible_fee(invoke_tx.tip())
-                            > Fee(0),
-                        validate: true,
-                        strict_nonce_check: false,
-                    };
+            .map(|(invoke_tx, tx_hash)| {
+                // Execute with validation, conditional fee charging based on resource bounds,
+                // but skip strict nonce check for virtual block execution.
+                let execution_flags = ExecutionFlags {
+                    only_query: false,
+                    charge_fee: invoke_tx.resource_bounds().max_possible_fee(invoke_tx.tip())
+                        > Fee(0),
+                    validate: true,
+                    strict_nonce_check: false,
+                };
 
-                    BlockifierTransaction::from_api(
-                        Transaction::Invoke(invoke_tx),
-                        tx_hash,
-                        None, // class_info - not needed for Invoke.
-                        None, // paid_fee_on_l1 - not needed for Invoke.
-                        None, // deployed_contract_address - not needed for Invoke.
-                        execution_flags,
-                    )
-                    .map_err(|e| {
-                        VirtualBlockExecutorError::TransactionExecutionError(e.to_string())
-                    })
-                } else {
-                    Err(VirtualBlockExecutorError::UnsupportedTransactionType)
-                }
+                BlockifierTransaction::from_api(
+                    Transaction::Invoke(invoke_tx),
+                    tx_hash,
+                    None, // class_info - not needed for Invoke.
+                    None, // paid_fee_on_l1 - not needed for Invoke.
+                    None, // deployed_contract_address - not needed for Invoke.
+                    execution_flags,
+                )
+                .map_err(|e| VirtualBlockExecutorError::TransactionExecutionError(e.to_string()))
             })
             .collect()
     }
