@@ -1,4 +1,5 @@
 use blockifier_reexecution::errors::ReexecutionError;
+use starknet_os::errors::StarknetOsError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
@@ -23,6 +24,8 @@ pub enum RunnerError {
     ProofProvider(#[from] ProofProviderError),
     #[error(transparent)]
     VirtualBlockExecutor(#[from] VirtualBlockExecutorError),
+    #[error(transparent)]
+    OsExecution(#[from] StarknetOsError),
     #[error("OS Input generation failed: {0}")]
     InputGenerationError(String),
 }
