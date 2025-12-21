@@ -44,5 +44,6 @@ async fn main() {
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
 
+    info!("Yahoo! We made it to the end of the test.");
     info!("Positive flow integration test completed successfully!");
 }
