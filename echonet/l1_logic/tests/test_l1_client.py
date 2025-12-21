@@ -8,9 +8,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import requests
 import unittest
-from l1_client import L1Client
 from test_utils import L1TestUtils
 from unittest.mock import Mock, patch
+
+from echonet.l1_logic.l1_client import L1Client
 
 
 class TestL1Client(unittest.TestCase):

@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, List, Optional
 import eth_abi
 import functools
 import inspect
-import logging
 import requests
 from collections import defaultdict
 
@@ -13,6 +12,7 @@ from echonet.constants import (
     STARKNET_L1_CONTRACT_ADDRESS,
 )
 from echonet.helpers import rpc_response
+from echonet.logger import get_logger
 
 
 class L1ClientCache:
@@ -72,7 +72,7 @@ class L1Client:
         retries_count: int = 2,
     ):
         self.api_key = api_key
-        self.logger = logging.Logger("L1Client")
+        self.logger = get_logger("l1_client")
         self.timeout = timeout
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)

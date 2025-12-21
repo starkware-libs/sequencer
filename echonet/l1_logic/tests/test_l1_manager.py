@@ -5,10 +5,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import unittest
-from l1_client import L1Client
-from l1_manager import L1Manager
 from test_utils import L1TestUtils
 from unittest.mock import Mock, patch
+
+from echonet.l1_logic.l1_client import L1Client
+from echonet.l1_logic.l1_manager import L1Manager
 
 
 class TestL1Manager(unittest.TestCase):
