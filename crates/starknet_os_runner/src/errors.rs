@@ -26,3 +26,9 @@ pub enum ProofProviderError {
     #[error("Invalid RPC proof response: {0}")]
     InvalidProofResponse(String),
 }
+
+#[derive(Debug, Error)]
+pub enum ClassesProviderError {
+    #[error("Failed to get classes: {0}")]
+    GetClassesError(String),
+}
