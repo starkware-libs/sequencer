@@ -2,16 +2,17 @@ use std::env;
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
-use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
+use crate::errors::VirtualBlockExecutorError;
+use crate::virtual_block_executor::VirtualBlockExecutor;
 
 /// Block number to use for testing (mainnet block with known state).
 const TEST_BLOCK_NUMBER: u64 = 800000;
@@ -25,11 +26,53 @@ const STRK_TOKEN_ADDRESS: &str =
 /// [call_array_len, (to, selector, data_offset, data_len)..., calldata_len, calldata...]
 const SENDER_ADDRESS: &str = "0x01176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8";
 
+/// Test wrapper for RpcStateReader that overrides execution flags to skip validation.
+struct TestRpcVirtualBlockExecutor(RpcStateReader);
+
+impl VirtualBlockExecutor for TestRpcVirtualBlockExecutor {
+    fn block_context(
+        &self,
+        block_number: BlockNumber,
+    ) -> Result<blockifier::context::BlockContext, VirtualBlockExecutorError> {
+        self.0.block_context(block_number)
+    }
+
+    fn state_reader(
+        &self,
+        block_number: BlockNumber,
+    ) -> Result<
+        impl blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses
+        + Send
+        + Sync
+        + 'static,
+        VirtualBlockExecutorError,
+    > {
+        self.0.state_reader(block_number)
+    }
+
+    // Override the default implementation to skip validation.
+    fn convert_invoke_txs(
+        txs: Vec<(Transaction, TransactionHash)>,
+    ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
+        // Call the default trait implementation.
+        let mut blockifier_txs = RpcStateReader::convert_invoke_txs(txs)?;
+
+        // Modify validate flag to false for all transactions.
+        for tx in &mut blockifier_txs {
+            if let BlockifierTransaction::Account(account_tx) = tx {
+                account_tx.execution_flags.validate = false;
+            }
+        }
+
+        Ok(blockifier_txs)
+    }
+}
+
 /// Constructs an Invoke transaction that calls `balanceOf` on the STRK token contract.
 ///
 /// Since we skip validation and fee charging, we can use dummy values for signature,
 /// nonce, and resource bounds.
-fn construct_balance_of_invoke() -> BlockifierTransaction {
+fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
     let strk_token = ContractAddress::try_from(felt!(STRK_TOKEN_ADDRESS)).unwrap();
     let sender = ContractAddress::try_from(felt!(SENDER_ADDRESS)).unwrap();
 
@@ -56,24 +99,7 @@ fn construct_balance_of_invoke() -> BlockifierTransaction {
 
     let tx = Transaction::Invoke(invoke_tx);
     let tx_hash = tx.calculate_transaction_hash(&ChainId::Mainnet).unwrap();
-
-    // Skip fee charging, nonce check and validation.
-    let execution_flags = ExecutionFlags {
-        validate: false,
-        charge_fee: false,
-        strict_nonce_check: false,
-        only_query: false,
-    };
-
-    BlockifierTransaction::from_api(
-        tx,
-        tx_hash,
-        None, // class_info - not needed for Invoke.
-        None, // paid_fee_on_l1 - not needed for Invoke.
-        None, // deployed_contract_address - not needed for Invoke.
-        execution_flags,
-    )
-    .unwrap()
+    (tx, tx_hash)
 }
 
 /// Integration test for RpcVirtualBlockExecutor with a constructed transaction.
@@ -93,22 +119,26 @@ fn construct_balance_of_invoke() -> BlockifierTransaction {
 /// NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner -- --ignored
 /// ```
 #[test]
-#[ignore] // Requires RPC access - run with: cargo test -p starknet_os_runner -- --ignored
+#[ignore] // Requires RPC access 
 fn test_execute_constructed_balance_of_transaction() {
     let node_url =
         env::var("NODE_URL").expect("NODE_URL environment variable required for this test");
 
     // Construct a balanceOf transaction (with execution flags set).
-    let tx = construct_balance_of_invoke();
+    let (tx, tx_hash) = construct_balance_of_invoke();
 
     // Create the virtual block executor.
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
-    let executor = RpcVirtualBlockExecutor::new(node_url, ChainId::Mainnet, contract_class_manager);
+    let executor = TestRpcVirtualBlockExecutor(RpcStateReader::new_with_config_from_url(
+        node_url,
+        ChainId::Mainnet,
+        BlockNumber(TEST_BLOCK_NUMBER),
+    ));
 
     // Execute the transaction.
     let result = executor
-        .execute_inner(BlockNumber(TEST_BLOCK_NUMBER), vec![tx])
-        .expect("Virtual block execution should succeed");
+        .execute(BlockNumber(TEST_BLOCK_NUMBER), contract_class_manager, vec![(tx, tx_hash)])
+        .unwrap();
 
     // Verify execution produced output.
     assert_eq!(result.execution_outputs.len(), 1, "Should have exactly one execution output");
