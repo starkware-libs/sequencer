@@ -1,28 +1,23 @@
 use std::collections::HashSet;
-use std::env;
 
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
-use url::Url;
 
 use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
-/// Mainnet STRK token contract address.
-const STRK_CONTRACT_ADDRESS: Felt =
-    Felt::from_hex_unchecked("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d");
-
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
-#[fixture]
+#[rstest::fixture]
 fn initial_reads() -> (StateMaps, ContractAddress, StorageKey) {
     let mut state_maps = StateMaps::default();
-    let contract_address = ContractAddress::try_from(STRK_CONTRACT_ADDRESS).unwrap();
+    let contract_address = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
 
     // Add a storage read for slot 0 (commonly used for total_supply or similar).
     let storage_key = StorageKey::from(0u32);
@@ -31,18 +26,10 @@ fn initial_reads() -> (StateMaps, ContractAddress, StorageKey) {
     (state_maps, contract_address, storage_key)
 }
 
-/// Fixture: Creates an RPC provider from the RPC_URL environment variable.
-#[fixture]
-fn rpc_provider() -> RpcStorageProofsProvider {
-    let rpc_url_str = env::var("NODE_URL").expect("NODE_URL environment variable must be set");
-    let rpc_url = Url::parse(&rpc_url_str).expect("Invalid RPC URL");
-    RpcStorageProofsProvider::new(rpc_url)
-}
-
 /// Sanity test that verifies storage proof fetching works with a real RPC endpoint.
 ///
 /// This test is ignored by default because it requires a running RPC node.
-/// Run with: `RPC_URL=<your_rpc_url> cargo test -p starknet_os_runner -- --ignored`
+/// Run with: `NODE_URL=<your_rpc_url> cargo test -p starknet_os_runner -- --ignored`
 #[rstest]
 #[ignore]
 fn test_get_storage_proofs_from_rpc(
