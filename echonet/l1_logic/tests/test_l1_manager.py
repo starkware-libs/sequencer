@@ -19,6 +19,9 @@ class TestL1Manager(unittest.TestCase):
             l1_client=self.mock_client, get_last_proved_block_callback=lambda: (0, 0)
         )
 
+    def get_logs_input(self, fromBlock: int, toBlock: int) -> dict:
+        return {"fromBlock": hex(fromBlock), "toBlock": hex(toBlock)}
+
     def _mock_handle_feeder_tx_and_store_l1_block(self, l1_block_number: int):
         """Simulates processing a feeder gateway transaction and storing its matched L1 block data."""
         l1_block_number_hex = hex(l1_block_number)
@@ -51,7 +54,7 @@ class TestL1Manager(unittest.TestCase):
             },
         )
 
-        logs = self.manager.get_logs(0, 100)
+        logs = self.manager.get_logs(self.get_logs_input(0, 100))
         self.assertEqual(logs, {"jsonrpc": "2.0", "id": "1", "result": []})
 
     @patch("l1_manager.L1Blocks.find_l1_block_for_tx")
@@ -72,7 +75,10 @@ class TestL1Manager(unittest.TestCase):
         block = self.manager.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
         self.assertEqual(block, L1TestUtils.BLOCK_RPC_RESPONSE)
 
-        logs = self.manager.get_logs(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
+        logs = self.manager.get_logs(
+            self.get_logs_input(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
+        )
+
         self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
     def test_multiple_blocks(self):
@@ -85,7 +91,7 @@ class TestL1Manager(unittest.TestCase):
         self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
         # get_logs merges all logs in range.
-        result = self.manager.get_logs(10, 30)
+        result = self.manager.get_logs(self.get_logs_input(10, 30))
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
@@ -98,7 +104,7 @@ class TestL1Manager(unittest.TestCase):
         self.assertEqual(result, expected_logs)
 
         # get_logs with partial range (only 20 exists in 15-25).
-        result = self.manager.get_logs(15, 25)
+        result = self.manager.get_logs(self.get_logs_input(15, 25))
         expected_logs = {
             "jsonrpc": "2.0",
             "id": "1",
