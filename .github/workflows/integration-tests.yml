@@ -21,6 +21,11 @@ on:
         required: false
         type: string
         default: ''
+      test_timeout_seconds:
+        description: 'Timeout for each integration test in seconds'
+        required: false
+        type: number
+        default: 1800
 
 jobs:
   build-integration-tests:
@@ -108,7 +113,21 @@ jobs:
           chmod +x ./target/debug/${{ matrix.test_binary }}
 
       - name: "Run ${{ matrix.test_binary }}"
-        run: ./target/debug/${{ matrix.test_binary }}
+        run: |
+          TIMEOUT_SECONDS=${{ inputs.test_timeout_seconds }}
+          echo "Running test with ${TIMEOUT_SECONDS} second timeout..."
+          
+          timeout ${TIMEOUT_SECONDS} ./target/debug/${{ matrix.test_binary }} || EXIT_CODE=$?
+          
+          if [ "${EXIT_CODE:-0}" -eq 124 ]; then
+            echo "ERROR: Test '${{ matrix.test_binary }}' timed out after ${TIMEOUT_SECONDS} seconds."
+            exit 1
+          elif [ "${EXIT_CODE:-0}" -ne 0 ]; then
+            echo "ERROR: Test '${{ matrix.test_binary }}' failed with exit code ${EXIT_CODE}."
+            exit ${EXIT_CODE}
+          fi
+          
+          echo "Test completed successfully."
         env:
           SEED: 0
 
