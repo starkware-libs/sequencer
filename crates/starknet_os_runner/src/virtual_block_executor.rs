@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutionOutput,
@@ -14,6 +16,7 @@ use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{Transaction, TransactionHash};
 
@@ -31,6 +34,8 @@ pub struct VirtualBlockExecutionData {
     pub block_context: BlockContext,
     /// The initial state reads (accessed state) during execution.
     pub initial_reads: StateMaps,
+    /// The class hashes of all contracts executed in the virtual block.
+    pub executed_class_hashes: HashSet<ClassHash>,
 }
 
 /// Executes a virtual block of transactions.
@@ -117,7 +122,18 @@ pub trait VirtualBlockExecutor {
             .get_initial_reads()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
 
-        Ok(VirtualBlockExecutionData { execution_outputs, block_context, initial_reads })
+        let executed_class_hashes = transaction_executor
+            .bouncer
+            .lock()
+            .expect("Bouncer lock failed.")
+            .get_executed_class_hashes();
+
+        Ok(VirtualBlockExecutionData {
+            execution_outputs,
+            block_context,
+            initial_reads,
+            executed_class_hashes,
+        })
     }
 
     /// Converts Invoke transactions to blockifier transactions.
