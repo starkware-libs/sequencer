@@ -87,9 +87,6 @@
     "StatelessHint": "EnterScopeNode"
   },
   {
-    "StatelessHint": "EnterScopeNewNode"
-  },
-  {
     "StatelessHint": "EnterScopeNextNodeBit0"
   },
   {
@@ -159,13 +156,7 @@
     "StatelessHint": "AllocateSegmentsForMessages"
   },
   {
-    "StatelessHint": "CheckPackedValuesEndAndSize"
-  },
-  {
     "StatelessHint": "NaiveUnpackFelt252ToU32s"
-  },
-  {
-    "StatelessHint": "UnpackFeltsToU32s"
   },
   {
     "StatelessHint": "GenerateKeysUsingSha256Hash"

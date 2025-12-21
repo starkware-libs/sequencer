@@ -57,7 +57,7 @@ prometheus-parse.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 rstest.workspace = true
-schemars = { workspace = true, features = ["preserve_order"] }
+schemars.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile = { workspace = true }

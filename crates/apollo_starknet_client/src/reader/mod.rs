@@ -463,6 +463,7 @@ fn load_object_from_response<Object: for<'a> Deserialize<'a>>(
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum GenericContractClass {
     Cairo0ContractClass(DeprecatedContractClass),
     Cairo1ContractClass(ContractClass),

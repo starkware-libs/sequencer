@@ -76,6 +76,8 @@ pub(crate) fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
         cairo_run_config.disable_trace_padding,
         disable_finalize_all,
         hint_processor,
+        // TODO(Meshi): add a fill holes flag.
+        false,
     )?;
 
     if cairo_run_config.proof_mode {
@@ -88,8 +90,9 @@ pub(crate) fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     cairo_runner
         .read_return_values(allow_missing_builtins)
         .map_err(StarknetOsError::RunnerError)?;
+    // TODO(Meshi): Add trace relocation to CairoRunConfig.
     cairo_runner
-        .relocate(cairo_run_config.relocate_mem)
+        .relocate(cairo_run_config.relocate_mem, false)
         .map_err(|e| StarknetOsError::VirtualMachineError(e.into()))?;
 
     // Parse the Cairo VM output.
