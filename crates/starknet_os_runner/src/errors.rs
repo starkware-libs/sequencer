@@ -23,3 +23,9 @@ pub enum ProofProviderError {
     #[error("RPC provider error: {0}")]
     Rpc(#[from] ProviderError),
 }
+
+#[derive(Debug, Error)]
+pub enum ClassesProviderError {
+    #[error("Failed to get classes: {0}")]
+    GetClassesError(String),
+}
