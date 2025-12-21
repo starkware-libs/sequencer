@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -278,12 +278,12 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
 
     let range_check_count = 2;
     let max_capacity_builtin_counters =
-        HashMap::from([(BuiltinName::range_check, range_check_count)]);
+        BTreeMap::from([(BuiltinName::range_check, range_check_count)]);
     let builtin_counters = match scenario {
         "proving_gas_block_full" => max_capacity_builtin_counters.clone(),
         // Use a minimal or empty map.
         "ok" | "sierra_gas_block_full" => {
-            HashMap::from([(BuiltinName::range_check, range_check_count - 1)])
+            BTreeMap::from([(BuiltinName::range_check, range_check_count - 1)])
         }
         _ => panic!("Unexpected scenario: {scenario}"),
     };
@@ -577,7 +577,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
 #[case::tx_builtins_plus_os_tx_builtins(
     &[],
     ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::bitwise, 1),
         ]),
         ..Default::default()
@@ -596,7 +596,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         (FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)), 1),
     ],
     ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::range_check, 1),
             (BuiltinName::bitwise, 2),
         ]),
@@ -616,7 +616,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
 
     // Transaction builtin counters.
     let mut tx_builtin_counters =
-        HashMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
+        BTreeMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
 
     let tx_resources = TransactionResources {
         computation: ComputationResources {
@@ -636,7 +636,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
 
     // Create CASM hash computation builtins only in case CASM computation aren't trivial.
     let casm_hash_computation_builtins = if contract_instances.is_empty() {
-        HashMap::new()
+        BTreeMap::new()
     } else {
         map_class_hash_to_casm_hash_computation_resources(&state, &executed_class_hashes)
             .unwrap()
@@ -777,11 +777,11 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
-            99939035
+            100438381
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-            260040060
+            261265240
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

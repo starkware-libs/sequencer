@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
@@ -315,7 +315,7 @@ fn expected_validate_call_info(
             ExecutionResources {
                 n_steps,
                 n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(
+                builtin_instance_counter: BTreeMap::from([(
                     BuiltinName::range_check,
                     n_range_checks,
                 )]),
@@ -352,7 +352,7 @@ fn expected_validate_call_info(
         resources: vm_resources,
         execution: CallExecution { retdata, gas_consumed, cairo_native, ..Default::default() },
         tracked_resource,
-        builtin_counters: HashMap::from([(BuiltinName::range_check, n_range_checks)])
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, n_range_checks)])
             .into_iter()
             .filter(|builtin| builtin.1 > 0)
             .collect(),
@@ -420,10 +420,10 @@ fn expected_fee_transfer_call_info(
     let cairo_native = cairo_version.is_cairo_native();
     let builtin_counters = match cairo_version {
         CairoVersion::Cairo0 => {
-            HashMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
+            BTreeMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
         }
         CairoVersion::Cairo1(_) => {
-            HashMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
+            BTreeMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
         }
     };
     let expected_tracked_resource = match cairo_version {
@@ -569,7 +569,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
             n_steps: 62,
             n_memory_holes:  0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
         },
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
@@ -710,8 +710,8 @@ fn test_invoke_tx(
         }
     };
     let builtin_counters = match account_cairo_version {
-        CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 19)]),
-        CairoVersion::Cairo1(_) => HashMap::from([(BuiltinName::range_check, 27)]),
+        CairoVersion::Cairo0 => BTreeMap::from([(BuiltinName::range_check, 19)]),
+        CairoVersion::Cairo1(_) => BTreeMap::from([(BuiltinName::range_check, 27)]),
     };
     let syscalls_usage = match account_cairo_version {
         CairoVersion::Cairo0 => HashMap::from([(
@@ -2728,7 +2728,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 6)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 6)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::StorageWrite,
             SyscallUsage { call_count: 1, linear_factor: 0 },
@@ -2748,7 +2748,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     let mut expected_os_execution_resources = ExecutionResources {
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::pedersen, 11 + payload_size),
             (
                 BuiltinName::range_check,

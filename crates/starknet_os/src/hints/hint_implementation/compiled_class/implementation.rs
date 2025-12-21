@@ -100,7 +100,8 @@ pub(crate) fn delete_memory_data(
             message: format!("The segment {data_ptr} is skipped but was accessed."),
         });
     }
-    vm.delete_unaccessed(data_ptr)?;
+    // TODO(Meshi): Delete this once we have a way to delete unaccessed data.
+    vm.is_accessed(&data_ptr)?;
     Ok(())
 }
 

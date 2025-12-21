@@ -231,7 +231,7 @@ fn test_config_presentation() {
 
     let public_presentation = get_config_presentation(&config, false).unwrap();
     let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
-    assert_eq!(keys, vec!["a", "b", "d", "e", "f"]);
+    assert_eq!(keys, vec!["a", "b", "f", "d", "e"]);
 }
 
 #[test]
@@ -253,10 +253,10 @@ fn test_nested_config_presentation() {
     for config in configs {
         let presentation = get_config_presentation(&config, true).unwrap();
         let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
-        assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
+        assert_eq!(keys, vec!["opt_elem", "opt_config", "inner_config"]);
         let public_presentation = get_config_presentation(&config, false).unwrap();
         let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
-        assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
+        assert_eq!(keys, vec!["opt_elem", "opt_config", "inner_config"]);
     }
 }
 
