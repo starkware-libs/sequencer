@@ -14,3 +14,6 @@ LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
 # Function selectors for Starknet L1 contract.
 STATE_BLOCK_NUMBER_SELECTOR = "0x35befa5d"  # stateBlockNumber()
 STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
+
+# Value to use as the end block number if none is given, large enough to not stop in the middle.
+MAX_BLOCK_NUMBER: int = 1 << 200
