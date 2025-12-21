@@ -4,7 +4,15 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
-use starknet_os::io::os_input::{OsBlockInput, StarknetOsInput};
+use starknet_os::io::os_input::{
+    OsBlockInput,
+    OsChainInfo,
+    OsHints,
+    OsHintsConfig,
+    StarknetOsInput,
+};
+use starknet_os::io::os_output::StarknetOsRunnerOutput;
+use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
@@ -32,14 +40,14 @@ where
         Self { classes_provider, storage_proofs_provider, virtual_block_executor }
     }
 
-    /// Creates the OS input hint required to run the given transactions virtually
+    /// Creates the OS hints required to run the given transactions virtually
     /// on top of the given block number.
-    pub fn create_os_input(
+    pub fn create_os_hints(
         &self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
-    ) -> Result<StarknetOsInput, RunnerError> {
+    ) -> Result<OsHints, RunnerError> {
         // Execute virtual block and get execution data.
         let mut execution_data = self.virtual_block_executor.execute(
             block_number,
@@ -47,14 +55,21 @@ where
             txs.clone(),
         )?;
 
-        // Fetch classes (consuming executed_class_hashes).
+        // Extract chain info from block context.
+        let chain_info = execution_data.block_context.chain_info();
+        let os_chain_info = OsChainInfo {
+            chain_id: chain_info.chain_id.clone(),
+            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
+        };
+
+        // Fetch classes.
         let classes = self.classes_provider.get_classes(&execution_data.executed_class_hashes)?;
 
-        // Fetch storage proofs (pass execution_data by reference to avoid moving yet).
+        // Fetch storage proofs.
         let storage_proofs =
             self.storage_proofs_provider.get_storage_proofs(block_number, &execution_data)?;
 
-        // vert execution outputs to CentralTransactionExecutionInfo (consuming).
+        // Convert execution outputs to CentralTransactionExecutionInfo.
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
@@ -102,11 +117,42 @@ where
             initial_reads: execution_data.initial_reads,
         };
 
-        // 7. Final StarknetOsInput (consuming classes).
-        Ok(StarknetOsInput {
-            os_block_inputs: vec![os_block_input],
-            deprecated_compiled_classes: classes.deprecated_compiled_classes,
-            compiled_classes: classes.compiled_classes,
+        // Build OsHints.
+        Ok(OsHints {
+            os_input: StarknetOsInput {
+                os_block_inputs: vec![os_block_input],
+                deprecated_compiled_classes: classes.deprecated_compiled_classes,
+                compiled_classes: classes.compiled_classes,
+            },
+            // TODO(Aviv): choose os hints config.
+            os_hints_config: OsHintsConfig {
+                debug_mode: false,
+                full_output: true,
+                use_kzg_da: false,
+                chain_info: os_chain_info,
+                public_keys: None,
+                rng_seed_salt: None,
+            },
         })
+    }
+
+    /// Runs the Starknet OS with the given transactions.
+    ///
+    /// This method:
+    /// 1. Executes transactions to collect state reads
+    /// 2. Fetches storage proofs and classes
+    /// 3. Builds OS hints
+    /// 4. Runs the OS in stateless mode (all state pre-loaded in input)
+    ///
+    /// Returns the OS output containing the Cairo PIE and execution metrics.
+    pub fn run_os(
+        &self,
+        block_number: BlockNumber,
+        contract_class_manager: ContractClassManager,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
+    ) -> Result<StarknetOsRunnerOutput, RunnerError> {
+        let os_hints = self.create_os_hints(block_number, contract_class_manager, txs)?;
+        let output = run_os_stateless(DEFAULT_OS_LAYOUT, os_hints)?;
+        Ok(output)
     }
 }
