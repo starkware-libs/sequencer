@@ -90,7 +90,7 @@ impl RpcStateReader {
                     Err(RPCStateReaderError::ClassHashNotFound(request_body))
                 }
                 RPC_ERROR_INVALID_PARAMS => {
-                    Err(RPCStateReaderError::InvalidParams(rpc_error_response))
+                    Err(RPCStateReaderError::InvalidParams(Box::new(rpc_error_response)))
                 }
                 _ => Err(RPCStateReaderError::UnexpectedErrorCode(rpc_error_response.error.code)),
             },

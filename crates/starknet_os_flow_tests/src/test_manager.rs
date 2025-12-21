@@ -91,9 +91,11 @@ use crate::utils::{
 /// The resulting address depends on the nonce of the deploying account - if extra init transactions
 /// are added to the initial state construction before the STRK fee token is deployed, the address
 /// must be updated.
-pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
-        0x1a465ff487205d561821685efff4903cb07d69f014b1688a560f8c6380cd025
-    "#]];
+pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
+    r#"
+    0x4a058b5cfd03175ed4bf39ef9613319c8ffaa0380e0ec4c27b5ab76c642ed54
+"#
+];
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
         PatriciaKey::try_from(Felt::from_hex_unchecked(
@@ -102,7 +104,6 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::
         .unwrap(),
     )
 });
-
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =

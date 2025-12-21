@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash};
@@ -94,9 +94,9 @@ pub fn get_gas_cost_from_vm_resources(
 /// Adds values from `source` into `dest` by key.
 /// - If a key exists in both maps, the values are combined using `CheckedAdd`.
 /// - If a key exists only in `source`, it is inserted into `dest`
-pub fn add_maps<K, V>(dest: &mut HashMap<K, V>, source: &HashMap<K, V>)
+pub fn add_maps<K, V>(dest: &mut BTreeMap<K, V>, source: &BTreeMap<K, V>)
 where
-    K: Clone + Eq + std::hash::Hash,
+    K: Clone + Eq + std::hash::Hash + std::cmp::Ord,
     V: Clone + num_traits::CheckedAdd + std::fmt::Debug,
 {
     for (key, value) in source {
