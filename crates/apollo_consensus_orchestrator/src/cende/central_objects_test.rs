@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 
@@ -481,7 +481,7 @@ fn execution_resources() -> ExecutionResources {
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 3,
-        builtin_instance_counter: HashMap::from([
+        builtin_instance_counter: BTreeMap::from([
             (BuiltinName::range_check, 31),
             (BuiltinName::pedersen, 4),
         ]),
