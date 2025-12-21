@@ -12,11 +12,14 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 hex.workspace = true
+serde = { workspace = true, features = ["derive"] }
 starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
+validator.workspace = true
 
 
 [dev-dependencies]
