@@ -1,57 +1,58 @@
 import argparse
-import json
 import os
+import random
 import subprocess
 import sys
 import time
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numbers
 import requests
 import socket
+from config_loader import find_workspace_root, load_and_merge_configs
 from multiprocessing import Process, Queue
+
+
+def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:
+    """Extract service names from merged configs."""
+    return [s["name"] for s in services]
+
+
+def get_config_list(service_config: Dict[str, Any]) -> Optional[str]:
+    """Extract configList path from merged service config."""
+    config = service_config.get("config", {})
+    return config.get("configList")
+
+
+def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, float]:
+    """Extract monitoring endpoint port from merged service config."""
+    # Check sequencerConfig first (most common location)
+    sequencer_config = service_config.get("config", {}).get("sequencerConfig", {})
+    port = sequencer_config.get("monitoring_endpoint_config_port")
+
+    if isinstance(port, numbers.Number):
+        return port
+
+    # Fallback: check service.ports for monitoring-endpoint port
+    print("Fallback: checking service.ports for monitoring-endpoint port")
+    service_ports = service_config.get("service", {}).get("ports", [])
+    for port_config in service_ports:
+        if isinstance(port_config, dict):
+            port_name = port_config.get("name", "").lower()
+            if "monitoring" in port_name or "monitoring-endpoint" in port_name:
+                port_value = port_config.get("port")
+                if isinstance(port_value, numbers.Number):
+                    return port_value
+
+    raise ValueError(
+        f"monitoring_endpoint_config_port not found or not a valid number for service {service_config.get('name', 'unknown')}"
+    )
 
 
 def run(
     cmd: List[str], capture_output: bool = False, check: bool = True, text: bool = True
 ) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=capture_output, check=check, text=text)
-
-
-def get_services(deployment_config_path: str) -> List[str]:
-    with open(deployment_config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    return [s["name"] for s in config.get("services", [])]
-
-
-def get_config_paths(deployment_config_path: str, service_name: str) -> List[str]:
-    with open(deployment_config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    for service in config["services"]:
-        if service["name"] == service_name:
-            return service.get("config_paths", [])
-    raise ValueError(f"Service {service_name} not found in deployment config")
-
-
-def get_monitoring_endpoint_port(
-    base_config_dir: str, relative_config_paths: List[str]
-) -> Union[int, float]:
-    for relativ_config_path in relative_config_paths:
-        path = os.path.join(base_config_dir, relativ_config_path)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                value = data.get("monitoring_endpoint_config.port")
-
-                if isinstance(value, numbers.Number):
-                    return value
-
-        except (json.JSONDecodeError, FileNotFoundError) as e:
-            print(f"Warning: Skipping {path} due to error: {e}")
-            continue
-    raise ValueError(
-        "monitoring_endpoint_config.port not found or not a valid number in any config file"
-    )
 
 
 def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
@@ -100,81 +101,130 @@ def check_service_alive(
 def run_service_check(
     service_name: str,
     pod_name: str,
-    config_paths: List[str],
+    monitoring_port: int,
     offset: int,
-    config_dir: str,
     timeout: int,
     interval: int,
     initial_delay: int,
     process_queue: Queue,
+    port_forward_retries: int = 3,
+    port_forward_retry_delay: int = 2,
+    port_wait_timeout: int = 30,
 ):
-    try:
-        monitoring_port = get_monitoring_endpoint_port(
-            base_config_dir=config_dir,
-            relative_config_paths=config_paths,
-        )
-        local_port = monitoring_port + offset
-        print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
+    pf_process = None
+    port_established = False
+    local_port = monitoring_port + offset
 
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
+    # Retry port-forward setup
+    for attempt in range(1, port_forward_retries + 1):
         try:
-            if not wait_for_port("127.0.0.1", local_port, timeout=15):
-                process_queue.put((service_name, False, "Port-forward did not establish"))
-                return
+            # Kill previous attempt if exists
+            if pf_process:
+                try:
+                    pf_process.terminate()
+                    pf_process.wait(timeout=2)
+                except Exception:
+                    pass
 
-            address = f"http://localhost:{local_port}/monitoring/alive"
-            success = check_service_alive(
-                address=address,
-                timeout=timeout,
-                interval=interval,
-                initial_delay=initial_delay,
+            print(
+                f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
             )
-            if success:
-                print(f"[{service_name}] ✅ Passed for {timeout}s")
-                process_queue.put((service_name, True, "Health check passed"))
+
+            pf_process = subprocess.Popen(
+                ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            # Wait for port to be ready
+            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
+                port_established = True
+                print(f"[{service_name}] ✅ Port-forward established on {local_port}")
+                break
             else:
-                print(f"[{service_name}] ❌ Failed health check")
-                process_queue.put((service_name, False, "Health check failed"))
-        finally:
-            pf_process.terminate()
-            pf_process.wait()
+                print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed - port not ready")
+                if attempt < port_forward_retries:
+                    time.sleep(port_forward_retry_delay)
+
+        except Exception as e:
+            print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed: {e}")
+            if attempt < port_forward_retries:
+                time.sleep(port_forward_retry_delay)
+
+    if not port_established:
+        if pf_process:
+            try:
+                pf_process.terminate()
+                pf_process.wait()
+            except Exception:
+                pass
+        process_queue.put(
+            (
+                service_name,
+                False,
+                f"Port-forward did not establish after {port_forward_retries} attempts",
+            )
+        )
+        return
+
+    # Continue with health check
+    try:
+        address = f"http://localhost:{local_port}/monitoring/alive"
+        success = check_service_alive(
+            address=address,
+            timeout=timeout,
+            interval=interval,
+            initial_delay=initial_delay,
+        )
+        if success:
+            print(f"[{service_name}] ✅ Passed for {timeout}s")
+            process_queue.put((service_name, True, "Health check passed"))
+        else:
+            print(f"[{service_name}] ❌ Failed health check")
+            process_queue.put((service_name, False, "Health check failed"))
     except Exception as e:
         process_queue.put((service_name, False, str(e)))
+    finally:
+        if pf_process:
+            pf_process.terminate()
+            pf_process.wait()
 
 
 def main(
-    deployment_config_path: str,
-    config_dir: str,
+    services: List[Dict[str, Any]],
     timeout: int,
     interval: int,
     initial_delay: int,
+    namespace: str,
 ):
-    print(
-        f"Running liveness checks on config_dir: {config_dir} and deployment_config_path: {deployment_config_path}"
-    )
+    print(f"Running liveness checks on {len(services)} services")
     print(f"Timeout: {timeout}s")
     print(f"Interval: {interval}s")
     print(f"Initial Delay: {initial_delay}s")
 
     print("📱 Finding pods for services...")
-    services = get_services(deployment_config_path=deployment_config_path)
 
     process_queue = Queue()
     healthcheck_processes: List[Process] = []
 
-    for offset, service_name in enumerate(services):
+    for offset, service_config in enumerate(services):
+        service_name = service_config["name"]
         service_label = f"sequencer-{service_name.lower()}"
+
+        # Small random delay (0-2 seconds) to stagger port-forward starts
+        # This reduces conflicts from simultaneous port-forward operations
+        if offset > 0:
+            delay = random.uniform(0, 2)
+            time.sleep(delay)
+
         try:
             pod_name = run(
                 [
                     "kubectl",
                     "get",
                     "pods",
+                    "-n",
+                    namespace,
                     "-l",
                     f"service={service_label}",
                     "-o",
@@ -191,10 +241,12 @@ def main(
             print(f"❌ No pod found for {service_name}. Aborting!")
             sys.exit(1)
 
-        config_paths = get_config_paths(
-            deployment_config_path=deployment_config_path,
-            service_name=service_name,
-        )
+        # Get monitoring port from merged config
+        try:
+            monitoring_port = get_monitoring_endpoint_port(service_config)
+        except ValueError as e:
+            print(f"❌ {e}. Aborting!")
+            sys.exit(1)
 
         process = Process(
             name=service_name,
@@ -202,9 +254,8 @@ def main(
             args=(
                 service_name,
                 pod_name,
-                config_paths,
+                monitoring_port,
                 offset,
-                config_dir,
                 timeout,
                 interval,
                 initial_delay,
@@ -260,18 +311,20 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run liveness checks on Kubernetes services.")
-    parser.add_argument(
-        "--deployment-config-path",
-        type=str,
-        required=True,
-        help="Path to the deployment config JSON file",
+    parser = argparse.ArgumentParser(
+        description="Run liveness checks on Kubernetes services (sequencer2)."
     )
     parser.add_argument(
-        "--config-dir",
+        "--layout",
         type=str,
         required=True,
-        help="Base directory for service config files",
+        help="Layout name (e.g., 'hybrid')",
+    )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        required=True,
+        help="Kubernetes namespace",
     )
     parser.add_argument(
         "--timeout",
@@ -291,13 +344,38 @@ if __name__ == "__main__":
         default=int(os.getenv("INITIAL_DELAY_SEC", "10")),
         help="Initial delay before starting health checks (default: env INITIAL_DELAY_SEC or 10)",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
 
     args = parser.parse_args()
 
+    # Try to find workspace: env var (for CI) > auto-detect
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if not workspace:
+        workspace = find_workspace_root()
+        if workspace:
+            print(f"📁 Auto-detected workspace: {workspace}")
+
+    if not workspace:
+        print("❌ Could not determine workspace root.")
+        print("   Set GITHUB_WORKSPACE env var or ensure script is in scripts/system_tests/")
+        sys.exit(1)
+
+    # Load sequencer2 configs
+    overlay_info = f", overlay={args.overlay}" if args.overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={args.layout}{overlay_info}")
+    merged_services = load_and_merge_configs(
+        workspace=workspace, layout=args.layout, overlay=args.overlay
+    )
+
     main(
-        deployment_config_path=args.deployment_config_path,
-        config_dir=args.config_dir,
+        services=merged_services,
         timeout=args.timeout,
         interval=args.interval,
         initial_delay=args.initial_delay,
+        namespace=args.namespace,
     )

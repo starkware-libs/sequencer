@@ -1,9 +1,30 @@
-import json
+import argparse
+import os
 import subprocess
 import sys
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import config
+
+
+def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
+    """
+    Extract service info from merged service config.
+
+    Returns:
+        (controller, service_name_lower, controller_lower)
+    """
+    service_name = service_config.get("name", "")
+
+    # Determine controller type from statefulSet config
+    stateful_set = service_config.get("statefulSet", {})
+    if stateful_set.get("enabled", False):
+        controller = "StatefulSet"
+    else:
+        controller = "Deployment"
+
+    return controller, service_name.lower(), controller.lower()
 
 
 def run(
@@ -12,13 +33,7 @@ def run(
     return subprocess.run(cmd, check=check, text=True, capture_output=capture_output)
 
 
-def load_services(deployment_config_path: str) -> List[Tuple[str, str]]:
-    with open(deployment_config_path, "r", encoding="utf-8") as f:
-        deployment_config = json.load(f)
-    return [(svc["name"], svc["controller"]) for svc in deployment_config.get("services", [])]
-
-
-def copy_state(pod_name: str, data_dir: str) -> None:
+def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
     print(f"📥 Copying state data to {pod_name}...")
     try:
         run(
@@ -26,21 +41,27 @@ def copy_state(pod_name: str, data_dir: str) -> None:
                 "kubectl",
                 "cp",
                 f"{data_dir}/.",
-                f"{pod_name}:/data",
+                f"{namespace}/{pod_name}:/data",
                 "--retries=3",
             ]
         )
+        print(f"✅ State copied to {pod_name}")
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to copy state to pod {pod_name}: {e}")
         sys.exit(1)
 
 
-def delete_pod(pod_name: str) -> None:
+def delete_pod(pod_name: str, namespace: str) -> None:
     print(f"🔄 Restarting pod {pod_name}...")
-    run(["kubectl", "delete", "pod", pod_name], check=False)
+    try:
+        run(["kubectl", "delete", "pod", pod_name, "-n", namespace], check=False)
+        print(f"✅ Pod {pod_name} restarted successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to delete pod {pod_name}: {e}")
+        sys.exit(1)
 
 
-def wait_for_resource(controller: str, name: str, timeout: int = 180) -> None:
+def wait_for_resource(controller: str, name: str, namespace: str, timeout: int = 180) -> None:
     print(f"⏳ Waiting for {controller}/{name} to become ready...")
 
     if controller == "deployment":
@@ -49,6 +70,8 @@ def wait_for_resource(controller: str, name: str, timeout: int = 180) -> None:
             "wait",
             "--for=condition=Available",
             f"{controller}/{name}",
+            "-n",
+            namespace,
             f"--timeout={timeout}s",
         ]
     elif controller == "statefulset":
@@ -57,6 +80,8 @@ def wait_for_resource(controller: str, name: str, timeout: int = 180) -> None:
             "rollout",
             "status",
             f"{controller}/{name}",
+            "-n",
+            namespace,
             f"--timeout={timeout}s",
         ]
     else:
@@ -75,9 +100,33 @@ def build_resource_name(service_name: str, controller: str) -> str:
     return f"sequencer-{service_name.lower()}-{controller.lower()}"
 
 
-def main(deployment_config_path: str, data_dir: str) -> None:
+def main(layout: str, namespace: str, data_dir: str, overlay: Optional[str] = None) -> None:
     config.load_kube_config()
-    services: List[Tuple[str, str]] = load_services(deployment_config_path)
+
+    # Try to find workspace: env var (for CI) > auto-detect
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if not workspace:
+        workspace = find_workspace_root()
+        if workspace:
+            print(f"📁 Auto-detected workspace: {workspace}")
+
+    if not workspace:
+        print("❌ Could not determine workspace root.")
+        print("   Set GITHUB_WORKSPACE env var or ensure script is in scripts/system_tests/")
+        sys.exit(1)
+
+    # Load sequencer2 configs
+    overlay_info = f", overlay={overlay}" if overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={layout}{overlay_info}")
+    merged_services = load_and_merge_configs(workspace=workspace, layout=layout, overlay=overlay)
+
+    # Extract service info from merged configs
+    services: List[Tuple[str, str]] = []
+    for service_config in merged_services:
+        controller, service_name_lower, controller_lower = extract_service_info_from_config(
+            service_config
+        )
+        services.append((service_config["name"], controller))
 
     resources_to_wait_for: List[Tuple[str, str]] = []
 
@@ -101,6 +150,8 @@ def main(deployment_config_path: str, data_dir: str) -> None:
                     "kubectl",
                     "get",
                     "pods",
+                    "-n",
+                    namespace,
                     "-l",
                     f"service={service_label}",
                     "-o",
@@ -118,34 +169,39 @@ def main(deployment_config_path: str, data_dir: str) -> None:
 
         print(f"{service_name} pod found - {pod_name}")
 
-        copy_state(pod_name=pod_name, data_dir=data_dir)
-        delete_pod(pod_name=pod_name)
+        copy_state(pod_name=pod_name, namespace=namespace, data_dir=data_dir)
+        delete_pod(pod_name=pod_name, namespace=namespace)
 
         resources_to_wait_for.append((controller_lower, resource_name))
 
     print("\n⏳ Waiting for all resources to become ready...\n")
     for controller, resource_name in resources_to_wait_for:
-        wait_for_resource(controller=controller, name=resource_name)
+        wait_for_resource(controller=controller, name=resource_name, namespace=namespace)
         print(f"✅ {controller}/{resource_name} is ready!")
 
-    print("\n📦 Current pod status:")
-    run(["kubectl", "get", "pods", "-o", "wide"])
+    print(f"\n📦 Current pod status in namespace {namespace}:")
+    run(["kubectl", "get", "pods", "-n", namespace, "-o", "wide"])
 
     print("\n✅ All services are ready!")
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
-        description="Copy state and restart sequencer pods based on a deployment config."
+        description="Copy state and restart sequencer pods based on sequencer2 layout config."
     )
 
     parser.add_argument(
-        "--deployment_config_path",
+        "--layout",
         type=str,
         required=True,
-        help="Path to the deployment config JSON file",
+        help="Layout name (e.g., 'hybrid')",
+    )
+
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        required=True,
+        help="Kubernetes namespace",
     )
 
     parser.add_argument(
@@ -154,6 +210,12 @@ if __name__ == "__main__":
         default="./output/data/node_0",
         help="Directory containing the state to copy into pods (default: ./output/data/node_0)",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
 
     args = parser.parse_args()
-    main(deployment_config_path=args.deployment_config_path, data_dir=args.data_dir)
+    main(layout=args.layout, namespace=args.namespace, data_dir=args.data_dir, overlay=args.overlay)

@@ -4,13 +4,69 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
+import tempfile
+from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
+# Enable line buffering for real-time output in CI
+sys.stdout.reconfigure(line_buffering=True)
 
-def check_manifest_files(deployment_config_path: str, workspace: str) -> None:
+
+def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
+    """
+    Extract service info from merged service config.
+
+    Returns:
+        (controller, service_name_lower, controller_lower)
+    """
+    service_name = service_config.get("name", "")
+
+    # Determine controller type from statefulSet config
+    stateful_set = service_config.get("statefulSet", {})
+    if stateful_set.get("enabled", False):
+        controller = "StatefulSet"
+    else:
+        controller = "Deployment"
+
+    return controller, service_name.lower(), controller.lower()
+
+
+def convert_to_legacy_format(services: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Convert sequencer2 service configs to legacy JSON format.
+
+    This allows the rest of the script to work without changes.
+    """
+    legacy_services = []
+
+    for service_config in services:
+        controller, service_name_lower, controller_lower = extract_service_info_from_config(
+            service_config
+        )
+
+        service_entry = {
+            "name": service_config["name"],
+            "controller": controller,
+        }
+
+        legacy_services.append(service_entry)
+
+    return {
+        "application_config_subdir": "crates/apollo_deployments/resources/",  # Default, not used
+        "services": legacy_services,
+    }
+
+
+def check_manifest_files(deployment_config_path: str, workspace: str, namespace: str) -> None:
+    """
+    Check that manifest files exist.
+
+    For sequencer2, the path structure is:
+    deployments/sequencer2/dist/sequencer-{service_name}/{Controller}.sequencer-{service_name}-{controller}.k8s.yaml
+    """
     with open(deployment_config_path, "r", encoding="utf-8") as f:
         deployment_config: Dict[str, Any] = json.load(f)
 
@@ -21,7 +77,11 @@ def check_manifest_files(deployment_config_path: str, workspace: str) -> None:
 
         manifest_path = (
             Path(workspace)
-            / f"deployments/sequencer/dist/sequencer-{service_name_lower}/{controller}.sequencer-{service_name_lower}-{controller_lower}.k8s.yaml"
+            / "deployments"
+            / "sequencer2"
+            / "dist"
+            / f"sequencer-{service_name_lower}"
+            / f"{controller}.sequencer-{service_name_lower}-{controller_lower}.k8s.yaml"
         )
 
         if not manifest_path.exists():
@@ -35,12 +95,14 @@ def check_manifest_files(deployment_config_path: str, workspace: str) -> None:
 
 
 def extract_service_info(service: Dict[str, str]) -> Tuple[str, str, str]:
+    """Extract service metadata from config."""
     service_name = service["name"]
     controller = service["controller"]
     return controller, service_name.lower(), controller.lower()
 
 
 def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None:
+    """Wait for Kubernetes resources to become ready."""
     config.load_kube_config()
 
     with open(deployment_config_path, "r", encoding="utf-8") as f:
@@ -112,13 +174,13 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Check manifest files and wait for K8s services to be ready."
+        description="Check manifest files and wait for K8s services to be ready (sequencer2)."
     )
     parser.add_argument(
-        "--deployment_config_path",
+        "--layout",
         type=str,
         required=True,
-        help="Path to the deployment config JSON file",
+        help="Layout name (e.g., 'hybrid')",
     )
     parser.add_argument(
         "--namespace",
@@ -126,18 +188,51 @@ if __name__ == "__main__":
         required=True,
         help="Kubernetes namespace",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
     args = parser.parse_args()
 
-    github_workspace: str = os.environ["GITHUB_WORKSPACE"]
+    # Try to find workspace: env var (for CI) > auto-detect
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if not workspace:
+        workspace = find_workspace_root()
+        if workspace:
+            print(f"📁 Auto-detected workspace: {workspace}")
 
-    check_manifest_files(
-        deployment_config_path=args.deployment_config_path,
-        workspace=github_workspace,
+    if not workspace:
+        print("❌ Could not determine workspace root.")
+        print("   Set GITHUB_WORKSPACE env var or ensure script is in scripts/system_tests/")
+        sys.exit(1)
+
+    # Load sequencer2 configs and convert to legacy format
+    overlay_info = f", overlay={args.overlay}" if args.overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={args.layout}{overlay_info}")
+    merged_services = load_and_merge_configs(
+        workspace=workspace, layout=args.layout, overlay=args.overlay
     )
 
-    wait_for_services_ready(
-        deployment_config_path=args.deployment_config_path,
-        namespace=args.namespace,
-    )
+    # Convert to legacy format for compatibility
+    legacy_config = convert_to_legacy_format(merged_services)
+    legacy_config["namespace"] = args.namespace
 
-    print("✅ All sequencer services are ready.")
+    # Write to temp file for the rest of the script to use
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump(legacy_config, f, indent=2)
+        temp_config_path = f.name
+
+    try:
+        check_manifest_files(
+            deployment_config_path=temp_config_path,
+            workspace=workspace,
+            namespace=args.namespace,
+        )
+        wait_for_services_ready(deployment_config_path=temp_config_path, namespace=args.namespace)
+        print("✅ All sequencer services are ready.")
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_config_path):
+            os.unlink(temp_config_path)

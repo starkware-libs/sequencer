@@ -1,4 +1,4 @@
-name: Sequencer - Hybrid Node System Test 2
+name: Sequencer - Hybrid Node System Test
 
 on:
   workflow_dispatch:
@@ -23,6 +23,7 @@ env:
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
   dockerfile_base_path: ./deployments/images/sequencer
+  sequencer_cdk8s_path: ./deployments/sequencer
 
 permissions:
   contents: read
@@ -278,7 +279,7 @@ jobs:
         run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-hybrid 0 --n-distributed 0
 
       - name: Generate k8s manifests
-        working-directory: deployments/sequencer2
+        working-directory: ${{ env.sequencer_cdk8s_path }}
         run: |
           pipenv install
           cdk8s import
@@ -286,7 +287,7 @@ jobs:
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
       - name: Deploy Sequencer
-        working-directory: deployments/sequencer2
+        working-directory: ${{ env.sequencer_cdk8s_path }}
         run: |
           echo "Deploying Sequencer..."
           kubectl create namespace ${{ env.namespace }}
@@ -304,7 +305,7 @@ jobs:
           check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
-          pipenv run python ./scripts/system_tests/liveness_check2.py \
+          pipenv run python ./scripts/system_tests/liveness_check.py \
             --namespace ${{ env.namespace }} \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
@@ -339,7 +340,7 @@ jobs:
         env:
           RUST_LOG: debug
           RUST_BACKTRACE: full
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator2.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: List all pods in namespace ${{ env.namespace }}
         if: always()
