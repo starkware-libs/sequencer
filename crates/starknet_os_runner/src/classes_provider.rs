@@ -21,6 +21,6 @@ pub trait ClassesProvider {
     /// Fetches all classes required for the OS run based on the executed class hashes.
     fn get_classes(
         &self,
-        executed_class_hashes: HashSet<ClassHash>,
+        executed_class_hashes: &HashSet<ClassHash>,
     ) -> Result<ClassesInput, ClassesProviderError>;
 }
