@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::{NodeLayout, TrieType};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
@@ -15,10 +16,8 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
 use crate::block_committer::input::{FactsDbInitialRead, ReaderConfig, StarknetStorageValue};
-use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
 use crate::db::forest_trait::{ForestReader, ForestWriter};
-use crate::db::index_db::leaves::TrieType;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;

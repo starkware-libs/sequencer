@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::{NodeLayout, TrieType};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -33,8 +34,6 @@ use crate::block_committer::input::{
     ReaderConfig,
     StarknetStorageValue,
 };
-use crate::db::db_layout::NodeLayout;
-use crate::db::index_db::leaves::TrieType;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::{
