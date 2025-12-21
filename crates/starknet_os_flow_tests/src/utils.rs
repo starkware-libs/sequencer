@@ -58,7 +58,7 @@ use starknet_committer::patricia_merkle_tree::types::{
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
-use starknet_os::io::os_input::CommitmentInfo;
+use starknet_os::io::os_input::{CommitmentInfo, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
@@ -217,19 +217,13 @@ pub(crate) fn create_declare_tx(
     AccountTransaction::Declare(tx)
 }
 
-pub(crate) struct CommitmentInfos {
-    pub(crate) contracts_trie_commitment_info: CommitmentInfo,
-    pub(crate) classes_trie_commitment_info: CommitmentInfo,
-    pub(crate) storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
-}
-
 /// Creates the commitment infos and the cached state input for the OS.
 pub(crate) async fn create_cached_state_input_and_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
-) -> (StateMaps, CommitmentInfos) {
+) -> (StateMaps, StateCommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),
@@ -358,7 +352,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
 
     (
         state_maps,
-        CommitmentInfos {
+        StateCommitmentInfos {
             contracts_trie_commitment_info,
             classes_trie_commitment_info,
             storage_tries_commitment_infos,
