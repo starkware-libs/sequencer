@@ -98,6 +98,7 @@ pub mod state;
 pub mod storage_reader_server;
 pub mod storage_reader;
 pub mod storage_reader_communication;
+pub mod storage_reader_handler;
 mod version;
 
 mod deprecated;
