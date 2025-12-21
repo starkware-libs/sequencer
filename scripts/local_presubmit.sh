@@ -71,7 +71,7 @@ setup_env_variables_from_yml() {
 
 install_dependencies() {
   # List of crate names to check/install
-  CRATES=("taplo-cli" "cargo-machete")
+  CRATES=("taplo-cli" "cargo-machete" "cargo-nextest")
 
   # Get the list of installed crates
   INSTALLED_CRATES=$(cargo install --list | grep -Eo '^[^ ]+')
