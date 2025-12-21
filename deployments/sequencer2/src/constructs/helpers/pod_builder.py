@@ -1,6 +1,11 @@
 from imports import k8s
+from src.config.schema import Affinity as AffinityConfig
+from src.config.schema import NodeAffinity as NodeAffinityConfig
+from src.config.schema import PodAffinity as PodAffinityConfig
 from src.config.schema import Probe as ProbeConfig
-from src.config.schema import ServiceConfig
+from src.config.schema import (
+    ServiceConfig,
+)
 
 
 class PodBuilder:
@@ -445,18 +450,274 @@ class PodBuilder:
             )
         return tolerations
 
-    def _build_affinity(self) -> k8s.Affinity | None:
-        """Build pod affinity configuration, merging affinity and podAntiAffinity."""
-        # Start with existing affinity if present
-        base_affinity = (
-            k8s.Affinity.from_json(self.service_config.affinity)
-            if self.service_config.affinity
-            else k8s.Affinity()
+    def _parse_node_affinity_from_dict(self, node_affinity_dict: dict) -> k8s.NodeAffinity | None:
+        """Parse NodeAffinity from dictionary."""
+        if not node_affinity_dict:
+            return None
+
+        required = None
+        if "requiredDuringSchedulingIgnoredDuringExecution" in node_affinity_dict:
+            required_dict = node_affinity_dict["requiredDuringSchedulingIgnoredDuringExecution"]
+            node_selector_terms = []
+            if "nodeSelectorTerms" in required_dict:
+                for term_dict in required_dict["nodeSelectorTerms"]:
+                    match_expressions = []
+                    match_fields = []
+                    if "matchExpressions" in term_dict:
+                        for expr in term_dict["matchExpressions"]:
+                            match_expressions.append(
+                                k8s.NodeSelectorRequirement(
+                                    key=expr.get("key", ""),
+                                    operator=expr.get("operator", ""),
+                                    values=expr.get("values", []),
+                                )
+                            )
+                    if "matchFields" in term_dict:
+                        for field in term_dict["matchFields"]:
+                            match_fields.append(
+                                k8s.NodeSelectorRequirement(
+                                    key=field.get("key", ""),
+                                    operator=field.get("operator", ""),
+                                    values=field.get("values", []),
+                                )
+                            )
+                    node_selector_terms.append(
+                        k8s.NodeSelectorTerm(
+                            match_expressions=match_expressions if match_expressions else None,
+                            match_fields=match_fields if match_fields else None,
+                        )
+                    )
+            required = k8s.NodeSelector(
+                node_selector_terms=node_selector_terms if node_selector_terms else None
+            )
+
+        preferred = None
+        if "preferredDuringSchedulingIgnoredDuringExecution" in node_affinity_dict:
+            preferred_list = []
+            for pref_dict in node_affinity_dict["preferredDuringSchedulingIgnoredDuringExecution"]:
+                weight = pref_dict.get("weight", 100)
+                preference_dict = pref_dict.get("preference", {})
+                match_expressions = []
+                match_fields = []
+                if "matchExpressions" in preference_dict:
+                    for expr in preference_dict["matchExpressions"]:
+                        match_expressions.append(
+                            k8s.NodeSelectorRequirement(
+                                key=expr.get("key", ""),
+                                operator=expr.get("operator", ""),
+                                values=expr.get("values", []),
+                            )
+                        )
+                if "matchFields" in preference_dict:
+                    for field in preference_dict["matchFields"]:
+                        match_fields.append(
+                            k8s.NodeSelectorRequirement(
+                                key=field.get("key", ""),
+                                operator=field.get("operator", ""),
+                                values=field.get("values", []),
+                            )
+                        )
+                preferred_list.append(
+                    k8s.PreferredSchedulingTerm(
+                        weight=weight,
+                        preference=k8s.NodeSelectorTerm(
+                            match_expressions=match_expressions if match_expressions else None,
+                            match_fields=match_fields if match_fields else None,
+                        ),
+                    )
+                )
+            preferred = preferred_list if preferred_list else None
+
+        if not required and not preferred:
+            return None
+
+        return k8s.NodeAffinity(
+            required_during_scheduling_ignored_during_execution=required,
+            preferred_during_scheduling_ignored_during_execution=preferred,
         )
 
-        # Build pod anti-affinity from structured config if enabled
+    def _parse_pod_affinity_from_dict(self, pod_affinity_dict: dict) -> k8s.PodAffinity | None:
+        """Parse PodAffinity from dictionary."""
+        if not pod_affinity_dict:
+            return None
+
+        required = None
+        if "requiredDuringSchedulingIgnoredDuringExecution" in pod_affinity_dict:
+            required_list = []
+            for term_dict in pod_affinity_dict["requiredDuringSchedulingIgnoredDuringExecution"]:
+                label_selector = self._build_label_selector(
+                    term_dict.get("labelSelector", {}), default_match_labels=None
+                )
+                required_list.append(
+                    k8s.PodAffinityTerm(
+                        label_selector=label_selector,
+                        topology_key=term_dict.get("topologyKey", ""),
+                        namespace_selector=(
+                            self._build_label_selector(
+                                term_dict.get("namespaceSelector", {}), default_match_labels=None
+                            )
+                            if term_dict.get("namespaceSelector")
+                            else None
+                        ),
+                    )
+                )
+            required = required_list if required_list else None
+
+        preferred = None
+        if "preferredDuringSchedulingIgnoredDuringExecution" in pod_affinity_dict:
+            preferred_list = []
+            for pref_dict in pod_affinity_dict["preferredDuringSchedulingIgnoredDuringExecution"]:
+                weight = pref_dict.get("weight", 100)
+                term_dict = pref_dict.get("podAffinityTerm", {})
+                label_selector = self._build_label_selector(
+                    term_dict.get("labelSelector", {}), default_match_labels=None
+                )
+                preferred_list.append(
+                    k8s.WeightedPodAffinityTerm(
+                        weight=weight,
+                        pod_affinity_term=k8s.PodAffinityTerm(
+                            label_selector=label_selector,
+                            topology_key=term_dict.get("topologyKey", ""),
+                            namespace_selector=(
+                                self._build_label_selector(
+                                    term_dict.get("namespaceSelector", {}),
+                                    default_match_labels=None,
+                                )
+                                if term_dict.get("namespaceSelector")
+                                else None
+                            ),
+                        ),
+                    )
+                )
+            preferred = preferred_list if preferred_list else None
+
+        if not required and not preferred:
+            return None
+
+        return k8s.PodAffinity(
+            required_during_scheduling_ignored_during_execution=required,
+            preferred_during_scheduling_ignored_during_execution=preferred,
+        )
+
+    def _parse_pod_anti_affinity_from_dict(
+        self, pod_anti_affinity_dict: dict
+    ) -> k8s.PodAntiAffinity | None:
+        """Parse PodAntiAffinity from dictionary."""
+        if not pod_anti_affinity_dict:
+            return None
+
+        required = None
+        if "requiredDuringSchedulingIgnoredDuringExecution" in pod_anti_affinity_dict:
+            required_list = []
+            for term_dict in pod_anti_affinity_dict[
+                "requiredDuringSchedulingIgnoredDuringExecution"
+            ]:
+                label_selector = self._build_label_selector(
+                    term_dict.get("labelSelector", {}), default_match_labels=self.labels
+                )
+                required_list.append(
+                    k8s.PodAffinityTerm(
+                        label_selector=label_selector,
+                        topology_key=term_dict.get("topologyKey", ""),
+                        namespace_selector=(
+                            self._build_label_selector(
+                                term_dict.get("namespaceSelector", {}), default_match_labels=None
+                            )
+                            if term_dict.get("namespaceSelector")
+                            else None
+                        ),
+                    )
+                )
+            required = required_list if required_list else None
+
+        preferred = None
+        if "preferredDuringSchedulingIgnoredDuringExecution" in pod_anti_affinity_dict:
+            preferred_list = []
+            for pref_dict in pod_anti_affinity_dict[
+                "preferredDuringSchedulingIgnoredDuringExecution"
+            ]:
+                weight = pref_dict.get("weight", 100)
+                term_dict = pref_dict.get("podAffinityTerm", {})
+                label_selector = self._build_label_selector(
+                    term_dict.get("labelSelector", {}), default_match_labels=self.labels
+                )
+                preferred_list.append(
+                    k8s.WeightedPodAffinityTerm(
+                        weight=weight,
+                        pod_affinity_term=k8s.PodAffinityTerm(
+                            label_selector=label_selector,
+                            topology_key=term_dict.get("topologyKey", ""),
+                            namespace_selector=(
+                                self._build_label_selector(
+                                    term_dict.get("namespaceSelector", {}),
+                                    default_match_labels=None,
+                                )
+                                if term_dict.get("namespaceSelector")
+                                else None
+                            ),
+                        ),
+                    )
+                )
+            preferred = preferred_list if preferred_list else None
+
+        if not required and not preferred:
+            return None
+
+        return k8s.PodAntiAffinity(
+            required_during_scheduling_ignored_during_execution=required,
+            preferred_during_scheduling_ignored_during_execution=preferred,
+        )
+
+    def _build_affinity(self) -> k8s.Affinity | None:
+        """Build pod affinity configuration, merging affinity and podAntiAffinity."""
+        # Handle structured affinity or legacy dict format
+        node_affinity = None
+        pod_affinity = None
+        pod_anti_affinity_from_dict = None
+
+        if self.service_config.affinity:
+            # Check if affinity is structured (AffinityConfig) or dict
+            if isinstance(self.service_config.affinity, AffinityConfig):
+                # Structured affinity configuration
+                affinity_config = self.service_config.affinity
+                if affinity_config.nodeAffinity:
+                    node_affinity = self._build_node_affinity(affinity_config.nodeAffinity)
+                if affinity_config.podAffinity:
+                    pod_affinity = self._build_pod_affinity(affinity_config.podAffinity)
+                if affinity_config.podAntiAffinity:
+                    pod_anti_affinity_from_dict = self._build_pod_anti_affinity(
+                        affinity_config.podAntiAffinity
+                    )
+            else:
+                # Legacy dict format - parse manually
+                affinity_dict = self.service_config.affinity
+                # Check if dict is not empty (ignore 'enabled' field if present)
+                if affinity_dict and any(
+                    key in affinity_dict
+                    for key in ["nodeAffinity", "podAffinity", "podAntiAffinity"]
+                ):
+                    if "nodeAffinity" in affinity_dict:
+                        node_affinity = self._parse_node_affinity_from_dict(
+                            affinity_dict["nodeAffinity"]
+                        )
+                    if "podAffinity" in affinity_dict:
+                        pod_affinity = self._parse_pod_affinity_from_dict(
+                            affinity_dict["podAffinity"]
+                        )
+                    if "podAntiAffinity" in affinity_dict:
+                        pod_anti_affinity_from_dict = self._parse_pod_anti_affinity_from_dict(
+                            affinity_dict["podAntiAffinity"]
+                        )
+
+        base_affinity = k8s.Affinity(
+            node_affinity=node_affinity,
+            pod_affinity=pod_affinity,
+            pod_anti_affinity=pod_anti_affinity_from_dict,
+        )
+
+        # Build pod anti-affinity from structured config if defined (ignore enabled flag for backward compatibility)
         pod_anti_affinity = None
-        if self.service_config.podAntiAffinity and self.service_config.podAntiAffinity.enabled:
+        if self.service_config.podAntiAffinity:
             pod_anti_affinity = self._build_pod_anti_affinity(self.service_config.podAntiAffinity)
 
             # Merge with existing pod anti-affinity if present
@@ -498,10 +759,11 @@ class PodBuilder:
                 pod_anti_affinity=pod_anti_affinity,
             )
         elif pod_anti_affinity:
-            # Only pod anti-affinity, no existing affinity
+            # Only structured pod anti-affinity, no pod anti-affinity from dict
+            # But preserve node_affinity and pod_affinity from base_affinity if present
             return k8s.Affinity(
-                node_affinity=None,
-                pod_affinity=None,
+                node_affinity=base_affinity.node_affinity,
+                pod_affinity=base_affinity.pod_affinity,
                 pod_anti_affinity=pod_anti_affinity,
             )
 
@@ -514,6 +776,144 @@ class PodBuilder:
             return None
 
         return base_affinity
+
+    def _build_node_affinity(
+        self, node_affinity_config: NodeAffinityConfig
+    ) -> k8s.NodeAffinity | None:
+        """Build Kubernetes NodeAffinity from structured configuration."""
+        required = None
+        if node_affinity_config.required:
+            node_selector_terms = []
+            for rule in node_affinity_config.required:
+                match_expressions = []
+                match_fields = []
+                if rule.matchExpressions:
+                    for expr in rule.matchExpressions:
+                        match_expressions.append(
+                            k8s.NodeSelectorRequirement(
+                                key=expr.get("key", ""),
+                                operator=expr.get("operator", ""),
+                                values=expr.get("values", []),
+                            )
+                        )
+                if rule.matchFields:
+                    for field in rule.matchFields:
+                        match_fields.append(
+                            k8s.NodeSelectorRequirement(
+                                key=field.get("key", ""),
+                                operator=field.get("operator", ""),
+                                values=field.get("values", []),
+                            )
+                        )
+                node_selector_terms.append(
+                    k8s.NodeSelectorTerm(
+                        match_expressions=match_expressions if match_expressions else None,
+                        match_fields=match_fields if match_fields else None,
+                    )
+                )
+            required = k8s.NodeSelector(
+                node_selector_terms=node_selector_terms if node_selector_terms else None
+            )
+
+        preferred = None
+        if node_affinity_config.preferred:
+            preferred_list = []
+            for rule in node_affinity_config.preferred:
+                weight = rule.weight if rule.weight is not None else 100
+                match_expressions = []
+                match_fields = []
+                if rule.matchExpressions:
+                    for expr in rule.matchExpressions:
+                        match_expressions.append(
+                            k8s.NodeSelectorRequirement(
+                                key=expr.get("key", ""),
+                                operator=expr.get("operator", ""),
+                                values=expr.get("values", []),
+                            )
+                        )
+                if rule.matchFields:
+                    for field in rule.matchFields:
+                        match_fields.append(
+                            k8s.NodeSelectorRequirement(
+                                key=field.get("key", ""),
+                                operator=field.get("operator", ""),
+                                values=field.get("values", []),
+                            )
+                        )
+                preferred_list.append(
+                    k8s.PreferredSchedulingTerm(
+                        weight=weight,
+                        preference=k8s.NodeSelectorTerm(
+                            match_expressions=match_expressions if match_expressions else None,
+                            match_fields=match_fields if match_fields else None,
+                        ),
+                    )
+                )
+            preferred = preferred_list if preferred_list else None
+
+        if not required and not preferred:
+            return None
+
+        return k8s.NodeAffinity(
+            required_during_scheduling_ignored_during_execution=required,
+            preferred_during_scheduling_ignored_during_execution=preferred,
+        )
+
+    def _build_pod_affinity(self, pod_affinity_config: PodAffinityConfig) -> k8s.PodAffinity | None:
+        """Build Kubernetes PodAffinity from structured configuration."""
+        required = None
+        if pod_affinity_config.required:
+            required_list = []
+            for rule in pod_affinity_config.required:
+                label_selector = self._build_label_selector(
+                    rule.labelSelector, default_match_labels=None
+                )
+                namespace_selector = None
+                if rule.namespaceSelector:
+                    namespace_selector = self._build_label_selector(
+                        rule.namespaceSelector, default_match_labels=None
+                    )
+                required_list.append(
+                    k8s.PodAffinityTerm(
+                        label_selector=label_selector,
+                        topology_key=rule.topologyKey,
+                        namespace_selector=namespace_selector,
+                    )
+                )
+            required = required_list if required_list else None
+
+        preferred = None
+        if pod_affinity_config.preferred:
+            preferred_list = []
+            for rule in pod_affinity_config.preferred:
+                weight = rule.weight if rule.weight is not None else 100
+                label_selector = self._build_label_selector(
+                    rule.labelSelector, default_match_labels=None
+                )
+                namespace_selector = None
+                if rule.namespaceSelector:
+                    namespace_selector = self._build_label_selector(
+                        rule.namespaceSelector, default_match_labels=None
+                    )
+                preferred_list.append(
+                    k8s.WeightedPodAffinityTerm(
+                        weight=weight,
+                        pod_affinity_term=k8s.PodAffinityTerm(
+                            label_selector=label_selector,
+                            topology_key=rule.topologyKey,
+                            namespace_selector=namespace_selector,
+                        ),
+                    )
+                )
+            preferred = preferred_list if preferred_list else None
+
+        if not required and not preferred:
+            return None
+
+        return k8s.PodAffinity(
+            required_during_scheduling_ignored_during_execution=required,
+            preferred_during_scheduling_ignored_during_execution=preferred,
+        )
 
     def _build_pod_anti_affinity(self, pod_anti_affinity_config) -> k8s.PodAntiAffinity:
         """Build Kubernetes PodAntiAffinity from structured configuration."""

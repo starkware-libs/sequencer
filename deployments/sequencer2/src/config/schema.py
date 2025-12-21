@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
@@ -351,6 +351,59 @@ class PodAntiAffinity(StrictBaseModel):
     )  # Required rules (hard constraints, weight ignored)
 
 
+class NodeAffinityRule(StrictBaseModel):
+    """Single node affinity rule configuration."""
+
+    weight: Optional[int] = None  # Weight for preferred rules (1-100)
+    matchExpressions: List[AnyDict] = Field(
+        default_factory=list
+    )  # Match expressions for node labels (key, operator, values)
+    matchFields: List[AnyDict] = Field(
+        default_factory=list
+    )  # Match fields for node fields (key, operator, values)
+
+
+class NodeAffinity(StrictBaseModel):
+    """Node affinity configuration supporting multiple rules."""
+
+    preferred: List[NodeAffinityRule] = Field(
+        default_factory=list
+    )  # Preferred rules (soft constraints)
+    required: List[NodeAffinityRule] = Field(
+        default_factory=list
+    )  # Required rules (hard constraints, weight ignored)
+
+
+class PodAffinityRule(StrictBaseModel):
+    """Single pod affinity rule configuration."""
+
+    weight: Optional[int] = None  # Weight for preferred rules (1-100)
+    topologyKey: str  # Topology key (e.g., "kubernetes.io/hostname", "topology.kubernetes.io/zone")
+    labelSelector: AnyDict = Field(
+        default_factory=dict
+    )  # Label selector with matchLabels or matchExpressions.
+    namespaceSelector: AnyDict = Field(default_factory=dict)  # Namespace selector (optional)
+
+
+class PodAffinity(StrictBaseModel):
+    """Pod affinity configuration supporting multiple rules."""
+
+    preferred: List[PodAffinityRule] = Field(
+        default_factory=list
+    )  # Preferred rules (soft constraints)
+    required: List[PodAffinityRule] = Field(
+        default_factory=list
+    )  # Required rules (hard constraints, weight ignored)
+
+
+class Affinity(StrictBaseModel):
+    """Structured affinity configuration supporting node, pod, and pod anti-affinity."""
+
+    nodeAffinity: Optional[NodeAffinity] = None
+    podAffinity: Optional[PodAffinity] = None
+    podAntiAffinity: Optional[PodAntiAffinity] = None
+
+
 class PodMonitoring(StrictBaseModel):
     enabled: bool = False
     name: Optional[str] = None
@@ -425,7 +478,9 @@ class ServiceConfig(StrictBaseModel):
     updateStrategy: UpdateStrategy = Field(default_factory=UpdateStrategy)
     tolerations: List[AnyDict] = Field(default_factory=list)
     nodeSelector: StrDict = Field(default_factory=dict)
-    affinity: AnyDict = Field(default_factory=dict)
+    affinity: Union[Affinity, AnyDict, None] = Field(
+        default=None
+    )  # Structured affinity configuration (preferred) or legacy dict format
     podAntiAffinity: Optional[PodAntiAffinity] = None
     topologySpreadConstraints: List[AnyDict] = Field(default_factory=list)
     podDisruptionBudget: Optional[PodDisruptionBudget] = None
