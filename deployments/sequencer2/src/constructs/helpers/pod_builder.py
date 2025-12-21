@@ -83,9 +83,8 @@ class PodBuilder:
         # Note: node version uses directory mount, so path is just the directory + "config"
         if self.service_config.config and self.service_config.config.configList:
             mount_path = (
-                self.service_config.config.mountPath
-                if self.service_config.config.mountPath
-                else "/config/sequencer/presets/"
+                getattr(self.service_config.config, "mountPath", None)
+                or "/config/sequencer/presets/"
             )
             # Ensure mount_path ends with / for proper path joining
             if not mount_path.endswith("/"):
@@ -101,9 +100,7 @@ class PodBuilder:
             and self.service_config.externalSecret.data
         ):
             mount_path = (
-                self.service_config.externalSecret.mountPath
-                if self.service_config.externalSecret.mountPath
-                else "/etc/secrets"
+                getattr(self.service_config.externalSecret, "mountPath", None) or "/etc/secrets"
             )
             args.append("--config_file")
             args.append(f"{mount_path}/secrets.json")
@@ -118,11 +115,7 @@ class PodBuilder:
                 or self.service_config.secret.stringData
             )
         ):
-            mount_path = (
-                self.service_config.secret.mountPath
-                if self.service_config.secret.mountPath
-                else "/etc/secrets"
-            )
+            mount_path = getattr(self.service_config.secret, "mountPath", None) or "/etc/secrets"
             args.append("--config_file")
             args.append(f"{mount_path}/secret.json")
 
@@ -197,9 +190,14 @@ class PodBuilder:
         if self.service_config.config and self.service_config.config.configList:
             # Default mountPath is "/config/sequencer/presets/" (with trailing slash to match node/)
             mount_path = (
-                self.service_config.config.mountPath
-                if self.service_config.config.mountPath
-                else "/config/sequencer/presets/"
+                getattr(self.service_config.config, "mountPath", None)
+                or "/config/sequencer/presets/"
+            )
+            # ConfigMaps are typically read-only by default
+            read_only = (
+                self.service_config.config.readOnly
+                if self.service_config.config.readOnly is not None
+                else True
             )
 
             # Mount as directory (node version uses directory mount)
@@ -207,7 +205,7 @@ class PodBuilder:
                 k8s.VolumeMount(
                     name=f"sequencer-{self.service_config.name}-config",
                     mount_path=mount_path,
-                    read_only=True,
+                    read_only=read_only,
                 )
             )
 
@@ -226,12 +224,13 @@ class PodBuilder:
             )
             secret_volume_name = f"{secret_name}-volume"
             # Default mountPath is "/etc/secrets"
-            mount_path = (
-                self.service_config.secret.mountPath
-                if self.service_config.secret.mountPath
-                else "/etc/secrets"
+            mount_path = getattr(self.service_config.secret, "mountPath", None) or "/etc/secrets"
+            # Secrets are typically read-only by default
+            read_only = (
+                self.service_config.secret.readOnly
+                if self.service_config.secret.readOnly is not None
+                else True
             )
-
             # Get the secret key - if loading from file, use secrets.json
             # Otherwise get the first available key from stringData or data
             secret_key = None
@@ -250,7 +249,7 @@ class PodBuilder:
                         name=secret_volume_name,
                         mount_path=f"{mount_path}/secret.json",
                         sub_path=secret_key,
-                        read_only=True,
+                        read_only=read_only,
                     )
                 )
 
@@ -268,31 +267,37 @@ class PodBuilder:
             external_secret_volume_name = external_secret_target_name
             # Default mountPath is "/etc/secrets"
             mount_path = (
-                self.service_config.externalSecret.mountPath
-                if self.service_config.externalSecret.mountPath
-                else "/etc/secrets"
+                getattr(self.service_config.externalSecret, "mountPath", None) or "/etc/secrets"
             )
-
+            # ExternalSecrets are typically read-only by default
+            read_only = (
+                self.service_config.externalSecret.readOnly
+                if self.service_config.externalSecret.readOnly is not None
+                else True
+            )
             # Mount as directory (node version uses directory mount)
             volume_mounts.append(
                 k8s.VolumeMount(
                     name=external_secret_volume_name,
                     mount_path=mount_path,
-                    read_only=True,
+                    read_only=read_only,
                 )
             )
 
         # Mount persistentVolume if enabled
-        if (
-            self.service_config.persistentVolume
-            and self.service_config.persistentVolume.enabled
-            and self.service_config.persistentVolume.mountPath
-        ):
+        if self.service_config.persistentVolume and self.service_config.persistentVolume.enabled:
+            mount_path = getattr(self.service_config.persistentVolume, "mountPath", None) or "/data"
+            # PersistentVolumes are typically read-write by default
+            read_only = (
+                self.service_config.persistentVolume.readOnly
+                if self.service_config.persistentVolume.readOnly is not None
+                else False
+            )
             volume_mounts.append(
                 k8s.VolumeMount(
                     name=f"sequencer-{self.service_config.name}-data",
-                    mount_path=self.service_config.persistentVolume.mountPath,
-                    read_only=False,
+                    mount_path=mount_path,
+                    read_only=read_only,
                 )
             )
 
@@ -383,7 +388,7 @@ class PodBuilder:
                 k8s.Volume(
                     name=f"sequencer-{self.service_config.name}-data",
                     persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
-                        claim_name=pvc_name
+                        claim_name=pvc_name,
                     ),
                 )
             )
