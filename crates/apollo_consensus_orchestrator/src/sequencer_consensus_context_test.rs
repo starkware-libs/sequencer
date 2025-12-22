@@ -5,7 +5,7 @@ use apollo_batcher_types::batcher_types::{CentralObjects, DecisionReachedRespons
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus::types::{ConsensusContext, Round};
-use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
 use apollo_infra::component_client::ClientError;
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
@@ -80,7 +80,8 @@ async fn validate_proposal_success() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
@@ -116,7 +117,8 @@ async fn dont_send_block_info() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
@@ -143,7 +145,8 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     // Receive a valid proposal.
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     let block_info = ProposalPart::BlockInfo(block_info(BlockNumber(0)));
     content_sender.send(block_info.clone()).await.unwrap();
     let transactions =
@@ -198,7 +201,8 @@ async fn proposals_from_different_rounds() {
     });
 
     // The proposal from the past round is ignored.
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_executed_count.clone()).await.unwrap();
@@ -209,7 +213,8 @@ async fn proposals_from_different_rounds() {
     assert!(fin_receiver_past_round.await.is_err());
 
     // The proposal from the current round should be validated.
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_executed_count.clone()).await.unwrap();
@@ -219,7 +224,8 @@ async fn proposals_from_different_rounds() {
     assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_executed_count.clone()).await.unwrap();
@@ -247,12 +253,12 @@ async fn interrupt_active_proposal() {
     // Keep the sender open, as closing it or sending Fin would cause the validate to complete
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) =
-        mpsc::channel(context.config.proposal_buffer_size);
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     let fin_receiver_0 =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
 
     let (mut content_sender_1, content_receiver) =
-        mpsc::channel(context.config.proposal_buffer_size);
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender_1
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
@@ -482,7 +488,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
         let (mut content_sender, content_receiver) =
-            mpsc::channel(context.config.proposal_buffer_size);
+            mpsc::channel(context.config.static_config.proposal_buffer_size);
         content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
 
         let fin_receiver =
@@ -547,7 +553,8 @@ async fn eth_to_fri_rate_out_of_range() {
         .return_const(Ok(()));
     let mut context = deps.build_context();
     context.set_height_and_round(BlockNumber(0), 0).await;
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
     let mut block_info = block_info(BlockNumber(0));
     block_info.eth_to_fri_rate *= 2;
@@ -567,7 +574,7 @@ async fn eth_to_fri_rate_out_of_range() {
 async fn gas_price_limits(#[case] maximum: bool) {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
-    let context_config = ContextConfig::default();
+    let context_config = ContextDynamicConfig::default();
     let min_gas_price = context_config.min_l1_gas_price_wei;
     let min_data_price = context_config.min_l1_data_gas_price_wei;
     let max_gas_price = context_config.max_l1_gas_price_wei;
@@ -591,7 +598,8 @@ async fn gas_price_limits(#[case] maximum: bool) {
     let mut context = deps.build_context();
 
     context.set_height_and_round(BlockNumber(0), 0).await;
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
 
     let mut block_info = block_info(BlockNumber(0));
 
@@ -730,7 +738,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         panic!("Expected ProposalPart::BlockInfo");
     };
 
-    let default_context_config = ContextConfig::default();
+    let default_context_config = ContextDynamicConfig::default();
     assert_eq!(info.eth_to_fri_rate, DEFAULT_ETH_TO_FRI_RATE);
     // Despite the l1_gas_price_provider being set up not to fail, we still expect the default
     // values because eth_to_strk_rate_oracle_client failed.
@@ -827,7 +835,8 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
@@ -974,17 +983,20 @@ async fn override_prices_behavior(
     deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
 
     let context_config = ContextConfig {
-        override_l2_gas_price_fri,
-        override_l1_gas_price_wei,
-        override_l1_data_gas_price_wei,
-        override_eth_to_fri_rate,
+        dynamic_config: ContextDynamicConfig {
+            override_l2_gas_price_fri,
+            override_l1_gas_price_wei,
+            override_l1_data_gas_price_wei,
+            override_eth_to_fri_rate,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut context = deps.build_context();
     context.config = context_config;
 
     let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
-    let gas_price_params = make_gas_price_params(&context.config);
+    let gas_price_params = make_gas_price_params(&context.config.dynamic_config);
     let mut expected_l1_prices = PriceInfo {
         base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
         blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),

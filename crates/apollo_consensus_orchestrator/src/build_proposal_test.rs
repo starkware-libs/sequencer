@@ -13,7 +13,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
 };
 use apollo_consensus::types::{ProposalCommitment as ConsensusProposalCommitment, Round};
-use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
@@ -99,7 +99,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     let stream_sender = StreamSender { proposal_sender };
     let context_config = ContextConfig::default();
 
-    let gas_price_params = make_gas_price_params(&context_config);
+    let gas_price_params = make_gas_price_params(&context_config.dynamic_config);
     let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
     let proposal_id = ProposalId(1);
     let cende_write_success = AbortOnDropHandle::new(tokio::spawn(async { true }));
