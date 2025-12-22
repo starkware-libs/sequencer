@@ -4,80 +4,13 @@ import random
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import numbers
 import requests
 import socket
-import yaml
-from copy import deepcopy
+from config_loader import find_workspace_root, load_and_merge_configs
 from multiprocessing import Process, Queue
-
-
-def load_yaml(file_path: Path) -> Dict[str, Any]:
-    """Load a YAML file."""
-    if not file_path.exists():
-        return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def deep_merge_dict(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
-    """Deep merge overlay dict into base dict."""
-    result = deepcopy(base)
-    for key, value in overlay.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dict(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def find_workspace_root() -> Optional[str]:
-    """
-    Auto-detect workspace root: ../.. from script location.
-
-    Script is at: scripts/system_tests/liveness_check2.py
-    Repo root is: ../.. from script location
-    """
-    script_dir = Path(__file__).parent.resolve()
-    workspace_root = script_dir.parent.parent.resolve()
-    return str(workspace_root)
-
-
-def load_and_merge_configs(workspace: str, layout: str) -> List[Dict[str, Any]]:
-    """
-    Load and merge sequencer2 configs (layout + common.yaml).
-
-    Returns a list of merged service configs.
-    """
-    base_dir = Path(workspace) / "deployments" / "sequencer2"
-
-    # Load layout common.yaml
-    layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"
-    layout_common = load_yaml(layout_common_path)
-
-    # Load layout service configs
-    layout_services_dir = base_dir / "configs" / "layouts" / layout / "services"
-    layout_services = {}
-    if layout_services_dir.exists():
-        for service_file in layout_services_dir.glob("*.yaml"):
-            service_config = load_yaml(service_file)
-            if "name" in service_config:
-                layout_services[service_config["name"]] = service_config
-
-    # Merge common into each service (service is base, common overlays)
-    merged_services = []
-    for service_name, layout_service in layout_services.items():
-        # Start with service as base, then merge common (common can add/modify, service takes precedence)
-        merged_service = deep_merge_dict(layout_service, layout_common)
-
-        # Ensure name is set (service name always takes precedence)
-        merged_service["name"] = service_name
-        merged_services.append(merged_service)
-
-    return merged_services
 
 
 def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:
@@ -101,11 +34,12 @@ def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, f
         return port
 
     # Fallback: check service.ports for monitoring-endpoint port
+    print("Fallback: checking service.ports for monitoring-endpoint port")
     service_ports = service_config.get("service", {}).get("ports", [])
     for port_config in service_ports:
         if isinstance(port_config, dict):
             port_name = port_config.get("name", "").lower()
-            if "monitoring" in port_name:
+            if "monitoring" in port_name or "monitoring-endpoint" in port_name:
                 port_value = port_config.get("port")
                 if isinstance(port_value, numbers.Number):
                     return port_value
@@ -410,6 +344,12 @@ if __name__ == "__main__":
         default=int(os.getenv("INITIAL_DELAY_SEC", "10")),
         help="Initial delay before starting health checks (default: env INITIAL_DELAY_SEC or 10)",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
 
     args = parser.parse_args()
 
@@ -426,8 +366,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Load sequencer2 configs
-    print(f"📋 Loading sequencer2 configs: layout={args.layout}")
-    merged_services = load_and_merge_configs(workspace=workspace, layout=args.layout)
+    overlay_info = f", overlay={args.overlay}" if args.overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={args.layout}{overlay_info}")
+    merged_services = load_and_merge_configs(
+        workspace=workspace, layout=args.layout, overlay=args.overlay
+    )
 
     main(
         services=merged_services,
