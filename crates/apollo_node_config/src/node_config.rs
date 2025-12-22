@@ -169,6 +169,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         &RevertConfig::default(),
         set_pointing_param_paths(&[
             "state_sync_config.revert_config",
+            "batcher_config.revert_config",
             "consensus_manager_config.revert_config",
         ]),
     );
