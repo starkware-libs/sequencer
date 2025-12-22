@@ -13,7 +13,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::{expect, expect_file, Expect};
+use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
@@ -40,6 +40,7 @@ use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -47,7 +48,6 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
-use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -65,6 +65,7 @@ use starknet_os::io::os_output_types::{
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
+use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -300,12 +301,7 @@ impl<S: FlowTestState> OsTestOutput<S> {
     }
 
     pub(crate) fn expect_hint_coverage(&self, test_name: &str) {
-        let covered_hints = AllHints::all_iter()
-            .filter(|hint| !self.runner_output.unused_hints.contains(hint))
-            .sorted()
-            .collect::<Vec<_>>();
-        expect_file![format!("../resources/hint_coverage/{test_name}.json")]
-            .assert_eq(&serde_json::to_string_pretty(&covered_hints).unwrap());
+        expect_hint_coverage(&self.runner_output.unused_hints, test_name);
     }
 }
 
@@ -667,6 +663,16 @@ impl<S: FlowTestState> TestManager<S> {
             .await;
             map_storage = db.consume_storage();
 
+            // TODO(Nimrod): Remove the `class_hashes_from_execution_infos` patch.
+            let class_hashes_from_execution_infos: HashSet<ClassHash> = execution_outputs
+                .iter()
+                .flat_map(|(execution_info, _)| {
+                    execution_info
+                        .summarize(VersionedConstants::latest_constants())
+                        .executed_class_hashes
+                })
+                .collect();
+
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
                 create_cached_state_input_and_commitment_infos(
@@ -674,6 +680,7 @@ impl<S: FlowTestState> TestManager<S> {
                     &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
+                    &class_hashes_from_execution_infos,
                 )
                 .await;
             let tx_execution_infos = execution_outputs

@@ -16,7 +16,7 @@ pub fn validate_ascii(name: &impl ToString) -> Result<(), ValidationError> {
 }
 
 /// Custom validation for file or directory path existence.
-pub(crate) fn validate_path_exists(file_path: &Path) -> Result<(), ValidationError> {
+pub fn validate_path_exists(file_path: &Path) -> Result<(), ValidationError> {
     if !file_path.exists() {
         let mut error = ValidationError::new("file or directory not found");
         error.message = Some(

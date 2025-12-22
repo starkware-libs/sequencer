@@ -169,6 +169,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
@@ -368,6 +373,21 @@
     "description": "The categories of data saved in storage.",
     "privacy": "Public",
     "value": "StateOnly"
+  },
+  "batcher_config.storage_reader_server_config.enable": {
+    "description": "Whether to enable the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.storage_reader_server_config.ip": {
+    "description": "The IP address for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "batcher_config.storage_reader_server_config.port": {
+    "description": "The port for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": 8080
   },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -1028,116 +1048,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
-  },
-  "components.l1_endpoint_monitor.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_endpoint_monitor.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": {
-    "description": "The high priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": {
-    "description": "The inbound requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": {
-    "description": "The normal priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": {
-    "description": "Request processing threshold time in ms after which a warning message is logged.",
-    "privacy": "Public",
-    "value": 3000
-  },
-  "components.l1_endpoint_monitor.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.l1_endpoint_monitor.port": {
-    "description": "Listening port of the remote component server.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "components.l1_endpoint_monitor.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_endpoint_monitor.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_endpoint_monitor.remote_client_config.connection_timeout_ms": {
-    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
-    "privacy": "Public",
-    "value": 500
-  },
-  "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": {
-    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "components.l1_endpoint_monitor.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 150
-  },
-  "components.l1_endpoint_monitor.remote_client_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the client requests.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_endpoint_monitor.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_endpoint_monitor.remote_server_config.bind_ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.l1_endpoint_monitor.remote_server_config.max_streams_per_connection": {
-    "description": "Maximal number of streams per HTTP connection.",
-    "privacy": "Public",
-    "value": 8
-  },
-  "components.l1_endpoint_monitor.remote_server_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the server responses.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_endpoint_monitor.url": {
-    "description": "URL of the remote component server.",
-    "privacy": "Public",
-    "value": "localhost"
   },
   "components.l1_gas_price_provider.execution_mode": {
     "description": "The component execution mode.",
@@ -2499,6 +2409,11 @@
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
   },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
@@ -2603,21 +2518,6 @@
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
-  },
-  "l1_endpoint_monitor_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": {
-    "description": "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the current one is non-operational.",
-    "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"
-  },
-  "l1_endpoint_monitor_config.timeout_millis": {
-    "description": "The timeout (milliseconds) for a query of the L1 base layer",
-    "privacy": "Public",
-    "value": 1000
   },
   "l1_gas_price_provider_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -3369,6 +3269,21 @@
     "privacy": "Public",
     "value": "FullArchive"
   },
+  "state_sync_config.storage_reader_server_config.enable": {
+    "description": "Whether to enable the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.storage_reader_server_config.ip": {
+    "description": "The IP address for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "state_sync_config.storage_reader_server_config.port": {
+    "description": "The port for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": 8080
+  },
   "strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "privacy": "TemporaryValue",
@@ -3383,6 +3298,11 @@
     "description": "The ID of the validator. Also the address of this validator as a starknet contract.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",

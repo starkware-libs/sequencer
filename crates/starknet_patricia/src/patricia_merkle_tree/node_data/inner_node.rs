@@ -19,22 +19,22 @@ pub mod inner_node_test;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumDiscriminants))]
 #[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(strum_macros::EnumIter)))]
-// A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
-pub enum NodeData<L: Leaf> {
-    Binary(BinaryData),
-    Edge(EdgeData),
+// A Patricia-Merkle tree node's data.
+pub enum NodeData<L: Leaf, ChildData> {
+    Binary(BinaryData<ChildData>),
+    Edge(EdgeData<ChildData>),
     Leaf(L),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct BinaryData {
-    pub left_hash: HashOutput,
-    pub right_hash: HashOutput,
+pub struct BinaryData<ChildData> {
+    pub left_data: ChildData,
+    pub right_data: ChildData,
 }
 
-impl BinaryData {
+impl BinaryData<HashOutput> {
     pub fn flatten(&self) -> Vec<Felt> {
-        vec![self.left_hash.0, self.right_hash.0]
+        vec![self.left_data.0, self.right_data.0]
     }
 }
 
@@ -141,17 +141,17 @@ impl PathToBottom {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct EdgeData {
-    pub bottom_hash: HashOutput,
+pub struct EdgeData<ChildData> {
+    pub bottom_data: ChildData,
     pub path_to_bottom: PathToBottom,
 }
 
-impl EdgeData {
+impl EdgeData<HashOutput> {
     pub fn flatten(&self) -> Vec<Felt> {
         vec![
             self.path_to_bottom.length.into(),
             (&self.path_to_bottom.path).into(),
-            self.bottom_hash.0,
+            self.bottom_data.0,
         ]
     }
 }
@@ -200,10 +200,12 @@ impl PathToBottom {
     }
 }
 
+// TODO(Ariel): Move Preimage to the fact_db module in starknet_committer (add a flatten
+// trait to be implemented in starknet_committer for BinaryData and EdgeData).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Preimage {
-    Binary(BinaryData),
-    Edge(EdgeData),
+    Binary(BinaryData<HashOutput>),
+    Edge(EdgeData<HashOutput>),
 }
 
 pub type PreimageMap = HashMap<HashOutput, Preimage>;
@@ -223,7 +225,7 @@ impl Preimage {
         }
     }
 
-    pub fn get_binary(&self) -> Result<&BinaryData, PreimageError> {
+    pub fn get_binary(&self) -> Result<&BinaryData<HashOutput>, PreimageError> {
         match self {
             Self::Binary(binary) => Ok(binary),
             Self::Edge(_) => Err(PreimageError::ExpectedBinary(self.clone())),
@@ -244,12 +246,12 @@ impl TryFrom<&Vec<Felt>> for Preimage {
     fn try_from(raw_preimage: &Vec<Felt>) -> Result<Self, Self::Error> {
         match raw_preimage.as_slice() {
             [left, right] => Ok(Preimage::Binary(BinaryData {
-                left_hash: HashOutput(*left),
-                right_hash: HashOutput(*right),
+                left_data: HashOutput(*left),
+                right_data: HashOutput(*right),
             })),
             [length, path, bottom] => {
                 Ok(Preimage::Edge(EdgeData {
-                    bottom_hash: HashOutput(*bottom),
+                    bottom_data: HashOutput(*bottom),
                     path_to_bottom: PathToBottom::new(
                         (*path).into(),
                         EdgePathLength::new((*length).try_into().map_err(|_| {

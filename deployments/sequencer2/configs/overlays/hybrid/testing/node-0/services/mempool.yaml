@@ -5,13 +5,18 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
   sequencerConfig:
-    components_class_manager_url: sequencer-core-service
     components_class_manager_port: 55001
-    components_gateway_url: sequencer-gateway-service
+    components_class_manager_url: sequencer-core-service
     components_gateway_port: 55002
-    components_mempool_url: sequencer-mempool-service
+    components_gateway_url: sequencer-gateway-service
     components_mempool_port: 55006
+    components_mempool_url: sequencer-mempool-service
     mempool_config_dynamic_config_transaction_ttl: 300
+    mempool_p2p_config_network_config_advertised_multiaddr_is_none: true
+    mempool_p2p_config_network_config_advertised_multiaddr: ""
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr_is_none: true
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr: ""
+    mempool_p2p_config_network_config_port: 53200
 
 service:
   enabled: true

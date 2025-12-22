@@ -2,9 +2,17 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::{StorageConfig, StorageScope};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
@@ -38,9 +46,7 @@ impl Default for BlockBuilderConfig {
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
-            // TODO(Itamar): Change to None once the versioned constants overrides are optional in
-            // the config schema.
-            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
+            versioned_constants_overrides: None,
         }
     }
 }
@@ -71,8 +77,8 @@ impl SerializeConfig for BlockBuilderConfig {
              being executed, the proposer will finish building the current block.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump
@@ -178,7 +184,7 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_config"))]
 pub struct BatcherConfig {
-    pub storage: apollo_storage::StorageConfig,
+    pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
@@ -188,6 +194,7 @@ pub struct BatcherConfig {
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
     pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
+    pub storage_reader_server_config: ServerConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -222,6 +229,10 @@ impl SerializeConfig for BatcherConfig {
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
         dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_config.dump(),
+            "storage_reader_server_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
         ));
@@ -248,13 +259,13 @@ impl SerializeConfig for BatcherConfig {
 impl Default for BatcherConfig {
     fn default() -> Self {
         Self {
-            storage: apollo_storage::StorageConfig {
-                db_config: apollo_storage::db::DbConfig {
+            storage: StorageConfig {
+                db_config: DbConfig {
                     path_prefix: "/data/batcher".into(),
                     enforce_file_exists: false,
                     ..Default::default()
                 },
-                scope: apollo_storage::StorageScope::StateOnly,
+                scope: StorageScope::StateOnly,
                 ..Default::default()
             },
             // TODO(AlonH): set a more reasonable default value.
@@ -268,6 +279,7 @@ impl Default for BatcherConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             // TODO(Rotem): set a more reasonable default value.
             first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
+            storage_reader_server_config: ServerConfig::default(),
         }
     }
 }

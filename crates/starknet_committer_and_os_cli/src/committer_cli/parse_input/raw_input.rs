@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
-use starknet_committer::block_committer::input::ConfigImpl;
 use tracing::level_filters::LevelFilter;
 type RawFelt = [u8; 32];
 
@@ -24,8 +23,8 @@ pub(crate) struct RawStorageEntry {
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct RawConfigImpl {
-    warn_on_trivial_modifications: bool,
-    log_level: PythonLogLevel,
+    pub warn_on_trivial_modifications: bool,
+    pub log_level: PythonLogLevel,
 }
 
 #[derive(Deserialize_repr, Debug, Default, Serialize)]
@@ -43,16 +42,15 @@ pub(crate) enum PythonLogLevel {
     Debug = 10,
 }
 
-impl From<RawConfigImpl> for ConfigImpl {
-    fn from(raw_config: RawConfigImpl) -> Self {
-        let log_level = match raw_config.log_level {
-            PythonLogLevel::NotSet => LevelFilter::TRACE,
-            PythonLogLevel::Debug => LevelFilter::DEBUG,
-            PythonLogLevel::Info => LevelFilter::INFO,
-            PythonLogLevel::Warning => LevelFilter::WARN,
-            PythonLogLevel::Error | PythonLogLevel::Critical => LevelFilter::ERROR,
-        };
-        ConfigImpl::new(raw_config.warn_on_trivial_modifications, log_level)
+impl From<PythonLogLevel> for LevelFilter {
+    fn from(log_level: PythonLogLevel) -> Self {
+        match log_level {
+            PythonLogLevel::NotSet => Self::TRACE,
+            PythonLogLevel::Debug => Self::DEBUG,
+            PythonLogLevel::Info => Self::INFO,
+            PythonLogLevel::Warning => Self::WARN,
+            PythonLogLevel::Error | PythonLogLevel::Critical => Self::ERROR,
+        }
     }
 }
 

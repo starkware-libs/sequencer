@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -39,9 +39,9 @@ use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    ConfigImpl,
     FactsDbInitialRead,
     Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
@@ -149,7 +149,7 @@ pub(crate) async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> StateRoots {
-    let config = ConfigImpl::default();
+    let config = ReaderConfig::default();
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
@@ -223,6 +223,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> (StateMaps, StateCommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
@@ -312,6 +313,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
             previous_root_hash: previous_state_roots.contracts_trie_root_hash,
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
+        class_hashes_from_execution_infos,
     )
     .await;
     let contracts_trie_commitment_info = CommitmentInfo {
@@ -463,12 +465,14 @@ async fn fetch_storage_proofs_from_state_maps(
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> StarknetForestProofs {
     let class_hashes: Vec<ClassHash> = state_maps
         .compiled_class_hashes
         .keys()
         .cloned()
         .chain(state_maps.class_hashes.values().cloned())
+        .chain(class_hashes_from_execution_infos.iter().cloned())
         .collect();
     let contract_addresses =
         &state_maps.get_contract_addresses().iter().cloned().collect::<Vec<_>>();

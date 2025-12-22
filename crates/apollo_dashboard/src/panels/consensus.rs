@@ -341,6 +341,7 @@ fn get_panel_consensus_num_connected_peers() -> Panel {
         CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
+    .with_log_query("network_manager")
 }
 
 fn get_panel_consensus_votes_num_sent_messages() -> Panel {

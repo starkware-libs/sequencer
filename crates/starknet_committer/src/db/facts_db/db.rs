@@ -19,9 +19,8 @@ use starknet_patricia_storage::storage_trait::{
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    Config,
-    ConfigImpl,
     FactsDbInitialRead,
+    ReaderConfig,
     StarknetStorageValue,
 };
 use crate::db::facts_db::create_facts_tree::{
@@ -76,7 +75,7 @@ impl<S: Storage> FactsDb<S> {
         &mut self,
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        config: &impl Config,
+        config: &ReaderConfig,
         storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
         let mut storage_tries = HashMap::new();
@@ -108,7 +107,7 @@ impl<S: Storage> FactsDb<S> {
         &mut self,
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
-        config: &impl Config,
+        config: &ReaderConfig,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
         let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
@@ -131,17 +130,18 @@ impl FactsDb<MapStorage> {
     }
 }
 
-impl<'a, S: Storage> ForestReader<'a, FactsDbInitialRead> for FactsDb<S> {
+#[async_trait]
+impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
-    async fn read(
+    async fn read<'a>(
         &mut self,
         context: FactsDbInitialRead,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
-        config: ConfigImpl,
+        config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         let (contracts_trie, original_contracts_trie_leaves) = self
             .create_contracts_trie(

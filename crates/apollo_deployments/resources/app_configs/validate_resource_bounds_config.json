@@ -1,0 +1,8 @@
+{
+  "chain_id": "",
+  "eth_fee_token_address": "",
+  "starknet_url": "",
+  "strk_fee_token_address": "",
+  "validate_resource_bounds": true,
+  "validator_id": ""
+}

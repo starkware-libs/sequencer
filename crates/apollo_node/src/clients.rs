@@ -49,16 +49,6 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
-use apollo_l1_endpoint_monitor::communication::{
-    LocalL1EndpointMonitorClient,
-    RemoteL1EndpointMonitorClient,
-};
-use apollo_l1_endpoint_monitor_types::{
-    L1EndpointMonitorRequest,
-    L1EndpointMonitorResponse,
-    SharedL1EndpointMonitorClient,
-    L1_ENDPOINT_MONITOR_INFRA_METRICS,
-};
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
@@ -109,7 +99,6 @@ pub struct SequencerNodeClients {
     committer_client: Client<CommitterRequest, CommitterResponse>,
     config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
-    l1_endpoint_monitor_client: Client<L1EndpointMonitorRequest, L1EndpointMonitorResponse>,
     l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
     l1_gas_price_client: Client<L1GasPriceRequest, L1GasPriceResponse>,
     mempool_client: Client<MempoolRequest, MempoolResponse>,
@@ -205,16 +194,6 @@ impl SequencerNodeClients {
 
     pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
         get_shared_client!(self, gateway_client)
-    }
-
-    pub fn get_l1_endpoint_monitor_local_client(
-        &self,
-    ) -> Option<LocalComponentClient<L1EndpointMonitorRequest, L1EndpointMonitorResponse>> {
-        self.l1_endpoint_monitor_client.get_local_client()
-    }
-
-    pub fn get_l1_endpoint_monitor_shared_client(&self) -> Option<SharedL1EndpointMonitorClient> {
-        get_shared_client!(self, l1_endpoint_monitor_client)
     }
 
     pub fn get_l1_provider_local_client(
@@ -433,18 +412,6 @@ pub fn create_node_clients(
         &GATEWAY_INFRA_METRICS.get_remote_client_metrics()
     );
 
-    let l1_endpoint_monitor_client = create_client!(
-        &config.components.l1_endpoint_monitor.execution_mode,
-        LocalL1EndpointMonitorClient,
-        RemoteL1EndpointMonitorClient,
-        channels.take_l1_endpoint_monitor_tx(),
-        &config.components.l1_endpoint_monitor.remote_client_config,
-        &config.components.l1_endpoint_monitor.url,
-        config.components.l1_endpoint_monitor.port,
-        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_local_client_metrics(),
-        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_client_metrics()
-    );
-
     let l1_provider_client = create_client!(
         &config.components.l1_provider.execution_mode,
         LocalL1ProviderClient,
@@ -535,7 +502,6 @@ pub fn create_node_clients(
         committer_client,
         config_manager_client,
         gateway_client,
-        l1_endpoint_monitor_client,
         l1_provider_client,
         l1_gas_price_client,
         mempool_client,

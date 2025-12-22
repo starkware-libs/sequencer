@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use apollo_class_manager_config::config::{ClassManagerConfig, FsClassManagerConfig};
 use apollo_class_manager_types::{
     ClassHashes,
@@ -15,7 +17,7 @@ use apollo_compile_to_casm_types::{
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::metrics::register_metrics;
@@ -60,6 +62,7 @@ where
             return Ok(ClassHashes { class_hash, executable_class_hash_v2 });
         }
 
+        let compilation_start_time = Instant::now();
         let (raw_executable_class, executable_class_hash_v2) =
             self.compiler.compile(class.clone()).await.map_err(|err| match err {
                 SierraCompilerClientError::SierraCompilerError(error) => {
@@ -69,6 +72,14 @@ where
                     ClassManagerError::Client(error.to_string())
                 }
             })?;
+        debug!(
+            %class_hash,
+            compiled_class_hash = %executable_class_hash_v2,
+            compilation_elapsed_ms = compilation_start_time.elapsed().as_millis(),
+            class_size_bytes = class.size().map(|size| size.to_string()).unwrap_or("Failed to get class size".to_owned()),
+            casm_size_bytes = raw_executable_class.size().map(|size| size.to_string()).unwrap_or("Failed to get casm size".to_owned()),
+            "Finished compiling class."
+        );
 
         self.validate_class_length(&raw_executable_class)?;
         Self::validate_class_version(&sierra_class)?;

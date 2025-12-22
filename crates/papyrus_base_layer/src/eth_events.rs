@@ -24,6 +24,7 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
     let log = log.inner;
 
     let event = Starknet::StarknetEvents::decode_log(&log)?.data;
+
     match event {
         Starknet::StarknetEvents::LogMessageToL2(event) => {
             let fee = Fee(event.fee.try_into().map_err(EthereumBaseLayerError::FeeOutOfRange)?);
@@ -37,7 +38,9 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
             Ok(L1Event::ConsumedMessageToL2 { tx, timestamp: block_timestamp })
         }
         Starknet::StarknetEvents::MessageToL2Canceled(event) => {
-            Ok(L1Event::MessageToL2Canceled(event.try_into()?))
+            let event_data: EventData = event.try_into()?;
+            let cancelled_tx = L1HandlerTransaction::from(event_data);
+            Ok(L1Event::MessageToL2Canceled { cancelled_tx })
         }
         Starknet::StarknetEvents::MessageToL2CancellationStarted(event) => {
             Ok(L1Event::MessageToL2CancellationStarted {

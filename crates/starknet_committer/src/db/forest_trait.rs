@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::future::Future;
 
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -8,7 +7,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
-use crate::block_committer::input::{ConfigImpl, InputContext, StarknetStorageValue};
+use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -48,18 +47,16 @@ pub trait ForestMetadata {
 
 /// Trait for reading an original skeleton forest from some storage.
 /// The implementation may depend on the underlying storage layout.
-pub trait ForestReader<'a, I: InputContext> {
-    fn read(
+#[async_trait]
+pub trait ForestReader<I: InputContext> {
+    async fn read<'a>(
         &mut self,
         context: I,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
-        // TODO(Yoav): Change to 'impl Config' or delete this trait
-        config: ConfigImpl,
-    ) -> impl Future<
-        Output = ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>,
-    > + Send;
+        config: ReaderConfig,
+    ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
 }
 
 #[async_trait]
@@ -90,5 +87,5 @@ pub trait ForestWriter: ForestMetadata + Send {
     }
 }
 
-pub trait ForestStorage<'a, I: InputContext>: ForestReader<'a, I> + ForestWriter {}
-impl<'a, I: InputContext, T: ForestReader<'a, I> + ForestWriter> ForestStorage<'a, I> for T {}
+pub trait ForestStorage<I: InputContext>: ForestReader<I> + ForestWriter {}
+impl<I: InputContext, T: ForestReader<I> + ForestWriter> ForestStorage<I> for T {}

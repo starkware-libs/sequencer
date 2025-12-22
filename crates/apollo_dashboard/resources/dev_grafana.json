@@ -402,7 +402,7 @@
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {
-            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\""
+            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being executed and\""
           }
         },
         {
@@ -1146,7 +1146,9 @@
           "exprs": [
             "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"network_manager\""
+          }
         },
         {
           "title": "Consensus Proposals Sent Message Size MB/sec",
@@ -1310,13 +1312,15 @@
     "MempoolP2p": {
       "panels": [
         {
-          "title": "Apollo Mempool P2p Num Connected Peers",
-          "description": "The number of connected peers to the mempool p2p component",
-          "type": "timeseries",
+          "title": "Number of Connected Peers",
+          "description": "The number of connected peers in Mempool P2P",
+          "type": "stat",
           "exprs": [
             "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"network_manager\""
+          }
         },
         {
           "title": "Number of sent messages",
@@ -2150,74 +2154,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(gateway_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 gateway_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(gateway_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 gateway_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(gateway_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 gateway_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "L1 Endpoint Monitor Infra": {
-      "panels": [
-        {
-          "title": "Local request receiving rate",
-          "description": "Increase of received local requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_endpoint_monitor_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Processing queue depths",
-          "description": "The depth of the local priority queues",
-          "type": "timeseries",
-          "exprs": [
-            "l1_endpoint_monitor_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
-            "l1_endpoint_monitor_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request receiving rate",
-          "description": "Increase of received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_endpoint_monitor_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Number of remote connections",
-          "description": "Number of currently-open remote connections",
-          "type": "timeseries",
-          "exprs": [
-            "l1_endpoint_monitor_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_active_l1_endpoint (client-side)",
-          "description": "client-side infra metrics for request type get_active_l1_endpoint",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_endpoint_monitor_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.50 l1_endpoint_monitor_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_endpoint_monitor_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.95 l1_endpoint_monitor_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_endpoint_monitor_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.50 l1_endpoint_monitor_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_endpoint_monitor_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.95 l1_endpoint_monitor_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_endpoint_monitor_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.50 l1_endpoint_monitor_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_endpoint_monitor_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.95 l1_endpoint_monitor_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_active_l1_endpoint (server-side)",
-          "description": "server-side infra metrics for request type get_active_l1_endpoint",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_endpoint_monitor_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.50 l1_endpoint_monitor_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_endpoint_monitor_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.95 l1_endpoint_monitor_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_endpoint_monitor_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.50 l1_endpoint_monitor_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_endpoint_monitor_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_active_l1_endpoint\"}[5m])), \"label_name\", \"0.95 l1_endpoint_monitor_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         }

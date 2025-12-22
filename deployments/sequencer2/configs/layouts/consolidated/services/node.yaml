@@ -46,6 +46,7 @@ config:
     state_sync_config_network_config_is_none: "$$$_STATE_SYNC_CONFIG-NETWORK_CONFIG-IS_NONE_$$$"
     state_sync_config_p2p_sync_client_config_is_none: "$$$_STATE_SYNC_CONFIG-P2P_SYNC_CLIENT_CONFIG-IS_NONE_$$$"
     state_sync_config_rpc_config_port: "$$$_STATE_SYNC_CONFIG-RPC_CONFIG-PORT_$$$"
+    state_sync_config_storage_reader_server_config_port: "$$$_STATE_SYNC_CONFIG-STORAGE_READER_SERVER_CONFIG-PORT_$$$"
     strk_fee_token_address: "$$$_STRK_FEE_TOKEN_ADDRESS_$$$"
     validator_id: "$$$_VALIDATOR_ID_$$$"
 
