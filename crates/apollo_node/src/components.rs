@@ -467,7 +467,13 @@ pub async fn create_node_components(
                 .l1_gas_price_provider_config
                 .as_ref()
                 .expect("L1 Gas Price Provider config should be set");
-            Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
+            Some(L1GasPriceProvider::new_with_oracle(
+                l1_gas_price_provider_config.clone(),
+                Some(config_manager_client),
+            ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.

@@ -22,6 +22,7 @@ pub type L1GasPriceScraperServer<B> = WrapperServer<L1GasPriceScraper<MonitoredB
 impl ComponentRequestHandler<L1GasPriceRequest, L1GasPriceResponse> for L1GasPriceProvider {
     #[instrument(skip(self))]
     async fn handle_request(&mut self, request: L1GasPriceRequest) -> L1GasPriceResponse {
+        self.update_dynamic_config().await;
         match request {
             L1GasPriceRequest::Initialize => L1GasPriceResponse::Initialize(self.initialize()),
             L1GasPriceRequest::GetGasPrice(timestamp) => {

@@ -2,6 +2,7 @@ use std::any::type_name;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
@@ -59,20 +60,30 @@ pub struct L1GasPriceProvider {
     // If received data before initialization (is None), it means the scraper has restarted.
     price_samples_by_block: Option<RingBuffer<GasPriceData>>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(
         config: L1GasPriceProviderConfig,
         eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+        config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
-        Self { config, price_samples_by_block: None, eth_to_strk_oracle_client }
+        Self {
+            config,
+            price_samples_by_block: None,
+            eth_to_strk_oracle_client,
+            config_manager_client,
+        }
     }
 
-    pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
+    pub fn new_with_oracle(
+        config: L1GasPriceProviderConfig,
+        config_manager_client: Option<SharedConfigManagerClient>,
+    ) -> Self {
         let eth_to_strk_oracle_client =
             EthToStrkOracleClient::new(config.dynamic_config.eth_to_strk_oracle_config.clone());
-        Self::new(config, Arc::new(eth_to_strk_oracle_client))
+        Self::new(config, Arc::new(eth_to_strk_oracle_client), config_manager_client)
     }
 
     pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
@@ -189,6 +200,21 @@ impl L1GasPriceProvider {
             .eth_to_fri_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::EthToStrkOracleClientError)
+    }
+
+    pub async fn update_dynamic_config(&mut self) {
+        let l1_gas_price_provider_dynamic_config = self
+            .config_manager_client
+            .get_l1_gas_price_provider_dynamic_config()
+            .await
+            .expect("Should be able to get L1 gas price provider dynamic config");
+
+        // TODO(guyn): add dynamic updating to the provider, too.
+
+        // Update the eth to strk oracle client dynamic config.
+        self.eth_to_strk_oracle_client
+            .update_dynamic_config(l1_gas_price_provider_dynamic_config.eth_to_strk_oracle_config)
+            .await;
     }
 }
 
