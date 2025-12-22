@@ -23,7 +23,11 @@ use apollo_consensus_config::config::{
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
-use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
+use apollo_consensus_orchestrator_config::config::{
+    CendeConfig,
+    ContextConfig,
+    ContextStaticConfig,
+};
 use apollo_gateway_config::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,
@@ -363,9 +367,12 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 },
             },
             context_config: ContextConfig {
-                num_validators,
-                chain_id: chain_id.clone(),
-                builder_address: ContractAddress::from(4_u128),
+                static_config: ContextStaticConfig {
+                    num_validators,
+                    chain_id: chain_id.clone(),
+                    builder_address: ContractAddress::from(4_u128),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             cende_config: CendeConfig {

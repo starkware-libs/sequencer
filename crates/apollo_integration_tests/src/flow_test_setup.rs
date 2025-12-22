@@ -340,7 +340,7 @@ pub fn create_consensus_manager_configs_and_channels(
     );
 
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
-        config.context_config.builder_address =
+        config.context_config.static_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
     }
 

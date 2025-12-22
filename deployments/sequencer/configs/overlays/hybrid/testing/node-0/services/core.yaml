@@ -37,16 +37,16 @@ config:
     components_state_sync_url: sequencer-core-service
     consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_base: 9.1
     consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_max: 15.0
-    consensus_manager_config_context_config_build_proposal_margin_millis: 1000
-    consensus_manager_config_context_config_num_validators: 1
-    consensus_manager_config_context_config_override_eth_to_fri_rate_is_none: true
-    consensus_manager_config_context_config_override_eth_to_fri_rate: 0
-    consensus_manager_config_context_config_override_l1_data_gas_price_wei_is_none: true
-    consensus_manager_config_context_config_override_l1_data_gas_price_wei: 0
-    consensus_manager_config_context_config_override_l1_gas_price_wei_is_none: true
-    consensus_manager_config_context_config_override_l1_gas_price_wei: 0
-    consensus_manager_config_context_config_override_l2_gas_price_fri_is_none: true
-    consensus_manager_config_context_config_override_l2_gas_price_fri: 0
+    consensus_manager_config_context_config_static_config_build_proposal_margin_millis: 1000
+    consensus_manager_config_context_config_static_config_num_validators: 1
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_wei_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_wei: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_wei_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_wei: 0
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri: 0
     consensus_manager_config_network_config_advertised_multiaddr_is_none: true
     consensus_manager_config_network_config_advertised_multiaddr: ""
     consensus_manager_config_network_config_bootstrap_peer_multiaddr_is_none: true
