@@ -2110,6 +2110,7 @@ name = "apollo_network_benchmark"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "futures",
  "lazy_static",
  "metrics-exporter-prometheus",
  "rstest",
