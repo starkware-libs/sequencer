@@ -35,10 +35,12 @@ use starknet_api::executable_transaction::{
     TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::HashOutput;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
+    NonceManager,
     CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
@@ -93,6 +95,9 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
+    InitialState,
+    InitialStateData,
+    OsExecutionContracts,
 };
 use crate::special_contracts::{
     DATA_GAS_ACCOUNT_CONTRACT_CASM,
@@ -3068,4 +3073,35 @@ async fn test_load_bottom() {
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_load_bottom");
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_initial_empty_block() {
+    let empty_initial_state = InitialState {
+        updatable_state: DictStateReader::default(),
+        commitment_storage: Default::default(),
+        contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        next_block_number: BlockNumber(0),
+    };
+    let empty_initial_state_data = InitialStateData {
+        initial_state: empty_initial_state,
+        nonce_manager: NonceManager::default(),
+        execution_contracts: OsExecutionContracts::default(),
+    };
+    let test_manager = TestManager::new_with_initial_state_data(empty_initial_state_data);
+
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(
+        Const::AliasContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+        HashMap::from([(
+            Const::AliasCounterStorageKey.fetch_from_os_program().unwrap(),
+            Const::InitialAvailableAlias.fetch_from_os_program().unwrap(),
+        )]),
+    );
+    test_output.expect_hint_coverage("test_initial_empty_block");
 }
