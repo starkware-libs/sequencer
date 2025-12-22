@@ -16,10 +16,7 @@ pub trait StateReaderFactory: Send + Sync {
 
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<(
-        Self::StateReaderWithCompiledClasses,
-        Box<Self::FixedBlockStateReader>,
-    )>;
+    ) -> StateSyncClientResult<(Self::StateReaderWithCompiledClasses, Self::FixedBlockStateReader)>;
 }
 
 // TODO(Arni): Delete this trait, once we replace `dyn GatewayStateReaderWithCompiledClasses` with
