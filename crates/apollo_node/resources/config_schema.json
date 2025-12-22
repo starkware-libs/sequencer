@@ -2024,132 +2024,132 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
-  "consensus_manager_config.context_config.block_timestamp_window_seconds": {
-    "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus_manager_config.context_config.build_proposal_margin_millis": {
-    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "consensus_manager_config.context_config.build_proposal_time_ratio_for_retrospective_block_hash": {
-    "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
-    "privacy": "Public",
-    "value": 0.7
-  },
-  "consensus_manager_config.context_config.builder_address": {
-    "description": "The address of the contract that builds the block.",
-    "privacy": "Public",
-    "value": "0x0"
-  },
-  "consensus_manager_config.context_config.chain_id": {
-    "description": "The chain id of the Starknet chain.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "consensus_manager_config.context_config.l1_da_mode": {
-    "description": "The data availability mode, true: Blob, false: Calldata.",
-    "privacy": "Public",
-    "value": true
-  },
-  "consensus_manager_config.context_config.l1_data_gas_price_multiplier_ppt": {
+  "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": {
     "description": "Part per thousand of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
     "privacy": "Public",
     "value": 135
   },
-  "consensus_manager_config.context_config.l1_gas_tip_wei": {
+  "consensus_manager_config.context_config.dynamic_config.l1_gas_tip_wei": {
     "description": "This additional gas is added to the L1 gas price.",
     "privacy": "Public",
     "value": 1000000000
   },
-  "consensus_manager_config.context_config.max_l1_data_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
     "privacy": "Public",
     "value": 1000000000000000000
   },
-  "consensus_manager_config.context_config.max_l1_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.max_l1_gas_price_wei": {
     "description": "The maximum L1 gas price in wei.",
     "privacy": "Public",
     "value": 200000000000
   },
-  "consensus_manager_config.context_config.min_l1_data_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.min_l1_data_gas_price_wei": {
     "description": "The minimum L1 data gas price in wei.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.context_config.min_l1_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.min_l1_gas_price_wei": {
     "description": "The minimum L1 gas price in wei.",
     "privacy": "Public",
     "value": 1000000000
   },
-  "consensus_manager_config.context_config.num_validators": {
-    "description": "The number of validators.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus_manager_config.context_config.override_eth_to_fri_rate": {
+  "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate": {
     "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.override_l1_data_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_wei": {
     "description": "Replace the L1 data gas price (wei) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.override_l1_gas_price_wei": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_wei": {
     "description": "Replace the L1 gas price (wei) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.override_l2_gas_price_fri": {
+  "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri": {
     "description": "Replace the L2 gas price (fri) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.proposal_buffer_size": {
+  "consensus_manager_config.context_config.static_config.block_timestamp_window_seconds": {
+    "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "consensus_manager_config.context_config.static_config.build_proposal_margin_millis": {
+    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus_manager_config.context_config.static_config.build_proposal_time_ratio_for_retrospective_block_hash": {
+    "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
+    "privacy": "Public",
+    "value": 0.7
+  },
+  "consensus_manager_config.context_config.static_config.builder_address": {
+    "description": "The address of the contract that builds the block.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "consensus_manager_config.context_config.static_config.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.context_config.static_config.l1_da_mode": {
+    "description": "The data availability mode, true: Blob, false: Calldata.",
+    "privacy": "Public",
+    "value": true
+  },
+  "consensus_manager_config.context_config.static_config.num_validators": {
+    "description": "The number of validators.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "consensus_manager_config.context_config.static_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
     "value": 100
   },
-  "consensus_manager_config.context_config.retrospective_block_hash_retry_interval_millis": {
+  "consensus_manager_config.context_config.static_config.retrospective_block_hash_retry_interval_millis": {
     "description": "The interval between retrospective block hash retries.",
     "privacy": "Public",
     "value": 500
   },
-  "consensus_manager_config.context_config.validate_proposal_margin_millis": {
+  "consensus_manager_config.context_config.static_config.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
   },
-  "consensus_manager_config.context_config.validator_ids": {
+  "consensus_manager_config.context_config.static_config.validator_ids": {
     "description": "Optional explicit set of validator IDs (comma separated).",
     "privacy": "Public",
     "value": ""
   },
-  "consensus_manager_config.context_config.validator_ids.#is_none": {
+  "consensus_manager_config.context_config.static_config.validator_ids.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true

@@ -20,7 +20,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
-use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -233,9 +233,12 @@ impl TestDeps {
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
             ContextConfig {
-                proposal_buffer_size: CHANNEL_SIZE,
-                num_validators: NUM_VALIDATORS,
-                chain_id: CHAIN_ID,
+                static_config: ContextStaticConfig {
+                    proposal_buffer_size: CHANNEL_SIZE,
+                    num_validators: NUM_VALIDATORS,
+                    chain_id: CHAIN_ID,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             self.into(),
@@ -291,9 +294,13 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
-        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.l1_gas_tip_wei),
+        l1_gas_price_wei: GasPrice(
+            TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei,
+        ),
         l1_data_gas_price_wei: GasPrice(
-            TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
+            TEMP_ETH_BLOB_GAS_FEE_IN_WEI
+                * context_config.dynamic_config.l1_data_gas_price_multiplier_ppt
+                / 1000,
         ),
         eth_to_fri_rate: ETH_TO_FRI_RATE,
     }
