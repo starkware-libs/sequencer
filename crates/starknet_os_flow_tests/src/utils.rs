@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -229,6 +229,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> (CachedStateInput, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
@@ -311,6 +312,7 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
             previous_root_hash: previous_state_roots.contracts_trie_root_hash,
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
+        class_hashes_from_execution_infos,
     )
     .await;
     let contracts_trie_commitment_info = CommitmentInfo {
@@ -467,12 +469,14 @@ async fn fetch_storage_proofs_from_state_maps(
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> StarknetForestProofs {
     let class_hashes: Vec<ClassHash> = state_maps
         .compiled_class_hashes
         .keys()
         .cloned()
         .chain(state_maps.class_hashes.values().cloned())
+        .chain(class_hashes_from_execution_infos.iter().cloned())
         .collect();
     let contract_addresses =
         &state_maps.get_contract_addresses().iter().cloned().collect::<Vec<_>>();
