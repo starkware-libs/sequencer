@@ -2900,3 +2900,95 @@ async fn test_empty_multi_block() {
     );
     test_output.expect_hint_coverage("test_empty_multi_block");
 }
+
+/// Test that runs the OS with proof mode enabled and saves the Cairo PIE and OS output.
+#[tokio::test]
+async fn test_prove_block() {
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    // Call test_storage_read(address=10).
+    let address = Felt::from(10u8);
+    let calldata = create_calldata(test_contract_address, "test_storage_read", &[address]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test with proof mode (use_kzg_da=false, full_output=false).
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: false,
+            full_output: false,
+            ..Default::default()
+        })
+        .await;
+
+    // Save Cairo PIE to file.
+    let cairo_pie_path = std::path::Path::new("cairo_pie.zip");
+    let merge_extra_segments = true;
+    test_output
+        .runner_output
+        .cairo_pie
+        .write_zip_file(cairo_pie_path, merge_extra_segments)
+        .expect("Failed to write Cairo PIE");
+    println!("Cairo PIE saved to {:?}", cairo_pie_path);
+
+    // Save raw OS output to JSON file.
+    let os_output_path = "os_output.json";
+    let os_output_json =
+        serde_json::to_string_pretty(&test_output.runner_output.raw_os_output).unwrap();
+    std::fs::write(os_output_path, os_output_json).expect("Failed to write OS output");
+    println!("OS Output saved to {}", os_output_path);
+
+    test_output.perform_default_validations();
+}
+
+/// Test that runs the OS with 10 transfer transactions in one block and saves the Cairo PIE and
+/// OS output.
+#[tokio::test]
+async fn test_prove_block_10_transfers() {
+    let (mut test_manager, []) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Add 10 transfer transactions to different addresses.
+    for i in 0..10u128 {
+        let recipient_address = ContractAddress::try_from(Felt::from(1000 + i)).unwrap();
+        let transfer_amount = 1000u128;
+        let calldata = create_calldata(
+            *STRK_FEE_TOKEN_ADDRESS,
+            "transfer",
+            &[**recipient_address, Felt::from(transfer_amount), Felt::ZERO],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    // Run the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: false,
+            full_output: false,
+            ..Default::default()
+        })
+        .await;
+
+    // Save Cairo PIE to file.
+    let cairo_pie_path = std::path::Path::new("cairo_pie_10_transfers.zip");
+    let merge_extra_segments = true;
+    test_output
+        .runner_output
+        .cairo_pie
+        .write_zip_file(cairo_pie_path, merge_extra_segments)
+        .expect("Failed to write Cairo PIE");
+    println!("Cairo PIE saved to {:?}", cairo_pie_path);
+
+    // Save raw OS output to JSON file.
+    let os_output_path = "os_output_10_transfers.json";
+    let os_output_json =
+        serde_json::to_string_pretty(&test_output.runner_output.raw_os_output).unwrap();
+    std::fs::write(os_output_path, os_output_json).expect("Failed to write OS output");
+    println!("OS Output saved to {}", os_output_path);
+
+    test_output.perform_default_validations();
+}
