@@ -4,6 +4,11 @@ use apollo_network::network_manager::{
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
     NetworkManager,
+    PropellerChannels,
+    PropellerClient,
+    PropellerClientTrait,
+    PropellerMessageServer,
+    ReceivedPropellerMessage,
     SqmrClientSender,
     SqmrServerReceiver,
 };
@@ -27,10 +32,11 @@ pub const SQMR_PROTOCOL_NAME: &str = "/stress-test/1.0.0";
 
 /// Registers protocol channels on an existing network manager.
 /// Returns a sender and receiver for the configured protocol.
-pub fn register_protocol_channels(
+pub async fn register_protocol_channels(
     network_manager: &mut NetworkManager,
     buffer_size: usize,
     protocol: &NetworkProtocol,
+    bootstrap_addrs: &[String],
 ) -> (MessageSender, MessageReceiver) {
     match protocol {
         NetworkProtocol::Gossipsub => {
@@ -76,6 +82,37 @@ pub fn register_protocol_channels(
                 MessageReceiver::ReveresedSqmr(sqmr_client),
             )
         }
+        NetworkProtocol::Propeller => {
+            use std::str::FromStr;
+
+            use libp2p::Multiaddr;
+
+            let peers: Vec<_> = bootstrap_addrs
+                .iter()
+                .map(|addr| {
+                    let multiaddr = Multiaddr::from_str(addr.trim()).unwrap();
+                    let peer_id = multiaddr
+                        .iter()
+                        .find_map(|p| match p {
+                            libp2p::multiaddr::Protocol::P2p(id) => Some(id),
+                            _ => None,
+                        })
+                        .expect("No peer ID in bootstrap address");
+                    (peer_id, 1000)
+                })
+                .collect();
+
+            let PropellerChannels { propeller_messages_receiver, propeller_client } =
+                network_manager
+                    .register_propeller_channels::<TopicType>(buffer_size, peers)
+                    .await
+                    .expect("Failed to register propeller channels");
+
+            (
+                MessageSender::Propeller(PropellerSender::new(propeller_client)),
+                MessageReceiver::Propeller(propeller_messages_receiver),
+            )
+        }
     }
 }
 
@@ -88,6 +125,26 @@ pub enum MessageSender {
     Gossipsub(BroadcastTopicClient<TopicType>),
     Sqmr(SqmrClientSender<TopicType, TopicType>),
     ReveresedSqmr(ReveresedSqmrSender),
+    Propeller(PropellerSender),
+}
+
+/// Wrapper for Propeller client that handles message sending
+pub struct PropellerSender {
+    client: PropellerClient<TopicType>,
+}
+
+impl PropellerSender {
+    pub fn new(client: PropellerClient<TopicType>) -> Self {
+        Self { client }
+    }
+
+    async fn send_message(&mut self, message: TopicType) {
+        if let Err(e) = self.client.send_message(message).await {
+            error!("Failed to send Propeller message: {:?}", e);
+        } else {
+            trace!("Sent Propeller message");
+        }
+    }
 }
 
 /// Wrapper for ReveresedSqmr that maintains the last active query
@@ -160,6 +217,9 @@ impl MessageSender {
                 // Then broadcast the message to all active queries
                 sender.broadcast_to_queries(message).await;
             }
+            MessageSender::Propeller(sender) => {
+                sender.send_message(message).await;
+            }
         }
     }
 }
@@ -172,6 +232,7 @@ pub enum MessageReceiver {
     Gossipsub(BroadcastTopicServer<TopicType>),
     Sqmr(SqmrServerReceiver<TopicType, TopicType>),
     ReveresedSqmr(SqmrClientSender<TopicType, TopicType>),
+    Propeller(PropellerMessageServer<TopicType>),
 }
 
 impl MessageReceiver {
@@ -222,6 +283,26 @@ impl MessageReceiver {
                     }
                 }
             },
+            MessageReceiver::Propeller(receiver) => {
+                receiver
+                    .for_each(
+                        |(sender, message_root, result): ReceivedPropellerMessage<TopicType>| async move {
+                            match result {
+                                Ok(message) => {
+                                    trace!("Received Propeller message with ID: {}", message_root);
+                                    f(message, Some(sender));
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "Failed to deserialize Propeller message {}: {:?}",
+                                        message_root, e
+                                    );
+                                }
+                            }
+                        },
+                    )
+                    .await
+            }
         }
     }
 }
