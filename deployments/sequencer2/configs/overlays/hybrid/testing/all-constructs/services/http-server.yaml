@@ -1,0 +1,36 @@
+# HTTP Server service configuration with all constructs enabled
+name: httpserver
+
+# StatefulSet disabled (http-server uses Deployment by default)
+statefulSet:
+  enabled: false
+
+# Service with ports
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: http-server
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# Ingress enabled for http-server
+ingress:
+  enabled: true
+  ingressClassName: "nginx"
+  hosts:
+    - "http.sequencer-test.local"
+  path: "/"
+  pathType: "Prefix"
+
+# HPA enabled for http-server (stateless, can scale)
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
