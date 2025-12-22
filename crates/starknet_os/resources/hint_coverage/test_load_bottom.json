@@ -354,12 +354,6 @@
     "OsHint": "ConfigureKzgManager"
   },
   {
-    "OsHint": "SetApToPrevBlockHash"
-  },
-  {
-    "OsHint": "SetApToNewBlockHash"
-  },
-  {
     "OsHint": "SetBit"
   },
   {
