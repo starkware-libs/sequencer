@@ -92,12 +92,12 @@ pub struct TestStateReaderFactory {
 
 #[async_trait]
 impl StateReaderFactory for TestStateReaderFactory {
+    type StateReaderWithCompiledClasses = TestStateReader;
+
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<(
-        Box<dyn GatewayStateReaderWithCompiledClasses>,
-        Box<dyn GatewayFixedBlockStateReader>,
-    )> {
+    ) -> StateSyncClientResult<(Box<Self::StateReaderWithCompiledClasses>, Box<dyn GatewayFixedBlockStateReader>)>
+    {
         Ok((Box::new(self.state_reader.clone()), Box::new(self.gateway_fixed_block.clone())))
     }
 }
