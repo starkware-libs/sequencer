@@ -1,0 +1,23 @@
+[package]
+name = "apollo_proof_manager"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+hex.workspace = true
+starknet-types-core = { workspace = true, features = ["hash"] }
+starknet_api.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+
+
+[dev-dependencies]
+starknet_api = { workspace = true, features = ["testing"] }

@@ -2061,6 +2061,7 @@ name = "apollo_network_benchmark"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "futures",
  "lazy_static",
  "metrics-exporter-prometheus",
  "rstest",
@@ -2230,6 +2231,17 @@ dependencies = [
  "papyrus_common",
  "prometheus-parse",
  "rstest",
+]
+
+[[package]]
+name = "apollo_proof_manager"
+version = "0.0.0"
+dependencies = [
+ "hex",
+ "starknet-types-core",
+ "starknet_api",
+ "tempfile",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -12462,6 +12474,16 @@ dependencies = [
  "starknet_patricia",
  "starknet_patricia_storage",
  "tokio",
+]
+
+[[package]]
+name = "starknet_os_runner"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "blockifier_reexecution",
+ "starknet_api",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

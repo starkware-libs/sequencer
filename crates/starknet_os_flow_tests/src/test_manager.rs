@@ -605,7 +605,6 @@ impl<S: FlowTestState> TestManager<S> {
     ) -> OsTestOutput<S> {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
-        let mut cached_state_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
@@ -705,15 +704,14 @@ impl<S: FlowTestState> TestManager<S> {
                 block_info,
                 old_block_number_and_hash,
                 class_hashes_to_migrate,
+                initial_reads: cached_state_input,
             };
             os_block_inputs.push(os_block_input);
-            cached_state_inputs.push(cached_state_input);
             previous_state_roots = new_state_roots;
         }
         let expected_new_global_root = previous_state_roots.global_root();
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
-            cached_state_inputs,
             deprecated_compiled_classes: self
                 .execution_contracts
                 .executed_contracts

@@ -66,6 +66,7 @@ members = [
   "crates/apollo_p2p_sync_config",
   "crates/apollo_proc_macros",
   "crates/apollo_proc_macros_tests",
+  "crates/apollo_proof_manager",
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
@@ -102,6 +103,7 @@ members = [
   "crates/starknet_committer_cli",
   "crates/starknet_os",
   "crates/starknet_os_flow_tests",
+  "crates/starknet_os_runner",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
   "toml_test_utils",
@@ -181,6 +183,7 @@ apollo_p2p_sync.path = "crates/apollo_p2p_sync"
 apollo_p2p_sync_config.path = "crates/apollo_p2p_sync_config"
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
+apollo_proof_manager.path = "crates/apollo_proof_manager"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
@@ -354,6 +357,7 @@ starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_committer_cli.path = "crates/starknet_committer_cli"
 starknet_os.path = "crates/starknet_os"
 starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
+starknet_os_runner.path = "crates/starknet_os_runner"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
 static_assertions = "1.1.0"

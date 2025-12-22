@@ -21,7 +21,7 @@ use crate::hint_processor::snos_hint_processor::{
     DeprecatedSyscallHintProcessor,
     SyscallHintProcessor,
 };
-use crate::io::os_input::{CachedStateInput, OsBlockInput};
+use crate::io::os_input::OsBlockInput;
 use crate::vm_utils::VmUtilsError;
 
 /// A helper struct that provides access to the OS state and commitments.
@@ -41,7 +41,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
     pub fn new(
         os_block_input: &'a OsBlockInput,
         state_reader: S,
-        state_input: CachedStateInput,
+        state_input: &StateMaps,
         debug_mode: bool,
     ) -> Result<Self, StarknetOsError> {
         Ok(Self {
@@ -60,28 +60,13 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
 
     fn initialize_cached_state(
         state_reader: S,
-        state_input: CachedStateInput,
+        state_input: &StateMaps,
     ) -> Result<CachedState<S>, StarknetOsError> {
         let mut empty_cached_state = CachedState::new(state_reader);
-        let mut state_maps = StateMaps::default();
-
-        // Insert storage.
-        for (contract_address, storage) in state_input.storage.into_iter() {
-            for (key, value) in storage.into_iter() {
-                state_maps.storage.insert((contract_address, key), value);
-            }
-        }
-        // Insert nonces.
-        state_maps.nonces = state_input.address_to_nonce;
-
-        // Insert class hashes.
-        state_maps.class_hashes = state_input.address_to_class_hash;
-
-        // Insert compiled class hashes.
-        state_maps.compiled_class_hashes = state_input.class_hash_to_compiled_class_hash;
 
         // Update the cached state.
-        empty_cached_state.update_cache(&state_maps, HashMap::new());
+        // TODO(Yoni): avoid the implicit clone inside update_cache.
+        empty_cached_state.update_cache(state_input, HashMap::new());
 
         Ok(empty_cached_state)
     }

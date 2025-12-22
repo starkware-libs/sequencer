@@ -26,13 +26,7 @@ use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{
-    CachedStateInput,
-    OsBlockInput,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
-};
+use crate::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::{AggregatorMetrics, OsMetrics};
 use crate::vm_utils::vm_error_with_code_snippet;
@@ -107,13 +101,7 @@ pub fn run_os<S: StateReader>(
     layout: LayoutName,
     OsHints {
         os_hints_config,
-        os_input:
-            StarknetOsInput {
-                os_block_inputs,
-                cached_state_inputs,
-                deprecated_compiled_classes,
-                compiled_classes,
-            },
+        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
@@ -121,7 +109,6 @@ pub fn run_os<S: StateReader>(
         layout,
         os_hints_config,
         &os_block_inputs,
-        cached_state_inputs,
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
@@ -135,7 +122,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     layout: LayoutName,
     os_hints_config: OsHintsConfig,
     os_block_inputs: &'a [OsBlockInput],
-    cached_state_inputs: Vec<CachedStateInput>,
     deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
@@ -147,7 +133,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
         &OS_PROGRAM,
         os_hints_config, // moved here
         os_block_inputs.iter().collect(),
-        cached_state_inputs,
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
@@ -204,13 +189,7 @@ pub fn run_os_for_testing<S: StateReader>(
     layout: LayoutName,
     OsHints {
         os_hints_config,
-        os_input:
-            StarknetOsInput {
-                os_block_inputs,
-                cached_state_inputs,
-                deprecated_compiled_classes,
-                compiled_classes,
-            },
+        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
@@ -219,7 +198,6 @@ pub fn run_os_for_testing<S: StateReader>(
             layout,
             os_hints_config,
             &os_block_inputs,
-            cached_state_inputs,
             deprecated_compiled_classes,
             compiled_classes,
             state_readers,

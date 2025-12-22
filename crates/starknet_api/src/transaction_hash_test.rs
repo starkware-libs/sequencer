@@ -34,7 +34,7 @@ fn test_transaction_hash() {
             )
             .unwrap(),
             "expected transaction hash {}",
-            transaction_test_data.transaction_hash
+            transaction_test_data.transaction_hash,
         );
         let actual_transaction_hash = get_transaction_hash(
             &transaction_test_data.transaction,
