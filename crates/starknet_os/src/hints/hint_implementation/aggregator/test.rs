@@ -169,7 +169,7 @@ const MSG_TO_L2_1: [Felt; 5] = [
 
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
 
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum FailureModifier {
     BlockHash,
     BlockNumber,
@@ -773,10 +773,12 @@ fn test_aggregator(
     #[case] modifier: FailureModifier,
     #[case] error_message: Option<String>,
 ) {
+    use crate::test_utils::coverage::expect_hint_coverage;
+
     let temp_file = NamedTempFile::new().unwrap();
     let temp_file_path = temp_file.path();
 
-    let bootloader_output_data = bootloader_output(true, modifier);
+    let bootloader_output_data = bootloader_output(true, modifier.clone());
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output_data.clone()),
         full_output,
@@ -838,4 +840,9 @@ fn test_aggregator(
             }
         );
     }
+
+    expect_hint_coverage(
+        &aggregator_hint_processor.unused_hints,
+        &format!("test_aggregator_{full_output}_{use_kzg_da}_{modifier:?}"),
+    );
 }

@@ -17,15 +17,6 @@ pub fn expect_hint_coverage(unused_hints: &HashSet<AllHints>, test_name: &str) {
 #[cfg(test)]
 const UNCOVERED_HINTS: expect_test::Expect = expect_test::expect![[r#"
     [
-        "AggregatorHint(DisableDaPageCreation)",
-        "AggregatorHint(GetAggregatorOutput)",
-        "AggregatorHint(GetChainIdFromInput)",
-        "AggregatorHint(GetFeeTokenAddressFromInput)",
-        "AggregatorHint(GetFullOutputFromInput)",
-        "AggregatorHint(GetOsOuputForInnerBlocks)",
-        "AggregatorHint(GetPublicKeysFromAggregatorInput)",
-        "AggregatorHint(GetUseKzgDaFromInput)",
-        "AggregatorHint(WriteDaSegment)",
         "DeprecatedSyscallHint(Deploy)",
         "OsHint(GetClassHashAndCompiledClassFact)",
         "OsHint(InitializeAliasCounter)",
