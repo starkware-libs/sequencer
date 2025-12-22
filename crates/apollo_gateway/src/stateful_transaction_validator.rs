@@ -89,14 +89,12 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
-        // Convert concrete type to trait object.
-        let boxed_gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader> =
-            Box::new(gateway_fixed_block_state_reader);
+
         Ok(Box::new(StatefulTransactionValidator::new(
             self.config.clone(),
             self.chain_info.clone(),
             state_reader_and_contract_manager,
-            boxed_gateway_fixed_block_state_reader,
+            gateway_fixed_block_state_reader,
         )))
     }
 }
@@ -111,7 +109,8 @@ pub trait StatefulTransactionValidatorTrait: Send {
     ) -> StatefulTransactionValidatorResult<Nonce>;
 }
 
-pub struct StatefulTransactionValidator {
+pub struct StatefulTransactionValidator<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
+{
     config: StatefulTransactionValidatorConfig,
     chain_info: ChainInfo,
     // Consumed when running the CPU-heavy blockifier validation.
@@ -120,11 +119,13 @@ pub struct StatefulTransactionValidator {
     // instance after use.
     state_reader_and_contract_manager:
         Option<StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>>,
-    gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader>,
+    gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
 }
 
 #[async_trait]
-impl StatefulTransactionValidatorTrait for StatefulTransactionValidator {
+impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader> StatefulTransactionValidatorTrait
+    for StatefulTransactionValidator<TGatewayFixedBlockStateReader>
+{
     async fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
@@ -149,14 +150,16 @@ impl StatefulTransactionValidatorTrait for StatefulTransactionValidator {
     }
 }
 
-impl StatefulTransactionValidator {
+impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
+    StatefulTransactionValidator<TGatewayFixedBlockStateReader>
+{
     fn new(
         config: StatefulTransactionValidatorConfig,
         chain_info: ChainInfo,
         state_reader_and_contract_manager: StateReaderAndContractManager<
             Box<dyn GatewayStateReaderWithCompiledClasses>,
         >,
-        gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader>,
+        gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
     ) -> Self {
         Self {
             config,
