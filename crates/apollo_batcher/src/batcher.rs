@@ -65,7 +65,10 @@ use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
+    PartialBlockHashComponents,
+};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
@@ -84,6 +87,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
+use crate::commitment_manager::types::CommitmentTaskOutput;
 use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::metrics::{
     register_metrics,
@@ -181,7 +185,6 @@ pub struct Batcher {
     storage_reader_server: Option<BatcherStorageReaderServer>,
     /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
     /// commitment manager because commitments are reverted in a blocking call.
-    #[allow(unused)]
     commitment_manager: Option<CommitmentManager>,
 }
 
@@ -741,6 +744,8 @@ impl Batcher {
         )
         .await?;
 
+        self.write_commitment_results_to_storage().await?;
+
         let execution_infos = block_execution_artifacts
             .execution_data
             .execution_infos_and_signatures
@@ -1111,6 +1116,65 @@ impl Batcher {
                 }))
             }
         }
+    }
+
+    /// Writes the ready commitment results to storage.
+    async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
+        // TODO(Nimrod): Verify the calculated block hash of the first new block with the value in
+        // the config.
+        let Some(ref mut commitment_manager) = self.commitment_manager else {
+            return Ok(());
+        };
+        let commitment_results = commitment_manager.get_commitment_results().await;
+        for CommitmentTaskOutput { height, global_root } in commitment_results {
+            let parent_hash = match height.prev() {
+                None => {
+                    // The parent hash of the genesis block is zero.
+                    BlockHash::default()
+                }
+                Some(parent_height) => self
+                    .storage_reader
+                    .get_block_hash(parent_height)
+                    .map_err(|err| {
+                        error!("Failed to get block hash from storage: {}", err);
+                        BatcherError::InternalError
+                    })?
+                    .ok_or_else(|| {
+                        error!(
+                            "Missing block hash for parent height {} in storage.",
+                            parent_height
+                        );
+                        BatcherError::InternalError
+                    })?,
+            };
+            let partial_block_hash_components = self
+                .storage_reader
+                .get_partial_block_hash_components(height)
+                .map_err(|err| {
+                    error!("Failed to get partial block hash components from storage: {}", err);
+                    BatcherError::InternalError
+                })?
+                .ok_or_else(|| {
+                    error!(
+                        "Missing partial block hash components for height {} in storage.",
+                        height
+                    );
+                    BatcherError::InternalError
+                })?;
+            let block_hash =
+                calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)
+                    .expect("Failed to finalize block hash.");
+            self.storage_writer
+                .set_global_root_and_block_hash(height, global_root, Some(block_hash))
+                .map_err(|err| {
+                    error!(
+                        "Failed to set global root and block hash in storage for {height}: {err}"
+                    );
+                    BatcherError::InternalError
+                })?;
+        }
+
+        Ok(())
     }
 
     #[track_caller]
