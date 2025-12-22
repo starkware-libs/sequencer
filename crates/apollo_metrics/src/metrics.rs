@@ -36,6 +36,7 @@ pub enum MetricScope {
     Mempool,
     MempoolP2p,
     CompileToCasm,
+    StarknetCommitter,
     StateSync,
     Storage,
     Tokio,

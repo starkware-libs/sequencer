@@ -17,6 +17,7 @@ use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
+use crate::metrics::{READ_DURATION_PER_BLOCK, READ_FACTS_PER_BLOCK};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
@@ -57,6 +58,9 @@ pub async fn commit_block<I: InputContext, Reader: ForestReader<I>>(
         let n_read_facts =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
         tm.stop_measurement(Some(n_read_facts), Action::Read);
+        READ_FACTS_PER_BLOCK.set_lossy(n_read_facts);
+        READ_DURATION_PER_BLOCK
+            .set_lossy(*tm.read_durations.last().expect("No read duration found"));
     }
     info!("Original skeleton forest created successfully.");
 

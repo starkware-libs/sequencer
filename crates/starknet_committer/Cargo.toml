@@ -11,6 +11,7 @@ testing = ["starknet_patricia/testing"]
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 async-trait.workspace = true
 csv.workspace = true
 ethnum.workspace = true
