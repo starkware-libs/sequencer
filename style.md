@@ -122,12 +122,6 @@ let result = map.insert(foo);
 assert!(result, "dup-check was done previously in ...")
 ```
 
-### Maps/Sets
-
-Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Either use `BTree{Map,Set}` or `Index{Map,Set}`, and prefer `BTree` when you can, as the `Index` version has O(n) removals (it uses a `Vec` for storage).
-
-**Note**: there is a [clippy lint](https://rust-lang.github.io/rust-clippy/master/index.html#iter_over_hash_type) for this, we should use it after fixing the existing issues.
-
 ## APIs
 
 Types appearing _in the API_ should strongly prefer `std` types, primitives, or types exposed by the crate for external use.
@@ -301,6 +295,12 @@ map.get(key).expect(format!("{key} should exist because of <reason>"));
 // GOOD
 map.get(key).unwrap_or_else(|| panic!("{key} should exist because of <reason>"))
 ```
+
+### Maps/Sets
+
+Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Either use `BTree{Map,Set}` or `Index{Map,Set}`, and prefer `BTree` when you can, as the `Index` version has O(n) removals (it uses a `Vec` for storage).
+
+**Note**: there is a [clippy lint](https://rust-lang.github.io/rust-clippy/master/index.html#iter_over_hash_type) for this, we should use it after fixing the existing issues.
 
 ## Testing
 
