@@ -30,6 +30,7 @@ use apollo_node_config::component_execution_config::{
 };
 use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_node_config::version::VERSION_FULL;
+use apollo_proof_manager::proof_manager::{create_proof_manager, ProofManager};
 use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
@@ -58,6 +59,7 @@ pub struct SequencerNodeComponents {
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
+    pub proof_manager: Option<ProofManager>,
     pub sierra_compiler: Option<SierraCompiler>,
     pub signature_manager: Option<SignatureManager>,
     pub state_sync: Option<StateSync>,
@@ -481,7 +483,18 @@ pub async fn create_node_components(
             None
         }
     };
-
+    let proof_manager = match config.components.proof_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let proof_manager_config =
+                config.proof_manager_config.as_ref().expect("Proof Manager config should be set");
+            Some(create_proof_manager(proof_manager_config.clone()))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
+    };
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -514,6 +527,7 @@ pub async fn create_node_components(
         monitoring_endpoint,
         mempool_p2p_propagator,
         mempool_p2p_runner,
+        proof_manager,
         sierra_compiler,
         signature_manager,
         state_sync,

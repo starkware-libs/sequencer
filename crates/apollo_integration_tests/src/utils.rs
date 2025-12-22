@@ -233,6 +233,7 @@ pub fn create_node_config(
         storage_config.consensus_storage_config.clone();
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
+    let proof_manager_config = storage_config.proof_manager_config.clone();
     let sierra_compiler_config = SierraCompilationConfig::default();
 
     // Update config pointer values.
@@ -301,6 +302,8 @@ pub fn create_node_config(
     let monitoring_endpoint_config =
         wrap_if_component_config_expected!(monitoring_endpoint, monitoring_endpoint_config);
     let monitoring_config = MonitoringConfig::default();
+    let proof_manager_config =
+        wrap_if_component_config_expected!(proof_manager, proof_manager_config);
     let sierra_compiler_config =
         wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
@@ -323,6 +326,7 @@ pub fn create_node_config(
         mempool_p2p_config,
         monitoring_endpoint_config,
         monitoring_config,
+        proof_manager_config,
         sierra_compiler_config,
         state_sync_config,
     };
