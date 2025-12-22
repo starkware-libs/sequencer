@@ -223,14 +223,8 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
-<<<<<<< HEAD
     class_hashes_from_execution_infos: &HashSet<ClassHash>,
-) -> (CachedStateInput, CommitmentInfos) {
-||||||| 9e689d0a28
-) -> (CachedStateInput, CommitmentInfos) {
-=======
 ) -> (StateMaps, StateCommitmentInfos) {
->>>>>>> origin/main
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),
