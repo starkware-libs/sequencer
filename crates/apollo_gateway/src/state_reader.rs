@@ -16,7 +16,7 @@ pub trait StateReaderFactory: Send + Sync {
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<Self::StateReaderWithCompiledClasses>,
+        Self::StateReaderWithCompiledClasses,
         Box<dyn GatewayFixedBlockStateReader>,
     )>;
 }

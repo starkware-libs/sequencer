@@ -329,7 +329,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<Self::StateReaderWithCompiledClasses>,
+        Self::StateReaderWithCompiledClasses,
         Box<dyn GatewayFixedBlockStateReader>,
     )> {
         let latest_block_number = self
@@ -348,6 +348,6 @@ impl StateReaderFactory for SyncStateReaderFactory {
             self.shared_state_sync_client.clone(),
             latest_block_number,
         );
-        Ok((Box::new(blockifier_state_reader), Box::new(gateway_fixed_block_sync_state_client)))
+        Ok((blockifier_state_reader, Box::new(gateway_fixed_block_sync_state_client)))
     }
 }
