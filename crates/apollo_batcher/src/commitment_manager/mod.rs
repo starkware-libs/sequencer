@@ -1,7 +1,10 @@
 #![allow(dead_code, unused_variables)]
 
+use std::sync::Arc;
+
 use apollo_reverts::RevertConfig;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::calculate_block_hash;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
@@ -9,8 +12,15 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
 
+use crate::batcher::BatcherStorageReader;
 use crate::commitment_manager::state_committer::StateCommitter;
-use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
+use crate::commitment_manager::types::{
+    CommitmentManagerError,
+    CommitmentManagerResult,
+    CommitmentTaskInput,
+    CommitmentTaskOutput,
+    FinalBlockCommitment,
+};
 
 pub(crate) mod state_committer;
 pub(crate) mod types;
@@ -117,8 +127,6 @@ impl CommitmentManager {
 
     /// Fetches all ready commitment results from the state committer.
     pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
-        // TODO(Nimrod): Once this function is used, verify the calculated block hash of the first
-        // new block with the value in the config.
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
@@ -134,5 +142,29 @@ impl CommitmentManager {
 
     pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
         unimplemented!()
+    }
+
+    /// Finalizes the commitment by calculating the block hash using the global root, the parent
+    /// block hash and the partial block hash components.
+    pub(crate) fn finalize_commitment_output(
+        storage_reader: Arc<dyn BatcherStorageReader>,
+        CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,
+    ) -> CommitmentManagerResult<FinalBlockCommitment> {
+        info!("Finalizing commitment for block {height}.");
+        let parent_hash = match height.prev() {
+            None => {
+                // The parent hash of the genesis block is zero.
+                BlockHash::default()
+            }
+            Some(parent_height) => storage_reader
+                .get_block_hash(parent_height)?
+                .ok_or(CommitmentManagerError::MissingBlockHash(parent_height))?,
+        };
+        let partial_block_hash_components = storage_reader
+            .get_partial_block_hash_components(height)?
+            .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
+        let block_hash =
+            calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
+        Ok(FinalBlockCommitment { height, block_hash, global_root })
     }
 }
