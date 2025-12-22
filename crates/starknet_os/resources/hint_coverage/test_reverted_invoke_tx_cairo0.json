@@ -345,10 +345,7 @@
     "OsHint": "ConfigureKzgManager"
   },
   {
-    "OsHint": "SetApToPrevBlockHash"
-  },
-  {
-    "OsHint": "SetApToNewBlockHash"
+    "OsHint": "CheckBlockHashConsistency"
   },
   {
     "OsHint": "SetBit"
@@ -406,6 +403,9 @@
   },
   {
     "OsHint": "GetPublicKeys"
+  },
+  {
+    "OsHint": "GetBlockHashes"
   },
   {
     "HintExtension": "LoadDeprecatedClass"

@@ -25,6 +25,7 @@ from starkware.starknet.core.os.block_context import (
     OsGlobalContext,
     get_block_context,
 )
+from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.builtins import get_builtin_params
 from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
@@ -299,6 +300,14 @@ func execute_blocks{
 
     %{ vm_exit_scope() %}
 
+    // Calculate the block hash based on the block info and state root.
+    // NOTE: both the previous block hash and previous state root are guessed, and the OS
+    // does not verify their consistency (unlike the new hash and root).
+    // The consumer of the OS output should verify both.
+    let (prev_block_hash, new_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
+        block_info=block_context.block_info_for_execute, state_root=state_update_output.final_root
+    );
+
     // All blocks inside of a multi block should be off-chain and therefore
     // should not be compressed.
     assert os_output_per_block_dst[0] = OsOutput(
@@ -306,8 +315,8 @@ func execute_blocks{
             state_update_output=state_update_output,
             prev_block_number=block_context.block_info_for_execute.block_number - 1,
             new_block_number=block_context.block_info_for_execute.block_number,
-            prev_block_hash=nondet %{ block_input.prev_block_hash %},
-            new_block_hash=nondet %{ block_input.new_block_hash %},
+            prev_block_hash=prev_block_hash,
+            new_block_hash=new_block_hash,
             os_program_hash=0,
             starknet_os_config_hash=os_global_context.starknet_os_config_hash,
             use_kzg_da=FALSE,
