@@ -12,6 +12,7 @@ use super::transaction_commitment::{calculate_transaction_commitment, Transactio
 use crate::block::{
     BlockHash,
     BlockHeader,
+    BlockInfo,
     BlockNumber,
     BlockTimestamp,
     GasPricePerToken,
@@ -176,6 +177,21 @@ pub struct PartialBlockHashComponents {
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
     pub starknet_version: StarknetVersion,
+}
+
+impl PartialBlockHashComponents {
+    pub fn new(block_info: &BlockInfo, header_commitments: BlockHeaderCommitments) -> Self {
+        Self {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version: block_info.starknet_version,
+        }
+    }
 }
 
 // TODO(Nimrod): Gather the input for this function into a single struct and rename `BlockHashInput`

@@ -2,7 +2,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
@@ -18,6 +17,11 @@ use expect_test::{expect, expect_file, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
@@ -630,6 +634,7 @@ impl<S: FlowTestState> TestManager<S> {
             "use_kzg_da flag in block contexts must match the test parameter."
         );
         let mut alias_keys = HashSet::new();
+        let mut current_block_hash = BlockHash::default();
         for ((block_index, block_txs_with_reason), block_context) in
             per_block_txs.into_iter().enumerate().zip(block_contexts.into_iter())
         {
@@ -675,12 +680,20 @@ impl<S: FlowTestState> TestManager<S> {
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
                 .collect();
+
             // TODO(Nimrod): Remove dummy block hashes once the OS verifies them.
             let old_block_number_and_hash =
                 maybe_dummy_block_hash_and_number(block_info.block_number);
-            let new_block_hash =
-                BlockHash((block_info.block_number.0 + STORED_BLOCK_HASH_BUFFER).into());
-            let prev_block_hash = BlockHash(new_block_hash.0 - Felt::ONE);
+            let prev_block_hash = current_block_hash;
+            let block_hash_commitments = BlockHeaderCommitments::default();
+            let new_block_hash = calculate_block_hash(
+                &PartialBlockHashComponents::new(&block_info, block_hash_commitments.clone()),
+                new_state_roots.global_root(),
+                prev_block_hash,
+            )
+            .unwrap();
+            current_block_hash = new_block_hash;
+
             let class_hashes_to_migrate = HashMap::new();
             let os_block_input = OsBlockInput {
                 contract_state_commitment_info: commitment_infos.contracts_trie_commitment_info,
@@ -695,6 +708,7 @@ impl<S: FlowTestState> TestManager<S> {
                 prev_block_hash,
                 new_block_hash,
                 block_info,
+                block_hash_commitments,
                 old_block_number_and_hash,
                 class_hashes_to_migrate,
                 initial_reads: cached_state_input,
