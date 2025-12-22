@@ -11,7 +11,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::hash::HashOutput;
@@ -137,6 +137,8 @@ pub enum OsHintError {
     UnknownHint(String),
     #[error("Unset syscall pointer.")]
     UnsetSyscallPtr,
+    #[error("Starknet version {0} is not supported for block hash calculation.")]
+    UnsupportedStarknetVersionForBlockHash(StarknetVersion),
     #[error(transparent)]
     Vm(#[from] VirtualMachineError),
     #[error(transparent)]
