@@ -4,20 +4,19 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
-#[cfg(test)]
-use mockall::automock;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
-#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait StateReaderFactory: Send + Sync {
+    type StateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses + 'static;
+
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<Self::StateReaderWithCompiledClasses>,
         Box<dyn GatewayFixedBlockStateReader>,
     )>;
 }

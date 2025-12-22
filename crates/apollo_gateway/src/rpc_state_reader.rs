@@ -235,10 +235,12 @@ impl GatewayFixedBlockStateReader for RpcStateReader {
 
 #[async_trait]
 impl StateReaderFactory for RpcStateReaderFactory {
+    type StateReaderWithCompiledClasses = RpcStateReader;
+
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<dyn GatewayStateReaderWithCompiledClasses>,
+        Box<Self::StateReaderWithCompiledClasses>,
         Box<dyn GatewayFixedBlockStateReader>,
     )> {
         let reader = RpcStateReader::from_latest(&self.config);
