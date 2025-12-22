@@ -36,6 +36,7 @@ use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -658,6 +659,16 @@ impl<S: FlowTestState> TestManager<S> {
             .await;
             map_storage = db.consume_storage();
 
+            // TODO(Nimrod): Remove the `class_hashes_from_execution_infos` patch.
+            let class_hashes_from_execution_infos: HashSet<ClassHash> = execution_outputs
+                .iter()
+                .flat_map(|(execution_info, _)| {
+                    execution_info
+                        .summarize(VersionedConstants::latest_constants())
+                        .executed_class_hashes
+                })
+                .collect();
+
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
                 create_cached_state_input_and_commitment_infos(
@@ -665,6 +676,7 @@ impl<S: FlowTestState> TestManager<S> {
                     &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
+                    &class_hashes_from_execution_infos,
                 )
                 .await;
             let tx_execution_infos = execution_outputs
