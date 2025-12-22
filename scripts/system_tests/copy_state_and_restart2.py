@@ -2,77 +2,10 @@ import argparse
 import os
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
-from copy import deepcopy
+from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import config
-
-
-def load_yaml(file_path: Path) -> Dict[str, Any]:
-    """Load a YAML file."""
-    if not file_path.exists():
-        return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def deep_merge_dict(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
-    """Deep merge overlay dict into base dict."""
-    result = deepcopy(base)
-    for key, value in overlay.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dict(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def find_workspace_root() -> Optional[str]:
-    """
-    Auto-detect workspace root: ../.. from script location.
-
-    Script is at: scripts/system_tests/copy_state_and_restart2.py
-    Repo root is: ../.. from script location
-    """
-    script_dir = Path(__file__).parent.resolve()
-    workspace_root = script_dir.parent.parent.resolve()
-    return str(workspace_root)
-
-
-def load_and_merge_configs(workspace: str, layout: str) -> List[Dict[str, Any]]:
-    """
-    Load and merge sequencer2 configs (layout + common.yaml).
-
-    Returns a list of merged service configs.
-    """
-    base_dir = Path(workspace) / "deployments" / "sequencer2"
-
-    # Load layout common.yaml
-    layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"
-    layout_common = load_yaml(layout_common_path)
-
-    # Load layout service configs
-    layout_services_dir = base_dir / "configs" / "layouts" / layout / "services"
-    layout_services = {}
-    if layout_services_dir.exists():
-        for service_file in layout_services_dir.glob("*.yaml"):
-            service_config = load_yaml(service_file)
-            if "name" in service_config:
-                layout_services[service_config["name"]] = service_config
-
-    # Merge common into each service (service is base, common overlays)
-    merged_services = []
-    for service_name, layout_service in layout_services.items():
-        # Start with service as base, then merge common (common can add/modify, service takes precedence)
-        merged_service = deep_merge_dict(layout_service, layout_common)
-
-        # Ensure name is set (service name always takes precedence)
-        merged_service["name"] = service_name
-        merged_services.append(merged_service)
-
-    return merged_services
 
 
 def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
@@ -167,7 +100,7 @@ def build_resource_name(service_name: str, controller: str) -> str:
     return f"sequencer-{service_name.lower()}-{controller.lower()}"
 
 
-def main(layout: str, namespace: str, data_dir: str) -> None:
+def main(layout: str, namespace: str, data_dir: str, overlay: Optional[str] = None) -> None:
     config.load_kube_config()
 
     # Try to find workspace: env var (for CI) > auto-detect
@@ -183,8 +116,9 @@ def main(layout: str, namespace: str, data_dir: str) -> None:
         sys.exit(1)
 
     # Load sequencer2 configs
-    print(f"📋 Loading sequencer2 configs: layout={layout}")
-    merged_services = load_and_merge_configs(workspace=workspace, layout=layout)
+    overlay_info = f", overlay={overlay}" if overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={layout}{overlay_info}")
+    merged_services = load_and_merge_configs(workspace=workspace, layout=layout, overlay=overlay)
 
     # Extract service info from merged configs
     services: List[Tuple[str, str]] = []
@@ -276,6 +210,12 @@ if __name__ == "__main__":
         default="./output/data/node_0",
         help="Directory containing the state to copy into pods (default: ./output/data/node_0)",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
 
     args = parser.parse_args()
-    main(layout=args.layout, namespace=args.namespace, data_dir=args.data_dir)
+    main(layout=args.layout, namespace=args.namespace, data_dir=args.data_dir, overlay=args.overlay)

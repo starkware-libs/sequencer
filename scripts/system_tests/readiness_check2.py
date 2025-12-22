@@ -4,78 +4,15 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import tempfile
-import yaml
-from copy import deepcopy
+from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
-
-def load_yaml(file_path: Path) -> Dict[str, Any]:
-    """Load a YAML file."""
-    if not file_path.exists():
-        return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def deep_merge_dict(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
-    """Deep merge overlay dict into base dict."""
-    result = deepcopy(base)
-    for key, value in overlay.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dict(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def find_workspace_root() -> Optional[str]:
-    """
-    Auto-detect workspace root: ../.. from script location.
-
-    Script is at: scripts/system_tests/readiness_check2.py
-    Repo root is: ../.. from script location
-    """
-    script_dir = Path(__file__).parent.resolve()
-    workspace_root = script_dir.parent.parent.resolve()
-    return str(workspace_root)
-
-
-def load_and_merge_configs(workspace: str, layout: str) -> List[Dict[str, Any]]:
-    """
-    Load and merge sequencer2 configs (layout + common.yaml).
-
-    Returns a list of merged service configs.
-    """
-    base_dir = Path(workspace) / "deployments" / "sequencer2"
-
-    # Load layout common.yaml
-    layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"
-    layout_common = load_yaml(layout_common_path)
-
-    # Load layout service configs
-    layout_services_dir = base_dir / "configs" / "layouts" / layout / "services"
-    layout_services = {}
-    if layout_services_dir.exists():
-        for service_file in layout_services_dir.glob("*.yaml"):
-            service_config = load_yaml(service_file)
-            if "name" in service_config:
-                layout_services[service_config["name"]] = service_config
-
-    # Merge common into each service (service is base, common overlays)
-    merged_services = []
-    for service_name, layout_service in layout_services.items():
-        # Start with service as base, then merge common (common can add/modify, service takes precedence)
-        merged_service = deep_merge_dict(layout_service, layout_common)
-
-        # Ensure name is set (service name always takes precedence)
-        merged_service["name"] = service_name
-        merged_services.append(merged_service)
-
-    return merged_services
+# Enable line buffering for real-time output in CI
+sys.stdout.reconfigure(line_buffering=True)
 
 
 def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
@@ -251,6 +188,12 @@ if __name__ == "__main__":
         required=True,
         help="Kubernetes namespace",
     )
+    parser.add_argument(
+        "--overlay",
+        type=str,
+        default=None,
+        help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
     args = parser.parse_args()
 
     # Try to find workspace: env var (for CI) > auto-detect
@@ -266,8 +209,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Load sequencer2 configs and convert to legacy format
-    print(f"📋 Loading sequencer2 configs: layout={args.layout}")
-    merged_services = load_and_merge_configs(workspace=workspace, layout=args.layout)
+    overlay_info = f", overlay={args.overlay}" if args.overlay else ""
+    print(f"📋 Loading sequencer2 configs: layout={args.layout}{overlay_info}")
+    merged_services = load_and_merge_configs(
+        workspace=workspace, layout=args.layout, overlay=args.overlay
+    )
 
     # Convert to legacy format for compatibility
     legacy_config = convert_to_legacy_format(merged_services)
