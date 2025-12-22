@@ -608,24 +608,22 @@ impl IntegrationTestManager {
             .map(|node| &(node.node_setup))
             .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
-        for executable_setup in node_0_setup.get_executables() {
-            if let Some(http_server_config) = &executable_setup.get_config().http_server_config {
-                let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
-                let monitoring_port = executable_setup
-                    .get_config()
-                    .monitoring_endpoint_config
-                    .as_ref()
-                    .expect("Should have a monitoring endpoint config")
-                    .port;
-                return SequencerSimulator::new(
-                    &localhost_url,
-                    http_server_config.port,
-                    &localhost_url,
-                    monitoring_port,
-                );
-            }
-        }
-        unreachable!("No executable with a set http server.")
+        let http_server = node_0_setup.get_http_server();
+        let http_server_port = http_server
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .expect("No executable with a set http server.")
+            .port;
+        let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
+        let monitoring_port = http_server
+            .get_config()
+            .monitoring_endpoint_config
+            .as_ref()
+            .expect("Should have a monitoring endpoint config")
+            .port;
+
+        SequencerSimulator::new(&localhost_url, http_server_port, &localhost_url, monitoring_port)
     }
 
     #[instrument(skip(self))]
