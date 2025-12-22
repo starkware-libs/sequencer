@@ -69,7 +69,7 @@ pub struct RunnerArgs {
     pub bootstrap: Vec<String>,
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Serialize)]
 #[command(version, about, long_about = None)]
 /// Arguments from the user.
 pub struct UserArgs {
