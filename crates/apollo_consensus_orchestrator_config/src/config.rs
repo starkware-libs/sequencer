@@ -8,7 +8,12 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
 };
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -79,8 +84,26 @@ const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
 /// Configuration for the Context struct.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
+    #[validate(nested)]
+    pub dynamic_config: ContextDynamicConfig,
+    #[validate(nested)]
+    pub static_config: ContextStaticConfig,
+}
+
+impl SerializeConfig for ContextConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
+    }
+}
+
+/// Static configuration for the Context struct.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct ContextStaticConfig {
     /// Buffer size for streaming outbound proposals.
     pub proposal_buffer_size: usize,
     /// The number of validators.
@@ -107,30 +130,8 @@ pub struct ContextConfig {
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub validate_proposal_margin_millis: Duration,
-    /// The minimum L1 gas price in wei.
-    pub min_l1_gas_price_wei: u128,
-    /// The maximum L1 gas price in wei.
-    pub max_l1_gas_price_wei: u128,
-    /// The minimum L1 data gas price in wei.
-    pub min_l1_data_gas_price_wei: u128,
-    /// The maximum L1 data gas price in wei.
-    pub max_l1_data_gas_price_wei: u128,
-    /// Part per thousand of multiplicative factor to apply to the data gas price, to enable
-    /// fine-tuning of the price charged to end users. Commonly used to apply a discount due to
-    /// the blob's data being compressed. Can be used to raise the prices in case of blob
-    /// under-utilization.
-    pub l1_data_gas_price_multiplier_ppt: u128,
-    /// This additional gas is added to the L1 gas price.
-    pub l1_gas_tip_wei: u128,
-    /// If given, will override the L2 gas price.
-    pub override_l2_gas_price_fri: Option<u128>,
-    /// If given, will override the L1 gas price.
-    pub override_l1_gas_price_wei: Option<u128>,
-    /// If given, will override the L1 data gas price.
-    pub override_l1_data_gas_price_wei: Option<u128>,
-    /// If given, will override the conversion rate.
-    pub override_eth_to_fri_rate: Option<u128>,
-    /// The fraction (0.0 - 1.0) of the total build time allocated to waiting
+    /// The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective
+    /// block hash to be available. The remaining time is used to build the proposal.
     /// for the retrospective block hash to be available. The remaining time is used to build the
     /// proposal.
     pub build_proposal_time_ratio_for_retrospective_block_hash: f32,
@@ -139,7 +140,7 @@ pub struct ContextConfig {
     pub retrospective_block_hash_retry_interval_millis: Duration,
 }
 
-impl SerializeConfig for ContextConfig {
+impl SerializeConfig for ContextStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([
             ser_param(
@@ -194,6 +195,81 @@ impl SerializeConfig for ContextConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "build_proposal_time_ratio_for_retrospective_block_hash",
+                &self.build_proposal_time_ratio_for_retrospective_block_hash,
+                "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the \
+                 retrospective block hash to be available. The remaining time is used to build \
+                 the proposal.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "retrospective_block_hash_retry_interval_millis",
+                &self.retrospective_block_hash_retry_interval_millis.as_millis(),
+                "The interval between retrospective block hash retries.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        dump.extend(ser_optional_param(
+            &serialize_optional_comma_separated(&self.validator_ids),
+            "".to_string(),
+            "validator_ids",
+            "Optional explicit set of validator IDs (comma separated).",
+            ParamPrivacyInput::Public,
+        ));
+        dump
+    }
+}
+
+impl Default for ContextStaticConfig {
+    fn default() -> Self {
+        Self {
+            proposal_buffer_size: 100,
+            num_validators: 1,
+            validator_ids: None,
+            chain_id: ChainId::Mainnet,
+            block_timestamp_window_seconds: 1,
+            l1_da_mode: true,
+            builder_address: ContractAddress::default(),
+            build_proposal_margin_millis: Duration::from_millis(1000),
+            validate_proposal_margin_millis: Duration::from_millis(10_000),
+            build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
+            retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
+        }
+    }
+}
+
+/// Dynamic configuration for the Context struct.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct ContextDynamicConfig {
+    /// The minimum L1 gas price in wei.
+    pub min_l1_gas_price_wei: u128,
+    /// The maximum L1 gas price in wei.
+    pub max_l1_gas_price_wei: u128,
+    /// The minimum L1 data gas price in wei.
+    pub min_l1_data_gas_price_wei: u128,
+    /// The maximum L1 data gas price in wei.
+    pub max_l1_data_gas_price_wei: u128,
+    /// Part per thousand of multiplicative factor to apply to the data gas price, to enable
+    /// fine-tuning of the price charged to end users. Commonly used to apply a discount due to
+    /// the blob's data being compressed. Can be used to raise the prices in case of blob
+    /// under-utilization.
+    pub l1_data_gas_price_multiplier_ppt: u128,
+    /// This additional gas is added to the L1 gas price.
+    pub l1_gas_tip_wei: u128,
+    /// If given, will override the L2 gas price.
+    pub override_l2_gas_price_fri: Option<u128>,
+    /// If given, will override the L1 gas price.
+    pub override_l1_gas_price_wei: Option<u128>,
+    /// If given, will override the L1 data gas price.
+    pub override_l1_data_gas_price_wei: Option<u128>,
+    /// If given, will override the conversion rate.
+    pub override_eth_to_fri_rate: Option<u128>,
+}
+
+impl SerializeConfig for ContextDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from_iter([
+            ser_param(
                 "min_l1_gas_price_wei",
                 &self.min_l1_gas_price_wei,
                 "The minimum L1 gas price in wei.",
@@ -230,20 +306,6 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "build_proposal_time_ratio_for_retrospective_block_hash",
-                &self.build_proposal_time_ratio_for_retrospective_block_hash,
-                "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the \
-                 retrospective block hash to be available. The remaining time is used to build \
-                 the proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "retrospective_block_hash_retry_interval_millis",
-                &self.retrospective_block_hash_retry_interval_millis.as_millis(),
-                "The interval between retrospective block hash retries.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         dump.extend(ser_optional_param(
             &self.override_l2_gas_price_fri,
@@ -273,29 +335,13 @@ impl SerializeConfig for ContextConfig {
             "Replace the Eth-to-Fri conversion rate with this value.",
             ParamPrivacyInput::Public,
         ));
-        dump.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.validator_ids),
-            "".to_string(),
-            "validator_ids",
-            "Optional explicit set of validator IDs (comma separated).",
-            ParamPrivacyInput::Public,
-        ));
         dump
     }
 }
 
-impl Default for ContextConfig {
+impl Default for ContextDynamicConfig {
     fn default() -> Self {
         Self {
-            proposal_buffer_size: 100,
-            num_validators: 1,
-            validator_ids: None,
-            chain_id: ChainId::Mainnet,
-            block_timestamp_window_seconds: 1,
-            l1_da_mode: true,
-            builder_address: ContractAddress::default(),
-            build_proposal_margin_millis: Duration::from_millis(1000),
-            validate_proposal_margin_millis: Duration::from_millis(10_000),
             min_l1_gas_price_wei: GWEI_FACTOR,
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: 1,
@@ -306,8 +352,6 @@ impl Default for ContextConfig {
             override_l1_gas_price_wei: None,
             override_l1_data_gas_price_wei: None,
             override_eth_to_fri_rate: None,
-            build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
-            retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
         }
     }
 }
