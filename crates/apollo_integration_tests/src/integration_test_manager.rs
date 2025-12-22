@@ -883,12 +883,16 @@ impl IntegrationTestManager {
             .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
             .expect("There should be at least one running or idle node");
 
-        for executable_setup in node_setup.get_executables() {
-            if let Some(batcher_config) = &executable_setup.get_config().batcher_config {
-                return batcher_config.block_builder_config.chain_info.chain_id.clone();
-            }
-        }
-        unreachable!("No executable with a set batcher.")
+        node_setup
+            .get_batcher()
+            .get_config()
+            .batcher_config
+            .as_ref()
+            .expect("No executable with a set batcher.")
+            .block_builder_config
+            .chain_info
+            .chain_id
+            .clone()
     }
 
     /// This function returns the number of accepted transactions on the running nodes specified by
