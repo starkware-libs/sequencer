@@ -84,6 +84,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
+use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -178,6 +179,10 @@ pub struct Batcher {
     /// Optional storage reader server for handling remote storage reader queries.
     #[allow(dead_code)]
     storage_reader_server: Option<BatcherStorageReaderServer>,
+    /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
+    /// commitment manager because commitments are reverted in a blocking call.
+    #[allow(unused)]
+    commitment_manager: Option<CommitmentManager>,
 }
 
 impl Batcher {
@@ -193,6 +198,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         storage_reader_server: Option<BatcherStorageReaderServer>,
+        commitment_manager: Option<CommitmentManager>,
     ) -> Self {
         Self {
             config,
@@ -214,6 +220,7 @@ impl Batcher {
             proposals_counter: 1,
             prev_proposal_commitment: None,
             storage_reader_server,
+            commitment_manager,
         }
     }
 
@@ -1153,6 +1160,11 @@ pub fn create_batcher(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
+    // TODO(Amos): Add commitment manager config to batcher config and use it here.
+    // TODO(Amos): Add missing commitment tasks.
+    let commitment_manager =
+        CommitmentManager::new_or_none(&CommitmentManagerConfig::default(), &config.revert_config);
+
     Batcher::new(
         config,
         storage_reader,
@@ -1164,6 +1176,7 @@ pub fn create_batcher(
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         storage_reader_server,
+        commitment_manager,
     )
 }
 

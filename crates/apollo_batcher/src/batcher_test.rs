@@ -68,6 +68,7 @@ use crate::block_builder::{
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
+use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK_HEIGHT,
@@ -189,6 +190,12 @@ impl Default for MockDependencies {
 }
 
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
+    // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
+    // TODO(Amos): Add missing commitment tasks.
+    let commitment_manager = CommitmentManager::new_or_none(
+        &CommitmentManagerConfig::default(),
+        &mock_dependencies.batcher_config.revert_config,
+    );
     let mut batcher = Batcher::new(
         mock_dependencies.batcher_config,
         Arc::new(mock_dependencies.storage_reader),
@@ -203,6 +210,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         Box::new(mock_dependencies.block_builder_factory),
         Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
         None,
+        commitment_manager,
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
