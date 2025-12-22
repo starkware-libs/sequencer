@@ -242,10 +242,10 @@ impl StateReaderFactory for RpcStateReaderFactory {
         &self,
     ) -> StateSyncClientResult<(
         Self::TGatewayStateReaderWithCompiledClasses,
-        Box<Self::TGatewayFixedBlockStateReader>,
+        Self::TGatewayFixedBlockStateReader,
     )> {
         let reader = RpcStateReader::from_latest(&self.config);
         let fixed_client = RpcStateReader::from_latest(&self.config);
-        Ok((reader, Box::new(fixed_client)))
+        Ok((reader, fixed_client))
     }
 }
