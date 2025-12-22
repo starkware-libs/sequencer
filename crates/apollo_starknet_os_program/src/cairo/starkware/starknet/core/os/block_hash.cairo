@@ -48,3 +48,31 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
     let block_hash = hash_finalize(hash_state=hash_state);
     return block_hash;
 }
+
+// Calculates the new block hash given the block info and the state root.
+// Guesses the rest of the block hash components to complete the hash calculation.
+// Returns the previous block hash and the new block hash.
+func get_block_hashes{poseidon_ptr: PoseidonBuiltin*}(block_info: BlockInfo*, state_root: felt) -> (
+    previous_block_hash: felt, new_block_hash: felt
+) {
+    alloc_locals;
+    local parent_hash;
+    local header_commitments: BlockHeaderCommitments*;
+    local gas_prices_hash;
+    local starknet_version;
+
+    %{ GetBlockHashes %}
+
+    let block_hash = calculate_block_hash(
+        block_info=block_info,
+        header_commitments=header_commitments,
+        gas_prices_hash=gas_prices_hash,
+        state_root=state_root,
+        parent_hash=parent_hash,
+        starknet_version=starknet_version,
+    );
+
+    %{ CheckBlockHashConsistency %}
+
+    return (previous_block_hash=parent_hash, new_block_hash=block_hash);
+}

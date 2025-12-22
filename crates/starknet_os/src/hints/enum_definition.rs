@@ -137,8 +137,10 @@ use crate::hints::hint_implementation::kzg::implementation::{
 };
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
+    check_block_hash_consistency,
     configure_kzg_manager,
     create_block_additional_hints,
+    get_block_hashes,
     get_n_blocks,
     get_n_class_hashes_to_migrate,
     get_public_keys,
@@ -146,8 +148,6 @@ use crate::hints::hint_implementation::os::{
     initialize_class_hashes,
     initialize_state_changes,
     log_remaining_blocks,
-    set_ap_to_new_block_hash,
-    set_ap_to_prev_block_hash,
     starknet_os_input,
     write_full_output_to_memory,
 };
@@ -1627,16 +1627,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         indoc! {r#"__serialize_data_availability_create_pages__ = True
         kzg_manager = global_hints.kzg_manager"#}
     ),
-    (
-        SetApToPrevBlockHash,
-        set_ap_to_prev_block_hash,
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(block_input.prev_block_hash)"#}
-    ),
-    (
-        SetApToNewBlockHash,
-        set_ap_to_new_block_hash,
-        "memory[ap] = to_felt_or_relocatable(block_input.new_block_hash)"
-    ),
+    (CheckBlockHashConsistency, check_block_hash_consistency, "CheckBlockHashConsistency"),
     (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
     (
         PreparePreimageValidationNonDeterministicHashes,
@@ -1864,6 +1855,7 @@ block_input = next(block_input_iterator)
         get_public_keys,
         "fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys)"
     ),
+    (GetBlockHashes, get_block_hashes, "GetBlockHashes"),
 );
 
 define_hint_enum!(
