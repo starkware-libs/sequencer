@@ -157,6 +157,7 @@ fn get_consolidated_config() -> ComponentConfig {
         mempool: base.clone(),
         mempool_p2p: base.clone(),
         monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
+        proof_manager: base.clone(),
         sierra_compiler: base.clone(),
         signature_manager: base.clone(),
         state_sync: base.clone(),

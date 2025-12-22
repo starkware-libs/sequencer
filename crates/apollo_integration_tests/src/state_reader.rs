@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use apollo_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use apollo_class_manager::{ClassStorage, FsClassStorage};
 use apollo_class_manager_config::config::FsClassStorageConfig;
+use apollo_proof_manager::proof_manager::ProofManagerConfig;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
@@ -69,6 +70,7 @@ pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
 pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
 pub(crate) const CONSENSUS_DB_PATH_SUFFIX: &str = "consensus";
+pub(crate) const PROOF_MANAGER_DB_PATH_SUFFIX: &str = "proof_manager";
 
 #[derive(Debug, Clone)]
 pub struct StorageTestConfig {
@@ -76,6 +78,7 @@ pub struct StorageTestConfig {
     pub state_sync_storage_config: StorageConfig,
     pub class_manager_storage_config: FsClassStorageConfig,
     pub consensus_storage_config: StorageConfig,
+    pub proof_manager_config: ProofManagerConfig,
 }
 
 impl StorageTestConfig {
@@ -84,12 +87,14 @@ impl StorageTestConfig {
         state_sync_storage_config: StorageConfig,
         class_manager_storage_config: FsClassStorageConfig,
         consensus_storage_config: StorageConfig,
+        proof_manager_config: ProofManagerConfig,
     ) -> Self {
         Self {
             batcher_storage_config,
             state_sync_storage_config,
             class_manager_storage_config,
             consensus_storage_config,
+            proof_manager_config,
         }
     }
 }
@@ -100,6 +105,7 @@ pub struct StorageTestHandles {
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<TempDirHandlePair>,
     pub consensus_storage_handle: Option<TempDir>,
+    pub proof_manager_storage_handle: Option<TempDir>,
 }
 
 impl StorageTestHandles {
@@ -108,12 +114,14 @@ impl StorageTestHandles {
         state_sync_storage_handle: Option<TempDir>,
         class_manager_storage_handles: Option<TempDirHandlePair>,
         consensus_storage_handle: Option<TempDir>,
+        proof_manager_storage_handle: Option<TempDir>,
     ) -> Self {
         Self {
             batcher_storage_handle,
             state_sync_storage_handle,
             class_manager_storage_handles,
             consensus_storage_handle,
+            proof_manager_storage_handle,
         }
     }
 }
@@ -195,18 +203,33 @@ impl StorageTestSetup {
                 .chain_id(chain_info.chain_id.clone())
                 .build();
 
+        let proof_manager_db_path =
+            storage_exec_paths.as_ref().map(|p| p.get_proof_manager_path_with_db_suffix());
+        let (proof_manager_config, proof_manager_storage_handle) =
+            if let Some(proof_manager_path) = proof_manager_db_path.as_ref() {
+                let persistent_root = proof_manager_path.clone();
+                (ProofManagerConfig { persistent_root }, None)
+            } else {
+                let temp_handle =
+                    tempfile::tempdir().expect("Failed to create proof manager temp directory");
+                let persistent_root = temp_handle.path().to_path_buf();
+                (ProofManagerConfig { persistent_root }, Some(temp_handle))
+            };
+
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,
                 state_sync_storage_config,
                 class_manager_storage_config,
                 consensus_storage_config,
+                proof_manager_config,
             ),
             storage_handles: StorageTestHandles::new(
                 batcher_storage_handle,
                 state_sync_storage_handle,
                 class_manager_storage_handles,
                 consensus_storage_handle,
+                proof_manager_storage_handle,
             ),
         }
     }
