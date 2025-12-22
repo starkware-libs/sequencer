@@ -19,6 +19,7 @@ jobs:
       namespace: test
       layout: hybrid
       overlay: hybrid.testing.node-0
+      overlay2: hybrid.testing.all-constructs
       monitoring_dashboard_file: ${{ github.workspace }}/deployments/monitoring/examples/output/dashboards/sequencer_node_dashboard.json
       cdk8s_sequencer_path: ${{ github.workspace }}/deployments/sequencer2
 
@@ -47,23 +48,30 @@ jobs:
       - name: CDk8s synth
         working-directory: ${{ env.cdk8s_sequencer_path }}
         run: |
+          echo "Importing CDK8s Sequencer app..."
           cdk8s import
+          echo "Installing pip dependencies..."
           pipenv install
-          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}"
+          echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay }}..."
+          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist1
+          echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay2 }}..."
+          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay2 }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist2
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: cdk8s-artifacts
           path: |
-            ${{ env.cdk8s_sequencer_path }}/dist
+            ${{ env.cdk8s_sequencer_path }}/dist1
+            ${{ env.cdk8s_sequencer_path }}/dist2
             ${{ env.cdk8s_sequencer_path }}/resources
 
   validate:
     runs-on: ubuntu-24.04
     needs: prepare
     env:
-      dist_path: ./cdk8s-artifacts/dist
+      dist1_path: ./cdk8s-artifacts/dist1
+      dist2_path: ./cdk8s-artifacts/dist2
       crds_path: ./cdk8s-artifacts/resources/crds
     steps:
       - name: Setup go lang
@@ -82,25 +90,29 @@ jobs:
           merge-multiple: true
 
       - name: kubectl validation test for version 1.27
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.27
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.27
         continue-on-error: true
 
       - name: kubectl validation test for version 1.28
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.28
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.28
         continue-on-error: true
 
       - name: kubectl validation test for version 1.29
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.29
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.29
         continue-on-error: false
 
       - name: kubectl validation test for version 1.30
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.30
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.30
         continue-on-error: false
 
       - name: kubectl validation test for version 1.31
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.31
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.31
         continue-on-error: false
 
       - name: kubectl validation test for version 1.32
-        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.32
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.32
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.33
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.33
         continue-on-error: false

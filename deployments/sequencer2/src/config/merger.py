@@ -154,9 +154,14 @@ def _merge_common_into_service(
                 merged_seq_config.update(merged_config["sequencerConfig"])
                 merged_config["sequencerConfig"] = merged_seq_config
 
+            # Special handling for configList: allow common to override service value
+            # This enables using a common test config for all services
+            if "configList" in common_value:
+                merged_config["configList"] = deepcopy(common_value["configList"])
+
             # For all other fields in common config, merge them in
             for key, value in common_value.items():
-                if key == "sequencerConfig":
+                if key == "sequencerConfig" or key == "configList":
                     # Already handled above
                     continue
                 if key not in merged_config:

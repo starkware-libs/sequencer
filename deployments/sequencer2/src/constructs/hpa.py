@@ -189,13 +189,14 @@ class HpaConstruct(BaseConstruct):
             )
 
         # Build behavior from individual settings
-        behavior = {}
+        scale_up = None
+        scale_down = None
 
         if (
             self.service_config.hpa.scaleUpStabilizationWindowSeconds
             or self.service_config.hpa.scaleUpPolicies
         ):
-            behavior["scaleUp"] = k8s.HpaScalingRulesV2(
+            scale_up = k8s.HpaScalingRulesV2(
                 stabilization_window_seconds=self.service_config.hpa.scaleUpStabilizationWindowSeconds,
                 policies=(
                     [
@@ -211,7 +212,7 @@ class HpaConstruct(BaseConstruct):
             self.service_config.hpa.scaleDownStabilizationWindowSeconds
             or self.service_config.hpa.scaleDownPolicies
         ):
-            behavior["scaleDown"] = k8s.HpaScalingRulesV2(
+            scale_down = k8s.HpaScalingRulesV2(
                 stabilization_window_seconds=self.service_config.hpa.scaleDownStabilizationWindowSeconds,
                 policies=(
                     [
@@ -223,53 +224,10 @@ class HpaConstruct(BaseConstruct):
                 ),
             )
 
-        if not behavior:
+        if not (scale_up or scale_down):
             return None
 
-        scale_up = None
-        scale_down = None
-
-        if "scaleUp" in behavior:
-            scale_up_config = behavior["scaleUp"]
-            policies = None
-            if scale_up_config.get("policies"):
-                policies = [
-                    k8s.HpaScalingPolicyV2(
-                        period_seconds=policy.get("periodSeconds"),
-                        type=policy.get("type"),
-                        value=policy.get("value"),
-                    )
-                    for policy in scale_up_config["policies"]
-                ]
-            scale_up = k8s.HpaScalingRulesV2(
-                stabilization_window_seconds=scale_up_config.get("stabilizationWindowSeconds"),
-                select_policy=scale_up_config.get("selectPolicy"),
-                policies=policies,
-            )
-
-        if "scaleDown" in behavior:
-            scale_down_config = behavior["scaleDown"]
-            policies = None
-            if scale_down_config.get("policies"):
-                policies = [
-                    k8s.HpaScalingPolicyV2(
-                        period_seconds=policy.get("periodSeconds"),
-                        type=policy.get("type"),
-                        value=policy.get("value"),
-                    )
-                    for policy in scale_down_config["policies"]
-                ]
-            scale_down = k8s.HpaScalingRulesV2(
-                stabilization_window_seconds=scale_down_config.get("stabilizationWindowSeconds"),
-                select_policy=scale_down_config.get("selectPolicy"),
-                policies=policies,
-            )
-
-        return (
-            k8s.HorizontalPodAutoscalerBehaviorV2(
-                scale_up=scale_up,
-                scale_down=scale_down,
-            )
-            if (scale_up or scale_down)
-            else None
+        return k8s.HorizontalPodAutoscalerBehaviorV2(
+            scale_up=scale_up,
+            scale_down=scale_down,
         )
