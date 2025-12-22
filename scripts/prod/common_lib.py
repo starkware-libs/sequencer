@@ -56,10 +56,6 @@ class Service(Enum):
 
     Core = ("sequencer-core-config", "sequencer-core-statefulset-0")
     Gateway = ("sequencer-gateway-config", "sequencer-gateway-deployment")
-    HttpServer = (
-        "sequencer-httpserver-config",
-        "sequencer-httpserver-deployment",
-    )
     L1 = ("sequencer-l1-config", "sequencer-l1-deployment")
     Mempool = ("sequencer-mempool-config", "sequencer-mempool-deployment")
     SierraCompiler = (

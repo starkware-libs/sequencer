@@ -18,6 +18,7 @@ config:
     gateway_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
     gateway_config_stateful_tx_validator_config_max_allowed_nonce_gap: 200
     gateway_config_stateless_tx_validator_config_min_gas_price: 3000000000
+    http_server_config_port: 8080
 
 service:
   enabled: true
@@ -26,4 +27,8 @@ service:
   - name: gateway
     port: 55002
     targetPort: 55002
+    protocol: TCP
+  - name: http-server
+    port: 8080
+    targetPort: 8080
     protocol: TCP

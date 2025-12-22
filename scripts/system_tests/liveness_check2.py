@@ -34,18 +34,20 @@ def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, f
         return port
 
     # Fallback: check service.ports for monitoring-endpoint port
-    print("Fallback: checking service.ports for monitoring-endpoint port")
-    service_ports = service_config.get("service", {}).get("ports", [])
-    for port_config in service_ports:
-        if isinstance(port_config, dict):
-            port_name = port_config.get("name", "").lower()
-            if "monitoring" in port_name or "monitoring-endpoint" in port_name:
-                port_value = port_config.get("port")
+    print("Fallback: checking gcpPodMonitoring.endpoints for monitoring-endpoint port")
+    pod_monitoring_endpoints = service_config.get("gcpPodMonitoring", {}).get("endpoints", [])
+    for pod_monitoring_endpoint in pod_monitoring_endpoints:
+        if isinstance(pod_monitoring_endpoint, dict):
+            endpoint_name = pod_monitoring_endpoint.get("name", "").lower()
+            if "monitoring" in endpoint_name:
+                port_value = pod_monitoring_endpoint.get("port")
                 if isinstance(port_value, numbers.Number):
                     return port_value
 
+    print(f"service_config {service_config}")
+
     raise ValueError(
-        f"monitoring_endpoint_config_port not found or not a valid number for service {service_config.get('name', 'unknown')}"
+        f"monitoring_endpoint_config_port not found or not a valid number for service {service_config.get('name', 'unknown')}\nservice_config content: {service_config}"
     )
 
 
