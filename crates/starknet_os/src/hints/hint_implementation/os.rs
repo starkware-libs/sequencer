@@ -4,20 +4,15 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_hash,
-    PartialBlockHashComponents,
-};
-use starknet_api::hash::StateRoots;
+use starknet_api::block_hash::block_hash_calculator::gas_prices_to_hash;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
@@ -89,39 +84,24 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
+// Checks that the calculated block hash is consistent with the expected block hash (sanity check).
+pub(crate) fn check_block_hash_consistency<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
-    Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
-}
+    let calculated_block_hash = get_integer_from_var_name("block_hash", vm, ids_data, ap_tracking)?;
 
-pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
+    if calculated_block_hash != os_input.new_block_hash.0 {
+        return Err(OsHintError::AssertionFailed {
+            message: format!(
+                "Calculated block hash {} does not match expected block hash {}",
+                calculated_block_hash, os_input.new_block_hash.0
+            ),
+        });
+    }
 
-    // Make sure the block hash is consistent with the block info and commitments.
-    // TODO(Yonatan): Remove this once the OS verifies the block hash.
-    let calculated_block_hash = calculate_block_hash(
-        &PartialBlockHashComponents::new(
-            &os_input.block_info,
-            os_input.block_hash_commitments.clone(),
-        ),
-        StateRoots {
-            contracts_trie_root_hash: os_input.contract_state_commitment_info.updated_root,
-            classes_trie_root_hash: os_input.contract_class_commitment_info.updated_root,
-        }
-        .global_root(),
-        os_input.prev_block_hash,
-    )?;
-    assert_eq!(
-        calculated_block_hash, os_input.new_block_hash,
-        "Calculated block hash does not match new block hash"
-    );
-    Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
+    Ok(())
 }
 
 pub(crate) fn starknet_os_input(HintArgs { .. }: HintArgs<'_>) -> OsHintResult {
@@ -195,5 +175,69 @@ pub(crate) fn get_public_keys<S: StateReader>(
 ) -> OsHintResult {
     let public_keys = hint_processor.os_hints_config.public_keys.clone();
     load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys)?;
+    Ok(())
+}
+
+pub(crate) fn get_block_hashes<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
+    let block_info = &os_input.block_info;
+    let gas_prices = &block_info.gas_prices;
+    let commitments = &os_input.block_hash_commitments;
+
+    insert_value_from_var_name(
+        "parent_hash",
+        os_input.prev_block_hash.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let header_commitments_ptr = vm.add_memory_segment();
+    insert_values_to_fields(
+        header_commitments_ptr,
+        CairoStruct::BlockHeaderCommitments,
+        vm,
+        &[
+            ("transaction_commitment", commitments.transaction_commitment.0.into()),
+            ("event_commitment", commitments.event_commitment.0.into()),
+            ("receipt_commitment", commitments.receipt_commitment.0.into()),
+            ("state_diff_commitment", commitments.state_diff_commitment.0.0.into()),
+            ("concatenated_counts", commitments.concatenated_counts.into()),
+        ],
+        hint_processor.program,
+    )?;
+    insert_value_from_var_name(
+        "header_commitments",
+        header_commitments_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let starknet_version_felt = Felt::try_from(&block_info.starknet_version)?;
+    insert_value_from_var_name(
+        "starknet_version",
+        starknet_version_felt,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let [gas_prices_hash]: [Felt; 1] = gas_prices_to_hash(
+        &gas_prices.l1_gas_price_per_token(),
+        &gas_prices.l1_data_gas_price_per_token(),
+        &gas_prices.l2_gas_price_per_token(),
+        &block_info.starknet_version.try_into()?,
+    )
+    .try_into()
+    .map_err(|_| {
+        OsHintError::UnsupportedStarknetVersionForBlockHash(block_info.starknet_version)
+    })?;
+
+    insert_value_from_var_name("gas_prices_hash", gas_prices_hash, vm, ids_data, ap_tracking)?;
+
     Ok(())
 }

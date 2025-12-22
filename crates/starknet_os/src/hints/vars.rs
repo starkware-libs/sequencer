@@ -402,6 +402,7 @@ define_string_enum! {
     #[derive(Copy, Clone)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
+        (BlockHeaderCommitments, "starkware.starknet.core.os.block_hash.BlockHeaderCommitments"),
         (BlockInfo, "starkware.starknet.common.new_syscalls.BlockInfo"),
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
