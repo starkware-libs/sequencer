@@ -95,11 +95,15 @@ where
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
+        // Convert Box<ConcreteType> to Box<dyn GatewayFixedBlockStateReader>.
+        // This is safe because FixedBlockStateReader: GatewayFixedBlockStateReader.
+        let boxed_gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader> =
+            gateway_fixed_block_state_reader;
         Ok(Box::new(StatefulTransactionValidator::new(
             self.config.clone(),
             self.chain_info.clone(),
             state_reader_and_contract_manager,
-            gateway_fixed_block_state_reader,
+            boxed_gateway_fixed_block_state_reader,
         )))
     }
 }
