@@ -24,6 +24,15 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
@@ -64,6 +73,15 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
@@ -96,6 +114,15 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
