@@ -99,9 +99,9 @@ impl StateReaderFactory for TestStateReaderFactory {
         &self,
     ) -> StateSyncClientResult<(
         Self::TGatewayStateReaderWithCompiledClasses,
-        Box<Self::TGatewayFixedBlockStateReader>,
+        Self::TGatewayFixedBlockStateReader,
     )> {
-        Ok((self.state_reader.clone(), Box::new(self.gateway_fixed_block.clone())))
+        Ok((self.state_reader.clone(), self.gateway_fixed_block.clone()))
     }
 }
 

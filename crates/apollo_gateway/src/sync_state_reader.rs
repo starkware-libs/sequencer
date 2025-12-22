@@ -496,7 +496,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
         &self,
     ) -> StateSyncClientResult<(
         Self::TGatewayStateReaderWithCompiledClasses,
-        Box<Self::TGatewayFixedBlockStateReader>,
+        Self::TGatewayFixedBlockStateReader,
     )> {
         let latest_block_number = self.shared_state_sync_client.get_latest_block_number().await?;
 
@@ -505,7 +505,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
             info!("No blocks found yet; using genesis state readers for bootstrap transactions.");
             return Ok((
                 SyncOrGenesisStateReader::Genesis(GenesisStateReader),
-                Box::new(SyncOrGenesisFixedBlockStateReader::Genesis(GenesisFixedBlockStateReader)),
+                SyncOrGenesisFixedBlockStateReader::Genesis(GenesisFixedBlockStateReader),
             ));
         };
 
@@ -521,9 +521,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
         );
         Ok((
             SyncOrGenesisStateReader::Sync(blockifier_state_reader),
-            Box::new(SyncOrGenesisFixedBlockStateReader::Sync(
-                gateway_fixed_block_sync_state_client,
-            )),
+            SyncOrGenesisFixedBlockStateReader::Sync(gateway_fixed_block_sync_state_client),
         ))
     }
 }
