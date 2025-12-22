@@ -27,10 +27,11 @@ pub struct SecretsConfigOverride {
     )]
     l1_endpoint_monitor_config_ordered_l1_endpoint_urls: Vec<Url>,
     #[serde(
-        rename = "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list",
+        rename = "l1_gas_price_provider_config.dynamic_config.eth_to_strk_oracle_config.\
+                  url_header_list",
         serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
     )]
-    l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list:
+    l1_gas_price_provider_config_dynamic_config_eth_to_strk_oracle_config_url_header_list:
         Option<Vec<UrlAndHeaders>>,
     #[serde(
         rename = "mempool_p2p_config.network_config.secret_key",
@@ -61,12 +62,11 @@ impl Default for SecretsConfigOverride {
                 Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),
                 Url::parse("https://arbitrary.ordered_l1_endpoint_2.url").unwrap(),
             ],
-            l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list: Some(
-                vec![UrlAndHeaders {
+            l1_gas_price_provider_config_dynamic_config_eth_to_strk_oracle_config_url_header_list:
+                Some(vec![UrlAndHeaders {
                     url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),
                     headers: Default::default(),
-                }],
-            ),
+                }]),
             mempool_p2p_config_network_config_secret_key: None,
             recorder_url: Url::parse("https://arbitrary.recorder.url").unwrap(),
             state_sync_config_central_sync_client_config_central_source_config_http_headers: ""

@@ -3,6 +3,7 @@ use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigMan
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderDynamicConfig;
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
@@ -41,6 +42,17 @@ impl ConfigManager {
     pub(crate) fn get_mempool_dynamic_config(&self) -> ConfigManagerResult<MempoolDynamicConfig> {
         Ok(self.latest_node_dynamic_config.mempool_dynamic_config.as_ref().unwrap().clone())
     }
+
+    pub(crate) fn get_l1_gas_price_provider_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<L1GasPriceProviderDynamicConfig> {
+        Ok(self
+            .latest_node_dynamic_config
+            .l1_gas_price_provider_dynamic_config
+            .as_ref()
+            .unwrap()
+            .clone())
+    }
 }
 
 #[async_trait]
@@ -56,6 +68,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::GetMempoolDynamicConfig => {
                 ConfigManagerResponse::GetMempoolDynamicConfig(self.get_mempool_dynamic_config())
+            }
+            ConfigManagerRequest::GetL1GasPriceProviderDynamicConfig => {
+                ConfigManagerResponse::GetL1GasPriceProviderDynamicConfig(
+                    self.get_l1_gas_price_provider_dynamic_config(),
+                )
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(

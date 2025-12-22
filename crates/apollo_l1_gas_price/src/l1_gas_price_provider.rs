@@ -71,7 +71,7 @@ impl L1GasPriceProvider {
 
     pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
         let eth_to_strk_oracle_client =
-            EthToStrkOracleClient::new(config.eth_to_strk_oracle_config.clone());
+            EthToStrkOracleClient::new(config.dynamic_config.eth_to_strk_oracle_config.clone());
         Self::new(config, Arc::new(eth_to_strk_oracle_client))
     }
 
