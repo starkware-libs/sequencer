@@ -18,7 +18,7 @@ pub trait StateReaderFactory: Send + Sync {
         &self,
     ) -> StateSyncClientResult<(
         Self::TGatewayStateReaderWithCompiledClasses,
-        Box<Self::TGatewayFixedBlockStateReader>,
+        Self::TGatewayFixedBlockStateReader,
     )>;
 }
 

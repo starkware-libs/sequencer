@@ -89,10 +89,9 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
-        // Convert Box<ConcreteType> to Box<dyn GatewayFixedBlockStateReader>.
-        // This is safe because ConcreteType here implements GatewayFixedBlockStateReader.
+        // Convert concrete type to trait object.
         let boxed_gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader> =
-            gateway_fixed_block_state_reader;
+            Box::new(gateway_fixed_block_state_reader);
         Ok(Box::new(StatefulTransactionValidator::new(
             self.config.clone(),
             self.chain_info.clone(),
