@@ -117,6 +117,8 @@ impl CommitmentManager {
 
     /// Fetches all ready commitment results from the state committer.
     pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
+        // TODO(Nimrod): Once this function is used, verify the calculated block hash of the first
+        // new block with the value in the config.
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
