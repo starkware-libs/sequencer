@@ -94,7 +94,7 @@ fn create_proposal_validate_arguments()
     let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
     let (content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let context_config = ContextConfig::default();
-    let gas_price_params = make_gas_price_params(&context_config);
+    let gas_price_params = make_gas_price_params(&context_config.dynamic_config);
     let cancel_token = CancellationToken::new();
 
     (
