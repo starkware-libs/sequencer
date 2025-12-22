@@ -202,6 +202,14 @@ impl NodeSetup {
         )
     }
 
+    pub fn get_l1_gas_price_scraper(&self) -> &ExecutableSetup {
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::L1GasPriceScraper,
+        )
+    }
+
     pub fn get_state_sync(&self) -> &ExecutableSetup {
         get_executable_by_component(
             self.node_type,
@@ -250,14 +258,11 @@ impl NodeSetup {
     }
 
     pub fn get_l1_gas_price_scraper_config(&self) -> L1GasPriceScraperConfig {
-        for executable_setup in self.get_executables() {
-            if let Some(l1_gas_price_scraper_config) =
-                &executable_setup.get_config().l1_gas_price_scraper_config
-            {
-                return l1_gas_price_scraper_config.clone();
-            }
-        }
-        unreachable!("No executable with a set l1 gas price scraper config.")
+        self.get_l1_gas_price_scraper()
+            .get_config()
+            .l1_gas_price_scraper_config
+            .clone()
+            .expect("No executable with a set l1 gas price scraper config.")
     }
 }
 
