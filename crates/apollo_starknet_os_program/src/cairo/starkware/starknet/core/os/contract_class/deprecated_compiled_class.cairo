@@ -194,17 +194,7 @@ func deprecated_load_compiled_class_facts_inner{pedersen_ptr: HashBuiltin*, rang
     let (hash) = deprecated_compiled_class_hash{hash_ptr=pedersen_ptr}(compiled_class);
     compiled_class_fact.hash = hash;
 
-    %{
-        from starkware.python.utils import from_bytes
-
-        computed_hash = ids.compiled_class_fact.hash
-        expected_hash = compiled_class_hash
-        assert computed_hash == expected_hash, (
-            "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-            f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")
-
-        vm_load_program(compiled_class.program, ids.compiled_class.bytecode_ptr)
-    %}
+    %{ LoadDeprecatedClass %}
 
     return deprecated_load_compiled_class_facts_inner(
         n_compiled_class_facts=n_compiled_class_facts - 1,
