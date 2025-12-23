@@ -146,17 +146,7 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
     // squash it separately instead of running `squash_state_changes` again.
     local squashed_aliases_storage_start: DictAccess*;
     local prev_aliases_state_entry: StateEntry*;
-    %{
-        if state_update_pointers is None:
-            ids.prev_aliases_state_entry = segments.add()
-            ids.squashed_aliases_storage_start = segments.add()
-        else:
-            ids.prev_aliases_state_entry, ids.squashed_aliases_storage_start = (
-                state_update_pointers.get_contract_state_entry_and_storage_ptr(
-                    ids.ALIAS_CONTRACT_ADDRESS
-                )
-            )
-    %}
+    %{ GuessAliasesContractStoragePtr %}
     let (squashed_aliases_storage_end) = squash_dict(
         dict_accesses=aliases_storage_updates_start,
         dict_accesses_end=aliases_storage_updates,
@@ -171,15 +161,7 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
     tempvar new_aliases_state_entry = new StateEntry(
         class_hash=0, storage_ptr=squashed_aliases_storage_end, nonce=0
     );
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-                    ids.ALIAS_CONTRACT_ADDRESS
-                ] = (
-                    ids.new_aliases_state_entry.address_,
-                    ids.squashed_aliases_storage_end.address_,
-                )
-    %}
+    %{ UpdateAliasesContractToStoragePtr %}
     let squashed_contract_state_dict_end = (
         &squashed_contract_state_dict[n_contract_state_changes]
     );
