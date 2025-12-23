@@ -12,11 +12,13 @@ use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableCla
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
+use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tracing::instrument;
 
+use crate::class_manager::ClassManagerStorageReaderServer;
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
 #[cfg(test)]
@@ -249,17 +251,29 @@ type LockedWriter<'a> = MutexGuard<'a, apollo_storage::StorageWriter>;
 pub struct ClassHashStorage {
     reader: apollo_storage::StorageReader,
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
+    // Kept alive to maintain the server running.
+    #[allow(dead_code)]
+    storage_reader_server: Option<Arc<ClassManagerStorageReaderServer>>,
 }
 
 impl ClassHashStorage {
-    pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
+    pub fn new(
+        config: ClassHashStorageConfig,
+        storage_reader_server_config: ServerConfig,
+    ) -> ClassHashStorageResult<Self> {
         let storage_config = StorageConfig::from(config);
-        let (reader, writer) = apollo_storage::open_storage_with_metric(
-            storage_config,
-            &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
-        )?;
+        let (reader, writer, storage_reader_server) =
+            apollo_storage::open_storage_with_metric_and_server(
+                storage_config,
+                &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
+                storage_reader_server_config,
+            )?;
 
-        Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
+        Ok(Self {
+            reader,
+            writer: Arc::new(Mutex::new(writer)),
+            storage_reader_server: storage_reader_server.map(Arc::new),
+        })
     }
 
     fn writer(&self) -> ClassHashStorageResult<LockedWriter<'_>> {
@@ -318,7 +332,8 @@ impl From<FsClassStorageError> for CachedClassStorageError<FsClassStorageError> 
 
 impl FsClassStorage {
     pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
-        let class_hash_storage = ClassHashStorage::new(config.class_hash_storage_config)?;
+        let class_hash_storage =
+            ClassHashStorage::new(config.class_hash_storage_config, ServerConfig::default())?;
         std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }

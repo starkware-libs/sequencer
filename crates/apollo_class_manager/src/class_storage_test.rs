@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassHashDbConfig};
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
+use apollo_storage::storage_reader_server::ServerConfig;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -32,7 +33,7 @@ impl ClassHashStorage {
             },
             ..Default::default()
         };
-        Self::new(config).unwrap()
+        Self::new(config, ServerConfig::default()).unwrap()
     }
 }
 
