@@ -51,7 +51,7 @@ func encrypt_state_diff{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     // Generate random symmetric key and random starknet private keys.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
-    %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_end, ids.n_keys) %}
+    %{ GenerateKeysUsingSha256Hash %}
 
     local encrypted_start: felt*;
     %{ SetEncryptedStart %}

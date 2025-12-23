@@ -174,7 +174,7 @@
     "StatelessHint": "GenerateKeysUsingSha256Hash"
   },
   {
-    "CommonHint": "GuessContractAddrStoragePtr"
+    "CommonHint": "LoadStoragePtrAndPrevState"
   },
   {
     "CommonHint": "UpdateClassesPtr"
