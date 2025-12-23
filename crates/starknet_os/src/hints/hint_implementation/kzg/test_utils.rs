@@ -12,6 +12,7 @@ use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
@@ -54,7 +55,8 @@ pub fn estimate_os_kzg_commitment_computation_resources(
     resources
 }
 
-pub fn run_compute_os_kzg_commitment_info(n: usize) -> CairoRunner {
+/// Runs the `compute_os_kzg_commitment_info` entrypoint and returns the runner and the DA segment.
+pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<Felt>>) {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
         add_main_prefix_to_entrypoint: false,
@@ -93,7 +95,7 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> CairoRunner {
     ];
     let expected_return_values = vec![EndpointArg::Pointer(PointerArg::Composed(vec![]))];
     let state_reader = None;
-    run_cairo_0_entrypoint(
+    let (_, _, mut hint_processor) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
         &implicit_args,
@@ -105,5 +107,5 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> CairoRunner {
     )
     .unwrap();
 
-    runner
+    (runner, hint_processor.get_da_segment().clone())
 }

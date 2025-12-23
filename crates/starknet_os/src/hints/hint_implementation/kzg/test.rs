@@ -1,9 +1,11 @@
 use std::sync::LazyLock;
 
+use apollo_starknet_os_program::OS_PROGRAM;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use c_kzg::{KzgCommitment, BYTES_PER_BLOB};
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
@@ -24,6 +26,13 @@ use crate::hints::hint_implementation::kzg::utils::{
     BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,
 };
+use crate::hints::vars::CairoStruct;
+use crate::io::os_output::OsKzgCommitmentInfo;
+use crate::io::os_output_types::TryFromOutputIter;
+use crate::io::test_utils::validate_kzg_segment;
+use crate::vm_utils::get_field_offset;
+
+const MAX_N_BLOBS_PER_TX: usize = 6;
 
 static BLOB_SUBGROUP_GENERATOR: LazyLock<BigUint> = LazyLock::new(|| {
     BigUint::from_str_radix(
@@ -177,9 +186,57 @@ fn test_os_kzg_commitment_resources_estimation(
 ) {
     let vc = VersionedConstants::latest_constants();
     let actual_resources = run_compute_os_kzg_commitment_info(state_diff_size)
+        .0
         .get_execution_resources()
         .unwrap()
         .filter_unused_builtins();
     let estimated_resources = estimate_os_kzg_commitment_computation_resources(vc, state_diff_size);
     assert_eq!(actual_resources, estimated_resources);
+}
+
+#[rstest]
+fn test_commitment_happy_flow(
+    #[values(1, 555, 7000, FIELD_ELEMENTS_PER_BLOB * MAX_N_BLOBS_PER_TX)] state_diff_size: usize,
+) {
+    let (runner, da_segment) = run_compute_os_kzg_commitment_info(state_diff_size);
+    let da_segment = da_segment.unwrap();
+
+    // Extract KZG commitment info from output.
+    let return_values = runner.vm.get_return_values(1).unwrap();
+    let [MaybeRelocatable::RelocatableValue(cairo_kzg_struct_ptr)] = return_values.as_slice()
+    else {
+        panic!("Unexpected output structure: {0:?}.", runner.vm.get_return_values(1).unwrap());
+    };
+    let field_address = |field_name: &str| {
+        (*cairo_kzg_struct_ptr
+            + get_field_offset(CairoStruct::OsKzgCommitmentInfo, field_name, &*OS_PROGRAM).unwrap())
+        .unwrap()
+    };
+    let z = *runner.vm.get_integer(field_address("z")).unwrap();
+    let n_blobs =
+        usize::try_from(*runner.vm.get_integer(field_address("n_blobs")).unwrap()).unwrap();
+    let commitments = runner
+        .vm
+        .get_integer_range(
+            runner.vm.get_relocatable(field_address("kzg_commitments")).unwrap(),
+            n_blobs * 2,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|felt| felt.into_owned())
+        .collect::<Vec<Felt>>();
+    let evals = runner
+        .vm
+        .get_integer_range(runner.vm.get_relocatable(field_address("evals")).unwrap(), n_blobs * 2)
+        .unwrap()
+        .into_iter()
+        .map(|felt| felt.into_owned())
+        .collect::<Vec<Felt>>();
+    let kzg_segment = OsKzgCommitmentInfo::try_from_output_iter(
+        &mut [vec![z], vec![Felt::from(n_blobs)], commitments, evals].concat().into_iter(),
+        None,
+    )
+    .unwrap();
+
+    validate_kzg_segment(&da_segment, &kzg_segment);
 }
