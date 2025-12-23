@@ -60,7 +60,7 @@ pub(crate) fn load_public_keys_into_memory(
     Ok(())
 }
 
-pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {

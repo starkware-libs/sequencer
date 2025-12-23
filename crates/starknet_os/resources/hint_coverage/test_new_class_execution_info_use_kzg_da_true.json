@@ -165,7 +165,7 @@
     "StatelessHint": "UnpackFeltsToU32s"
   },
   {
-    "CommonHint": "GuessContractAddrStoragePtr"
+    "CommonHint": "LoadStoragePtrAndPrevState"
   },
   {
     "CommonHint": "UpdateClassesPtr"

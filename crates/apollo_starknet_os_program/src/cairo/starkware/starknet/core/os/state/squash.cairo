@@ -49,17 +49,7 @@ func squash_state_changes_inner{range_check_ptr}(
     local new_state: StateEntry* = cast(state_changes.new_value, StateEntry*);
     local squashed_storage_ptr: DictAccess*;
     local squashed_prev_state: StateEntry*;
-    %{
-        if state_update_pointers is None:
-            ids.squashed_prev_state = segments.add()
-            ids.squashed_storage_ptr = segments.add()
-        else:
-            ids.squashed_prev_state, ids.squashed_storage_ptr = (
-                state_update_pointers.get_contract_state_entry_and_storage_ptr(
-                    contract_address=ids.state_changes.key
-                )
-            )
-    %}
+    %{ LoadStoragePtrAndPrevState %}
 
     let (local squashed_storage_ptr_end) = squash_dict(
         dict_accesses=prev_state.storage_ptr,
@@ -118,10 +108,7 @@ func squash_class_changes{range_check_ptr}(
         squashed_dict=squashed_dict,
     );
 
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_
-    %}
+    %{ UpdateClassesPtr %}
 
     return (
         n_class_updates=(squashed_dict_end - squashed_dict) / DictAccess.SIZE,

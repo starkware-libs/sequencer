@@ -6,10 +6,10 @@
     "StatelessHint": "AllocateSegmentsForMessages"
   },
   {
-    "CommonHint": "SetTreeStructure"
+    "CommonHint": "SetProofFactTopology"
   },
   {
-    "CommonHint": "GuessContractAddrStoragePtr"
+    "CommonHint": "LoadStoragePtrAndPrevState"
   },
   {
     "CommonHint": "UpdateClassesPtr"
