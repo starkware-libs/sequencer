@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
@@ -32,6 +33,8 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
 
     async fn set_node_dynamic_config(
@@ -48,6 +51,7 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetContextDynamicConfig,
     GetMempoolDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
@@ -65,6 +69,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
@@ -90,6 +95,17 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
+        let request = ConfigManagerRequest::GetContextDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetContextDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
