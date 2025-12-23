@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
@@ -33,6 +34,7 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
@@ -53,6 +55,7 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
@@ -71,6 +74,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
@@ -97,6 +101,17 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
+        let request = ConfigManagerRequest::GetContextDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetContextDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
