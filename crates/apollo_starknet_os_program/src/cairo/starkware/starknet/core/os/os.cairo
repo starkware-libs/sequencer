@@ -92,7 +92,7 @@ func main{
 
     local public_keys: felt*;
     local n_public_keys: felt;
-    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys) %}
+    %{ GetPublicKeys %}
 
     // Build OS global context.
     let os_global_context = get_os_global_context(
@@ -102,10 +102,7 @@ func main{
     // Execute blocks.
     local n_blocks = nondet %{ len(os_input.block_inputs) %};
     let (local os_outputs: OsOutput*) = alloc();
-    %{
-        from starkware.starknet.core.os.execution_helper import StateUpdatePointers
-        state_update_pointers = StateUpdatePointers(segments=segments)
-    %}
+    %{ InitStateUpdatePointers %}
     local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
     let txs_range_check_ptr = initial_txs_range_check_ptr;
     with txs_range_check_ptr {
@@ -221,23 +218,13 @@ func execute_blocks{
     mul_mod_ptr: ModBuiltin*,
     txs_range_check_ptr,
 }(n_blocks: felt, os_output_per_block_dst: OsOutput*, os_global_context: OsGlobalContext*) {
-    %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
+    %{ LogRemainingBlocks %}
     if (n_blocks == 0) {
         return ();
     }
     alloc_locals;
 
-    %{
-        from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
-        block_input = next(block_input_iterator)
-        (
-            execution_helper,
-            syscall_handler,
-            deprecated_syscall_handler
-        ) = get_execution_helper_and_syscall_handlers(
-            block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
-        )
-    %}
+    %{ CreateBlockAdditionalHints %}
 
     // Allocate segments for the messages.
     let (messages_to_l1: MessageToL1Header*) = alloc();
@@ -317,19 +304,11 @@ func execute_blocks{
 func initialize_state_changes() -> (
     contract_state_changes: DictAccess*, contract_class_changes: DictAccess*
 ) {
-    %{
-        from starkware.python.utils import from_bytes
-
-        initial_dict = {
-            address: segments.gen_arg(
-                (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-            for address, contract in sorted(block_input.contracts.items())
-        }
-    %}
+    %{ InitializeStateChanges %}
     // A dictionary from contract address to a dict of storage changes of type StateEntry.
     let (contract_state_changes: DictAccess*) = dict_new();
 
-    %{ initial_dict = block_input.class_hash_to_compiled_class_hash %}
+    %{ InitializeClassHashes %}
     // A dictionary from class hash to compiled class hash (Casm).
     let (contract_class_changes: DictAccess*) = dict_new();
 
