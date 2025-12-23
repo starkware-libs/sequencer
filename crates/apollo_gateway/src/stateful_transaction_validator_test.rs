@@ -27,7 +27,7 @@ use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, Valid
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::gateway_fixed_block_state_reader::MockGatewayFixedBlockStateReader;
-use crate::state_reader_test_utils::local_test_state_reader_factory;
+use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReader};
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
     StatefulTransactionValidatorFactory,
@@ -52,12 +52,13 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
         });
 
     let mempool_client = Arc::new(MockMempoolClient::new());
-    let mut stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-    };
+    let mut stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig::default(),
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+        };
 
     let result = stateful_validator
         .extract_state_nonce_and_run_validations(&executable_tx, mempool_client)
@@ -103,12 +104,13 @@ async fn test_run_pre_validation_checks(
     let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
     mock_gateway_fixed_block.expect_get_block_info().returning(|| Ok(BlockInfo::default()));
 
-    let stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-    };
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig::default(),
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+        };
 
     let resource_bounds = if zero_gas_fee {
         ValidResourceBounds::AllResources(AllResourceBounds {
@@ -203,15 +205,16 @@ async fn test_skip_validate(
         .expect_get_nonce()
         .with(eq(executable_tx.sender_address()))
         .return_once(move |_| Ok(sender_nonce));
-    let stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig {
-            validate_resource_bounds: false,
-            ..Default::default()
-        },
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-    };
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig {
+                validate_resource_bounds: false,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+        };
 
     let skip_validate = stateful_validator
         .run_pre_validation_checks(&executable_tx, sender_nonce, mempool_client)
@@ -305,16 +308,17 @@ async fn validate_resource_bounds(
         })
     });
 
-    let stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig {
-            validate_resource_bounds: true,
-            min_gas_price_percentage,
-            ..Default::default()
-        },
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-    };
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig {
+                validate_resource_bounds: true,
+                min_gas_price_percentage,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+        };
 
     let result = stateful_validator.validate_resource_bounds(&executable_tx).await;
     assert_eq!(result, expected_result);
@@ -415,16 +419,17 @@ async fn run_pre_validation_checks_test(
         .expect_get_nonce()
         .with(eq(executable_tx.sender_address()))
         .return_once(move |_| Ok(account_nonce));
-    let stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig {
-            max_allowed_nonce_gap,
-            validate_resource_bounds: false,
-            ..Default::default()
-        },
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-    };
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig {
+                max_allowed_nonce_gap,
+                validate_resource_bounds: false,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+        };
 
     let mut mempool_client = MockMempoolClient::new();
     mempool_client.expect_validate_tx().returning(|_| Ok(()));
