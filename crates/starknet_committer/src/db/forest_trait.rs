@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_patricia::db_layout::NodeLayoutFor;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
@@ -110,6 +112,48 @@ where
         OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
         original_contracts_trie_leaves,
     ))
+}
+
+/// Helper function containing layout-common write logic.
+pub(crate) fn serialize_forest<Layout>(
+    filled_forest: &FilledForest,
+) -> SerializationResult<DbHashMap>
+where
+    Layout: NodeLayoutFor<StarknetStorageValue>
+        + NodeLayoutFor<ContractState>
+        + NodeLayoutFor<CompiledClassHash>,
+{
+    let mut serialized_forest = DbHashMap::new();
+
+    // Storage tries.
+    for (contract_address, tree) in &filled_forest.storage_tries {
+        let key_context = get_key_context::<StarknetStorageValue, Layout>(TrieType::StorageTrie(
+            *contract_address,
+        ));
+        serialized_forest.extend(tree.serialize::<Layout>(&key_context)?);
+    }
+
+    // Contracts trie.
+    let key_context = get_key_context::<ContractState, Layout>(TrieType::ContractsTrie);
+    serialized_forest.extend(filled_forest.contracts_trie.serialize::<Layout>(&key_context)?);
+
+    // Classes trie.
+    let key_context = get_key_context::<CompiledClassHash, Layout>(TrieType::ClassesTrie);
+    serialized_forest.extend(filled_forest.classes_trie.serialize::<Layout>(&key_context)?);
+
+    Ok(serialized_forest)
+}
+
+fn get_key_context<BaseLeaf, Layout>(
+    trie_type: TrieType,
+) -> <<Layout as NodeLayoutFor<BaseLeaf>>::DbLeaf as HasStaticPrefix>::KeyContext
+where
+    Layout: NodeLayoutFor<BaseLeaf>,
+    BaseLeaf: Leaf,
+{
+    <Layout as NodeLayout<'_, <Layout as NodeLayoutFor<BaseLeaf>>::DbLeaf>>::generate_key_context(
+        trie_type,
+    )
 }
 
 #[async_trait]
