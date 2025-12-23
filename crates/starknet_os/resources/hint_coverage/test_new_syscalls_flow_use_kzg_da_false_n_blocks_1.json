@@ -75,7 +75,7 @@
     "StatelessHint": "EnterScopeSyscallHandler"
   },
   {
-    "StatelessHint": "GetContractAddressStateEntryAndSetNewStateEntry"
+    "StatelessHint": "GetContractAddressStateEntry"
   },
   {
     "StatelessHint": "IsDeprecated"
