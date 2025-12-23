@@ -9,7 +9,7 @@ on:
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
       - "crates/apollo_deployments/**"
-      - "deployments/sequencer2/**"
+      - "deployments/sequencer/**"
 
 jobs:
   prepare:
@@ -21,7 +21,7 @@ jobs:
       overlay: hybrid.testing.node-0
       overlay2: hybrid.testing.all-constructs
       monitoring_dashboard_file: ${{ github.workspace }}/deployments/monitoring/examples/output/dashboards/sequencer_node_dashboard.json
-      cdk8s_sequencer_path: ${{ github.workspace }}/deployments/sequencer2
+      cdk8s_sequencer_path: ${{ github.workspace }}/deployments/sequencer
 
     steps:
       - name: Checkout sequencer

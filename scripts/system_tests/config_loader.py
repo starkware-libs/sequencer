@@ -1,5 +1,5 @@
 """
-Shared module for loading and merging sequencer2 configuration files.
+Shared module for loading and merging sequencer configuration files.
 
 This module provides utilities for loading YAML configs, merging layout and overlay
 configurations, and finding workspace roots. Used by system test scripts.
@@ -46,7 +46,7 @@ def load_and_merge_configs(
     workspace: str, layout: str, overlay: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    Load and merge sequencer2 configs (layout + overlay if provided).
+    Load and merge sequencer configs (layout + overlay if provided).
 
     Merge order to match deployment system:
     1. Layout service + Overlay service → merged service (overlay service overrides layout service)
@@ -61,7 +61,7 @@ def load_and_merge_configs(
     Returns:
         List of merged service configs.
     """
-    base_dir = Path(workspace) / "deployments" / "sequencer2"
+    base_dir = Path(workspace) / "deployments" / "sequencer"
 
     # Load layout common.yaml
     layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"

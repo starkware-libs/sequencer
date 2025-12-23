@@ -14,7 +14,7 @@ image:
   imagePullPolicy: IfNotPresent
 
 config:
-  configList: deployments/sequencer2/test/app_configs/sequencer/replacer_deployment_common.json
+  configList: deployments/sequencer/test/app_configs/sequencer/replacer_deployment_common.json
   sequencerConfig:
     components_fake_field: "overridden in common.yaml"
 
