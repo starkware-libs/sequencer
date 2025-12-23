@@ -14,7 +14,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
-use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
@@ -138,13 +138,25 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
         let mut serialized_forest = DbHashMap::new();
 
         // TODO(Ariel): use a different key context when FilledForest is generic over leaf types.
-        for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        for (contract_address, tree) in &filled_forest.storage_tries {
+            serialized_forest.extend(
+                tree.serialize::<IndexLayoutStarknetStorageValue, IndexNodeLayout>(
+                    &TrieType::StorageTrie(*contract_address),
+                )?,
+            );
         }
 
         // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
+        serialized_forest.extend(
+            filled_forest
+                .contracts_trie
+                .serialize::<IndexLayoutContractState, IndexNodeLayout>(&TrieType::ContractsTrie)?,
+        );
+        serialized_forest.extend(
+            filled_forest.classes_trie.serialize::<IndexLayoutCompiledClassHash, IndexNodeLayout>(
+                &TrieType::ClassesTrie,
+            )?,
+        );
 
         Ok(serialized_forest)
     }

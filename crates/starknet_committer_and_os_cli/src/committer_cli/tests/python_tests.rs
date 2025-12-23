@@ -12,6 +12,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
+use starknet_committer::db::facts_db::db::FactsNodeLayout;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::{
     TreeHashFunctionImpl,
@@ -21,6 +22,7 @@ use starknet_committer::hash_function::hash::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_patricia::db_layout::TrieType;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -163,11 +165,16 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
-                let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
+                let output = single_tree_flow_test::<
+                    StarknetStorageValue,
+                    FactsNodeLayout,
+                    TreeHashFunctionImpl,
+                >(
                     leaf_modifications,
                     &mut storage,
                     root_hash,
                     OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
+                    &TrieType::StorageTrie(ContractAddress::from(1_u128)),
                 )
                 .await;
                 // 3. Serialize and return output.
