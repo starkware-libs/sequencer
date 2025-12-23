@@ -6,13 +6,19 @@ repository.workspace = true
 license-file.workspace = true
 description = "Runs transactions through the Starknet OS and returns Cairo PIE and OS output."
 
+[features]
+cairo_native = ["blockifier/cairo_native"]
+
 [dependencies]
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-lang-utils.workspace = true
+cairo-vm.workspace = true
 indexmap.workspace = true
 starknet-rust.workspace = true
 starknet-rust-core.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
@@ -23,7 +29,6 @@ url.workspace = true
 [dev-dependencies]
 blockifier = { workspace = true, features = ["testing"] }
 rstest.workspace = true
-starknet-types-core.workspace = true
 
 [lints]
 workspace = true
