@@ -923,50 +923,10 @@ define_hint_enum!(
         read_ec_point_from_address,
         r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
     ),
-    (
-        SetPreimageForStateCommitments,
-        set_preimage_for_state_commitments,
-        indoc! {r#"ids.initial_root = block_input.contract_state_commitment_info.previous_root
-ids.final_root = block_input.contract_state_commitment_info.updated_root
-commitment_facts = block_input.contract_state_commitment_info.commitment_facts.items()
-preimage = {
-    int(root): children
-    for root, children in commitment_facts
-}
-assert block_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
-        }
-    ),
-    (
-        SetPreimageForClassCommitments,
-        set_preimage_for_class_commitments,
-        indoc! {r#"ids.initial_root = block_input.contract_class_commitment_info.previous_root
-ids.final_root = block_input.contract_class_commitment_info.updated_root
-commitment_facts = block_input.contract_class_commitment_info.commitment_facts.items()
-preimage = {
-    int(root): children
-    for root, children in commitment_facts
-}
-assert block_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
-        }
-    ),
-    (
-        SetPreimageForCurrentCommitmentInfo,
-        set_preimage_for_current_commitment_info,
-        indoc! {r#"commitment_info = commitment_info_by_address[ids.contract_address]
-ids.initial_contract_state_root = commitment_info.previous_root
-ids.final_contract_state_root = commitment_info.updated_root
-preimage = {
-    int(root): children
-    for root, children in commitment_info.commitment_facts.items()
-}
-assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
-        }
-    ),
-    (
-        ShouldUseReadOptimizedPatriciaUpdate,
-        should_use_read_optimized_patricia_update,
-        "ShouldUseReadOptimizedPatriciaUpdate"
-    ),
+    (SetPreimageForStateCommitments, set_preimage_for_state_commitments),
+    (SetPreimageForClassCommitments, set_preimage_for_class_commitments),
+    (SetPreimageForCurrentCommitmentInfo, set_preimage_for_current_commitment_info),
+    (ShouldUseReadOptimizedPatriciaUpdate, should_use_read_optimized_patricia_update),
     (
         LoadEdge,
         load_edge,
@@ -998,13 +958,7 @@ assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         height_is_zero_or_len_node_preimage_is_two,
         "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
     ),
-    (
-        SetSyscallPtr,
-        set_syscall_ptr,
-        indoc! {r#"
-        syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
-        }
-    ),
+    (SetSyscallPtr, set_syscall_ptr),
     (OsLoggerEnterSyscallPrepareExitSyscall, os_logger_enter_syscall_prepare_exit_syscall),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (
