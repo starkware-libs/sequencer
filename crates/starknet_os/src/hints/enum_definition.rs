@@ -721,34 +721,9 @@ define_hint_enum!(
     SnosHintProcessor<'_, S>,
     S,
     StateReader,
-    (
-        LoadClass,
-        load_class,
-        indoc! {r#"
-    vm_exit_scope()
-
-    computed_hash = ids.hash
-    expected_hash = ids.compiled_class_fact.hash
-    assert computed_hash == expected_hash, (
-        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
-        }
-    ),
-    (
-        RelocateSha256Segment,
-        relocate_sha256_segment,
-        indoc! {r#"
-    state_ptr = ids.response.state_ptr.address_
-    actual_out_state = ids.actual_out_state.address_
-    for i in range(8):
-        memory[actual_out_state + i] = memory[state_ptr + i]
-    memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)"#}
-    ),
-    (
-        EnterScopeWithBytecodeSegmentStructure,
-        enter_scope_with_bytecode_segment_structure,
-        indoc! {r#"EnterScopeWithBytecodeSegmentStructure"#}
-    ),
+    (LoadClass, load_class),
+    (RelocateSha256Segment, relocate_sha256_segment),
+    (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
     (
         BlockNumber,
         block_number,
@@ -781,46 +756,19 @@ define_hint_enum!(
     not os_hints_config.full_output
 ))"#}
     ),
-    (
-        UpdateBuiltinPtrs,
-        update_builtin_ptrs,
-        indoc! {r#"
-    from starkware.starknet.core.os.os_utils import update_builtin_pointers
-
-    # Fill the values of all builtin pointers after the current transaction.
-    ids.return_builtin_ptrs = segments.gen_arg(
-        update_builtin_pointers(
-            memory=memory,
-            n_builtins=ids.n_builtins,
-            builtins_encoding_addr=ids.builtin_params.builtin_encodings.address_,
-            n_selected_builtins=ids.n_selected_builtins,
-            selected_builtins_encoding_addr=ids.selected_encodings,
-            orig_builtin_ptrs_addr=ids.builtin_ptrs.selectable.address_,
-            selected_builtin_ptrs_addr=ids.selected_ptrs,
-            ),
-        )"#
-        }
-    ),
+    (UpdateBuiltinPtrs, update_builtin_ptrs),
     (
         ReadStorageKeyForRevert,
         read_storage_key_for_revert,
         "memory[ap] = to_felt_or_relocatable(storage.read(key=ids.storage_key))"
     ),
-    (
-        WriteStorageKeyForRevert,
-        write_storage_key_for_revert,
-        "storage.write(key=ids.storage_key, value=ids.value)"
-    ),
+    (WriteStorageKeyForRevert, write_storage_key_for_revert),
     (
         ReadAliasFromKey,
         read_alias_from_key,
         "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
     ),
-    (
-        GetClassHashAndCompiledClassFact,
-        get_class_hash_and_compiled_class_fact,
-        "GetClassHashAndCompiledClassFact"
-    ),
+    (GetClassHashAndCompiledClassFact, get_class_hash_and_compiled_class_fact),
     (
         WriteNextAliasFromKey,
         write_next_alias_from_key,
