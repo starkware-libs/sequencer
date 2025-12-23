@@ -3,6 +3,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::traversal::SubTreeTrait;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -25,7 +26,10 @@ pub trait NodeLayout<'a, L: Leaf> {
     type DeserializationContext;
 
     /// The storage representation of the node.
-    type NodeDbObject: DBObject<DeserializeContext = Self::DeserializationContext>;
+    type NodeDbObject: DBObject<
+            DeserializeContext = Self::DeserializationContext,
+            KeyContext = <L as HasStaticPrefix>::KeyContext,
+        >;
 
     /// The type of the subtree that is used to traverse the trie.
     type SubTree: SubTreeTrait<
@@ -48,4 +52,16 @@ pub trait NodeLayout<'a, L: Leaf> {
     /// Converts a node db object to a filled node. Used during the trie traversal for the skeleton
     /// construction.
     fn get_filled_node(node_db_object: Self::NodeDbObject) -> FilledNode<L, Self::NodeData>;
+
+    /// Converts `FilledTree` nodes to db objects.
+    ///
+    /// During the construction of a `FilledTree` we computee the hashes and carry `FilledNode<L,
+    /// HashOutput>`, hence, the `FilledNode` type  is not necessarily what we want to store.
+    fn get_db_object(
+        hash: HashOutput,
+        filled_node_data: NodeData<L, HashOutput>,
+    ) -> Self::NodeDbObject;
+
+    /// Returns the db key suffix of the node db object.
+    fn get_node_suffix(index: NodeIndex, node_db_object: &Self::NodeDbObject) -> Vec<u8>;
 }
