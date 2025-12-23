@@ -194,6 +194,17 @@ impl NestedFeltCounts {
     }
 }
 
+impl From<&NestedFeltCounts> for NestedIntList {
+    fn from(counts: &NestedFeltCounts) -> Self {
+        match counts {
+            NestedFeltCounts::Leaf(len, _) => NestedIntList::Leaf(*len),
+            NestedFeltCounts::Node(segments) => {
+                NestedIntList::Node(segments.iter().map(Into::into).collect())
+            }
+        }
+    }
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
