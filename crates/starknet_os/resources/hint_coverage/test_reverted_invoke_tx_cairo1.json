@@ -309,7 +309,7 @@
     "OsHint": "IsReverted"
   },
   {
-    "OsHint": "CheckExecution"
+    "OsHint": "CheckExecutionAndExitCall"
   },
   {
     "OsHint": "LogEnterSyscall"

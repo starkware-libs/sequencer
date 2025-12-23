@@ -260,28 +260,7 @@ func execute_entry_point{
         return_values_ptr, EntryPointReturnValues*
     );
 
-    %{
-        if execution_helper.debug_mode:
-            # Validate the predicted gas cost.
-            # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
-            actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
-            predicted = execution_helper.call_info.gas_consumed
-            if execution_helper.call_info.tracked_resource.is_sierra_gas():
-                predicted = predicted - ids.ENTRY_POINT_INITIAL_BUDGET
-                assert actual == predicted, (
-                    "Predicted gas costs are inconsistent with the actual execution; "
-                    f"{predicted=}, {actual=}."
-                )
-            else:
-                assert predicted == 0, "Predicted gas cost must be zero in CairoSteps mode."
-
-
-        # Exit call.
-        syscall_handler.validate_and_discard_syscall_ptr(
-            syscall_ptr_end=ids.entry_point_return_values.syscall_ptr
-        )
-        execution_helper.exit_call()
-    %}
+    %{ CheckExecutionAndExitCall %}
     local is_reverted = entry_point_return_values.failure_flag;
 
     let remaining_gas = entry_point_return_values.gas_builtin;

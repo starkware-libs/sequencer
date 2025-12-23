@@ -306,10 +306,10 @@
     "OsHint": "IsReverted"
   },
   {
-    "OsHint": "CheckExecution"
+    "OsHint": "CheckExecutionAndExitCall"
   },
   {
-    "OsHint": "CheckNewSyscallResponse"
+    "OsHint": "CheckNewCallContractResponse"
   },
   {
     "OsHint": "CheckNewDeployResponse"
