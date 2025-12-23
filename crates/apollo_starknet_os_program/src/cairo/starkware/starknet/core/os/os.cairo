@@ -159,8 +159,6 @@ func main{
         kzg_manager = global_hints.kzg_manager
     %}
 
-    // Currently, the block hash is not enforced by the OS.
-    // TODO(Yoni, 1/1/2026): compute the block hash.
     serialize_os_output(
         os_output=final_os_output,
         replace_keys_with_aliases=TRUE,
