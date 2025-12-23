@@ -162,3 +162,40 @@ impl std::fmt::Display for ShardPublishError {
 }
 
 impl std::error::Error for ShardPublishError {}
+
+// ****************************************************************************
+
+/// Errors that can occur during message reconstruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReconstructionError {
+    /// Erasure reconstruction failed.
+    ErasureReconstructionFailed(String),
+    /// The message root of the data + coding shards does not match the one provided by the
+    /// publisher, possible attack.
+    MismatchedMessageRoot,
+    /// Unequal shard lengths
+    UnequalShardLengths,
+    /// Message padding error.
+    MessagePaddingError,
+}
+
+impl std::fmt::Display for ReconstructionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReconstructionError::ErasureReconstructionFailed(msg) => {
+                write!(f, "Erasure reconstruction failed: {}", msg)
+            }
+            ReconstructionError::MismatchedMessageRoot => {
+                write!(f, "Mismatched message root, the publisher is most likely malicious")
+            }
+            ReconstructionError::UnequalShardLengths => {
+                write!(f, "Unequal shard lengths, the shards are most likely malicious")
+            }
+            ReconstructionError::MessagePaddingError => {
+                write!(f, "The message was padded incorrectly by the publisher")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReconstructionError {}
