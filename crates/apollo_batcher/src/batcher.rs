@@ -1174,7 +1174,7 @@ fn log_txs_execution_result(
     }
 }
 
-pub fn create_batcher(
+pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
     mempool_client: SharedMempoolClient,
@@ -1211,14 +1211,12 @@ pub fn create_batcher(
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
-    // TODO(Amos): Add missing commitment tasks.
-    let block_hash_height =
-        storage_reader.block_hash_height().expect("Failed to get block hash height from storage.");
-    let commitment_manager = CommitmentManager::new_or_none(
+    let commitment_manager = CommitmentManager::create_commitment_manager_or_none(
+        &config,
         &CommitmentManagerConfig::default(),
-        &config.revert_config,
-        block_hash_height,
-    );
+        storage_reader.as_ref(),
+    )
+    .await;
 
     Batcher::new(
         config,
