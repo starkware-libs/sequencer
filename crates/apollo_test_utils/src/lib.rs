@@ -788,7 +788,7 @@ auto_impl_get_test_instance! {
         pub reference_manager: serde_json::Value,
     }
     pub struct Proof(pub Arc<Vec<u32>>);
-    pub struct ProofFacts(pub Vec<Felt>);
+    pub struct ProofFacts(pub Arc<Vec<Felt>>);
     pub struct ReceiptCommitment(pub StarkHash);
     pub enum Resource {
         L1Gas = 0,

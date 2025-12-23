@@ -1102,5 +1102,5 @@ fn test_invoke_tx_size_of() {
     // + internal_invoke_tx.proof_facts.dynamic_size();
     // + internal_invoke_tx.proof.dynamic_size();
 
-    assert_eq!(invoke_tx.size_bytes(), 504);
+    assert_eq!(invoke_tx.size_bytes(), 512);
 }

@@ -620,11 +620,17 @@ impl AccountDeploymentData {
 #[derive(
     Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
 )]
-pub struct ProofFacts(pub Vec<Felt>);
+pub struct ProofFacts(pub Arc<Vec<Felt>>);
 
 impl ProofFacts {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl From<Vec<Felt>> for ProofFacts {
+    fn from(value: Vec<Felt>) -> Self {
+        Self(Arc::new(value))
     }
 }
 
