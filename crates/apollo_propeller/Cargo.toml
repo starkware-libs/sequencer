@@ -12,6 +12,7 @@ testing = []
 libp2p.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 
