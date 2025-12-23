@@ -1,9 +1,13 @@
 use std::str::FromStr;
 
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
 use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
 use tracing::warn;
+use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
@@ -39,6 +43,16 @@ pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process
 pub async fn configure_tracing() -> ReloadHandle {
     let reload_handle = TRACING_INITIALIZED
         .get_or_init(|| async {
+            // Set up W3C trace context propagator for cross-service trace propagation.
+            opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
+
+            // Create an OpenTelemetry tracer provider.
+            // This is a simple in-memory provider; traces are linked via context propagation
+            // but not exported to an external collector.
+            let tracer_provider = SdkTracerProvider::builder().build();
+            let tracer = tracer_provider.tracer("apollo");
+            let otel_layer = OpenTelemetryLayer::new(tracer);
+
             // Use default time formatting with sub-second precision limited to three digits.
             let time_format = format_description!(
                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
@@ -65,8 +79,12 @@ pub async fn configure_tracing() -> ReloadHandle {
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
             // of init.
-            tracing_subscriber::registry().with(filtered_layer).with(fmt_layer).init();
-            tracing::info!("Tracing has been successfully initialized.");
+            tracing_subscriber::registry()
+                .with(filtered_layer)
+                .with(otel_layer)
+                .with(fmt_layer)
+                .init();
+            tracing::info!("Tracing has been successfully initialized with OpenTelemetry support.");
 
             reload_handle
         })

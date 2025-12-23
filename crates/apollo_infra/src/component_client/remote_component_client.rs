@@ -8,13 +8,16 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use hyper::body::{to_bytes, Bytes};
 use hyper::client::connect::HttpConnector;
-use hyper::header::CONTENT_TYPE;
+use hyper::header::{HeaderName, HeaderValue, CONTENT_TYPE};
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
+use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace, warn, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
@@ -165,10 +168,29 @@ where
 
     fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
         trace!("Constructing remote request");
-        HyperRequest::post(self.uri.clone())
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(serialized_request))
-            .expect("Request building should succeed")
+
+        let mut builder = HyperRequest::builder()
+            .method("POST")
+            .uri(self.uri.clone())
+            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+
+        // Inject trace context from the current span into HTTP headers.
+        let mut header_injector = HeaderInjector::default();
+        let propagator = TraceContextPropagator::new();
+        let current_span = Span::current();
+        let context = current_span.context();
+        propagator.inject_context(&context, &mut header_injector);
+
+        // Add trace headers to the request.
+        for (key, value) in header_injector.headers {
+            if let (Ok(header_name), Ok(header_value)) =
+                (HeaderName::try_from(&key), HeaderValue::try_from(&value))
+            {
+                builder = builder.header(header_name, header_value);
+            }
+        }
+
+        builder.body(Body::from(serialized_request)).expect("Request building should succeed")
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
@@ -294,5 +316,17 @@ where
             _req: PhantomData,
             _res: PhantomData,
         }
+    }
+}
+
+/// Helper struct for injecting OpenTelemetry trace context into HTTP headers.
+#[derive(Default)]
+struct HeaderInjector {
+    headers: Vec<(String, String)>,
+}
+
+impl opentelemetry::propagation::Injector for HeaderInjector {
+    fn set(&mut self, key: &str, value: String) {
+        self.headers.push((key.to_string(), value));
     }
 }

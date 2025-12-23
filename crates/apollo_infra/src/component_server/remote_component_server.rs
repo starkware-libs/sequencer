@@ -13,11 +13,14 @@ use hyper::header::CONTENT_TYPE;
 use hyper::server::conn::AddrIncoming;
 use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
+use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tower::{service_fn, Service, ServiceExt};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, trace, warn, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use validator::Validate;
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -113,6 +116,14 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
+        // Extract trace context from incoming HTTP headers.
+        let header_extractor = HeaderExtractor::new(http_request.headers());
+        let propagator = TraceContextPropagator::new();
+        let parent_context = propagator.extract(&header_extractor);
+
+        // Set the extracted context as the parent of the current span.
+        Span::current().set_parent(parent_context);
+
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
@@ -309,5 +320,26 @@ impl<S> Drop for PermitGuardedService<S> {
         if self._permit.is_some() {
             self.remote_server_metrics.decrement_number_of_connections();
         }
+    }
+}
+
+/// Helper struct for extracting OpenTelemetry trace context from HTTP headers.
+struct HeaderExtractor<'a> {
+    headers: &'a hyper::HeaderMap,
+}
+
+impl<'a> HeaderExtractor<'a> {
+    fn new(headers: &'a hyper::HeaderMap) -> Self {
+        Self { headers }
+    }
+}
+
+impl opentelemetry::propagation::Extractor for HeaderExtractor<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).and_then(|v| v.to_str().ok())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.headers.keys().map(|k| k.as_str()).collect()
     }
 }
