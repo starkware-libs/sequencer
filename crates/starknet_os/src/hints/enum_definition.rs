@@ -538,24 +538,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
     (GetContractAddressStateEntry, get_contract_address_state_entry),
-    (
-        GetContractAddressStateEntryAndSetNewStateEntry,
-        get_contract_address_state_entry,
-        indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
-    (
-        GetContractAddressStateEntryAndSetNewStateEntry2,
-        get_contract_address_state_entry,
-        indoc! {r#"
-	# Fetch a state_entry in this hint and validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-	    ids.contract_address
-	]"#
-        }
-    ),
     (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
     (
         EnterSyscallScopes,
