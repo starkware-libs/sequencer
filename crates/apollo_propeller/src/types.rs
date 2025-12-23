@@ -45,3 +45,29 @@ pub enum TreeGenerationError {
     #[error("Cannot generate tree: the local peer is the publisher.")]
     LocalPeerIsPublisher,
 }
+
+/// Errors that can occur when sending a shard.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ShardPublishError {
+    #[error("Local peer not in peer weights")]
+    LocalPeerNotInPeerWeights,
+    #[error(
+        "Invalid data size for broadcasting, data size must be divisible by number of data shards"
+    )]
+    InvalidDataSize,
+    #[error("Signing failed: {0}")]
+    SigningFailed(String),
+    #[error("Erasure encoding failed: {0}")]
+    ErasureEncodingFailed(String),
+    #[error("Not connected to peer {0}")]
+    NotConnectedToPeer(PeerId),
+    // TODO(AndrewL): add a proper error type for the handler error.
+    #[error("Handler error: {0}")]
+    HandlerError(String),
+    #[error("Tree generation error: {0}")]
+    TreeGenerationError(TreeGenerationError),
+    #[error("Channel not registered: {0:?}")]
+    ChannelNotRegistered(Channel),
+    #[error("Broadcast failed to complete")]
+    BroadcastFailed,
+}
