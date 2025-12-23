@@ -2,6 +2,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_mempool_config::config::MempoolDynamicConfig;
@@ -39,6 +40,10 @@ impl ConfigManager {
         Ok(self.latest_node_dynamic_config.consensus_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) fn get_context_dynamic_config(&self) -> ConfigManagerResult<ContextDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.context_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerResult<HttpServerDynamicConfig> {
@@ -60,6 +65,9 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 ConfigManagerResponse::GetConsensusDynamicConfig(
                     self.get_consensus_dynamic_config(),
                 )
+            }
+            ConfigManagerRequest::GetContextDynamicConfig => {
+                ConfigManagerResponse::GetContextDynamicConfig(self.get_context_dynamic_config())
             }
             ConfigManagerRequest::GetHttpServerDynamicConfig => {
                 ConfigManagerResponse::GetHttpServerDynamicConfig(

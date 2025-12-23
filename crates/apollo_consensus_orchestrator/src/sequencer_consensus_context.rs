@@ -21,6 +21,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
 };
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -185,6 +186,7 @@ pub struct SequencerConsensusContextDeps {
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -785,6 +787,7 @@ impl ConsensusContext for SequencerConsensusContext {
         round: Round,
     ) -> Result<(), ConsensusError> {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
+            self.update_dynamic_config().await;
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;
@@ -795,13 +798,26 @@ impl ConsensusContext for SequencerConsensusContext {
             // return to the old height.
             return Ok(self.deps.batcher.start_height(StartHeightInput { height }).await?);
         }
-        assert_eq!(Some(height), self.current_height);
+        assert_eq!(
+            Some(height),
+            self.current_height,
+            "height {} is not equal to current height {:?}",
+            height,
+            self.current_height
+        );
         if round == self.current_round {
             return Ok(());
         }
-        assert!(round > self.current_round);
+        assert!(
+            round > self.current_round,
+            "round {} is not greater than current round {}",
+            round,
+            self.current_round
+        );
         self.interrupt_active_proposal().await;
         self.current_round = round;
+        self.update_dynamic_config().await;
+
         let mut to_process = None;
         while let Some(entry) = self.queued_proposals.first_entry() {
             match self.current_round.cmp(entry.key()) {
@@ -900,6 +916,23 @@ impl SequencerConsensusContext {
             token.cancel();
             if let Err(e) = handle.await {
                 warn!("Proposal task finished unexpectedly: {e:?}");
+            }
+        }
+    }
+
+    async fn update_dynamic_config(&mut self) {
+        if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
+            let config_result = config_manager_client.get_context_dynamic_config().await;
+            match config_result {
+                Ok(config) => {
+                    self.config.dynamic_config = config;
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to get dynamic config for consensus context. Config not updated. \
+                         Error: {e:?}"
+                    );
+                }
             }
         }
     }
