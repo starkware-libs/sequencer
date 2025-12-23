@@ -95,6 +95,7 @@ pub mod mmap_file;
 mod serialization;
 pub mod state;
 pub mod storage_reader;
+pub mod storage_reader_communication;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
 mod version;

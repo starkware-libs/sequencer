@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use apollo_storage::mmap_file::LocationInFile;
+use apollo_storage::storage_reader::StorageReaderApi;
+use apollo_storage::storage_reader_communication::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::storage_reader_server::StorageReaderServerHandler;
 use apollo_storage::{StorageError, StorageReader};
 use async_trait::async_trait;
@@ -152,40 +153,31 @@ pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
 
-// TODO(Dean): Fill in with actual storage table names and operations.
-/// Storage-related requests for the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum BatcherStorageRequest {
-    StateDiffLocation(BlockNumber),
-}
-
-// TODO(Dean): Fill in with actual response types matching the request variants.
-/// Response for batcher storage requests.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum BatcherStorageResponse {
-    StateDiffLocation(LocationInFile),
-}
-
 pub struct BatcherStorageReaderServerHandler;
 
 #[async_trait]
-impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
+impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
     for BatcherStorageReaderServerHandler
 {
     async fn handle_request(
         storage_reader: &StorageReader,
-        request: BatcherStorageRequest,
-    ) -> Result<BatcherStorageResponse, StorageError> {
+        request: StorageReaderRequest,
+    ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;
         match request {
-            BatcherStorageRequest::StateDiffLocation(block_number) => {
-                let state_diff_location =
-                    txn.get_state_diff_location(block_number)?.ok_or(StorageError::NotFound {
-                        resource_type: "State diff".to_string(),
-                        resource_id: block_number.to_string(),
-                    })?;
-                Ok(BatcherStorageResponse::StateDiffLocation(state_diff_location))
+            StorageReaderRequest::GetStateDiffLocation(block_number) => {
+                let result = txn.get_state_diff_location(block_number)?;
+                Ok(StorageReaderResponse::GetStateDiffLocation(result))
             }
+            StorageReaderRequest::GetStateDiffFromFile(location) => {
+                let result = txn.get_state_diff_from_file(location)?;
+                Ok(StorageReaderResponse::GetStateDiffFromFile(result))
+            }
+            StorageReaderRequest::GetMarker(marker_kind) => {
+                let result = txn.get_marker(marker_kind)?;
+                Ok(StorageReaderResponse::GetMarker(result))
+            }
+            _ => todo!("Implement all storage reader operations"),
         }
     }
 }

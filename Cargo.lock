@@ -2527,6 +2527,7 @@ dependencies = [
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
+ "strum_macros 0.25.3",
  "tempfile",
  "test-case",
  "test-log",
