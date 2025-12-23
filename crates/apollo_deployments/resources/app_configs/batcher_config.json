@@ -56,6 +56,7 @@
   "batcher_config.storage_reader_server_config.port": 8080,
   "batcher_config.storage_reader_server_config.enable": false,
   "batcher_config.propose_l1_txs_every": 10,
+  "batcher_config.first_block_with_partial_block_hash.#is_none": true,
   "batcher_config.first_block_with_partial_block_hash.block_number": 0,
   "batcher_config.first_block_with_partial_block_hash.block_hash": "0x0",
   "batcher_config.first_block_with_partial_block_hash.parent_block_hash": "0x0"

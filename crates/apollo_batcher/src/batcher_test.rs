@@ -203,11 +203,11 @@ impl Default for MockDependencies {
 
         let batcher_config = BatcherConfig {
             outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
-            first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash {
+            first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
                 block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
                 parent_block_hash: DUMMY_BLOCK_HASH,
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
         Self {
