@@ -7,6 +7,7 @@ use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::TestStorageBuilder;
 use apollo_storage::{StorageConfig, StorageScope, StorageWriter};
@@ -28,6 +29,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
@@ -375,6 +377,13 @@ fn write_state_to_apollo_storage(
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
     let cairo0_contract_classes: Vec<_> =
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
+    let partial_block_hash = PartialBlockHashComponents {
+        block_number,
+        l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+        l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+        l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+        ..Default::default()
+    };
 
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
@@ -392,6 +401,8 @@ fn write_state_to_apollo_storage(
         .append_state_diff(block_number, state_diff)
         .unwrap()
         .append_classes(block_number, &sierras, &cairo0_contract_classes)
+        .unwrap()
+        .set_partial_block_hash_components(&block_number, &partial_block_hash)
         .unwrap()
         .commit()
         .unwrap();

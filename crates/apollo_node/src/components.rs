@@ -93,14 +93,17 @@ pub async fn create_node_components(
             let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.pre_confirmed_cende_config.clone(),
             ));
-            Some(create_batcher(
-                batcher_config.clone(),
-                committer_client,
-                mempool_client,
-                l1_provider_client,
-                class_manager_client,
-                pre_confirmed_cende_client,
-            ))
+            Some(
+                create_batcher(
+                    batcher_config.clone(),
+                    committer_client,
+                    mempool_client,
+                    l1_provider_client,
+                    class_manager_client,
+                    pre_confirmed_cende_client,
+                )
+                .await,
+            )
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
