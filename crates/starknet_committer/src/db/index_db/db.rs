@@ -5,17 +5,16 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
-use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::facts_db::types::FactsDbInitialRead;
-use crate::db::forest_trait::{read_forest, ForestReader, ForestWriter};
+use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
@@ -114,17 +113,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
 #[async_trait]
 impl<S: Storage> ForestWriter for IndexDb<S> {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
-        let mut serialized_forest = DbHashMap::new();
-
-        for (contract_address, tree) in &filled_forest.storage_tries {
-            serialized_forest.extend(tree.serialize(contract_address)?);
-        }
-
-        // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
-
-        Ok(serialized_forest)
+        serialize_forest::<IndexNodeLayout>(filled_forest)
     }
 
     async fn write_updates(&mut self, updates: DbHashMap) -> usize {
