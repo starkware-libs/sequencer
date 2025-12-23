@@ -809,18 +809,7 @@ define_hint_enum!(
     (EndTx, end_tx),
     (EnterCall, enter_call),
     (ExitCall, exit_call),
-    (
-        ContractAddress,
-        contract_address,
-        indoc! {r#"
-    from starkware.starknet.business_logic.transaction.deprecated_objects import (
-        InternalL1Handler,
-    )
-    ids.contract_address = (
-        tx.contract_address if isinstance(tx, InternalL1Handler) else tx.sender_address
-    )"#
-        }
-    ),
+    (ContractAddress, contract_address),
     (TxCalldataLen, tx_calldata_len, "memory[ap] = to_felt_or_relocatable(len(tx.calldata))"),
     (TxCalldata, tx_calldata, "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.calldata))"),
     (
@@ -860,86 +849,17 @@ define_hint_enum!(
         tx_account_deployment_data,
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.account_deployment_data))"
     ),
-    (TxProofFacts, tx_proof_facts, "TxProofFacts"),
-    (
-        GenSignatureArg,
-        gen_signature_arg,
-        indoc! {r#"
-	ids.signature_start = segments.gen_arg(arg=tx.signature)
-	ids.signature_len = len(tx.signature)"#
-        }
-    ),
+    (TxProofFacts, tx_proof_facts),
+    (GenSignatureArg, gen_signature_arg),
     (
         IsReverted,
         is_reverted,
         "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)"
     ),
-    (
-        CheckExecution,
-        check_execution,
-        indoc! {r#"
-    if execution_helper.debug_mode:
-        # Validate the predicted gas cost.
-        # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
-        actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
-        predicted = execution_helper.call_info.gas_consumed
-        if execution_helper.call_info.tracked_resource.is_sierra_gas():
-            predicted = predicted - ids.ENTRY_POINT_INITIAL_BUDGET
-            assert actual == predicted, (
-                "Predicted gas costs are inconsistent with the actual execution; "
-                f"{predicted=}, {actual=}."
-            )
-        else:
-            assert predicted == 0, "Predicted gas cost must be zero in CairoSteps mode."
-
-
-    # Exit call.
-    syscall_handler.validate_and_discard_syscall_ptr(
-        syscall_ptr_end=ids.entry_point_return_values.syscall_ptr
-    )
-    execution_helper.exit_call()"#
-        }
-    ),
-    (
-        CheckSyscallResponse,
-        check_syscall_response,
-        indoc! {r#"
-	# Check that the actual return value matches the expected one.
-	expected = memory.get_range(
-	    addr=ids.call_response.retdata, size=ids.call_response.retdata_size
-	)
-	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-	assert expected == actual, f'Return value mismatch expected={expected}, actual={actual}.'"#
-        }
-    ),
-    (
-        CheckNewSyscallResponse,
-        check_new_syscall_response,
-        indoc! {r#"
-	# Check that the actual return value matches the expected one.
-	expected = memory.get_range(
-	    addr=ids.response.retdata_start,
-	    size=ids.response.retdata_end - ids.response.retdata_start,
-	)
-	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-	assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'"#
-        }
-    ),
-    (
-        CheckNewDeployResponse,
-        check_new_deploy_response,
-        indoc! {r#"
-	# Check that the actual return value matches the expected one.
-	expected = memory.get_range(
-	    addr=ids.response.constructor_retdata_start,
-	    size=ids.response.constructor_retdata_end - ids.response.constructor_retdata_start,
-	)
-	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-	assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'"#
-        }
-    ),
+    (CheckExecution, check_execution),
+    (CheckSyscallResponse, check_syscall_response),
+    (CheckNewSyscallResponse, check_new_syscall_response),
+    (CheckNewDeployResponse, check_new_deploy_response),
     (
         LogEnterSyscall,
         log_enter_syscall,
