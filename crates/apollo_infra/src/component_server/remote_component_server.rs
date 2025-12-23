@@ -17,7 +17,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tower::{service_fn, Service, ServiceExt};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, trace, warn, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use validator::Validate;
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -31,6 +32,7 @@ use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
+use crate::trace_util::extract_context_from_headers;
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
@@ -113,6 +115,10 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
+        // Extract trace context from incoming HTTP headers and set as parent of current span.
+        let parent_context = extract_context_from_headers(http_request.headers());
+        Span::current().set_parent(parent_context);
+
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
