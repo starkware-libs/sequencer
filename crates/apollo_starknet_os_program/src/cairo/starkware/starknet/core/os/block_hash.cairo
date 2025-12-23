@@ -57,6 +57,8 @@ func get_block_hashes{poseidon_ptr: PoseidonBuiltin*}(block_info: BlockInfo*, st
 ) {
     alloc_locals;
     local parent_hash;
+    // Currently, the header commitments and gas prices are not computed by the OS.
+    // TODO(Yoni, 1/1/2027): compute the header commitments and gas prices.
     local header_commitments: BlockHeaderCommitments*;
     local gas_prices_hash;
     local starknet_version;
