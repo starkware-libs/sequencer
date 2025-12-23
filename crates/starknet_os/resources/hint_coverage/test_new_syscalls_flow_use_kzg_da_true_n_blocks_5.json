@@ -3,7 +3,7 @@
     "StatelessHint": "IsBlockNumberInBlockHashBuffer"
   },
   {
-    "StatelessHint": "GetBlockMapping"
+    "StatelessHint": "GetBlockHashMapping"
   },
   {
     "StatelessHint": "IsLeaf"
