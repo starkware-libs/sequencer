@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::external_test_utils::tree_computation_flow;
+use starknet_committer::db::facts_db::db::FactsNodeLayout;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer_and_os_cli::committer_cli::commands::commit;
@@ -43,14 +44,17 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         benchmark.iter_batched(
             || leaf_modifications.clone(),
             |leaf_modifications_input| {
-                runtime.block_on(
-                    tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
-                        leaf_modifications_input,
-                        &mut storage,
-                        root_hash,
-                        OriginalSkeletonTrieConfig::new(false),
-                    ),
-                );
+                runtime.block_on(tree_computation_flow::<
+                    StarknetStorageValue,
+                    FactsNodeLayout,
+                    TreeHashFunctionImpl,
+                >(
+                    leaf_modifications_input,
+                    &mut storage,
+                    root_hash,
+                    OriginalSkeletonTrieConfig::new(false),
+                    &EmptyKeyContext,
+                ));
             },
             BatchSize::LargeInput,
         )

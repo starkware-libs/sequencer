@@ -137,13 +137,25 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
         let mut serialized_forest = DbHashMap::new();
 
         // TODO(Ariel): use a different key context when FilledForest is generic over leaf types.
-        for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        for (contract_address, tree) in &filled_forest.storage_tries {
+            serialized_forest.extend(
+                tree.serialize::<IndexLayoutStarknetStorageValue, IndexNodeLayout>(
+                    &TrieType::StorageTrie(*contract_address),
+                )?,
+            );
         }
 
         // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
+        serialized_forest.extend(
+            filled_forest
+                .contracts_trie
+                .serialize::<IndexLayoutContractState, IndexNodeLayout>(&TrieType::ContractsTrie)?,
+        );
+        serialized_forest.extend(
+            filled_forest.classes_trie.serialize::<IndexLayoutCompiledClassHash, IndexNodeLayout>(
+                &TrieType::ClassesTrie,
+            )?,
+        );
 
         Ok(serialized_forest)
     }
