@@ -152,14 +152,7 @@ func deprecated_load_compiled_class_facts{pedersen_ptr: HashBuiltin*, range_chec
     alloc_locals;
     local n_compiled_class_facts;
     let (local compiled_class_facts: DeprecatedCompiledClassFact*) = alloc();
-    %{
-        # Creates a set of deprecated class hashes to distinguish calls to deprecated entry points.
-        __deprecated_class_hashes=set(os_input.deprecated_compiled_classes.keys())
-        ids.n_compiled_class_facts = len(os_input.deprecated_compiled_classes)
-        vm_enter_scope({
-            'compiled_class_facts': iter(sorted(os_input.deprecated_compiled_classes.items())),
-        })
-    %}
+    %{ LoadDeprecatedClassFacts %}
 
     deprecated_load_compiled_class_facts_inner(
         n_compiled_class_facts=n_compiled_class_facts, compiled_class_facts=compiled_class_facts
@@ -185,17 +178,7 @@ func deprecated_load_compiled_class_facts_inner{pedersen_ptr: HashBuiltin*, rang
     let compiled_class = compiled_class_fact.compiled_class;
 
     // Fetch contract data form hints.
-    %{
-        from starkware.starknet.core.os.contract_class.deprecated_class_hash_cairo_utils import (
-            get_deprecated_contract_class_struct,
-        )
-
-        compiled_class_hash, compiled_class = next(compiled_class_facts)
-
-        cairo_contract = get_deprecated_contract_class_struct(
-            identifiers=ids._context.identifiers, contract_class=compiled_class)
-        ids.compiled_class = segments.gen_arg(cairo_contract)
-    %}
+    %{ LoadDeprecatedClassInner %}
 
     assert compiled_class.compiled_class_version = DEPRECATED_COMPILED_CLASS_VERSION;
 
