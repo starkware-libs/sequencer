@@ -129,90 +129,86 @@ fn test_felt_to_bigint3(
     );
 }
 
-#[test]
-fn test_horner_eval() {
+#[rstest]
+fn test_horner_eval(#[values(0, 100, 4096)] n_coefficients: usize) {
     let mut rng = seeded_random_prng();
     let entrypoint_runner_config = get_entrypoint_runner_config();
 
-    for n_coefficients in [0, 100, 4096] {
-        let mut explicit_args: Vec<EndpointArg> = vec![];
-        explicit_args.push(n_coefficients.into());
-        let coefficients: Vec<Felt> = (0..n_coefficients)
-            .map(|_| Felt::from(RandBigInt::gen_bigint_range(&mut rng, &0.into(), &DEFAULT_PRIME)))
-            .collect();
+    let mut explicit_args: Vec<EndpointArg> = vec![];
+    explicit_args.push(n_coefficients.into());
+    let coefficients: Vec<Felt> = (0..n_coefficients)
+        .map(|_| Felt::from(RandBigInt::gen_bigint_range(&mut rng, &0.into(), &DEFAULT_PRIME)))
+        .collect();
 
-        explicit_args.push(EndpointArg::Pointer(PointerArg::Array(
-            coefficients.iter().cloned().map(MaybeRelocatable::from).collect(),
-        )));
-        let point =
-            RandBigInt::gen_bigint_range(&mut rng, &0.into(), &BLS_PRIME.to_bigint().unwrap());
-        explicit_args.push(EndpointArg::Value(ValueArg::Array(
-            split_bigint3(point.clone()).unwrap().iter().map(MaybeRelocatable::from).collect(),
-        )));
-        let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    explicit_args.push(EndpointArg::Pointer(PointerArg::Array(
+        coefficients.iter().cloned().map(MaybeRelocatable::from).collect(),
+    )));
+    let point = RandBigInt::gen_bigint_range(&mut rng, &0.into(), &BLS_PRIME.to_bigint().unwrap());
+    explicit_args.push(EndpointArg::Value(ValueArg::Array(
+        split_bigint3(point.clone()).unwrap().iter().map(MaybeRelocatable::from).collect(),
+    )));
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
 
-        let state_reader = None;
-        let (_, explicit_retdata, _) = initialize_and_run_cairo_0_entry_point(
-            &entrypoint_runner_config,
-            OS_PROGRAM_BYTES,
-            "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
-            &explicit_args,
-            &implicit_args,
-            &[EndpointArg::Value(ValueArg::Array(vec![
-                Felt::ZERO.into(),
-                Felt::ZERO.into(),
-                Felt::ZERO.into(),
-            ]))],
-            HashMap::new(),
-            state_reader,
-        )
-        .unwrap();
+    let state_reader = None;
+    let (_, explicit_retdata, _) = initialize_and_run_cairo_0_entry_point(
+        &entrypoint_runner_config,
+        OS_PROGRAM_BYTES,
+        "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
+        &explicit_args,
+        &implicit_args,
+        &[EndpointArg::Value(ValueArg::Array(vec![
+            Felt::ZERO.into(),
+            Felt::ZERO.into(),
+            Felt::ZERO.into(),
+        ]))],
+        HashMap::new(),
+        state_reader,
+    )
+    .unwrap();
 
-        // Get actual result.
+    // Get actual result.
+    assert_eq!(
+        explicit_retdata.len(),
+        1,
+        "Expected 1 explicit return value, got {}",
+        explicit_retdata.len()
+    );
+    let split_actual_result = if let EndpointArg::Value(ValueArg::Array(result_coefficients)) =
+        explicit_retdata.first().unwrap()
+    {
         assert_eq!(
-            explicit_retdata.len(),
-            1,
-            "Expected 1 explicit return value, got {}",
-            explicit_retdata.len()
+            result_coefficients.len(),
+            3,
+            "expected 3 coefficients in result, got {}",
+            result_coefficients.len()
         );
-        let split_actual_result = if let EndpointArg::Value(ValueArg::Array(result_coefficients)) =
+        result_coefficients
+    } else {
+        panic!(
+            "Unexpected result type. Expected `EndpointArg::Value(ValueArg::Array(_))`, got {:?}",
             explicit_retdata.first().unwrap()
-        {
-            assert_eq!(
-                result_coefficients.len(),
-                3,
-                "expected 3 coefficients in result, got {}",
-                result_coefficients.len()
-            );
-            result_coefficients
-        } else {
-            panic!(
-                "Unexpected result type. Expected `EndpointArg::Value(ValueArg::Array(_))`, got \
-                 {:?}",
-                explicit_retdata.first().unwrap()
-            );
-        };
-        let actual_result =
-            (BigUint::from_bytes_be(&split_actual_result[0].get_int().unwrap().to_bytes_be())
-                + BigUint::from_bytes_be(&split_actual_result[1].get_int().unwrap().to_bytes_be())
-                    * BASE.to_biguint().unwrap()
-                + BigUint::from_bytes_be(&split_actual_result[2].get_int().unwrap().to_bytes_be())
-                    * BASE.to_biguint().unwrap().pow(2))
-            .mod_floor(&BLS_PRIME.clone());
-
-        // Calculate expected result.
-        let expected_result =
-            coefficients.iter().enumerate().fold(BigUint::ZERO, |acc, (i, coefficient)| {
-                acc + BigUint::from_bytes_be(&coefficient.to_bytes_be())
-                    * point.to_biguint().unwrap().modpow(&BigUint::from(i), &BLS_PRIME.clone())
-            }) % BLS_PRIME.clone();
-
-        assert_eq!(
-            actual_result, expected_result,
-            "expected result does not match actual result. Actual result: {actual_result}, \
-             Expected result: {expected_result}"
         );
-    }
+    };
+    let actual_result =
+        (BigUint::from_bytes_be(&split_actual_result[0].get_int().unwrap().to_bytes_be())
+            + BigUint::from_bytes_be(&split_actual_result[1].get_int().unwrap().to_bytes_be())
+                * BASE.to_biguint().unwrap()
+            + BigUint::from_bytes_be(&split_actual_result[2].get_int().unwrap().to_bytes_be())
+                * BASE.to_biguint().unwrap().pow(2))
+        .mod_floor(&BLS_PRIME.clone());
+
+    // Calculate expected result.
+    let expected_result =
+        coefficients.iter().enumerate().fold(BigUint::ZERO, |acc, (i, coefficient)| {
+            acc + BigUint::from_bytes_be(&coefficient.to_bytes_be())
+                * point.to_biguint().unwrap().modpow(&BigUint::from(i), &BLS_PRIME.clone())
+        }) % BLS_PRIME.clone();
+
+    assert_eq!(
+        actual_result, expected_result,
+        "expected result does not match actual result. Actual result: {actual_result}, Expected \
+         result: {expected_result}"
+    );
 }
 
 #[test]
