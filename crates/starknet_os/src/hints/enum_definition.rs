@@ -860,27 +860,7 @@ define_hint_enum!(
     (CheckSyscallResponse, check_syscall_response),
     (CheckNewSyscallResponse, check_new_syscall_response),
     (CheckNewDeployResponse, check_new_deploy_response),
-    (
-        LogEnterSyscall,
-        log_enter_syscall,
-        indoc! {r#"
-    execution_helper.os_logger.enter_syscall(
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        range_check_ptr=ids.range_check_ptr,
-        deprecated=False,
-        selector=ids.selector,
-    )
-
-    # Prepare a short callable to save code duplication.
-    exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        range_check_ptr=ids.range_check_ptr,
-        selector=ids.selector,
-    )"#
-        }
-    ),
+    (LogEnterSyscall, log_enter_syscall),
     (SetApToTxNonce, set_ap_to_tx_nonce, "memory[ap] = to_felt_or_relocatable(tx.nonce)"),
     (
         SetFpPlus4ToTxNonce,
@@ -1150,27 +1130,7 @@ assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
         }
     ),
-    (
-        OsLoggerEnterSyscallPrepareExitSyscall,
-        os_logger_enter_syscall_prepare_exit_syscall,
-        indoc! {r#"
-    execution_helper.os_logger.enter_syscall(
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        deprecated=True,
-        selector=ids.selector,
-        range_check_ptr=ids.range_check_ptr,
-    )
-
-    # Prepare a short callable to save code duplication.
-    exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        range_check_ptr=ids.range_check_ptr,
-        selector=ids.selector,
-    )"#
-        }
-    ),
+    (OsLoggerEnterSyscallPrepareExitSyscall, os_logger_enter_syscall_prepare_exit_syscall),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (
         InitStateUpdatePointers,
