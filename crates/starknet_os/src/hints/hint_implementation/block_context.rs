@@ -55,7 +55,7 @@ pub(crate) fn sequencer_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
-pub(crate) fn get_block_mapping(
+pub(crate) fn get_block_hash_mapping(
     HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;

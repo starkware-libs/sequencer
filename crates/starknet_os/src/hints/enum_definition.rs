@@ -33,7 +33,7 @@ use crate::hints::hint_implementation::block_context::{
     block_timestamp,
     chain_id,
     fee_token_address,
-    get_block_mapping,
+    get_block_hash_mapping,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -429,7 +429,7 @@ define_stateless_hint_enum!(
         r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
-    (GetBlockMapping, get_block_mapping),
+    (GetBlockHashMapping, get_block_hash_mapping),
     (IsLeaf, is_leaf),
     // Builtin selection hints are non-whitelisted hints that are part of cairo common.
     (

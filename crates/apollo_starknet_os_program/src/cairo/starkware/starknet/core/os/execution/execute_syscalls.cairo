@@ -1109,7 +1109,7 @@ func execute_get_block_hash{
     // Fetch the block hash contract state.
     local state_entry: StateEntry*;
     // Fetch a state_entry in this hint. Validate it in the update that comes next.
-    %{ GetBlockMapping %}
+    %{ GetBlockHashMapping %}
 
     // Read from storage.
     tempvar block_hash = response.block_hash;
