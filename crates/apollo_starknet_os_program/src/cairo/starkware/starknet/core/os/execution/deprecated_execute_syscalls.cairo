@@ -382,14 +382,7 @@ func execute_storage_write{contract_state_changes: DictAccess*, revert_log: Reve
     alloc_locals;
     local prev_value: felt;
     local state_entry: StateEntry*;
-    %{
-        storage = execution_helper.storage_by_address[ids.contract_address]
-        ids.prev_value = storage.read(key=ids.syscall_ptr.address)
-        storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
-
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ WriteSyscallResultDeprecated %}
 
     // Update the contract's storage.
     tempvar storage_ptr = state_entry.storage_ptr;
