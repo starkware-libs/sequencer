@@ -9,14 +9,18 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::info;
 
+use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::StateCommitter;
 use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
 
+pub(crate) mod errors;
 pub(crate) mod state_committer;
 pub(crate) mod types;
 
 pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
+
+pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 
 // TODO(amos): Add to Batcher config.
 #[derive(Debug)]
@@ -44,6 +48,7 @@ pub(crate) struct CommitmentManager {
     pub(crate) results_receiver: Receiver<CommitmentTaskOutput>,
     pub(crate) commitment_task_performer: JoinHandle<()>,
     pub(crate) config: CommitmentManagerConfig,
+    pub(crate) commitment_task_offset: BlockNumber,
 }
 
 impl CommitmentManager {
@@ -51,16 +56,23 @@ impl CommitmentManager {
     pub(crate) fn new_or_none(
         config: &CommitmentManagerConfig,
         revert_config: &RevertConfig,
+        block_hash_height: BlockNumber,
     ) -> Option<Self> {
         if revert_config.should_revert {
             None
         } else {
-            Some(CommitmentManager::initialize(CommitmentManagerConfig::default()))
+            Some(CommitmentManager::initialize(
+                CommitmentManagerConfig::default(),
+                block_hash_height,
+            ))
         }
     }
 
     /// Initializes the CommitmentManager. This includes starting the state committer task.
-    pub(crate) fn initialize(config: CommitmentManagerConfig) -> Self {
+    pub(crate) fn initialize(
+        config: CommitmentManagerConfig,
+        block_hash_height: BlockNumber,
+    ) -> Self {
         info!("Initializing CommitmentManager with config {config:?}");
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
         let (results_sender, results_receiver) = channel(config.results_channel_size);
@@ -69,24 +81,42 @@ impl CommitmentManager {
 
         let commitment_task_performer = state_committer.run();
 
-        Self { tasks_sender, results_receiver, commitment_task_performer, config }
+        Self {
+            tasks_sender,
+            results_receiver,
+            commitment_task_performer,
+            config,
+            commitment_task_offset: block_hash_height,
+        }
     }
 
+    pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
+        self.commitment_task_offset
+    }
+
+    /// Adds a commitment task to the state committer. If the task height does not match the
+    /// task offset, an error is returned. If the tasks channel is full, the behavior depends on
+    /// the config: if `wait_for_tasks_channel` is true, it will wait until there is space in the
+    /// channel; otherwise, it will panic. Any other error when sending the task will also cause a
+    /// panic.
     pub(crate) async fn add_commitment_task(
-        &self,
+        &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         state_diff_commitment: Option<StateDiffCommitment>,
-    ) {
+    ) -> CommitmentManagerResult<()> {
+        if height != self.commitment_task_offset {
+            return Err(CommitmentManagerError::WrongTaskHeight {
+                expected: self.commitment_task_offset,
+                actual: height,
+                state_diff_commitment,
+            });
+        }
         let commitment_task_input =
             CommitmentTaskInput { height, state_diff, state_diff_commitment };
         let error_message = format!(
             "Failed to send commitment task to state committer. Block: {height}, state diff \
              commitment: {state_diff_commitment:?}",
-        );
-        let success_message = format!(
-            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
-             state committer.",
         );
 
         if self.config.wait_for_tasks_channel {
@@ -95,12 +125,12 @@ impl CommitmentManager {
                  {state_diff_commitment:?} to state committer."
             );
             match self.tasks_sender.send(commitment_task_input).await {
-                Ok(_) => info!(success_message),
+                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
                 Err(err) => panic!("{error_message}. error: {err}"),
-            };
+            }
         } else {
             match self.tasks_sender.try_send(commitment_task_input) {
-                Ok(_) => info!(success_message),
+                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
                 Err(TrySendError::Full(_)) => {
                     let channel_size = self.tasks_sender.max_capacity();
                     panic!(
@@ -111,8 +141,21 @@ impl CommitmentManager {
                     );
                 }
                 Err(err) => panic!("{error_message}. error: {err}"),
-            };
+            }
         }
+    }
+
+    fn successfully_added_commitment_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> CommitmentManagerResult<()> {
+        info!(
+            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
+             state committer."
+        );
+        self.increase_commitment_task_offset();
+        Ok(())
     }
 
     /// Fetches all ready commitment results from the state committer.
@@ -134,5 +177,10 @@ impl CommitmentManager {
 
     pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
         unimplemented!()
+    }
+
+    fn increase_commitment_task_offset(&mut self) {
+        self.commitment_task_offset =
+            self.commitment_task_offset.next().expect("Block number overflowed.");
     }
 }
