@@ -157,6 +157,7 @@ pub struct RevertBlockInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageRequest {
     StateDiffLocation(BlockNumber),
+    ThinStateDiff(LocationInFile),
 }
 
 // TODO(Dean): Fill in with actual response types matching the request variants.
@@ -164,6 +165,7 @@ pub enum BatcherStorageRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BatcherStorageResponse {
     StateDiffLocation(LocationInFile),
+    ThinStateDiff(ThinStateDiff),
 }
 
 pub struct BatcherStorageReaderServerHandler;
@@ -185,6 +187,10 @@ impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
                         resource_id: block_number.to_string(),
                     })?;
                 Ok(BatcherStorageResponse::StateDiffLocation(state_diff_location))
+            }
+            BatcherStorageRequest::ThinStateDiff(location) => {
+                let state_diff = txn.get_state_diff_from_location(location)?;
+                Ok(BatcherStorageResponse::ThinStateDiff(state_diff))
             }
         }
     }
