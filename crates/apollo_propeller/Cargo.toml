@@ -9,7 +9,7 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
-
+sha2.workspace = true
 
 [dev-dependencies]
 
