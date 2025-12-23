@@ -879,23 +879,14 @@ define_hint_enum!(
         get_n_blocks,
         r#"memory[fp + 3] = to_felt_or_relocatable(len(os_input.block_inputs))"#
     ),
-    (
-        GetNClassHashesToMigrate,
-        get_n_class_hashes_to_migrate,
-        r#"ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate)"#
-    ),
+    (GetNClassHashesToMigrate, get_n_class_hashes_to_migrate),
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
         indoc! {r#"memory[fp + 18] = to_felt_or_relocatable(os_hints_config.full_output)"#}
     ),
-    (
-        ConfigureKzgManager,
-        configure_kzg_manager,
-        indoc! {r#"__serialize_data_availability_create_pages__ = True
-        kzg_manager = global_hints.kzg_manager"#}
-    ),
-    (CheckBlockHashConsistency, check_block_hash_consistency, "CheckBlockHashConsistency"),
+    (ConfigureKzgManager, configure_kzg_manager),
+    (CheckBlockHashConsistency, check_block_hash_consistency),
     (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
     (
         PreparePreimageValidationNonDeterministicHashes,
@@ -950,23 +941,8 @@ define_hint_enum!(
 	common_args['common_args'] = common_args"#
         }
     ),
-    (
-        DebugExpectedInitialGas,
-        debug_expected_initial_gas,
-        indoc! {r#"
-    if execution_helper.debug_mode:
-        expected_initial_gas = execution_helper.call_info.call.initial_gas
-        call_initial_gas = ids.inner_remaining_gas
-        assert expected_initial_gas == call_initial_gas, (
-            f"Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n"
-            f"{execution_helper.call_info=}"
-        )"#}
-    ),
-    (
-        IsSierraGasMode,
-        is_sierra_gas_mode,
-        "ids.is_sierra_gas_mode = execution_helper.call_info.tracked_resource.is_sierra_gas()"
-    ),
+    (DebugExpectedInitialGas, debug_expected_initial_gas),
+    (IsSierraGasMode, is_sierra_gas_mode),
     (
         ReadEcPointFromAddress,
         read_ec_point_from_address,
