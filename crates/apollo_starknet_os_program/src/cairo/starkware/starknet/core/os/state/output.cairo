@@ -185,7 +185,7 @@ func pack_contract_state_diff_inner{range_check_ptr, res: felt*}(
     // Add the number of updates.
     local n_updates = contract_header.n_storage_diffs;
     local is_n_updates_small;
-    %{ ids.is_n_updates_small = ids.n_updates < ids.N_UPDATES_SMALL_PACKING_BOUND %}
+    %{ SetNUpdatesSmall %}
     // Verify that the guessed value is 0 or 1.
     assert is_n_updates_small * is_n_updates_small = is_n_updates_small;
     if (is_n_updates_small != FALSE) {
