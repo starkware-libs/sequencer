@@ -11,12 +11,20 @@ def run_command(cmd: List[str]):
     subprocess.run(cmd, check=True)
 
 
-def build_without_features(package: str):
+def build_without_features(package: str, post_clean: bool = True):
     run_command(cmd=["cargo", "build", "--package", package])
+    if post_clean:
+        clean()
 
 
-def build_with_all_features(package: str):
+def build_with_all_features(package: str, post_clean: bool = True):
     run_command(cmd=["cargo", "build", "--all-features", "--package", package])
+    if post_clean:
+        clean()
+
+
+def clean():
+    run_command(cmd=["cargo", "clean"])
 
 
 def main():
