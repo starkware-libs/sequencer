@@ -869,65 +869,11 @@ define_hint_enum!(
     ),
     (WriteSyscallResultDeprecated, write_syscall_result_deprecated),
     (WriteSyscallResult, write_syscall_result),
-    (
-        DeclareTxFields,
-        declare_tx_fields,
-        indoc! {r#"
-    assert tx.version == 3, f"Unsupported declare version: {tx.version}."
-    ids.sender_address = tx.sender_address
-    ids.account_deployment_data_size = len(tx.account_deployment_data)
-    ids.account_deployment_data = segments.gen_arg(tx.account_deployment_data)
-    ids.class_hash_ptr = segments.gen_arg([tx.class_hash])
-    ids.compiled_class_hash = tx.compiled_class_hash"#
-        }
-    ),
-    (
-        WriteOldBlockToStorage,
-        write_old_block_to_storage,
-        indoc! {r#"
-	storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
-	storage.write(key=ids.old_block_number, value=ids.old_block_hash)"#
-        }
-    ),
-    (
-        CacheContractStorageRequestKey,
-        cache_contract_storage_request_key,
-        indoc! {r#"
-	# Make sure the value is cached (by reading it), to be used later on for the
-	# commitment computation.
-	value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
-	assert ids.value == value, "Inconsistent storage value.""#
-        }
-    ),
-    (
-        CacheContractStorageSyscallRequestAddress,
-        cache_contract_storage_syscall_request_address,
-        indoc! {r#"
-	# Make sure the value is cached (by reading it), to be used later on for the
-	# commitment computation.
-	value = execution_helper.storage_by_address[ids.contract_address].read(
-	    key=ids.syscall_ptr.request.address
-	)
-	assert ids.value == value, "Inconsistent storage value.""#
-        }
-    ),
-    (
-        GetOldBlockNumberAndHash,
-        get_old_block_number_and_hash,
-        indoc! {r#"
-        old_block_number_and_hash = block_input.old_block_number_and_hash
-        assert (
-            old_block_number_and_hash is not None
-        ), f"Block number is probably < {ids.STORED_BLOCK_HASH_BUFFER}."
-        (
-            old_block_number, old_block_hash
-        ) = old_block_number_and_hash
-        assert old_block_number == ids.old_block_number,(
-            "Inconsistent block number. "
-            "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
-        )
-        ids.old_block_hash = old_block_hash"#}
-    ),
+    (DeclareTxFields, declare_tx_fields),
+    (WriteOldBlockToStorage, write_old_block_to_storage),
+    (CacheContractStorageRequestKey, cache_contract_storage_request_key),
+    (CacheContractStorageSyscallRequestAddress, cache_contract_storage_syscall_request_address),
+    (GetOldBlockNumberAndHash, get_old_block_number_and_hash),
     (
         GetBlocksNumber,
         get_n_blocks,
