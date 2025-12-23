@@ -1,11 +1,5 @@
-use std::sync::Arc;
-
 use apollo_gateway_types::deprecated_gateway_error::StarknetError;
-use apollo_state_sync_types::communication::{
-    SharedStateSyncClient,
-    StateSyncClient,
-    StateSyncClientError,
-};
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use async_trait::async_trait;
 use starknet_api::block::{BlockInfo, BlockNumber, GasPriceVector, GasPrices};
@@ -23,7 +17,7 @@ pub trait GatewayFixedBlockStateReader: Send + Sync {
 }
 
 pub struct GatewayFixedBlockSyncStateClient {
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_number: BlockNumber,
     block_info_cache: OnceCell<BlockInfo>,
 }
