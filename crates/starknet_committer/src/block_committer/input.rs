@@ -158,6 +158,10 @@ pub struct FactsDbInitialRead(pub StateRoots);
 
 impl InputContext for FactsDbInitialRead {}
 
+pub struct IndexInitialRead {}
+
+impl InputContext for IndexInitialRead {}
+
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Input<I: InputContext> {
     /// All relevant information for the state diff commitment.

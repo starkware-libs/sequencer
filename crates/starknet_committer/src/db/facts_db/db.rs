@@ -11,11 +11,19 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia_storage::storage_trait::{
+    create_db_key,
+    DbHashMap,
+    DbKey,
+    DbKeyPrefix,
+    DbValue,
+    Storage,
+};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
     FactsDbInitialRead,
+    IndexInitialRead,
     ReaderConfig,
     StarknetStorageValue,
 };
@@ -25,7 +33,7 @@ use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree_and_get_previous_leaves,
 };
 use crate::db::facts_db::types::FactsSubTree;
-use crate::db::forest_trait::{ForestReader, ForestWriter};
+use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -141,6 +149,67 @@ impl<S: Storage> FactsDb<S> {
 impl FactsDb<MapStorage> {
     pub fn consume_storage(self) -> MapStorage {
         self.storage
+    }
+}
+
+// TODO(Yoav): Remove this once we have a real storage implementation.
+pub struct MockForestStorage<S: Storage> {
+    pub storage: S,
+}
+
+#[async_trait]
+impl<S: Storage> ForestMetadata for MockForestStorage<S> {
+    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
+        match metadata_type {
+            ForestMetadataType::CommitmentOffset => DbKey("commitment_offset".into()),
+            ForestMetadataType::StateDiffHash(block_number) => create_db_key(
+                DbKeyPrefix::new(b"state_diff_hash".into()),
+                &block_number.serialize(),
+            ),
+            ForestMetadataType::StateRoot(block_number) => {
+                create_db_key(DbKeyPrefix::new(b"state_root".into()), &block_number.serialize())
+            }
+        }
+    }
+
+    async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
+        Ok(self.storage.get(&db_key).await?)
+    }
+}
+
+#[async_trait]
+impl<S: Storage> ForestReader<IndexInitialRead> for MockForestStorage<S> {
+    async fn read<'a>(
+        &mut self,
+        _context: IndexInitialRead,
+        _storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+        _classes_updates: &'a LeafModifications<CompiledClassHash>,
+        forest_sorted_indices: &'a ForestSortedIndices<'a>,
+        _config: ReaderConfig,
+    ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
+        Ok((
+            OriginalSkeletonForest {
+                classes_trie: OriginalSkeletonTreeImpl::create_empty(
+                    forest_sorted_indices.classes_trie_sorted_indices,
+                ),
+                contracts_trie: OriginalSkeletonTreeImpl::create_empty(
+                    forest_sorted_indices.contracts_trie_sorted_indices,
+                ),
+                storage_tries: HashMap::new(),
+            },
+            HashMap::new(),
+        ))
+    }
+}
+
+#[async_trait]
+impl<S: Storage> ForestWriter for MockForestStorage<S> {
+    fn serialize_forest(_filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
+        Ok(HashMap::new())
+    }
+
+    async fn write_updates(&mut self, _updates: DbHashMap) -> usize {
+        0
     }
 }
 
