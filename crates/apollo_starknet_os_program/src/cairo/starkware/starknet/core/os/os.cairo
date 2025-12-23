@@ -332,20 +332,7 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
     // Currently, the block hash mapping is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): output this hash.
     local old_block_hash;
-    %{
-        old_block_number_and_hash = block_input.old_block_number_and_hash
-        assert (
-            old_block_number_and_hash is not None
-        ), f"Block number is probably < {ids.STORED_BLOCK_HASH_BUFFER}."
-        (
-            old_block_number, old_block_hash
-        ) = old_block_number_and_hash
-        assert old_block_number == ids.old_block_number,(
-            "Inconsistent block number. "
-            "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
-        )
-        ids.old_block_hash = old_block_hash
-    %}
+    %{ GetOldBlockNumberAndHash %}
 
     // Update mapping.
     assert state_entry.class_hash = 0;
@@ -353,10 +340,7 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
     tempvar storage_ptr = state_entry.storage_ptr;
     assert [storage_ptr] = DictAccess(key=old_block_number, prev_value=0, new_value=old_block_hash);
     let storage_ptr = storage_ptr + DictAccess.SIZE;
-    %{
-        storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
-        storage.write(key=ids.old_block_number, value=ids.old_block_hash)
-    %}
+    %{ WriteOldBlockToStorage %}
 
     // Update contract state.
     tempvar new_state_entry = new StateEntry(class_hash=0, storage_ptr=storage_ptr, nonce=0);
