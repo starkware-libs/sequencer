@@ -1122,8 +1122,6 @@ impl Batcher {
 
     /// Writes the ready commitment results to storage.
     async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
-        // TODO(Nimrod): Verify the calculated block hash of the first new block with the value in
-        // the config.
         let Some(ref mut commitment_manager) = self.commitment_manager else {
             panic!(
                 "Commitment manager is expected to be initialized as we should not get here in \
@@ -1149,6 +1147,17 @@ impl Batcher {
                     error!("Failed to get the final commitment output for height {height}: {err}");
                     BatcherError::InternalError
                 })?;
+            // Verify the block hash of the first new block with the value in the config.
+            if height == self.config.first_block_with_partial_block_hash.block_number {
+                assert_eq!(
+                    block_hash.expect("First new block is expected to have a block hash."),
+                    self.config.first_block_with_partial_block_hash.block_hash,
+                    "The block hash of the first block with partial block hash components \
+                     ({block_hash:?}) does not match the configured value ({:?}).",
+                    self.config.first_block_with_partial_block_hash.block_hash
+                );
+            }
+
             // Write the block hash and global root to storage.
             self.storage_writer
                 .set_global_root_and_block_hash(height, global_root, block_hash)
