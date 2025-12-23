@@ -358,10 +358,7 @@ func fill_account_tx_info{range_check_ptr}(
 
     local signature_start: felt*;
     local signature_len: felt;
-    %{
-        ids.signature_start = segments.gen_arg(arg=tx.signature)
-        ids.signature_len = len(tx.signature)
-    %}
+    %{ GenSignatureArg %}
     assert_nn_le(signature_len, SIERRA_ARRAY_LEN_BOUND - 1);
     assert [tx_info_dst] = TxInfo(
         version=common_tx_fields.version,
@@ -591,14 +588,7 @@ func get_invoke_tx_execution_context{range_check_ptr, contract_state_changes: Di
 ) -> (tx_execution_context: ExecutionContext*) {
     alloc_locals;
     local contract_address;
-    %{
-        from starkware.starknet.business_logic.transaction.deprecated_objects import (
-            InternalL1Handler,
-        )
-        ids.contract_address = (
-            tx.contract_address if isinstance(tx, InternalL1Handler) else tx.sender_address
-        )
-    %}
+    %{ ContractAddress %}
     let (state_entry: StateEntry*) = dict_read{dict_ptr=contract_state_changes}(
         key=contract_address
     );

@@ -591,7 +591,7 @@ pub(crate) fn is_reverted<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn check_execution<S: StateReader>(
+pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -599,6 +599,7 @@ pub(crate) fn check_execution<S: StateReader>(
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
     if current_execution_helper.os_logger.debug {
         // Validate the predicted gas cost.
+        // TODO(Yoni): remove this check once Cairo 0 is not supported.
         let remaining_gas =
             get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
         let gas_builtin = vm.get_integer(get_address_of_nested_fields(
@@ -694,7 +695,7 @@ pub(crate) fn check_syscall_response<S: StateReader>(
     compare_retdata(&actual_retdata, &expected_retdata)
 }
 
-pub(crate) fn check_new_syscall_response<S: StateReader>(
+pub(crate) fn check_new_call_contract_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
