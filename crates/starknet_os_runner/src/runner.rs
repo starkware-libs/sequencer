@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -51,7 +51,7 @@ where
         // 1. Execute virtual block and get execution data.
         let mut execution_data = self.virtual_block_executor.execute(
             block_number,
-            contract_class_manager,
+            contract_class_manager.clone(),
             txs.clone(),
         )?;
 
@@ -121,7 +121,8 @@ where
         Ok(OsHints {
             os_input: StarknetOsInput {
                 os_block_inputs: vec![os_block_input],
-                deprecated_compiled_classes: classes.deprecated_compiled_classes,
+                // We do not support deprecated contract classes.
+                deprecated_compiled_classes: BTreeMap::new(),
                 compiled_classes: classes.compiled_classes,
             },
             // TODO(Aviv): choose os hints config
