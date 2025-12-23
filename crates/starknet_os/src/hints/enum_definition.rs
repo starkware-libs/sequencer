@@ -779,52 +779,11 @@ define_hint_enum!(
     (UpdateAliasCounter, update_alias_counter),
     (GuessAliasesContractStoragePtr, guess_aliases_contract_storage_ptr),
     (UpdateAliasesContractToStoragePtr, update_aliases_contract_to_storage_ptr),
-    (
-        GuessStatePtr,
-        guess_state_ptr,
-        "if state_update_pointers is None:
-    ids.final_squashed_contract_state_changes_start = segments.add()
-else:
-    ids.final_squashed_contract_state_changes_start = (
-        state_update_pointers.state_tree_ptr
-    )"
-    ),
-    (
-        UpdateStatePtr,
-        update_state_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.state_tree_ptr = (
-        ids.final_squashed_contract_state_changes_end.address_
-    )"
-    ),
-    (
-        LoadDeprecatedClassFacts,
-        load_deprecated_class_facts,
-        indoc! {r##"
-    # Creates a set of deprecated class hashes to distinguish calls to deprecated entry points.
-    __deprecated_class_hashes=set(os_input.deprecated_compiled_classes.keys())
-    ids.n_compiled_class_facts = len(os_input.deprecated_compiled_classes)
-    vm_enter_scope({
-        'compiled_class_facts': iter(sorted(os_input.deprecated_compiled_classes.items())),
-    })"##
-        }
-    ),
-    (
-        LoadDeprecatedClassInner,
-        load_deprecated_class_inner,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.deprecated_class_hash_cairo_utils import (
-        get_deprecated_contract_class_struct,
-    )
-
-    compiled_class_hash, compiled_class = next(compiled_class_facts)
-
-    cairo_contract = get_deprecated_contract_class_struct(
-        identifiers=ids._context.identifiers, contract_class=compiled_class)
-    ids.compiled_class = segments.gen_arg(cairo_contract)"#
-        }
-    ),
-    (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
+    (GuessStatePtr, guess_state_ptr),
+    (UpdateStatePtr, update_state_ptr),
+    (LoadDeprecatedClassFacts, load_deprecated_class_facts),
+    (LoadDeprecatedClassInner, load_deprecated_class_inner),
+    (StartTx, start_tx),
     (
         OsInputTransactions,
         os_input_transactions,

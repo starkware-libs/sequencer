@@ -174,26 +174,14 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
 
     // Squash again just the outer contract dict (to sort the entries).
     local final_squashed_contract_state_changes_start: DictAccess*;
-    %{
-        if state_update_pointers is None:
-            ids.final_squashed_contract_state_changes_start = segments.add()
-        else:
-            ids.final_squashed_contract_state_changes_start = (
-                state_update_pointers.state_tree_ptr
-            )
-    %}
+    %{ GuessStatePtr %}
 
     let (final_squashed_contract_state_changes_end) = squash_dict(
         dict_accesses=squashed_contract_state_dict,
         dict_accesses_end=squashed_contract_state_dict_end,
         squashed_dict=final_squashed_contract_state_changes_start,
     );
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.state_tree_ptr = (
-                ids.final_squashed_contract_state_changes_end.address_
-            )
-    %}
+    %{ UpdateStatePtr %}
     let final_n_contract_state_changes = (
         final_squashed_contract_state_changes_end - final_squashed_contract_state_changes_start
     ) / DictAccess.SIZE;
