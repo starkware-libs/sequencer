@@ -84,6 +84,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
+use crate::commitment_manager::types::FinalBlockCommitment;
 use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::metrics::{
     register_metrics,
@@ -181,7 +182,6 @@ pub struct Batcher {
     storage_reader_server: Option<BatcherStorageReaderServer>,
     /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
     /// commitment manager because commitments are reverted in a blocking call.
-    #[allow(unused)]
     commitment_manager: Option<CommitmentManager>,
 }
 
@@ -741,6 +741,8 @@ impl Batcher {
         )
         .await?;
 
+        self.write_commitment_results_to_storage().await?;
+
         let execution_infos = block_execution_artifacts
             .execution_data
             .execution_infos_and_signatures
@@ -1111,6 +1113,44 @@ impl Batcher {
                 }))
             }
         }
+    }
+
+    /// Writes the ready commitment results to storage.
+    async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
+        // TODO(Nimrod): Verify the calculated block hash of the first new block with the value in
+        // the config.
+        let Some(ref mut commitment_manager) = self.commitment_manager else {
+            panic!(
+                "Commitment manager is expected to be initialized as we should not get here in \
+                 revert mode."
+            );
+        };
+        let commitment_results = commitment_manager.get_commitment_results().await;
+        for commitment_task_output in commitment_results.into_iter() {
+            let height = commitment_task_output.height;
+            // Finalize the commitment.
+            let FinalBlockCommitment { height, block_hash, global_root } =
+                CommitmentManager::finalize_commitment_output(
+                    self.storage_reader.clone(),
+                    commitment_task_output,
+                )
+                .map_err(|err| {
+                    error!("Failed to finalize the block hash calculation for {height}: {err}");
+                    BatcherError::InternalError
+                })?;
+
+            // Write the block hash and global root to storage.
+            self.storage_writer
+                .set_global_root_and_block_hash(height, global_root, Some(block_hash))
+                .map_err(|err| {
+                    error!(
+                        "Failed to set global root and block hash in storage for {height}: {err}"
+                    );
+                    BatcherError::InternalError
+                })?;
+        }
+
+        Ok(())
     }
 
     #[track_caller]
