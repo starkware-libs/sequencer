@@ -154,17 +154,7 @@ func execute_transactions{
 
     // Execute transactions.
     local n_txs = nondet %{ len(block_input.transactions) %};
-    %{
-        vm_enter_scope({
-            '__deprecated_class_hashes': __deprecated_class_hashes,
-            'transactions': iter(block_input.transactions),
-            'component_hashes': block_input.declared_class_hash_to_component_hashes,
-            'execution_helper': execution_helper,
-            'deprecated_syscall_handler': deprecated_syscall_handler,
-            'syscall_handler': syscall_handler,
-             '__dict_manager': __dict_manager,
-        })
-    %}
+    %{ EnterSyscallScopes %}
     execute_transactions_inner{
         builtin_ptrs=builtin_ptrs,
         contract_state_changes=contract_state_changes,

@@ -539,20 +539,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
     (GetContractAddressStateEntry, get_contract_address_state_entry),
     (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
-    (
-        EnterSyscallScopes,
-        enter_syscall_scopes,
-        indoc! {r#"vm_enter_scope({
-        '__deprecated_class_hashes': __deprecated_class_hashes,
-        'transactions': iter(block_input.transactions),
-        'component_hashes': block_input.declared_class_hash_to_component_hashes,
-        'execution_helper': execution_helper,
-        'deprecated_syscall_handler': deprecated_syscall_handler,
-        'syscall_handler': syscall_handler,
-         '__dict_manager': __dict_manager,
-    })"#
-        }
-    ),
+    (EnterSyscallScopes, enter_syscall_scopes),
     (
         IsRemainingGasLtInitialBudget,
         is_remaining_gas_lt_initial_budget,
@@ -609,19 +596,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
 	vm_enter_scope(dict(node=new_node, **common_args))"#
         }
     ),
-    (
-        FetchResult,
-        fetch_result,
-        indoc! {r#"
-    # Fetch the result, up to 100 elements.
-    result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
-
-    if result != [ids.VALIDATED]:
-        print("Invalid return value from __validate__:")
-        print(f"  Size: {ids.retdata_size}")
-        print(f"  Result (at most 100 elements): {result}")"#
-        }
-    ),
+    (FetchResult, fetch_result),
     (
         SearchSortedOptimistic,
         search_sorted_optimistic,
@@ -654,35 +629,9 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
-    (
-        SetStateUpdatesStart,
-        set_state_updates_start,
-        indoc! {r#"# `use_kzg_da` is used in a hint in `process_data_availability`.
-    use_kzg_da = ids.use_kzg_da
-    if use_kzg_da or ids.compress_state_updates:
-        ids.state_updates_start = segments.add()
-    else:
-        # Assign a temporary segment, to be relocated into the output segment.
-        ids.state_updates_start = segments.add_temp_segment()"#}
-    ),
-    (
-        SetCompressedStart,
-        set_compressed_start,
-        indoc! {r#"if use_kzg_da or ids.n_keys > 0:
-    ids.compressed_start = segments.add()
-else:
-    # Assign a temporary segment, to be relocated into the output segment.
-    ids.compressed_start = segments.add_temp_segment()"#}
-    ),
-    (
-        SetEncryptedStart,
-        set_encrypted_start,
-        indoc! {r#"if use_kzg_da:
-    ids.encrypted_start = segments.add()
-else:
-    # Assign a temporary segment, to be relocated into the output segment.
-    ids.encrypted_start = segments.add_temp_segment()"#}
-    ),
+    (SetStateUpdatesStart, set_state_updates_start),
+    (SetCompressedStart, set_compressed_start),
+    (SetEncryptedStart, set_encrypted_start),
     (
         SetNUpdatesSmall,
         set_n_updates_small,

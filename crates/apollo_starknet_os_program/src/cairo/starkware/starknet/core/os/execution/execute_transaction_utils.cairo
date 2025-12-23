@@ -156,15 +156,7 @@ func run_validate{
         block_context=block_context, execution_context=validate_execution_context
     );
     if (is_deprecated == 0) {
-        %{
-            # Fetch the result, up to 100 elements.
-            result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
-
-            if result != [ids.VALIDATED]:
-                print("Invalid return value from __validate__:")
-                print(f"  Size: {ids.retdata_size}")
-                print(f"  Result (at most 100 elements): {result}")
-        %}
+        %{ FetchResult %}
         assert retdata_size = 1;
         assert retdata[0] = VALIDATED;
     }
