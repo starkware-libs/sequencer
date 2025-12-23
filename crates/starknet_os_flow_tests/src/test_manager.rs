@@ -137,6 +137,8 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) new_global_root: GlobalRoot,
     pub(crate) previous_block_number: PreviousBlockNumber,
     pub(crate) new_block_number: BlockNumber,
+    pub(crate) previous_block_hash: BlockHash,
+    pub(crate) new_block_hash: BlockHash,
     pub(crate) config_hash: Felt,
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
@@ -240,7 +242,15 @@ impl<S: FlowTestState> OsTestOutput<S> {
             self.expected_values.new_block_number
         );
 
-        // TODO(Dori): Implement block hash validation.
+        // Block hashes.
+        assert_eq!(
+            os_output.common_os_output.prev_block_hash,
+            self.expected_values.previous_block_hash.0
+        );
+        assert_eq!(
+            os_output.common_os_output.new_block_hash,
+            self.expected_values.new_block_hash.0
+        );
 
         // Config hash.
         assert_eq!(
@@ -631,6 +641,7 @@ impl<S: FlowTestState> TestManager<S> {
         );
         let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
+        let expected_previous_block_hash = current_block_hash;
         for ((block_index, block_txs_with_reason), block_context) in
             per_block_txs.into_iter().enumerate().zip(block_contexts.into_iter())
         {
@@ -724,6 +735,7 @@ impl<S: FlowTestState> TestManager<S> {
             previous_state_roots = new_state_roots;
         }
         let expected_new_global_root = previous_state_roots.global_root();
+        let expected_new_block_hash = current_block_hash;
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             deprecated_compiled_classes: self
@@ -772,6 +784,8 @@ impl<S: FlowTestState> TestManager<S> {
                 new_global_root: expected_new_global_root,
                 previous_block_number,
                 new_block_number,
+                previous_block_hash: expected_previous_block_hash,
+                new_block_hash: expected_new_block_hash,
                 config_hash: expected_config_hash,
                 full_output: test_params.full_output,
                 // The OS will not compute a KZG commitment in full output mode.
