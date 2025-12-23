@@ -96,6 +96,8 @@ mod serialization;
 pub mod state;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
+/// Storage reader request and response types.
+pub mod storage_reader_types;
 mod version;
 
 mod deprecated;
