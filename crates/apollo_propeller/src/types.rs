@@ -70,3 +70,16 @@ pub enum ShardPublishError {
     #[error("Broadcast failed to complete")]
     BroadcastFailed,
 }
+
+/// Errors that can occur during message reconstruction.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ReconstructionError {
+    #[error("Erasure reconstruction failed: {0}")]
+    ErasureReconstructionFailed(String),
+    #[error("Mismatched message root, the publisher is most likely malicious")]
+    MismatchedMessageRoot,
+    #[error("Unequal shard lengths, the shards are most likely malicious")]
+    UnequalShardLengths,
+    #[error("The message was padded incorrectly by the publisher")]
+    MessagePaddingError,
+}
