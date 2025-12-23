@@ -131,37 +131,9 @@ func main{
         builtin_costs=compiled_class_facts_bundle.builtin_costs,
     );
 
-    // Guess whether to use KZG commitment scheme and whether to output the full state.
-    // TODO(meshi): Once use_kzg_da field is used in the OS for the computation of fees and block
-    //   hash, check that the `use_kzg_da` field is identical in all blocks in the multi-block.
-    local use_kzg_da = nondet %{
-        os_hints_config.use_kzg_da and (
-            not os_hints_config.full_output
-        )
-    %};
-    local full_output = nondet %{ os_hints_config.full_output %};
-
-    // Verify that the guessed values are 0 or 1.
-    assert use_kzg_da * use_kzg_da = use_kzg_da;
-    assert full_output * full_output = full_output;
-
-    let final_os_output = combine_blocks(
-        n=n_blocks,
+    process_os_output(
+        n_blocks=n_blocks,
         os_outputs=os_outputs,
-        os_program_hash=0,
-        use_kzg_da=use_kzg_da,
-        full_output=full_output,
-    );
-
-    // Serialize OS output.
-    %{
-        __serialize_data_availability_create_pages__ = True
-        kzg_manager = global_hints.kzg_manager
-    %}
-
-    serialize_os_output(
-        os_output=final_os_output,
-        replace_keys_with_aliases=TRUE,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
@@ -503,4 +475,46 @@ func get_os_global_context{
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
     );
     return os_global_context;
+}
+
+// Processes OS outputs by combining blocks and serializing the result.
+func process_os_output{
+    output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
+}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
+    alloc_locals;
+    // Guess whether to use KZG commitment scheme and whether to output the full state.
+    // TODO(meshi): Once use_kzg_da field is used in the OS for the computation of fees and block
+    //   hash, check that the `use_kzg_da` field is identical in all blocks in the multi-block.
+    local use_kzg_da = nondet %{
+        os_hints_config.use_kzg_da and (
+            not os_hints_config.full_output
+        )
+    %};
+    local full_output = nondet %{ os_hints_config.full_output %};
+
+    // Verify that the guessed values are 0 or 1.
+    assert use_kzg_da * use_kzg_da = use_kzg_da;
+    assert full_output * full_output = full_output;
+
+    let final_os_output = combine_blocks(
+        n=n_blocks,
+        os_outputs=os_outputs,
+        os_program_hash=0,
+        use_kzg_da=use_kzg_da,
+        full_output=full_output,
+    );
+
+    // Serialize OS output.
+    %{
+        __serialize_data_availability_create_pages__ = True
+        kzg_manager = global_hints.kzg_manager
+    %}
+
+    serialize_os_output(
+        os_output=final_os_output,
+        replace_keys_with_aliases=TRUE,
+        n_public_keys=n_public_keys,
+        public_keys=public_keys,
+    );
+    return ();
 }
