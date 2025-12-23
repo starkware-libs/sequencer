@@ -411,13 +411,32 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         info!("Running consensus for height {}.", height);
-        let res =
-            self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await?;
 
-        // Commit in case of decision.
-        if let RunHeightRes::Decision(decision) = &res {
-            context.decision_reached(height, decision.block).await?;
-        }
+        let consensus_result =
+            self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await;
+
+        let res = match consensus_result {
+            Ok(RunHeightRes::Decision(decision)) => {
+                // Commit decision to context.
+                context.decision_reached(height, decision.block).await?;
+                RunHeightRes::Decision(decision)
+            }
+            Ok(RunHeightRes::Sync) => RunHeightRes::Sync,
+            Err(err) => match err {
+                e @ ConsensusError::BatcherError(_) => {
+                    error!(
+                        "Error while running consensus for height {height}, fallback to sync: {e}"
+                    );
+                    self.wait_until_sync_reaches_height(height, context).await;
+                    RunHeightRes::Sync
+                }
+                _ => {
+                    // This is an unrecoverable internal error. It indicates a bug and prevents the
+                    // node from taking any further part in the consensus protocol.
+                    return Err(err);
+                }
+            },
+        };
 
         // Cleanup after height completion.
         self.cleanup_post_height(context, height, broadcast_channels, proposals_receiver).await?;
@@ -586,7 +605,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         // Reflect initial height/round to context before executing requests.
-        context.set_height_and_round(height, shc.current_round()).await;
+        context.set_height_and_round(height, shc.current_round()).await?;
         self.execute_requests(context, height, pending_requests, shc_events, broadcast_channels)
             .await?;
         Ok(None)
@@ -635,7 +654,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             };
             // Reflect current height/round to context.
-            context.set_height_and_round(height, shc.current_round()).await;
+            context.set_height_and_round(height, shc.current_round()).await?;
             match shc_return {
                 ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
                 ShcReturn::Requests(requests) => {
@@ -883,7 +902,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 // (round 0) proposal timeout for building to avoid giving the Batcher more time
                 // when proposal time is extended for consensus.
                 let timeout = timeouts.get_proposal_timeout(0);
-                let receiver = context.build_proposal(init, timeout).await;
+                let receiver = context.build_proposal(init, timeout).await?;
                 let fut = async move {
                     let proposal_id = receiver.await.ok();
                     StateMachineEvent::FinishedBuilding(proposal_id, round)
