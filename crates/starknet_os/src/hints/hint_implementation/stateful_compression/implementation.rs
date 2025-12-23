@@ -176,7 +176,7 @@ pub(crate) fn contract_address_le_max_for_compression(
     Ok(insert_value_into_ap(vm, Felt::from(contract_address <= max_contract_address))?)
 }
 
-pub(crate) fn guess_contract_addr_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn load_storage_ptr_and_prev_state<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
