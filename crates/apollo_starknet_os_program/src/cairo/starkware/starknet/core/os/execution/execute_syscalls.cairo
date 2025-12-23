@@ -781,16 +781,7 @@ func contract_call_helper{
     // Advance syscall pointer to the next syscall.
     let syscall_ptr = syscall_ptr + CallContractResponse.SIZE;
 
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.response.retdata_start,
-            size=ids.response.retdata_end - ids.response.retdata_start,
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-        assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'
-    %}
+    %{ CheckNewSyscallResponse %}
 
     // Write the response.
     relocate_segment(src_ptr=response.retdata_start, dest_ptr=retdata);
@@ -895,15 +886,7 @@ func execute_deploy{
     // Advance syscall pointer to the next syscall.
     let syscall_ptr = syscall_ptr + DeployResponse.SIZE;
 
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.response.constructor_retdata_start,
-            size=ids.response.constructor_retdata_end - ids.response.constructor_retdata_start,
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-        assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'
-    %}
+    %{ CheckNewDeployResponse %}
 
     // Write the response.
     relocate_segment(src_ptr=response.constructor_retdata_start, dest_ptr=retdata);
