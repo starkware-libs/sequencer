@@ -17,11 +17,14 @@ use crate::hints::hint_implementation::kzg::utils::{
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
-pub(crate) fn store_da_segment<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn guess_kzg_commitments_and_store_da_segment<
+    'program,
+    CHP: CommonHintProcessor<'program>,
+>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    log::debug!("Executing store_da_segment hint.");
+    log::debug!("Executing guess_kzg_commitments_and_store_da_segment hint.");
     let state_updates_start =
         get_ptr_from_var_name(Ids::StateUpdatesStart.into(), vm, ids_data, ap_tracking)?;
     let da_size_felt = get_integer_from_var_name(Ids::DaSize.into(), vm, ids_data, ap_tracking)?;
