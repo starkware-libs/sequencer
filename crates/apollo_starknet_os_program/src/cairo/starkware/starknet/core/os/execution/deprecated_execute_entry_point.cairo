@@ -134,14 +134,14 @@ func deprecated_execute_entry_point{
     );
 
     if (success == 0) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_ENTRY_POINT_NOT_FOUND;
         return (is_reverted=1, retdata_size=1, retdata=retdata);
     }
 
     if (entry_point_offset == NOP_ENTRY_POINT_OFFSET) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
         return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
@@ -175,7 +175,7 @@ func deprecated_execute_entry_point{
     %{ EnterScopeDeprecatedSyscallHandler %}
     call abs contract_entry_point;
     %{ vm_exit_scope() %}
-    %{ execution_helper.exit_call() %}
+    %{ ExitCall %}
 
     // Retrieve returned_builtin_ptrs_subset.
     // Note that returned_builtin_ptrs_subset cannot be set in a hint because doing so will allow a
@@ -223,14 +223,9 @@ func select_execute_entry_point_func{
 ) {
     alloc_locals;
     // TODO(Yoni): SIERRA_GAS_MODE - move back inside `execute_entry_point` functions.
-    %{
-        execution_helper.enter_call(
-            cairo_execution_info=ids.execution_context.execution_info,
-            deprecated_tx_info=ids.execution_context.deprecated_tx_info,
-        )
-    %}
+    %{ EnterCall %}
 
-    %{ is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0 %}
+    %{ CheckIsDeprecated %}
     // Note that the class_hash is validated in both the `if` and `else` cases, so a malicious
     // prover won't be able to produce a proof if guesses the wrong case.
     if (nondet %{ is_deprecated %} != FALSE) {
