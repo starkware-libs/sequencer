@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-use std::sync::LazyLock;
 
-use apollo_infra_utils::cairo0_compiler::compile_cairo0_program;
+use apollo_starknet_os_program::{OS_PROGRAM, OS_PROGRAM_BYTES};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
-use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use rstest::rstest;
 use starknet_api::block::{
@@ -44,20 +42,6 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
-// TODO(Yoni): use the OS program bytes instead once the block hash is reachable by the OS.
-static BLOCK_HASH_PROGRAM_BYTES: LazyLock<Vec<u8>> = LazyLock::new(|| {
-    let cairo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/apollo_starknet_os_program/src/cairo")
-        .canonicalize()
-        .unwrap();
-    let block_hash_file = cairo_root.join("starkware/starknet/core/os/block_hash.cairo");
-    compile_cairo0_program(block_hash_file, cairo_root).expect("Failed to compile cairo0 program")
-});
-static BLOCK_HASH_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
-    cairo_vm::types::program::Program::from_bytes(&BLOCK_HASH_PROGRAM_BYTES, None)
-        .expect("Failed to load program")
-});
-
 fn cairo_calculate_block_hash(
     components: &PartialBlockHashComponents,
     state_root: Felt,
@@ -65,15 +49,15 @@ fn cairo_calculate_block_hash(
 ) -> Felt {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::starknet,
-        add_main_prefix_to_entrypoint: true, // It's the main file now
+        add_main_prefix_to_entrypoint: false,
         ..Default::default()
     };
 
     let implicit_args = vec![ImplicitArg::Builtin(BuiltinName::poseidon)];
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
-        &BLOCK_HASH_PROGRAM_BYTES,
-        "calculate_block_hash",
+        OS_PROGRAM_BYTES,
+        "starkware.starknet.core.os.block_hash.calculate_block_hash",
         &implicit_args,
         HashMap::new(),
     )
@@ -168,11 +152,8 @@ fn test_block_hash_cairo() {
 
 #[rstest]
 fn test_block_hash_version() {
-    let (_, cairo_block_hash_version_felt) = BLOCK_HASH_PROGRAM
-        .constants
-        .iter()
-        .find(|(name, _)| name.ends_with("BLOCK_HASH_VERSION"))
-        .unwrap();
+    let (_, cairo_block_hash_version_felt) =
+        OS_PROGRAM.constants.iter().find(|(name, _)| name.ends_with("BLOCK_HASH_VERSION")).unwrap();
 
     let latest_block_hash_version: Felt =
         BlockHashVersion::try_from(StarknetVersion::LATEST).unwrap().into();
