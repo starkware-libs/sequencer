@@ -14,6 +14,7 @@ use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
     DbKeyPrefix,
+    DbValue,
     Storage,
 };
 
@@ -196,6 +197,7 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
     }
 }
 
+#[async_trait]
 impl<S: Storage> ForestMetadata for FactsDb<S> {
     /// Returns the db key for the metadata type.
     /// The data keys in a facts DB are the result of a hash function; therefore, they are not
@@ -205,12 +207,16 @@ impl<S: Storage> ForestMetadata for FactsDb<S> {
             ForestMetadataType::CommitmentOffset => DbKey(Self::COMMITMENT_OFFSET_KEY.to_vec()),
             ForestMetadataType::StateDiffHash(block_number) => {
                 let state_diff_hash_key_prefix = DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX);
-                create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
+                create_db_key(state_diff_hash_key_prefix, &block_number.serialize())
             }
             ForestMetadataType::StateRoot(block_number) => {
                 let state_root_key_prefix = DbKeyPrefix::new(Self::STATE_ROOT_PREFIX);
-                create_db_key(state_root_key_prefix, &block_number.0.to_be_bytes())
+                create_db_key(state_root_key_prefix, &block_number.serialize())
             }
         }
+    }
+
+    async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
+        Ok(self.storage.get(&db_key).await?)
     }
 }

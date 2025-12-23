@@ -5,7 +5,8 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::forest::filled_forest::FilledForest;
@@ -14,10 +15,26 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+#[derive(Clone, Debug)]
+pub struct DbBlockNumber(pub BlockNumber);
+
+impl DbBlockNumber {
+    pub fn serialize(&self) -> Vec<u8> {
+        self.0.0.to_be_bytes().to_vec()
+    }
+
+    pub fn deserialize(value: &[u8]) -> Result<Self, DeserializationError> {
+        let array_value: [u8; 8] =
+            value.try_into().map_err(|error| DeserializationError::ValueError(Box::new(error)))?;
+        Ok(DbBlockNumber(BlockNumber(u64::from_be_bytes(array_value))))
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum ForestMetadataType {
     CommitmentOffset,
-    StateDiffHash(BlockNumber),
-    StateRoot(BlockNumber),
+    StateDiffHash(DbBlockNumber),
+    StateRoot(DbBlockNumber),
 }
 
 #[async_trait]
@@ -25,14 +42,16 @@ pub trait ForestMetadata {
     /// Returns the db key for the metadata type.
     fn metadata_key(metadata_type: ForestMetadataType) -> DbKey;
 
+    /// Reads a value from the storage.
+    async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>>;
+
     /// Reads the metadata from the storage.
     async fn read_metadata(
-        &self,
-        storage: &mut impl Storage,
+        &mut self,
         metadata_type: ForestMetadataType,
     ) -> ForestResult<Option<DbValue>> {
         let db_key = Self::metadata_key(metadata_type);
-        Ok(storage.get(&db_key).await?)
+        self.get_from_storage(db_key).await
     }
 
     /// Adds the metadata to updates map. Returns the previous value if it existed.
