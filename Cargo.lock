@@ -2244,7 +2244,9 @@ dependencies = [
 name = "apollo_proof_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proof_manager_config",
+ "async-trait",
  "hex",
  "starknet-types-core",
  "starknet_api",
