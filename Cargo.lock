@@ -2248,6 +2248,7 @@ dependencies = [
 name = "apollo_propeller"
 version = "0.0.0"
 dependencies = [
+ "libp2p",
  "reed-solomon-simd",
  "sha2 0.10.9",
 ]
