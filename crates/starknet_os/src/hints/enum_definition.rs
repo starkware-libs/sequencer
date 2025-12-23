@@ -710,51 +710,10 @@ define_common_hint_enum!(
     (GuessContractAddrStoragePtr, guess_contract_addr_storage_ptr),
     (UpdateClassesPtr, update_classes_ptr),
     (ComputeIdsLow, compute_ids_low),
-    (
-        StoreDaSegment,
-        store_da_segment,
-        indoc! {r#"import itertools
-
-    from starkware.python.utils import blockify
-
-    kzg_manager.store_da_segment(
-        da_segment=memory.get_range_as_ints(addr=ids.state_updates_start, size=ids.da_size)
-    )
-    kzg_commitments = [
-        kzg_manager.polynomial_coefficients_to_kzg_commitment_callback(chunk)
-        for chunk in blockify(kzg_manager.da_segment, chunk_size=ids.BLOB_LENGTH)
-    ]
-
-    ids.n_blobs = len(kzg_commitments)
-    ids.kzg_commitments = segments.add_temp_segment()
-    ids.evals = segments.add_temp_segment()
-
-    segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
-    ),
-    (
-        GuessClassesPtr,
-        guess_classes_ptr,
-        "if state_update_pointers is None:
-    ids.squashed_dict = segments.add()
-else:
-    ids.squashed_dict = state_update_pointers.class_tree_ptr"
-    ),
-    (
-        UpdateContractAddrToStoragePtr,
-        update_contract_addr_to_storage_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-        ids.state_changes.key
-    ] = (
-        ids.squashed_new_state.address_,
-        ids.squashed_storage_ptr_end.address_,
-    )"
-    ),
-    (
-        SetStateUpdatePointersToNone,
-        set_state_update_pointers_to_none,
-        r#"state_update_pointers = None"#
-    )
+    (StoreDaSegment, store_da_segment),
+    (GuessClassesPtr, guess_classes_ptr),
+    (UpdateContractAddrToStoragePtr, update_contract_addr_to_storage_ptr),
+    (SetStateUpdatePointersToNone, set_state_update_pointers_to_none)
 );
 
 define_hint_enum!(
