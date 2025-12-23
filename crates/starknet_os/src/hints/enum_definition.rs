@@ -706,10 +706,10 @@ memory[ap] = 1 if case != 'both' else 0"#
 
 define_common_hint_enum!(
     CommonHint,
-    (SetTreeStructure, set_tree_structure, "SetTreeStructure"),
-    (GuessContractAddrStoragePtr, guess_contract_addr_storage_ptr, "GuessContractAddrStoragePtr"),
-    (UpdateClassesPtr, update_classes_ptr, "UpdateClassesPtr"),
-    (ComputeIdsLow, compute_ids_low, "ComputeIdsLow"),
+    (SetTreeStructure, set_tree_structure),
+    (GuessContractAddrStoragePtr, guess_contract_addr_storage_ptr),
+    (UpdateClassesPtr, update_classes_ptr),
+    (ComputeIdsLow, compute_ids_low),
     (
         StoreDaSegment,
         store_da_segment,
