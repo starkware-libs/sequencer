@@ -10,6 +10,7 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_packing};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
 
@@ -35,14 +36,14 @@ impl DBObject for StarknetStorageValue {
 
     /// Serializes the value into a 32-byte vector.
     fn serialize(&self) -> SerializationResult<DbValue> {
-        Ok(DbValue(self.0.to_bytes_be().to_vec()))
+        Ok(serialize_felt_no_packing(self.0))
     }
 
     fn deserialize(
         value: &DbValue,
         _deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
-        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+        Ok(Self(deserialize_felt_no_packing(value)))
     }
 }
 
