@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::Instant;
-use tracing::{error, info};
+use tracing::{error, info, Span};
 
 use crate::component_client::ClientResult;
 use crate::requests::LabeledRequest;
@@ -88,6 +88,9 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
     pub creation_time: Instant,
+    /// The span context captured at request creation time, used for trace context propagation
+    /// across async channel boundaries.
+    pub span: Span,
 }
 
 impl<Request, Response> RequestWrapper<Request, Response>
@@ -96,7 +99,7 @@ where
     Response: Send,
 {
     pub fn new(request: Request, tx: Sender<Response>) -> Self {
-        Self { request, tx, creation_time: Instant::now() }
+        Self { request, tx, creation_time: Instant::now(), span: Span::current() }
     }
 }
 

@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::time::Instant;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, instrument, trace, warn, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use validator::Validate;
 
 use crate::component_definitions::{
@@ -210,7 +211,7 @@ where
 
         tokio::spawn(async move {
             loop {
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, parent_span) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -224,6 +225,7 @@ where
                     tx,
                     metrics,
                     processing_time_warning_threshold_ms,
+                    parent_span,
                 )
                 .await;
             }
@@ -311,7 +313,7 @@ where
         tokio::spawn(async move {
             loop {
                 // TODO(Tsabary): add a test for the queueing time metric.
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, parent_span) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -324,18 +326,24 @@ where
 
                 // Clone the component for concurrent request processing.
                 let mut cloned_component = component.clone();
-                tokio::spawn(async move {
-                    process_request(
-                        &mut cloned_component,
-                        request,
-                        tx,
-                        metrics,
-                        processing_time_warning_threshold_ms,
-                    )
-                    .await;
-                    // Drop the permit to allow more tasks to be created.
-                    drop(permit);
-                });
+                // Use .instrument(parent_span) to propagate OpenTelemetry trace context from the
+                // original request sender.
+                tokio::spawn(
+                    async move {
+                        process_request(
+                            &mut cloned_component,
+                            request,
+                            tx,
+                            metrics,
+                            processing_time_warning_threshold_ms,
+                            parent_span,
+                        )
+                        .await;
+                        // Drop the permit to allow more tasks to be created.
+                        drop(permit);
+                    }
+                    .in_current_span(),
+                );
             }
         });
     }
@@ -371,17 +379,23 @@ where
     }
 }
 
+#[instrument(level = "debug", name = "process_request", skip_all, fields(component = %short_type_name::<Component>(), request = ?request))]
 async fn process_request<Request, Response, Component>(
     component: &mut Component,
     request: Request,
     tx: Sender<Response>,
     metrics: &'static LocalServerMetrics,
     processing_time_warning_threshold_ms: u128,
+    parent_span: Span,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug + LabeledRequest,
     Response: Send + Debug,
 {
+    // Set the parent span's OpenTelemetry context as parent of the current span.
+    // This ensures proper trace hierarchy across local component communication.
+    Span::current().set_parent(parent_span.context());
+
     let component_name = short_type_name::<Component>();
     let request_info = format!("{:?}", request);
     let request_label = request.request_label();
@@ -430,7 +444,7 @@ async fn get_next_request_for_processing<Request, Response>(
     normal_rx: &mut Receiver<RequestWrapper<Request, Response>>,
     component_name: &str,
     metrics: &'static LocalServerMetrics,
-) -> (Request, Sender<Response>)
+) -> (Request, Sender<Response>, Span)
 where
     Request: Send + Debug + LabeledRequest,
     Response: Send,
@@ -451,6 +465,7 @@ where
     let request = request_wrapper.request;
     let tx = request_wrapper.tx;
     let creation_time = request_wrapper.creation_time;
+    let span = request_wrapper.span;
 
     trace!(
         "Component {component_name} received request {request:?} that was created at \
@@ -458,5 +473,5 @@ where
     );
     metrics.record_queueing_time(creation_time.elapsed().as_secs_f64(), request.request_label());
 
-    (request, tx)
+    (request, tx, span)
 }

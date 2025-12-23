@@ -15,7 +15,7 @@ use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::PrometheusHandle;
 use tracing::level_filters::LevelFilter;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, Instrument};
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
@@ -155,8 +155,9 @@ async fn mempool_snapshot(
             // Wrap the mempool client interaction with a tokio::spawn as it is NOT cancel-safe.
             // Even if the current task is cancelled, e.g., when a request is dropped while still
             // being processed, the inner task will continue to run.
+            // Use .in_current_span() to propagate OpenTelemetry trace context.
             let mempool_snapshot_result =
-                tokio::spawn(async move { client.get_mempool_snapshot().await })
+                tokio::spawn(async move { client.get_mempool_snapshot().await }.in_current_span())
                     .await
                     .expect("Should be able to get mempool_snapshot result");
 
@@ -182,10 +183,12 @@ async fn get_l1_provider_snapshot(
             // Wrap the l1 client interaction with a tokio::spawn as it is NOT cancel-safe.
             // Even if the current task is cancelled, e.g., when a request is dropped while still
             // being processed, the inner task will continue to run.
-            let l1_provider_snapshot_result =
-                tokio::spawn(async move { client.get_l1_provider_snapshot().await })
-                    .await
-                    .expect("Should be able to get l1 provider result");
+            // Use .in_current_span() to propagate OpenTelemetry trace context.
+            let l1_provider_snapshot_result = tokio::spawn(
+                async move { client.get_l1_provider_snapshot().await }.in_current_span(),
+            )
+            .await
+            .expect("Should be able to get l1 provider result");
 
             match l1_provider_snapshot_result {
                 Ok(snapshot) => Ok(snapshot.into()),

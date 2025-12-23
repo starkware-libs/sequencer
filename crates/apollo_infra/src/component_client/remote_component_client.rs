@@ -14,7 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace, warn, Span};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
@@ -22,6 +22,7 @@ use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCT
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
+use crate::trace_util::extract_trace_headers;
 
 pub const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
@@ -165,10 +166,22 @@ where
 
     fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
         trace!("Constructing remote request");
-        HyperRequest::post(self.uri.clone())
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(serialized_request))
-            .expect("Request building should succeed")
+
+        let mut builder = HyperRequest::builder()
+            .method("POST")
+            .uri(self.uri.clone())
+            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+
+        // Add trace headers to the request.
+        let context = {
+            use tracing_opentelemetry::OpenTelemetrySpanExt;
+            Span::current().context()
+        };
+        for (header_name, header_value) in extract_trace_headers(&context) {
+            builder = builder.header(header_name, header_value);
+        }
+
+        builder.body(Body::from(serialized_request)).expect("Request building should succeed")
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {

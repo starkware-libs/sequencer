@@ -846,10 +846,14 @@ impl Batcher {
 
         let writer_join_handle =
             pre_confirmed_block_writer.map(|mut pre_confirmed_block_writer| {
-                tokio::spawn(async move {
-                    // TODO(noamsp): add error handling
-                    pre_confirmed_block_writer.run().await.ok();
-                })
+                // Use .in_current_span() to propagate OpenTelemetry trace context.
+                tokio::spawn(
+                    async move {
+                        // TODO(noamsp): add error handling
+                        pre_confirmed_block_writer.run().await.ok();
+                    }
+                    .in_current_span(),
+                )
             });
 
         self.active_proposal_task = Some(ProposalTask {

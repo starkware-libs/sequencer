@@ -1,9 +1,16 @@
 use std::str::FromStr;
 
+use hyper::header::{HeaderName, HeaderValue};
+use opentelemetry::global::set_text_map_propagator;
+use opentelemetry::propagation::{Extractor, Injector, TextMapPropagator};
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
 use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
 use tracing::warn;
+use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
@@ -39,6 +46,16 @@ pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process
 pub async fn configure_tracing() -> ReloadHandle {
     let reload_handle = TRACING_INITIALIZED
         .get_or_init(|| async {
+            // Set up W3C trace context propagator for cross-service trace propagation.
+            set_text_map_propagator(TraceContextPropagator::new());
+
+            // Create an OpenTelemetry tracer provider.
+            // This is a simple in-memory provider; traces are linked via context propagation
+            // but not exported to an external collector.
+            let tracer_provider = SdkTracerProvider::builder().build();
+            let tracer = tracer_provider.tracer("apollo");
+            let otel_layer = OpenTelemetryLayer::new(tracer);
+
             // Use default time formatting with sub-second precision limited to three digits.
             let time_format = format_description!(
                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
@@ -65,8 +82,12 @@ pub async fn configure_tracing() -> ReloadHandle {
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
             // of init.
-            tracing_subscriber::registry().with(filtered_layer).with(fmt_layer).init();
-            tracing::info!("Tracing has been successfully initialized.");
+            tracing_subscriber::registry()
+                .with(filtered_layer)
+                .with(otel_layer)
+                .with(fmt_layer)
+                .init();
+            tracing::info!("Tracing has been successfully initialized with OpenTelemetry support.");
 
             reload_handle
         })
@@ -129,4 +150,58 @@ pub fn set_log_level(handle: &ReloadHandle, crate_name: &str, level: LevelFilter
 
 pub fn get_log_directives(handle: &ReloadHandle) -> Result<String, reload::Error> {
     handle.with_current(|f| f.to_string())
+}
+
+/// Extracts trace context headers from the given OpenTelemetry context for cross-service
+/// propagation.
+pub fn extract_trace_headers(context: &opentelemetry::Context) -> Vec<(HeaderName, HeaderValue)> {
+    let mut header_injector = HeaderInjector::default();
+    let propagator = TraceContextPropagator::new();
+    propagator.inject_context(context, &mut header_injector);
+
+    header_injector.headers
+}
+
+/// Helper struct for injecting OpenTelemetry trace context into HTTP headers.
+#[derive(Default)]
+struct HeaderInjector {
+    headers: Vec<(HeaderName, HeaderValue)>,
+}
+
+impl Injector for HeaderInjector {
+    fn set(&mut self, key: &str, value: String) {
+        let header_name = HeaderName::try_from(key)
+            .expect("OpenTelemetry header names need to be valid HTTP headers");
+        let header_value = HeaderValue::try_from(&value)
+            .expect("OpenTelemetry header values need to be valid HTTP header values");
+        self.headers.push((header_name, header_value));
+    }
+}
+
+/// Extracts trace context from HTTP headers for cross-service propagation.
+pub fn extract_context_from_headers(headers: &hyper::HeaderMap) -> opentelemetry::Context {
+    let header_extractor = HeaderExtractor::new(headers);
+    let propagator = TraceContextPropagator::new();
+    propagator.extract(&header_extractor)
+}
+
+/// Helper struct for extracting OpenTelemetry trace context from HTTP headers.
+struct HeaderExtractor<'a> {
+    headers: &'a hyper::HeaderMap,
+}
+
+impl<'a> HeaderExtractor<'a> {
+    fn new(headers: &'a hyper::HeaderMap) -> Self {
+        Self { headers }
+    }
+}
+
+impl Extractor for HeaderExtractor<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).and_then(|v| v.to_str().ok())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.headers.keys().map(|k| k.as_str()).collect()
+    }
 }
