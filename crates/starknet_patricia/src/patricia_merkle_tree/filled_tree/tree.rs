@@ -9,8 +9,9 @@ use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::DbHashMap;
 
+use crate::db_layout::NodeLayoutFor;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::HashFilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -43,24 +44,27 @@ pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
     /// to a storage key and its serialized storage value.
-    fn serialize(
+    fn serialize<Layout: NodeLayoutFor<L>>(
         &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
+        key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
     ) -> SerializationResult<DbHashMap>;
 
     fn get_root_hash(&self) -> HashOutput;
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct FilledTreeImpl<L: Leaf> {
-    pub tree_map: HashMap<NodeIndex, FactDbFilledNode<L>>,
+pub struct FilledTreeImpl<L>
+where
+    L: Leaf,
+{
+    pub tree_map: HashMap<NodeIndex, HashFilledNode<L>>,
     pub root_hash: HashOutput,
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
-    ) -> HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>> {
+    ) -> HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
@@ -76,7 +80,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         Arc::new(leaf_index_to_leaf_input.keys().map(|index| (*index, Mutex::new(None))).collect())
     }
 
-    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, FactDbFilledNode<L>> {
+    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, HashFilledNode<L>> {
         &self.tree_map
     }
 
@@ -183,7 +187,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         index: NodeIndex,
         leaf_modifications: Option<Arc<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::Input>>>>,
-        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>>>,
+        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>>>,
         leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::Output>>>>,
     ) -> FilledTreeResult<HashOutput>
     where
@@ -223,7 +227,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
+                    HashFilledNode { hash, data },
                 )?;
                 Ok(hash)
             }
@@ -246,7 +250,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
+                    HashFilledNode { hash, data },
                 )?;
                 Ok(hash)
             }
@@ -263,7 +267,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
+                    HashFilledNode { hash, data },
                 )?;
                 if let Some(output) = leaf_output {
                     Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
@@ -369,18 +373,19 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         })
     }
 
-    fn serialize(
+    fn serialize<Layout: NodeLayoutFor<L>>(
         &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
+        key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
     ) -> SerializationResult<DbHashMap> {
         // This function iterates over each node in the tree, using the node's `db_key` as the
         // hashmap key and the result of the node's `serialize` method as the value.
         self.get_all_nodes()
-            .values()
-            .map(|node| {
-                let key = node.db_key(key_context);
-                let value = node.serialize()?;
-                Ok((key, value))
+            .iter()
+            .map(|(index, node)| {
+                let (db_key, node_db_object) =
+                    Layout::get_db_object(*index, key_context, node.clone());
+                let db_value = node_db_object.serialize()?;
+                Ok((db_key, db_value))
             })
             .collect::<Result<_, _>>()
     }
