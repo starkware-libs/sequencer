@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{
     prepend_sub_config_name,
+    ser_optional_param,
     ser_optional_sub_config,
     ser_param,
     SerializeConfig,
@@ -194,7 +195,7 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
-    pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
+    pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_config: ServerConfig,
     // Used to verify the Batcher is restarted before switching to / from revert mode.
     pub revert_config: RevertConfig,
@@ -251,9 +252,13 @@ impl SerializeConfig for BatcherConfig {
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
-        dump.append(&mut prepend_sub_config_name(
-            self.first_block_with_partial_block_hash.dump(),
+        dump.extend(ser_optional_param(
+            &self.first_block_with_partial_block_hash,
+            FirstBlockWithPartialBlockHash::default(),
             "first_block_with_partial_block_hash",
+            "The first block with partial block hash components, None if the first block number \
+             is 0.",
+            ParamPrivacyInput::Public,
         ));
         dump.append(&mut prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
         dump
@@ -281,8 +286,7 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
-            // TODO(Rotem): set a more reasonable default value.
-            first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
+            first_block_with_partial_block_hash: None,
             storage_reader_server_config: ServerConfig::default(),
             revert_config: RevertConfig::default(),
         }

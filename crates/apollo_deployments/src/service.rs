@@ -64,6 +64,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.block_builder_config.execute_config.n_workers",
     "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
     "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist",
+    "batcher_config.first_block_with_partial_block_hash.#is_none",
     "batcher_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.first_block_with_partial_block_hash.block_hash",
     "batcher_config.first_block_with_partial_block_hash.parent_block_hash",
