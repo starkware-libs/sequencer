@@ -270,7 +270,7 @@ pub struct VersionedConstants {
     pub allocation_cost: AllocationCost,
 
     // Resources.
-    os_resources: Arc<OsResources>,
+    pub os_resources: Arc<OsResources>,
 
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
@@ -561,7 +561,7 @@ pub struct OsResources {
 
     // Resources needed for the OS to compute the KZG commitment info, as a factor of the data
     // segment length. Does not include poseidon_hash_many cost.
-    compute_os_kzg_commitment_info: ExecutionResources,
+    pub compute_os_kzg_commitment_info: ExecutionResources,
 }
 
 fn validate_all_tx_types<V>(
