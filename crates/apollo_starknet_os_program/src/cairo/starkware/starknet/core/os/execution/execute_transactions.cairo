@@ -503,7 +503,7 @@ func execute_invoke_function_transaction{
 
     check_and_increment_nonce(tx_info=tx_info);
 
-    %{ execution_helper.start_tx() %}
+    %{ StartTx %}
 
     let initial_user_gas_bound = get_initial_user_gas_bound(common_tx_fields=common_tx_fields);
     let remaining_gas = initial_user_gas_bound;
@@ -563,7 +563,7 @@ func execute_l1_handler_transaction{
 }(block_context: BlockContext*) {
     alloc_locals;
 
-    %{ execution_helper.start_tx() %}
+    %{ StartTx %}
     // Skip the execution step for reverted transaction.
     if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
         %{ execution_helper.end_tx() %}
@@ -820,7 +820,7 @@ func execute_deploy_account_transaction{
         deprecated_tx_info_dst=deprecated_tx_info,
     );
 
-    %{ execution_helper.start_tx() %}
+    %{ StartTx %}
 
     let initial_user_gas_bound = get_initial_user_gas_bound(common_tx_fields=common_tx_fields);
     let remaining_gas = initial_user_gas_bound;
@@ -1006,7 +1006,7 @@ func execute_declare_transaction{
     with remaining_gas {
         cap_remaining_gas(max_gas=VALIDATE_MAX_SIERRA_GAS);
         // Run the account contract's "__validate_declare__" entry point.
-        %{ execution_helper.start_tx() %}
+        %{ StartTx %}
         let (retdata_size, retdata, is_deprecated) = non_reverting_select_execute_entry_point_func(
             block_context=block_context, execution_context=validate_declare_execution_context
         );
