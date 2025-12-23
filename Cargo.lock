@@ -2251,6 +2251,7 @@ dependencies = [
  "libp2p",
  "reed-solomon-simd",
  "sha2 0.10.9",
+ "tracing",
 ]
 
 [[package]]
