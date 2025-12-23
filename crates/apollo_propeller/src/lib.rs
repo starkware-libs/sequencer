@@ -5,6 +5,9 @@ mod merkle_test;
 pub mod reed_solomon;
 #[cfg(test)]
 mod reed_solomon_test;
+pub mod signature;
+#[cfg(test)]
+mod signature_test;
 pub mod types;
 
 pub use merkle::MerkleHash;
