@@ -97,10 +97,12 @@ async fn fetch_all_patricia_paths(
         HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
 
     for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
-        let storage_root_hash = leaves
-            .get(idx)
-            .expect("Contract address must exist in the contracts trie leaves data.")
-            .storage_root_hash;
+        // The contract address might not exist in the contracts trie in the following cases:
+        // 1. We are looking at the previous tree and the contract is new.
+        // 2. We are looking at the new tree and the contract is deleted (revert).
+        let Some(storage_root_hash) = leaves.get(idx).map(|leaf| leaf.storage_root_hash) else {
+            continue;
+        };
         // No need to fetch the leaves.
         let leaves = None;
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
