@@ -40,10 +40,6 @@ use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFact
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-type BlockifierStatefulValidator = StatefulValidator<
-    StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>,
->;
-
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
@@ -86,11 +82,8 @@ where
                     e,
                 )
             })?;
-        // Convert concrete type to trait object.
-        let boxed_state_reader: Box<dyn GatewayStateReaderWithCompiledClasses> =
-            Box::new(blockifier_state_reader);
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
-            boxed_state_reader,
+            blockifier_state_reader,
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
@@ -114,8 +107,10 @@ pub trait StatefulTransactionValidatorTrait: Send {
     ) -> StatefulTransactionValidatorResult<Nonce>;
 }
 
-pub struct StatefulTransactionValidator<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
-{
+pub struct StatefulTransactionValidator<
+    TGatewayStateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses,
+    TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader,
+> {
     config: StatefulTransactionValidatorConfig,
     chain_info: ChainInfo,
     // Consumed when running the CPU-heavy blockifier validation.
@@ -123,13 +118,19 @@ pub struct StatefulTransactionValidator<TGatewayFixedBlockStateReader: GatewayFi
     // `state_reader_and_contract_manager` is taken. Make it non-optional and discard the
     // instance after use.
     state_reader_and_contract_manager:
-        Option<StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>>>,
+        Option<StateReaderAndContractManager<TGatewayStateReaderWithCompiledClasses>>,
     gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
 }
 
 #[async_trait]
-impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader> StatefulTransactionValidatorTrait
-    for StatefulTransactionValidator<TGatewayFixedBlockStateReader>
+impl<
+    TGatewayStateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses + 'static,
+    TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader,
+> StatefulTransactionValidatorTrait
+    for StatefulTransactionValidator<
+        TGatewayStateReaderWithCompiledClasses,
+        TGatewayFixedBlockStateReader,
+    >
 {
     async fn extract_state_nonce_and_run_validations(
         &mut self,
@@ -155,14 +156,20 @@ impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader> StatefulTransa
     }
 }
 
-impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
-    StatefulTransactionValidator<TGatewayFixedBlockStateReader>
+impl<
+    TGatewayStateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses + 'static,
+    TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader,
+>
+    StatefulTransactionValidator<
+        TGatewayStateReaderWithCompiledClasses,
+        TGatewayFixedBlockStateReader,
+    >
 {
     fn new(
         config: StatefulTransactionValidatorConfig,
         chain_info: ChainInfo,
         state_reader_and_contract_manager: StateReaderAndContractManager<
-            Box<dyn GatewayStateReaderWithCompiledClasses>,
+            TGatewayStateReaderWithCompiledClasses,
         >,
         gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
     ) -> Self {
@@ -176,7 +183,7 @@ impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
 
     fn take_state_reader_and_contract_manager(
         &mut self,
-    ) -> StateReaderAndContractManager<Box<dyn GatewayStateReaderWithCompiledClasses>> {
+    ) -> StateReaderAndContractManager<TGatewayStateReaderWithCompiledClasses> {
         self.state_reader_and_contract_manager.take().expect("Validator was already consumed")
     }
 
@@ -306,7 +313,7 @@ impl<TGatewayFixedBlockStateReader: GatewayFixedBlockStateReader>
         tokio::task::spawn_blocking(move || {
             cur_span.in_scope(|| {
                 let state = CachedState::new(state_reader_and_contract_manager);
-                let mut blockifier = BlockifierStatefulValidator::create(state, block_context);
+                let mut blockifier = StatefulValidator::create(state, block_context);
                 blockifier.validate(account_tx)
             })
         })
