@@ -89,15 +89,7 @@ func serialize_os_output{
     // Compute the data availability segment.
     local state_updates_start: felt*;
     let state_updates_ptr = state_updates_start;
-    %{
-        # `use_kzg_da` is used in a hint in `process_data_availability`.
-        use_kzg_da = ids.use_kzg_da
-        if use_kzg_da or ids.compress_state_updates:
-            ids.state_updates_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.state_updates_start = segments.add_temp_segment()
-    %}
+    %{ SetStateUpdatesStart %}
     local squashed_os_state_update: SquashedOsStateUpdate* = os_output.squashed_os_state_update;
     with state_updates_ptr {
         // Output the contract state diff.
@@ -247,13 +239,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
 
     // Compress the state updates.
     local compressed_start: felt*;
-    %{
-        if use_kzg_da or ids.n_keys > 0:
-            ids.compressed_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.compressed_start = segments.add_temp_segment()
-    %}
+    %{ SetCompressedStart %}
     let compressed_dst = compressed_start;
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);

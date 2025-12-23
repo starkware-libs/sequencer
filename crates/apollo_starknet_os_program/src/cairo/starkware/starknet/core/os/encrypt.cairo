@@ -54,13 +54,7 @@ func encrypt_state_diff{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_end, ids.n_keys) %}
 
     local encrypted_start: felt*;
-    %{
-        if use_kzg_da:
-            ids.encrypted_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.encrypted_start = segments.add_temp_segment()
-    %}
+    %{ SetEncryptedStart %}
 
     let output_pointer = encrypted_start;
     assert output_pointer[0] = n_keys;
