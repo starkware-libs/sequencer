@@ -647,14 +647,18 @@ impl Batcher {
         let storage_commitment_block_hash =
             if block_header_without_hash.starknet_version.has_partial_block_hash_components() {
                 // Check if the sync reached the first block with partial block hash components.
-                if height == self.config.first_block_with_partial_block_hash.block_number {
-                    self.handle_first_block_with_partial_block_hash(
-                        block_header_without_hash.parent_hash,
-                    )
-                    .map_err(|err| {
-                        error!("Error handling first block with partial block hash: {}", err);
-                        BatcherError::InternalError
-                    })?;
+                if let Some(first_block_with_partial_block_hash) =
+                    self.config.first_block_with_partial_block_hash.as_ref()
+                {
+                    if height == first_block_with_partial_block_hash.block_number {
+                        self.handle_first_block_with_partial_block_hash(
+                            block_header_without_hash.parent_hash,
+                        )
+                        .map_err(|err| {
+                            error!("Error handling first block with partial block hash: {}", err);
+                            BatcherError::InternalError
+                        })?;
+                    }
                 }
                 match block_header_commitments {
                     Some(header_commitments) => {
@@ -672,11 +676,15 @@ impl Batcher {
                     None => return Err(BatcherError::MissingHeaderCommitments { block_number }),
                 }
             } else {
+                let first_block_with_partial_block_hash =
+                    self.config.first_block_with_partial_block_hash.as_ref().expect(
+                        "First block with partial block hash components should be configured.",
+                    );
                 assert!(
-                    height < self.config.first_block_with_partial_block_hash.block_number,
+                    height < first_block_with_partial_block_hash.block_number,
                     "Height {height} is at least the first block configured to include a partial \
                      hash ({}) but does not include one.",
-                    self.config.first_block_with_partial_block_hash.block_number
+                    first_block_with_partial_block_hash.block_number
                 );
                 StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
             };
@@ -983,12 +991,15 @@ impl Batcher {
         &mut self,
         parent_block_hash_from_sync: BlockHash,
     ) -> StorageResult<()> {
-        let FirstBlockWithPartialBlockHash { block_number, parent_block_hash, .. } =
-            self.config.first_block_with_partial_block_hash;
+        let FirstBlockWithPartialBlockHash { block_number, parent_block_hash, .. } = self
+            .config
+            .first_block_with_partial_block_hash
+            .as_ref()
+            .expect("First block with partial block hash components should be configured.");
 
         // Sanity check: verify that the parent block hash from sync matches the configured one.
         assert_eq!(
-            parent_block_hash, parent_block_hash_from_sync,
+            *parent_block_hash, parent_block_hash_from_sync,
             "The parent block hash from sync ({parent_block_hash_from_sync:?}) does not match the \
              configured parent block hash ({parent_block_hash:?}) of the first new block"
         );
@@ -999,7 +1010,7 @@ impl Batcher {
         );
         match block_number.prev() {
             Some(parent_block_number) => {
-                self.storage_writer.set_block_hash(parent_block_number, parent_block_hash)?
+                self.storage_writer.set_block_hash(parent_block_number, *parent_block_hash)?
             }
             None => {
                 info!(
