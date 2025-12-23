@@ -986,54 +986,13 @@ define_hint_enum!(
     (SetSyscallPtr, set_syscall_ptr),
     (OsLoggerEnterSyscallPrepareExitSyscall, os_logger_enter_syscall_prepare_exit_syscall),
     (OsLoggerExitSyscall, os_logger_exit_syscall),
-    (
-        InitStateUpdatePointers,
-        init_state_update_pointer,
-        indoc! {r#"from starkware.starknet.core.os.execution_helper import StateUpdatePointers
-        state_update_pointers = StateUpdatePointers(segments=segments)"#
-        }
-    ),
-    (
-        InitializeStateChanges,
-        initialize_state_changes,
-        indoc! {r#"from starkware.python.utils import from_bytes
-
-initial_dict = {
-    address: segments.gen_arg(
-        (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-    for address, contract in sorted(block_input.contracts.items())
-}"#
-        }
-    ),
-    (
-        InitializeClassHashes,
-        initialize_class_hashes,
-        "initial_dict = block_input.class_hash_to_compiled_class_hash"
-    ),
-    (
-        CreateBlockAdditionalHints,
-        create_block_additional_hints,
-        indoc! {r#"from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
-block_input = next(block_input_iterator)
-(
-    execution_helper,
-    syscall_handler,
-    deprecated_syscall_handler
-) = get_execution_helper_and_syscall_handlers(
-    block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
-)"#}
-    ),
-    (
-        LogRemainingBlocks,
-        log_remaining_blocks,
-        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
-    ),
-    (
-        GetPublicKeys,
-        get_public_keys,
-        "fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys)"
-    ),
-    (GetBlockHashes, get_block_hashes, "GetBlockHashes"),
+    (InitStateUpdatePointers, init_state_update_pointer),
+    (InitializeStateChanges, initialize_state_changes),
+    (InitializeClassHashes, initialize_class_hashes),
+    (CreateBlockAdditionalHints, create_block_additional_hints),
+    (LogRemainingBlocks, log_remaining_blocks),
+    (GetPublicKeys, get_public_keys),
+    (GetBlockHashes, get_block_hashes),
 );
 
 define_hint_enum!(
