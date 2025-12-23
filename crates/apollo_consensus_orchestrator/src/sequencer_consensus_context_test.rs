@@ -4,6 +4,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{CentralObjects, DecisionReachedResponse};
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
 use apollo_infra::component_client::ClientError;
@@ -1023,4 +1024,122 @@ async fn override_prices_behavior(
             actual_conversion_rate, ETH_TO_FRI_RATE
         );
     }
+}
+
+#[tokio::test]
+async fn change_gas_price_overrides() {
+    let (mut deps, mut network) = create_test_and_network_deps();
+
+    // Validate two blocks, between the first and the second we will change the gas price overrides.
+    // After the second block we will do another round with another dynamic config change.
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 3);
+    deps.setup_deps_for_build(BlockNumber(2), INTERNAL_TX_BATCH.len(), 1);
+
+    // set up batcher decision_reached
+    deps.batcher.expect_decision_reached().times(2).returning(|_| {
+        Ok(DecisionReachedResponse {
+            state_diff: ThinStateDiff::default(),
+            l2_gas_used: GasAmount::default(),
+            central_objects: CentralObjects::default(),
+            block_header_commitments: BlockHeaderCommitments::default(),
+        })
+    });
+
+    // required for decision reached flow
+    deps.state_sync_client.expect_add_new_block().times(2).returning(|_| Ok(()));
+    // We never wrote block 0.
+    deps.state_sync_client.expect_get_latest_block_number().returning(|| Ok(None));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(2).returning(|_| Ok(()));
+
+    let mut context = deps.build_context();
+
+    // Validate block number 0.
+    context.set_height_and_round(BlockNumber(0), 0).await;
+
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, block_info(BlockNumber(0))).await;
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
+
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Decision reached
+    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+
+    let new_dynamic_config = ContextDynamicConfig {
+        override_l2_gas_price_fri: Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
+        ..Default::default()
+    };
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_context_dynamic_config()
+        .returning(move || Ok(new_dynamic_config.clone()));
+    config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+
+    let mut modified_block_info = block_info(BlockNumber(1));
+    modified_block_info.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
+
+    // Validate block number 1.
+    context.set_height_and_round(BlockNumber(1), 0).await;
+    let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
+
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, modified_block_info).await;
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Validate block number 1, round 1.
+    let new_dynamic_config = ContextDynamicConfig {
+        min_l1_data_gas_price_wei: ODDLY_SPECIFIC_L1_DATA_GAS_PRICE,
+        ..Default::default()
+    };
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_context_dynamic_config()
+        .returning(move || Ok(new_dynamic_config.clone()));
+    config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+
+    let mut modified_block_info = block_info(BlockNumber(1));
+    modified_block_info.l1_data_gas_price_wei = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+
+    context.set_height_and_round(BlockNumber(1), 1).await;
+    let init = ProposalInit { height: BlockNumber(1), round: 1, ..Default::default() };
+
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, modified_block_info).await;
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+
+    context.decision_reached(BlockNumber(1), proposal_commitment).await.unwrap();
+
+    // Now build a proposal for height 2.
+    let new_dynamic_config = ContextDynamicConfig {
+        override_eth_to_fri_rate: Some(ODDLY_SPECIFIC_CONVERSION_RATE),
+        ..Default::default()
+    };
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_context_dynamic_config()
+        .returning(move || Ok(new_dynamic_config.clone()));
+    config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+
+    let init = ProposalInit { height: BlockNumber(2), ..Default::default() };
+
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+
+    assert_eq!(receiver.next().await.unwrap(), init.into());
+    let info = receiver.next().await.unwrap();
+    let ProposalPart::BlockInfo(info) = info else {
+        panic!("Expected ProposalPart::BlockInfo");
+    };
+    assert_eq!(info.eth_to_fri_rate, ODDLY_SPECIFIC_CONVERSION_RATE);
 }

@@ -18,6 +18,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::BatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -177,6 +178,7 @@ pub struct SequencerConsensusContextDeps {
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 impl SequencerConsensusContext {
@@ -711,6 +713,10 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
+        if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
+            self.config.dynamic_config =
+                config_manager_client.get_context_dynamic_config().await.unwrap();
+        }
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.current_height = Some(height);
             assert_eq!(round, 0);
@@ -723,13 +729,25 @@ impl ConsensusContext for SequencerConsensusContext {
             self.batcher_start_height(height).await;
             return;
         }
-        assert_eq!(Some(height), self.current_height);
+        assert_eq!(
+            Some(height),
+            self.current_height,
+            "height {} is not equal to current height {:?}",
+            height,
+            self.current_height
+        );
         if round == self.current_round {
             return;
         }
-        assert!(round > self.current_round);
+        assert!(
+            round > self.current_round,
+            "round {} is not greater than current round {}",
+            round,
+            self.current_round
+        );
         self.interrupt_active_proposal().await;
         self.current_round = round;
+
         let mut to_process = None;
         while let Some(entry) = self.queued_proposals.first_entry() {
             match self.current_round.cmp(entry.key()) {

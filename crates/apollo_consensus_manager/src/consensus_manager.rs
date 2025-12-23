@@ -144,6 +144,7 @@ impl ConsensusManager {
         let consensus_context = self.create_sequencer_consensus_context(
             &votes_broadcast_channels,
             outbound_internal_sender,
+            self.config_manager_client.clone(),
         );
 
         let current_height =
@@ -264,6 +265,7 @@ impl ConsensusManager {
         &self,
         votes_broadcast_channels: &BroadcastTopicChannels<Vote>,
         outbound_internal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+        config_manager_client: SharedConfigManagerClient,
     ) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
             self.config.context_config.clone(),
@@ -282,6 +284,7 @@ impl ConsensusManager {
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
+                config_manager_client: Some(Arc::clone(&config_manager_client)),
             },
         )
     }
