@@ -797,74 +797,12 @@ define_hint_enum!(
             r#"memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)"#
         }
     ),
-    (
-        SkipTx,
-        skip_tx,
-        indoc! {r#"execution_helper.skip_tx()"#
-        }
-    ),
-    (
-        SetComponentHashes,
-        set_component_hashes,
-        indoc! {r#"
-class_component_hashes = component_hashes[tx.class_hash]
-assert (
-    len(class_component_hashes) == ids.ContractClassComponentHashes.SIZE
-), "Wrong number of class component hashes."
-ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
-        }
-    ),
-    (
-        LoadNextTx,
-        load_next_tx,
-        indoc! {r#"
-    tx = next(transactions)
-    assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
-        f"Unexpected transaction type: {tx.type.name}."
-    )
-
-    tx_type_bytes = tx.tx_type.name.encode("ascii")
-    ids.tx_type = int.from_bytes(tx_type_bytes, "big")
-    execution_helper.os_logger.enter_tx(
-        tx=tx,
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        range_check_ptr=ids.range_check_ptr,
-    )
-
-    # Prepare a short callable to save code duplication.
-    exit_tx = lambda: execution_helper.os_logger.exit_tx(
-        n_steps=current_step,
-        builtin_ptrs=ids.builtin_ptrs,
-        range_check_ptr=ids.range_check_ptr,
-    )"#
-        }
-    ),
-    (
-        LoadResourceBounds,
-        load_resource_bounds,
-        indoc! {r#"
-    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
-        create_resource_bounds_list,
-    )
-    assert len(tx.resource_bounds) == 3, (
-        "Only transactions with 3 resource bounds are supported. "
-        f"Got {len(tx.resource_bounds)} resource bounds."
-    )
-    ids.resource_bounds = segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))"#
-        }
-    ),
-    (ExitTx, exit_tx, "exit_tx()"),
-    (
-        PrepareConstructorExecution,
-        prepare_constructor_execution,
-        indoc! {r#"
-    ids.contract_address_salt = tx.contract_address_salt
-    ids.class_hash = tx.class_hash
-    ids.constructor_calldata_size = len(tx.constructor_calldata)
-    ids.constructor_calldata = segments.gen_arg(arg=tx.constructor_calldata)"#
-        }
-    ),
+    (SkipTx, skip_tx),
+    (SetComponentHashes, set_component_hashes),
+    (LoadNextTx, load_next_tx),
+    (LoadResourceBounds, load_resource_bounds),
+    (ExitTx, exit_tx),
+    (PrepareConstructorExecution, prepare_constructor_execution),
     (
         AssertTransactionHash,
         assert_transaction_hash,
