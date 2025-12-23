@@ -96,14 +96,7 @@ func main{
     mul_mod_ptr: ModBuiltin*,
 }() {
     alloc_locals;
-    %{
-        from starkware.starknet.core.os.os_hints import OsHintsConfig
-        from starkware.starknet.core.os.os_input import StarknetOsInput
-
-        os_input = StarknetOsInput.load(data=program_input)
-        os_hints_config = OsHintsConfig.load(data=os_hints_config)
-        block_input_iterator = iter(os_input.block_inputs)
-    %}
+    %{ StarknetOsInput %}
 
     // Reserve the initial range check for self validation.
     // Note that this must point to the first range check used by the OS.

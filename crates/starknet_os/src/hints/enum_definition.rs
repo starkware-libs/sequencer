@@ -632,11 +632,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (SetStateUpdatesStart, set_state_updates_start),
     (SetCompressedStart, set_compressed_start),
     (SetEncryptedStart, set_encrypted_start),
-    (
-        SetNUpdatesSmall,
-        set_n_updates_small,
-        indoc! {r#"ids.is_n_updates_small = ids.n_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
-    ),
+    (SetNUpdatesSmall, set_n_updates_small),
     (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
     (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
     (
@@ -679,42 +675,17 @@ left_child, right_child, case = decode_node(node)
 memory[ap] = 1 if case != 'both' else 0"#
         }
     ),
-    (
-        WriteSplitResult,
-        write_split_result,
-        indoc! {r#"
-    from starkware.starknet.core.os.data_availability.bls_utils import split
-
-    segments.write_arg(ids.res.address_, split(ids.value))"#
-        }
-    ),
+    (WriteSplitResult, write_split_result),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
-    (
-        StarknetOsInput,
-        starknet_os_input,
-        indoc! {r#"from starkware.starknet.core.os.os_hints import OsHintsConfig
-        from starkware.starknet.core.os.os_input import StarknetOsInput
-
-        os_input = StarknetOsInput.load(data=program_input)
-        os_hints_config = OsHintsConfig.load(data=os_hints_config)
-        block_input_iterator = iter(os_input.block_inputs)"#
-        }
-    ),
-    (
-        AllocateSegmentsForMessages,
-        allocate_segments_for_messages,
-        r#"# Allocate segments for the messages.
-ids.initial_carried_outputs = segments.gen_arg(
-    [segments.add_temp_segment(), segments.add_temp_segment()]
-)"#
-    ),
+    (StarknetOsInput, starknet_os_input),
+    (AllocateSegmentsForMessages, allocate_segments_for_messages),
     (
         CheckPackedValuesEndAndSize,
         check_packed_values_end_and_size,
         "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
          (memory[ids.packed_values] < 2**63))"
     ),
-    (NaiveUnpackFelt252ToU32s, naive_unpack_felt252_to_u32s, "NaiveUnpackFelt252ToU32s"),
+    (NaiveUnpackFelt252ToU32s, naive_unpack_felt252_to_u32s),
     (
         UnpackFeltsToU32s,
         unpack_felts_to_u32s,
