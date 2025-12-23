@@ -401,7 +401,7 @@ func pre_process_block{
     // Update the contract class changes according to the migration.
     local n_classes_to_migrate;
     // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
-    %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
+    %{ GetNClassHashesToMigrate %}
     migrate_classes_to_v2_casm_hash(n_classes=n_classes_to_migrate, block_context=block_context);
     return ();
 }
@@ -513,10 +513,7 @@ func process_os_output{
     );
 
     // Serialize OS output.
-    %{
-        __serialize_data_availability_create_pages__ = True
-        kzg_manager = global_hints.kzg_manager
-    %}
+    %{ ConfigureKzgManager %}
 
     serialize_os_output(
         os_output=final_os_output,
