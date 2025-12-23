@@ -13,6 +13,8 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra.workspace = true
+async-trait.workspace = true
 hex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core = { workspace = true, features = ["hash"] }
