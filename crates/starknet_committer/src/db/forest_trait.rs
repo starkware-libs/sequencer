@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
 use starknet_patricia::db_layout::NodeLayoutFor;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
@@ -116,6 +117,36 @@ where
         OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
         original_contracts_trie_leaves,
     ))
+}
+
+/// Helper function containing layout-common write logic.
+pub(crate) fn serialize_forest<Layout>(
+    filled_forest: &FilledForest,
+) -> SerializationResult<DbHashMap>
+where
+    Layout: NodeLayoutFor<StarknetStorageValue>
+        + NodeLayoutFor<ContractState>
+        + NodeLayoutFor<CompiledClassHash>,
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
+    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
+        HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
+    let mut serialized_forest = DbHashMap::new();
+
+    // Storage tries.
+    for (contract_address, tree) in &filled_forest.storage_tries {
+        serialized_forest.extend(tree.serialize::<Layout>(&contract_address)?);
+    }
+
+    // Contracts trie.
+    serialized_forest.extend(filled_forest.contracts_trie.serialize::<Layout>(&EmptyKeyContext)?);
+
+    // Classes trie.
+    serialized_forest.extend(filled_forest.classes_trie.serialize::<Layout>(&EmptyKeyContext)?);
+
+    Ok(serialized_forest)
 }
 
 #[async_trait]
