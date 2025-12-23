@@ -58,12 +58,7 @@ func combine_blocks{range_check_ptr}(
 
     local initial_carried_outputs: OsCarriedOutputs*;
 
-    %{
-        # Allocate segments for the messages.
-        ids.initial_carried_outputs = segments.gen_arg(
-            [segments.add_temp_segment(), segments.add_temp_segment()]
-        )
-    %}
+    %{ AllocateSegmentsForMessages %}
 
     let first = os_outputs[0];
     // Validate fields of the first inner OS outputs. It cannot be checked in the inner function

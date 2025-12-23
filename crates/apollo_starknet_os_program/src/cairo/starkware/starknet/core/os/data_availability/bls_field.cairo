@@ -140,11 +140,7 @@ func felt_to_bigint3{range_check_ptr}(value: felt) -> BigInt3 {
     }
 
     local res: BigInt3;
-    %{
-        from starkware.starknet.core.os.data_availability.bls_utils import split
-
-        segments.write_arg(ids.res.address_, split(ids.value))
-    %}
+    %{ WriteSplitResult %}
 
     // Verify that res == value (mod Cairo field prime).
     assert value = res.d2 * (BASE ** 2) + res.d1 * BASE + res.d0;
