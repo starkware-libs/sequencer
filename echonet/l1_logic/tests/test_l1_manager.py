@@ -147,7 +147,7 @@ class TestL1Manager(unittest.TestCase):
         # Verify blocks cleared (defaults returned).
         result = self.manager.get_block_number()
         self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": None})
-        result = self.manager.get_logs(10, 10)
+        result = self.manager.get_logs(self.get_logs_input(10, 10))
         self.assertEqual(result, {"jsonrpc": "2.0", "id": "1", "result": []})
         result = self.manager.get_block_by_number(hex(block_num))
         self.assertEqual(
