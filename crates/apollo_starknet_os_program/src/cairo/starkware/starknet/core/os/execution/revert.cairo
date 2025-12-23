@@ -95,7 +95,7 @@ func revert_contract_changes{
     assert storage_ptr[0] = DictAccess(
         key=storage_key, prev_value=nondet %{ storage.read(key=ids.storage_key) %}, new_value=value
     );
-    %{ storage.write(key=ids.storage_key, value=ids.value) %}
+    %{ WriteStorageKeyForRevert %}
     let storage_ptr = &storage_ptr[1];
     return revert_contract_changes();
 }
