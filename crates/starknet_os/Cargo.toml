@@ -14,7 +14,13 @@ deserialize = [
   "starknet_patricia/deserialize",
 ]
 include_program_output = []
-testing = ["blockifier/testing", "expect-test", "itertools", "starknet_patricia/testing"]
+testing = [
+  "blockifier/testing",
+  "expect-test",
+  "itertools",
+  "num-bigint/rand",
+  "starknet_patricia/testing",
+]
 
 [dependencies]
 apollo_starknet_os_program.workspace = true
@@ -72,6 +78,7 @@ cairo-lang-utils.workspace = true
 ethnum.workspace = true
 expect-test.workspace = true
 itertools.workspace = true
+num-bigint = { workspace = true, features = ["rand"] }
 rstest.workspace = true
 starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
