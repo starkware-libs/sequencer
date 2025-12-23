@@ -137,15 +137,7 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
     // This hint enters a new scope that contains the bytecode segment structure of the class.
     %{ EnterScopeWithBytecodeSegmentStructure %}
     let (hash) = blake_compiled_class_hash(compiled_class, full_contract=FALSE);
-    %{
-        vm_exit_scope()
-
-        computed_hash = ids.hash
-        expected_hash = ids.compiled_class_fact.hash
-        assert computed_hash == expected_hash, (
-            "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-            f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")
-    %}
+    %{ LoadClass %}
 
     assert compiled_class_fact.hash = hash;
 

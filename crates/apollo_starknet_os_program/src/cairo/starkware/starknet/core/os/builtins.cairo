@@ -130,22 +130,7 @@ func update_builtin_ptrs{range_check_ptr}(
     let n_builtins = BuiltinEncodings.SIZE;
     local return_builtin_ptrs: BuiltinPointers*;
 
-    %{
-        from starkware.starknet.core.os.os_utils import update_builtin_pointers
-
-        # Fill the values of all builtin pointers after the current transaction.
-        ids.return_builtin_ptrs = segments.gen_arg(
-            update_builtin_pointers(
-                memory=memory,
-                n_builtins=ids.n_builtins,
-                builtins_encoding_addr=ids.builtin_params.builtin_encodings.address_,
-                n_selected_builtins=ids.n_selected_builtins,
-                selected_builtins_encoding_addr=ids.selected_encodings,
-                orig_builtin_ptrs_addr=ids.builtin_ptrs.selectable.address_,
-                selected_builtin_ptrs_addr=ids.selected_ptrs,
-                ),
-            )
-    %}
+    %{ UpdateBuiltinPtrs %}
 
     select_builtins(
         n_builtins=n_builtins,
