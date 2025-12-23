@@ -69,12 +69,7 @@ func check_and_increment_nonce{contract_state_changes: DictAccess*}(tx_info: TxI
     }
 
     tempvar state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.tx_info.account_contract_address
-        ]
-    %}
+    %{ SetStateEntryToAccountContractAddress %}
 
     tempvar current_nonce = state_entry.nonce;
     with_attr error_message("Unexpected nonce.") {

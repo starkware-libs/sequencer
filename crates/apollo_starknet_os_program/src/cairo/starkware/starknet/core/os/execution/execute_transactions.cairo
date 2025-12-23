@@ -440,11 +440,7 @@ func execute_invoke_function_transaction{
     }
     update_poseidon_in_builtin_ptrs(poseidon_ptr=poseidon_ptr);
 
-    %{
-        assert ids.transaction_hash == tx.hash_value, (
-            "Computed transaction_hash is inconsistent with the hash in the transaction. "
-            f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
-    %}
+    %{ AssertTransactionHash %}
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
@@ -501,7 +497,7 @@ func execute_invoke_function_transaction{
     // Charge fee.
     charge_fee(block_context=block_context, tx_execution_context=updated_tx_execution_context);
 
-    %{ execution_helper.end_tx() %}
+    %{ EndTx %}
 
     return ();
 }
@@ -524,7 +520,7 @@ func execute_l1_handler_transaction{
     %{ StartTx %}
     // Skip the execution step for reverted transaction.
     if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
-        %{ execution_helper.end_tx() %}
+        %{ EndTx %}
         return ();
     }
 
@@ -548,11 +544,7 @@ func execute_l1_handler_transaction{
     }
     update_pedersen_in_builtin_ptrs(pedersen_ptr=pedersen_ptr);
 
-    %{
-        assert ids.transaction_hash == tx.hash_value, (
-            "Computed transaction_hash is inconsistent with the hash in the transaction. "
-            f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
-    %}
+    %{ AssertTransactionHash %}
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
@@ -587,7 +579,7 @@ func execute_l1_handler_transaction{
         block_context=block_context, execution_context=tx_execution_context
     );
 
-    %{ execution_helper.end_tx() %}
+    %{ EndTx %}
     return ();
 }
 
@@ -752,11 +744,7 @@ func execute_deploy_account_transaction{
     }
     update_poseidon_in_builtin_ptrs(poseidon_ptr=poseidon_ptr);
 
-    %{
-        assert ids.transaction_hash == tx.hash_value, (
-            "Computed transaction_hash is inconsistent with the hash in the transaction. "
-            f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
-    %}
+    %{ AssertTransactionHash %}
 
     // Initialize and fill the transaction info structs.
     local tx_info: TxInfo* = constructor_execution_info.tx_info;
@@ -830,7 +818,7 @@ func execute_deploy_account_transaction{
     // Charge fee.
     charge_fee(block_context=block_context, tx_execution_context=validate_deploy_execution_context);
 
-    %{ execution_helper.end_tx() %}
+    %{ EndTx %}
     return ();
 }
 
@@ -878,11 +866,7 @@ func execute_declare_transaction{
             account_deployment_data_size=account_deployment_data_size,
             account_deployment_data=account_deployment_data,
         );
-        %{
-            assert ids.transaction_hash == tx.hash_value, (
-                "Computed transaction_hash is inconsistent with the hash in the transaction. "
-                f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
-        %}
+        %{ AssertTransactionHash %}
 
         // Ensure the given class hash is a result of a Sierra class hash calculation.
         local contract_class_component_hashes: ContractClassComponentHashes*;
@@ -975,7 +959,7 @@ func execute_declare_transaction{
     charge_fee(
         block_context=block_context, tx_execution_context=validate_declare_execution_context
     );
-    %{ execution_helper.end_tx() %}
+    %{ EndTx %}
 
     return ();
 }
