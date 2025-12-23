@@ -14,3 +14,9 @@ pub struct FilledNode<L: Leaf, ChildData> {
 // starknet_committer. This can happen after serialization of FilledTree is made generic in the
 // layout.
 pub type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
+
+/// A node in an updated trie, where all the hashes were commputed. Used in the `FilledTree` trait.
+///
+/// While the same underlying type as `FactDbFilledNode`, this alias is not used in the context of
+/// the DB-represnentation of the node.
+pub type HashFilledNode<L> = FilledNode<L, HashOutput>;
