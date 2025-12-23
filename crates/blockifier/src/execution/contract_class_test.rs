@@ -138,6 +138,10 @@ fn test_create_bytecode_segment_felt_sizes(
 ) {
     let result = NestedFeltCounts::new(&bytecode_segment_lengths, &bytecode);
     assert_eq!(result, expected_structure);
+
+    // Verify round-trip: NestedFeltCounts -> NestedIntList returns original.
+    let round_tripped: NestedIntList = (&result).into();
+    assert_eq!(round_tripped, bytecode_segment_lengths);
 }
 
 #[rstest]
