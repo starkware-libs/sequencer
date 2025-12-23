@@ -68,7 +68,7 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
-        ) -> oneshot::Receiver<ProposalCommitment>;
+        ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
         async fn validate_proposal(
             &mut self,
@@ -97,7 +97,7 @@ mock! {
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;
 
-        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) -> Result<(), ConsensusError>;
     }
 }
 
