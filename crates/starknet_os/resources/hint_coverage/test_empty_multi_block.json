@@ -54,7 +54,7 @@
     "StatelessHint": "FillHolesInRc96Segment"
   },
   {
-    "StatelessHint": "EnterSyscallScopes"
+    "StatelessHint": "EnterScopeExecuteTransactionsInner"
   },
   {
     "StatelessHint": "EnterScopeNode"
