@@ -27,3 +27,21 @@ pub enum ShardSignatureVerificationError {
     #[error("Received a shard with an invalid signature. Sender should be reported...")]
     VerificationFailed,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum TreeGenerationError {
+    #[error("Cannot generate tree: publisher {publisher} was not found in the channel")]
+    PublisherNotInChannel {
+        /// The publisher that was not found in the peer list.
+        publisher: PeerId,
+    },
+    #[error("Cannot generate tree: the local peer is not included in the channel")]
+    LocalPeerNotInChannel,
+    #[error(
+        "Cannot generate tree: shard index {:?} is out of bounds. Might be out of sync with peers.",
+        .shard_index
+    )]
+    ShardIndexOutOfBounds { shard_index: ShardIndex },
+    #[error("Cannot generate tree: the local peer is the publisher.")]
+    LocalPeerIsPublisher,
+}
