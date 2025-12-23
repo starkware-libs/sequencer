@@ -706,10 +706,10 @@ memory[ap] = 1 if case != 'both' else 0"#
 
 define_common_hint_enum!(
     CommonHint,
-    (SetProofFactTopology, set_proof_fact_topology, "SetProofFactTopology"),
-    (LoadStoragePtrAndPrevState, load_storage_ptr_and_prev_state, "LoadStoragePtrAndPrevState"),
-    (UpdateClassesPtr, update_classes_ptr, "UpdateClassesPtr"),
-    (ComputeIdsLow, compute_ids_low, "ComputeIdsLow"),
+    (SetProofFactTopology, set_proof_fact_topology),
+    (LoadStoragePtrAndPrevState, load_storage_ptr_and_prev_state),
+    (UpdateClassesPtr, update_classes_ptr),
+    (ComputeIdsLow, compute_ids_low),
     (
         StoreDaSegment,
         store_da_segment,
