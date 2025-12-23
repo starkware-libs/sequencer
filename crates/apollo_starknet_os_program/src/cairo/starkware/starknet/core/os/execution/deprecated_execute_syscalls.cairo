@@ -344,14 +344,7 @@ func execute_storage_read{contract_state_changes: DictAccess*}(
     %{ GetContractAddressStateEntry %}
 
     tempvar value = syscall_ptr.response.value;
-    %{
-        # Make sure the value is cached (by reading it), to be used later on for the
-        # commitment computation.
-        value = execution_helper.storage_by_address[ids.contract_address].read(
-            key=ids.syscall_ptr.request.address
-        )
-        assert ids.value == value, "Inconsistent storage value."
-    %}
+    %{ CacheContractStorageSyscallRequestAddress %}
 
     // Update the contract's storage.
     tempvar storage_ptr = state_entry.storage_ptr;

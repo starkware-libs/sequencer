@@ -624,12 +624,7 @@ func execute_storage_read{range_check_ptr, syscall_ptr: felt*, contract_state_ch
     static_assert StorageReadRequest.SIZE == 2;
     assert request.reserved = 0;
     tempvar value = response.value;
-    %{
-        # Make sure the value is cached (by reading it), to be used later on for the
-        # commitment computation.
-        value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
-        assert ids.value == value, "Inconsistent storage value."
-    %}
+    %{ CacheContractStorageRequestKey %}
     tempvar storage_ptr = state_entry.storage_ptr;
     assert [storage_ptr] = DictAccess(key=request.key, prev_value=value, new_value=value);
     let storage_ptr = storage_ptr + DictAccess.SIZE;
