@@ -108,7 +108,7 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
     needs: define_branches
     strategy:
       matrix:
