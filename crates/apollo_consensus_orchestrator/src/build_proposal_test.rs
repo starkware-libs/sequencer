@@ -13,7 +13,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
 };
 use apollo_consensus::types::{ProposalCommitment as ConsensusProposalCommitment, Round};
-use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
+use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
