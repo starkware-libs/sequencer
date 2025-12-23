@@ -803,41 +803,12 @@ define_hint_enum!(
     (LoadResourceBounds, load_resource_bounds),
     (ExitTx, exit_tx),
     (PrepareConstructorExecution, prepare_constructor_execution),
-    (
-        AssertTransactionHash,
-        assert_transaction_hash,
-        indoc! {r#"
-    assert ids.transaction_hash == tx.hash_value, (
-        "Computed transaction_hash is inconsistent with the hash in the transaction. "
-        f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")"#
-        }
-    ),
-    (
-        SetStateEntryToAccountContractAddress,
-        set_state_entry_to_account_contract_address,
-        indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-        ids.tx_info.account_contract_address
-    ]"#
-        }
-    ),
-    (
-        CheckIsDeprecated,
-        check_is_deprecated,
-        "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
-    ),
-    (EndTx, end_tx, "execution_helper.end_tx()"),
-    (
-        EnterCall,
-        enter_call,
-        indoc! {r#"
-        execution_helper.enter_call(
-            cairo_execution_info=ids.execution_context.execution_info,
-            deprecated_tx_info=ids.execution_context.deprecated_tx_info,
-        )"#}
-    ),
-    (ExitCall, exit_call, "execution_helper.exit_call()"),
+    (AssertTransactionHash, assert_transaction_hash),
+    (SetStateEntryToAccountContractAddress, set_state_entry_to_account_contract_address),
+    (CheckIsDeprecated, check_is_deprecated),
+    (EndTx, end_tx),
+    (EnterCall, enter_call),
+    (ExitCall, exit_call),
     (
         ContractAddress,
         contract_address,
