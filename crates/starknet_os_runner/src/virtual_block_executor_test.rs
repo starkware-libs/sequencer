@@ -165,6 +165,9 @@ fn test_execute_constructed_balance_of_transaction() {
         "initial_reads.storage should be non-empty (balance storage was read)"
     );
 
+    // Verify executed class hashes were captured.
+    assert!(!result.executed_class_hashes.is_empty(), "executed_class_hashes should be non-empty");
+
     // Verify the specific ERC20 balance storage key was read.
     // ERC20 contracts store balances in "ERC20_balances" mapping keyed by address.
     let strk_token = ContractAddress::try_from(felt!(STRK_TOKEN_ADDRESS)).unwrap();
