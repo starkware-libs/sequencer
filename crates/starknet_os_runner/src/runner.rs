@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -54,7 +55,7 @@ where
         // 1. Execute virtual block and get execution data.
         let mut execution_data = self.virtual_block_executor.execute(
             block_number,
-            contract_class_manager,
+            contract_class_manager.clone(),
             txs.clone(),
         )?;
 
@@ -66,7 +67,9 @@ where
         };
 
         // 3. Fetch classes.
-        let classes = self.classes_provider.get_classes(&execution_data.executed_class_hashes)?;
+        let classes = self
+            .classes_provider
+            .get_classes(&execution_data.executed_class_hashes, &contract_class_manager)?;
 
         // 4. Fetch storage proofs.
         let storage_proofs =
