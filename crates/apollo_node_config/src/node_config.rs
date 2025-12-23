@@ -23,6 +23,7 @@ use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -295,6 +296,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
+    pub context_dynamic_config: Option<ContextDynamicConfig>,
+    #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 
@@ -316,11 +319,16 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
+        let context_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
+            |consensus_manager_config| {
+                consensus_manager_config.context_config.dynamic_config.clone()
+            },
+        );
         let mempool_dynamic_config = sequencer_node_config
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, mempool_dynamic_config }
+        Self { consensus_dynamic_config, context_dynamic_config, mempool_dynamic_config }
     }
 }
 
