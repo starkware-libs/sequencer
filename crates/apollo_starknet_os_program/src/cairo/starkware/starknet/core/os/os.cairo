@@ -65,7 +65,7 @@ from starkware.starknet.core.os.output import (
     OsOutputHeader,
     serialize_os_output,
 )
-from starkware.starknet.core.os.state.commitment import StateEntry
+from starkware.starknet.core.os.state.commitment import CommitmentUpdate, StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
 
 // Executes transactions on Starknet.
@@ -289,28 +289,13 @@ func execute_blocks{
 
     %{ vm_exit_scope() %}
 
-    // Calculate the block hash based on the block info and state root.
-    // NOTE: both the previous block hash and previous state root are guessed, and the OS
-    // does not verify their consistency (unlike the new hash and root).
-    // The consumer of the OS output should verify both.
-    let (prev_block_hash, new_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
-        block_info=block_context.block_info_for_execute, state_root=state_update_output.final_root
+    let os_output_header = get_block_os_output_header(
+        block_context=block_context,
+        state_update_output=state_update_output,
+        os_global_context=os_global_context,
     );
-
-    // All blocks inside of a multi block should be off-chain and therefore
-    // should not be compressed.
     assert os_output_per_block_dst[0] = OsOutput(
-        header=new OsOutputHeader(
-            state_update_output=state_update_output,
-            prev_block_number=block_context.block_info_for_execute.block_number - 1,
-            new_block_number=block_context.block_info_for_execute.block_number,
-            prev_block_hash=prev_block_hash,
-            new_block_hash=new_block_hash,
-            os_program_hash=0,
-            starknet_os_config_hash=os_global_context.starknet_os_config_hash,
-            use_kzg_da=FALSE,
-            full_output=TRUE,
-        ),
+        header=os_output_header,
         squashed_os_state_update=squashed_os_state_update,
         initial_carried_outputs=initial_carried_outputs,
         final_carried_outputs=final_carried_outputs,
@@ -456,6 +441,36 @@ func pre_process_block{
     %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
     migrate_classes_to_v2_casm_hash(n_classes=n_classes_to_migrate, block_context=block_context);
     return ();
+}
+
+// Returns the OS output header of the given block.
+func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
+    block_context: BlockContext*,
+    state_update_output: CommitmentUpdate*,
+    os_global_context: OsGlobalContext*,
+) -> OsOutputHeader* {
+    // Calculate the block hash based on the block info and state root.
+    // NOTE: both the previous block hash and previous state root are guessed, and the OS
+    // does not verify their consistency (unlike the new hash and root).
+    // The consumer of the OS output should verify both.
+    let (prev_block_hash, new_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
+        block_info=block_context.block_info_for_execute, state_root=state_update_output.final_root
+    );
+
+    // All blocks inside of a multi block should be off-chain and therefore
+    // should not be compressed.
+    tempvar os_output_header = new OsOutputHeader(
+        state_update_output=state_update_output,
+        prev_block_number=block_context.block_info_for_execute.block_number - 1,
+        new_block_number=block_context.block_info_for_execute.block_number,
+        prev_block_hash=prev_block_hash,
+        new_block_hash=new_block_hash,
+        os_program_hash=0,
+        starknet_os_config_hash=os_global_context.starknet_os_config_hash,
+        use_kzg_da=FALSE,
+        full_output=TRUE,
+    );
+    return os_output_header;
 }
 
 // Returns an OsGlobalContext instance.
