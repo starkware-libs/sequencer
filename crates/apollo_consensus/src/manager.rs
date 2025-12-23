@@ -434,8 +434,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     RunHeightRes::Sync
                 }
                 e @ ConsensusError::BlockInfoConversion(_)
-                | e @ ConsensusError::ProtobufConversionError(_)
-                | e @ ConsensusError::SendError(_)
                 | e @ ConsensusError::InternalNetworkError(_) => {
                     // The node is missing required components/data and cannot continue
                     // participating in the consensus. A fix and node restart are required.
@@ -634,9 +632,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.cache.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
+                    let message = message.ok_or_else(|| ConsensusError::InternalNetworkError("Votes channel should never be closed".to_string()))?;
                     self.handle_vote(context, height, Some(shc), message, broadcast_channels).await?
                 },
                 content_receiver = proposals_receiver.next() => {
+                    let content_receiver = content_receiver.ok_or_else(|| ConsensusError::InternalNetworkError("Proposals channel should never be closed".to_string()))?;
                     self.handle_proposal(
                         context,
                         height,
@@ -690,13 +690,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Clear any votes/proposals that might have arrived *during* the final await/cleanup,
         // which still belong to the completed height or lower.
-        while let Some(message) =
+        while let Some(Some(message)) =
             broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
         {
             // Discard any votes for this height or lower by sending a None SHC.
             self.handle_vote(context, height, None, message, broadcast_channels).await?;
         }
-        while let Ok(content_receiver) = proposals_receiver.try_next() {
+        while let Ok(Some(content_receiver)) = proposals_receiver.try_next() {
             self.handle_proposal(context, height, None, content_receiver).await?;
         }
 
@@ -713,26 +713,25 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
-        content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
+        mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
         CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
-        let Some(mut content_receiver) = content_receiver else {
-            return Err(ConsensusError::InternalNetworkError(
-                "proposal receiver should never be closed".to_string(),
-            ));
+        let Some(first_part) = content_receiver.try_next().ok().flatten() else {
+            error!(
+                "Couldn't get the first part of the proposal. Channel is unexpectedly empty. \
+                 Dropping proposal."
+            );
+            return Ok(ShcReturn::Requests(VecDeque::new()));
         };
-        let Some(first_part) = content_receiver.try_next().map_err(|_| {
-            ConsensusError::InternalNetworkError(
-                "Stream handler must fill the first message before sending the stream".to_string(),
-            )
-        })?
-        else {
-            return Err(ConsensusError::InternalNetworkError(
-                "Content receiver closed".to_string(),
-            ));
+
+        let proposal_init: ProposalInit = match first_part.try_into() {
+            Ok(proposal_init) => proposal_init,
+            Err(e) => {
+                warn!("Failed to parse incoming proposal init. Dropping proposal: {e}");
+                return Ok(ShcReturn::Requests(VecDeque::new()));
+            }
         };
-        let proposal_init: ProposalInit = first_part.try_into()?;
 
         match proposal_init.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
@@ -804,14 +803,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
-        vote: Option<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
+        vote: (Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata),
         broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<ShcReturn, ConsensusError> {
         let message = match vote {
-            None => Err(ConsensusError::InternalNetworkError(
-                "NetworkReceiver should never be closed".to_string(),
-            )),
-            Some((Ok(msg), metadata)) => {
+            (Ok(message), metadata) => {
                 // TODO(matan): Hold onto report_sender for use in later errors by SHC.
                 if broadcast_channels
                     .broadcast_topic_client
@@ -821,10 +817,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 {
                     error!("Unable to send continue_propagation. {:?}", metadata);
                 }
-                Ok(msg)
+                message
             }
-            Some((Err(e), metadata)) => {
-                // Failed to parse consensus message
+            (Err(e), metadata) => {
+                // Failed to parse consensus message. Report the peer and drop the vote.
                 if broadcast_channels
                     .broadcast_topic_client
                     .report_peer(metadata.clone())
@@ -833,9 +829,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 {
                     error!("Unable to send report_peer. {:?}", metadata)
                 }
-                Err(e.into())
+                warn!(
+                    "Failed to parse incoming consensus vote, dropping vote. Error: {e}. Vote \
+                     metadata: {metadata:?}"
+                );
+                return Ok(ShcReturn::Requests(VecDeque::new()));
             }
-        }?;
+        };
 
         // TODO(matan): We need to figure out an actual caching strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
