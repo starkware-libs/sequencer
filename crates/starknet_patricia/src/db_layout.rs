@@ -1,10 +1,13 @@
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia_storage::storage_trait::DbKey;
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::traversal::SubTreeTrait;
+use crate::patricia_merkle_tree::types::NodeIndex;
 
 // TODO(Ariel): Delete this enum and use `CommitmentType` instead.
 #[derive(Debug, PartialEq)]
@@ -31,8 +34,10 @@ pub trait NodeLayout<'a, L: Leaf> {
     type DeserializationContext;
 
     /// The storage representation of the node.
-    type NodeDbObject: DBObject<DeserializeContext = Self::DeserializationContext>
-        + Into<FilledNode<L, Self::NodeData>>;
+    type NodeDbObject: DBObject<
+            DeserializeContext = Self::DeserializationContext,
+            KeyContext = <L as HasStaticPrefix>::KeyContext,
+        > + Into<FilledNode<L, Self::NodeData>>;
 
     /// The type of the subtree that is used to traverse the trie.
     type SubTree: SubTreeTrait<
@@ -44,4 +49,37 @@ pub trait NodeLayout<'a, L: Leaf> {
     /// Generates the key context for the given trie type. Used for reading nodes of a specific
     /// tree (contracts, classes, or storage), to construct a skeleton tree.
     fn generate_key_context(trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext;
+
+    /// Converts `FilledTree` nodes to db objects.
+    ///
+    /// During the construction of a `FilledTree` we compute the hashes and carry `FilledNode<L,
+    /// HashOutput>`, hence, the `FilledNode` type  is not necessarily what we want to store.
+    fn get_db_object<LeafBase: Leaf + Into<L>>(
+        node_index: NodeIndex,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+        filled_node: FilledNode<LeafBase, HashOutput>,
+    ) -> (DbKey, Self::NodeDbObject);
+
+    /// A utility function to convert a `FilledNode<LeafBase, HashOutput>` to a `FilledNode<L,
+    /// Self::NodeData>`. Used during the serialization of a `FilledTree`.
+    ///
+    /// LeafBase is one of StarknetStorageValue, CompiledClassHash, or ContractState, while L can be
+    /// layout-dependent wrappers.
+    fn convert_node_data_and_leaf<LeafBase: Leaf + Into<L>>(
+        filled_node: FilledNode<LeafBase, HashOutput>,
+    ) -> FilledNode<L, Self::NodeData> {
+        let data: NodeData<L, Self::NodeData> = match filled_node.data {
+            NodeData::Binary(data) => NodeData::Binary(BinaryData {
+                left_data: data.left_data.into(),
+                right_data: data.right_data.into(),
+            }),
+            NodeData::Edge(data) => NodeData::Edge(EdgeData {
+                bottom_data: data.bottom_data.into(),
+                path_to_bottom: data.path_to_bottom.into(),
+            }),
+            NodeData::Leaf(leaf) => NodeData::Leaf(leaf.into()),
+        };
+
+        FilledNode { hash: filled_node.hash, data }
+    }
 }
