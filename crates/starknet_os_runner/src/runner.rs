@@ -51,7 +51,7 @@ where
         // 1. Execute virtual block and get execution data.
         let mut execution_data = self.virtual_block_executor.execute(
             block_number,
-            contract_class_manager,
+            contract_class_manager.clone(),
             txs.clone(),
         )?;
 
@@ -63,7 +63,9 @@ where
         };
 
         // Fetch classes.
-        let classes = self.classes_provider.get_classes(&execution_data.executed_class_hashes)?;
+        let classes = self
+            .classes_provider
+            .get_classes(&execution_data.executed_class_hashes, &contract_class_manager)?;
 
         // Fetch storage proofs.
         let storage_proofs =
