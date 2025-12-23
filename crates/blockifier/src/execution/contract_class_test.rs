@@ -5,8 +5,13 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
+use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
@@ -16,6 +21,8 @@ use starknet_types_core::hash::Blake2Felt252;
 use crate::execution::contract_class::{
     CompiledClassV1,
     ContractClassV1Inner,
+    EntryPointV1,
+    EntryPointsByType,
     FeltSizeCount,
     NestedFeltCounts,
     RunnableCompiledClass,
@@ -183,4 +190,49 @@ fn test_encoded_u32_len(#[case] test_data: &[Felt]) {
     let actual_u32_len = Blake2Felt252::encode_felts_to_u32s(test_data).len();
 
     assert_eq!(actual_u32_len, estimated_u32_len);
+}
+
+#[rstest]
+#[case::empty(CasmContractEntryPoints::default())]
+#[case::single_external(CasmContractEntryPoints {
+    external: vec![CasmContractEntryPoint {
+        selector: BigUint::from(123u64),
+        offset: 42,
+        builtins: vec!["range_check".to_string(), "pedersen".to_string()],
+    }],
+    l1_handler: vec![],
+    constructor: vec![],
+})]
+#[case::all_types(CasmContractEntryPoints {
+    external: vec![
+        CasmContractEntryPoint {
+            selector: BigUint::from(100u64),
+            offset: 10,
+            builtins: vec!["range_check".to_string()],
+        },
+        CasmContractEntryPoint {
+            selector: BigUint::from(200u64),
+            offset: 20,
+            builtins: vec![],
+        },
+    ],
+    l1_handler: vec![CasmContractEntryPoint {
+        selector: BigUint::from(300u64),
+        offset: 30,
+        builtins: vec!["pedersen".to_string()],
+    }],
+    constructor: vec![CasmContractEntryPoint {
+        selector: BigUint::from(400u64),
+        offset: 40,
+        builtins: vec!["range_check".to_string(), "bitwise".to_string()],
+    }],
+})]
+fn test_entry_points_round_trip(#[case] original: CasmContractEntryPoints) {
+    // Convert CasmContractEntryPoints -> EntryPointsByType<EntryPointV1>.
+    let entry_points_by_type: EntryPointsByType<EntryPointV1> = (&original).into();
+
+    // Convert back: EntryPointsByType<EntryPointV1> -> CasmContractEntryPoints.
+    let round_tripped: CasmContractEntryPoints = (&entry_points_by_type).into();
+
+    assert_eq!(round_tripped, original);
 }
