@@ -60,8 +60,8 @@ macro_rules! define_hint_enum_helper {
             (
                 $hint_name:ident,
                 $implementation:ident $(::<$generic_type:ty>)?
-                $(, $hint_str:expr)?
-                $(, $passed_arg:ident)?
+                $(, [$hint_str:expr])?
+                $(, ($passed_arg:ident))?
             )
         ),+ $(,)?
     ) => {
@@ -100,7 +100,7 @@ macro_rules! define_stateless_hint_enum {
         $crate::define_hint_enum_helper!(
             $enum_name,
             _hint_processor,
-            $(($hint_name, $implementation $(::<$generic_type>)? $(, $hint_str)?)),+
+            $(($hint_name, $implementation $(::<$generic_type>)? $(, [$hint_str])?)),+
         );
     };
 }
@@ -115,7 +115,7 @@ macro_rules! define_common_hint_enum {
         $crate::define_hint_enum_helper!(
             $enum_name,
             hint_processor,
-            $(($hint_name, $implementation $(, $hint_str)?, hint_processor)),+
+            $(($hint_name, $implementation $(, [$hint_str])?, (hint_processor))),+
         );
     };
 }
