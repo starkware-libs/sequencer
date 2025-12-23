@@ -93,7 +93,7 @@ func allocate_aliases_and_replace{range_check_ptr}(
     contract_state_diff_with_aliases: felt*,
 ) {
     alloc_locals;
-    %{ state_update_pointers = None %}
+    %{ SetStateUpdatePointersToNone %}
     let (
         n_squashed_contracts, squashed_contract_state_changes
     ) = allocate_aliases_and_squash_state_changes(

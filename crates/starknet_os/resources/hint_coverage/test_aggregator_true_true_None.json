@@ -21,7 +21,7 @@
     "CommonHint": "ComputeIdsLow"
   },
   {
-    "CommonHint": "StoreDaSegment"
+    "CommonHint": "GuessKzgCommitmentsAndStoreDaSegment"
   },
   {
     "CommonHint": "GuessClassesPtr"
