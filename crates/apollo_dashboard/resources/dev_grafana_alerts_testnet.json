@@ -253,6 +253,34 @@
       "observer_applicable": "true"
     },
     {
+      "name": "consensus_retrospective_fallback_to_state_sync",
+      "title": "Consensus retrospective block hash fallback to State Sync",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_retrospective_fallback_to_state_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
