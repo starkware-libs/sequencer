@@ -70,3 +70,39 @@ impl std::fmt::Display for ShardSignatureVerificationError {
 }
 
 impl std::error::Error for ShardSignatureVerificationError {}
+
+// ****************************************************************************
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreeGenerationError {
+    PublisherNotFound {
+        /// The publisher that was not found in the peer list.
+        publisher: PeerId,
+    },
+    LocalPeerNotInPeerWeights,
+    ShardIndexOutOfBounds {
+        shard_index: ShardIndex,
+    },
+    LocalPeerIsPublisher,
+}
+
+impl std::fmt::Display for TreeGenerationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeGenerationError::PublisherNotFound { publisher } => {
+                write!(f, "Publisher not found: {}", publisher)
+            }
+            TreeGenerationError::LocalPeerNotInPeerWeights => {
+                write!(f, "Local peer not in peer weights")
+            }
+            TreeGenerationError::ShardIndexOutOfBounds { shard_index } => {
+                write!(f, "Shard index out of bounds: {}", shard_index)
+            }
+            TreeGenerationError::LocalPeerIsPublisher => {
+                write!(f, "Local peer is publisher")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TreeGenerationError {}
