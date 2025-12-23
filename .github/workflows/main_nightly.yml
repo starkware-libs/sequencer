@@ -67,7 +67,7 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=2
     needs: define_branches
     strategy:
       matrix:
