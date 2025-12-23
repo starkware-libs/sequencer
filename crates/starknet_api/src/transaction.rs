@@ -679,7 +679,7 @@ pub struct InvokeTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "ProofFacts::is_empty")]
     pub proof_facts: ProofFacts,
 }
 
