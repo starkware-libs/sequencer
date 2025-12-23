@@ -844,14 +844,7 @@ func execute_declare_transaction{
     local compiled_class_hash;
     local account_deployment_data_size;
     local account_deployment_data: felt*;
-    %{
-        assert tx.version == 3, f"Unsupported declare version: {tx.version}."
-        ids.sender_address = tx.sender_address
-        ids.account_deployment_data_size = len(tx.account_deployment_data)
-        ids.account_deployment_data = segments.gen_arg(tx.account_deployment_data)
-        ids.class_hash_ptr = segments.gen_arg([tx.class_hash])
-        ids.compiled_class_hash = tx.compiled_class_hash
-    %}
+    %{ DeclareTxFields %}
     let common_tx_fields = get_account_tx_common_fields(
         block_context=block_context,
         tx_hash_prefix=DECLARE_HASH_PREFIX,
