@@ -4,10 +4,13 @@ use std::fs;
 use clap::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
+use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
+use starknet_committer::db::facts_db::db::FactsNodeLayout;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
+use starknet_patricia::db_layout::TrieType;
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;
@@ -106,13 +109,15 @@ pub async fn test_regression_single_tree() {
 
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
-    let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
-        leaf_modifications,
-        &mut storage,
-        root_hash,
-        OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
-    )
-    .await;
+    let output =
+        single_tree_flow_test::<StarknetStorageValue, FactsNodeLayout, TreeHashFunctionImpl>(
+            leaf_modifications,
+            &mut storage,
+            root_hash,
+            OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
+            &TrieType::StorageTrie(ContractAddress::from(1_u128)),
+        )
+        .await;
     let execution_time = std::time::Instant::now() - start;
 
     // Assert correctness of the output of the single tree flow test.
