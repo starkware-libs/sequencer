@@ -449,23 +449,7 @@ func execute_deprecated_syscalls{
     }
 
     local selector = [syscall_ptr];
-    %{
-        execution_helper.os_logger.enter_syscall(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            deprecated=True,
-            selector=ids.selector,
-            range_check_ptr=ids.range_check_ptr,
-        )
-
-        # Prepare a short callable to save code duplication.
-        exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-            selector=ids.selector,
-        )
-    %}
+    %{ OsLoggerEnterSyscallPrepareExitSyscall %}
     if (selector == STORAGE_READ_SELECTOR) {
         execute_storage_read(
             contract_address=execution_context.execution_info.contract_address,
