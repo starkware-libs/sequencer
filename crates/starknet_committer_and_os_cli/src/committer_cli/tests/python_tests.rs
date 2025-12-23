@@ -12,6 +12,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
+use starknet_committer::db::facts_db::db::FactsNodeLayout;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::{
     TreeHashFunctionImpl,
@@ -164,7 +165,11 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let dummy_contract_address = ContractAddress::from(0_u128);
-                let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
+                let output = single_tree_flow_test::<
+                    StarknetStorageValue,
+                    FactsNodeLayout,
+                    TreeHashFunctionImpl,
+                >(
                     leaf_modifications,
                     &mut storage,
                     root_hash,
