@@ -35,6 +35,10 @@ pub(crate) fn disable_da_page_creation(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
+    // Note that `serialize_os_output` splits its output to memory pages (see
+    // `OutputBuiltinRunner.add_page`).
+    // Since this output is only used internally and will not be used in the final fact, we need to
+    // disable page creation.
     hint_processor.serialize_data_availability_create_pages = false;
     Ok(())
 }
