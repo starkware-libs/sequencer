@@ -13,14 +13,15 @@ use tokio::fs::create_dir_all;
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
 // TODO(victork): consider completely removing this struct and use index directly
-#[derive(Debug, Copy, Clone)]
-pub struct NodeExecutionId {
+#[derive(Debug, Clone)]
+pub struct NodeExecutableId {
     node_index: usize,
+    node_execution_id: String,
 }
 
-impl NodeExecutionId {
-    pub fn new(node_index: usize) -> Self {
-        Self { node_index }
+impl NodeExecutableId {
+    pub fn new(node_index: usize, node_execution_id: String) -> Self {
+        Self { node_index, node_execution_id }
     }
     pub fn get_node_index(&self) -> usize {
         self.node_index
@@ -31,21 +32,21 @@ impl NodeExecutionId {
     }
 }
 
-impl std::fmt::Display for NodeExecutionId {
+impl std::fmt::Display for NodeExecutableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Node id {}", self.node_index)
     }
 }
 
-impl From<NodeExecutionId> for NodeRunner {
-    fn from(val: NodeExecutionId) -> Self {
-        NodeRunner::new(val.node_index)
+impl From<NodeExecutableId> for NodeRunner {
+    fn from(val: NodeExecutableId) -> Self {
+        NodeRunner::new(val.node_index, val.node_execution_id)
     }
 }
 
 pub struct ExecutableSetup {
     // Node test identifier.
-    pub node_execution_id: NodeExecutionId,
+    pub node_executable_id: NodeExecutableId,
     // Client for checking liveness of the sequencer node.
     pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
@@ -62,7 +63,7 @@ pub struct ExecutableSetup {
 impl ExecutableSetup {
     pub async fn new(
         base_app_config: DeploymentBaseAppConfig,
-        node_execution_id: NodeExecutionId,
+        node_executable_id: NodeExecutableId,
         config_path_dir: Option<PathBuf>,
     ) -> Self {
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
@@ -87,7 +88,7 @@ impl ExecutableSetup {
         base_app_config.dump_config_file(&config_path);
 
         Self {
-            node_execution_id,
+            node_executable_id,
             monitoring_client,
             base_app_config,
             node_config_dir_handle,
