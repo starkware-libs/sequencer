@@ -41,13 +41,7 @@ func handle_revert{contract_state_changes: DictAccess*}(
 
     local state_entry: StateEntry*;
 
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-
-        # Fetch the relevant storage.
-        storage = execution_helper.storage_by_address[ids.contract_address]
-    %}
+    %{ PrepareStateEntryForRevert %}
 
     let class_hash = state_entry.class_hash;
     let storage_ptr = state_entry.storage_ptr;
