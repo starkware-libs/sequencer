@@ -291,9 +291,11 @@ func charge_fee{
         return ();
     }
 
+    local low_actual_fee;
+    %{ LoadActualFee %}
     local calldata: TransferCallData = TransferCallData(
         recipient=block_context.block_info_for_execute.sequencer_address,
-        amount=Uint256(low=nondet %{ execution_helper.tx_execution_info.actual_fee %}, high=0),
+        amount=Uint256(low=low_actual_fee, high=0),
     );
 
     // Verify that the charged amount is not larger than the transaction's max_fee field.
