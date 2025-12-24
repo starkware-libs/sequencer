@@ -251,6 +251,7 @@ define_string_enum! {
         (RangeCheck96Ptr, "range_check96_ptr"),
         (RangeCheckPtr),
         (RemainingGas),
+        (RemainingGasGtMax),
         (ResourceBounds),
         (ReturnBuiltinPtrs),
         (Request),

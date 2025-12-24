@@ -603,11 +603,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (SplitDescend, split_descend, "ids.length, ids.word = descend"),
-    (
-        RemainingGasGtMax,
-        remaining_gas_gt_max,
-        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
-    ),
+    (RemainingGasGtMax, remaining_gas_gt_max),
     (
         DecodeNode,
         decode_node,

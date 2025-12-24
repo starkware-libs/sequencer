@@ -3,7 +3,6 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use starknet_types_core::felt::Felt;
 
@@ -19,7 +18,13 @@ pub(crate) fn remaining_gas_gt_max(
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
     let max_gas = get_integer_from_var_name(Ids::MaxGas.into(), vm, ids_data, ap_tracking)?;
     let remaining_gas_gt_max: Felt = (remaining_gas > max_gas).into();
-    Ok(insert_value_into_ap(vm, remaining_gas_gt_max)?)
+    Ok(insert_value_from_var_name(
+        Ids::RemainingGasGtMax.into(),
+        remaining_gas_gt_max,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn debug_expected_initial_gas<S: StateReader>(

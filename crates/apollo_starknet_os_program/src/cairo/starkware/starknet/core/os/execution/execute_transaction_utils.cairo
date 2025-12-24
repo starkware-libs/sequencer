@@ -164,7 +164,10 @@ func run_validate{
 // Arguments:
 // max_gas - expected to be the maximal validate or execute gas constant.
 func cap_remaining_gas{range_check_ptr, remaining_gas: felt}(max_gas: felt) {
-    if (nondet %{ ids.remaining_gas > ids.max_gas %} != FALSE) {
+    alloc_locals;
+    local remaining_gas_gt_max;
+    %{ RemainingGasGtMax %}
+    if (remaining_gas_gt_max != FALSE) {
         assert_nn_le(max_gas, remaining_gas - 1);
         tempvar remaining_gas = max_gas;
     } else {
