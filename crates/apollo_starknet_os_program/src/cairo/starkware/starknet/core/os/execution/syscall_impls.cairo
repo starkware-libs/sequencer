@@ -718,10 +718,9 @@ func execute_get_block_hash{
 
     // A block number is a u64. STORED_BLOCK_HASH_BUFFER is 10.
     // The following computations will not overflow.
-    if (nondet %{
-            ids.request_block_number > \
-                       ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER
-        %} != FALSE) {
+    local is_block_number_in_block_hash_buffer;
+    %{ IsBlockNumberInBlockHashBuffer %}
+    if (is_block_number_in_block_hash_buffer != FALSE) {
         assert_lt(current_block_number, request_block_number + STORED_BLOCK_HASH_BUFFER);
         write_failure_response(
             remaining_gas=remaining_gas, failure_felt=ERROR_BLOCK_NUMBER_OUT_OF_RANGE
