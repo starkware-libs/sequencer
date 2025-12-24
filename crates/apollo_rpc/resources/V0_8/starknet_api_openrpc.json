@@ -1138,6 +1138,12 @@
                 "type": "string",
                 "pattern": "^0x[a-fA-F0-9]+$"
             },
+            "u32": {
+                "type": "string",
+                "title": "u32",
+                "description": "32 bit integers, represented by hex string of length at most 8",
+                "pattern": "^0x(0|[a-fA-F1-9]{1}[a-fA-F0-9]{0,7})$"
+            },
             "u64": {
                 "type": "string",
                 "title": "u64",
@@ -2768,6 +2774,22 @@
                                 "title": "Fee DA mode",
                                 "description": "The storage domain of the account's balance from which fee will be charged",
                                 "$ref": "#/components/schemas/DA_MODE"
+                            },
+                            "proof_facts": {
+                                "title": "Proof facts",
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/FELT"
+                                },
+                                "description": "The proof facts for the transaction for client-side proving"
+                            },
+                            "proof": {
+                                "title": "Proof",
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/u32"
+                                },
+                                "description": "The proof for the transaction for client-side proving"
                             }
                         },
                         "required": [
