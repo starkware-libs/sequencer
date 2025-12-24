@@ -68,12 +68,16 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn write_full_output_to_memory<S: StateReader>(
+pub(crate) fn write_use_kzg_da_and_full_output_to_memory<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let full_output = Felt::from(hint_processor.os_hints_config.full_output);
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
+    let os_hints_config = &hint_processor.os_hints_config;
+    let use_kzg_da = Felt::from(os_hints_config.use_kzg_da && !os_hints_config.full_output);
+    let full_output = Felt::from(os_hints_config.full_output);
+    insert_value_from_var_name(Ids::UseKzgDa.into(), use_kzg_da, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(Ids::FullOutput.into(), full_output, vm, ids_data, ap_tracking)?;
+    Ok(())
 }
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(
