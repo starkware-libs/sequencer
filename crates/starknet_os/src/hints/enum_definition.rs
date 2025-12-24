@@ -690,11 +690,7 @@ define_hint_enum!(
     (CacheContractStorageRequestKey, cache_contract_storage_request_key),
     (CacheContractStorageSyscallRequestAddress, cache_contract_storage_syscall_request_address),
     (GetOldBlockNumberAndHash, get_old_block_number_and_hash),
-    (
-        GetBlocksNumber,
-        get_n_blocks,
-        r#"memory[fp + 3] = to_felt_or_relocatable(len(os_input.block_inputs))"#
-    ),
+    (GetBlocksNumber, get_n_blocks),
     (GetNClassHashesToMigrate, get_n_class_hashes_to_migrate),
     (ConfigureKzgManager, configure_kzg_manager),
     (CheckBlockHashConsistency, check_block_hash_consistency),
