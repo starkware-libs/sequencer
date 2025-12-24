@@ -33,6 +33,7 @@ use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::executor::block_on;
+use mockall::Sequence;
 use starknet_api::block::{
     BlockNumber,
     GasPrice,
@@ -140,67 +141,81 @@ impl TestDeps {
             .withf(move |input| input.height == block_number)
             .return_const(Ok(()));
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(number_of_times).returning(move |input| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            Ok(GetProposalContentResponse {
-                content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-            })
-        });
+        self.batcher
+            .expect_get_proposal_content()
+            .times(number_of_times)
+            .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
+            .returning(move |_input| {
+                Ok(GetProposalContentResponse {
+                    content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
+                })
+            });
         let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(number_of_times).returning(move |input| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            Ok(GetProposalContentResponse {
-                content: GetProposalContent::Finished {
-                    id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-                    final_n_executed_txs,
-                },
-            })
-        });
+        self.batcher
+            .expect_get_proposal_content()
+            .times(number_of_times)
+            .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
+            .returning(move |_input| {
+                Ok(GetProposalContentResponse {
+                    content: GetProposalContent::Finished {
+                        id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                        final_n_executed_txs,
+                    },
+                })
+            });
     }
 
     pub(crate) fn setup_deps_for_validate(
         &mut self,
-        block_number: BlockNumber,
+        mut block_number: BlockNumber,
         final_n_executed_txs: usize,
         number_of_times: usize,
     ) {
         assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
-        let proposal_id = Arc::new(OnceLock::new());
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_validate_block().times(number_of_times).returning(
-            move |input: ValidateBlockInput| {
-                proposal_id_clone.set(input.proposal_id).unwrap();
-                Ok(())
-            },
-        );
-        self.batcher
-            .expect_start_height()
-            .withf(move |input| input.height == block_number)
-            .return_const(Ok(()));
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(number_of_times).returning(
-            move |input: SendProposalContentInput| {
-                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                let SendProposalContent::Txs(txs) = input.content else {
-                    panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-                };
-                assert_eq!(txs, *INTERNAL_TX_BATCH);
-                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-            },
-        );
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(number_of_times).returning(
-            move |input: SendProposalContentInput| {
-                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert_eq!(input.content, SendProposalContent::Finish(final_n_executed_txs));
-                Ok(SendProposalContentResponse {
-                    response: ProposalStatus::Finished(ProposalCommitment {
-                        state_diff_commitment: STATE_DIFF_COMMITMENT,
-                    }),
-                })
-            },
-        );
+        let mut seq = Sequence::new();
+        for _ in 0..number_of_times {
+            let proposal_id = Arc::new(OnceLock::new());
+            let proposal_id_clone = Arc::clone(&proposal_id);
+            self.batcher.expect_validate_block().times(1).in_sequence(&mut seq).returning(
+                move |input: ValidateBlockInput| {
+                    proposal_id_clone.set(input.proposal_id).unwrap();
+                    Ok(())
+                },
+            );
+            self.batcher
+                .expect_start_height()
+                .withf(move |input| input.height == block_number)
+                .return_const(Ok(()));
+            let proposal_id_clone = Arc::clone(&proposal_id);
+            self.batcher
+                .expect_send_proposal_content()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
+                .returning(move |input: SendProposalContentInput| {
+                    let SendProposalContent::Txs(txs) = input.content else {
+                        panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+                    };
+                    assert_eq!(txs, INTERNAL_TX_BATCH.clone());
+                    Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+                });
+            let proposal_id_clone = Arc::clone(&proposal_id);
+            self.batcher
+                .expect_send_proposal_content()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
+                .returning(move |input: SendProposalContentInput| {
+                    assert_eq!(input.content, SendProposalContent::Finish(final_n_executed_txs));
+                    Ok(SendProposalContentResponse {
+                        response: ProposalStatus::Finished(ProposalCommitment {
+                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+                        }),
+                    })
+                });
+            block_number = block_number.unchecked_next();
+        }
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
