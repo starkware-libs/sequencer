@@ -237,6 +237,7 @@ define_string_enum! {
         (NewStateEntry),
         (NKeys),
         (Node),
+        (Nonce),
         (NonceDataAvailabilityMode),
         (NPublicKeys),
         (NotOnCurve),
