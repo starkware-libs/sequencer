@@ -661,7 +661,13 @@ pub(crate) fn is_remaining_gas_lt_initial_budget(
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
     let initial_budget = Const::EntryPointInitialBudget.fetch(constants)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
-    Ok(insert_value_into_ap(vm, remaining_gas_lt_initial_budget)?)
+    Ok(insert_value_from_var_name(
+        Ids::IsRemainingGasLtInitialBudget.into(),
+        remaining_gas_lt_initial_budget,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn check_syscall_response<S: StateReader>(
