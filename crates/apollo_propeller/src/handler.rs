@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use apollo_protobuf::protobuf::PropellerUnitBatch;
+use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch as ProtoBatch};
 use asynchronous_codec::Framed;
 use futures::prelude::*;
 use libp2p::swarm::handler::{
@@ -41,7 +41,7 @@ pub struct Handler {
     /// The single long-lived inbound substream.
     inbound_substream: Option<InboundSubstreamState>,
     /// Queue of messages to send.
-    send_queue: VecDeque<PropellerUnit>,
+    send_queue: VecDeque<ProtoUnit>,
     /// Queue of received messages to emit.
     receive_queue: VecDeque<PropellerUnit>,
 }
@@ -142,7 +142,7 @@ impl Handler {
     }
 
     /// Handles a received batch of units.
-    fn handle_received_batch(&mut self, batch: PropellerUnitBatch) {
+    fn handle_received_batch(&mut self, batch: ProtoBatch) {
         for proto_unit in batch.batch {
             match PropellerUnit::try_from(proto_unit) {
                 Ok(unit) => {
@@ -172,7 +172,7 @@ impl ConnectionHandler for Handler {
     fn on_behaviour_event(&mut self, event: HandlerIn) {
         match event {
             HandlerIn::SendUnit(msg) => {
-                self.send_queue.push_back(msg);
+                self.send_queue.push_back(msg.into());
                 // TODO(AndrewL): Wake up poll to send the message
             }
         }
