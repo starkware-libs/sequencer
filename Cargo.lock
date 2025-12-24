@@ -1483,6 +1483,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_network_types",
  "apollo_proc_macros",
+ "apollo_proof_manager_types",
  "apollo_rpc",
  "apollo_state_sync_types",
  "apollo_test_utils",

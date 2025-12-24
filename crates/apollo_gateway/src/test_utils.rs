@@ -5,6 +5,7 @@ use apollo_class_manager_types::MockClassManagerClient;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_proof_manager_types::MockProofManagerClient;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
@@ -163,6 +164,7 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
     let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
     let mut mempool_client = MockMempoolClient::new();
     let class_manager_client = Arc::new(MockClassManagerClient::new());
+    let proof_manager_client = Arc::new(MockProofManagerClient::new());
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
         gateway_config.chain_info.chain_id.clone(),
@@ -179,5 +181,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
         Arc::new(mempool_client),
         Arc::new(transaction_converter),
         stateless_tx_validator,
+        proof_manager_client,
     )
 }
