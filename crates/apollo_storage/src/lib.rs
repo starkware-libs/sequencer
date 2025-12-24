@@ -737,6 +737,8 @@ pub enum StorageError {
          {block_number}."
     )]
     BlockSignatureForNonExistingBlock { block_number: BlockNumber, block_signature: BlockSignature },
+    #[error("Invalid request for component {component}: {request_type} is not supported.")]
+    InvalidRequest { component: String, request_type: String },
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
