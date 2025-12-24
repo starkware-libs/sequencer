@@ -89,25 +89,18 @@ pub(crate) fn write_da_segment(
     Ok(())
 }
 
-pub(crate) fn get_full_output_from_input(
+pub(crate) fn get_use_kzg_da_and_full_output_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let full_output: Felt = hint_processor.input.full_output.into();
-    insert_value_into_ap(vm, full_output)?;
-    Ok(())
-}
-
-pub(crate) fn get_use_kzg_da_from_input(
-    hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let use_kzg_da: Felt = match hint_processor.input.da {
         DataAvailability::Blob(_) => true,
         DataAvailability::CallData => false,
     }
     .into();
-    insert_value_into_ap(vm, use_kzg_da)?;
+    let full_output: Felt = hint_processor.input.full_output.into();
+    insert_value_from_var_name(Ids::UseKzgDa.into(), use_kzg_da, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(Ids::FullOutput.into(), full_output, vm, ids_data, ap_tracking)?;
     Ok(())
 }
 
