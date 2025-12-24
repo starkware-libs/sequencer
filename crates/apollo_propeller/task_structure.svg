@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="Arial, sans-serif">
+  <!-- Background -->
+  <rect width="1200" height="900" fill="#1a1a2e"/>
+  
+  <!-- Title -->
+  <text x="600" y="40" text-anchor="middle" font-size="28" font-weight="bold" fill="#e94560">Propeller Protocol - Task Architecture</text>
+  
+  <!-- libp2p Swarm Box -->
+  <rect x="50" y="70" width="180" height="80" rx="10" fill="#0f3460" stroke="#e94560" stroke-width="2"/>
+  <text x="140" y="100" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">libp2p Swarm</text>
+  <text x="140" y="120" text-anchor="middle" font-size="11" fill="#16c79a">Network Events</text>
+  <text x="140" y="135" text-anchor="middle" font-size="11" fill="#16c79a">Peer Connections</text>
+  
+  <!-- Behaviour Box -->
+  <rect x="300" y="70" width="250" height="120" rx="10" fill="#0f3460" stroke="#e94560" stroke-width="2"/>
+  <text x="425" y="95" text-anchor="middle" font-size="16" font-weight="bold" fill="#fff">BEHAVIOUR</text>
+  <text x="425" y="115" text-anchor="middle" font-size="11" fill="#16c79a">NetworkBehaviour impl</text>
+  <line x1="320" y1="125" x2="530" y2="125" stroke="#e94560" stroke-width="1"/>
+  <text x="335" y="145" font-size="10" fill="#f5f5f5">• Public API (broadcast, register)</text>
+  <text x="335" y="160" font-size="10" fill="#f5f5f5">• Route swarm events to Core</text>
+  <text x="335" y="175" font-size="10" fill="#f5f5f5">• Emit events to application</text>
+  
+  <!-- Arrow: Swarm to Behaviour -->
+  <path d="M230 110 L295 110" stroke="#16c79a" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="255" y="100" font-size="9" fill="#16c79a">events</text>
+  
+  <!-- Handler Boxes (multiple connections) -->
+  <rect x="620" y="70" width="180" height="100" rx="10" fill="#0f3460" stroke="#ffc107" stroke-width="2"/>
+  <text x="710" y="95" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">HANDLER (per-conn)</text>
+  <line x1="640" y1="105" x2="780" y2="105" stroke="#ffc107" stroke-width="1"/>
+  <text x="650" y="122" font-size="10" fill="#f5f5f5">• Substream management</text>
+  <text x="650" y="137" font-size="10" fill="#f5f5f5">• Message batching</text>
+  <text x="650" y="152" font-size="10" fill="#f5f5f5">• Codec encode/decode</text>
+  
+  <!-- Handler 2 (stacked effect) -->
+  <rect x="630" y="80" width="180" height="100" rx="10" fill="#0a1930" stroke="#ffc107" stroke-width="1" opacity="0.5"/>
+  <rect x="640" y="90" width="180" height="100" rx="10" fill="#0a1930" stroke="#ffc107" stroke-width="1" opacity="0.3"/>
+  
+  <!-- Arrow: Behaviour to Handler -->
+  <path d="M550 130 L615 130" stroke="#ffc107" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="570" y="120" font-size="9" fill="#ffc107">SendUnit</text>
+  
+  <!-- Core Task Box (Main) -->
+  <rect x="300" y="230" width="400" height="180" rx="10" fill="#16213e" stroke="#e94560" stroke-width="3"/>
+  <text x="500" y="260" text-anchor="middle" font-size="18" font-weight="bold" fill="#e94560">CORE TASK</text>
+  <text x="500" y="280" text-anchor="middle" font-size="11" fill="#16c79a">Central Protocol Logic (async)</text>
+  <line x1="320" y1="290" x2="680" y2="290" stroke="#e94560" stroke-width="1"/>
+  
+  <!-- Core internals -->
+  <rect x="320" y="305" width="170" height="90" rx="5" fill="#0f3460" stroke="#16c79a" stroke-width="1"/>
+  <text x="405" y="325" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Channel Manager</text>
+  <text x="330" y="345" font-size="9" fill="#f5f5f5">• Tree managers</text>
+  <text x="330" y="360" font-size="9" fill="#f5f5f5">• Peer public keys</text>
+  <text x="330" y="375" font-size="9" fill="#f5f5f5">• Finalized cache</text>
+  
+  <rect x="510" y="305" width="170" height="90" rx="5" fill="#0f3460" stroke="#16c79a" stroke-width="1"/>
+  <text x="595" y="325" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Message Tasks</text>
+  <text x="520" y="345" font-size="9" fill="#f5f5f5">• Task registry</text>
+  <text x="520" y="360" font-size="9" fill="#f5f5f5">• (ch, pub, root) → handle</text>
+  <text x="520" y="375" font-size="9" fill="#f5f5f5">• Spawn/cleanup</text>
+  
+  <!-- Arrow: Behaviour to Core -->
+  <path d="M425 190 L425 225" stroke="#e94560" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="435" y="210" font-size="9" fill="#e94560">commands</text>
+  
+  <!-- Arrow: Core to Behaviour -->
+  <path d="M475 225 L475 190" stroke="#16c79a" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="485" y="210" font-size="9" fill="#16c79a">outputs</text>
+  
+  <!-- Message Task Group Box -->
+  <rect x="50" y="460" width="1100" height="390" rx="10" fill="#0a1930" stroke="#ffc107" stroke-width="2" stroke-dasharray="5,5"/>
+  <text x="600" y="490" text-anchor="middle" font-size="16" font-weight="bold" fill="#ffc107">PER-MESSAGE TASKS (spawned for each unique channel + publisher + message_root)</text>
+  
+  <!-- Validator Task Box -->
+  <rect x="80" y="520" width="320" height="300" rx="10" fill="#16213e" stroke="#17a2b8" stroke-width="2"/>
+  <text x="240" y="550" text-anchor="middle" font-size="16" font-weight="bold" fill="#17a2b8">VALIDATOR TASK</text>
+  <text x="240" y="570" text-anchor="middle" font-size="11" fill="#16c79a">CPU-bound validation (rayon)</text>
+  <line x1="100" y1="580" x2="380" y2="580" stroke="#17a2b8" stroke-width="1"/>
+  
+  <!-- Validator internals -->
+  <rect x="100" y="595" width="280" height="60" rx="5" fill="#0f3460"/>
+  <text x="240" y="615" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Input Channel (unit_rx)</text>
+  <text x="240" y="635" text-anchor="middle" font-size="10" fill="#f5f5f5">Units from Core → validate</text>
+  
+  <rect x="100" y="665" width="280" height="80" rx="5" fill="#0f3460"/>
+  <text x="240" y="685" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">UnitValidator</text>
+  <text x="115" y="705" font-size="9" fill="#f5f5f5">• Origin validation (tree lookup)</text>
+  <text x="115" y="720" font-size="9" fill="#f5f5f5">• Merkle proof verification</text>
+  <text x="115" y="735" font-size="9" fill="#f5f5f5">• Signature verification (cached)</text>
+  
+  <rect x="100" y="755" width="280" height="50" rx="5" fill="#0f3460"/>
+  <text x="240" y="775" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Timeout Handling</text>
+  <text x="240" y="795" text-anchor="middle" font-size="10" fill="#f5f5f5">→ ValidatorStopped after deadline</text>
+  
+  <!-- State Manager Task Box -->
+  <rect x="480" y="520" width="320" height="300" rx="10" fill="#16213e" stroke="#28a745" stroke-width="2"/>
+  <text x="640" y="550" text-anchor="middle" font-size="16" font-weight="bold" fill="#28a745">STATE MANAGER TASK</text>
+  <text x="640" y="570" text-anchor="middle" font-size="11" fill="#16c79a">Message lifecycle state machine</text>
+  <line x1="500" y1="580" x2="780" y2="580" stroke="#28a745" stroke-width="1"/>
+  
+  <!-- State Manager internals -->
+  <rect x="500" y="595" width="280" height="70" rx="5" fill="#0f3460"/>
+  <text x="640" y="615" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Shard Collection</text>
+  <text x="515" y="635" font-size="9" fill="#f5f5f5">• Store validated shards</text>
+  <text x="515" y="650" font-size="9" fill="#f5f5f5">• Track my_shard_index receipt</text>
+  
+  <rect x="500" y="675" width="280" height="55" rx="5" fill="#0f3460"/>
+  <text x="640" y="695" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Reconstruction (rayon)</text>
+  <text x="515" y="715" font-size="9" fill="#f5f5f5">• Reed-Solomon decode when F shards</text>
+  
+  <rect x="500" y="740" width="280" height="55" rx="5" fill="#0f3460"/>
+  <text x="640" y="760" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Gossip &amp; Emit</text>
+  <text x="515" y="778" font-size="9" fill="#f5f5f5">• Broadcast our shard to all peers</text>
+  <text x="515" y="793" font-size="9" fill="#f5f5f5">• Emit MessageReceived at 2F shards</text>
+  
+  <!-- Rayon Thread Pool Box -->
+  <rect x="880" y="520" width="240" height="300" rx="10" fill="#16213e" stroke="#dc3545" stroke-width="2"/>
+  <text x="1000" y="550" text-anchor="middle" font-size="16" font-weight="bold" fill="#dc3545">RAYON THREAD POOL</text>
+  <text x="1000" y="570" text-anchor="middle" font-size="11" fill="#16c79a">Parallel CPU work</text>
+  <line x1="900" y1="580" x2="1100" y2="580" stroke="#dc3545" stroke-width="1"/>
+  
+  <rect x="900" y="595" width="200" height="45" rx="5" fill="#0f3460"/>
+  <text x="1000" y="620" text-anchor="middle" font-size="11" fill="#fff">Shard Validation</text>
+  
+  <rect x="900" y="650" width="200" height="45" rx="5" fill="#0f3460"/>
+  <text x="1000" y="675" text-anchor="middle" font-size="11" fill="#fff">Merkle Tree Building</text>
+  
+  <rect x="900" y="705" width="200" height="45" rx="5" fill="#0f3460"/>
+  <text x="1000" y="730" text-anchor="middle" font-size="11" fill="#fff">Reed-Solomon Encode/Decode</text>
+  
+  <rect x="900" y="760" width="200" height="45" rx="5" fill="#0f3460"/>
+  <text x="1000" y="785" text-anchor="middle" font-size="11" fill="#fff">Signature Verification</text>
+  
+  <!-- Arrows between tasks -->
+  <!-- Core to Validator -->
+  <path d="M420 410 L240 515" stroke="#17a2b8" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="300" y="450" font-size="10" fill="#17a2b8">UnitToValidate</text>
+  
+  <!-- Validator to State Manager -->
+  <path d="M400 680 L475 680" stroke="#28a745" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="410" y="670" font-size="10" fill="#28a745">ValidatedUnit</text>
+  <text x="410" y="695" font-size="10" fill="#28a745">ValidatorStopped</text>
+  
+  <!-- State Manager to Core -->
+  <path d="M640 515 L550 410" stroke="#e94560" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="600" y="455" font-size="10" fill="#e94560">Event</text>
+  <text x="600" y="470" font-size="10" fill="#e94560">Finalized</text>
+  <text x="600" y="485" font-size="10" fill="#e94560">BroadcastUnit</text>
+  
+  <!-- State Manager to Validator (shutdown) -->
+  <path d="M480 740 L400 740" stroke="#ffc107" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="755" font-size="9" fill="#ffc107">Shutdown</text>
+  
+  <!-- Validator to Rayon -->
+  <path d="M400 650 L875 620" stroke="#dc3545" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
+  
+  <!-- State Manager to Rayon -->
+  <path d="M800 700 L875 700" stroke="#dc3545" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Legend -->
+  <rect x="850" y="80" width="300" height="130" rx="5" fill="#0a1930" stroke="#fff" stroke-width="1"/>
+  <text x="1000" y="105" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">Legend</text>
+  <line x1="870" y1="115" x2="1130" y2="115" stroke="#fff" stroke-width="1"/>
+  
+  <line x1="870" y1="135" x2="920" y2="135" stroke="#e94560" stroke-width="2"/>
+  <text x="930" y="140" font-size="10" fill="#f5f5f5">Core channels</text>
+  
+  <line x1="870" y1="155" x2="920" y2="155" stroke="#17a2b8" stroke-width="2"/>
+  <text x="930" y="160" font-size="10" fill="#f5f5f5">Validator channels</text>
+  
+  <line x1="870" y1="175" x2="920" y2="175" stroke="#28a745" stroke-width="2"/>
+  <text x="930" y="180" font-size="10" fill="#f5f5f5">State Manager channels</text>
+  
+  <line x1="870" y1="195" x2="920" y2="195" stroke="#dc3545" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="930" y="200" font-size="10" fill="#f5f5f5">Thread pool spawn</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#fff"/>
+    </marker>
+  </defs>
+</svg>
+
