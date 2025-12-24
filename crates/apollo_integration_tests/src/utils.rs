@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_central_sync_config::config::CentralSourceConfig;
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
@@ -46,7 +47,7 @@ use apollo_node_config::monitoring::MonitoringConfig;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -59,7 +60,11 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountId,
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     L1ToL2MessageArgs,
@@ -78,7 +83,8 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::state_reader::StorageTestConfig;
+use crate::mock_cende_server::spawn_mock_cende_server;
+use crate::state_reader::{default_state_diff_and_classes, StorageTestConfig};
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -185,8 +191,9 @@ pub fn create_node_config(
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
+    use_cende: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
-    let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
+    let cende_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
@@ -230,7 +237,21 @@ pub fn create_node_config(
         create_class_manager_config(storage_config.class_manager_storage_config);
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+
+    // Configure central sync if CENDE URL is provided
+    if use_cende {
+        // Enable central sync, disable P2P sync
+        state_sync_config.central_sync_client_config = Some(CentralSyncClientConfig {
+            central_source_config: CentralSourceConfig {
+                starknet_url: cende_url.clone(),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        state_sync_config.p2p_sync_client_config = None;
+        state_sync_config.network_config = None;
+        // We'll override RPC config's starknet_url after config pointers are processed
+    }
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
     let sierra_compiler_config = SierraCompilationConfig::default();
@@ -257,12 +278,17 @@ pub fn create_node_config(
     );
     config_pointers_map.change_target_value(
         "recorder_url",
-        to_value(recorder_url).expect("Failed to serialize Url"),
+        to_value(cende_url.clone()).expect("Failed to serialize Url"),
     );
-    config_pointers_map.change_target_value(
-        "starknet_url",
-        to_value(starknet_url).expect("Failed to serialize starknet_url"),
-    );
+    // Set starknet_url pointer - when using CENDE, we want central sync to use CENDE URL
+    // but we'll override RPC config's URL directly after pointers are applied
+    let starknet_url = if use_cende {
+        to_value(cende_url).expect("Failed to serialize cende_url")
+    } else {
+        to_value(state_sync_config.rpc_config.starknet_url.clone())
+            .expect("Failed to serialize starknet_url")
+    };
+    config_pointers_map.change_target_value("starknet_url", starknet_url);
 
     // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
     // otherwise returns `None`. Assumes `components` is in scope.
@@ -453,6 +479,22 @@ pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<(
     };
     let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
     (url_and_headers, join_handle)
+}
+
+/// Spawns a local mock central server and returns its URL and handle.
+pub(crate) fn spawn_local_central_server(
+    port: u16,
+    accounts: Vec<AccountTransactionGenerator>,
+    chain_info: &ChainInfo,
+    use_cende: bool,
+) -> (Url, JoinHandle<()>) {
+    if use_cende {
+        let (state_diff, classes) = default_state_diff_and_classes(accounts, chain_info);
+        let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+        spawn_mock_cende_server(socket_address, state_diff, classes)
+    } else {
+        spawn_local_success_recorder(port)
+    }
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {

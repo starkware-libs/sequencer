@@ -286,6 +286,7 @@ impl FlowSequencerSetup {
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
+            false,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
         node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =

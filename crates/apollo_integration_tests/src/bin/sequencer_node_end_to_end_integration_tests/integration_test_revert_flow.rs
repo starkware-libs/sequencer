@@ -41,6 +41,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
+        false,
     )
     .await;
 
