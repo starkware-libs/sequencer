@@ -64,7 +64,8 @@ func maybe_allocate_alias_for_big_key{
 
     // Guess the existing alias for the key (0 is it was not assigned yet). The guess is verified
     // by the storage write below.
-    local prev_value: felt = nondet %{ aliases.read(key=ids.key) %};
+    local prev_value;
+    %{ ReadAliasFromKey %}
     if (prev_value == 0) {
         // Allocate a new alias.
         tempvar new_value = next_available_alias;
