@@ -8,6 +8,7 @@ use rstest::{fixture, rstest};
 use crate::types::ShardSignatureVerificationError;
 use crate::{
     Channel,
+    MerkleTree,
     MessageRoot,
     PropellerScheduleManager,
     PropellerUnit,
@@ -24,14 +25,16 @@ struct TestEnv {
     publisher: PeerId,
     local_peer: PeerId,
     other_peers: Vec<PeerId>,
+    merkle_tree: MerkleTree,
     peer_to_index: HashMap<PeerId, ShardIndex>,
 }
 
+const SHARD_DATA: [u8; 3] = [1, 2, 3];
+
 #[fixture]
 fn env() -> TestEnv {
-    const NUM_PEERS: i32 = 5;
+    const NUM_PEERS: usize = 5;
     const CHANNEL: Channel = Channel(1);
-    const MESSAGE_ROOT: MessageRoot = MessageRoot([1u8; 32]);
     let keypair = Keypair::generate_ed25519();
     let publisher = PeerId::from(keypair.public());
     let local_peer = PeerId::random();
@@ -51,19 +54,23 @@ fn env() -> TestEnv {
         peer_to_index.insert(peer, index);
     }
 
+    let merkle_tree = MerkleTree::new(&vec![SHARD_DATA.to_vec(); NUM_PEERS - 1]);
+    let message_root = MessageRoot(merkle_tree.root().unwrap());
+
     let validator =
-        UnitValidator::new(CHANNEL, publisher, keypair.public(), MESSAGE_ROOT, schedule_manager);
-    let signature = crate::signature::sign_message_id(&MESSAGE_ROOT, &keypair).unwrap();
+        UnitValidator::new(CHANNEL, publisher, keypair.public(), message_root, schedule_manager);
+    let signature = crate::signature::sign_message_id(&message_root, &keypair).unwrap();
 
     TestEnv {
         channel: CHANNEL,
-        message_root: MESSAGE_ROOT,
+        message_root,
         signature,
         validator,
         publisher,
         local_peer,
         other_peers,
         peer_to_index,
+        merkle_tree,
     }
 }
 
@@ -82,8 +89,8 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         env.message_root,
         signature,
         index,
-        vec![1, 2, 3],
-        crate::MerkleProof { siblings: vec![] },
+        SHARD_DATA.to_vec(),
+        env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
     )
 }
 
@@ -180,4 +187,13 @@ fn test_unit_source_validation(
     } else {
         result.unwrap_err();
     }
+}
+
+#[rstest]
+fn test_tampered_proof_fails_verification(mut env: TestEnv) {
+    let mut unit = unit(&env, env.local_peer);
+    unit.shard_mut().push(42);
+
+    let result = env.validator.validate_shard(env.publisher, &unit);
+    result.unwrap_err();
 }
