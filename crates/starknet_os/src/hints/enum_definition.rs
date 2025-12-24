@@ -686,12 +686,7 @@ define_hint_enum!(
     (LoadDeprecatedClassFacts, load_deprecated_class_facts),
     (LoadDeprecatedClassInner, load_deprecated_class_inner),
     (StartTx, start_tx),
-    (
-        OsInputTransactions,
-        os_input_transactions,
-        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(block_input.transactions))"#
-        }
-    ),
+    (OsInputTransactions, os_input_transactions),
     (
         SetApToActualFee,
         set_ap_to_actual_fee,
