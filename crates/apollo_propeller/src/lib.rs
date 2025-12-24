@@ -23,7 +23,7 @@ mod unit_validator_test;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
-pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
+pub use types::{Channel, Event, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;
 
