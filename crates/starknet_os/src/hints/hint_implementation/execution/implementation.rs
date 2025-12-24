@@ -361,19 +361,9 @@ pub(crate) fn contract_address<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn tx_calldata_len<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let calldata =
-        get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?;
-    insert_value_into_ap(vm, calldata.0.len())?;
-    Ok(())
-}
-
 pub(crate) fn tx_calldata<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let calldata: Vec<_> =
         get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?
@@ -382,7 +372,14 @@ pub(crate) fn tx_calldata<S: StateReader>(
             .map(MaybeRelocatable::from)
             .collect();
     let calldata_base = vm.gen_arg(&calldata)?;
-    insert_value_into_ap(vm, calldata_base)?;
+    insert_value_from_var_name(Ids::Calldata.into(), calldata_base, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::CalldataSize.into(),
+        Felt::from(calldata.len()),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
