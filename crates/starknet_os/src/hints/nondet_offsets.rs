@@ -19,7 +19,6 @@ pub mod test;
 /// implementation should be fetched from this map.
 pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLock::new(|| {
     HashMap::from([
-        (AllHints::OsHint(OsHint::OsInputTransactions), 12),
         (AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), 4),
         (AllHints::OsHint(OsHint::GetBlocksNumber), 3),
         (AllHints::OsHint(OsHint::TxAccountDeploymentDataLen), 4),
