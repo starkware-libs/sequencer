@@ -1467,7 +1467,7 @@ impl BatcherStorageWriter for StorageWriter {
         let mut txn = self
             .begin_rw_txn()?
             .set_global_root(&height, global_root)?
-            .increment_block_hash_marker()?;
+            .checked_increment_block_hash_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
         }
