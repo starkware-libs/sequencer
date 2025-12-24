@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use apollo_storage::storage_reader::StorageReaderApi;
 use apollo_storage::storage_reader_communication::{StorageReaderRequest, StorageReaderResponse};
+use apollo_storage::storage_reader_handler::StorageReaderHandler;
 use apollo_storage::storage_reader_server::StorageReaderServerHandler;
 use apollo_storage::{StorageError, StorageReader};
 use async_trait::async_trait;
@@ -163,21 +163,20 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
         storage_reader: &StorageReader,
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
-        let txn = storage_reader.begin_ro_txn()?;
-        match request {
-            StorageReaderRequest::GetStateDiffLocation(block_number) => {
-                let result = txn.get_state_diff_location(block_number)?;
-                Ok(StorageReaderResponse::GetStateDiffLocation(result))
+        // Validate that the request is relevant to the Batcher.
+        // The Batcher only needs state diff operations and markers.
+        match &request {
+            StorageReaderRequest::GetStateDiffLocation(_)
+            | StorageReaderRequest::GetStateDiffFromFile(_)
+            | StorageReaderRequest::GetMarker(_) => {
+                // Request is valid for Batcher, delegate to unified handler
+                let handler = StorageReaderHandler::new(storage_reader.clone());
+                handler.handle_request(request)
             }
-            StorageReaderRequest::GetStateDiffFromFile(location) => {
-                let result = txn.get_state_diff_from_file(location)?;
-                Ok(StorageReaderResponse::GetStateDiffFromFile(result))
-            }
-            StorageReaderRequest::GetMarker(marker_kind) => {
-                let result = txn.get_marker(marker_kind)?;
-                Ok(StorageReaderResponse::GetMarker(result))
-            }
-            _ => todo!("Implement all storage reader operations"),
+            _ => Err(StorageError::InvalidRequest {
+                component: "Batcher".to_string(),
+                request_type: format!("{:?}", request),
+            }),
         }
     }
 }

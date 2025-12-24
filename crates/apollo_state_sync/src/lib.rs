@@ -15,14 +15,13 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{
     StateSyncResult,
     StateSyncStorageReaderServerHandler,
-    StateSyncStorageRequest,
-    StateSyncStorageResponse,
     SyncBlock,
 };
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::{StateReader, StateStorageReader};
+use apollo_storage::storage_reader_communication::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::storage_reader_server::StorageReaderServer;
 use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
@@ -39,8 +38,8 @@ use crate::runner::StateSyncRunner;
 const BUFFER_SIZE: usize = 100000;
 type StateSyncStorageReaderServer = StorageReaderServer<
     StateSyncStorageReaderServerHandler,
-    StateSyncStorageRequest,
-    StateSyncStorageResponse,
+    StorageReaderRequest,
+    StorageReaderResponse,
 >;
 
 pub fn create_state_sync_and_runner(

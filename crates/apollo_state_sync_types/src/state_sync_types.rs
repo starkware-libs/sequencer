@@ -1,8 +1,10 @@
+use apollo_storage::storage_reader_communication::{StorageReaderRequest, StorageReaderResponse};
+use apollo_storage::storage_reader_handler::StorageReaderHandler;
 use apollo_storage::storage_reader_server::StorageReaderServerHandler;
 use apollo_storage::{StorageError, StorageReader};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockHeaderWithoutHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -34,33 +36,32 @@ impl SyncBlock {
     }
 }
 
-// TODO(Dean): Fill in with actual storage table names and operations.
-/// Storage-related requests for state sync.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum StateSyncStorageRequest {
-    /// Request to read data in Table1 for the given block height.
-    Table1Replacer(BlockNumber),
-}
-
-// TODO(Dean): Fill in with actual response types matching the request variants.
-/// Response for state sync storage requests.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum StateSyncStorageResponse {
-    /// Table1 data for the requested operation.
-    Table1Replacer(BlockHeader),
-}
-
 pub struct StateSyncStorageReaderServerHandler;
 
 #[async_trait]
-impl StorageReaderServerHandler<StateSyncStorageRequest, StateSyncStorageResponse>
+impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
     for StateSyncStorageReaderServerHandler
 {
     async fn handle_request(
-        _storage_reader: &StorageReader,
-        _request: StateSyncStorageRequest,
-    ) -> Result<StateSyncStorageResponse, StorageError> {
-        // TODO(Dean/Nadin): Implement the logic for the state sync storage reader server handler.
-        unimplemented!()
+        storage_reader: &StorageReader,
+        request: StorageReaderRequest,
+    ) -> Result<StorageReaderResponse, StorageError> {
+        // Validate that the request is relevant to StateSync.
+        // StateSync needs state diffs, block headers, and markers for synchronization.
+        match &request {
+            StorageReaderRequest::GetStateDiffLocation(_)
+            | StorageReaderRequest::GetStateDiffFromFile(_)
+            | StorageReaderRequest::GetBlockNumberByHash(_)
+            | StorageReaderRequest::GetBlockSignatureByNumber(_)
+            | StorageReaderRequest::GetMarker(_) => {
+                // Request is valid for StateSync, delegate to unified handler
+                let handler = StorageReaderHandler::new(storage_reader.clone());
+                handler.handle_request(request)
+            }
+            _ => Err(StorageError::InvalidRequest {
+                component: "StateSync".to_string(),
+                request_type: format!("{:?}", request),
+            }),
+        }
     }
 }
