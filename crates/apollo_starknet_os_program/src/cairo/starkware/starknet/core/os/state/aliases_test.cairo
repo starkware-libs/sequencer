@@ -1,5 +1,6 @@
 // TODO(Nimrod): Consider removing this file.
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.squash_dict import squash_dict
@@ -17,7 +18,7 @@ from starkware.starknet.core.os.state.aliases import (
     replace_aliases_and_serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.commitment import StateEntry
-from starkware.starknet.core.os.state.state import allocate_aliases_and_squash_state_changes
+from starkware.starknet.core.os.state.state import squash_state_changes_and_maybe_allocate_aliases
 
 func allocate_alias_for_keys{
     range_check_ptr,
@@ -96,9 +97,10 @@ func allocate_aliases_and_replace{range_check_ptr}(
     %{ state_update_pointers = None %}
     let (
         n_squashed_contracts, squashed_contract_state_changes
-    ) = allocate_aliases_and_squash_state_changes(
+    ) = squash_state_changes_and_maybe_allocate_aliases(
         contract_state_changes_start=contract_state_changes,
         contract_state_changes_end=&contract_state_changes[n_contracts],
+        should_allocate_aliases=TRUE,
     );
     let (aliases_entry: DictAccess*) = find_element(
         array_ptr=squashed_contract_state_changes,
