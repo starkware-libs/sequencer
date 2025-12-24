@@ -16,10 +16,9 @@ use crate::hints::hint_implementation::aggregator::implementation::{
     get_aggregator_output,
     get_chain_id_from_input,
     get_fee_token_address_from_input,
-    get_full_output_from_input,
     get_os_output_for_inner_blocks,
     get_public_keys_from_aggregator_input,
-    get_use_kzg_da_from_input,
+    get_use_kzg_da_and_full_output_from_input,
     set_state_update_pointers_to_none,
     write_da_segment,
 };
@@ -805,16 +804,7 @@ define_hint_enum!(
     (GetOsOuputForInnerBlocks, get_os_output_for_inner_blocks),
     (GetAggregatorOutput, get_aggregator_output),
     (WriteDaSegment, write_da_segment),
-    (
-        GetFullOutputFromInput,
-        get_full_output_from_input,
-        r#"memory[ap] = to_felt_or_relocatable(program_input["full_output"])"#
-    ),
-    (
-        GetUseKzgDaFromInput,
-        get_use_kzg_da_from_input,
-        r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
-    ),
+    (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
     (
         GetChainIdFromInput,
         get_chain_id_from_input,

@@ -30,8 +30,9 @@ func main{
     %{ GetOsOuputForInnerBlocks %}
 
     // Guess whether to use KZG commitment scheme and whether to output the full state.
-    tempvar use_kzg_da = nondet %{ program_input["use_kzg_da"] %};
-    tempvar full_output = nondet %{ program_input["full_output"] %};
+    local use_kzg_da;
+    local full_output;
+    %{ GetUseKzgDaAndFullOutputFromInput %}
 
     // Guess the committee's public keys.
     local public_keys: felt*;
