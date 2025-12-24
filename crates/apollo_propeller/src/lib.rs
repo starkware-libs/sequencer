@@ -2,6 +2,7 @@ pub mod behaviour;
 pub mod codec;
 #[cfg(test)]
 mod codec_test;
+pub mod config;
 pub mod handler;
 pub mod merkle;
 #[cfg(test)]
@@ -25,6 +26,7 @@ pub mod unit_validator;
 mod unit_validator_test;
 
 pub use behaviour::Behaviour;
+pub use config::Config;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
