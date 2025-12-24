@@ -46,6 +46,7 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::test_utils::{
     block_info,
     create_test_and_network_deps,
+    SetupDepsArgs,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
@@ -74,7 +75,7 @@ async fn cancelled_proposal_aborts() {
 #[tokio::test]
 async fn validate_proposal_success() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
@@ -137,8 +138,8 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         true => TX_BATCH.to_vec(),
         false => TX_BATCH.iter().take(TX_BATCH.len() - 1).cloned().collect(),
     };
-    let final_n_executed_txs = executed_transactions.len();
-    deps.setup_deps_for_validate(BlockNumber(0), final_n_executed_txs, 1);
+    let n_executed_txs_count = executed_transactions.len();
+    deps.setup_deps_for_validate(SetupDepsArgs { n_executed_txs_count, ..Default::default() });
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
@@ -153,7 +154,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap()))
+        .send(ProposalPart::ExecutedTransactionCount(n_executed_txs_count.try_into().unwrap()))
         .await
         .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
@@ -176,7 +177,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap())
+        ProposalPart::ExecutedTransactionCount(n_executed_txs_count.try_into().unwrap())
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
@@ -185,7 +186,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
 #[tokio::test]
 async fn proposals_from_different_rounds() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
@@ -245,7 +246,7 @@ async fn proposals_from_different_rounds() {
 #[tokio::test]
 async fn interrupt_active_proposal() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
@@ -294,7 +295,7 @@ async fn build_proposal() {
     let before: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
     let (mut deps, mut network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs::default());
     let mut context = deps.build_context();
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
     // Test proposal parts.
@@ -330,7 +331,7 @@ async fn build_proposal() {
 async fn build_proposal_skips_write_for_height_0() {
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs::default());
 
     // Make sure the state sync client isn't called by clearing its expectations.
     deps.state_sync_client = MockStateSyncClient::new();
@@ -353,7 +354,7 @@ async fn build_proposal_skips_write_for_height_above_0() {
 
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
 
     // We already have the previous block in sync:
     deps.state_sync_client
@@ -380,7 +381,7 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
 
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
 
     deps.state_sync_client.expect_get_latest_block_number().returning(|| {
         Err(StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
@@ -412,7 +413,7 @@ async fn build_proposal_cende_failure() {
     const HEIGHT: BlockNumber = BlockNumber(9);
 
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
     // We do not have the previous block in sync, so we must try to write the previous height blob.
     deps.state_sync_client
         .expect_get_latest_block_number()
@@ -443,7 +444,7 @@ async fn build_proposal_cende_incomplete() {
     const HEIGHT: BlockNumber = BlockNumber(9);
 
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(HEIGHT, INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
     // We do not have the previous block in sync, so we must try to write the previous height blob.
     deps.state_sync_client
         .expect_get_latest_block_number()
@@ -510,7 +511,10 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
         true => TX_BATCH.to_vec(),
         false => TX_BATCH.iter().take(TX_BATCH.len() - 1).cloned().collect(),
     };
-    deps.setup_deps_for_build(BlockNumber(0), transactions.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs {
+        n_executed_txs_count: transactions.len(),
+        ..Default::default()
+    });
     let mut context = deps.build_context();
     // Build proposal.
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
@@ -576,7 +580,7 @@ async fn eth_to_fri_rate_out_of_range() {
 #[tokio::test]
 async fn gas_price_limits(#[case] maximum: bool) {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
     let context_config = ContextDynamicConfig::default();
     let min_gas_price = context_config.min_l1_gas_price_wei;
     let min_data_price = context_config.min_l1_data_gas_price_wei;
@@ -649,7 +653,7 @@ async fn decision_reached_sends_correct_values() {
     // We need to create a valid proposal to call decision_reached on.
     //
     // 1. Build proposal setup starts.
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs::default());
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
     let mut clock = MockClock::new();
@@ -699,7 +703,7 @@ async fn decision_reached_sends_correct_values() {
 #[tokio::test]
 async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     let (mut deps, mut network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_build(SetupDepsArgs::default());
 
     if l1_oracle_failure {
         let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
@@ -774,8 +778,11 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     let (mut deps, mut network) = create_test_and_network_deps();
     // Validate block number 0, call decision_reached to save the previous block info (block 0), and
     // attempt to build_proposal on block number 1.
-    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len(), 1);
-    deps.setup_deps_for_build(BlockNumber(1), INTERNAL_TX_BATCH.len(), 1);
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+    deps.setup_deps_for_build(SetupDepsArgs {
+        start_block_number: BlockNumber(1),
+        ..Default::default()
+    });
 
     // set up batcher decision_reached
     deps.batcher.expect_decision_reached().times(1).return_once(|_| {
@@ -971,7 +978,15 @@ async fn override_prices_behavior(
 
     // Setup dependencies and mocks.
     #[allow(clippy::as_conversions)]
-    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), build_success as usize);
+    deps.setup_deps_for_build(SetupDepsArgs {
+        number_of_times: build_success as usize,
+        ..Default::default()
+    });
+    if !build_success {
+        // We use number_of_times equal zero in this case, but we still expect the start height to
+        // be called.
+        deps.batcher.expect_start_height().times(1).return_once(|_| Ok(()));
+    }
     deps.l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     deps.batcher.expect_decision_reached().return_once(move |_| {
         Ok(DecisionReachedResponse {
