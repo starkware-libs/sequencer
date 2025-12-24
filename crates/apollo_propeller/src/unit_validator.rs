@@ -26,6 +26,8 @@ pub struct UnitValidator {
     message_root: MessageRoot,
     /// The signature of the message.
     verified_signature: Option<Vec<u8>>,
+    /// The tree manager to use.
+    schedule_manager: Arc<PropellerScheduleManager>,
     /// The indices of the received shards.
     received_indices: HashSet<ShardIndex>,
 }
@@ -36,12 +38,13 @@ impl UnitValidator {
         publisher: PeerId,
         publisher_public_key: PublicKey,
         message_root: MessageRoot,
-        _tree_manager: Arc<PropellerScheduleManager>,
+        schedule_manager: Arc<PropellerScheduleManager>,
     ) -> Self {
         Self {
             channel,
             publisher,
             message_root,
+            schedule_manager,
             publisher_public_key,
             verified_signature: None,
             received_indices: HashSet::new(),
@@ -80,7 +83,7 @@ impl UnitValidator {
 
     pub fn validate_shard(
         &mut self,
-        _sender: PeerId,
+        sender: PeerId,
         unit: &PropellerUnit,
     ) -> Result<(), ShardValidationError> {
         // TODO(AndrewL): Think about how to correctly get rid of these assertions
@@ -92,7 +95,7 @@ impl UnitValidator {
             return Err(ShardValidationError::DuplicateShard);
         }
 
-        // TODO(AndrewL): Add tree_manager.validate_origin(sender, unit)?
+        self.schedule_manager.validate_origin(sender, unit.publisher(), unit.index())?;
         // TODO(AndrewL): Add proof verification
         self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
 
