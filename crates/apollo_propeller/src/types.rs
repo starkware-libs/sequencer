@@ -5,6 +5,36 @@ use thiserror::Error;
 
 use crate::MerkleHash;
 
+// TODO(AndrewL): reduce redundant documentation in this file
+
+/// Events emitted by the Propeller protocol to the application layer.
+#[derive(Debug, Clone)]
+pub enum Event {
+    /// A complete message has been reconstructed from shards.
+    MessageReceived { publisher: PeerId, message_root: MessageRoot, message: Vec<u8> },
+    /// Failed to reconstruct a message from shards.
+    MessageReconstructionFailed {
+        message_root: MessageRoot,
+        publisher: PeerId,
+        error: ReconstructionError,
+    },
+    // TODO(AndrewL): remove this and just use ShardSendFailed
+    /// Failed to broadcast a shard.
+    ShardPublishFailed { error: ShardPublishError },
+    /// Failed to send a shard to a peer.
+    ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: ShardPublishError },
+    /// Failed to verify shard
+    ShardValidationFailed {
+        /// The sender of the shard that filed verification. They should be reported.
+        sender: PeerId,
+        claimed_root: MessageRoot,
+        claimed_publisher: PeerId,
+        error: ShardValidationError,
+    },
+    /// Message processing timed out before completion.
+    MessageTimeout { channel: Channel, publisher: PeerId, message_root: MessageRoot },
+}
+
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 // TODO(AndrewL): rename to ChannelId
 // TODO(AndrewL): make it u64 instead of u32
