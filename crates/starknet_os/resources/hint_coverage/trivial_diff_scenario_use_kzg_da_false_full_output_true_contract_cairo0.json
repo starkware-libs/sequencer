@@ -243,9 +243,6 @@
     "OsHint": "TxCalldata"
   },
   {
-    "OsHint": "TxAccountDeploymentDataLen"
-  },
-  {
     "OsHint": "TxAccountDeploymentData"
   },
   {
