@@ -2262,6 +2262,7 @@ name = "apollo_protobuf"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_test_utils",
+ "asynchronous-codec",
  "bytes",
  "derive_more 2.1.1",
  "indexmap 2.12.0",
@@ -2273,6 +2274,7 @@ dependencies = [
  "protoc-prebuilt",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -2281,6 +2283,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "tracing-subscriber",
+ "unsigned-varint 0.8.0",
 ]
 
 [[package]]
