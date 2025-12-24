@@ -2,7 +2,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
-    insert_value_into_ap,
+    insert_value_from_var_name,
 };
 use starknet_types_core::felt::Felt;
 
@@ -22,7 +22,13 @@ pub(crate) fn is_block_number_in_block_hash_buffer(
     let stored_block_hash_buffer = Const::StoredBlockHashBuffer.fetch(constants)?;
     let is_block_number_in_block_hash_buffer =
         request_block_number > current_block_number - stored_block_hash_buffer;
-    insert_value_into_ap(vm, Felt::from(is_block_number_in_block_hash_buffer))?;
+    insert_value_from_var_name(
+        Ids::IsBlockNumberInBlockHashBuffer.into(),
+        Felt::from(is_block_number_in_block_hash_buffer),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
