@@ -74,7 +74,7 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     log_remaining_txs,
     os_input_transactions,
     segments_add,
-    segments_add_temp,
+    segments_add_temp_initial_txs_range_check_ptr,
     set_ap_to_actual_fee,
     set_component_hashes,
     sha2_finalize,
@@ -464,12 +464,7 @@ define_stateless_hint_enum!(
     (GetPrevOffset, get_prev_offset),
     (CompressionHint, compression_hint),
     (SetDecompressedDst, set_decompressed_dst),
-    (
-        SegmentsAddTemp,
-        segments_add_temp,
-        indoc! {r#"memory[fp + 5] = to_felt_or_relocatable(segments.add_temp_segment())"#
-        }
-    ),
+    (SegmentsAddTempInitialTxsRangeCheckPtr, segments_add_temp_initial_txs_range_check_ptr),
     (
         SegmentsAdd,
         segments_add,

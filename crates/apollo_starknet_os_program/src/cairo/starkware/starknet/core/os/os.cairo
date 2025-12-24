@@ -103,7 +103,8 @@ func main{
     local n_blocks = nondet %{ len(os_input.block_inputs) %};
     let (local os_outputs: OsOutput*) = alloc();
     %{ InitStateUpdatePointers %}
-    local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
+    local initial_txs_range_check_ptr;
+    %{ SegmentsAddTempInitialTxsRangeCheckPtr %}
     let txs_range_check_ptr = initial_txs_range_check_ptr;
     with txs_range_check_ptr {
         execute_blocks(
