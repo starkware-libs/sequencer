@@ -144,9 +144,50 @@ class EchonetConfig:
     resync: ResyncConfig
     l1: L1Config
 
+    @staticmethod
+    def _load_keys_from_dir(keys_dir: str) -> dict[str, str]:
+        keys_path = Path(keys_dir)
+
+        if not keys_path.exists():
+            raise FileNotFoundError(f"Keys directory does not exist: {keys_dir}. ")
+
+        if not keys_path.is_dir():
+            raise ValueError(f"Keys path exists but is not a directory: {keys_dir}")
+
+        keys: dict[str, str] = {}
+
+        required_keys = ["L1_PROVIDER_API_KEY", "START_BLOCK_DEFAULT"]
+        optional_keys = {
+            "FEEDER_X_THROTTLING_BYPASS": "",
+            "BLOCKED_SENDERS": "",
+            "RESYNC_ERROR_THRESHOLD": "1",
+        }
+
+        for key_name in required_keys:
+            key_file = keys_path / key_name
+            if not key_file.exists():
+                raise FileNotFoundError(f"Required key not found: {key_file}. ")
+            with open(key_file, "r", encoding="utf-8") as f:
+                keys[key_name] = f.read().strip()
+
+        for key_name, default in optional_keys.items():
+            key_file = keys_path / key_name
+            if key_file.exists():
+                with open(key_file, "r", encoding="utf-8") as f:
+                    keys[key_name] = f.read().strip()
+            else:
+                keys[key_name] = default
+
+        return keys
+
     @classmethod
     def from_env(cls, env: Mapping[str, str] = os.environ) -> "EchonetConfig":
-        feeder_bypass = env.get("FEEDER_X_THROTTLING_BYPASS", "").strip()
+        keys_dir = env.get("KEYS_DIR")
+        if not keys_dir:
+            raise ValueError("KEYS_DIR environment variable must be set. ")
+        keys = cls._load_keys_from_dir(keys_dir)
+
+        feeder_bypass = keys["FEEDER_X_THROTTLING_BYPASS"]
         feeder_headers = (
             MappingProxyType({"X-Throttling-Bypass": feeder_bypass})
             if feeder_bypass
@@ -162,18 +203,18 @@ class EchonetConfig:
                 base_url_default="http://sequencer-node-service:8080",
             ),
             blocks=BlockRangeDefaults(
-                start_block=int(env["START_BLOCK_DEFAULT"]),
+                start_block=int(keys["START_BLOCK_DEFAULT"]),
             ),
             sleep=SleepConfig(),
             paths=PathsConfig(),
             tx_filter=TxFilterConfig(
-                blocked_senders=helpers.parse_csv_to_lower_set(env.get("BLOCKED_SENDERS", "")),
+                blocked_senders=helpers.parse_csv_to_lower_set(keys["BLOCKED_SENDERS"]),
             ),
             resync=ResyncConfig(
-                error_threshold=int(env.get("RESYNC_ERROR_THRESHOLD", "1")),
+                error_threshold=int(keys["RESYNC_ERROR_THRESHOLD"]),
             ),
             l1=L1Config(
-                l1_provider_api_key=env["L1_ALCHEMY_API_KEY"],
+                l1_provider_api_key=keys["L1_PROVIDER_API_KEY"],
             ),
         )
 

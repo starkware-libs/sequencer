@@ -60,6 +60,8 @@ spec:
               value: "/data/blocks"
             - name: ECHONET_LOG_DIR
               value: "/data/echonet"
+            - name: KEYS_DIR
+              value: "/etc/keys"
           command: ["bash","-lc"]
           args:
             - >
@@ -79,6 +81,7 @@ spec:
           volumeMounts:
             - { name: app-src, mountPath: /app }
             - { name: data-dir, mountPath: /data }
+            - { name: echonet-keys-volume, mountPath: /etc/keys, readOnly: true }
 
       volumes:
         - name: echonet-src-bundle
@@ -91,3 +94,6 @@ spec:
         - name: data-dir
           persistentVolumeClaim:
             claimName: echonet-data
+        - name: echonet-keys-volume
+          secret:
+            secretName: echonet-keys

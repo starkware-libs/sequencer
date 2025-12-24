@@ -179,37 +179,6 @@ def main(argv: list[str] | None = None) -> int:
         metavar="NAMESPACE",
         help="Kubernetes namespace to target (kubectl -n <ns>).",
     )
-    parser.add_argument(
-        "-t",
-        dest="feeder_x_throttling_bypass",
-        metavar="TOKEN",
-        help="X-Throttling-Bypass token value for feeder requests (FEEDER_X_THROTTLING_BYPASS env).",
-    )
-    parser.add_argument(
-        "-s",
-        dest="start_block_default",
-        metavar="BLOCK",
-        help="Starting block number (START_BLOCK_DEFAULT env).",
-    )
-    parser.add_argument(
-        "-e",
-        dest="resync_error_threshold",
-        metavar="COUNT",
-        help="Resync error threshold (RESYNC_ERROR_THRESHOLD env).",
-    )
-    parser.add_argument(
-        "-a",
-        dest="l1_alchemy_api_key",
-        metavar="API_KEY",
-        help="L1 Alchemy API key (L1_ALCHEMY_API_KEY env).",
-    )
-    parser.add_argument(
-        "-B",
-        "--blocked-senders",
-        dest="blocked_senders",
-        metavar="CSV",
-        help="Comma-separated sender addresses to block (BLOCKED_SENDERS env).",
-    )
 
     # Backwards-compat: translate legacy `-R` into the BooleanOptionalAction negative.
     if argv is None:
@@ -243,27 +212,7 @@ def main(argv: list[str] | None = None) -> int:
     # 2. Apply manifests
     logger.info("Applying manifests...")
     _run(["kubectl", *namespace_args, "apply", "-k", str(kustomize_dir)])
-
-    # 3. Optional env vars
-    env_args: list[str] = []
-    if args.feeder_x_throttling_bypass:
-        env_args.append(f"FEEDER_X_THROTTLING_BYPASS={args.feeder_x_throttling_bypass}")
-    if args.start_block_default:
-        env_args.append(f"START_BLOCK_DEFAULT={args.start_block_default}")
-    if args.resync_error_threshold:
-        env_args.append(f"RESYNC_ERROR_THRESHOLD={args.resync_error_threshold}")
-    if args.l1_alchemy_api_key:
-        env_args.append(f"L1_ALCHEMY_API_KEY={args.l1_alchemy_api_key}")
-    if args.blocked_senders:
-        env_args.append(f"BLOCKED_SENDERS={args.blocked_senders}")
-
-    if env_args:
-        logger.info("Setting env on deployment/echonet: %s", " ".join(env_args))
-        _run(
-            ["kubectl", *namespace_args, "set", "env", "deployment/echonet", *env_args],
-        )
-
-    # 4. Optional rollout restart
+    # 3. Optional rollout restart
     if args.roll_restart:
         logger.info("Rolling restart deployment/echonet...")
         _run(["kubectl", *namespace_args, "rollout", "restart", "deployment/echonet"])
