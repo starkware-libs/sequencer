@@ -17,10 +17,11 @@ use libp2p::swarm::handler::{
     FullyNegotiatedOutbound,
     StreamUpgradeError,
 };
-use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
+use libp2p::swarm::{Stream, SubstreamProtocol};
 use prost::Message;
 use tracing::{error, trace, warn};
 
+use crate::config::Config;
 use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
 
@@ -105,15 +106,16 @@ enum OutboundSubstreamState {
 
 impl Handler {
     /// Builds a new [`Handler`].
-    pub fn new(stream_protocol: StreamProtocol, max_wire_message_size: usize) -> Self {
-        let protocol = PropellerProtocol::new(stream_protocol, max_wire_message_size);
+    pub fn new(config: &Config) -> Self {
+        let protocol =
+            PropellerProtocol::new(config.stream_protocol.clone(), config.max_wire_message_size);
         Handler {
             listen_protocol: protocol,
             inbound_substream: std::array::from_fn(|_| None),
             outbound_substream: std::array::from_fn(|_| OutboundSubstreamState::Idle),
             send_queue: VecDeque::new(),
             events_to_emit: VecDeque::new(),
-            max_wire_message_size,
+            max_wire_message_size: config.max_wire_message_size,
         }
     }
 
