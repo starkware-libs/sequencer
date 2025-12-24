@@ -16,6 +16,8 @@ use libp2p::swarm::handler::{
     FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
+use prost::Message;
+use tracing::warn;
 
 use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
@@ -37,23 +39,52 @@ pub enum HandlerIn {
 }
 
 /// Protocol Handler that manages substreams with a peer.
+///
+/// We use separate unidirectional substreams: outbound for sending and inbound for receiving.
+// TODO(AndrewL): Add this to the specs.
 pub struct Handler {
     /// Upgrade configuration for the propeller protocol.
     listen_protocol: PropellerProtocol,
     /// The single long-lived inbound substream.
     inbound_substream: Option<InboundSubstreamState>,
+    /// The single long-lived outbound substream.
+    outbound_substream: OutboundSubstreamState,
     /// Queue of messages to send.
     send_queue: VecDeque<ProtoUnit>,
-    /// Queue of received messages to emit.
-    receive_queue: VecDeque<PropellerUnit>,
+    /// Queue of events to emit to the behaviour (received units, errors, etc.).
+    ///
+    /// Events are pushed here from various sources (inbound messages, connection errors) and
+    /// drained as the highest priority in `poll_inner`.
+    events_to_emit: VecDeque<HandlerOut>,
+    /// Maximum wire message size for batching.
+    max_wire_message_size: usize,
 }
 
-/// State of the inbound substream, opened either by us or by the remote.
+/// State of the inbound substream, opened by the remote peer.
 enum InboundSubstreamState {
     /// Waiting for a message from the remote. The idle state for an inbound substream.
     WaitingInput(Framed<Stream, PropellerCodec>),
     /// The substream is being closed.
     Closing(Framed<Stream, PropellerCodec>),
+}
+
+/// State of the outbound substream, opened by us.
+enum OutboundSubstreamState {
+    /// No substream exists and no request is pending.
+    Idle,
+    /// A substream request has been sent but not yet negotiated.
+    Pending,
+    /// The substream is active and ready to send messages.
+    Active {
+        substream: Framed<Stream, PropellerCodec>,
+        /// True if we've sent data and need to flush the stream.
+        ///
+        /// In this implementation we use flush to ensure that the data was actually sent. Without
+        /// flushing periodically we cannot be certain what was sent and what failed when a failure
+        /// occurs.
+        // TODO(AndrewL): Discuss not flushing
+        should_flush: bool,
+    },
 }
 
 impl Handler {
@@ -63,8 +94,10 @@ impl Handler {
         Handler {
             listen_protocol: protocol,
             inbound_substream: None,
+            outbound_substream: OutboundSubstreamState::Idle,
             send_queue: VecDeque::new(),
-            receive_queue: VecDeque::new(),
+            events_to_emit: VecDeque::new(),
+            max_wire_message_size,
         }
     }
 
@@ -143,7 +176,7 @@ impl Handler {
         for proto_unit in batch.batch {
             match PropellerUnit::try_from(proto_unit) {
                 Ok(unit) => {
-                    self.receive_queue.push_back(unit);
+                    self.events_to_emit.push_back(HandlerOut::Unit(unit));
                 }
                 Err(e) => {
                     // TODO(AndrewL): Either remove this warning or make it once every N ms.
@@ -151,6 +184,33 @@ impl Handler {
                 }
             }
         }
+    }
+
+    /// Create a batch of messages from the send queue that fits within max_wire_message_size.
+    fn create_message_batch(
+        send_queue: &mut VecDeque<ProtoUnit>,
+        max_wire_message_size: usize,
+    ) -> ProtoBatch {
+        if send_queue.is_empty() {
+            return ProtoBatch { batch: Vec::new() };
+        }
+
+        let mut batch = ProtoBatch { batch: vec![send_queue.pop_front().unwrap()] };
+        if batch.encoded_len() > max_wire_message_size {
+            warn!("Propeller unit size exceeds max wire message size, sending will fail");
+        }
+
+        while let Some(msg) = send_queue.front() {
+            batch.batch.push(msg.clone());
+            if batch.encoded_len() <= max_wire_message_size {
+                send_queue.pop_front();
+            } else {
+                batch.batch.pop();
+                break;
+            }
+        }
+
+        batch
     }
 
     fn on_fully_negotiated_inbound(&mut self, substream: Framed<Stream, PropellerCodec>) {
@@ -165,17 +225,26 @@ impl Handler {
 
     fn on_fully_negotiated_outbound(
         &mut self,
-        _fully_negotiated_outbound: FullyNegotiatedOutbound<
+        fully_negotiated_outbound: FullyNegotiatedOutbound<
             <Handler as ConnectionHandler>::OutboundProtocol,
         >,
     ) {
-        // TODO(AndrewL): Implement outbound substream handling
-        todo!("Outbound substream handling not yet implemented")
+        if let OutboundSubstreamState::Active { should_flush, .. } = &self.outbound_substream {
+            if *should_flush {
+                tracing::warn!(
+                    "New outbound substream while existing substream has pending data, data may \
+                     be lost"
+                );
+            }
+        }
+
+        let substream = fully_negotiated_outbound.protocol;
+        self.outbound_substream = OutboundSubstreamState::Active { substream, should_flush: false };
     }
 
     fn poll_send(
         &mut self,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<
         ConnectionHandlerEvent<
             <Handler as ConnectionHandler>::OutboundProtocol,
@@ -183,7 +252,101 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
-        // TODO(AndrewL): Implement outbound message sending
+        // Only request an outbound substream when there are messages to send.
+        // Without this guard, a DialUpgradeError (e.g. from an unsupported peer) resets state to
+        // Idle, and the next poll would immediately request another substream — even with an empty
+        // queue — causing infinite negotiation churn.
+        match &self.outbound_substream {
+            OutboundSubstreamState::Idle => {
+                if self.send_queue.is_empty() {
+                    return Poll::Pending;
+                }
+                self.outbound_substream = OutboundSubstreamState::Pending;
+                return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
+                    protocol: SubstreamProtocol::new(self.listen_protocol.clone(), ()),
+                });
+            }
+            OutboundSubstreamState::Pending => {
+                return Poll::Pending;
+            }
+            _ => {}
+        }
+
+        loop {
+            let OutboundSubstreamState::Active { mut substream, mut should_flush } =
+                std::mem::replace(&mut self.outbound_substream, OutboundSubstreamState::Idle)
+            else {
+                unreachable!("outbound_substream is Active at the start of this loop");
+            };
+
+            if self.send_queue.is_empty() {
+                // Queue is empty, maybe we just need to flush the stream
+                if should_flush {
+                    match Sink::poll_flush(Pin::new(&mut substream), cx) {
+                        Poll::Ready(Ok(())) => {
+                            should_flush = false;
+                            self.outbound_substream =
+                                OutboundSubstreamState::Active { substream, should_flush };
+                            continue;
+                        }
+                        Poll::Ready(Err(e)) => {
+                            tracing::error!("Failed to flush outbound stream: {e}");
+                            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                HandlerOut::SendError(e.to_string()),
+                            ));
+                        }
+                        Poll::Pending => {
+                            self.outbound_substream =
+                                OutboundSubstreamState::Active { substream, should_flush };
+                            break;
+                        }
+                    }
+                } else {
+                    self.outbound_substream =
+                        OutboundSubstreamState::Active { substream, should_flush };
+                    break;
+                }
+            } else {
+                match Sink::poll_ready(Pin::new(&mut substream), cx) {
+                    Poll::Ready(Ok(())) => {
+                        let message = Self::create_message_batch(
+                            &mut self.send_queue,
+                            self.max_wire_message_size,
+                        );
+                        match Sink::start_send(Pin::new(&mut substream), message) {
+                            Ok(()) => {
+                                // Try sending more messages if there are any
+                                should_flush = true;
+                                self.outbound_substream =
+                                    OutboundSubstreamState::Active { substream, should_flush };
+                                continue;
+                            }
+                            Err(e) => {
+                                // TODO(AndrewL): Units were lost, consider a re-try mechanism.
+                                tracing::error!("Failed to send message on outbound stream: {e}");
+                                return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                    HandlerOut::SendError(e.to_string()),
+                                ));
+                            }
+                        }
+                    }
+                    Poll::Ready(Err(e)) => {
+                        // TODO(AndrewL): Units were lost, consider a re-try mechanism.
+                        tracing::error!("Failed to send message on outbound stream: {e}");
+                        return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                            HandlerOut::SendError(e.to_string()),
+                        ));
+                    }
+                    Poll::Pending => {
+                        // Not ready to send more messages yet
+                        self.outbound_substream =
+                            OutboundSubstreamState::Active { substream, should_flush };
+                        break;
+                    }
+                }
+            }
+        }
+
         Poll::Pending
     }
 
@@ -197,9 +360,9 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
-        // First, emit any queued received messages
-        if let Some(message) = self.receive_queue.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
+        // Drain any queued events first (received units, errors from DialUpgradeError, etc.)
+        if let Some(event) = self.events_to_emit.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
         }
 
         // Process outbound stream
@@ -210,9 +373,9 @@ impl Handler {
         // Poll inbound substream to receive messages
         self.poll_inbound_substream(cx);
 
-        // Check receive queue again after polling inbound substream
-        if let Some(message) = self.receive_queue.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
+        // Check the queue again — poll_inbound_substream may have enqueued new events
+        if let Some(event) = self.events_to_emit.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
         }
 
         Poll::Pending
@@ -259,9 +422,25 @@ impl ConnectionHandler for Handler {
             ConnectionEvent::FullyNegotiatedOutbound(fully_negotiated_outbound) => {
                 self.on_fully_negotiated_outbound(fully_negotiated_outbound)
             }
-            _ => {
-                // TODO(AndrewL): Handle DialUpgradeError variants
+            ConnectionEvent::DialUpgradeError(_) => {
+                if !matches!(self.outbound_substream, OutboundSubstreamState::Pending) {
+                    tracing::error!(
+                        "Dial upgrade error but no pending substream found. (File a bug report if \
+                         you see this)"
+                    );
+                }
+
+                // TODO(AndrewL): Handle DialUpgradeError properly. Current issues:
+                // 1. Silent delivery failure: send_queue is not drained, so messages accumulate
+                //    with no failure signal to the behaviour.
+                // 2. Infinite renegotiation loop: resetting to Idle while send_queue is non-empty
+                //    causes poll_send to immediately request another OutboundSubstreamRequest,
+                //    looping forever against unsupported peers.
+                // Fix: drain send_queue, push a HandlerOut::SendError onto events_to_emit with
+                // the dropped count, and reset to Idle.
+                self.outbound_substream = OutboundSubstreamState::Idle;
             }
+            _ => {}
         }
     }
 }

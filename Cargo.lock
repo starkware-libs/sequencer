@@ -2344,6 +2344,7 @@ dependencies = [
  "asynchronous-codec",
  "futures",
  "libp2p",
+ "prost",
  "reed-solomon-simd",
  "rstest",
  "sha2 0.10.9",
