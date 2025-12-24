@@ -180,10 +180,7 @@
     "OsHint": "BlockNumberTimestampAndAddress"
   },
   {
-    "OsHint": "ChainId"
-  },
-  {
-    "OsHint": "FeeTokenAddress"
+    "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
     "OsHint": "WriteUseKzgDaToMemory"
