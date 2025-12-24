@@ -93,11 +93,15 @@ pub enum PeerSetError {
     LocalPeerNotInChannel,
     #[error("Invalid public key")]
     InvalidPublicKey,
+    #[error("Duplicate peer IDs")]
+    DuplicatePeerIds,
 }
 
 /// Specific errors that can occur during shard verification.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ShardValidationError {
+    #[error("Self received a shard from myself (libp2p should not allow this)")]
+    SelfSending,
     #[error("Publisher should not receive their own shard")]
     ReceivedSelfPublishedShard,
     #[error("Received shard that is already in cache (duplicate)")]
