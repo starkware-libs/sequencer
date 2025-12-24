@@ -69,10 +69,7 @@
     "AggregatorHint": "GetUseKzgDaAndFullOutputFromInput"
   },
   {
-    "AggregatorHint": "GetChainIdFromInput"
-  },
-  {
-    "AggregatorHint": "GetFeeTokenAddressFromInput"
+    "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
   },
   {
     "AggregatorHint": "GetPublicKeysFromAggregatorInput"
