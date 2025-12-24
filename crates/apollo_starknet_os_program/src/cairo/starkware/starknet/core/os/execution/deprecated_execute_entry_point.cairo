@@ -225,10 +225,11 @@ func select_execute_entry_point_func{
     // TODO(Yoni): SIERRA_GAS_MODE - move back inside `execute_entry_point` functions.
     %{ EnterCall %}
 
+    local is_deprecated;
     %{ CheckIsDeprecated %}
     // Note that the class_hash is validated in both the `if` and `else` cases, so a malicious
     // prover won't be able to produce a proof if guesses the wrong case.
-    if (nondet %{ is_deprecated %} != FALSE) {
+    if (is_deprecated != FALSE) {
         let (is_reverted, retdata_size, retdata: felt*) = deprecated_execute_entry_point(
             block_context=block_context, execution_context=execution_context
         );
