@@ -995,6 +995,7 @@ impl Batcher {
     /// If the optional configuration [BatcherConfig::first_block_with_partial_block_hash] is set,
     /// and the given height is the first block with partial block hash components, we will set
     /// the parent hash of this block and verify the configured value.
+    /// Assumption: we call this function only for new blocks.
     fn maybe_handle_first_block_with_partial_block_hash(
         &mut self,
         parent_block_hash_from_sync: BlockHash,
@@ -1006,7 +1007,12 @@ impl Batcher {
             // No config is set, nothing to do.
             return Ok(());
         };
-        if height != *block_number {
+        assert!(
+            height >= *block_number,
+            "Block number {height} is a new block but is older than the configured first block \
+             with partial block hash components {block_number}"
+        );
+        if height > *block_number {
             // Config is set but given height is not the first new block - nothing to do.
             return Ok(());
         }

@@ -106,7 +106,7 @@ use crate::test_utils::{
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
-const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber = INITIAL_HEIGHT.unchecked_next();
+const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber = INITIAL_HEIGHT.prev().unwrap();
 const DUMMY_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0xdeadbeef"));
 const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -1061,13 +1061,16 @@ async fn proposal_startup_failure_allows_new_proposals() {
 }
 
 #[rstest]
-#[case::new_sync_block(Some(PartialBlockHashComponents {
+#[case::new_sync_block(INITIAL_HEIGHT, Some(PartialBlockHashComponents {
     block_number: INITIAL_HEIGHT,
     ..Default::default()
 }))]
-#[case::old_sync_block(None)]
+#[case::old_sync_block(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap(), None)]
 #[tokio::test]
-async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlockHashComponents>) {
+async fn add_sync_block(
+    #[case] block_number: BlockNumber,
+    #[case] partial_block_hash_components: Option<PartialBlockHashComponents>,
+) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
@@ -1088,11 +1091,15 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
 
     let mut mock_clients = MockClients::default();
 
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_height().returning(move || Ok(block_number));
+    storage_reader.expect_block_hash_height().returning(move || Ok(block_number));
+
     let mut storage_writer = MockBatcherStorageWriter::new();
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(storage_commitment_block_hash))
+        .with(eq(block_number), eq(test_state_diff()), eq(storage_commitment_block_hash))
         .returning(|_, _, _| Ok(()));
 
     mock_clients
@@ -1109,11 +1116,15 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(l1_transaction_hashes.clone()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
+        .with(eq(l1_transaction_hashes.clone()), eq(IndexSet::new()), eq(block_number))
         .returning(|_, _, _| Ok(()));
 
-    let mock_dependencies =
-        MockDependencies { storage_writer, clients: mock_clients, ..Default::default() };
+    let mock_dependencies = MockDependencies {
+        storage_reader,
+        storage_writer,
+        clients: mock_clients,
+        ..Default::default()
+    };
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1121,7 +1132,7 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
 
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: INITIAL_HEIGHT,
+            block_number,
             starknet_version,
             ..Default::default()
         },
@@ -1134,12 +1145,12 @@ async fn add_sync_block(#[case] partial_block_hash_components: Option<PartialBlo
     let metrics = recorder.handle().render();
     assert_eq!(
         STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
-        Some(INITIAL_HEIGHT.unchecked_next().0)
+        Some(block_number.unchecked_next().0)
     );
     let metrics = recorder.handle().render();
     assert_eq!(
         LAST_SYNCED_BLOCK_HEIGHT.parse_numeric_metric::<u64>(&metrics),
-        Some(INITIAL_HEIGHT.0)
+        Some(block_number.0)
     );
     assert_eq!(
         SYNCED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
@@ -1301,6 +1312,33 @@ async fn add_sync_block_parent_hash_mismatch() {
             block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
             starknet_version: StarknetVersion::LATEST,
             parent_hash: wrong_parent_hash,
+            ..Default::default()
+        },
+        block_header_commitments: Some(Default::default()),
+        ..Default::default()
+    };
+    let _ = batcher.add_sync_block(sync_block).await;
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "is a new block but is older than the configured first block with \
+                           partial block hash components")]
+async fn add_sync_block_with_partial_block_hash_but_older_than_configured_first_block() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader
+        .expect_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()));
+    storage_reader
+        .expect_block_hash_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()));
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let sync_block = SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap(),
+            starknet_version: StarknetVersion::LATEST,
             ..Default::default()
         },
         block_header_commitments: Some(Default::default()),
