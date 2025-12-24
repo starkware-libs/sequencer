@@ -1,5 +1,6 @@
 pub mod behaviour;
 pub mod codec;
+pub mod config;
 pub mod handler;
 pub mod merkle;
 pub mod protocol;
@@ -11,6 +12,7 @@ pub mod unit;
 pub mod unit_validator;
 
 pub use behaviour::Behaviour;
+pub use config::Config;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerTreeManager, Stake};

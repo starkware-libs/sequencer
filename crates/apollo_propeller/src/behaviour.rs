@@ -16,21 +16,22 @@ use libp2p::swarm::{
     ToSwarm,
 };
 
+use crate::config::Config;
 use crate::handler::{Handler, HandlerIn, HandlerOut};
 use crate::types::Event;
 
 /// The Propeller network behaviour.
 pub struct Behaviour {
+    /// Configuration for this behaviour.
+    config: Config,
     /// Events to be returned to the swarm.
     events: VecDeque<ToSwarm<Event, HandlerIn>>,
-    /// Maximum wire message size for handlers.
-    max_wire_message_size: usize,
 }
 
 impl Behaviour {
     /// Create a new Propeller behaviour.
-    pub fn new(max_wire_message_size: usize) -> Self {
-        Self { events: VecDeque::new(), max_wire_message_size }
+    pub fn new(config: Config) -> Self {
+        Self { config, events: VecDeque::new() }
     }
 }
 
@@ -45,10 +46,7 @@ impl NetworkBehaviour for Behaviour {
         _local_addr: &libp2p::core::Multiaddr,
         _remote_addr: &libp2p::core::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(
-            libp2p::swarm::StreamProtocol::new("/propeller/1.0.0"),
-            self.max_wire_message_size,
-        ))
+        Ok(Handler::new(self.config.stream_protocol().clone(), self.config.max_wire_message_size()))
     }
 
     fn handle_established_outbound_connection(
@@ -59,10 +57,7 @@ impl NetworkBehaviour for Behaviour {
         _role_override: Endpoint,
         _port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(
-            libp2p::swarm::StreamProtocol::new("/propeller/1.0.0"),
-            self.max_wire_message_size,
-        ))
+        Ok(Handler::new(self.config.stream_protocol().clone(), self.config.max_wire_message_size()))
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
