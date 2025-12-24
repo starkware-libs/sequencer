@@ -51,8 +51,9 @@ pub struct InvokeTxArgs {
     pub nonce: Nonce,
     pub only_query: bool,
     pub tx_hash: TransactionHash,
+    // TODO(AvivG): make sure non default proof fields are used in the tests.
     pub proof_facts: ProofFacts,
-    // TODO(AvivG): Consider adding `proof` field.
+    pub proof: Proof,
 }
 
 impl Default for InvokeTxArgs {
@@ -73,6 +74,7 @@ impl Default for InvokeTxArgs {
             only_query: false,
             tx_hash: TransactionHash::default(),
             proof_facts: ProofFacts::default(),
+            proof: Proof::default(),
         }
     }
 }
@@ -161,8 +163,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         paymaster_data: invoke_args.paymaster_data,
         account_deployment_data: invoke_args.account_deployment_data,
         proof_facts: invoke_args.proof_facts,
-        // TODO(AvivG): Consider getting proof field from invoke_args.
-        proof: Proof::default(),
+        proof: invoke_args.proof,
     }))
 }
 
