@@ -68,8 +68,10 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
     block_context: BlockContext*
 ) {
     alloc_locals;
-    tempvar block_number = nondet %{ syscall_handler.block_info.block_number %};
-    tempvar block_timestamp = nondet %{ syscall_handler.block_info.block_timestamp %};
+    local block_number;
+    local block_timestamp;
+    local sequencer_address;
+    %{ BlockNumberTimestampAndAddress %}
     let (divided_block_number, _) = unsigned_div_rem(block_number, VALIDATE_BLOCK_NUMBER_ROUNDING);
     tempvar block_number_for_validate = divided_block_number * VALIDATE_BLOCK_NUMBER_ROUNDING;
     let (divided_block_timestamp, _) = unsigned_div_rem(
@@ -82,7 +84,7 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
         block_info_for_execute=new BlockInfo(
             block_number=block_number,
             block_timestamp=block_timestamp,
-            sequencer_address=nondet %{ syscall_handler.block_info.sequencer_address %},
+            sequencer_address=sequencer_address,
         ),
         block_info_for_validate=new BlockInfo(
             block_number=block_number_for_validate,
