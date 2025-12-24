@@ -177,6 +177,7 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     Ok([d0, d1, Felt::from(d2)])
 }
 
+#[allow(dead_code)]
 pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
