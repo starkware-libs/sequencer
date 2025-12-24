@@ -192,19 +192,13 @@
     "OsHint": "EnterScopeWithBytecodeSegmentStructure"
   },
   {
-    "OsHint": "BlockNumber"
-  },
-  {
-    "OsHint": "BlockTimestamp"
+    "OsHint": "GuessBlockInfo"
   },
   {
     "OsHint": "ChainId"
   },
   {
     "OsHint": "FeeTokenAddress"
-  },
-  {
-    "OsHint": "SequencerAddress"
   },
   {
     "OsHint": "WriteUseKzgDaToMemory"
