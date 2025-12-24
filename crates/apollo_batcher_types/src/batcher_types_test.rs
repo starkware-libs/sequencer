@@ -2,18 +2,17 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_storage::state::StateStorageWriter;
-use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServer};
+use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_server_test_utils::get_response;
+use apollo_storage::storage_reader_types::{
+    GenericStorageReaderServer,
+    StorageReaderRequest,
+    StorageReaderResponse,
+};
 use apollo_storage::test_utils::get_test_storage;
 use axum::http::StatusCode;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
-
-use crate::batcher_types::{
-    BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
-};
 
 #[tokio::test]
 async fn batcher_state_diff_location_request() {
@@ -36,11 +35,7 @@ async fn batcher_state_diff_location_request() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server = StorageReaderServer::<
-        BatcherStorageReaderServerHandler,
-        BatcherStorageRequest,
-        BatcherStorageResponse,
-    >::new(reader.clone(), config);
+    let server = GenericStorageReaderServer::new(reader.clone(), config);
     let app = server.app();
 
     let expected_location = reader
@@ -50,9 +45,8 @@ async fn batcher_state_diff_location_request() {
         .unwrap()
         .expect("State diff location should exist");
 
-    let request = BatcherStorageRequest::StateDiffLocation(block_number);
-    let batcher_response: BatcherStorageResponse =
-        get_response(app, &request, StatusCode::OK).await;
+    let request = StorageReaderRequest::StateDiffLocation(block_number);
+    let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
 
-    assert_eq!(batcher_response, BatcherStorageResponse::StateDiffLocation(expected_location));
+    assert_eq!(response, StorageReaderResponse::StateDiffLocation(expected_location));
 }
