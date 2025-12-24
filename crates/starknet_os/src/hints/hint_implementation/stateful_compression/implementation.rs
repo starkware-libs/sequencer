@@ -179,7 +179,13 @@ pub(crate) fn contract_address_le_max_for_compression(
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
     let max_contract_address = *Const::MaxNonCompressedContractAddress.fetch(constants)?;
-    Ok(insert_value_into_ap(vm, Felt::from(contract_address <= max_contract_address))?)
+    Ok(insert_value_from_var_name(
+        Ids::ContractAddressLeMaxForCompression.into(),
+        Felt::from(contract_address <= max_contract_address),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn load_storage_ptr_and_prev_state<'program, CHP: CommonHintProcessor<'program>>(
