@@ -1302,12 +1302,12 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> apollo_storage::StorageResult<ThinStateDiff>;
 
-    fn get_partial_block_hash_components(
+    fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
+
+    fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
-    ) -> StorageResult<Option<PartialBlockHashComponents>>;
-
-    fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
+    ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1385,15 +1385,24 @@ impl BatcherStorageReader for StorageReader {
         })
     }
 
-    fn get_partial_block_hash_components(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<PartialBlockHashComponents>> {
-        self.begin_ro_txn()?.get_partial_block_hash_components(&height)
-    }
-
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>> {
         self.begin_ro_txn()?.get_block_hash(&height)
+    }
+
+    fn get_parent_hash_and_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
+        let txn = self.begin_ro_txn()?;
+        let parent_hash = match height.prev() {
+            None => {
+                // The parent hash of the genesis block is zero.
+                Some(BlockHash::default())
+            }
+            Some(parent_height) => txn.get_block_hash(&parent_height)?,
+        };
+        let partial_block_hash_components = txn.get_partial_block_hash_components(&height)?;
+        Ok((parent_hash, partial_block_hash_components))
     }
 }
 

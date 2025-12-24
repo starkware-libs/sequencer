@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use apollo_reverts::RevertConfig;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::calculate_block_hash;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
@@ -206,20 +206,15 @@ impl CommitmentManager {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-
-                // TODO(Nimrod): Extend the storage reader to fetch both parent hash and partial
-                // components in a single tx and use it here.
-                let parent_hash = match height.prev() {
-                    None => {
-                        // The parent hash of the genesis block is zero.
-                        BlockHash::default()
-                    }
-                    Some(parent_height) => storage_reader
-                        .get_block_hash(parent_height)?
-                        .ok_or(CommitmentManagerError::MissingBlockHash(parent_height))?,
-                };
-                let partial_block_hash_components = storage_reader
-                    .get_partial_block_hash_components(height)?
+                let (parent_hash, partial_block_hash_components) =
+                    storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
+                let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
+                    height.prev().expect(
+                        "For the genesis block, the block hash is constant and should not be \
+                         fetched from storage.",
+                    ),
+                ))?;
+                let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
                 let block_hash =
                     calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
