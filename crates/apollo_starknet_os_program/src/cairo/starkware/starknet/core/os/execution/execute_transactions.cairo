@@ -326,20 +326,25 @@ func get_account_tx_common_fields(
     block_context: BlockContext*, tx_hash_prefix: felt, sender_address: felt
 ) -> CommonTxFields* {
     tempvar resource_bounds: ResourceBounds*;
-    %{ LoadResourceBounds %}
+    tempvar tip;
+    tempvar paymaster_data_length;
+    tempvar paymaster_data: felt*;
+    tempvar nonce_data_availability_mode;
+    tempvar fee_data_availability_mode;
+    %{ LoadCommonTxFields %}
     tempvar common_tx_fields = new CommonTxFields(
         tx_hash_prefix=tx_hash_prefix,
         version=3,
         sender_address=sender_address,
         chain_id=block_context.os_global_context.starknet_os_config.chain_id,
         nonce=nondet %{ tx.nonce %},
-        tip=nondet %{ tx.tip %},
+        tip=tip,
         n_resource_bounds=3,
         resource_bounds=resource_bounds,
-        paymaster_data_length=nondet %{ len(tx.paymaster_data) %},
-        paymaster_data=cast(nondet %{ segments.gen_arg(tx.paymaster_data) %}, felt*),
-        nonce_data_availability_mode=nondet %{ tx.nonce_data_availability_mode %},
-        fee_data_availability_mode=nondet %{ tx.fee_data_availability_mode %},
+        paymaster_data_length=paymaster_data_length,
+        paymaster_data=paymaster_data,
+        nonce_data_availability_mode=nonce_data_availability_mode,
+        fee_data_availability_mode=fee_data_availability_mode,
     );
     return common_tx_fields;
 }
