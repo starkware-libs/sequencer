@@ -210,7 +210,7 @@
     "OsHint": "LoadNextTx"
   },
   {
-    "OsHint": "LoadResourceBounds"
+    "OsHint": "LoadCommonTxFields"
   },
   {
     "OsHint": "ExitTx"
@@ -235,21 +235,6 @@
   },
   {
     "OsHint": "TxCalldata"
-  },
-  {
-    "OsHint": "TxTip"
-  },
-  {
-    "OsHint": "TxPaymasterDataLen"
-  },
-  {
-    "OsHint": "TxPaymasterData"
-  },
-  {
-    "OsHint": "TxNonceDataAvailabilityMode"
-  },
-  {
-    "OsHint": "TxFeeDataAvailabilityMode"
   },
   {
     "OsHint": "TxAccountDeploymentDataLen"

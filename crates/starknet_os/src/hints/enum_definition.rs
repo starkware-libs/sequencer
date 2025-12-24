@@ -102,8 +102,8 @@ use crate::hints::hint_implementation::execution::implementation::{
     initial_ge_required_gas,
     is_remaining_gas_lt_initial_budget,
     is_reverted,
+    load_common_tx_fields,
     load_next_tx,
-    load_resource_bounds,
     prepare_constructor_execution,
     set_ap_to_tx_nonce,
     set_fp_to_tx_nonce,
@@ -112,12 +112,7 @@ use crate::hints::hint_implementation::execution::implementation::{
     tx_account_deployment_data_len,
     tx_calldata,
     tx_entry_point_selector,
-    tx_fee_data_availability_mode,
-    tx_nonce_data_availability_mode,
-    tx_paymaster_data,
-    tx_paymaster_data_len,
     tx_proof_facts,
-    tx_tip,
     tx_version,
     write_old_block_to_storage,
     write_syscall_result,
@@ -690,7 +685,7 @@ define_hint_enum!(
     (SkipTx, skip_tx),
     (SetComponentHashes, set_component_hashes),
     (LoadNextTx, load_next_tx),
-    (LoadResourceBounds, load_resource_bounds),
+    (LoadCommonTxFields, load_common_tx_fields),
     (ExitTx, exit_tx),
     (PrepareConstructorExecution, prepare_constructor_execution),
     (AssertTransactionHash, assert_transaction_hash),
@@ -703,27 +698,6 @@ define_hint_enum!(
     (TxCalldata, tx_calldata),
     (TxEntryPointSelector, tx_entry_point_selector),
     (TxVersion, tx_version),
-    (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(tx.tip)"),
-    (
-        TxPaymasterDataLen,
-        tx_paymaster_data_len,
-        "memory[ap] = to_felt_or_relocatable(len(tx.paymaster_data))"
-    ),
-    (
-        TxPaymasterData,
-        tx_paymaster_data,
-        "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.paymaster_data))"
-    ),
-    (
-        TxNonceDataAvailabilityMode,
-        tx_nonce_data_availability_mode,
-        "memory[ap] = to_felt_or_relocatable(tx.nonce_data_availability_mode)"
-    ),
-    (
-        TxFeeDataAvailabilityMode,
-        tx_fee_data_availability_mode,
-        "memory[ap] = to_felt_or_relocatable(tx.fee_data_availability_mode)"
-    ),
     (
         TxAccountDeploymentDataLen,
         tx_account_deployment_data_len,
