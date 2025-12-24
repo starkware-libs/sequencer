@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use libp2p::identity::Keypair;
@@ -18,34 +19,57 @@ use crate::{
 struct TestEnv {
     channel: Channel,
     message_root: MessageRoot,
-    keypair: Keypair,
+    signature: Vec<u8>,
+    validator: UnitValidator,
     publisher: PeerId,
-    #[allow(unused)] // TODO(AndrewL): remove this once we use it
     local_peer: PeerId,
-    tree_manager: Arc<PropellerScheduleManager>,
+    other_peers: Vec<PeerId>,
+    peer_to_index: HashMap<PeerId, ShardIndex>,
 }
 
 #[fixture]
 fn env() -> TestEnv {
-    let channel = Channel(1);
-    let message_root = MessageRoot([1u8; 32]);
+    const NUM_PEERS: i32 = 5;
+    const CHANNEL: Channel = Channel(1);
+    const MESSAGE_ROOT: MessageRoot = MessageRoot([1u8; 32]);
     let keypair = Keypair::generate_ed25519();
     let publisher = PeerId::from(keypair.public());
     let local_peer = PeerId::random();
-    let peers = vec![
-        (local_peer, 100),
-        (publisher, 80),
-        (PeerId::random(), 60),
-        (PeerId::random(), 40),
-        (PeerId::random(), 20),
-    ];
-    let tree_manager = Arc::new(PropellerScheduleManager::new(local_peer, peers.clone()).unwrap());
-    TestEnv { channel, message_root, keypair, publisher, local_peer, tree_manager }
+    let other_peers = (0..(NUM_PEERS - 2)).map(|_| PeerId::random()).collect::<Vec<_>>();
+
+    let mut peers = vec![(local_peer, 10), (publisher, 10)];
+    peers.extend(other_peers.iter().copied().map(|peer| (peer, 10)));
+
+    let schedule_manager = Arc::new(PropellerScheduleManager::new(local_peer, peers).unwrap());
+
+    let mut peer_to_index = HashMap::new();
+    for i in 0..(NUM_PEERS - 1) {
+        // TODO(AndrewL): Instead of testing that you use schedule_manager properly by calling its
+        // functions in the test, use automock and dependency injection
+        let index = ShardIndex(i.try_into().unwrap());
+        let peer = schedule_manager.get_peer_for_shard_index(&publisher, index).unwrap();
+        peer_to_index.insert(peer, index);
+    }
+
+    let validator =
+        UnitValidator::new(CHANNEL, publisher, keypair.public(), MESSAGE_ROOT, schedule_manager);
+    let signature = crate::signature::sign_message_id(&MESSAGE_ROOT, &keypair).unwrap();
+
+    TestEnv {
+        channel: CHANNEL,
+        message_root: MESSAGE_ROOT,
+        signature,
+        validator,
+        publisher,
+        local_peer,
+        other_peers,
+        peer_to_index,
+    }
 }
 
-fn custom_unit(env: &TestEnv, index: ShardIndex, tampered_signature: bool) -> PropellerUnit {
-    let mut correct_signature =
-        crate::signature::sign_message_id(&env.message_root, &env.keypair).unwrap();
+fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> PropellerUnit {
+    let index: ShardIndex = *env.peer_to_index.get(&owner).unwrap();
+    let mut correct_signature = env.signature.clone();
     let signature = if tampered_signature {
         *correct_signature.last_mut().unwrap() += 1;
         correct_signature
@@ -63,35 +87,21 @@ fn custom_unit(env: &TestEnv, index: ShardIndex, tampered_signature: bool) -> Pr
     )
 }
 
-fn unit(env: &TestEnv, index: ShardIndex) -> PropellerUnit {
-    custom_unit(env, index, false)
+fn unit(env: &TestEnv, owner: PeerId) -> PropellerUnit {
+    custom_unit(env, owner, false)
 }
 
 #[rstest]
-fn test_validation_of_legal_unit(env: TestEnv) {
-    let unit = unit(&env, ShardIndex(0));
-    let mut validator = UnitValidator::new(
-        env.channel,
-        env.publisher,
-        env.keypair.public(),
-        env.message_root,
-        env.tree_manager,
-    );
-    validator.validate_shard(env.publisher, &unit).ok();
+fn test_validation_of_legal_unit(mut env: TestEnv) {
+    let unit = unit(&env, env.local_peer);
+    env.validator.validate_shard(env.publisher, &unit).ok();
 }
 
 #[rstest]
-fn test_validation_fails_with_wrong_signature(env: TestEnv) {
-    let unit = custom_unit(&env, ShardIndex(0), true);
-    let mut validator = UnitValidator::new(
-        env.channel,
-        env.publisher,
-        env.keypair.public(),
-        env.message_root,
-        env.tree_manager.clone(),
-    );
+fn test_validation_fails_with_wrong_signature(mut env: TestEnv) {
+    let unit = custom_unit(&env, env.local_peer, true);
     assert!(matches!(
-        validator.validate_shard(env.publisher, &unit),
+        env.validator.validate_shard(env.publisher, &unit),
         Err(ShardValidationError::SignatureVerificationFailed(
             ShardSignatureVerificationError::VerificationFailed
         ))
@@ -99,19 +109,75 @@ fn test_validation_fails_with_wrong_signature(env: TestEnv) {
 }
 
 #[rstest]
-fn test_duplicate_shard_rejected(env: TestEnv) {
-    let unit = unit(&env, ShardIndex(0));
-    let mut validator = UnitValidator::new(
-        env.channel,
-        env.publisher,
-        env.keypair.public(),
-        env.message_root,
-        env.tree_manager.clone(),
-    );
-
-    validator.validate_shard(env.publisher, &unit).ok();
+fn test_duplicate_shard_rejected(mut env: TestEnv) {
+    let unit = unit(&env, env.local_peer);
+    env.validator.validate_shard(env.publisher, &unit).unwrap();
     assert!(matches!(
-        validator.validate_shard(env.publisher, &unit),
+        env.validator.validate_shard(env.publisher, &unit),
         Err(ShardValidationError::DuplicateShard)
     ));
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Sender {
+    Publisher,
+    LocalPeer,
+    OtherPeer1,
+    OtherPeer2,
+    Random,
+}
+
+impl Sender {
+    fn id(self, env: &TestEnv) -> PeerId {
+        match self {
+            Sender::Publisher => env.publisher,
+            Sender::LocalPeer => env.local_peer,
+            Sender::OtherPeer1 => env.other_peers[0],
+            Sender::OtherPeer2 => env.other_peers[1],
+            Sender::Random => PeerId::random(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum UnitOwner {
+    LocalPeer,
+    OtherPeer1,
+    OtherPeer2,
+}
+
+impl UnitOwner {
+    fn id(self, env: &TestEnv) -> PeerId {
+        match self {
+            UnitOwner::LocalPeer => env.local_peer,
+            UnitOwner::OtherPeer1 => env.other_peers[0],
+            UnitOwner::OtherPeer2 => env.other_peers[1],
+        }
+    }
+}
+
+#[rstest]
+fn test_unit_source_validation(
+    mut env: TestEnv,
+    #[values(
+        Sender::Publisher,
+        Sender::LocalPeer,
+        Sender::OtherPeer1,
+        Sender::OtherPeer2,
+        Sender::Random
+    )]
+    sender: Sender,
+    #[values(UnitOwner::LocalPeer, UnitOwner::OtherPeer1, UnitOwner::OtherPeer2)] owner: UnitOwner,
+) {
+    let my_unit = unit(&env, owner.id(&env));
+    let sender_id = sender.id(&env);
+    let result = env.validator.validate_shard(sender_id, &my_unit);
+    let hop1 = (sender == Sender::Publisher) && (owner == UnitOwner::LocalPeer);
+    let hop2_a = (sender == Sender::OtherPeer1) && (owner == UnitOwner::OtherPeer1);
+    let hop2_b = (sender == Sender::OtherPeer2) && (owner == UnitOwner::OtherPeer2);
+    if hop1 || hop2_a || hop2_b {
+        assert_eq!(result, Ok(()));
+    } else {
+        result.unwrap_err();
+    }
 }
