@@ -23,6 +23,7 @@ use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempo
 use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
+use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -225,6 +226,7 @@ pub fn create_gateway(
     shared_state_sync_client: SharedStateSyncClient,
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
+    proof_manager_client: SharedProofManagerClient,
     runtime: tokio::runtime::Handle,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
@@ -234,6 +236,7 @@ pub fn create_gateway(
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
+        proof_manager_client,
         config.chain_info.chain_id.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {

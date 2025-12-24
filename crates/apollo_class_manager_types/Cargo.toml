@@ -15,6 +15,7 @@ workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_infra.workspace = true
 apollo_proc_macros.workspace = true
+apollo_proof_manager_types.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
@@ -27,6 +28,7 @@ thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 mempool_test_utils.workspace = true
