@@ -194,6 +194,7 @@ define_string_enum! {
         (InitialRoot),
         (InitialTxsRangeCheckPtr),
         (IsBlockNumberInBlockHashBuffer),
+        (IsDeprecated),
         (IsLeaf),
         (IsNUpdatesSmall),
         (IsOnCurve),
