@@ -33,6 +33,7 @@ impl SerializeConfig for ProofManagerConfig {
     }
 }
 /// Proof manager that wraps filesystem-based proof storage.
+#[derive(Clone)]
 pub struct ProofManager {
     pub proof_storage: FsProofStorage,
     // TODO(Einat): Add cache.
