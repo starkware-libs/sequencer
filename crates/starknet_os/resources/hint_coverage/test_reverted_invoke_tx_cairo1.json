@@ -186,7 +186,7 @@
     "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
-    "OsHint": "WriteUseKzgDaToMemory"
+    "OsHint": "WriteUseKzgDaAndFullOutputToMemory"
   },
   {
     "OsHint": "UpdateBuiltinPtrs"
@@ -313,9 +313,6 @@
   },
   {
     "OsHint": "GetNClassHashesToMigrate"
-  },
-  {
-    "OsHint": "WriteFullOutputToMemory"
   },
   {
     "OsHint": "ConfigureKzgManager"
