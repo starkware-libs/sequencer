@@ -409,10 +409,10 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
 
 pub(crate) fn tx_version<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
-    insert_value_into_ap(vm, version.0)?;
+    insert_value_from_var_name(Ids::TxVersion.into(), version.0, vm, ids_data, ap_tracking)?;
     Ok(())
 }
 

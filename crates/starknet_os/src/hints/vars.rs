@@ -301,6 +301,7 @@ define_string_enum! {
         (TransactionHash),
         (TxInfo),
         (TxType),
+        (TxVersion),
         (UnpackedU32s),
         (UpdatePtr),
         (UseKzgDa),
