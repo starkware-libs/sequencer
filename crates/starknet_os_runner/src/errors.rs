@@ -1,4 +1,5 @@
 use blockifier_reexecution::errors::ReexecutionError;
+use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -15,4 +16,13 @@ pub enum VirtualBlockExecutorError {
 
     #[error("Unsupported transaction type: only Invoke transactions are supported")]
     UnsupportedTransactionType,
+}
+
+#[derive(Debug, Error)]
+pub enum ProofProviderError {
+    #[error("RPC provider error: {0}")]
+    Rpc(#[from] ProviderError),
+
+    #[error("Invalid RPC proof response: {0}")]
+    InvalidProofResponse(String),
 }
