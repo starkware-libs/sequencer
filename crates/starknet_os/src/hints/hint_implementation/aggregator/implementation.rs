@@ -1,7 +1,6 @@
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use starknet_types_core::felt::Felt;
 
@@ -112,21 +111,20 @@ pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcess
     Ok(())
 }
 
-pub(crate) fn get_chain_id_from_input(
+pub(crate) fn get_chain_id_and_fee_token_address_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let chain_id: Felt = hint_processor.input.chain_id;
-    insert_value_into_ap(vm, chain_id)?;
-    Ok(())
-}
-
-pub(crate) fn get_fee_token_address_from_input(
-    hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
     let fee_token_address: Felt = hint_processor.input.fee_token_address;
-    insert_value_into_ap(vm, fee_token_address)?;
+    insert_value_from_var_name(Ids::ChainId.into(), chain_id, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::FeeTokenAddress.into(),
+        fee_token_address,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
