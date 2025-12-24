@@ -1,8 +1,5 @@
-use apollo_storage::storage_reader_server::StorageReaderServerHandler;
-use apollo_storage::{StorageError, StorageReader};
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockHeaderWithoutHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -31,36 +28,5 @@ impl SyncBlock {
             .chain(self.l1_transaction_hashes.iter())
             .cloned()
             .collect()
-    }
-}
-
-// TODO(Dean): Fill in with actual storage table names and operations.
-/// Storage-related requests for state sync.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum StateSyncStorageRequest {
-    /// Request to read data in Table1 for the given block height.
-    Table1Replacer(BlockNumber),
-}
-
-// TODO(Dean): Fill in with actual response types matching the request variants.
-/// Response for state sync storage requests.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum StateSyncStorageResponse {
-    /// Table1 data for the requested operation.
-    Table1Replacer(BlockHeader),
-}
-
-pub struct StateSyncStorageReaderServerHandler;
-
-#[async_trait]
-impl StorageReaderServerHandler<StateSyncStorageRequest, StateSyncStorageResponse>
-    for StateSyncStorageReaderServerHandler
-{
-    async fn handle_request(
-        _storage_reader: &StorageReader,
-        _request: StateSyncStorageRequest,
-    ) -> Result<StateSyncStorageResponse, StorageError> {
-        // TODO(Dean/Nadin): Implement the logic for the state sync storage reader server handler.
-        unimplemented!()
     }
 }
