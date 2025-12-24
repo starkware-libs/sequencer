@@ -49,6 +49,8 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_proof_manager::communication::{LocalProofManagerServer, RemoteProofManagerServer};
+use apollo_proof_manager::metrics::PROOF_MANAGER_INFRA_METRICS;
 use apollo_signature_manager::communication::{
     LocalSignatureManagerServer,
     RemoteSignatureManagerServer,
@@ -79,6 +81,7 @@ struct LocalServers {
     pub(crate) l1_gas_price_provider: Option<Box<LocalL1GasPriceServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
+    pub(crate) proof_manager: Option<Box<LocalProofManagerServer>>,
     pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
     pub(crate) signature_manager: Option<Box<LocalSignatureManagerServer>>,
     pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
@@ -110,6 +113,7 @@ pub struct RemoteServers {
     pub l1_gas_price_provider: Option<Box<RemoteL1GasPriceServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
+    pub proof_manager: Option<Box<RemoteProofManagerServer>>,
     pub sierra_compiler: Option<Box<RemoteSierraCompilerServer>>,
     pub signature_manager: Option<Box<RemoteSignatureManagerServer>>,
     pub state_sync: Option<Box<RemoteStateSyncServer>>,
@@ -402,6 +406,21 @@ fn create_local_servers(
         &MEMPOOL_P2P_INFRA_METRICS.get_local_server_metrics()
     );
 
+    let proof_manager_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
+        &config.components.proof_manager.execution_mode,
+        &mut components.proof_manager,
+        &config
+            .components
+            .proof_manager
+            .local_server_config
+            .as_ref()
+            .expect("Proof manager local server config should be available."),
+        communication.take_proof_manager_rx(),
+        &PROOF_MANAGER_INFRA_METRICS.get_local_server_metrics(),
+        config.components.proof_manager.max_concurrency
+    );
+
     let sierra_compiler_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.sierra_compiler.execution_mode,
@@ -454,6 +473,7 @@ fn create_local_servers(
         gateway: gateway_server,
         l1_provider: l1_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
+        proof_manager: proof_manager_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         sierra_compiler: sierra_compiler_server,
@@ -483,6 +503,7 @@ impl LocalServers {
             server_future_and_label(self.l1_gas_price_provider, "Local L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
+            server_future_and_label(self.proof_manager, "Local Proof Manager"),
             server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
             server_future_and_label(self.signature_manager, "Concurrent Local Signature Manager"),
             server_future_and_label(self.state_sync, "Local State Sync"),
@@ -558,6 +579,15 @@ pub fn create_remote_servers(
         MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics()
     );
 
+    let proof_manager_server = create_remote_server!(
+        &config.components.proof_manager.execution_mode,
+        || { clients.get_proof_manager_local_client() },
+        config.components.proof_manager.remote_server_config,
+        config.components.proof_manager.port,
+        config.components.proof_manager.max_concurrency,
+        PROOF_MANAGER_INFRA_METRICS.get_remote_server_metrics()
+    );
+
     let sierra_compiler_server = create_remote_server!(
         &config.components.sierra_compiler.execution_mode,
         || { clients.get_sierra_compiler_local_client() },
@@ -593,6 +623,7 @@ pub fn create_remote_servers(
         l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        proof_manager: proof_manager_server,
         sierra_compiler: sierra_compiler_server,
         signature_manager: signature_manager_server,
         state_sync: state_sync_server,
@@ -609,6 +640,7 @@ impl RemoteServers {
             server_future_and_label(self.l1_gas_price_provider, "Remote L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),
+            server_future_and_label(self.proof_manager, "Remote Proof Manager"),
             server_future_and_label(self.sierra_compiler, "Remote Sierra Compiler"),
             server_future_and_label(self.signature_manager, "Remote Signature Manager"),
             server_future_and_label(self.state_sync, "Remote State Sync"),
