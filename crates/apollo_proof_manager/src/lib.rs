@@ -1,4 +1,5 @@
 pub mod communication;
+pub mod metrics;
 pub mod proof_manager;
 pub mod proof_storage;
 

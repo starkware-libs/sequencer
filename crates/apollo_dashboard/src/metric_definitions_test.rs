@@ -27,6 +27,7 @@ use apollo_mempool_p2p::metrics::{
     INFRA_ALL_METRICS as MEMPOOL_P2P_INFRA_METRICS,
     MEMPOOL_P2P_ALL_METRICS,
 };
+use apollo_proof_manager::metrics::INFRA_ALL_METRICS as PROOF_MANAGER_INFRA_METRICS;
 use apollo_state_sync_metrics::metrics::{
     INFRA_ALL_METRICS as STATE_SYNC_INFRA_METRICS,
     STATE_SYNC_ALL_METRICS,
@@ -56,6 +57,7 @@ fn metric_names_no_duplications() {
         .chain(MEMPOOL_INFRA_METRICS.iter())
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
         .chain(MEMPOOL_P2P_INFRA_METRICS.iter())
+        .chain(PROOF_MANAGER_INFRA_METRICS.iter())
         .chain(STATE_SYNC_ALL_METRICS.iter())
         .chain(STATE_SYNC_INFRA_METRICS.iter())
         .chain(BLOCKIFIER_ALL_METRICS.iter())

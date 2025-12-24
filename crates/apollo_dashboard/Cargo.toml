@@ -56,5 +56,6 @@ apollo_l1_gas_price = { workspace = true, features = ["testing"] }
 apollo_l1_provider = { workspace = true, features = ["testing"] }
 apollo_mempool = { workspace = true, features = ["testing"] }
 apollo_mempool_p2p = { workspace = true, features = ["testing"] }
+apollo_proof_manager = { workspace = true, features = ["testing"] }
 apollo_state_sync_metrics = { workspace = true, features = ["testing"] }
 rstest.workspace = true
