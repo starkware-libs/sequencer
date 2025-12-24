@@ -1,8 +1,8 @@
-use std::env;
-
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
+use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
@@ -11,19 +11,8 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::errors::VirtualBlockExecutorError;
+use crate::test_utils::{rpc_state_reader, SENDER_ADDRESS, STRK_TOKEN_ADDRESS, TEST_BLOCK_NUMBER};
 use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
-
-/// Block number to use for testing (mainnet block with known state).
-const TEST_BLOCK_NUMBER: u64 = 800000;
-
-/// STRK token contract address on mainnet.
-const STRK_TOKEN_ADDRESS: &str =
-    "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-
-/// A known account address on mainnet (Starknet Foundation).
-/// This is a Cairo 0 OpenZeppelin account, which uses the following calldata format:
-/// [call_array_len, (to, selector, data_offset, data_len)..., calldata_len, calldata...]
-const SENDER_ADDRESS: &str = "0x01176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8";
 
 /// Test wrapper for RpcStateReader that overrides execution flags to skip validation.
 struct TestRpcVirtualBlockExecutor(RpcVirtualBlockExecutor);
@@ -72,8 +61,8 @@ impl VirtualBlockExecutor for TestRpcVirtualBlockExecutor {
 /// Since we skip validation and fee charging, we can use dummy values for signature,
 /// nonce, and resource bounds.
 fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
-    let strk_token = ContractAddress::try_from(felt!(STRK_TOKEN_ADDRESS)).unwrap();
-    let sender = ContractAddress::try_from(felt!(SENDER_ADDRESS)).unwrap();
+    let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
+    let sender = ContractAddress::try_from(SENDER_ADDRESS).unwrap();
 
     // Calldata for account's __execute__ (Cairo 0 OZ account format):
     // [call_array_len, call_array..., calldata_len, calldata...]
@@ -117,22 +106,17 @@ fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
 /// ```bash
 /// NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner -- --ignored
 /// ```
-#[test]
+#[rstest]
 #[ignore] // Requires RPC access 
-fn test_execute_constructed_balance_of_transaction() {
-    let node_url =
-        env::var("NODE_URL").expect("NODE_URL environment variable required for this test");
-
+fn test_execute_constructed_balance_of_transaction(rpc_state_reader: RpcStateReader) {
     // Construct a balanceOf transaction (with execution flags set).
     let (tx, tx_hash) = construct_balance_of_invoke();
 
     // Create the virtual block executor.
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
-    let executor = TestRpcVirtualBlockExecutor(RpcVirtualBlockExecutor::new(
-        node_url,
-        ChainId::Mainnet,
-        BlockNumber(TEST_BLOCK_NUMBER),
-    ));
+    let executor = TestRpcVirtualBlockExecutor(RpcVirtualBlockExecutor {
+        rpc_state_reader: rpc_state_reader.clone(),
+    });
 
     // Execute the transaction.
     let result = executor
@@ -170,8 +154,8 @@ fn test_execute_constructed_balance_of_transaction() {
 
     // Verify the specific ERC20 balance storage key was read.
     // ERC20 contracts store balances in "ERC20_balances" mapping keyed by address.
-    let strk_token = ContractAddress::try_from(felt!(STRK_TOKEN_ADDRESS)).unwrap();
-    let sender = ContractAddress::try_from(felt!(SENDER_ADDRESS)).unwrap();
+    let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
+    let sender = ContractAddress::try_from(SENDER_ADDRESS).unwrap();
     let balance_storage_key = get_storage_var_address("ERC20_balances", &[*sender.0.key()]);
     assert!(
         result.initial_reads.storage.contains_key(&(strk_token, balance_storage_key)),
