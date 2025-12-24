@@ -11,13 +11,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{
-    create_db_key,
-    DbHashMap,
-    DbKey,
-    DbKeyPrefix,
-    Storage,
-};
+use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -31,7 +25,7 @@ use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree_and_get_previous_leaves,
 };
 use crate::db::facts_db::types::FactsSubTree;
-use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
+use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -217,25 +211,5 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
-    }
-}
-
-impl<S: Storage> ForestMetadata for FactsDb<S> {
-    /// Returns the db key for the metadata type.
-    /// The data keys in a facts DB are the result of a hash function; therefore, they are not
-    /// expected to collide with these metadata keys.
-    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
-        match metadata_type {
-            ForestMetadataType::CommitmentOffset => DbKey(Self::COMMITMENT_OFFSET_KEY.to_vec()),
-            ForestMetadataType::StateDiffHash(block_number) => {
-                let state_diff_hash_key_prefix =
-                    DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX.into());
-                create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
-            }
-            ForestMetadataType::StateRoot(block_number) => {
-                let state_root_key_prefix = DbKeyPrefix::new(Self::STATE_ROOT_PREFIX.into());
-                create_db_key(state_root_key_prefix, &block_number.0.to_be_bytes())
-            }
-        }
     }
 }
