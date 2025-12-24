@@ -542,7 +542,7 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
 
 pub(crate) fn is_reverted<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let is_reverted = hint_processor
         .execution_helpers_manager
@@ -551,7 +551,13 @@ pub(crate) fn is_reverted<S: StateReader>(
         .get_tx_execution_info_ref()?
         .tx_execution_info
         .is_reverted();
-    insert_value_into_ap(vm, Felt::from(is_reverted))?;
+    insert_value_from_var_name(
+        Ids::IsReverted.into(),
+        Felt::from(is_reverted),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
