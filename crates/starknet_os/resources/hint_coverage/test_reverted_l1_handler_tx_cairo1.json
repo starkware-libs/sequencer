@@ -144,10 +144,7 @@
     "OsHint": "GuessBlockInfo"
   },
   {
-    "OsHint": "ChainId"
-  },
-  {
-    "OsHint": "FeeTokenAddress"
+    "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
     "OsHint": "WriteUseKzgDaToMemory"
