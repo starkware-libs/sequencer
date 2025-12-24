@@ -1,5 +1,6 @@
 use std::array;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -29,6 +30,8 @@ use crate::test_utils::utils::{
 };
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
+static MAX_VALUE: LazyLock<Felt> = LazyLock::new(|| Felt::from(REDUCED_MUL_LIMB_BOUND - 1));
+static MIN_VALUE: LazyLock<Felt> = LazyLock::new(|| Felt::from(-REDUCED_MUL_LIMB_BOUND + 1));
 
 fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     let explicit_args = [
@@ -229,19 +232,17 @@ fn test_reduced_mul_random() {
     run_reduced_mul_test(&a_split, &b_split)
 }
 
-#[test]
-fn test_reduced_mul_parameterized() {
-    let max_value = Felt::from(REDUCED_MUL_LIMB_BOUND - 1);
-    let min_value = Felt::from(-REDUCED_MUL_LIMB_BOUND + 1);
-    let values: [([Felt; 3], [Felt; 3]); 4] = [
-        (array::from_fn(|_| max_value), array::from_fn(|_| max_value)),
-        (array::from_fn(|_| min_value), array::from_fn(|_| min_value)),
-        ([-Felt::ONE, Felt::ZERO, Felt::ZERO], [Felt::ONE, Felt::ZERO, Felt::ZERO]),
-        ([Felt::ONE, Felt::from(2), Felt::from(3)], [Felt::ZERO, Felt::ZERO, Felt::ZERO]),
-    ];
-    for (a_split, b_split) in values {
-        run_reduced_mul_test(&a_split, &b_split);
-    }
+#[rstest]
+#[case::max(array::from_fn(|_| *MAX_VALUE), array::from_fn(|_| *MAX_VALUE))]
+#[case::min(array::from_fn(|_| *MIN_VALUE), array::from_fn(|_| *MIN_VALUE))]
+#[case::negative_and_positive(
+    [-Felt::ONE, Felt::ZERO, Felt::ZERO], [Felt::ONE, Felt::ZERO, Felt::ZERO]
+)]
+#[case::sequence_and_zero(
+    [Felt::ONE, Felt::from(2), Felt::from(3)], [Felt::ZERO, Felt::ZERO, Felt::ZERO]
+)]
+fn test_reduced_mul_parameterized(#[case] a_split: [Felt; 3], #[case] b_split: [Felt; 3]) {
+    run_reduced_mul_test(&a_split, &b_split);
 }
 
 #[test]
