@@ -1,3 +1,4 @@
+pub mod behaviour;
 pub mod handler;
 pub mod merkle;
 #[cfg(test)]
@@ -20,6 +21,7 @@ pub mod unit_validator;
 #[cfg(test)]
 mod unit_validator_test;
 
+pub use behaviour::Behaviour;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
