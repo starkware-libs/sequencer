@@ -57,10 +57,7 @@
     "AggregatorHint": "WriteDaSegment"
   },
   {
-    "AggregatorHint": "GetFullOutputFromInput"
-  },
-  {
-    "AggregatorHint": "GetUseKzgDaFromInput"
+    "AggregatorHint": "GetUseKzgDaAndFullOutputFromInput"
   },
   {
     "AggregatorHint": "GetChainIdFromInput"
