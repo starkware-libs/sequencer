@@ -75,16 +75,26 @@ pub(crate) fn load_next_tx<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn load_resource_bounds<S: StateReader>(
+pub(crate) fn load_common_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // Guess the resource bounds.
-    let resource_bounds = hint_processor
+    let account_tx = hint_processor
+        .execution_helpers_manager
         .get_current_execution_helper()?
         .tx_tracker
-        .get_account_tx()?
-        .resource_bounds();
+        .get_account_tx()?;
+
+    // Guess the values.
+    let tip = Felt::from(account_tx.tip().0);
+    let paymaster_data_len = Felt::from(account_tx.paymaster_data().0.len());
+    let paymaster_data: Vec<_> =
+        account_tx.paymaster_data().0.into_iter().map(MaybeRelocatable::from).collect();
+    let paymaster_data_base = vm.gen_arg(&paymaster_data)?;
+    let nonce_da_mode_as_felt = Felt::from(account_tx.nonce_data_availability_mode());
+    let fee_da_mode_as_felt = Felt::from(account_tx.fee_data_availability_mode());
+
+    let resource_bounds = account_tx.resource_bounds();
     if let ValidResourceBounds::L1Gas(_) = resource_bounds {
         return Err(OsHintError::AssertionFailed {
             message: "Only transactions with 3 resource bounds are supported. Got 1 resource \
@@ -92,13 +102,42 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
                 .to_string(),
         });
     }
-
     let resource_bound_address = vm.add_memory_segment();
     resource_bounds.load_into(vm, hint_processor.program, resource_bound_address, constants)?;
 
+    // Insert.
+    insert_value_from_var_name(Ids::Tip.into(), tip, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::PaymasterDataLength.into(),
+        paymaster_data_len,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::PaymasterData.into(),
+        paymaster_data_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::NonceDataAvailabilityMode.into(),
+        nonce_da_mode_as_felt,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::FeeDataAvailabilityMode.into(),
+        fee_da_mode_as_felt,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     insert_value_from_var_name(
         Ids::ResourceBounds.into(),
-        MaybeRelocatable::RelocatableValue(resource_bound_address),
+        resource_bound_address,
         vm,
         ids_data,
         ap_tracking,
@@ -413,78 +452,6 @@ pub(crate) fn tx_version<S: StateReader>(
 ) -> OsHintResult {
     let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
     insert_value_from_var_name(Ids::TxVersion.into(), version.0, vm, ids_data, ap_tracking)?;
-    Ok(())
-}
-
-pub(crate) fn tx_tip<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let tip = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?
-        .tip();
-    insert_value_into_ap(vm, Felt::from(tip))?;
-    Ok(())
-}
-
-pub(crate) fn tx_paymaster_data_len<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let account_tx = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
-    let paymaster_data_len = account_tx.paymaster_data().0.len();
-    insert_value_into_ap(vm, paymaster_data_len)?;
-    Ok(())
-}
-
-pub(crate) fn tx_paymaster_data<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let account_tx = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
-    let paymaster_data: Vec<_> =
-        account_tx.paymaster_data().0.into_iter().map(MaybeRelocatable::from).collect();
-    let paymaster_data_base = vm.gen_arg(&paymaster_data)?;
-    insert_value_into_ap(vm, paymaster_data_base)?;
-    Ok(())
-}
-
-pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let account_tx = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
-    let da_mode_as_felt = Felt::from(account_tx.nonce_data_availability_mode());
-    insert_value_into_ap(vm, da_mode_as_felt)?;
-    Ok(())
-}
-
-pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let account_tx = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
-    let da_mode_as_felt = Felt::from(account_tx.fee_data_availability_mode());
-    insert_value_into_ap(vm, da_mode_as_felt)?;
     Ok(())
 }
 
