@@ -12,14 +12,12 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
     calculate_padding,
     N_MISSING_BLOCKS_BOUND,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
 };
-use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
@@ -153,10 +151,10 @@ pub(crate) fn start_tx<S: StateReader>(
 
 pub(crate) fn os_input_transactions<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let num_txns = hint_processor.get_current_execution_helper()?.os_block_input.transactions.len();
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
+    Ok(insert_value_from_var_name(Ids::NTxs.into(), num_txns, vm, ids_data, ap_tracking)?)
 }
 
 pub(crate) fn segments_add(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
