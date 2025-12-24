@@ -496,11 +496,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (GetContractAddressStateEntry, get_contract_address_state_entry),
     (EnterScopeExecuteTransactionsInner, enter_scope_execute_transactions_inner),
     (IsRemainingGasLtInitialBudget, is_remaining_gas_lt_initial_budget),
-    (
-        InitialGeRequiredGas,
-        initial_ge_required_gas,
-        "memory[ap] = to_felt_or_relocatable(ids.initial_gas >= ids.required_gas)"
-    ),
+    (InitialGeRequiredGas, initial_ge_required_gas),
     (EnterScopeNode, enter_scope_node, "vm_enter_scope(dict(node=node, **common_args))"),
     (
         EnterScopeNewNode,
