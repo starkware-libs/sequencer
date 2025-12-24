@@ -25,8 +25,7 @@ use crate::hints::hint_implementation::aggregator::implementation::{
 };
 use crate::hints::hint_implementation::blake2s::implementation::naive_unpack_felt252_to_u32s;
 use crate::hints::hint_implementation::block_context::{
-    chain_id,
-    fee_token_address,
+    chain_id_and_fee_token_address,
     get_block_hash_mapping,
     guess_block_info,
     write_use_kzg_da_to_memory,
@@ -645,16 +644,7 @@ define_hint_enum!(
     (RelocateSha256Segment, relocate_sha256_segment),
     (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
     (GuessBlockInfo, guess_block_info),
-    (
-        ChainId,
-        chain_id,
-        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.chain_id)"
-    ),
-    (
-        FeeTokenAddress,
-        fee_token_address,
-        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
-    ),
+    (ChainIdAndFeeTokenAddress, chain_id_and_fee_token_address),
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
