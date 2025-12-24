@@ -407,7 +407,7 @@ func unpack_felt{range_check_ptr}(
         return ();
     }
 
-    %{ memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound %}
+    %{ SetDecompressedDst %}
     tempvar current = decompressed_dst[0];
 
     // Verify element is in range [0, elm_bound).
