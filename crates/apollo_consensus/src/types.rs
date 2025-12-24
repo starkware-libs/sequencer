@@ -154,6 +154,4 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
-    #[error("Block info conversion error: {0}")]
-    BlockInfoConversion(#[from] starknet_api::StarknetApiError),
 }
