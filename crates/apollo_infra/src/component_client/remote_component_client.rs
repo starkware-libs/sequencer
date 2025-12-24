@@ -22,7 +22,7 @@ use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCT
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
-use crate::trace_util::extract_trace_headers;
+use crate::trace_util::{extract_trace_headers, SPAN_NAMES_HEADER};
 
 pub const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
@@ -179,6 +179,11 @@ where
         };
         for (header_name, header_value) in extract_trace_headers(&context) {
             builder = builder.header(header_name, header_value);
+        }
+
+        // Add current span name for cross-component span chain visibility.
+        if let Some(metadata) = Span::current().metadata() {
+            builder = builder.header(SPAN_NAMES_HEADER, metadata.name());
         }
 
         builder.body(Body::from(serialized_request)).expect("Request building should succeed")

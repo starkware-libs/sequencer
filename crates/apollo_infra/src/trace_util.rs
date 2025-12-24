@@ -1,9 +1,10 @@
+use std::io::{self, Write as IoWrite};
 use std::str::FromStr;
 
 use hyper::header::{HeaderName, HeaderValue};
 use opentelemetry::global::set_text_map_propagator;
 use opentelemetry::propagation::{Extractor, Injector, TextMapPropagator};
-use opentelemetry::trace::TracerProvider;
+use opentelemetry::trace::{TraceContextExt, TracerProvider};
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
 use time::macros::format_description;
@@ -13,8 +14,9 @@ use tracing::warn;
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
+use tracing_subscriber::fmt::{self, MakeWriter};
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, reload, EnvFilter};
+use tracing_subscriber::{reload, EnvFilter};
 
 // Crates we always keep at INFO regardless of operator-supplied spec.
 const QUIET_LIBS: &[&str] = &[
@@ -41,6 +43,99 @@ pub(crate) type ReloadHandle = reload::Handle<EnvFilter, tracing_subscriber::Reg
 // Define a OnceCell to ensure the configuration is initialized only once
 static TRACING_INITIALIZED: OnceCell<ReloadHandle> = OnceCell::const_new();
 
+/// A writer wrapper that injects OpenTelemetry trace context (trace_id, span_id) into JSON log
+/// lines. This preserves the original JSON format while adding trace correlation fields.
+pub struct TraceContextWriter<W> {
+    inner: W,
+    buffer: Vec<u8>,
+}
+
+impl<W: IoWrite> TraceContextWriter<W> {
+    pub fn new(inner: W) -> Self {
+        Self { inner, buffer: Vec::with_capacity(1024) }
+    }
+
+    fn inject_trace_context(&mut self) -> io::Result<()> {
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+        // Convert buffer to string for manipulation.
+        let line = String::from_utf8_lossy(&self.buffer);
+
+        // Find the position to inject trace context (after the opening brace).
+        if let Some(pos) = line.find('{') {
+            let otel_context = tracing::Span::current().context();
+            let otel_span = otel_context.span();
+            let span_context = otel_span.span_context();
+
+            if span_context.is_valid() {
+                let trace_fields = format!(
+                    "\"trace_id\":\"{}\",\"span_id\":\"{}\",",
+                    span_context.trace_id(),
+                    span_context.span_id()
+                );
+
+                // Write: opening brace, trace fields, rest of the JSON.
+                self.inner.write_all(line[..=pos].as_bytes())?;
+                self.inner.write_all(trace_fields.as_bytes())?;
+                self.inner.write_all(line[pos + 1..].as_bytes())?;
+            } else {
+                // No valid trace context, write as-is.
+                self.inner.write_all(&self.buffer)?;
+            }
+        } else {
+            // Not a JSON object, write as-is.
+            self.inner.write_all(&self.buffer)?;
+        }
+
+        self.buffer.clear();
+        Ok(())
+    }
+}
+
+impl<W: IoWrite> IoWrite for TraceContextWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // Buffer the data until we see a newline.
+        self.buffer.extend_from_slice(buf);
+
+        // Check if we have a complete line (ends with newline).
+        if buf.ends_with(b"\n") {
+            self.inject_trace_context()?;
+        }
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        if !self.buffer.is_empty() {
+            self.inject_trace_context()?;
+        }
+        self.inner.flush()
+    }
+}
+
+/// A MakeWriter implementation that wraps writers with trace context injection.
+#[derive(Clone)]
+pub struct TraceContextMakeWriter<M> {
+    inner: M,
+}
+
+impl<M> TraceContextMakeWriter<M> {
+    pub fn new(inner: M) -> Self {
+        Self { inner }
+    }
+}
+
+impl<'a, M> MakeWriter<'a> for TraceContextMakeWriter<M>
+where
+    M: MakeWriter<'a>,
+{
+    type Writer = TraceContextWriter<M::Writer>;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        TraceContextWriter::new(self.inner.make_writer())
+    }
+}
+
 pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process::id);
 
 pub async fn configure_tracing() -> ReloadHandle {
@@ -62,14 +157,16 @@ pub async fn configure_tracing() -> ReloadHandle {
             );
             let timer = UtcTime::new(time_format);
 
+            // Use the original JSON formatter wrapped with trace context injection.
+            // This preserves all original formatting while adding trace_id and span_id.
             let fmt_layer = fmt::layer()
                 .json()
                 .with_timer(timer)
                 .with_target(false) // No module name.
-                // Instead, file name and line number.
                 .with_file(true)
                 .with_line_number(true)
-                .flatten_event(true);
+                .flatten_event(true)
+                .with_writer(TraceContextMakeWriter::new(std::io::stdout));
 
             let level_filter_layer = QUIET_LIBS.iter().fold(
                 EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy(),
@@ -152,6 +249,9 @@ pub fn get_log_directives(handle: &ReloadHandle) -> Result<String, reload::Error
     handle.with_current(|f| f.to_string())
 }
 
+/// Header name for propagating span names across service boundaries.
+pub const SPAN_NAMES_HEADER: &str = "x-apollo-span-names";
+
 /// Extracts trace context headers from the given OpenTelemetry context for cross-service
 /// propagation.
 pub fn extract_trace_headers(context: &opentelemetry::Context) -> Vec<(HeaderName, HeaderValue)> {
@@ -160,6 +260,16 @@ pub fn extract_trace_headers(context: &opentelemetry::Context) -> Vec<(HeaderNam
     propagator.inject_context(context, &mut header_injector);
 
     header_injector.headers
+}
+
+/// Extracts span names from HTTP headers for cross-service span chain propagation.
+/// Returns a vector of span names from outermost to innermost.
+pub fn extract_span_names_from_headers(headers: &hyper::HeaderMap) -> Vec<String> {
+    headers
+        .get(SPAN_NAMES_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').map(|name| name.trim().to_string()).collect())
+        .unwrap_or_default()
 }
 
 /// Helper struct for injecting OpenTelemetry trace context into HTTP headers.

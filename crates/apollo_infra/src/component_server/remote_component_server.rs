@@ -32,7 +32,7 @@ use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
-use crate::trace_util::extract_context_from_headers;
+use crate::trace_util::{extract_context_from_headers, extract_span_names_from_headers};
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
@@ -118,6 +118,19 @@ where
         // Extract trace context from incoming HTTP headers and set as parent of current span.
         let parent_context = extract_context_from_headers(http_request.headers());
         Span::current().set_parent(parent_context);
+
+        // Extract caller span names for cross-component tracing visibility.
+        let caller_span_names = extract_span_names_from_headers(http_request.headers());
+
+        // Create a wrapper span that represents the remote caller's context.
+        // This makes the caller's span visible in this component's logs.
+        let caller_span = if !caller_span_names.is_empty() {
+            let names = caller_span_names.join(" > ");
+            tracing::info_span!("remote_caller", caller = %names)
+        } else {
+            Span::none()
+        };
+        let _caller_guard = caller_span.enter();
 
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
