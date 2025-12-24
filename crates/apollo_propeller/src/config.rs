@@ -9,6 +9,8 @@ pub struct Config {
     pub stream_protocol: StreamProtocol,
     /// Maximum size of a message sent over the wire.
     pub max_wire_message_size: usize,
+    /// Capacity for bounded channels between tasks.
+    pub channel_capacity: usize,
 }
 
 impl Default for Config {
@@ -16,6 +18,7 @@ impl Default for Config {
         Self {
             stream_protocol: StreamProtocol::new("/propeller/1.0.0"),
             max_wire_message_size: 1 << 30, // 1 GB
+            channel_capacity: 1 << 12,      // 4096
         }
     }
 }
