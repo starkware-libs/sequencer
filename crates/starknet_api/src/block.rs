@@ -296,7 +296,7 @@ pub struct BlockNumber(pub u64);
 
 impl BlockNumber {
     /// Returns the next block number, without checking if it's in range.
-    pub const fn unchecked_next(&self) -> BlockNumber {
+    pub fn unchecked_next(&self) -> BlockNumber {
         BlockNumber(self.0 + 1)
     }
 
@@ -306,7 +306,7 @@ impl BlockNumber {
     }
 
     /// Returns the previous block number, or None if the previous block number is out of range.
-    pub fn prev(&self) -> Option<BlockNumber> {
+    pub const fn prev(&self) -> Option<BlockNumber> {
         match self.0 {
             0 => None,
             i => Some(BlockNumber(i - 1)),
