@@ -451,13 +451,7 @@ define_stateless_hint_enum!(
     (DeleteMemoryData, delete_memory_data),
     (IterCurrentSegmentInfo, iter_current_segment_info),
     (SetApToSegmentHashPoseidon, set_ap_to_segment_hash::<Poseidon>),
-    (
-        SetApToSegmentHashBlake,
-        set_ap_to_segment_hash::<Blake2Felt252>,
-        indoc! {r#"
-        memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash_blake())"#
-        }
-    ),
+    (SetApToSegmentHashBlake, set_ap_to_segment_hash::<Blake2Felt252>),
     (EnterScopeWithAliases, enter_scope_with_aliases),
     (
         KeyLtMinAliasAllocValue,
