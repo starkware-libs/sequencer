@@ -2250,6 +2250,7 @@ dependencies = [
  "apollo_protobuf",
  "asynchronous-codec",
  "bytes",
+ "futures",
  "libp2p",
  "prost",
  "reed-solomon-simd",
