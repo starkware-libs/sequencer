@@ -1,3 +1,6 @@
+pub mod codec;
+#[cfg(test)]
+mod codec_test;
 pub mod merkle;
 #[cfg(test)]
 mod merkle_test;
