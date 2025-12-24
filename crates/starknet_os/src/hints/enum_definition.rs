@@ -673,11 +673,7 @@ define_hint_enum!(
     (UpdateBuiltinPtrs, update_builtin_ptrs),
     (ReadStorageKeyForRevert, read_storage_key_for_revert),
     (WriteStorageKeyForRevert, write_storage_key_for_revert),
-    (
-        ReadAliasFromKey,
-        read_alias_from_key,
-        "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
-    ),
+    (ReadAliasFromKey, read_alias_from_key),
     (GetClassHashAndCompiledClassFact, get_class_hash_and_compiled_class_fact),
     (WriteNextAliasFromKey, write_next_alias_from_key),
     (
