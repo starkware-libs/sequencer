@@ -303,10 +303,10 @@
     "OsHint": "LogEnterSyscall"
   },
   {
-    "OsHint": "SetApToTxNonce"
+    "OsHint": "LoadTxNonceAccount"
   },
   {
-    "OsHint": "SetFpToTxNonce"
+    "OsHint": "LoadTxNonceL1Handler"
   },
   {
     "OsHint": "WriteSyscallResultDeprecated"
