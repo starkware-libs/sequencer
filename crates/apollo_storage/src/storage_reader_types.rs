@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "storage_reader_types_test.rs"]
+mod storage_reader_types_test;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
