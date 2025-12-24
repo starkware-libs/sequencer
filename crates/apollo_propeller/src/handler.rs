@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use apollo_infra_utils::warn_every_n_sec;
 use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch as ProtoUnitBatch};
 use asynchronous_codec::Framed;
 use futures::prelude::*;
@@ -250,6 +251,15 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
+        if self.send_queue.len() > 100 || self.receive_queue.len() > 100 {
+            warn_every_n_sec!(
+                1,
+                "Send queue length: {}, Receive queue length: {}",
+                self.send_queue.len(),
+                self.receive_queue.len()
+            );
+        }
+
         // First, emit any queued received messages
         if let Some(message) = self.receive_queue.pop_front() {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
