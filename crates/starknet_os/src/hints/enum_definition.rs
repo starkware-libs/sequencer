@@ -441,11 +441,7 @@ define_stateless_hint_enum!(
         }
     ),
     (PrepareStateEntryForRevert, prepare_state_entry_for_revert),
-    (
-        GenerateDummyOsOutputSegment,
-        generate_dummy_os_output_segment,
-        "memory[ap] = to_felt_or_relocatable(segments.gen_arg([[], 0]))"
-    ),
+    (GenerateDummyOsOutputSegment, generate_dummy_os_output_segment),
     (AssignBytecodeSegments, assign_bytecode_segments),
     (AssertEndOfBytecodeSegments, assert_end_of_bytecode_segments),
     (DeleteMemoryData, delete_memory_data),
