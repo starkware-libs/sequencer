@@ -253,7 +253,7 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
 
 pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let class_hash = ClassHash(
         *vm.get_integer(
@@ -270,16 +270,10 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
         )?,
     );
 
-    exec_scopes.insert_value(
-        Scope::IsDeprecated.into(),
-        Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash)),
-    );
+    let is_deprecated = Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash));
+    insert_value_from_var_name(Ids::IsDeprecated.into(), is_deprecated, vm, ids_data, ap_tracking)?;
 
     Ok(())
-}
-
-pub(crate) fn is_deprecated(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
-    Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
 pub(crate) fn enter_scope_execute_transactions_inner(
