@@ -87,6 +87,7 @@ pub enum ReconstructionError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+// TODO(AndrewL): rename to ChannelSetupError
 pub enum PeerSetError {
     #[error("Local peer is not a member in the channel you're requesting")]
     LocalPeerNotInChannel,
