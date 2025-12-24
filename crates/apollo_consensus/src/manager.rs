@@ -18,7 +18,7 @@ use apollo_consensus_config::config::{
     ConsensusDynamicConfig,
     FutureMsgLimitsConfig,
 };
-use apollo_infra_utils::debug_every_n_sec;
+use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
@@ -437,7 +437,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 break;
             }
             tokio::time::sleep(self.consensus_config.dynamic_config.sync_retry_interval).await;
-            debug_every_n_sec!(1, "Retrying sync to {height}");
+            debug_every_n_ms!(1000, "Retrying sync to {height}");
             trace!("Retrying sync to {height}");
         }
     }
