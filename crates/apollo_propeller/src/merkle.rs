@@ -142,13 +142,8 @@ impl MerkleTree {
     }
 
     /// Verify a Merkle proof against this tree's root.
-    pub fn verify(
-        &self,
-        leaf_hash: &MerkleHash,
-        proof: &MerkleProof,
-        leaf_index: usize,
-    ) -> Option<bool> {
-        self.root().map(|root| proof.verify(&root, leaf_hash, leaf_index, self.leaf_count()))
+    pub fn verify(&self, leaf: &[u8], proof: &MerkleProof, leaf_index: usize) -> Option<bool> {
+        self.root().map(|root| proof.verify(&root, leaf, leaf_index, self.leaf_count()))
     }
 }
 
@@ -172,11 +167,11 @@ impl MerkleProof {
     pub fn verify(
         &self,
         root: &MerkleHash,
-        leaf_hash: &MerkleHash,
+        leaf: &[u8],
         leaf_index: usize,
         leaf_count: usize,
     ) -> bool {
-        let mut current_hash = *leaf_hash;
+        let mut current_hash = MerkleTree::hash_leaf(leaf);
         let mut index = leaf_index;
         let mut level_size = leaf_count;
 
