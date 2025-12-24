@@ -28,7 +28,6 @@ use crate::hints::hint_implementation::block_context::{
     block_number_timestamp_and_address,
     chain_id_and_fee_token_address,
     get_block_hash_mapping,
-    write_use_kzg_da_to_memory,
 };
 use crate::hints::hint_implementation::bls_field::implementation::compute_ids_low;
 use crate::hints::hint_implementation::builtins::{
@@ -140,7 +139,7 @@ use crate::hints::hint_implementation::os::{
     initialize_state_changes,
     log_remaining_blocks,
     starknet_os_input,
-    write_full_output_to_memory,
+    write_use_kzg_da_and_full_output_to_memory,
 };
 use crate::hints::hint_implementation::os_logger::{
     log_enter_syscall,
@@ -645,13 +644,7 @@ define_hint_enum!(
     (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
     (BlockNumberTimestampAndAddress, block_number_timestamp_and_address),
     (ChainIdAndFeeTokenAddress, chain_id_and_fee_token_address),
-    (
-        WriteUseKzgDaToMemory,
-        write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 0] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
-    not os_hints_config.full_output
-))"#}
-    ),
+    (WriteUseKzgDaAndFullOutputToMemory, write_use_kzg_da_and_full_output_to_memory),
     (UpdateBuiltinPtrs, update_builtin_ptrs),
     (
         ReadStorageKeyForRevert,
@@ -776,11 +769,6 @@ define_hint_enum!(
         r#"memory[fp + 3] = to_felt_or_relocatable(len(os_input.block_inputs))"#
     ),
     (GetNClassHashesToMigrate, get_n_class_hashes_to_migrate),
-    (
-        WriteFullOutputToMemory,
-        write_full_output_to_memory,
-        indoc! {r#"memory[fp + 1] = to_felt_or_relocatable(os_hints_config.full_output)"#}
-    ),
     (ConfigureKzgManager, configure_kzg_manager),
     (CheckBlockHashConsistency, check_block_hash_consistency),
     (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
