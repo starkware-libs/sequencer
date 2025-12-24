@@ -2,12 +2,18 @@ use std::sync::LazyLock;
 
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use c_kzg::{KzgCommitment, BYTES_PER_BLOB};
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::kzg::test_utils::{
+    estimate_os_kzg_commitment_computation_resources,
+    run_compute_os_kzg_commitment_info,
+};
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
     decode_blobs,
@@ -163,4 +169,17 @@ fn test_decode_blobs(#[case] coefficients: Vec<Fr>) {
         })
         .collect();
     assert_eq!(decoded, expected_felt);
+}
+
+#[rstest]
+fn test_os_kzg_commitment_resources_estimation(
+    #[values(1, 2, 99, 2001, 2048, 4096, 7000, 12000)] state_diff_size: usize,
+) {
+    let vc = VersionedConstants::latest_constants();
+    let actual_resources = run_compute_os_kzg_commitment_info(state_diff_size)
+        .get_execution_resources()
+        .unwrap()
+        .filter_unused_builtins();
+    let estimated_resources = estimate_os_kzg_commitment_computation_resources(vc, state_diff_size);
+    assert_eq!(actual_resources, estimated_resources);
 }
