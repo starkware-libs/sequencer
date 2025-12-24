@@ -273,7 +273,7 @@
     "OsHint": "OsInputTransactions"
   },
   {
-    "OsHint": "SetApToActualFee"
+    "OsHint": "LoadActualFee"
   },
   {
     "OsHint": "SkipTx"
