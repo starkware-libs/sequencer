@@ -9,7 +9,9 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+apollo_protobuf.workspace = true
 libp2p.workspace = true
+prost.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
 tracing.workspace = true
