@@ -30,6 +30,7 @@ pub enum FsProofStorageError {
 
 type FsProofStorageResult<T> = Result<T, FsProofStorageError>;
 
+#[derive(Clone)]
 pub struct FsProofStorage {
     persistent_root: PathBuf,
 }
