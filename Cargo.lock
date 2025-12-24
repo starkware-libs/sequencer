@@ -2249,6 +2249,8 @@ name = "apollo_propeller"
 version = "0.0.0"
 dependencies = [
  "apollo_protobuf",
+ "asynchronous-codec",
+ "bytes",
  "libp2p",
  "prost",
  "reed-solomon-simd",
