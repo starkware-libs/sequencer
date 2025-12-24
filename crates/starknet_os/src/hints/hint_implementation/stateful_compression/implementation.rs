@@ -18,10 +18,8 @@ use crate::hint_processor::state_update_pointers::{
     StateEntryPtr,
     StoragePtr,
 };
-use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
-use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
@@ -112,7 +110,7 @@ pub(crate) fn read_alias_from_key<S: StateReader>(
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias =
         execution_helper.cached_state.get_storage_at(aliases_contract_address, key.try_into()?)?;
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::ReadAliasFromKey), alias)
+    Ok(insert_value_from_var_name(Ids::PrevValue.into(), alias, vm, ids_data, ap_tracking)?)
 }
 
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
