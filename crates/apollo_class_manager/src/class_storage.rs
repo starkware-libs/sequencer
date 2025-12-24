@@ -13,12 +13,12 @@ use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::class_manager::ClassManagerStorageReaderServer;
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
 #[cfg(test)]
@@ -253,7 +253,7 @@ pub struct ClassHashStorage {
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
-    storage_reader_server: Option<Arc<ClassManagerStorageReaderServer>>,
+    storage_reader_server: Option<Arc<GenericStorageReaderServer>>,
 }
 
 impl ClassHashStorage {

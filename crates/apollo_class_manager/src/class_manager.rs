@@ -1,11 +1,6 @@
 use std::time::Instant;
 
 use apollo_class_manager_config::config::{ClassManagerConfig, FsClassManagerConfig};
-use apollo_class_manager_types::class_manager_types::{
-    ClassManagerStorageReaderServerHandler,
-    ClassManagerStorageRequest,
-    ClassManagerStorageResponse,
-};
 use apollo_class_manager_types::{
     ClassHashes,
     ClassId,
@@ -20,7 +15,6 @@ use apollo_compile_to_casm_types::{
     SierraCompilerClientError,
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
-use apollo_storage::storage_reader_server::StorageReaderServer;
 use async_trait::async_trait;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::{debug, instrument};
@@ -28,12 +22,6 @@ use tracing::{debug, instrument};
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::metrics::register_metrics;
 use crate::FsClassManager;
-
-pub type ClassManagerStorageReaderServer = StorageReaderServer<
-    ClassManagerStorageReaderServerHandler,
-    ClassManagerStorageRequest,
-    ClassManagerStorageResponse,
->;
 
 #[cfg(test)]
 #[path = "class_manager_test.rs"]
