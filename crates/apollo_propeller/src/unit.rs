@@ -3,7 +3,7 @@
 use libp2p::core::PeerId;
 
 use crate::types::{Channel, MessageRoot, ShardIndex};
-use crate::MerkleProof;
+use crate::{MerkleProof, ShardValidationError};
 
 // TODO(AndrewL): consider making fields public and remove
 // constructor, getters and setters.
@@ -66,5 +66,15 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
+        let proof = self.proof();
+        let index = self.index().0.try_into().expect("u32 could not be converted to usize");
+        if proof.verify(&self.root().0, &self.shard, index, num_shards) {
+            Ok(())
+        } else {
+            Err(ShardValidationError::MerkleProofVerificationFailed)
+        }
     }
 }
