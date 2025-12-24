@@ -189,6 +189,7 @@ define_string_enum! {
         (InitialCarriedOutputs),
         (InitialContractStateRoot),
         (InitialGas),
+        (InitialGeRequiredGas),
         (InnerRemainingGas),
         (InitialRoot),
         (InitialTxsRangeCheckPtr),
