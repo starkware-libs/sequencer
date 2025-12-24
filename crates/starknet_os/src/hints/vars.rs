@@ -198,6 +198,7 @@ define_string_enum! {
         (IsLeaf),
         (IsNUpdatesSmall),
         (IsOnCurve),
+        (IsRemainingGasLtInitialBudget),
         (IsSierraGasMode),
         (Key),
         (KeyLtMinAliasAllocValue),

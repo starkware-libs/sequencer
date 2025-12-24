@@ -199,7 +199,9 @@ func execute_entry_point{
     %{ SetSyscallPtr %}
     assert [os_context] = cast(syscall_ptr, felt);
 
-    if (nondet %{ ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET %} != FALSE) {
+    local is_remaining_gas_lt_initial_budget;
+    %{ IsRemainingGasLtInitialBudget %}
+    if (is_remaining_gas_lt_initial_budget != FALSE) {
         assert_lt(remaining_gas, ENTRY_POINT_INITIAL_BUDGET);
         %{ ExitCall %}
         let (retdata: felt*) = alloc();
