@@ -2244,6 +2244,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proof_manager_types",
  "async-trait",
  "hex",
