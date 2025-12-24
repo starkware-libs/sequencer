@@ -135,8 +135,9 @@ func check_public_keys{hash_ptr: HashBuiltin*}(
     let (public_keys_hash) = get_public_keys_hash(
         n_public_keys=n_public_keys, public_keys=public_keys
     );
-    tempvar chain_id = nondet %{ program_input["chain_id"] %};
-    tempvar fee_token_address = nondet %{ program_input["fee_token_address"] %};
+    tempvar chain_id;
+    tempvar fee_token_address;
+    %{ GetChainIdAndFeeTokenAddressFromInput %}
     tempvar guessed_starknet_os_config = new StarknetOsConfig(
         chain_id=chain_id, fee_token_address=fee_token_address, public_keys_hash=public_keys_hash
     );
