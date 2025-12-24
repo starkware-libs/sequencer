@@ -23,6 +23,7 @@ apollo_infra_utils.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_metrics.workspace = true
 apollo_network.workspace = true
+apollo_proof_manager_types.workspace = true
 apollo_protobuf.workspace = true
 apollo_reverts.workspace = true
 apollo_signature_manager_types.workspace = true
@@ -41,6 +42,7 @@ apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_consensus = { workspace = true, features = ["testing"] }
 apollo_consensus_config = { workspace = true }
 apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
+apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 apollo_signature_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true }

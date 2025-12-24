@@ -95,6 +95,9 @@ pub async fn create_node_components(
             let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.pre_confirmed_cende_config.clone(),
             ));
+            let proof_manager_client = clients
+                .get_proof_manager_shared_client()
+                .expect("Proof Manager client should be available");
             Some(create_batcher(
                 batcher_config.clone(),
                 committer_client,
@@ -102,6 +105,7 @@ pub async fn create_node_components(
                 l1_provider_client,
                 class_manager_client,
                 pre_confirmed_cende_client,
+                proof_manager_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -199,6 +203,9 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
+            let proof_manager_client = clients
+                .get_proof_manager_shared_client()
+                .expect("Proof Manager client should be available");
             Some(ConsensusManager::new(ConsensusManagerArgs {
                 config: consensus_manager_config.clone(),
                 batcher_client,
@@ -207,6 +214,7 @@ pub async fn create_node_components(
                 signature_manager_client,
                 config_manager_client,
                 l1_gas_price_provider: l1_gas_price_client,
+                proof_manager_client,
             }))
         }
         ActiveComponentExecutionMode::Disabled => {
@@ -228,11 +236,15 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
+            let proof_manager_client = clients
+                .get_proof_manager_shared_client()
+                .expect("Proof Manager client should be available");
             Some(create_gateway(
                 gateway_config.clone(),
                 state_sync_client,
                 mempool_client,
                 class_manager_client,
+                proof_manager_client,
                 tokio::runtime::Handle::current(),
             ))
         }
@@ -266,6 +278,9 @@ pub async fn create_node_components(
                 let class_manager_client = clients
                     .get_class_manager_shared_client()
                     .expect("Class Manager client should be available");
+                let proof_manager_client = clients
+                    .get_proof_manager_shared_client()
+                    .expect("Proof Manager client should be available");
                 let mempool_p2p_propagator_client = clients
                     .get_mempool_p2p_propagator_shared_client()
                     .expect("Mempool P2p Propagator client should be available");
@@ -273,6 +288,7 @@ pub async fn create_node_components(
                     mempool_p2p_config.clone(),
                     gateway_client,
                     class_manager_client,
+                    proof_manager_client,
                     mempool_p2p_propagator_client,
                 );
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))

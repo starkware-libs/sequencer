@@ -28,6 +28,7 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
+use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
@@ -73,7 +74,11 @@ pub(crate) static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>>
     LazyLock::new(|| {
         // TODO(shahak): Use MockTransactionConverter instead.
         static TRANSACTION_CONVERTER: LazyLock<TransactionConverter> = LazyLock::new(|| {
-            TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID)
+            TransactionConverter::new(
+                Arc::new(EmptyClassManagerClient),
+                Arc::new(MockProofManagerClient::new()),
+                CHAIN_ID,
+            )
         });
         TX_BATCH
             .iter()
