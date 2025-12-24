@@ -274,6 +274,7 @@ define_string_enum! {
         (RequiredGas),
         (Res),
         (Response),
+        (ResultPtr),
         (Retdata),
         (RetdataSize),
         (SegmentLength),
