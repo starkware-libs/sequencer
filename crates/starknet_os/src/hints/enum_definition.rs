@@ -646,11 +646,7 @@ define_hint_enum!(
     (ChainIdAndFeeTokenAddress, chain_id_and_fee_token_address),
     (WriteUseKzgDaAndFullOutputToMemory, write_use_kzg_da_and_full_output_to_memory),
     (UpdateBuiltinPtrs, update_builtin_ptrs),
-    (
-        ReadStorageKeyForRevert,
-        read_storage_key_for_revert,
-        "memory[ap] = to_felt_or_relocatable(storage.read(key=ids.storage_key))"
-    ),
+    (ReadStorageKeyForRevert, read_storage_key_for_revert),
     (WriteStorageKeyForRevert, write_storage_key_for_revert),
     (
         ReadAliasFromKey,
