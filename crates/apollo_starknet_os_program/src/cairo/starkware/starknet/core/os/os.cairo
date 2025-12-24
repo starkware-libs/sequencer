@@ -474,12 +474,9 @@ func process_os_output{
     // Guess whether to use KZG commitment scheme and whether to output the full state.
     // TODO(meshi): Once use_kzg_da field is used in the OS for the computation of fees and block
     //   hash, check that the `use_kzg_da` field is identical in all blocks in the multi-block.
-    local use_kzg_da = nondet %{
-        os_hints_config.use_kzg_da and (
-            not os_hints_config.full_output
-        )
-    %};
-    local full_output = nondet %{ os_hints_config.full_output %};
+    local use_kzg_da;
+    local full_output;
+    %{ WriteUseKzgDaAndFullOutputToMemory %}
 
     // Verify that the guessed values are 0 or 1.
     assert use_kzg_da * use_kzg_da = use_kzg_da;
