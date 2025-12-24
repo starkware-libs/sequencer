@@ -156,7 +156,7 @@
     "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
-    "OsHint": "WriteUseKzgDaToMemory"
+    "OsHint": "WriteUseKzgDaAndFullOutputToMemory"
   },
   {
     "OsHint": "ReadAliasCounter"
@@ -193,9 +193,6 @@
   },
   {
     "OsHint": "GetNClassHashesToMigrate"
-  },
-  {
-    "OsHint": "WriteFullOutputToMemory"
   },
   {
     "OsHint": "ConfigureKzgManager"
