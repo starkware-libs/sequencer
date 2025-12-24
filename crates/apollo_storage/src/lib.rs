@@ -96,6 +96,8 @@ mod serialization;
 pub mod state;
 pub mod storage_reader;
 pub mod storage_reader_communication;
+/// Unified handler for dispatching storage reader requests to the appropriate API methods.
+pub mod storage_reader_handler;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
 mod version;
