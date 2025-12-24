@@ -6,7 +6,8 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::PeerSetError;
+use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
+use crate::{PropellerUnit, ShardValidationError};
 
 pub type Stake = u64;
 
@@ -21,7 +22,7 @@ pub type Stake = u64;
 /// - Each peer broadcasts received shards to all other peers (full mesh)
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
-    /// All nodes in the channel with their stake, sorted by (stake, peer_id) descending.
+    /// All nodes in the channel with their stake, sorted by peer_id
     channel_nodes: Vec<(PeerId, Stake)>,
     /// This node's peer ID.
     local_peer_id: PeerId,
@@ -46,9 +47,10 @@ impl PropellerScheduleManager {
             return Err(PeerSetError::LocalPeerNotInPeerWeights);
         }
 
-        nodes.sort_by(|(a_peer_id, a_stake), (b_peer_id, b_stake)| {
-            b_stake.cmp(a_stake).then_with(|| a_peer_id.cmp(b_peer_id))
-        });
+        nodes.sort();
+        if nodes.windows(2).any(|window| window[0].0 == window[1].0) {
+            return Err(PeerSetError::DuplicatePeerIds);
+        }
 
         let local_peer_index = nodes
             .iter()
@@ -99,5 +101,55 @@ impl PropellerScheduleManager {
             return self.should_build(shard_count);
         }
         shard_count >= 2 * self.num_data_shards
+    }
+
+    pub fn get_peer_for_shard_id(
+        &self,
+        publisher: &PeerId,
+        shard_index: ShardIndex,
+    ) -> Result<PeerId, TreeGenerationError> {
+        let original_shard_index = shard_index;
+        let shard_index: usize = shard_index.0.try_into().unwrap();
+        let publisher_index = self
+            .channel_nodes
+            .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
+            .map_err(|_| TreeGenerationError::PublisherNotInChannel { publisher: *publisher })?;
+        let index =
+            if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
+        self.channel_nodes.get(index).map(|(peer, _)| *peer).ok_or({
+            TreeGenerationError::ShardIndexOutOfBounds { shard_index: original_shard_index }
+        })
+    }
+
+    pub fn validate_origin(
+        &self,
+        sender: PeerId,
+        unit: &PropellerUnit,
+    ) -> Result<(), ShardValidationError> {
+        let local_peer_id = self.get_local_peer_id();
+        assert_ne!(local_peer_id, sender, "sender cannot be the local peer id");
+
+        let stated_publisher = unit.publisher();
+
+        if stated_publisher == local_peer_id {
+            return Err(ShardValidationError::ReceivedPublishedShard);
+        }
+
+        let stated_index = unit.index();
+        let expected_broadcaster_for_index = self
+            .get_peer_for_shard_id(&stated_publisher, stated_index)
+            .map_err(ShardValidationError::TreeError)?;
+
+        if expected_broadcaster_for_index == local_peer_id {
+            if sender == stated_publisher {
+                return Ok(());
+            }
+        } else if sender == expected_broadcaster_for_index {
+            return Ok(());
+        }
+        Err(ShardValidationError::UnexpectedSender {
+            expected_sender: expected_broadcaster_for_index,
+            shard_index: stated_index,
+        })
     }
 }

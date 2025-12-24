@@ -92,6 +92,8 @@ pub enum PeerSetError {
     LocalPeerNotInPeerWeights,
     #[error("Invalid public key")]
     InvalidPublicKey,
+    #[error("Duplicate peer IDs")]
+    DuplicatePeerIds,
 }
 
 /// Specific errors that can occur during shard verification.
