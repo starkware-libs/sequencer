@@ -155,6 +155,7 @@ define_string_enum! {
         (ConstructorCalldata),
         (ConstructorCalldataSize),
         (ContractAddress),
+        (ContractAddressLeMaxForCompression),
         (ContractAddressSalt),
         (ContractClassComponentHashes),
         (ContractStateChanges),
