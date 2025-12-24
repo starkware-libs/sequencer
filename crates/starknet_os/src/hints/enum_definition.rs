@@ -102,7 +102,7 @@ use crate::hints::hint_implementation::execution::implementation::{
     load_resource_bounds,
     prepare_constructor_execution,
     set_ap_to_tx_nonce,
-    set_fp_plus_4_to_tx_nonce,
+    set_fp_to_tx_nonce,
     set_state_entry_to_account_contract_address,
     tx_account_deployment_data,
     tx_account_deployment_data_len,
@@ -676,11 +676,7 @@ define_hint_enum!(
     (ExitCall, exit_call),
     (ContractAddress, contract_address),
     (TxCalldata, tx_calldata),
-    (
-        TxEntryPointSelector,
-        tx_entry_point_selector,
-        "memory[ap] = to_felt_or_relocatable(tx.entry_point_selector)"
-    ),
+    (TxEntryPointSelector, tx_entry_point_selector),
     (TxVersion, tx_version, "memory[ap] = to_felt_or_relocatable(tx.version)"),
     (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(tx.tip)"),
     (
@@ -726,11 +722,7 @@ define_hint_enum!(
     (CheckNewDeployResponse, check_new_deploy_response),
     (LogEnterSyscall, log_enter_syscall),
     (SetApToTxNonce, set_ap_to_tx_nonce, "memory[ap] = to_felt_or_relocatable(tx.nonce)"),
-    (
-        SetFpPlus4ToTxNonce,
-        set_fp_plus_4_to_tx_nonce,
-        "memory[fp + 4] = to_felt_or_relocatable(tx.nonce)"
-    ),
+    (SetFpToTxNonce, set_fp_to_tx_nonce, "memory[fp + 5] = to_felt_or_relocatable(tx.nonce)"),
     (WriteSyscallResultDeprecated, write_syscall_result_deprecated),
     (WriteSyscallResult, write_syscall_result),
     (DeclareTxFields, declare_tx_fields),
