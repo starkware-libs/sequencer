@@ -890,7 +890,9 @@ impl SequencerConsensusContext {
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
-            handle.await.expect("Proposal task failed, propagating panic");
+            if let Err(e) = handle.await {
+                error!("Proposal task finished unexpectedly: {e:?}");
+            }
         }
     }
 }
