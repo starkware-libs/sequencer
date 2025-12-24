@@ -190,15 +190,8 @@ pub fn open_storage(
     open_storage_internal(storage_config, None)
 }
 
-/// Same as [`open_storage`], but also updates the given metric for the number of open readers.
-pub fn open_storage_with_metric(
-    storage_config: StorageConfig,
-    open_readers_metric: &'static MetricGauge,
-) -> StorageResult<(StorageReader, StorageWriter)> {
-    open_storage_internal(storage_config, Some(open_readers_metric))
-}
-
-/// Same as [`open_storage_with_metric`], but also creates a storage reader server.
+/// Same as [`open_storage`], but also updates the given metric for the number of open readers and
+/// creates a storage reader server.
 pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
