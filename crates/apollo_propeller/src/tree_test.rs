@@ -1,6 +1,7 @@
 use libp2p::PeerId;
+use rstest::rstest;
 
-use crate::types::PeerSetError;
+use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
 use crate::PropellerScheduleManager;
 
 #[test]
@@ -66,4 +67,33 @@ fn test_new_schedule_manager_without_local_peer() {
 
     let result = PropellerScheduleManager::new(peer1, vec![(peer2, 100)]);
     assert_eq!(result.unwrap_err(), PeerSetError::LocalPeerNotInChannel);
+}
+
+#[rstest]
+#[case::shard_0_maps_to_peer1(ShardIndex(0), Ok(0))]
+#[case::shard_1_maps_to_peer3(ShardIndex(1), Ok(2))]
+#[case::shard_2_maps_to_peer4(ShardIndex(2), Ok(3))]
+#[case::shard_3_out_of_bounds(ShardIndex(3), Err(TreeGenerationError::ShardIndexOutOfBounds { shard_index: ShardIndex(3) }))]
+#[case::shard_4_out_of_bounds(ShardIndex(4), Err(TreeGenerationError::ShardIndexOutOfBounds { shard_index: ShardIndex(4) }))]
+fn test_get_peer_for_shard_id(
+    #[case] shard_index: ShardIndex,
+    #[case] expected_result: Result<usize, TreeGenerationError>,
+) {
+    let mut peers: Vec<_> = (0..4).map(|_| PeerId::random()).collect();
+    peers.sort();
+    let (peer1, peer2, peer3, peer4) = (peers[0], peers[1], peers[2], peers[3]);
+
+    let manager = PropellerScheduleManager::new(
+        peer1,
+        vec![(peer1, 100), (peer2, 75), (peer3, 50), (peer4, 25)],
+    )
+    .unwrap();
+
+    let publisher = peer2; // Use the second peer as publisher
+
+    let result = manager.get_peer_for_shard_id(&publisher, shard_index);
+    match expected_result {
+        Ok(peer_index) => assert_eq!(result.unwrap(), peers[peer_index]),
+        Err(expected_error) => assert_eq!(result.unwrap_err(), expected_error),
+    }
 }
