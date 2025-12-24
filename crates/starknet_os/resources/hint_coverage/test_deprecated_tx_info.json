@@ -330,7 +330,7 @@
     "OsHint": "SetApToTxNonce"
   },
   {
-    "OsHint": "SetFpPlus4ToTxNonce"
+    "OsHint": "SetFpToTxNonce"
   },
   {
     "OsHint": "WriteSyscallResultDeprecated"
