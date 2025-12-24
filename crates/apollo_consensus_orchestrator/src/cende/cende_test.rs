@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_class_manager_types::MockClassManagerClient;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -136,7 +137,11 @@ async fn write_prev_height_blob_multiple_retries(
         .create();
 
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: url.parse::<Url>().unwrap().into(), ..Default::default() },
+        CendeConfig {
+            recorder_url: url.parse::<Url>().unwrap().into(),
+            max_retry_duration_secs: Duration::from_millis(50),
+            ..Default::default()
+        },
         Arc::new(MockClassManagerClient::new()),
     );
 
