@@ -677,7 +677,7 @@ define_hint_enum!(
     (ContractAddress, contract_address),
     (TxCalldata, tx_calldata),
     (TxEntryPointSelector, tx_entry_point_selector),
-    (TxVersion, tx_version, "memory[ap] = to_felt_or_relocatable(tx.version)"),
+    (TxVersion, tx_version),
     (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(tx.tip)"),
     (
         TxPaymasterDataLen,
