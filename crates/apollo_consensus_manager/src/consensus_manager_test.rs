@@ -9,6 +9,7 @@ use apollo_consensus::test_utils::get_new_storage_config;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig};
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
+use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
@@ -68,6 +69,7 @@ async fn revert_batcher_blocks() {
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
             config_manager_client: Arc::new(MockConfigManagerClient::new()),
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            proof_manager_client: Arc::new(MockProofManagerClient::new()),
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
@@ -99,6 +101,7 @@ async fn no_reverts_without_config() {
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
         config_manager_client: Arc::new(MockConfigManagerClient::new()),
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+        proof_manager_client: Arc::new(MockProofManagerClient::new()),
     });
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
