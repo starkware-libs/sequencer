@@ -833,7 +833,9 @@ func execute_declare_transaction{
 }(block_context: BlockContext*) {
     alloc_locals;
 
-    if (nondet %{ tx.version %} == 0) {
+    local tx_version;
+    %{ TxVersion %}
+    if (tx_version == 0) {
         %{ SkipTx %}
         return ();
     }
