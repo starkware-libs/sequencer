@@ -141,6 +141,8 @@ define_string_enum! {
         (BuiltinCosts),
         (BuiltinParams),
         (BuiltinPtrs),
+        (Calldata),
+        (CalldataSize),
         (CallResponse),
         (ChainId),
         (ChildBit),
