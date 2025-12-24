@@ -10,6 +10,7 @@ description = "Implementation of the Propeller algorithm for the Starknet sequen
 testing = []
 
 [dependencies]
+apollo_infra_utils.workspace = true
 apollo_protobuf.workspace = true
 asynchronous-codec.workspace = true
 futures.workspace = true
