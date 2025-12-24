@@ -19,6 +19,7 @@ use apollo_network::metrics::{
     NetworkMetrics,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use apollo_proof_manager_types::SharedProofManagerClient;
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
 use tracing::{info_span, Instrument};
@@ -43,10 +44,12 @@ pub fn create_p2p_propagator_and_runner(
     mempool_p2p_config: MempoolP2pConfig,
     gateway_client: SharedGatewayClient,
     class_manager_client: SharedClassManagerClient,
+    proof_manager_client: SharedProofManagerClient,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> (MempoolP2pPropagator, MempoolP2pRunner) {
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
+        proof_manager_client.clone(),
         mempool_p2p_config.network_config.chain_id.clone(),
     );
     let mut broadcast_metrics_by_topic = HashMap::new();

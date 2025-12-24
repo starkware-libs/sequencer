@@ -37,6 +37,7 @@ use apollo_network::network_manager::{
     BroadcastTopicServer,
     NetworkManager,
 };
+use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
@@ -82,6 +83,7 @@ pub struct ConsensusManager {
     pub batcher_client: SharedBatcherClient,
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
+    pub proof_manager_client: SharedProofManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
@@ -96,6 +98,7 @@ pub struct ConsensusManagerArgs {
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    pub proof_manager_client: SharedProofManagerClient,
 }
 
 impl ConsensusManager {
@@ -114,6 +117,7 @@ impl ConsensusManager {
             batcher_client: args.batcher_client,
             state_sync_client: args.state_sync_client,
             class_manager_client: args.class_manager_client,
+            proof_manager_client: args.proof_manager_client,
             signature_manager_client: args.signature_manager_client,
             config_manager_client: args.config_manager_client,
             l1_gas_price_provider: args.l1_gas_price_provider,
@@ -270,6 +274,7 @@ impl ConsensusManager {
             SequencerConsensusContextDeps {
                 transaction_converter: Arc::new(TransactionConverter::new(
                     Arc::clone(&self.class_manager_client),
+                    Arc::clone(&self.proof_manager_client),
                     self.config.context_config.chain_id.clone(),
                 )),
                 state_sync_client: Arc::clone(&self.state_sync_client),
@@ -346,11 +351,13 @@ impl ConsensusManager {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_consensus_manager(
     config: ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
+    proof_manager_client: SharedProofManagerClient,
     signature_manager_client: SharedSignatureManagerClient,
     config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
@@ -360,6 +367,7 @@ pub fn create_consensus_manager(
         batcher_client,
         state_sync_client,
         class_manager_client,
+        proof_manager_client,
         signature_manager_client,
         config_manager_client,
         l1_gas_price_provider,

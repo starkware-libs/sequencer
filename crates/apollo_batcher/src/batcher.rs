@@ -36,6 +36,7 @@ use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
@@ -1278,6 +1279,7 @@ pub async fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
+    proof_manager_client: SharedProofManagerClient,
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
@@ -1300,12 +1302,16 @@ pub async fn create_batcher(
             config.contract_class_manager_config.clone(),
         ),
         class_manager_client: class_manager_client.clone(),
+        proof_manager_client: proof_manager_client.clone(),
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let transaction_converter =
-        TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
+    let transaction_converter = TransactionConverter::new(
+        class_manager_client,
+        proof_manager_client,
+        config.storage.db_config.chain_id.clone(),
+    );
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
     let commitment_manager = CommitmentManager::create_commitment_manager(
