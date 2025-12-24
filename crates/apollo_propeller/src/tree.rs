@@ -6,7 +6,8 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::PeerSetError;
+use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
+use crate::{PropellerUnit, ShardValidationError};
 
 pub type Stake = u64;
 
@@ -102,6 +103,57 @@ impl PropellerTreeManager {
         self.local_peer_index = Some(local_peer_index);
         Ok(())
     }
+
+    pub fn get_peer_for_shard_id(
+        &self,
+        publisher: &PeerId,
+        shard_index: ShardIndex,
+    ) -> Result<PeerId, TreeGenerationError> {
+        let original_shard_index = shard_index;
+        let mut shard_index: usize = shard_index.0.try_into().unwrap();
+        for (peer_id, _) in self.nodes.iter() {
+            if peer_id == publisher {
+                continue;
+            } else if shard_index == 0 {
+                return Ok(*peer_id);
+            } else {
+                shard_index -= 1;
+            }
+        }
+        Err(TreeGenerationError::ShardIndexOutOfBounds { shard_index: original_shard_index })
+    }
+
+    pub fn validate_origin(
+        &self,
+        sender: PeerId,
+        unit: &PropellerUnit,
+    ) -> Result<(), ShardValidationError> {
+        let local_peer_id = self.get_local_peer_id();
+        assert_ne!(local_peer_id, sender, "sender cannot be the local peer id");
+
+        let stated_publisher = unit.publisher();
+
+        if stated_publisher == local_peer_id {
+            return Err(ShardValidationError::ReceivedPublishedShard);
+        }
+
+        let stated_index = unit.index();
+        let expected_broadcaster_for_index = self
+            .get_peer_for_shard_id(&stated_publisher, stated_index)
+            .map_err(ShardValidationError::TreeError)?;
+
+        if expected_broadcaster_for_index == local_peer_id {
+            if sender == stated_publisher {
+                return Ok(());
+            }
+        } else if sender == expected_broadcaster_for_index {
+            return Ok(());
+        }
+        Err(ShardValidationError::UnexpectedSender {
+            expected_sender: expected_broadcaster_for_index,
+            shard_index: stated_index,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -161,5 +213,27 @@ mod tests {
         let result = manager.update_nodes(vec![(peer2, 100)]);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), PeerSetError::LocalPeerNotInPeerWeights);
+    }
+
+    #[test]
+    fn test_get_peer_for_shard_id() {
+        let peer1 = PeerId::random();
+        let peer2 = PeerId::random();
+        let peer3 = PeerId::random();
+        let peer4 = PeerId::random();
+
+        let publisher = peer2; // Publisher in the middle
+
+        let mut manager = PropellerTreeManager::new(peer1);
+        manager.update_nodes(vec![(peer1, 100), (peer2, 75), (peer3, 50), (peer4, 25)]).unwrap();
+
+        // Tree should be [peer1, peer3, peer4] (excluding publisher peer2)
+        assert_eq!(manager.get_peer_for_shard_id(&publisher, ShardIndex(0)).unwrap(), peer1);
+        assert_eq!(manager.get_peer_for_shard_id(&publisher, ShardIndex(1)).unwrap(), peer3);
+        assert_eq!(manager.get_peer_for_shard_id(&publisher, ShardIndex(2)).unwrap(), peer4);
+        assert_eq!(
+            manager.get_peer_for_shard_id(&publisher, ShardIndex(3)).unwrap_err(),
+            TreeGenerationError::ShardIndexOutOfBounds { shard_index: ShardIndex(3) }
+        );
     }
 }
