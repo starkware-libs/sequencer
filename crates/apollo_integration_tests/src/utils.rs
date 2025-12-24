@@ -509,6 +509,7 @@ pub fn create_deploy_account_tx_and_invoke_tx(
     let undeployed_account_tx_generator = tx_generator.account_with_id_mut(account_id);
     assert!(!undeployed_account_tx_generator.is_deployed());
     let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     let invoke_tx = undeployed_account_tx_generator.generate_trivial_rpc_invoke_tx(1);
     vec![deploy_tx, invoke_tx]
 }

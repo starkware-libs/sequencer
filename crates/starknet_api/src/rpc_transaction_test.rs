@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use crate::{calldata, class_hash, contract_address, felt, nonce};
+use crate::{calldata, class_hash, contract_address, felt, nonce, proof, proof_facts};
 
 fn create_declare_tx() -> RpcTransaction {
     rpc_declare_tx(
@@ -57,16 +57,22 @@ fn create_deploy_account_tx() -> RpcTransaction {
     })
 }
 
-fn create_invoke_tx() -> RpcTransaction {
-    rpc_invoke_tx(InvokeTxArgs {
+fn rpc_invoke_tx_args() -> InvokeTxArgs {
+    InvokeTxArgs {
         resource_bounds: valid_resource_bounds_for_testing(),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
         sender_address: contract_address!("0x1"),
         nonce: nonce!(1),
         paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
         account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
+        proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
+        proof: proof!(1, 2, 3, 4, 5),
         ..Default::default()
-    })
+    }
+}
+
+fn create_invoke_tx() -> RpcTransaction {
+    rpc_invoke_tx(rpc_invoke_tx_args())
 }
 
 // Test the custom serde/deserde of RPC transactions.
@@ -144,5 +150,17 @@ fn test_invoke_tx_size_of() {
         assert_eq!(tx_v3.size_bytes(), 512);
     } else {
         panic!("Expected RpcTransaction::Invoke");
+    }
+}
+
+// Ensure backward compatibility: V3 invoke txs must not serialize empty proof fields.
+#[test]
+fn test_empty_proof_fields_not_serialized() {
+    // Create tx with empty proof and proof_facts.
+    let tx = create_invoke_tx();
+    let serialized = serde_json::to_string(&tx).unwrap();
+
+    for field in ["\"proof\":", "\"proof_facts\":"] {
+        assert!(!serialized.contains(field), "Empty proof fields should not be serialized");
     }
 }

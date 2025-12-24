@@ -112,8 +112,6 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
-    Proof,
-    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -128,7 +126,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_api::{contract_address, felt, nonce, storage_key};
+use starknet_api::{contract_address, felt, nonce, proof, storage_key};
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -270,8 +268,8 @@ fn invoke_transaction() -> RpcInvokeTransaction {
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
-        proof_facts: ProofFacts::default(),
-        proof: Proof::default(),
+        proof_facts: (felt_vector().into()),
+        proof: proof!(1, 2, 3, 4, 5),
     })
 }
 
