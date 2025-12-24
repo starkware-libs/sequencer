@@ -190,7 +190,10 @@ func allocate_aliases{aliases_storage_updates: DictAccess*, range_check_ptr}(
 // Returns whether the contract at the given address should be skipped when assigning/replacing
 // aliases.
 func should_skip_contract{range_check_ptr}(contract_address: felt) -> felt {
-    if (nondet %{ ids.contract_address <= ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS %} != FALSE) {
+    alloc_locals;
+    local contract_address_le_max_for_compression;
+    %{ ContractAddressLeMaxForCompression %}
+    if (contract_address_le_max_for_compression != FALSE) {
         // Don't give any aliases for contracts <= MAX_NON_COMPRESSED_CONTRACT_ADDRESS.
         assert_nn_le(a=contract_address, b=MAX_NON_COMPRESSED_CONTRACT_ADDRESS);
         return TRUE;
