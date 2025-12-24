@@ -35,8 +35,8 @@ pub struct Behaviour {
 impl Behaviour {
     /// Create a new Propeller behaviour.
     pub fn new(local_peer_id: PeerId, config: Config) -> Self {
-        let (commands_tx, commands_rx) = mpsc::channel(config.channel_capacity());
-        let (outputs_tx, outputs_rx) = mpsc::channel(config.channel_capacity());
+        let (commands_tx, commands_rx) = mpsc::channel(config.channel_capacity);
+        let (outputs_tx, outputs_rx) = mpsc::channel(config.channel_capacity);
 
         let core = Core::new(local_peer_id, config.clone());
 
@@ -63,7 +63,7 @@ impl NetworkBehaviour for Behaviour {
         _local_addr: &libp2p::core::Multiaddr,
         _remote_addr: &libp2p::core::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(self.config.stream_protocol().clone(), self.config.max_wire_message_size()))
+        Ok(Handler::new(self.config.stream_protocol.clone(), self.config.max_wire_message_size))
     }
 
     fn handle_established_outbound_connection(
@@ -74,7 +74,7 @@ impl NetworkBehaviour for Behaviour {
         _role_override: Endpoint,
         _port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(self.config.stream_protocol().clone(), self.config.max_wire_message_size()))
+        Ok(Handler::new(self.config.stream_protocol.clone(), self.config.max_wire_message_size))
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {

@@ -6,11 +6,11 @@ use libp2p::swarm::StreamProtocol;
 #[derive(Clone)]
 pub struct Config {
     /// Stream protocol for the Propeller protocol.
-    stream_protocol: StreamProtocol,
+    pub stream_protocol: StreamProtocol,
     /// Maximum size of a message sent over the wire.
-    max_wire_message_size: usize,
+    pub max_wire_message_size: usize,
     /// Capacity for bounded channels between behaviour and core.
-    channel_capacity: usize,
+    pub channel_capacity: usize,
 }
 
 impl Default for Config {
@@ -27,20 +27,5 @@ impl Config {
     /// Create a new Config with default values.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Get the stream protocol for the Propeller protocol.
-    pub fn stream_protocol(&self) -> &StreamProtocol {
-        &self.stream_protocol
-    }
-
-    /// Maximum size of a message sent over the wire.
-    pub fn max_wire_message_size(&self) -> usize {
-        self.max_wire_message_size
-    }
-
-    /// Get the channel capacity for inter-task communication.
-    pub fn channel_capacity(&self) -> usize {
-        self.channel_capacity
     }
 }
