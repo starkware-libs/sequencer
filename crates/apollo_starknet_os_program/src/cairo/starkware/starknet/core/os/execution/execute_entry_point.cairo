@@ -285,20 +285,21 @@ func execute_entry_point{
 
     local orig_revert_log: RevertLogEntry* = revert_log;
     local orig_outputs: OsCarriedOutputs* = outputs;
+    local outputs: OsCarriedOutputs*;
 
     // If necessary, create a new revert_log and dummy outputs before calling
     // `call_execute_syscalls`.
     if (is_reverted != FALSE) {
-        // Create a new revert log for the reverted entry point. This will be used to revert the
-        // entry point changes after calling `call_execute_syscalls`.
-        let revert_log = init_revert_log();
         // Create a dummy OsCarriedOutputs so that messages to L1 will be discarded.
         // The dummy is initialized with
         // OsCarriedOutputs(messages_to_l1="empty segment", messages_to_l2=0).
-        tempvar outputs = cast(nondet %{ segments.gen_arg([[], 0]) %}, OsCarriedOutputs*);
+        %{ GenerateDummyOsOutputSegment %}
+        // Create a new revert log for the reverted entry point. This will be used to revert the
+        // entry point changes after calling `call_execute_syscalls`.
+        let revert_log = init_revert_log();
     } else {
+        assert outputs = orig_outputs;
         tempvar revert_log = orig_revert_log;
-        tempvar outputs = orig_outputs;
     }
     let builtin_ptrs = return_builtin_ptrs;
     with syscall_ptr {
