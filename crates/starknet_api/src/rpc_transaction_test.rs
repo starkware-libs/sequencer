@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use crate::{calldata, class_hash, contract_address, felt, nonce};
+use crate::{calldata, class_hash, contract_address, felt, nonce, proof, proof_facts};
 
 fn create_declare_tx() -> RpcTransaction {
     rpc_declare_tx(
@@ -57,8 +57,8 @@ fn create_deploy_account_tx() -> RpcTransaction {
     })
 }
 
-fn create_invoke_tx() -> RpcTransaction {
-    rpc_invoke_tx(InvokeTxArgs {
+fn rpc_invoke_tx_args() -> InvokeTxArgs {
+    InvokeTxArgs {
         resource_bounds: valid_resource_bounds_for_testing(),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
         sender_address: contract_address!("0x1"),
@@ -66,6 +66,21 @@ fn create_invoke_tx() -> RpcTransaction {
         paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
         account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
         ..Default::default()
+    }
+}
+
+fn create_invoke_tx() -> RpcTransaction {
+    rpc_invoke_tx(rpc_invoke_tx_args())
+}
+
+/// Tests the optional client-side proving feature. V3 transactions must support both variants:
+/// - Without proof fields (old V3 txs / default case) - tested by `create_invoke_tx()`
+/// - With proof fields (new client-side proving feature) - tested by this function
+fn create_invoke_tx_with_client_proof() -> RpcTransaction {
+    rpc_invoke_tx(InvokeTxArgs {
+        proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
+        proof: proof!(1, 2, 3, 4, 5),
+        ..rpc_invoke_tx_args()
     })
 }
 
@@ -74,6 +89,7 @@ fn create_invoke_tx() -> RpcTransaction {
 #[case(create_declare_tx())]
 #[case(create_deploy_account_tx())]
 #[case(create_invoke_tx())]
+#[case(create_invoke_tx_with_client_proof())]
 fn test_rpc_transactions(#[case] tx: RpcTransaction) {
     let serialized = serde_json::to_string(&tx).unwrap();
     let deserialized: RpcTransaction = serde_json::from_str(&serialized).unwrap();
