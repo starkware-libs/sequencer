@@ -60,7 +60,7 @@
     "StatelessHint": "SetDecompressedDst"
   },
   {
-    "StatelessHint": "SegmentsAddTemp"
+    "StatelessHint": "SegmentsAddTempInitialTxsRangeCheckPtr"
   },
   {
     "StatelessHint": "SegmentsAdd"
