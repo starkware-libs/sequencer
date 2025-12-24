@@ -300,7 +300,7 @@
     "OsHint": "LogEnterSyscall"
   },
   {
-    "OsHint": "SetApToTxNonce"
+    "OsHint": "LoadTxNonce"
   },
   {
     "OsHint": "WriteSyscallResultDeprecated"
