@@ -42,7 +42,7 @@
     "StatelessHint": "ComputeCommitmentsOnFinalizedStateWithAliases"
   },
   {
-    "StatelessHint": "SegmentsAddTemp"
+    "StatelessHint": "SegmentsAddTempInitialTxsRangeCheckPtr"
   },
   {
     "StatelessHint": "SegmentsAdd"

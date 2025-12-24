@@ -192,6 +192,7 @@ define_string_enum! {
         (InitialGas),
         (InnerRemainingGas),
         (InitialRoot),
+        (InitialTxsRangeCheckPtr),
         (IsBlockNumberInBlockHashBuffer),
         (IsLeaf),
         (IsNUpdatesSmall),
