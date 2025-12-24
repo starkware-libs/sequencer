@@ -195,7 +195,7 @@
     "OsHint": "OsInputTransactions"
   },
   {
-    "OsHint": "SetApToActualFee"
+    "OsHint": "LoadActualFee"
   },
   {
     "OsHint": "LoadNextTx"
