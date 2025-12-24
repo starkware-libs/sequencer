@@ -691,6 +691,7 @@ func execute_meta_tx_v0{
         proof_facts_end=cast(0, felt*),
     );
 
+    let (deprecated_tx_info_ptr) = alloc();
     tempvar execution_context: ExecutionContext* = new ExecutionContext(
         entry_point_type=ENTRY_POINT_TYPE_EXTERNAL,
         class_hash=state_entry.class_hash,
@@ -703,7 +704,7 @@ func execute_meta_tx_v0{
             contract_address=contract_address,
             selector=selector,
         ),
-        deprecated_tx_info=cast(nondet %{ segments.add() %}, DeprecatedTxInfo*),
+        deprecated_tx_info=cast(deprecated_tx_info_ptr, DeprecatedTxInfo*),
     );
     fill_deprecated_tx_info(tx_info=new_tx_info, dst=execution_context.deprecated_tx_info);
 
