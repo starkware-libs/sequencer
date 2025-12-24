@@ -1725,6 +1725,7 @@ func reduce_syscall_gas_and_write_response_header{range_check_ptr, syscall_ptr: 
 func reduce_syscall_base_gas{range_check_ptr, syscall_ptr: felt*}(
     specific_base_gas_cost: felt, request_struct_size: felt
 ) -> (success: felt, remaining_gas: felt) {
+    alloc_locals;
     let request_header = cast(syscall_ptr, RequestHeader*);
     // Advance syscall pointer to the response header.
     let syscall_ptr = syscall_ptr + RequestHeader.SIZE + request_struct_size;
@@ -1732,7 +1733,9 @@ func reduce_syscall_base_gas{range_check_ptr, syscall_ptr: felt*}(
     // Refund the pre-charged base gas.
     let required_gas = specific_base_gas_cost - SYSCALL_BASE_GAS_COST;
     tempvar initial_gas = request_header.gas;
-    if (nondet %{ ids.initial_gas >= ids.required_gas %} != FALSE) {
+    local initial_ge_required_gas;
+    %{ InitialGeRequiredGas %}
+    if (initial_ge_required_gas != FALSE) {
         tempvar remaining_gas = initial_gas - required_gas;
         assert_nn(remaining_gas);
         return (success=1, remaining_gas=remaining_gas);
