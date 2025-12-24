@@ -799,16 +799,16 @@ fn test_aggregator(
     let result =
         run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor);
 
-    let RunnerReturnObject { raw_output, cairo_pie, mut cairo_runner } = match result {
-        Err(error) => {
-            assert!(error.to_string().contains(error_message.unwrap().as_str()));
-            return;
-        }
-        Ok(runner_output) => {
-            assert!(error_message.is_none());
-            runner_output
-        }
-    };
+    if let Some(message) = error_message {
+        let Err(error) = result else { panic!("Expected error '{message}', got success.") };
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains(message.as_str()),
+            "Expected error '{message}', got: {error_string}."
+        );
+        return;
+    }
+    let RunnerReturnObject { raw_output, cairo_pie, mut cairo_runner } = result.unwrap();
 
     validate_builtins(&mut cairo_runner);
 
