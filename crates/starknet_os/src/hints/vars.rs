@@ -212,6 +212,7 @@ define_string_enum! {
         (IsLeafAndLoaded),
         (LoadSegment),
         (Low),
+        (LowActualFee),
         (MaxGas),
         (N),
         (NBlobs),
