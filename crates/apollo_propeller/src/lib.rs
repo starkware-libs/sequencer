@@ -1,4 +1,5 @@
 pub mod behaviour;
+mod channel_utils;
 pub mod codec;
 #[cfg(test)]
 mod codec_test;
