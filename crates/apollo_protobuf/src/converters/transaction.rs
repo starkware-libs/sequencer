@@ -637,9 +637,12 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let proof_facts = ProofFacts(
-            value.proof_facts.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
-        );
+        let proof_facts: ProofFacts = value
+            .proof_facts
+            .into_iter()
+            .map(Felt::try_from)
+            .collect::<Result<Vec<_>, _>>()?
+            .into();
 
         Ok(Self {
             resource_bounds,

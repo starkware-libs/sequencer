@@ -156,7 +156,7 @@ const COMPRESSION_THRESHOLD_BYTES: usize = 384;
 
 auto_storage_serde! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
-    pub struct ProofFacts(pub Vec<Felt>);
+    pub struct ProofFacts(pub Arc<Vec<Felt>>);
     pub struct AllResourceBounds {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
