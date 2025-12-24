@@ -116,6 +116,7 @@ where
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         // Extract trace context from incoming HTTP headers and set as parent of current span.
+        // This links this span to the caller's span via the same trace_id.
         let parent_context = extract_context_from_headers(http_request.headers());
         Span::current().set_parent(parent_context);
 

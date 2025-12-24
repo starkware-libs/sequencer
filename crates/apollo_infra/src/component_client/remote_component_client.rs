@@ -172,7 +172,8 @@ where
             .uri(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
 
-        // Add trace headers to the request.
+        // Add trace headers to the request for cross-component trace correlation.
+        // This propagates trace_id and span_id to the receiving component.
         let context = {
             use tracing_opentelemetry::OpenTelemetrySpanExt;
             Span::current().context()
