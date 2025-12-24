@@ -42,7 +42,7 @@ pub enum TestIdentifier {
     HttpServerUnitTests,
     SyncFlowIntegrationTest,
     StorageReaderServerUnitTests,
-    BatcherTypesUnitTests,
+    StorageReaderTypesUnitTests,
 }
 
 #[derive(Debug)]
