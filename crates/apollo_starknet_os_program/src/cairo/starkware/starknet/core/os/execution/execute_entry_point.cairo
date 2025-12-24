@@ -295,7 +295,9 @@ func execute_entry_point{
         // Create a dummy OsCarriedOutputs so that messages to L1 will be discarded.
         // The dummy is initialized with
         // OsCarriedOutputs(messages_to_l1="empty segment", messages_to_l2=0).
-        tempvar outputs = cast(nondet %{ segments.gen_arg([[], 0]) %}, OsCarriedOutputs*);
+        let outputs = cast([ap], OsCarriedOutputs*);
+        %{ GenerateDummyOsOutputSegment %}
+        ap += 1;
     } else {
         tempvar revert_log = orig_revert_log;
         tempvar outputs = orig_outputs;
