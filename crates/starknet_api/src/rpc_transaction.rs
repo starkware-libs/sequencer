@@ -576,9 +576,9 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "ProofFacts::is_empty")]
     pub proof_facts: ProofFacts,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Proof::is_empty")]
     pub proof: Proof,
 }
 

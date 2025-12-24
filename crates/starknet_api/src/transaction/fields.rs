@@ -651,3 +651,9 @@ impl From<Vec<u32>> for Proof {
         Self(Arc::new(value))
     }
 }
+
+impl Proof {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
