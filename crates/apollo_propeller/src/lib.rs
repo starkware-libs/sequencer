@@ -13,8 +13,12 @@ pub mod tree;
 mod tree_test;
 pub mod types;
 pub mod unit;
+pub mod unit_validator;
+#[cfg(test)]
+mod unit_validator_test;
 
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
+pub use unit_validator::UnitValidator;
