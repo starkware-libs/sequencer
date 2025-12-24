@@ -750,11 +750,7 @@ define_hint_enum!(
     ),
     (DebugExpectedInitialGas, debug_expected_initial_gas),
     (IsSierraGasMode, is_sierra_gas_mode),
-    (
-        ReadEcPointFromAddress,
-        read_ec_point_from_address,
-        r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
-    ),
+    (ReadEcPointFromAddress, read_ec_point_from_address),
     (SetPreimageForStateCommitments, set_preimage_for_state_commitments),
     (SetPreimageForClassCommitments, set_preimage_for_class_commitments),
     (SetPreimageForCurrentCommitmentInfo, set_preimage_for_current_commitment_info),
