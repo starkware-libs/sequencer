@@ -419,9 +419,12 @@ func get_os_global_context{
     let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
         n_public_keys=n_public_keys, public_keys=public_keys
     );
+    local chain_id;
+    local fee_token_address;
+    %{ ChainIdAndFeeTokenAddress %}
     tempvar starknet_os_config = new StarknetOsConfig(
-        chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
-        fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
+        chain_id=chain_id,
+        fee_token_address=fee_token_address,
         public_keys_hash=public_keys_hash,
     );
     let (starknet_os_config_hash) = get_starknet_os_config_hash{hash_ptr=pedersen_ptr}(
