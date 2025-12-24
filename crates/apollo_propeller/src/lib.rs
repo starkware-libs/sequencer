@@ -8,9 +8,13 @@ mod reed_solomon_test;
 pub mod signature;
 #[cfg(test)]
 mod signature_test;
+pub mod tree;
+#[cfg(test)]
+mod tree_test;
 pub mod types;
 pub mod unit;
 
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
-pub use types::{Channel, MessageRoot, ShardIndex};
+pub use tree::{PropellerScheduleManager, Stake};
+pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
