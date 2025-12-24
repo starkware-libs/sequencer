@@ -85,3 +85,11 @@ pub enum ReconstructionError {
     #[error("The message was padded incorrectly by the publisher")]
     MessagePaddingError,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum PeerSetError {
+    #[error("Local peer is not a member in the channel you're requesting")]
+    LocalPeerNotInChannel,
+    #[error("Invalid public key")]
+    InvalidPublicKey,
+}
