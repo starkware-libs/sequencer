@@ -456,23 +456,9 @@ pub(crate) fn tx_version<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let account_deployment_data =
-        get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
-    insert_nondet_hint_value(
-        vm,
-        AllHints::OsHint(OsHint::TxAccountDeploymentDataLen),
-        account_deployment_data.0.len(),
-    )?;
-    Ok(())
-}
-
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_deployment_data: Vec<_> =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?
@@ -481,7 +467,20 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
             .map(MaybeRelocatable::from)
             .collect();
     let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
-    insert_value_into_ap(vm, account_deployment_data_base)?;
+    insert_value_from_var_name(
+        Ids::AccountDeploymentData.into(),
+        account_deployment_data_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::AccountDeploymentDataSize.into(),
+        Felt::from(account_deployment_data.len()),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
