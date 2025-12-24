@@ -675,11 +675,7 @@ define_hint_enum!(
     (TxAccountDeploymentData, tx_account_deployment_data),
     (TxProofFacts, tx_proof_facts),
     (GenSignatureArg, gen_signature_arg),
-    (
-        IsReverted,
-        is_reverted,
-        "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)"
-    ),
+    (IsReverted, is_reverted),
     (CheckExecutionAndExitCall, check_execution_and_exit_call),
     (CheckSyscallResponse, check_syscall_response),
     (CheckNewCallContractResponse, check_new_call_contract_response),

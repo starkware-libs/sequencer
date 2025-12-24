@@ -479,7 +479,9 @@ func execute_invoke_function_transaction{
         execution_context=tx_execution_context
     );
 
-    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} == FALSE) {
+    tempvar is_reverted;
+    %{ IsReverted %}
+    if (is_reverted == FALSE) {
         // Execute only non-reverted transactions.
         with remaining_gas {
             cap_remaining_gas(max_gas=EXECUTE_MAX_SIERRA_GAS);
@@ -522,8 +524,10 @@ func execute_l1_handler_transaction{
     alloc_locals;
 
     %{ StartTx %}
+    tempvar is_reverted;
+    %{ IsReverted %}
     // Skip the execution step for reverted transaction.
-    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
+    if (is_reverted != FALSE) {
         %{ EndTx %}
         return ();
     }
