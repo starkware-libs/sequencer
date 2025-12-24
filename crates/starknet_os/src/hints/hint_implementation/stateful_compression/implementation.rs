@@ -80,7 +80,13 @@ pub(crate) fn key_lt_min_alias_alloc_value(
 ) -> OsHintResult {
     let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
     let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(constants)?;
-    Ok(insert_value_into_ap(vm, Felt::from(key < min_value_for_alias_alloc))?)
+    Ok(insert_value_from_var_name(
+        Ids::KeyLtMinAliasAllocValue.into(),
+        Felt::from(key < min_value_for_alias_alloc),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn assert_key_big_enough_for_alias(
