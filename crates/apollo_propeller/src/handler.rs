@@ -12,6 +12,7 @@ use libp2p::swarm::handler::{
     ConnectionHandler,
     ConnectionHandlerEvent,
     FullyNegotiatedInbound,
+    FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
 
@@ -65,41 +66,58 @@ impl Handler {
             receive_queue: VecDeque::new(),
         }
     }
-}
 
-impl ConnectionHandler for Handler {
-    type FromBehaviour = HandlerIn;
-    type ToBehaviour = HandlerOut;
-    type InboundOpenInfo = ();
-    type InboundProtocol = PropellerProtocol;
-    type OutboundOpenInfo = ();
-    type OutboundProtocol = PropellerProtocol;
-
-    fn listen_protocol(&self) -> SubstreamProtocol<Self::InboundProtocol> {
-        SubstreamProtocol::new(self.listen_protocol.clone(), ())
+    fn on_fully_negotiated_inbound(&mut self, substream: Framed<Stream, PropellerCodec>) {
+        tracing::trace!("New inbound substream request");
+        // TODO(AndrewL): Handle concurrent streams with array indexing
+        self.inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
     }
 
-    fn on_behaviour_event(&mut self, event: HandlerIn) {
-        match event {
-            HandlerIn::SendUnit(msg) => {
-                self.send_queue.push_back(msg.into());
-                // TODO(AndrewL): Wake up poll to send the message
-            }
-        }
+    fn on_fully_negotiated_outbound(
+        &mut self,
+        _fully_negotiated_outbound: FullyNegotiatedOutbound<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+        >,
+    ) {
+        // TODO(AndrewL): Implement outbound substream handling
+        todo!("Outbound substream handling not yet implemented")
     }
 
-    fn poll(
+    fn poll_send(
+        &mut self,
+        _cx: &mut Context<'_>,
+    ) -> Poll<
+        ConnectionHandlerEvent<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+            (),
+            <Handler as ConnectionHandler>::ToBehaviour,
+        >,
+    > {
+        // TODO(AndrewL): Implement outbound message sending
+        Poll::Pending
+    }
+
+    fn poll_inner(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<ConnectionHandlerEvent<Self::OutboundProtocol, (), Self::ToBehaviour>> {
-        // Emit received messages from receive queue
+    ) -> Poll<
+        ConnectionHandlerEvent<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+            (),
+            <Handler as ConnectionHandler>::ToBehaviour,
+        >,
+    > {
+        // First, emit any queued received messages
         if let Some(message) = self.receive_queue.pop_front() {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
         }
 
-        // TODO(AndrewL): Poll outbound substream to send messages
+        // Process outbound stream
+        if let Poll::Ready(event) = self.poll_send(cx) {
+            return Poll::Ready(event);
+        }
 
-        // Poll inbound substream to receive messages
+        // Handle inbound messages
         loop {
             match self.inbound_substream.take() {
                 Some(InboundSubstreamState::WaitingInput(mut substream)) => {
@@ -166,6 +184,35 @@ impl ConnectionHandler for Handler {
 
         Poll::Pending
     }
+}
+
+impl ConnectionHandler for Handler {
+    type FromBehaviour = HandlerIn;
+    type ToBehaviour = HandlerOut;
+    type InboundOpenInfo = ();
+    type InboundProtocol = PropellerProtocol;
+    type OutboundOpenInfo = ();
+    type OutboundProtocol = PropellerProtocol;
+
+    fn listen_protocol(&self) -> SubstreamProtocol<Self::InboundProtocol> {
+        SubstreamProtocol::new(self.listen_protocol.clone(), ())
+    }
+
+    fn on_behaviour_event(&mut self, event: HandlerIn) {
+        match event {
+            HandlerIn::SendUnit(msg) => {
+                self.send_queue.push_back(msg.into());
+                // TODO(AndrewL): Wake up poll to send the message
+            }
+        }
+    }
+
+    fn poll(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<ConnectionHandlerEvent<Self::OutboundProtocol, (), Self::ToBehaviour>> {
+        self.poll_inner(cx)
+    }
 
     fn on_connection_event(
         &mut self,
@@ -174,13 +221,12 @@ impl ConnectionHandler for Handler {
         match event {
             ConnectionEvent::FullyNegotiatedInbound(FullyNegotiatedInbound {
                 protocol, ..
-            }) => {
-                tracing::trace!("New inbound substream established");
-                self.inbound_substream = Some(InboundSubstreamState::WaitingInput(protocol));
+            }) => self.on_fully_negotiated_inbound(protocol),
+            ConnectionEvent::FullyNegotiatedOutbound(fully_negotiated_outbound) => {
+                self.on_fully_negotiated_outbound(fully_negotiated_outbound)
             }
             _ => {
-                // TODO(AndrewL): Handle FullyNegotiatedOutbound
-                // TODO(AndrewL): Handle DialUpgradeError
+                // TODO(AndrewL): Handle DialUpgradeError variants
             }
         }
     }
