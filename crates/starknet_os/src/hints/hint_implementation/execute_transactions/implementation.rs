@@ -119,18 +119,19 @@ pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(
     )?)
 }
 
-pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
+pub(crate) fn load_actual_fee<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let actual_fee = hint_processor
-        .get_current_execution_helper()?
-        .tx_execution_iter
-        .get_tx_execution_info_ref()?
-        .tx_execution_info
-        .actual_fee;
-    insert_value_into_ap(vm, Felt::from(actual_fee))?;
-    Ok(())
+    let actual_fee = Felt::from(
+        hint_processor
+            .get_current_execution_helper()?
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .tx_execution_info
+            .actual_fee,
+    );
+    Ok(insert_value_from_var_name(Ids::LowActualFee.into(), actual_fee, vm, ids_data, ap_tracking)?)
 }
 
 pub(crate) fn skip_tx<S: StateReader>(
