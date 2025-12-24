@@ -11,11 +11,11 @@ mod single_height_consensus_test;
 use std::collections::{HashSet, VecDeque};
 
 use crate::state_machine::VoteStatus;
-const REBROADCAST_LOG_PERIOD_SECS: u64 = 10;
-const DUPLICATE_VOTE_LOG_PERIOD_SECS: u64 = 10;
+const REBROADCAST_LOG_PERIOD_MS: u64 = 10_000;
+const DUPLICATE_VOTE_LOG_PERIOD_MS: u64 = 10_000;
 
 use apollo_consensus_config::config::TimeoutsConfig;
-use apollo_infra_utils::trace_every_n_sec;
+use apollo_infra_utils::trace_every_n_ms;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
@@ -187,7 +187,7 @@ impl SingleHeightConsensus {
             return ShcReturn::Requests(VecDeque::new());
         }
         assert_eq!(last_vote, vote);
-        trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
+        trace_every_n_ms!(REBROADCAST_LOG_PERIOD_MS, "Rebroadcasting {last_vote:?}");
         ShcReturn::Requests(VecDeque::from([SMRequest::BroadcastVote(last_vote)]))
     }
 
@@ -270,8 +270,8 @@ impl SingleHeightConsensus {
         match self.state_machine.received_vote(&vote) {
             VoteStatus::Duplicate => {
                 // Duplicate - ignore.
-                trace_every_n_sec!(
-                    DUPLICATE_VOTE_LOG_PERIOD_SECS,
+                trace_every_n_ms!(
+                    DUPLICATE_VOTE_LOG_PERIOD_MS,
                     "Ignoring duplicate vote: {vote:?}"
                 );
                 return ShcReturn::Requests(VecDeque::new());

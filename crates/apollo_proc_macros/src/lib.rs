@@ -482,14 +482,14 @@ impl Parse for LogEveryNSecMacroInput {
 }
 
 lazy_static! {
-    static ref LOG_EVERY_N_SEC_CLOCK_START: Instant = Instant::now();
+    static ref LOG_EVERY_N_MS_CLOCK_START: Instant = Instant::now();
 }
 
 /// An internal helper macro for logging a message at most once every `n` seconds.
-/// Do not use this directly. Instead use the `info_every_n_sec!`, `debug_every_n_sec!`, etc.
+/// Do not use this directly. Instead use the `info_every_n_ms!`, `debug_every_n_ms!`, etc.
 /// macros.
 #[proc_macro]
-pub fn log_every_n_sec(input: TokenStream) -> TokenStream {
+pub fn log_every_n_ms(input: TokenStream) -> TokenStream {
     let LogEveryNSecMacroInput { log_macro, n, args, .. } =
         parse_macro_input!(input as LogEveryNSecMacroInput);
 
@@ -524,7 +524,7 @@ pub fn log_every_n_sec(input: TokenStream) -> TokenStream {
                         // First call, update the time to start counting from now.
                         return Some(now);
                     }
-                    if curr_val + (#n * 1000) <= now {
+                    if curr_val + (#n) <= now {
                         // We should log. Next log should be after n seconds from now.
                         return Some(now);
                     }
