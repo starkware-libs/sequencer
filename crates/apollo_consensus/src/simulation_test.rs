@@ -25,8 +25,6 @@ use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
-const TOTAL_NODES: usize = 100;
-const THRESHOLD: usize = (2 * TOTAL_NODES / 3) + 1;
 const DEADLINE_TICKS: u64 = 200;
 const NODE_0_LEADER_PROBABILITY: f64 = 0.1;
 const NODE_UNDER_TEST: usize = 0;
@@ -111,12 +109,16 @@ struct DiscreteEventSimulation {
     rng: StdRng,
     /// The seed used to initialize the simulation.
     seed: u64,
+    /// Total number of nodes in the network.
+    total_nodes: usize,
+    /// Number of honest nodes (the rest are faulty).
+    honest_nodes: usize,
+    /// Threshold for reaching consensus (2/3 + 1 of total nodes).
+    threshold: usize,
     /// The single height consensus instance.
     shc: SingleHeightConsensus,
     /// All validators in the network.
     validators: Vec<ValidatorId>,
-    /// Number of honest nodes (the rest are faulty).
-    honest_nodes: usize,
     /// The current maximum round being processed.
     current_max_round: Round,
     /// Priority queue of pending events that have yet to be processed (min-heap by tick).
@@ -153,12 +155,16 @@ impl DiscreteEventSimulation {
             TimeoutsConfig::default(),
         );
 
+        let threshold = (2 * total_nodes / 3) + 1;
+
         Self {
             rng,
             seed,
+            total_nodes,
+            honest_nodes,
+            threshold,
             shc,
             validators,
-            honest_nodes,
             current_max_round: 0,
             pending_events: BinaryHeap::new(),
             current_tick: 0,
@@ -193,9 +199,9 @@ impl DiscreteEventSimulation {
     /// Other nodes share the remaining probability (1 - NODE_0_LEADER_PROBABILITY) uniformly.
     /// The selection is deterministic per round - the same round will always return the same
     /// leader index.
-    fn get_leader_index(seed: u64, round: Round) -> usize {
+    fn get_leader_index(&self, round: Round) -> usize {
         let round_u64 = u64::from(round);
-        let round_seed = seed.wrapping_mul(31).wrapping_add(round_u64);
+        let round_seed = self.seed.wrapping_mul(31).wrapping_add(round_u64);
         let mut round_rng = StdRng::seed_from_u64(round_seed);
 
         let random_value: f64 = round_rng.gen();
@@ -203,7 +209,7 @@ impl DiscreteEventSimulation {
         if random_value < NODE_0_LEADER_PROBABILITY {
             NODE_UNDER_TEST
         } else {
-            round_rng.gen_range(1..TOTAL_NODES)
+            round_rng.gen_range(1..self.total_nodes)
         }
     }
 
@@ -261,7 +267,7 @@ impl DiscreteEventSimulation {
     ///
     /// Honest nodes behave correctly, while faulty nodes exhibit various fault behaviors.
     fn generate_round_traffic(&mut self, round: Round) {
-        let leader_idx = Self::get_leader_index(self.seed, round);
+        let leader_idx = self.get_leader_index(round);
         let leader_id = self.validators[leader_idx];
         let proposal_commitment = Some(proposal_commitment_for_round(round, false));
 
@@ -328,7 +334,7 @@ impl DiscreteEventSimulation {
             }
             FaultType::NonValidator => {
                 // Send votes with a voter ID that is outside the validator set
-                let non_validator_id = ValidatorId::from(u64::try_from(TOTAL_NODES).unwrap());
+                let non_validator_id = ValidatorId::from(u64::try_from(self.total_nodes).unwrap());
                 self.schedule_prevote_and_precommit(non_validator_id, round, proposal_commitment);
             }
         }
@@ -380,8 +386,17 @@ impl DiscreteEventSimulation {
     fn run(&mut self, deadline_ticks: u64) -> Option<Decision> {
         let validators = self.validators.clone();
         let seed = self.seed;
+        let total_nodes = self.total_nodes;
         let leader_fn = move |r: Round| {
-            let idx = Self::get_leader_index(seed, r);
+            let round_u64 = u64::from(r);
+            let round_seed = seed.wrapping_mul(31).wrapping_add(round_u64);
+            let mut round_rng = StdRng::seed_from_u64(round_seed);
+            let random_value: f64 = round_rng.gen();
+            let idx = if random_value < NODE_0_LEADER_PROBABILITY {
+                NODE_UNDER_TEST
+            } else {
+                round_rng.gen_range(1..total_nodes)
+            };
             validators[idx]
         };
 
@@ -512,7 +527,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
             });
             let total_precommits = peer_precommits + self_vote;
 
-            if total_precommits >= THRESHOLD {
+            if total_precommits >= sim.threshold {
                 Some((*r, *commitment, precommits.clone()))
             } else {
                 None
@@ -558,10 +573,10 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
 
             // Verify quorum threshold is met
             assert!(
-                actual.precommits.len() >= THRESHOLD,
+                actual.precommits.len() >= sim.threshold,
                 "Insufficient precommits in decision: {}/{}. Decision: {:?}, History: {:?}",
                 actual.precommits.len(),
-                THRESHOLD,
+                sim.threshold,
                 actual,
                 sim.processed_history
             );
@@ -586,12 +601,13 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
 #[test_case(0.9, 80; "keep_90%_80_honest")]
 fn test_consensus_simulation(keep_ratio: f64, honest_nodes: usize) {
     let seed = rand::thread_rng().gen();
+    let total_nodes = 100;
     println!(
-        "Running consensus simulation with total nodes {TOTAL_NODES},  keep ratio {keep_ratio}, \
+        "Running consensus simulation with total nodes {total_nodes},  keep ratio {keep_ratio}, \
          honest nodes {honest_nodes} and seed: {seed}"
     );
 
-    let mut sim = DiscreteEventSimulation::new(TOTAL_NODES, honest_nodes, seed, keep_ratio);
+    let mut sim = DiscreteEventSimulation::new(total_nodes, honest_nodes, seed, keep_ratio);
 
     sim.generate_round_traffic(0);
 
