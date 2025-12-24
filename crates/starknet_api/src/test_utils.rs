@@ -137,6 +137,24 @@ macro_rules! compiled_class_hash {
     };
 }
 
+/// A utility macro to create a [`ProofFacts`](crate::transaction::fields::ProofFacts) from a list
+/// of felt values. 
+#[macro_export]
+macro_rules! proof_facts {
+    ( $( $x:expr ),* ) => {
+        $crate::transaction::fields::ProofFacts(vec![$($x),*].into())
+    };
+}
+
+/// A utility macro to create a [`Proof`](crate::transaction::fields::Proof) from a list of u32
+/// values.
+#[macro_export]
+macro_rules! proof {
+    ( $( $x:expr ),* ) => {
+        $crate::transaction::fields::Proof(vec![$($x),*].into())
+    };
+}
+
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 // Enough to declare the test class, but under the OS's upper limit.
