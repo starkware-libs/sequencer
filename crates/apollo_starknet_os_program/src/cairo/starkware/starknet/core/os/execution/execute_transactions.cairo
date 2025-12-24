@@ -604,6 +604,8 @@ func get_invoke_tx_execution_context{range_check_ptr, contract_state_changes: Di
     let (state_entry: StateEntry*) = dict_read{dict_ptr=contract_state_changes}(
         key=contract_address
     );
+    let (tx_info_ptr) = alloc();
+    let (deprecated_tx_info_ptr) = alloc();
     local tx_execution_context: ExecutionContext* = new ExecutionContext(
         entry_point_type=entry_point_type,
         class_hash=state_entry.class_hash,
@@ -611,12 +613,12 @@ func get_invoke_tx_execution_context{range_check_ptr, contract_state_changes: Di
         calldata=cast(nondet %{ segments.gen_arg(tx.calldata) %}, felt*),
         execution_info=new ExecutionInfo(
             block_info=block_context.block_info_for_execute,
-            tx_info=cast(nondet %{ segments.add() %}, TxInfo*),
+            tx_info=cast(tx_info_ptr, TxInfo*),
             caller_address=ORIGIN_ADDRESS,
             contract_address=contract_address,
             selector=entry_point_selector,
         ),
-        deprecated_tx_info=cast(nondet %{ segments.add() %}, DeprecatedTxInfo*),
+        deprecated_tx_info=cast(deprecated_tx_info_ptr, DeprecatedTxInfo*),
     );
     assert_nn_le(tx_execution_context.calldata_size, SIERRA_ARRAY_LEN_BOUND - 1);
 
@@ -681,6 +683,8 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
     }
     update_pedersen_in_builtin_ptrs(pedersen_ptr=hash_ptr);
 
+    let (tx_info_ptr) = alloc();
+    let (deprecated_tx_info_ptr) = alloc();
     tempvar constructor_execution_context = new ExecutionContext(
         entry_point_type=ENTRY_POINT_TYPE_CONSTRUCTOR,
         class_hash=class_hash,
@@ -688,12 +692,12 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
         calldata=constructor_calldata,
         execution_info=new ExecutionInfo(
             block_info=block_info,
-            tx_info=cast(nondet %{ segments.add() %}, TxInfo*),
+            tx_info=cast(tx_info_ptr, TxInfo*),
             caller_address=ORIGIN_ADDRESS,
             contract_address=contract_address,
             selector=CONSTRUCTOR_ENTRY_POINT_SELECTOR,
         ),
-        deprecated_tx_info=cast(nondet %{ segments.add() %}, DeprecatedTxInfo*),
+        deprecated_tx_info=cast(deprecated_tx_info_ptr, DeprecatedTxInfo*),
     );
 
     return (
@@ -877,8 +881,10 @@ func execute_declare_transaction{
     update_poseidon_in_builtin_ptrs(poseidon_ptr=poseidon_ptr);
 
     // Get the account transaction info.
-    tempvar tx_info = cast(nondet %{ segments.add() %}, TxInfo*);
-    tempvar deprecated_tx_info = cast(nondet %{ segments.add() %}, DeprecatedTxInfo*);
+    let (tx_info_ptr) = alloc();
+    let (deprecated_tx_info_ptr) = alloc();
+    tempvar tx_info = cast(tx_info_ptr, TxInfo*);
+    tempvar deprecated_tx_info = cast(deprecated_tx_info_ptr, DeprecatedTxInfo*);
     fill_account_tx_info(
         transaction_hash=transaction_hash,
         common_tx_fields=common_tx_fields,

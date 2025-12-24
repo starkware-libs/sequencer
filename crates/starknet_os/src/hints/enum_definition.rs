@@ -468,6 +468,7 @@ define_stateless_hint_enum!(
     (
         SegmentsAdd,
         segments_add,
+        // Still used in cairo-lang (segment arena).
         indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
         }
     ),
