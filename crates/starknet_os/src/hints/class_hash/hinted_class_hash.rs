@@ -27,8 +27,10 @@ pub enum HintedClassHashError {
 /// the correctness of this implementation depends on the following features of serde_json:
 ///
 /// - feature `raw_value` has to be enabled for the thrown away `program.debug_info`
-/// - feature `preserve_order` has to be disabled, as we want everything sorted
 /// - feature `arbitrary_precision` has to be enabled, as there are big integers in the input
+///
+/// Note: We explicitly sort all JSON objects before serialization to ensure deterministic output,
+/// regardless of whether `preserve_order` feature is enabled in serde_json.
 // TODO(Yoav): For more efficiency, have only borrowed types of serde_json::Value.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -46,6 +48,47 @@ pub struct CairoContractDefinition<'a> {
     /// Keccak256 hash.
     #[serde(skip_serializing)]
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
+}
+
+impl CairoContractDefinition<'_> {
+    /// Sorts all `serde_json::Value` fields recursively by their keys.
+    /// This ensures deterministic serialization regardless of the `preserve_order` feature.
+    fn sort_json_fields(&mut self) {
+        self.abi = sort_json_value(std::mem::take(&mut self.abi));
+        self.program.sort_json_fields();
+    }
+}
+
+impl CairoProgram<'_> {
+    /// Sorts all `serde_json::Value` fields recursively by their keys.
+    fn sort_json_fields(&mut self) {
+        self.identifiers = sort_json_value(std::mem::take(&mut self.identifiers));
+        self.reference_manager = sort_json_value(std::mem::take(&mut self.reference_manager));
+
+        // Sort values inside the hints BTreeMap
+        for hints_vec in self.hints.values_mut() {
+            for hint in hints_vec.iter_mut() {
+                *hint = sort_json_value(std::mem::take(hint));
+            }
+        }
+
+        // Sort values inside attributes
+        for attr in self.attributes.iter_mut() {
+            attr.sort_json_fields();
+        }
+    }
+}
+
+impl AttributeScope {
+    /// Sorts all `serde_json::Value` fields recursively by their keys.
+    fn sort_json_fields(&mut self) {
+        for scope in self.accessible_scopes.iter_mut() {
+            *scope = sort_json_value(std::mem::take(scope));
+        }
+        if let Some(ref mut flow_tracking) = self.flow_tracking_data {
+            *flow_tracking = sort_json_value(std::mem::take(flow_tracking));
+        }
+    }
 }
 
 /// This struct is used to define specific serialization behavior for the `CairoProgram::attributes`
@@ -112,6 +155,23 @@ where
     serializer.serialize_none()
 }
 
+/// Recursively sorts all JSON objects by their keys.
+/// This ensures deterministic serialization regardless of the `preserve_order` feature in
+/// serde_json.
+fn sort_json_value(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let sorted: BTreeMap<String, serde_json::Value> =
+                map.into_iter().map(|(k, v)| (k, sort_json_value(v))).collect();
+            serde_json::Value::Object(sorted.into_iter().collect())
+        }
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(sort_json_value).collect())
+        }
+        other => other,
+    }
+}
+
 /// `std::io::Write` adapter for Keccak256; we don't need the serialized version in
 /// compute_class_hash, but we need the truncated_keccak hash.
 ///
@@ -136,8 +196,14 @@ pub fn compute_cairo_hinted_class_hash(
     contract_class: &ContractClass,
 ) -> Result<Felt, HintedClassHashError> {
     let contract_definition_vec = serde_json::to_vec(contract_class)?;
-    let contract_definition: CairoContractDefinition<'_> =
+    let mut contract_definition: CairoContractDefinition<'_> =
         serde_json::from_slice(&contract_definition_vec)?;
+
+    // Sort all JSON objects by their keys to ensure deterministic output.
+    // This is necessary because serde_json with `preserve_order` feature enabled
+    // maintains insertion order instead of sorting keys.
+    contract_definition.sort_json_fields();
+
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);
