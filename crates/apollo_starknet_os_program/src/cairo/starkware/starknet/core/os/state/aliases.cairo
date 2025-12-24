@@ -39,7 +39,10 @@ func maybe_allocate_alias_for_key{
     aliases_storage_updates: DictAccess*, next_available_alias: felt, range_check_ptr
 }(key: felt) {
     // No need to allocate an alias for keys < MIN_VALUE_FOR_ALIAS_ALLOC.
-    if (nondet %{ ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC %} != FALSE) {
+    alloc_locals;
+    local key_lt_min_alias_alloc_value;
+    %{ KeyLtMinAliasAllocValue %}
+    if (key_lt_min_alias_alloc_value != FALSE) {
         assert_nn_le(a=key, b=MIN_VALUE_FOR_ALIAS_ALLOC - 1);
         return ();
     }
@@ -375,7 +378,10 @@ func replace_storage_diff_big_keys{range_check_ptr, res: felt*}(
 
 // Returns the alias of the given key.
 func get_alias{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
-    if (nondet %{ ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC %} != FALSE) {
+    alloc_locals;
+    local key_lt_min_alias_alloc_value;
+    %{ KeyLtMinAliasAllocValue %}
+    if (key_lt_min_alias_alloc_value != FALSE) {
         // The alias is the key itself.
         assert_nn_le(a=key, b=MIN_VALUE_FOR_ALIAS_ALLOC - 1);
         return key;

@@ -453,11 +453,7 @@ define_stateless_hint_enum!(
     (SetApToSegmentHashPoseidon, set_ap_to_segment_hash::<Poseidon>),
     (SetApToSegmentHashBlake, set_ap_to_segment_hash::<Blake2Felt252>),
     (EnterScopeWithAliases, enter_scope_with_aliases),
-    (
-        KeyLtMinAliasAllocValue,
-        key_lt_min_alias_alloc_value,
-        "memory[ap] = to_felt_or_relocatable(ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC)"
-    ),
+    (KeyLtMinAliasAllocValue, key_lt_min_alias_alloc_value),
     (AssertKeyBigEnoughForAlias, assert_key_big_enough_for_alias),
     (
         ContractAddressLeMaxForCompression,
