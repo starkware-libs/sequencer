@@ -1474,10 +1474,8 @@ func execute_secp256k1_new{range_check_ptr, syscall_ptr: felt*}() {
     let (x) = uint256_to_bigint(request.x);
 
     let not_on_curve = response.not_on_curve;
-    tempvar result_ptr = cast(
-        nondet %{ ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add() %},
-        SecpPoint*,
-    );
+    local result_ptr: SecpPoint*;
+    %{ ReadEcPointFromAddress %}
 
     // Note that there are no constraints on response.ec_point in the failure case.
 
@@ -1535,10 +1533,8 @@ func execute_secp256r1_new{range_check_ptr, syscall_ptr: felt*}() {
     let (x) = uint256_to_bigint(request.x);
 
     let not_on_curve = response.not_on_curve;
-    tempvar result_ptr = cast(
-        nondet %{ ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add() %},
-        SecpPoint*,
-    );
+    local result_ptr: SecpPoint*;
+    %{ ReadEcPointFromAddress %}
 
     // Note that there are no constraints on response.ec_point in the failure case.
 
