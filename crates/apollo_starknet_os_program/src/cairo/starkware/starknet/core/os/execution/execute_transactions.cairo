@@ -609,11 +609,14 @@ func get_invoke_tx_execution_context{range_check_ptr, contract_state_changes: Di
     );
     let (tx_info_ptr) = alloc();
     let (deprecated_tx_info_ptr) = alloc();
+    local calldata_size;
+    local calldata: felt*;
+    %{ TxCalldata %}
     local tx_execution_context: ExecutionContext* = new ExecutionContext(
         entry_point_type=entry_point_type,
         class_hash=state_entry.class_hash,
-        calldata_size=nondet %{ len(tx.calldata) %},
-        calldata=cast(nondet %{ segments.gen_arg(tx.calldata) %}, felt*),
+        calldata_size=calldata_size,
+        calldata=calldata,
         execution_info=new ExecutionInfo(
             block_info=block_context.block_info_for_execute,
             tx_info=cast(tx_info_ptr, TxInfo*),

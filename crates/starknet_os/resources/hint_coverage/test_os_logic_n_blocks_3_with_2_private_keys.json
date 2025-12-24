@@ -324,9 +324,6 @@
     "OsHint": "ContractAddress"
   },
   {
-    "OsHint": "TxCalldataLen"
-  },
-  {
     "OsHint": "TxCalldata"
   },
   {

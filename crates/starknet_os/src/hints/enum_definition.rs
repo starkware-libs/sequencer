@@ -111,7 +111,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     tx_account_deployment_data,
     tx_account_deployment_data_len,
     tx_calldata,
-    tx_calldata_len,
     tx_entry_point_selector,
     tx_fee_data_availability_mode,
     tx_nonce_data_availability_mode,
@@ -701,8 +700,7 @@ define_hint_enum!(
     (EnterCall, enter_call),
     (ExitCall, exit_call),
     (ContractAddress, contract_address),
-    (TxCalldataLen, tx_calldata_len, "memory[ap] = to_felt_or_relocatable(len(tx.calldata))"),
-    (TxCalldata, tx_calldata, "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.calldata))"),
+    (TxCalldata, tx_calldata),
     (
         TxEntryPointSelector,
         tx_entry_point_selector,
