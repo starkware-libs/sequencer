@@ -13,6 +13,7 @@ use libp2p::swarm::handler::{
     ConnectionHandler,
     ConnectionHandlerEvent,
     FullyNegotiatedInbound,
+    FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
 
@@ -151,6 +152,71 @@ impl Handler {
             }
         }
     }
+
+    fn on_fully_negotiated_inbound(&mut self, substream: Framed<Stream, PropellerCodec>) {
+        if self.inbound_substream.is_some() {
+            // TODO(AndrewL): Either remove this warning or make it once every N ms.
+            tracing::warn!("Received new inbound substream but one already exists, replacing");
+        }
+        // TODO(AndrewL): Check what happens with a malicious peer (maybe shouldn't overwrite the
+        // existing substream?)
+        self.inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
+    }
+
+    fn on_fully_negotiated_outbound(
+        &mut self,
+        _fully_negotiated_outbound: FullyNegotiatedOutbound<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+        >,
+    ) {
+        // TODO(AndrewL): Implement outbound substream handling
+        todo!("Outbound substream handling not yet implemented")
+    }
+
+    fn poll_send(
+        &mut self,
+        _cx: &mut Context<'_>,
+    ) -> Poll<
+        ConnectionHandlerEvent<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+            (),
+            <Handler as ConnectionHandler>::ToBehaviour,
+        >,
+    > {
+        // TODO(AndrewL): Implement outbound message sending
+        Poll::Pending
+    }
+
+    fn poll_inner(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<
+        ConnectionHandlerEvent<
+            <Handler as ConnectionHandler>::OutboundProtocol,
+            (),
+            <Handler as ConnectionHandler>::ToBehaviour,
+        >,
+    > {
+        // First, emit any queued received messages
+        if let Some(message) = self.receive_queue.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
+        }
+
+        // Process outbound stream
+        if let Poll::Ready(event) = self.poll_send(cx) {
+            return Poll::Ready(event);
+        }
+
+        // Poll inbound substream to receive messages
+        self.poll_inbound_substream(cx);
+
+        // Check receive queue again after polling inbound substream
+        if let Some(message) = self.receive_queue.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
+        }
+
+        Poll::Pending
+    }
 }
 
 impl ConnectionHandler for Handler {
@@ -178,22 +244,8 @@ impl ConnectionHandler for Handler {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<ConnectionHandlerEvent<Self::OutboundProtocol, (), Self::ToBehaviour>> {
-        // Emit received messages from receive queue
-        if let Some(message) = self.receive_queue.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
-        }
-
-        // TODO(AndrewL): Poll outbound substream to send messages
-
-        // Poll inbound substream to receive messages
-        self.poll_inbound_substream(cx);
-
-        // Check receive queue again after polling inbound substream
-        if let Some(message) = self.receive_queue.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
-        }
-
-        Poll::Pending
+        // TODO(AndrewL): inline this function into poll
+        self.poll_inner(cx)
     }
 
     fn on_connection_event(
@@ -203,19 +255,12 @@ impl ConnectionHandler for Handler {
         match event {
             ConnectionEvent::FullyNegotiatedInbound(FullyNegotiatedInbound {
                 protocol, ..
-            }) => {
-                if self.inbound_substream.is_some() {
-                    // TODO(AndrewL): Either remove this warning or make it once every N ms.
-                    tracing::warn!(
-                        "Received new inbound substream but one already exists, replacing"
-                    );
-                }
-                tracing::trace!("New inbound substream established");
-                self.inbound_substream = Some(InboundSubstreamState::WaitingInput(protocol));
+            }) => self.on_fully_negotiated_inbound(protocol),
+            ConnectionEvent::FullyNegotiatedOutbound(fully_negotiated_outbound) => {
+                self.on_fully_negotiated_outbound(fully_negotiated_outbound)
             }
             _ => {
-                // TODO(AndrewL): Handle FullyNegotiatedOutbound
-                // TODO(AndrewL): Handle DialUpgradeError
+                // TODO(AndrewL): Handle DialUpgradeError variants
             }
         }
     }
