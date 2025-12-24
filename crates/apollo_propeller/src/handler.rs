@@ -33,14 +33,6 @@ pub enum HandlerIn {
     SendUnit(PropellerUnit),
 }
 
-/// State of the inbound substream, opened either by us or by the remote.
-enum InboundSubstreamState {
-    /// Waiting for a message from the remote. The idle state for an inbound substream.
-    WaitingInput(Framed<Stream, PropellerCodec>),
-    /// The substream is being closed.
-    Closing(Framed<Stream, PropellerCodec>),
-}
-
 /// Protocol Handler that manages substreams with a peer.
 pub struct Handler {
     /// Upgrade configuration for the propeller protocol.
@@ -51,6 +43,14 @@ pub struct Handler {
     send_queue: VecDeque<PropellerUnit>,
     /// Queue of received messages to emit.
     receive_queue: VecDeque<PropellerUnit>,
+}
+
+/// State of the inbound substream, opened either by us or by the remote.
+enum InboundSubstreamState {
+    /// Waiting for a message from the remote. The idle state for an inbound substream.
+    WaitingInput(Framed<Stream, PropellerCodec>),
+    /// The substream is being closed.
+    Closing(Framed<Stream, PropellerCodec>),
 }
 
 impl Handler {
