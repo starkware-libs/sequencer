@@ -68,26 +68,46 @@ use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
 
+/// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub(crate) struct StorageBlockHeader {
+pub struct StorageBlockHeader {
+    /// The hash of this block.
     pub block_hash: BlockHash,
+    /// The hash of this block's parent.
     pub parent_hash: BlockHash,
+    /// The number of this block.
     pub block_number: BlockNumber,
+    /// The L1 gas price per token.
     pub l1_gas_price: GasPricePerToken,
+    /// The L1 data gas price per token.
     pub l1_data_gas_price: GasPricePerToken,
+    /// The L2 gas price per token.
     pub l2_gas_price: GasPricePerToken,
+    /// The amount of L2 gas consumed.
     pub l2_gas_consumed: GasAmount,
+    /// The next L2 gas price.
     pub next_l2_gas_price: GasPrice,
+    /// The state root after this block.
     pub state_root: GlobalRoot,
+    /// The sequencer address that created this block.
     pub sequencer: SequencerContractAddress,
+    /// The timestamp of this block.
     pub timestamp: BlockTimestamp,
+    /// The L1 data availability mode.
     pub l1_da_mode: L1DataAvailabilityMode,
+    /// The state diff commitment, if available.
     pub state_diff_commitment: Option<StateDiffCommitment>,
+    /// The transaction commitment, if available.
     pub transaction_commitment: Option<TransactionCommitment>,
+    /// The event commitment, if available.
     pub event_commitment: Option<EventCommitment>,
+    /// The receipt commitment, if available.
     pub receipt_commitment: Option<ReceiptCommitment>,
+    /// The length of the state diff, if available.
     pub state_diff_length: Option<usize>,
+    /// The number of transactions in this block.
     pub n_transactions: usize,
+    /// The number of events in this block.
     pub n_events: usize,
 }
 
