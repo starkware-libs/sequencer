@@ -52,7 +52,7 @@ pub struct InvokeTxArgs {
     pub only_query: bool,
     pub tx_hash: TransactionHash,
     pub proof_facts: ProofFacts,
-    // TODO(AvivG): Consider adding `proof` field.
+    pub proof: Proof,
 }
 
 impl Default for InvokeTxArgs {
@@ -73,6 +73,7 @@ impl Default for InvokeTxArgs {
             only_query: false,
             tx_hash: TransactionHash::default(),
             proof_facts: ProofFacts::default(),
+            proof: Proof::default(),
         }
     }
 }
@@ -161,8 +162,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         paymaster_data: invoke_args.paymaster_data,
         account_deployment_data: invoke_args.account_deployment_data,
         proof_facts: invoke_args.proof_facts,
-        // TODO(AvivG): Consider getting proof field from invoke_args.
-        proof: Proof::default(),
+        proof: invoke_args.proof,
     }))
 }
 
@@ -224,6 +224,16 @@ impl InvokeTxArgs {
 
     pub fn nonce(mut self, nonce: Nonce) -> Self {
         self.nonce = nonce;
+        self
+    }
+
+    pub fn proof_facts(mut self, proof_facts: ProofFacts) -> Self {
+        self.proof_facts = proof_facts;
+        self
+    }
+
+    pub fn proof(mut self, proof: Proof) -> Self {
+        self.proof = proof;
         self
     }
 }
