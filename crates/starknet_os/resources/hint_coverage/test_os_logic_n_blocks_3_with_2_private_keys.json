@@ -327,9 +327,6 @@
     "OsHint": "TxVersion"
   },
   {
-    "OsHint": "TxAccountDeploymentDataLen"
-  },
-  {
     "OsHint": "TxAccountDeploymentData"
   },
   {
