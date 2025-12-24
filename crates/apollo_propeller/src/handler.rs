@@ -16,6 +16,7 @@ use libp2p::swarm::handler::{
     FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
+use prost::Message;
 
 use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
@@ -42,10 +43,14 @@ pub struct Handler {
     listen_protocol: PropellerProtocol,
     /// The single long-lived inbound substream.
     inbound_substream: Option<InboundSubstreamState>,
+    /// The single long-lived outbound substream.
+    outbound_substream: Option<OutboundSubstreamState>,
     /// Queue of messages to send.
     send_queue: VecDeque<ProtoUnit>,
     /// Queue of received messages to emit.
     receive_queue: VecDeque<PropellerUnit>,
+    /// Maximum wire message size for batching.
+    max_wire_message_size: usize,
 }
 
 /// State of the inbound substream, opened either by us or by the remote.
@@ -56,6 +61,12 @@ enum InboundSubstreamState {
     Closing(Framed<Stream, PropellerCodec>),
 }
 
+/// State of the outbound substream, opened either by us or by the remote.
+struct OutboundSubstreamState {
+    substream: Framed<Stream, PropellerCodec>,
+    should_flush: bool,
+}
+
 impl Handler {
     /// Builds a new [`Handler`].
     pub fn new(stream_protocol: StreamProtocol, max_wire_message_size: usize) -> Self {
@@ -63,8 +74,10 @@ impl Handler {
         Handler {
             listen_protocol: protocol,
             inbound_substream: None,
+            outbound_substream: None,
             send_queue: VecDeque::new(),
             receive_queue: VecDeque::new(),
+            max_wire_message_size,
         }
     }
 
@@ -153,6 +166,32 @@ impl Handler {
         }
     }
 
+    /// Create a batch of messages from the send queue that fits within max_wire_message_size.
+    fn create_message_batch(
+        send_queue: &mut VecDeque<ProtoUnit>,
+        max_wire_message_size: usize,
+    ) -> ProtoBatch {
+        if send_queue.is_empty() {
+            return ProtoBatch { batch: Vec::new() };
+        }
+
+        let max_batch_size = (max_wire_message_size * 9) / 10;
+        let mut batch = Vec::new();
+        let mut batch_size = 0;
+
+        while let Some(msg) = send_queue.front() {
+            let msg_size = msg.encoded_len();
+            if batch.is_empty() || batch_size + msg_size <= max_batch_size {
+                batch.push(send_queue.pop_front().unwrap());
+                batch_size += msg_size;
+            } else {
+                break;
+            }
+        }
+
+        ProtoBatch { batch }
+    }
+
     fn on_fully_negotiated_inbound(&mut self, substream: Framed<Stream, PropellerCodec>) {
         if self.inbound_substream.is_some() {
             // TODO(AndrewL): Either remove this warning or make it once every N ms.
@@ -164,17 +203,17 @@ impl Handler {
 
     fn on_fully_negotiated_outbound(
         &mut self,
-        _fully_negotiated_outbound: FullyNegotiatedOutbound<
+        fully_negotiated_outbound: FullyNegotiatedOutbound<
             <Handler as ConnectionHandler>::OutboundProtocol,
         >,
     ) {
-        // TODO(AndrewL): Implement outbound substream handling
-        todo!("Outbound substream handling not yet implemented")
+        let substream = fully_negotiated_outbound.protocol;
+        self.outbound_substream = Some(OutboundSubstreamState { substream, should_flush: false });
     }
 
     fn poll_send(
         &mut self,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<
         ConnectionHandlerEvent<
             <Handler as ConnectionHandler>::OutboundProtocol,
@@ -182,7 +221,76 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
-        // TODO(AndrewL): Implement outbound message sending
+        // If we don't have an outbound substream, request one
+        if self.outbound_substream.is_none() {
+            return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
+                protocol: SubstreamProtocol::new(self.listen_protocol.clone(), ()),
+            });
+        }
+
+        loop {
+            let mut state = self.outbound_substream.take().unwrap();
+            if self.send_queue.is_empty() {
+                // Queue is empty, maybe we just need to flush the stream
+                if state.should_flush {
+                    match Sink::poll_flush(Pin::new(&mut state.substream), cx) {
+                        Poll::Ready(Ok(())) => {
+                            state.should_flush = false;
+                            self.outbound_substream = Some(state);
+                            continue;
+                        }
+                        Poll::Ready(Err(e)) => {
+                            tracing::error!("Failed to flush outbound stream: {e}");
+                            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                HandlerOut::SendError(e.to_string()),
+                            ));
+                        }
+                        Poll::Pending => {
+                            self.outbound_substream = Some(state);
+                            break;
+                        }
+                    }
+                } else {
+                    self.outbound_substream = Some(state);
+                    break;
+                }
+            } else {
+                match Sink::poll_ready(Pin::new(&mut state.substream), cx) {
+                    Poll::Ready(Ok(())) => {
+                        let message = Self::create_message_batch(
+                            &mut self.send_queue,
+                            self.max_wire_message_size,
+                        );
+                        match Sink::start_send(Pin::new(&mut state.substream), message) {
+                            Ok(()) => {
+                                // Try sending more messages if there are any
+                                state.should_flush = true;
+                                self.outbound_substream = Some(state);
+                                continue;
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to send message on outbound stream: {e}");
+                                return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                    HandlerOut::SendError(e.to_string()),
+                                ));
+                            }
+                        }
+                    }
+                    Poll::Ready(Err(e)) => {
+                        tracing::error!("Failed to send message on outbound stream: {e}");
+                        return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                            HandlerOut::SendError(e.to_string()),
+                        ));
+                    }
+                    Poll::Pending => {
+                        // Not ready to send more messages yet
+                        self.outbound_substream = Some(state);
+                        break;
+                    }
+                }
+            }
+        }
+
         Poll::Pending
     }
 
