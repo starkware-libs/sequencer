@@ -38,11 +38,11 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
-use apollo_storage::block_hash_marker::{
-    BlockHashMarkerStorageReader,
-    BlockHashMarkerStorageWriter,
-};
 use apollo_storage::global_root::GlobalRootStorageWriter;
+use apollo_storage::global_root_marker::{
+    GlobalRootMarkerStorageReader,
+    GlobalRootMarkerStorageWriter,
+};
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -1262,12 +1262,13 @@ pub fn create_batcher(
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
     // TODO(Amos): Add missing commitment tasks.
-    let block_hash_height =
-        storage_reader.block_hash_height().expect("Failed to get block hash height from storage.");
+    let global_root_height = storage_reader
+        .global_root_height()
+        .expect("Failed to get global root height from storage.");
     let commitment_manager = CommitmentManager::new_or_none(
         &CommitmentManagerConfig::default(),
         &config.revert_config,
-        block_hash_height,
+        global_root_height,
     );
 
     Batcher::new(
@@ -1290,8 +1291,8 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> StorageResult<BlockNumber>;
 
-    /// Returns the next height the batcher should store block hash for.
-    fn block_hash_height(&self) -> StorageResult<BlockNumber>;
+    /// Returns the first height the committer has finished calculating commitments for.
+    fn global_root_height(&self) -> StorageResult<BlockNumber>;
 
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
 
@@ -1315,8 +1316,8 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_state_marker()
     }
 
-    fn block_hash_height(&self) -> StorageResult<BlockNumber> {
-        self.begin_ro_txn()?.get_block_hash_marker()
+    fn global_root_height(&self) -> StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_global_root_marker()
     }
 
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
@@ -1467,7 +1468,7 @@ impl BatcherStorageWriter for StorageWriter {
         let mut txn = self
             .begin_rw_txn()?
             .set_global_root(&height, global_root)?
-            .checked_increment_block_hash_marker(height)?;
+            .checked_increment_global_root_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
         }
