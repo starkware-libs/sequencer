@@ -1,6 +1,7 @@
 pub mod codec;
 #[cfg(test)]
 mod codec_test;
+pub mod handler;
 pub mod merkle;
 #[cfg(test)]
 mod merkle_test;
@@ -22,6 +23,7 @@ pub mod unit_validator;
 #[cfg(test)]
 mod unit_validator_test;
 
+pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
