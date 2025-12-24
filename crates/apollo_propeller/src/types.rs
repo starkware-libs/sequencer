@@ -199,3 +199,22 @@ impl std::fmt::Display for ReconstructionError {
 }
 
 impl std::error::Error for ReconstructionError {}
+
+// ****************************************************************************
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PeerSetError {
+    LocalPeerNotInPeerWeights,
+    InvalidPublicKey,
+}
+
+impl std::fmt::Display for PeerSetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PeerSetError::LocalPeerNotInPeerWeights => write!(f, "Local peer not in peer weights"),
+            PeerSetError::InvalidPublicKey => write!(f, "Invalid public key"),
+        }
+    }
+}
+
+impl std::error::Error for PeerSetError {}
