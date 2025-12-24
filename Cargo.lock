@@ -2263,6 +2263,7 @@ dependencies = [
 name = "apollo_propeller"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_infra_utils",
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
