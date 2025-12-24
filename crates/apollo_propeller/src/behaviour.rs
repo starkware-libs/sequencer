@@ -15,8 +15,10 @@ use libp2p::swarm::{
     THandlerOutEvent,
     ToSwarm,
 };
+use tokio::sync::mpsc;
 
 use crate::config::Config;
+use crate::core::{Core, CoreOutput};
 use crate::handler::{Handler, HandlerIn, HandlerOut};
 use crate::types::Event;
 
@@ -26,12 +28,27 @@ pub struct Behaviour {
     config: Config,
     /// Events to be returned to the swarm.
     events: VecDeque<ToSwarm<Event, HandlerIn>>,
+    /// Channel to receive outputs from Core task.
+    core_outputs_rx: mpsc::Receiver<CoreOutput>,
 }
 
 impl Behaviour {
     /// Create a new Propeller behaviour.
-    pub fn new(config: Config) -> Self {
-        Self { config, events: VecDeque::new() }
+    pub fn new(local_peer_id: PeerId, config: Config) -> Self {
+        let (commands_tx, commands_rx) = mpsc::channel(100);
+        let (outputs_tx, outputs_rx) = mpsc::channel(100);
+
+        let core = Core::new(local_peer_id, config.clone());
+
+        // Spawn the core task
+        tokio::spawn(async move {
+            core.run(commands_rx, outputs_tx).await;
+        });
+
+        // TODO(AndrewL): Store commands_tx when we need to send commands to core
+        drop(commands_tx);
+
+        Self { config, events: VecDeque::new(), core_outputs_rx: outputs_rx }
     }
 }
 
@@ -76,18 +93,23 @@ impl NetworkBehaviour for Behaviour {
     ) {
         match event {
             HandlerOut::Unit(_unit) => {
-                // TODO(AndrewL): Forward to core for validation
+                // TODO(AndrewL): Send CoreCommand to handle unit
             }
             HandlerOut::SendError(_error) => {
-                // TODO(AndrewL): Forward to core for error handling
+                // TODO(AndrewL): Send CoreCommand to handle error
             }
         }
     }
 
     fn poll(
         &mut self,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
+        // Poll for outputs from core
+        if let Poll::Ready(Some(output)) = self.core_outputs_rx.poll_recv(cx) {
+            todo!("Handle core output: {:?}", output);
+        }
+
         // Return any pending events
         if let Some(event) = self.events.pop_front() {
             return Poll::Ready(event);

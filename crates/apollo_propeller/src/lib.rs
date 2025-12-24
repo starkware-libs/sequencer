@@ -3,6 +3,7 @@ pub mod codec;
 #[cfg(test)]
 mod codec_test;
 pub mod config;
+mod core;
 pub mod handler;
 pub mod merkle;
 #[cfg(test)]
