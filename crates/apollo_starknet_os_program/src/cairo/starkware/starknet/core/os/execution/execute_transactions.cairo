@@ -141,7 +141,8 @@ func execute_transactions{
     let sha256_ptr_start = builtin_ptrs.non_selectable.sha256;
 
     // Execute transactions.
-    local n_txs = nondet %{ len(block_input.transactions) %};
+    local n_txs;
+    %{ OsInputTransactions %}
     %{ EnterScopeExecuteTransactionsInner %}
     execute_transactions_inner{
         builtin_ptrs=builtin_ptrs,
