@@ -68,7 +68,20 @@ from starkware.starknet.core.os.output import (
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate, StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
 
-// Executes transactions on Starknet.
+// The main entry point of the Starknet OS.
+//
+// This function orchestrates the execution of Starknet blocks. It performs the following key steps:
+// 1.  **Initialization**: Sets up the OS global context, including public keys and configuration.
+// 2.  **Block Execution**: Iterates through the provided blocks (`n_blocks`). For each block, it:
+//     - Executes transactions.
+//     - Updates the state.
+//     - Generates an OS output for the block.
+// 3.  **Fact Validation**: Validates that the compiled class facts (CASM) used during execution
+//     match the expected hashes.
+// 4.  **Output Processing**: Aggregates the per-block outputs into a final OS output and
+//     serializes it to the output segment.
+// 5.  **Safety Checks**: Verifies that the range check builtin pointer has advanced correctly,
+//     ensuring that internal OS range checks were not compromised by transaction execution.
 func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
@@ -131,6 +144,7 @@ func main{
         builtin_costs=compiled_class_facts_bundle.builtin_costs,
     );
 
+    // Process and serialize the OS output to the output segment.
     process_os_output(
         n_blocks=n_blocks,
         os_outputs=os_outputs,
@@ -219,23 +233,22 @@ func execute_blocks{
         )
     %}
 
-    // Allocate segments for the messages.
+    // Initialize the carried outputs and the state changes dictionaries.
     let (messages_to_l1: MessageToL1Header*) = alloc();
     let (messages_to_l2: MessageToL2Header*) = alloc();
     tempvar initial_carried_outputs = new OsCarriedOutputs(
         messages_to_l1=messages_to_l1, messages_to_l2=messages_to_l2
     );
-
     let (
         contract_state_changes: DictAccess*, contract_class_changes: DictAccess*
     ) = initialize_state_changes();
-    // Keep a reference to the start of contract_state_changes and contract_class_changes.
     let contract_state_changes_start = contract_state_changes;
     let contract_class_changes_start = contract_class_changes;
 
     // Build block context.
     let (block_context: BlockContext*) = get_block_context(os_global_context=os_global_context);
 
+    // Pre-process the block.
     with contract_state_changes, contract_class_changes {
         pre_process_block(block_context=block_context);
     }
@@ -247,6 +260,7 @@ func execute_blocks{
     }
     let final_carried_outputs = outputs;
 
+    // Update the state.
     %{ EnterScopeWithAliases %}
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
@@ -257,9 +271,9 @@ func execute_blocks{
         ),
         should_allocate_aliases=TRUE,
     );
-
     %{ vm_exit_scope() %}
 
+    // Write the OS block output.
     let os_output_header = get_block_os_output_header(
         block_context=block_context,
         state_update_output=state_update_output,
@@ -395,7 +409,8 @@ func migrate_classes_to_v2_casm_hash{
     return ();
 }
 
-// Pre-processes the block.
+// Performs pre-processing of the block: writes the block number to the block hash mapping and
+// migrates contract classes to the v2 casm hash.
 func pre_process_block{
     range_check_ptr,
     poseidon_ptr: PoseidonBuiltin*,
