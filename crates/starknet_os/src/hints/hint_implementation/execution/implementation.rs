@@ -9,7 +9,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -22,7 +21,6 @@ use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{InnerInconsistentStorageValueError, OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
     assert_retdata_as_expected,
@@ -33,7 +31,6 @@ use crate::hints::hint_implementation::execution::utils::{
     get_proof_facts,
     set_state_entry,
 };
-use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -717,23 +714,9 @@ pub(crate) fn initial_ge_required_gas(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
+pub(crate) fn load_tx_nonce<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let nonce = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?
-        .nonce();
-    insert_value_into_ap(vm, nonce.0)?;
-    Ok(())
-}
-
-pub(crate) fn set_fp_to_tx_nonce<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -741,7 +724,7 @@ pub(crate) fn set_fp_to_tx_nonce<S: StateReader>(
         .tx_tracker
         .get_tx()?
         .nonce();
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SetFpToTxNonce), nonce.0)?;
+    insert_value_from_var_name(Ids::Nonce.into(), nonce.0, vm, ids_data, ap_tracking)?;
     Ok(())
 }
 

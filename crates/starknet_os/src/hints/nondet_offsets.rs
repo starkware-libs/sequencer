@@ -17,12 +17,8 @@ pub mod test;
 /// the respective function (locals before this line can effect the offset). We keep track of the
 /// values here, and test for consistency with the hint string; the offset in the hint
 /// implementation should be fetched from this map.
-pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLock::new(|| {
-    HashMap::from([
-        (AllHints::OsHint(OsHint::SetFpToTxNonce), 5),
-        (AllHints::OsHint(OsHint::GetBlocksNumber), 3),
-    ])
-});
+pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> =
+    LazyLock::new(|| HashMap::from([(AllHints::OsHint(OsHint::GetBlocksNumber), 3)]));
 
 fn fetch_offset(hint: AllHints) -> Result<usize, OsHintError> {
     Ok(*NONDET_FP_OFFSETS.get(&hint).ok_or(OsHintError::MissingOffsetForHint { hint })?)
