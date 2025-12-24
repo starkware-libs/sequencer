@@ -75,6 +75,7 @@ func handle_revert{contract_state_changes: DictAccess*}(
 func revert_contract_changes{
     class_hash: felt, storage_ptr: DictAccess*, revert_log_end: RevertLogEntry*
 }() {
+    alloc_locals;
     let revert_log_end = &revert_log_end[-1];
 
     tempvar selector = revert_log_end[0].selector;
@@ -92,9 +93,9 @@ func revert_contract_changes{
     // Storage write entry.
     let storage_key = selector;
     let value = revert_log_end[0].value;
-    assert storage_ptr[0] = DictAccess(
-        key=storage_key, prev_value=nondet %{ storage.read(key=ids.storage_key) %}, new_value=value
-    );
+    local prev_value;
+    %{ ReadStorageKeyForRevert %}
+    assert storage_ptr[0] = DictAccess(key=storage_key, prev_value=prev_value, new_value=value);
     %{ WriteStorageKeyForRevert %}
     let storage_ptr = &storage_ptr[1];
     return revert_contract_changes();
