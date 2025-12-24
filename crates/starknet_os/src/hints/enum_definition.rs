@@ -100,7 +100,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     get_contract_address_state_entry,
     get_old_block_number_and_hash,
     initial_ge_required_gas,
-    is_deprecated,
     is_remaining_gas_lt_initial_budget,
     is_reverted,
     load_next_tx,
@@ -495,7 +494,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
     (GetContractAddressStateEntry, get_contract_address_state_entry),
-    (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
     (EnterScopeExecuteTransactionsInner, enter_scope_execute_transactions_inner),
     (
         IsRemainingGasLtInitialBudget,
