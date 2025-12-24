@@ -109,7 +109,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     set_fp_to_tx_nonce,
     set_state_entry_to_account_contract_address,
     tx_account_deployment_data,
-    tx_account_deployment_data_len,
     tx_calldata,
     tx_entry_point_selector,
     tx_proof_facts,
@@ -698,16 +697,7 @@ define_hint_enum!(
     (TxCalldata, tx_calldata),
     (TxEntryPointSelector, tx_entry_point_selector),
     (TxVersion, tx_version),
-    (
-        TxAccountDeploymentDataLen,
-        tx_account_deployment_data_len,
-        "memory[fp + 4] = to_felt_or_relocatable(len(tx.account_deployment_data))"
-    ),
-    (
-        TxAccountDeploymentData,
-        tx_account_deployment_data,
-        "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.account_deployment_data))"
-    ),
+    (TxAccountDeploymentData, tx_account_deployment_data),
     (TxProofFacts, tx_proof_facts),
     (GenSignatureArg, gen_signature_arg),
     (

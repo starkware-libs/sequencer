@@ -436,10 +436,9 @@ func execute_invoke_function_transaction{
         tx_hash_prefix=INVOKE_HASH_PREFIX,
         sender_address=tx_execution_info.contract_address,
     );
-    local account_deployment_data_size = nondet %{ len(tx.account_deployment_data) %};
-    local account_deployment_data: felt* = cast(
-        nondet %{ segments.gen_arg(tx.account_deployment_data) %}, felt*
-    );
+    local account_deployment_data_size;
+    local account_deployment_data: felt*;
+    %{ TxAccountDeploymentData %}
     local proof_facts_size;
     local proof_facts: felt*;
     %{ TxProofFacts %}
