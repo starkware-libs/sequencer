@@ -218,13 +218,13 @@ impl Handler {
         }
 
         let mut batch = ProtoBatch { batch: vec![send_queue.pop_front().unwrap()] };
-        if batch.encoded_len() > max_wire_message_size {
+        if batch.encoded_len() >= max_wire_message_size {
             warn!("Propeller unit size exceeds max wire message size, sending will fail");
         }
 
         while let Some(msg) = send_queue.front() {
             batch.batch.push(msg.clone());
-            if batch.encoded_len() <= max_wire_message_size {
+            if batch.encoded_len() < max_wire_message_size {
                 send_queue.pop_front();
             } else {
                 batch.batch.pop();
