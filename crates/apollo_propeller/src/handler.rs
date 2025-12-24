@@ -15,6 +15,7 @@ use libp2p::swarm::handler::{
     ConnectionHandlerEvent,
     FullyNegotiatedInbound,
     FullyNegotiatedOutbound,
+    StreamUpgradeError,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
 use prost::Message;
@@ -507,6 +508,25 @@ impl ConnectionHandler for Handler {
                 // active substreams and a counter for the number of pending upgrades. On error,
                 // decrement the counter; in poll, request new upgrades when the counter is below
                 // the target.
+
+                // Log the specific error type
+                match &dial_upgrade_error.error {
+                    StreamUpgradeError::Timeout => {
+                        trace!("Dial upgrade error: Protocol negotiation timeout");
+                    }
+                    StreamUpgradeError::Apply(err) => {
+                        // PropellerProtocol uses Infallible as its Error type, so Apply errors
+                        // cannot occur
+                        match *err {}
+                    }
+                    StreamUpgradeError::NegotiationFailed => {
+                        warn!("The remote peer does not support propeller on this connection");
+                    }
+                    StreamUpgradeError::Io(err) => {
+                        trace!("Protocol negotiation failed: {err}");
+                    }
+                }
+
                 // Reset the specific Pending substream to Idle so we can request a new one.
                 let index = dial_upgrade_error.info;
                 if matches!(self.outbound_substream[index], OutboundSubstreamState::Pending) {
