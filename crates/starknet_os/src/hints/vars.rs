@@ -177,6 +177,7 @@ define_string_enum! {
         (ElmSize),
         (End),
         (EntryPointReturnValues),
+        (EntryPointSelector),
         (Evals),
         (ExecutionContext),
         (Exists),
