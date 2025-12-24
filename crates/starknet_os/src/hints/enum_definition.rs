@@ -63,11 +63,11 @@ use crate::hints::hint_implementation::execute_syscalls::{
 };
 use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
+    load_actual_fee,
     log_remaining_txs,
     os_input_transactions,
     segments_add,
     segments_add_temp_initial_txs_range_check_ptr,
-    set_ap_to_actual_fee,
     set_component_hashes,
     sha2_finalize,
     skip_tx,
@@ -662,13 +662,7 @@ define_hint_enum!(
     (LoadDeprecatedClassInner, load_deprecated_class_inner),
     (StartTx, start_tx),
     (OsInputTransactions, os_input_transactions),
-    (
-        SetApToActualFee,
-        set_ap_to_actual_fee,
-        indoc! {
-            r#"memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)"#
-        }
-    ),
+    (LoadActualFee, load_actual_fee),
     (SkipTx, skip_tx),
     (SetComponentHashes, set_component_hashes),
     (LoadNextTx, load_next_tx),
