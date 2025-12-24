@@ -1,5 +1,8 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    insert_value_from_var_name,
+    insert_value_into_ap,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -8,26 +11,37 @@ use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Const;
+use crate::hints::vars::{Const, Ids};
 
 // Hint implementations.
 
-pub(crate) fn block_number<S: StateReader>(
+pub(crate) fn block_number_timestamp_and_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let block_number =
-        hint_processor.get_current_execution_helper()?.os_block_input.block_info.block_number;
-    Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
-}
-
-pub(crate) fn block_timestamp<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let block_timestamp =
-        hint_processor.get_current_execution_helper()?.os_block_input.block_info.block_timestamp;
-    Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
+    let block_info = &hint_processor.get_current_execution_helper()?.os_block_input.block_info;
+    insert_value_from_var_name(
+        Ids::BlockNumber.into(),
+        Felt::from(block_info.block_number.0),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::BlockTimestamp.into(),
+        Felt::from(block_info.block_timestamp.0),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SequencerAddress.into(),
+        **block_info.sequencer_address,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn chain_id<S: StateReader>(
@@ -44,15 +58,6 @@ pub(crate) fn fee_token_address<S: StateReader>(
 ) -> OsHintResult {
     let strk_fee_token_address = hint_processor.os_hints_config.chain_info.strk_fee_token_address;
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
-}
-
-pub(crate) fn sequencer_address<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let address =
-        hint_processor.get_current_execution_helper()?.os_block_input.block_info.sequencer_address;
-    Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
 pub(crate) fn get_block_hash_mapping(
