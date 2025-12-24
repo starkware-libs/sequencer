@@ -99,7 +99,8 @@ func main{
     );
 
     // Execute blocks.
-    local n_blocks = nondet %{ len(os_input.block_inputs) %};
+    local n_blocks;
+    %{ GetBlocksNumber %}
     let (local os_outputs: OsOutput*) = alloc();
     %{ InitStateUpdatePointers %}
     local initial_txs_range_check_ptr;
