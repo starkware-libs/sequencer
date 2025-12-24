@@ -684,8 +684,9 @@ macro_rules! struct_field_names {
 }
 use struct_field_names;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct TransactionMetadata {
+/// Metadata about a transaction stored in the database.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransactionMetadata {
     tx_hash: TransactionHash,
     tx_location: LocationInFile,
     tx_output_location: LocationInFile,
@@ -788,14 +789,23 @@ pub struct DbStats {
 // - Body <= Header
 // - BaseLayerBlock <= Header
 // Event is currently unsupported.
-pub(crate) enum MarkerKind {
+/// Represents different types of markers that track progress in the storage.
+pub enum MarkerKind {
+    /// Marks the last written block header.
     Header,
+    /// Marks the last written block body.
     Body,
+    /// Marks the last written event. Currently unsupported.
     Event,
+    /// Marks the last written state diff.
     State,
+    /// Marks the last written class.
     Class,
+    /// Marks the last written compiled class.
     CompiledClass,
+    /// Marks the last written base layer block.
     BaseLayerBlock,
+    /// Marks the last written class manager block.
     ClassManagerBlock,
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
