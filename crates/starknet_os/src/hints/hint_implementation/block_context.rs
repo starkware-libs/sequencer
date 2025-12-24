@@ -1,8 +1,5 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    insert_value_from_var_name,
-    insert_value_into_ap,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -44,20 +41,26 @@ pub(crate) fn block_number_timestamp_and_address<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn chain_id<S: StateReader>(
+pub(crate) fn chain_id_and_fee_token_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let chain_id = &hint_processor.os_hints_config.chain_info.chain_id;
-    Ok(insert_value_into_ap(vm, Felt::try_from(chain_id)?)?)
-}
-
-pub(crate) fn fee_token_address<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let strk_fee_token_address = hint_processor.os_hints_config.chain_info.strk_fee_token_address;
-    Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
+    let chain_info = &hint_processor.os_hints_config.chain_info;
+    insert_value_from_var_name(
+        Ids::ChainId.into(),
+        Felt::try_from(&chain_info.chain_id)?,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::FeeTokenAddress.into(),
+        **chain_info.strk_fee_token_address,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn get_block_hash_mapping(
