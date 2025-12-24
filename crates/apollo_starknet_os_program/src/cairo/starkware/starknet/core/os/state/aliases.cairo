@@ -85,7 +85,9 @@ func maybe_allocate_alias_for_big_key{
 // Returns the next available alias.
 // Initializes the stateful compression feature if needed.
 func get_next_available_alias{aliases_storage_updates: DictAccess*, range_check_ptr}() -> felt {
-    tempvar next_available_alias = nondet %{ aliases.read(key=ids.ALIAS_COUNTER_STORAGE_KEY) %};
+    alloc_locals;
+    local next_available_alias;
+    %{ ReadAliasCounter %}
     assert aliases_storage_updates[0] = DictAccess(
         key=ALIAS_COUNTER_STORAGE_KEY,
         prev_value=next_available_alias,
