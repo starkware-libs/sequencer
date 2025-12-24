@@ -25,12 +25,10 @@ use crate::hints::hint_implementation::aggregator::implementation::{
 };
 use crate::hints::hint_implementation::blake2s::implementation::naive_unpack_felt252_to_u32s;
 use crate::hints::hint_implementation::block_context::{
-    block_number,
-    block_timestamp,
+    block_number_timestamp_and_address,
     chain_id,
     fee_token_address,
     get_block_hash_mapping,
-    sequencer_address,
     write_use_kzg_da_to_memory,
 };
 use crate::hints::hint_implementation::bls_field::implementation::compute_ids_low;
@@ -646,16 +644,7 @@ define_hint_enum!(
     (LoadClass, load_class),
     (RelocateSha256Segment, relocate_sha256_segment),
     (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
-    (
-        BlockNumber,
-        block_number,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_number)"
-    ),
-    (
-        BlockTimestamp,
-        block_timestamp,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_timestamp)"
-    ),
+    (BlockNumberTimestampAndAddress, block_number_timestamp_and_address),
     (
         ChainId,
         chain_id,
@@ -665,11 +654,6 @@ define_hint_enum!(
         FeeTokenAddress,
         fee_token_address,
         "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
-    ),
-    (
-        SequencerAddress,
-        sequencer_address,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.sequencer_address)"
     ),
     (
         WriteUseKzgDaToMemory,
