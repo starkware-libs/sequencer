@@ -283,6 +283,7 @@ func execute_blocks{
             contract_class_changes_start=contract_class_changes_start,
             contract_class_changes_end=contract_class_changes,
         ),
+        should_allocate_aliases=TRUE,
     );
 
     %{ vm_exit_scope() %}
