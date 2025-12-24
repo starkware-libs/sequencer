@@ -3,7 +3,7 @@
 use libp2p::core::PeerId;
 
 use crate::types::{Channel, MessageRoot, ShardIndex};
-use crate::MerkleProof;
+use crate::{MerkleProof, MerkleTree, ShardValidationError};
 
 /// A single shard unit in the Propeller protocol.
 ///
@@ -63,6 +63,16 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn validate_shard_proof(&self) -> Result<(), ShardValidationError> {
+        let proof = self.proof();
+        let shard_hash = MerkleTree::hash_leaf(self.shard());
+        if proof.verify(&self.root().0, &shard_hash, self.index().0.try_into().unwrap()) {
+            Ok(())
+        } else {
+            Err(ShardValidationError::ProofVerificationFailed)
+        }
     }
 }
 
