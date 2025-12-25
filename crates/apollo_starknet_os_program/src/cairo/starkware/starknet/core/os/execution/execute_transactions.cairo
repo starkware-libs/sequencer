@@ -1,6 +1,5 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     EcOpBuiltin,
@@ -10,18 +9,16 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
 )
 from starkware.cairo.common.cairo_sha256.sha256_utils import finalize_sha256
-from starkware.cairo.common.dict import dict_new, dict_read, dict_update
+from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.math import assert_nn, assert_nn_le, assert_not_zero
+from starkware.cairo.common.math import assert_nn_le, assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.sha256_state import Sha256ProcessBlock
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.builtins.segment_arena.segment_arena import new_arena
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import BlockInfo, ExecutionInfo, ResourceBounds, TxInfo
-from starkware.starknet.common.syscalls import Deploy
 from starkware.starknet.common.syscalls import TxInfo as DeprecatedTxInfo
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
@@ -32,9 +29,7 @@ from starkware.starknet.core.os.builtins import (
 from starkware.starknet.core.os.constants import (
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DECLARE_HASH_PREFIX,
-    DEFAULT_ENTRY_POINT_SELECTOR,
     DEFAULT_INITIAL_GAS_COST,
-    DEFAULT_INITIAL_GAS_COST_NO_L2,
     DEPLOY_ACCOUNT_HASH_PREFIX,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
@@ -42,7 +37,6 @@ from starkware.starknet.core.os.constants import (
     EXECUTE_ENTRY_POINT_SELECTOR,
     EXECUTE_MAX_SIERRA_GAS,
     INVOKE_HASH_PREFIX,
-    L1_DATA_GAS,
     L1_DATA_GAS_INDEX,
     L1_GAS_INDEX,
     L1_HANDLER_L2_GAS_MAX_AMOUNT,
@@ -60,13 +54,6 @@ from starkware.starknet.core.os.contract_class.contract_class import (
     ContractClassComponentHashes,
     finalize_class_hash,
 )
-from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
-    DeprecatedCompiledClassFact,
-)
-from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
-    deprecated_execute_entry_point,
-    non_reverting_select_execute_entry_point_func,
-)
 from starkware.starknet.core.os.execution.deprecated_execute_syscalls import deploy_contract
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.execute_transaction_utils import (
@@ -74,6 +61,7 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
     cap_remaining_gas,
     check_and_increment_nonce,
     fill_deprecated_tx_info,
+    non_reverting_select_execute_entry_point_func,
     run_validate,
     update_class_hash_in_execution_context,
 )

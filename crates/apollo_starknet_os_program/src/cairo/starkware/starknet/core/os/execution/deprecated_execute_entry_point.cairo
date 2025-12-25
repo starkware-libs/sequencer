@@ -3,7 +3,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_optimistic
-from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.registers import get_ap
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
@@ -30,7 +29,7 @@ from starkware.starknet.core.os.execution.execute_entry_point import (
     ExecutionContext,
     execute_entry_point,
 )
-from starkware.starknet.core.os.execution.revert import RevertLogEntry, init_revert_log
+from starkware.starknet.core.os.execution.revert import RevertLogEntry
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Returns the entry point's offset in the program based on 'compiled_class' and
@@ -273,24 +272,4 @@ func select_execute_entry_point_func{
         tempvar remaining_gas = caller_remaining_gas;
     }
     return (is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=0);
-}
-
-// Same as `select_execute_entry_point_func`, but does not support reverts and does
-// not have an implicit 'revert_log' argument.
-func non_reverting_select_execute_entry_point_func{
-    range_check_ptr,
-    remaining_gas: felt,
-    builtin_ptrs: BuiltinPointers*,
-    contract_state_changes: DictAccess*,
-    contract_class_changes: DictAccess*,
-    outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*, execution_context: ExecutionContext*) -> (
-    retdata_size: felt, retdata: felt*, is_deprecated: felt
-) {
-    let revert_log = init_revert_log();
-    let (is_reverted, retdata_size, retdata, is_deprecated) = select_execute_entry_point_func{
-        revert_log=revert_log
-    }(block_context=block_context, execution_context=execution_context);
-    assert is_reverted = 0;
-    return (retdata_size, retdata, is_deprecated);
 }
