@@ -20,7 +20,9 @@ tokio.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+bitvec.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+rand.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 
