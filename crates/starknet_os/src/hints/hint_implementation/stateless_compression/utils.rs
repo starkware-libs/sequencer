@@ -509,7 +509,11 @@ pub fn unpack_felts<const LENGTH: usize>(
     result
 }
 
-pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: u128) -> Vec<usize> {
+pub fn unpack_felts_to<U>(compressed: &[Felt], n_elms: usize, elm_bound: u128) -> Vec<U>
+where
+    U: TryFrom<BigUint>,
+    <U as TryFrom<BigUint>>::Error: std::fmt::Debug,
+{
     let n_elms_per_felt = get_n_elms_per_felt(elm_bound);
     let elm_bound_as_big = BigUint::from(elm_bound);
     let mut result = Vec::with_capacity(n_elms);
@@ -519,7 +523,7 @@ pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: u128
         let n_packed_elms = min(n_elms_per_felt, n_elms - result.len());
         for _ in 0..n_packed_elms {
             let (new_remaining, value) = remaining.div_rem(&elm_bound_as_big);
-            result.push(value.to_usize().unwrap());
+            result.push(value.try_into().unwrap());
             remaining = new_remaining;
         }
     }
@@ -552,7 +556,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
         let n_packed_felts = n_elms.div_ceil(n_elms_per_felt);
 
         let compressed_chunk: Vec<_> = compressed.take(n_packed_felts).collect();
-        unpack_felts_to_usize(&compressed_chunk, n_elms, elm_bound)
+        unpack_felts_to::<usize>(&compressed_chunk, n_elms, elm_bound)
     }
 
     let header = unpack_chunk_to_usize(compressed, HEADER_LEN, HEADER_ELM_BOUND.into());

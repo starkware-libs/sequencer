@@ -31,7 +31,7 @@ use crate::hints::error::OsHintError;
 use crate::hints::hint_implementation::stateless_compression::utils::{
     decompress,
     unpack_felts,
-    unpack_felts_to_usize,
+    unpack_felts_to,
 };
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
@@ -239,7 +239,7 @@ fn test_usize_pack_and_unpack() {
     let nums = vec![34, 0, 11111, 1034, 3404, 16, 32, 127, 129, 128];
     let elm_bound = 12345;
     let packed = pack_in_felts(&nums, elm_bound);
-    let unpacked = unpack_felts_to_usize(packed.as_ref(), nums.len(), elm_bound);
+    let unpacked = unpack_felts_to::<usize>(packed.as_ref(), nums.len(), elm_bound);
     assert_eq!(nums, unpacked);
 }
 
