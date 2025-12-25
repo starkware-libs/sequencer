@@ -18,6 +18,7 @@ struct TransactionGenerator {
     nonce_manager: NonceManager,
     sender_address: ContractAddress,
     test_contract_address: ContractAddress,
+    // TODO(AvivG): Consider adding proof fields to test txs that support client-side proving.
 }
 
 impl TransactionGenerator {
@@ -34,7 +35,7 @@ impl TransactionGenerator {
             nonce: self.nonce_manager.next(self.sender_address),
             sender_address: self.sender_address,
             resource_bounds: valid_resource_bounds_for_testing(),
-            calldata: create_trivial_calldata(self.test_contract_address),
+            calldata: create_trivial_calldata(self.test_contract_address)
         );
         rpc_invoke_tx(invoke_args)
     }
