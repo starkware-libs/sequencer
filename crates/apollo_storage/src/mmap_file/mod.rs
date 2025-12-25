@@ -260,6 +260,36 @@ unsafe impl<V: ValueSerde, Mode: TransactionKind> Send for FileHandler<V, Mode> 
 unsafe impl<V: ValueSerde, Mode: TransactionKind> Sync for FileHandler<V, Mode> {}
 
 impl<V: ValueSerde> FileHandler<V, RW> {
+    /// Appends multiple values in a single lock acquisition and returns their locations.
+    pub(crate) fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile> {
+        if vals.is_empty() {
+            return Vec::new();
+        }
+
+        let serialized_vals: Vec<Vec<u8>> = vals
+            .iter()
+            .map(|val| V::serialize(val).expect("Should be able to serialize"))
+            .collect();
+        let total_len: usize = serialized_vals.iter().map(|v| v.len()).sum();
+
+        let mut locations = Vec::with_capacity(vals.len());
+        let final_offset = {
+            let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+            let start_offset = mmap_file.offset;
+            mmap_file.grow_to_target(start_offset + total_len);
+
+            for serialized in &serialized_vals {
+                let location = mmap_file.write_at_current_offset(serialized);
+                locations.push(location);
+            }
+
+            start_offset + total_len
+        };
+
+        self.grow_file_if_needed(final_offset);
+        locations
+    }
+
     fn grow_file_if_needed(&mut self, offset: usize) {
         let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
         if mmap_file.size < offset + mmap_file.config.max_object_size {
