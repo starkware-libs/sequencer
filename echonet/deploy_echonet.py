@@ -11,11 +11,13 @@ Python wrapper to deploy echonet via Kustomize.
   -e  resync error threshold (sets RESYNC_ERROR_THRESHOLD env)
   -a  L1 Alchemy API key (sets L1_ALCHEMY_API_KEY env)
   -B  blocked sender addresses (comma-separated) (sets BLOCKED_SENDERS env)
+  --conf  load defaults from JSON config file.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -180,6 +182,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Kubernetes namespace to target (kubectl -n <ns>).",
     )
     parser.add_argument(
+        "--conf",
+        action="append",
+        help=(
+            "Load defaults from JSON config file.\n"
+            "Priority: CLI arguments override config file, config file overrides hardcoded defaults.\n"
+            "Required fields: start_block_default, l1_alchemy_api_key\n"
+            "Update echonet_keys.json with your values, and delete fields if you want to use their hardcoded defaults.\n"
+            "Run: python deploy_echonet.py --conf echonet_keys.json"
+        ),
+    )
+    parser.add_argument(
         "-t",
         dest="feeder_x_throttling_bypass",
         metavar="TOKEN",
@@ -216,7 +229,27 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
     argv = ["--no-rollout-restart" if a == "-R" else a for a in argv]
 
+    # Get config files are specified via --conf flags.
     args = parser.parse_args(argv)
+    if args.conf is not None:
+        for conf_fname in args.conf:
+            conf_path = Path(conf_fname)
+            try:
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+                if not isinstance(config_data, dict):
+                    logger.error("Config file must contain a JSON object: %s", conf_fname)
+                    return 1
+            except Exception as e:
+                logger.error("Failed to load config file %s: %s", conf_fname, e)
+                return 1
+
+            # Update parser defaults from config file, if they exist.
+            parser.set_defaults(**config_data)
+            logger.info("Loaded config defaults from %s", conf_fname)
+
+        # Parse again so CLI arguments override config file.
+        args = parser.parse_args(argv)
 
     # Paths
     script_dir = Path(__file__).resolve().parent
