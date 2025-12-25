@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_runner::casm_run::execute_core_hint_base;
@@ -788,7 +789,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         _reference_ids: &HashMap<String, usize>,
         _references: &[HintReference],
         _accessible_scopes: &[String],
-        _constants: std::sync::Arc<std::collections::HashMap<String, Felt>>,
+        _constants: Arc<HashMap<String, Felt>>,
     ) -> Result<Box<dyn Any>, VirtualMachineError> {
         Ok(Box::new(self.hints[hint_code].clone()))
     }
