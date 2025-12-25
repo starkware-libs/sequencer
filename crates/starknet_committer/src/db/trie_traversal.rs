@@ -2,6 +2,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use starknet_api::core::ContractAddress;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -20,13 +22,25 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
     TraversalResult,
     UnmodifiedChildTraversal,
 };
-use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 use tracing::warn;
 
+use crate::block_committer::input::{
+    contract_address_into_node_index,
+    ReaderConfig,
+    StarknetStorageValue,
+};
 use crate::db::db_layout::NodeLayout;
+use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree_and_get_previous_leaves;
+use crate::db::facts_db::db::FactsNodeLayout;
+use crate::db::facts_db::types::FactsSubTree;
+use crate::forest::forest_errors::{ForestError, ForestResult};
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
+use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
@@ -272,4 +286,111 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
         }
     }
     Ok(())
+}
+
+pub async fn create_original_skeleton_tree<'a, L: Leaf>(
+    storage: &mut impl Storage,
+    root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'a>,
+    config: &impl OriginalSkeletonTreeConfig,
+    leaf_modifications: &LeafModifications<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
+    if sorted_leaf_indices.is_empty() {
+        return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
+    }
+    if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+        log_warning_for_empty_leaves(
+            sorted_leaf_indices.get_indices(),
+            leaf_modifications,
+            config,
+        )?;
+        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
+    }
+    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
+    let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
+    fetch_nodes::<L, FactsNodeLayout>(
+        &mut skeleton_tree,
+        vec![main_subtree],
+        storage,
+        leaf_modifications,
+        config,
+        None,
+        key_context,
+    )
+    .await?;
+    Ok(skeleton_tree)
+}
+
+pub async fn create_storage_tries<'a>(
+    storage: &mut impl Storage,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    config: &ReaderConfig,
+    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
+    let mut storage_tries = HashMap::new();
+    for (address, updates) in actual_storage_updates {
+        let sorted_leaf_indices = storage_tries_sorted_indices
+            .get(address)
+            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
+        let contract_state = original_contracts_trie_leaves
+            .get(&contract_address_into_node_index(address))
+            .ok_or(ForestError::MissingContractCurrentState(*address))?;
+        let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+            config.warn_on_trivial_modifications(),
+        );
+
+        let original_skeleton = create_original_skeleton_tree(
+            storage,
+            contract_state.storage_root_hash,
+            *sorted_leaf_indices,
+            &config,
+            updates,
+            &EmptyKeyContext,
+        )
+        .await?;
+        storage_tries.insert(*address, original_skeleton);
+    }
+    Ok(storage_tries)
+}
+
+/// Creates the contracts trie original skeleton.
+/// Also returns the previous contracts state of the modified contracts.
+pub async fn create_contracts_trie<'a>(
+    storage: &mut impl Storage,
+    contracts_trie_root_hash: HashOutput,
+    contracts_trie_sorted_indices: SortedLeafIndices<'a>,
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
+    Ok(create_original_skeleton_tree_and_get_previous_leaves(
+        storage,
+        contracts_trie_root_hash,
+        contracts_trie_sorted_indices,
+        &HashMap::new(),
+        &OriginalSkeletonTrieConfig::new_for_contracts_trie(),
+        &EmptyKeyContext,
+    )
+    .await?)
+}
+
+pub async fn create_classes_trie<'a>(
+    storage: &mut impl Storage,
+    actual_classes_updates: &LeafModifications<CompiledClassHash>,
+    classes_trie_root_hash: HashOutput,
+    config: &ReaderConfig,
+    contracts_trie_sorted_indices: SortedLeafIndices<'a>,
+) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
+    let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+        config.warn_on_trivial_modifications(),
+    );
+
+    Ok(create_original_skeleton_tree(
+        storage,
+        classes_trie_root_hash,
+        contracts_trie_sorted_indices,
+        &config,
+        actual_classes_updates,
+        &EmptyKeyContext,
+    )
+    .await?)
 }
