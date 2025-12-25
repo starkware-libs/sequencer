@@ -21,7 +21,7 @@ use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
-type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
+pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 // Remove this trait when the index layout is ready.
 #[async_trait]

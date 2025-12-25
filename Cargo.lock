@@ -1071,9 +1071,12 @@ dependencies = [
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
+ "indexmap 2.12.0",
  "starknet_api",
  "starknet_committer",
+ "starknet_patricia",
  "starknet_patricia_storage",
+ "tokio",
  "tracing",
 ]
 
