@@ -203,52 +203,31 @@ func execute_transactions_inner{
     local resource_bounds: ResourceBounds*;
 
     // Guess the current transaction's type.
-    %{
-        tx = next(transactions)
-        assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
-            f"Unexpected transaction type: {tx.type.name}."
-        )
-
-        tx_type_bytes = tx.tx_type.name.encode("ascii")
-        ids.tx_type = int.from_bytes(tx_type_bytes, "big")
-        execution_helper.os_logger.enter_tx(
-            tx=tx,
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-        )
-
-        # Prepare a short callable to save code duplication.
-        exit_tx = lambda: execution_helper.os_logger.exit_tx(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-        )
-    %}
+    %{ LoadNextTx %}
 
     if (tx_type == 'INVOKE_FUNCTION') {
         // Handle the invoke-function transaction.
         execute_invoke_function_transaction(block_context=block_context);
-        %{ exit_tx() %}
+        %{ ExitTx %}
         return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
     }
     if (tx_type == 'L1_HANDLER') {
         // Handle the L1-handler transaction.
         execute_l1_handler_transaction(block_context=block_context);
-        %{ exit_tx() %}
+        %{ ExitTx %}
         return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
     }
     if (tx_type == 'DEPLOY_ACCOUNT') {
         // Handle the deploy-account transaction.
         execute_deploy_account_transaction(block_context=block_context);
-        %{ exit_tx() %}
+        %{ ExitTx %}
         return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
     }
 
     assert tx_type = 'DECLARE';
     // Handle the declare transaction.
     execute_declare_transaction(block_context=block_context);
-    %{ exit_tx() %}
+    %{ ExitTx %}
     return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
 }
 
@@ -344,16 +323,7 @@ func get_account_tx_common_fields(
     block_context: BlockContext*, tx_hash_prefix: felt, sender_address: felt
 ) -> CommonTxFields* {
     tempvar resource_bounds: ResourceBounds*;
-    %{
-        from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
-            create_resource_bounds_list,
-        )
-        assert len(tx.resource_bounds) == 3, (
-            "Only transactions with 3 resource bounds are supported. "
-            f"Got {len(tx.resource_bounds)} resource bounds."
-        )
-        ids.resource_bounds = segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))
-    %}
+    %{ LoadResourceBounds %}
     tempvar common_tx_fields = new CommonTxFields(
         tx_hash_prefix=tx_hash_prefix,
         version=3,
@@ -702,12 +672,7 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
     local class_hash;
     local constructor_calldata_size;
     local constructor_calldata: felt*;
-    %{
-        ids.contract_address_salt = tx.contract_address_salt
-        ids.class_hash = tx.class_hash
-        ids.constructor_calldata_size = len(tx.constructor_calldata)
-        ids.constructor_calldata = segments.gen_arg(arg=tx.constructor_calldata)
-    %}
+    %{ PrepareConstructorExecution %}
     assert_nn_le(constructor_calldata_size, SIERRA_ARRAY_LEN_BOUND - 1);
 
     let hash_ptr = builtin_ptrs.selectable.pedersen;
@@ -879,7 +844,7 @@ func execute_declare_transaction{
     alloc_locals;
 
     if (nondet %{ tx.version %} == 0) {
-        %{ execution_helper.skip_tx() %}
+        %{ SkipTx %}
         return ();
     }
 
@@ -921,13 +886,7 @@ func execute_declare_transaction{
 
         // Ensure the given class hash is a result of a Sierra class hash calculation.
         local contract_class_component_hashes: ContractClassComponentHashes*;
-        %{
-            class_component_hashes = component_hashes[tx.class_hash]
-            assert (
-                len(class_component_hashes) == ids.ContractClassComponentHashes.SIZE
-            ), "Wrong number of class component hashes."
-            ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)
-        %}
+        %{ SetComponentHashes %}
 
         let expected_class_hash = finalize_class_hash(
             contract_class_component_hashes=contract_class_component_hashes
@@ -964,7 +923,7 @@ func execute_declare_transaction{
             dict_update{dict_ptr=contract_class_changes}(
                 key=[class_hash_ptr], prev_value=0, new_value=compiled_class_hash
             );
-            %{ execution_helper.skip_tx() %}
+            %{ SkipTx %}
             return ();
         }
     }
