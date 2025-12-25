@@ -208,11 +208,27 @@ fn write_classes<'env>(
     file_handlers: &FileHandlers<RW>,
     file_offset_table: &'env FileOffsetTable<'env>,
 ) -> StorageResult<()> {
-    for (class_hash, contract_class) in classes {
-        let location = file_handlers.append_contract_class(contract_class);
-        declared_classes_table.insert(txn, class_hash, &location)?;
-        file_offset_table.upsert(txn, &OffsetKind::ContractClass, &location.next_offset())?;
+    if classes.is_empty() {
+        return Ok(());
     }
+
+    // Extract contract classes for batch append.
+    let contract_classes: Vec<&SierraContractClass> =
+        classes.iter().map(|(_, class)| *class).collect();
+
+    // Batch append all contract classes at once.
+    let locations = file_handlers.append_contract_classes_batch(&contract_classes);
+
+    // Write to MDBX tables.
+    for ((class_hash, _), location) in classes.iter().zip(locations.iter()) {
+        declared_classes_table.insert(txn, class_hash, location)?;
+    }
+
+    // Update file offset with the last location.
+    if let Some(last_location) = locations.last() {
+        file_offset_table.upsert(txn, &OffsetKind::ContractClass, &last_location.next_offset())?;
+    }
+
     Ok(())
 }
 
@@ -224,18 +240,42 @@ fn write_deprecated_classes<'env>(
     file_handlers: &FileHandlers<RW>,
     file_offset_table: &'env FileOffsetTable<'env>,
 ) -> StorageResult<()> {
+    if deprecated_classes.is_empty() {
+        return Ok(());
+    }
+
+    // Filter out classes that already exist and collect the ones to write.
+    let mut classes_to_write = Vec::new();
+    let mut hashes_to_write = Vec::new();
+
     for (class_hash, deprecated_contract_class) in deprecated_classes {
-        if deprecated_declared_classes_table.get(txn, class_hash)?.is_some() {
-            continue;
+        if deprecated_declared_classes_table.get(txn, class_hash)?.is_none() {
+            classes_to_write.push(*deprecated_contract_class);
+            hashes_to_write.push(*class_hash);
         }
-        let location = file_handlers.append_deprecated_contract_class(deprecated_contract_class);
-        let value = IndexedDeprecatedContractClass { block_number, location_in_file: location };
+    }
+
+    if classes_to_write.is_empty() {
+        return Ok(());
+    }
+
+    // Batch append all deprecated contract classes at once.
+    let locations = file_handlers.append_deprecated_contract_classes_batch(&classes_to_write);
+
+    // Write to MDBX tables.
+    for (class_hash, location) in hashes_to_write.iter().zip(locations.iter()) {
+        let value = IndexedDeprecatedContractClass { block_number, location_in_file: *location };
+        deprecated_declared_classes_table.insert(txn, class_hash, &value)?;
+    }
+
+    // Update file offset with the last location.
+    if let Some(last_location) = locations.last() {
         file_offset_table.upsert(
             txn,
             &OffsetKind::DeprecatedContractClass,
-            &location.next_offset(),
+            &last_location.next_offset(),
         )?;
-        deprecated_declared_classes_table.insert(txn, class_hash, &value)?;
     }
+
     Ok(())
 }
