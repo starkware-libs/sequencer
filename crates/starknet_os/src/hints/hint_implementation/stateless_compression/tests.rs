@@ -408,9 +408,9 @@ fn test_compression_length(
     let n_unique_values = data.iter().collect::<HashSet<_>>().len();
     let n_repeated_values = data.len() - n_unique_values;
     let expected_repeated_value_pointers_packed_length =
-        n_repeated_values.div_ceil(get_n_elms_per_felt(u32::try_from(n_unique_values).unwrap()));
+        n_repeated_values.div_ceil(get_n_elms_per_felt(u128::try_from(n_unique_values).unwrap()));
     let expected_bucket_indices_packed_length =
-        data.len().div_ceil(get_n_elms_per_felt(u32::try_from(TOTAL_N_BUCKETS).unwrap()));
+        data.len().div_ceil(get_n_elms_per_felt(u128::try_from(TOTAL_N_BUCKETS).unwrap()));
 
     assert_eq!(
         compressed.len(),
@@ -428,7 +428,7 @@ fn test_compression_length(
 #[rstest]
 #[case(128, 35)]
 #[case(7, 83)]
-fn test_get_n_elms_per_felt(#[case] elm_bound: u32, #[case] expected_n_elems: usize) {
+fn test_get_n_elms_per_felt(#[case] elm_bound: u128, #[case] expected_n_elems: usize) {
     assert_eq!(get_n_elms_per_felt(elm_bound), expected_n_elems);
 }
 
