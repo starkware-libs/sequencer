@@ -30,6 +30,7 @@ use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
@@ -138,6 +139,7 @@ struct MockDependencies {
     block_builder_factory: MockBlockBuilderFactoryTrait,
     pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
     class_manager_client: SharedClassManagerClient,
+    proof_manager_client: MockProofManagerClient,
 }
 
 impl Default for MockDependencies {
@@ -178,6 +180,7 @@ impl Default for MockDependencies {
             pre_confirmed_block_writer_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
+            proof_manager_client: MockProofManagerClient::new(),
         }
     }
 }
@@ -197,6 +200,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         Box::new(mock_dependencies.block_builder_factory),
         Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
         None,
+        Arc::new(mock_dependencies.proof_manager_client),
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
