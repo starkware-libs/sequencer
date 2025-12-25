@@ -1,0 +1,64 @@
+# Lightweight kube-prometheus-stack configuration for local development
+
+# Disable all default Prometheus alert rules (etcd, kubelet, k8s, etc.)
+# We only want our custom Sequencer alerts
+defaultRules:
+  create: false
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    retention: 24h
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    service:
+      type: NodePort
+      nodePort: 30090  # NodePort in range 30000-32767
+    serviceMonitorSelectorNilUsesHelmValues: false
+  # No Ingress - using NodePort for direct access on localhost:9090
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin
+  defaultDashboardsEnabled: false  # Disable default Kubernetes dashboards
+  persistence:
+    enabled: true  # Enable persistence so dashboards and datasources survive restarts
+    size: 1Gi
+    storageClassName: local-path  # k3d uses local-path storage class
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - localhost
+      - grafana.local
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+  grafana.ini:
+    server:
+      root_url: http://localhost:3000
+    auth.anonymous:
+      enabled: true
+      org_role: Admin
+    auth:
+      disable_login_form: true
+
+alertmanager:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+prometheusOperator:
+  enabled: true
+

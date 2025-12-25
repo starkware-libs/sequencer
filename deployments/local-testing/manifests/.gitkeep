@@ -1,0 +1,6 @@
+# This directory contains cdk8s-generated Kubernetes manifests
+# Generated manifests are stored in subdirectories:
+# - dummy-recorder/
+# - dummy-eth2strk-oracle/
+# - sequencer/
+

@@ -1,0 +1,14 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: sequencer-local
+servers: 1
+agents: 0
+registries:
+  create:
+    name: sequencer-registry.localhost
+    host: "0.0.0.0"
+    hostPort: "5050"
+ports:
+  - port: 3000:80   # Traefik Ingress on port 80 -> host 3000 (exposes Grafana via localhost)
+  - port: 9090:30090   # Prometheus NodePort 30090 -> host 9090 (direct access to Prometheus)

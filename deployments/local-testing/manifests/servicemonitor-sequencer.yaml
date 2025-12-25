@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sequencer-metrics
+  namespace: sequencer
+  labels:
+    app: sequencer
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: sequencer
+  endpoints:
+    - port: monitoring-endpoint
+      path: /monitoring/metrics
+      interval: 5s
+      scrapeTimeout: 4s
+  namespaceSelector:
+    matchNames:
+      - sequencer

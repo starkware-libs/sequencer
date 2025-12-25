@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import argparse
-import json
-import os
-from typing import Dict
+from typing import Optional
 
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
@@ -15,30 +13,67 @@ def argument_parser():
         "--namespace", required=True, type=str, help="Required: Specify the Kubernetes namespace."
     )
     parser.add_argument(
-        "--config", type=str, required=True, help="Required: Specify the sequencer config path"
+        "--image", required=True, type=str, help="Required: Docker image for the simulator."
+    )
+    parser.add_argument(
+        "--http-url", type=str, default="http://sequencer-node-service", 
+        help="HTTP URL for sequencer (default: http://sequencer-node-service)"
+    )
+    parser.add_argument(
+        "--http-port", type=int, default=8080,
+        help="HTTP port for sequencer (default: 8080)"
+    )
+    parser.add_argument(
+        "--monitoring-url", type=str, default="http://sequencer-node-service",
+        help="Monitoring URL for sequencer (default: http://sequencer-node-service)"
+    )
+    parser.add_argument(
+        "--monitoring-port", type=int, default=8082,
+        help="Monitoring port for sequencer (default: 8082)"
+    )
+    parser.add_argument(
+        "--sender-address", type=str, required=False,
+        help="Anvil sender address (0x...)"
+    )
+    parser.add_argument(
+        "--receiver-address", type=str, required=False,
+        help="Anvil receiver address (0x...)"
     )
 
     return parser.parse_args()
 
 
-def get_config(path: str):
-    with open(os.path.abspath(path), "r") as f:
-        return json.loads(f.read())
-
-
 class Simulator(Chart):
-    def __init__(self, scope: Construct, id: str, namespace: str, config: Dict):
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        namespace: str,
+        image: str,
+        http_url: str,
+        http_port: int,
+        monitoring_url: str,
+        monitoring_port: int,
+        sender_address: Optional[str] = None,
+        receiver_address: Optional[str] = None,
+    ):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
 
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
-        self.config = config
 
-        k8s.KubeConfigMap(
-            self,
-            "configmap",
-            metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.config)),
-        )
+        # Build command arguments
+        args = [
+            "--http-url", http_url,
+            "--http-port", str(http_port),
+            "--monitoring-url", monitoring_url,
+            "--monitoring-port", str(monitoring_port),
+            "--run-forever",  # Run continuously
+        ]
+        
+        if sender_address:
+            args.extend(["--sender-address", sender_address])
+        if receiver_address:
+            args.extend(["--receiver-address", receiver_address])
 
         k8s.KubeDeployment(
             self,
@@ -49,28 +84,14 @@ class Simulator(Chart):
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.label),
                     spec=k8s.PodSpec(
-                        volumes=[
-                            k8s.Volume(
-                                name=f"{self.node.id}-config",
-                                config_map=k8s.ConfigMapVolumeSource(name=f"{self.node.id}-config"),
-                            )
-                        ],
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image="us-central1-docker.pkg.dev/starkware-dev/sequencer/simulator:0.0.1",
-                                # TODO(Tsabary/Idan): this file does not exist.
-                                args=["--config_file", "/config/sequencer/presets/config"],
+                                image=image,
+                                args=args,
                                 env=[
                                     k8s.EnvVar(name="RUST_LOG", value="debug"),
                                     k8s.EnvVar(name="RUST_BACKTRACE", value="full"),
-                                ],
-                                volume_mounts=[
-                                    k8s.VolumeMount(
-                                        name=f"{self.node.id}-config",
-                                        mount_path="/config/sequencer/presets/",
-                                        read_only=True,
-                                    )
                                 ],
                             )
                         ],
@@ -87,7 +108,13 @@ def main():
         scope=app,
         id="sequencer-simulator",
         namespace=args.namespace,
-        config=get_config(args.config),
+        image=args.image,
+        http_url=args.http_url,
+        http_port=args.http_port,
+        monitoring_url=args.monitoring_url,
+        monitoring_port=args.monitoring_port,
+        sender_address=args.sender_address,
+        receiver_address=args.receiver_address,
     )
 
     app.synth()
