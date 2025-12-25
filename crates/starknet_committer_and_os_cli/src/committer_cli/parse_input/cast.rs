@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -18,6 +17,7 @@ use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
+use crate::db::facts_db::types::FactsDbInitialRead;
 
 pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 

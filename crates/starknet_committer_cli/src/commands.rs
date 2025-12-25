@@ -7,7 +7,6 @@ use rand::{Rng, SeedableRng};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -32,6 +31,7 @@ use crate::args::{
     StorageType,
     DEFAULT_DATA_PATH,
 };
+use crate::db::facts_db::types::FactsDbInitialRead;
 
 pub type InputImpl = Input<FactsDbInitialRead>;
 

@@ -15,7 +15,6 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    FactsDbInitialRead,
     ReaderConfig,
     StarknetStorageValue,
 };
@@ -24,7 +23,7 @@ use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
-use crate::db::facts_db::types::FactsSubTree;
+use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
 use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};

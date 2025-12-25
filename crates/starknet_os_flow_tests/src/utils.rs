@@ -39,7 +39,6 @@ use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -65,6 +64,7 @@ use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
 use crate::test_manager::FUNDED_ACCOUNT_ADDRESS;

@@ -5,7 +5,6 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -21,6 +20,7 @@ use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
 use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
+use crate::db::facts_db::types::FactsDbInitialRead;
 
 #[test]
 fn test_simple_input_parsing() {
