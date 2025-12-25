@@ -22,7 +22,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
+use crate::db::trie_traversal::create_original_skeleton_tree;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 
 #[tokio::test]
