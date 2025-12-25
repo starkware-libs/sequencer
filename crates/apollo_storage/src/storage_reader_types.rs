@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
-use crate::header::StorageBlockHeader;
+use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
@@ -242,8 +242,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::Headers(_block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::BlockHashToNumber(_block_hash) => {
-                unimplemented!()
+            StorageReaderRequest::BlockHashToNumber(block_hash) => {
+                let block_number =
+                    txn.get_block_number_by_hash(&block_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block number".to_string(),
+                        resource_id: format!("hash: {}", block_hash),
+                    })?;
+                Ok(StorageReaderResponse::BlockHashToNumber(block_number))
             }
             StorageReaderRequest::BlockSignatures(_block_number) => {
                 unimplemented!()
