@@ -183,7 +183,7 @@ class EchonetConfig:
                 error_threshold=int(env.get("RESYNC_ERROR_THRESHOLD", "1")),
             ),
             l1=L1Config(
-                l1_provider_api_key=env["L1_ALCHEMY_API_KEY"],
+                l1_provider_api_key=env["L1_PROVIDER_API_KEY"],
             ),
         )
 
