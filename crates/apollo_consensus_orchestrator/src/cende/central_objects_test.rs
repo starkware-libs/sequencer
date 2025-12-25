@@ -815,6 +815,8 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
+            // TODO(AvivG): Should we add non empty proof_facts?
+            proof_facts: None,
         }),
         CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
             resource_bounds: Some(
@@ -878,6 +880,8 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
+            // TODO(AvivG): Should we add non empty proof_facts?
+            proof_facts: None,
         }),
     ];
 
@@ -991,6 +995,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
 #[rstest]
 #[case::compressed_state_diff(central_compressed_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::state_diff(central_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
+// TODO(AvivG): Consider testing invoke_tx with proof_facts.
 #[case::invoke_tx(central_invoke_tx(), CENTRAL_INVOKE_TX_JSON_PATH)]
 #[case::deploy_account_tx(central_deploy_account_tx(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 #[case::declare_tx(central_declare_tx(), CENTRAL_DECLARE_TX_JSON_PATH)]
