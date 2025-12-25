@@ -370,13 +370,14 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
+        // TODO(AvivG): Change to valid values when available.
         proof_facts!(felt!("0x5"), felt!("0x4"), felt!("0x3"), felt!("0x2"), felt!("0x1"))
     }
 }
 
 impl Proof {
     pub fn proof_for_testing() -> Self {
-        // Arbitrary proof values.
+        // Arbitrary values for testing.
         proof!(1, 2, 3, 4, 5, 6)
     }
 }

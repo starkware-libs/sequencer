@@ -16,6 +16,8 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     PaymasterData,
+    Proof,
+    ProofFacts,
     ResourceBounds,
     TransactionSignature,
 };
@@ -131,6 +133,10 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs { signature: TransactionSignature(vec![Felt::ONE].into()), ..Default::default()}
+)]
+#[case::client_side_proving(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+    RpcTransactionArgs { proof_facts: ProofFacts::snos_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
 )]
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), RpcTransactionArgs::default())]
 fn test_positive_flow(
@@ -326,6 +332,7 @@ fn test_invalid_max_l2_gas_amount(
     }),
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
+// TODO(AvivG): Add test for invalid proof fields.
 fn test_invalid_tx(
     #[case] rpc_tx_args: RpcTransactionArgs,
     #[case] expected_error: StatelessTransactionValidatorError,
