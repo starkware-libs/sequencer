@@ -22,6 +22,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    Proof,
     ProofFacts,
     Tip,
     TransactionSignature,
@@ -514,9 +515,12 @@ pub struct IntermediateInvokeTransaction {
     pub paymaster_data: Option<PaymasterData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_deployment_data: Option<AccountDeploymentData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_facts: Option<ProofFacts>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof: Option<Proof>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
-    // TODO(AvivG): Consider adding proof facts.
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.
@@ -630,7 +634,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                     msg: "Invoke V3 must contain account_deployment_data field.".to_string(),
                 },
             )?,
-            proof_facts: ProofFacts::default(),
+            proof_facts: invoke_tx.proof_facts.unwrap_or_default(),
         })
     }
 }
