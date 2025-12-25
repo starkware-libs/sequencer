@@ -166,7 +166,7 @@ impl AccountTransaction {
         }
     }
 
-    // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
+    // TODO(nir, 01/11/2023): Consider instantiating, CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
         match &self.tx {
             Transaction::Declare(_) => TransactionType::Declare,
@@ -257,7 +257,6 @@ impl AccountTransaction {
 
         if self.execution_flags.charge_fee {
             self.check_fee_bounds(tx_context)?;
-
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
