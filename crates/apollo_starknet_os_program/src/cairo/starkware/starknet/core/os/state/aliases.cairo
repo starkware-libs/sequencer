@@ -65,7 +65,7 @@ func maybe_allocate_alias_for_big_key{
     if (prev_value == 0) {
         // Allocate a new alias.
         tempvar new_value = next_available_alias;
-        %{ aliases.write(key=ids.key, value=ids.next_available_alias) %}
+        %{ WriteNextAliasFromKey %}
         tempvar next_available_alias = next_available_alias + 1;
     } else {
         tempvar new_value = prev_value;
@@ -91,7 +91,7 @@ func get_next_available_alias{aliases_storage_updates: DictAccess*, range_check_
 
     // First time an alias is created.
     if (next_available_alias == 0) {
-        %{ aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.INITIAL_AVAILABLE_ALIAS) %}
+        %{ InitializeAliasCounter %}
         assert aliases_storage_updates[0] = DictAccess(
             key=ALIAS_COUNTER_STORAGE_KEY, prev_value=0, new_value=INITIAL_AVAILABLE_ALIAS
         );
@@ -174,7 +174,7 @@ func allocate_aliases{aliases_storage_updates: DictAccess*, range_check_ptr}(
     }
 
     // Update the counter.
-    %{ aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias) %}
+    %{ UpdateAliasCounter %}
     assert aliases_storage_updates[0] = DictAccess(
         key=ALIAS_COUNTER_STORAGE_KEY,
         prev_value=prev_available_alias,

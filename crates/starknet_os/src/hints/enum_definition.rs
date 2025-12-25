@@ -744,50 +744,16 @@ define_hint_enum!(
         "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
     ),
     (GetClassHashAndCompiledClassFact, get_class_hash_and_compiled_class_fact),
-    (
-        WriteNextAliasFromKey,
-        write_next_alias_from_key,
-        "aliases.write(key=ids.key, value=ids.next_available_alias)"
-    ),
+    (WriteNextAliasFromKey, write_next_alias_from_key),
     (
         ReadAliasCounter,
         read_alias_counter,
         "memory[ap] = to_felt_or_relocatable(aliases.read(key=ids.ALIAS_COUNTER_STORAGE_KEY))"
     ),
-    (
-        InitializeAliasCounter,
-        initialize_alias_counter,
-        "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.INITIAL_AVAILABLE_ALIAS)"
-    ),
-    (
-        UpdateAliasCounter,
-        update_alias_counter,
-        "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias)"
-    ),
-    (
-        GuessAliasesContractStoragePtr,
-        guess_aliases_contract_storage_ptr,
-        r#"if state_update_pointers is None:
-    ids.prev_aliases_state_entry = segments.add()
-    ids.squashed_aliases_storage_start = segments.add()
-else:
-    ids.prev_aliases_state_entry, ids.squashed_aliases_storage_start = (
-        state_update_pointers.get_contract_state_entry_and_storage_ptr(
-            ids.ALIAS_CONTRACT_ADDRESS
-        )
-    )"#
-    ),
-    (
-        UpdateAliasesContractToStoragePtr,
-        update_aliases_contract_to_storage_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-            ids.ALIAS_CONTRACT_ADDRESS
-        ] = (
-            ids.new_aliases_state_entry.address_,
-            ids.squashed_aliases_storage_end.address_,
-        )"
-    ),
+    (InitializeAliasCounter, initialize_alias_counter),
+    (UpdateAliasCounter, update_alias_counter),
+    (GuessAliasesContractStoragePtr, guess_aliases_contract_storage_ptr),
+    (UpdateAliasesContractToStoragePtr, update_aliases_contract_to_storage_ptr),
     (
         GuessStatePtr,
         guess_state_ptr,
