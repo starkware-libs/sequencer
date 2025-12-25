@@ -31,5 +31,10 @@
     "tip": "0x0",
     "transaction_hash": "0x14df307294262b17b20c8949fd3dbd8f25a9bd47548d00d89ca93977e5836b",
     "version": "0x3",
-    "type": "INVOKE_FUNCTION"
+    "type": "INVOKE_FUNCTION",
+    "proof_facts": [
+        "0x1",
+        "0x2",
+        "0x3"
+    ]
 }

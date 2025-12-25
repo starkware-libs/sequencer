@@ -19,6 +19,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -115,6 +116,7 @@ auto_impl_get_test_instance! {
         pub fee_data_availability_mode: Option<ReservedDataAvailabilityMode>,
         pub paymaster_data: Option<PaymasterData>,
         pub account_deployment_data: Option<AccountDeploymentData>,
+        pub proof_facts: Option<ProofFacts>,
         pub transaction_hash: TransactionHash,
         pub version: TransactionVersion,
     }
