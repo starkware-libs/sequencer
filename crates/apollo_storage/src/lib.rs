@@ -625,6 +625,15 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     ) -> StorageResult<ThinStateDiff> {
         self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
     }
+
+    pub fn get_deploy_contracts(
+        &self,
+        contract_address: ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ClassHash>> {
+        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
+        Ok(deployed_contracts_table.get(&self.txn, &(contract_address, block_number))?)
+    }
 }
 
 /// Returns the names of the tables in the storage.
