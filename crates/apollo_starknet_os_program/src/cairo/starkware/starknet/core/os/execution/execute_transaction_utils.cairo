@@ -12,9 +12,10 @@ from starkware.starknet.core.os.constants import (
     VALIDATED,
 )
 from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
-    non_reverting_select_execute_entry_point_func,
+    select_execute_entry_point_func,
 )
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
+from starkware.starknet.core.os.execution.revert import RevertLogEntry, init_revert_log
 from starkware.starknet.core.os.output import OsCarriedOutputs
 from starkware.starknet.core.os.state.commitment import StateEntry
 
@@ -177,4 +178,24 @@ func cap_remaining_gas{range_check_ptr, remaining_gas: felt}(max_gas: felt) {
         tempvar remaining_gas = remaining_gas;
     }
     return ();
+}
+
+// Same as `select_execute_entry_point_func`, but does not support reverts and does
+// not have an implicit 'revert_log' argument.
+func non_reverting_select_execute_entry_point_func{
+    range_check_ptr,
+    remaining_gas: felt,
+    builtin_ptrs: BuiltinPointers*,
+    contract_state_changes: DictAccess*,
+    contract_class_changes: DictAccess*,
+    outputs: OsCarriedOutputs*,
+}(block_context: BlockContext*, execution_context: ExecutionContext*) -> (
+    retdata_size: felt, retdata: felt*, is_deprecated: felt
+) {
+    let revert_log = init_revert_log();
+    let (is_reverted, retdata_size, retdata, is_deprecated) = select_execute_entry_point_func{
+        revert_log=revert_log
+    }(block_context=block_context, execution_context=execution_context);
+    assert is_reverted = 0;
+    return (retdata_size, retdata, is_deprecated);
 }
