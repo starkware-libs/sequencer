@@ -23,6 +23,7 @@ from starkware.starknet.core.os.block_context import (
     BlockContext,
     CompiledClassFactsBundle,
     OsGlobalContext,
+    VirtualOsConfig,
     get_block_context,
 )
 from starkware.starknet.core.os.block_hash import get_block_hashes
@@ -494,6 +495,7 @@ func get_os_global_context{
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
         starknet_os_config=[starknet_os_config],
         starknet_os_config_hash=starknet_os_config_hash,
+        virtual_os_config=VirtualOsConfig(enabled=FALSE),
         compiled_class_facts_bundle=CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,
