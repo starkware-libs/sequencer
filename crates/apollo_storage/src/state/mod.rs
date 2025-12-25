@@ -142,6 +142,12 @@ pub trait StateStorageReader<Mode: TransactionKind> {
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
     /// Returns a state reader.
     fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>>;
+    /// Returns the class hash for a deployed contract at a given address and block number.
+    fn get_deployed_contract(
+        &self,
+        contract_address: ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ClassHash>>;
 }
 
 type RevertedStateDiff = (
@@ -188,6 +194,15 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
 
     fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>> {
         StateReader::new(self)
+    }
+
+    fn get_deployed_contract(
+        &self,
+        contract_address: ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ClassHash>> {
+        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
+        Ok(deployed_contracts_table.get(&self.txn, &(contract_address, block_number))?)
     }
 }
 
