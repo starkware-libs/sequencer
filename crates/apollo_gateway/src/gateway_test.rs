@@ -53,6 +53,7 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
@@ -282,7 +283,12 @@ async fn setup_mock_state(
 ) {
     let input_tx = tx_args.get_rpc_tx();
     let expected_internal_tx = tx_args.get_internal_tx();
-
+    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref v3_tx)) = input_tx {
+        if !v3_tx.proof_facts.is_empty() {
+            let proof_facts_hash = v3_tx.proof_facts.hash();
+            mock_dependencies.mock_proof_manager_client.expect_set_proof().once().with(eq(proof_facts_hash), eq(v3_tx.proof.clone())).return_once(|_, _| Ok(()));
+        }
+    }
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, tx_args);
 
     let address = expected_internal_tx.contract_address();
@@ -574,6 +580,13 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         .return_once(|| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let tx_args = invoke_args();
+    let input_tx = tx_args.get_rpc_tx();
+    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref v3_tx)) = input_tx {
+        if !v3_tx.proof_facts.is_empty() {
+            let proof_facts_hash = v3_tx.proof_facts.hash();
+            mock_dependencies.mock_proof_manager_client.expect_set_proof().once().with(eq(proof_facts_hash), eq(v3_tx.proof.clone())).return_once(|_, _| Ok(()));
+        }
+    }
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
     let gateway = Gateway {
         config: Arc::new(mock_dependencies.config),
@@ -584,7 +597,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
     };
 
-    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
+    let result = gateway.add_tx(input_tx, None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -604,6 +617,7 @@ async fn stateless_transaction_validator_error(mut mock_dependencies: MockDepend
         .expect_validate()
         .return_once(|_| arbitrary_validation_error);
     mock_dependencies.mock_stateless_transaction_validator = mock_stateless_transaction_validator;
+    
     let gateway = mock_dependencies.gateway();
     let result = gateway.add_tx(invoke_args().get_rpc_tx(), None).await;
 
@@ -627,6 +641,13 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         .return_once(|| Err(expected_error));
 
     let tx_args = invoke_args();
+    let input_tx = tx_args.get_rpc_tx();
+    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref v3_tx)) = input_tx {
+        if !v3_tx.proof_facts.is_empty() {
+            let proof_facts_hash = v3_tx.proof_facts.hash();
+            mock_dependencies.mock_proof_manager_client.expect_set_proof().once().with(eq(proof_facts_hash), eq(v3_tx.proof.clone())).return_once(|_, _| Ok(()));
+        }
+    }
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
     let gateway = Gateway {
         config: Arc::new(mock_dependencies.config),
@@ -637,7 +658,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
     };
 
-    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
+    let result = gateway.add_tx(input_tx, None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
