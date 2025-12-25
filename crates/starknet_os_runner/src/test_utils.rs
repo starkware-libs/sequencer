@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 use url::Url;
 
 use crate::storage_proofs::RpcStorageProofsProvider;
+use crate::virtual_block_executor::RpcVirtualBlockExecutor;
 
 /// Block number to use for testing (mainnet block with known state).
 pub const TEST_BLOCK_NUMBER: u64 = 800000;
@@ -34,6 +35,15 @@ pub fn rpc_state_reader() -> RpcStateReader {
         ChainId::Mainnet,
         BlockNumber(TEST_BLOCK_NUMBER),
     )
+}
+
+#[fixture]
+pub fn rpc_virtual_block_executor(rpc_state_reader: RpcStateReader) -> RpcVirtualBlockExecutor {
+    RpcVirtualBlockExecutor {
+        rpc_state_reader,
+        // Skip transaction validation for testing.
+        validate_txs: false,
+    }
 }
 
 /// Fixture that creates an RpcStorageProofsProvider for testing.

@@ -83,7 +83,7 @@ pub trait VirtualBlockExecutor {
         contract_class_manager: ContractClassManager,
         txs: Vec<(Transaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
-        let blockifier_txs = Self::convert_invoke_txs(txs)?;
+        let blockifier_txs = self.convert_invoke_txs(txs)?;
         let block_context = self.block_context(block_number)?;
         let state_reader = self.state_reader(block_number)?;
 
@@ -140,6 +140,7 @@ pub trait VirtualBlockExecutor {
     /// Uses execution flags that skip fee charging and nonce check.
     /// Returns an error if any transaction is not an Invoke.
     fn convert_invoke_txs(
+        &self,
         txs: Vec<(Transaction, TransactionHash)>,
     ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
         txs.into_iter()
@@ -151,7 +152,7 @@ pub trait VirtualBlockExecutor {
                         only_query: false,
                         charge_fee: invoke_tx.resource_bounds().max_possible_fee(invoke_tx.tip())
                             > Fee(0),
-                        validate: true,
+                        validate: self.validate_txs_enabled()?,
                         strict_nonce_check: false,
                     };
 
@@ -184,11 +185,16 @@ pub trait VirtualBlockExecutor {
         &self,
         block_number: BlockNumber,
     ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError>;
+
+    /// Returns whether transaction validation is enabled during execution.
+    fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
 #[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
     pub rpc_state_reader: RpcStateReader,
+    /// Whether transaction validation is enabled during execution.
+    pub validate_txs: bool,
 }
 
 impl RpcVirtualBlockExecutor {
@@ -200,6 +206,7 @@ impl RpcVirtualBlockExecutor {
                 chain_id,
                 block_number,
             ),
+            validate_txs: true,
         }
     }
 }
@@ -225,5 +232,9 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError> {
         // Clone the RpcStateReader to avoid lifetime issues ( not a big struct).
         Ok(self.rpc_state_reader.clone())
+    }
+
+    fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError> {
+        Ok(self.validate_txs)
     }
 }
