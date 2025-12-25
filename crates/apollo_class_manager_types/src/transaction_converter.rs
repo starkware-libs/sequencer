@@ -1,4 +1,4 @@
-use apollo_proof_manager_types::SharedProofManagerClient;
+use apollo_proof_manager_types::{ProofManagerClientError, SharedProofManagerClient};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -40,6 +40,8 @@ pub enum TransactionConverterError {
     ClassManagerClientError(#[from] ClassManagerClientError),
     #[error("Class of hash: {class_hash} not found")]
     ClassNotFound { class_hash: ClassHash },
+    #[error(transparent)]
+    ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -200,7 +202,15 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction> {
         let tx_without_hash = match tx {
-            RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx.into()),
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                if !tx.proof_facts.is_empty() {
+                    self.proof_manager_client
+                        .set_proof(tx.proof_facts.clone(), tx.proof.clone())
+                        .await?;
+                }
+
+                InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
+            }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
                     self.class_manager_client.add_class(tx.contract_class).await?;
