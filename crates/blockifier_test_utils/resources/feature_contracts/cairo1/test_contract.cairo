@@ -283,7 +283,7 @@ mod TestContract {
         expected_contract_address: felt252,
         expected_entry_point_selector: felt252,
     ) {
-        let execution_info = starknet::get_execution_info().unbox();
+        let execution_info = starknet::syscalls::get_execution_info_v3_syscall().unwrap_syscall().unbox();
         let block_info = execution_info.block_info.unbox();
         assert(block_info == expected_block_info, 'BLOCK_INFO_MISMATCH');
 
