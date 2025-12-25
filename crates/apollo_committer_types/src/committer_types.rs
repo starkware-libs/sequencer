@@ -11,7 +11,7 @@ pub struct CommitBlockRequest {
     pub height: BlockNumber,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockResponse {
     pub state_root: GlobalRoot,
 }
