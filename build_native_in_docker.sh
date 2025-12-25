@@ -12,6 +12,7 @@ docker build . --build-arg USER_UID=$UID -t ${docker_image_name} --file ${docker
 # Wiz CLI image scan (if credentials are provided via GitHub secrets)
 # Note: Failures in Wiz scanning will not stop the script execution
 if [ -n "$WIZ_CLIENT_ID" ] && [ -n "$WIZ_CLIENT_SECRET" ]; then
+    echo "Starting Wiz image scan..."
     set +e  # Temporarily disable exit on error for Wiz scanning
     # Download Wiz CLI
     if [ ! -f wizcli ]; then
@@ -28,6 +29,7 @@ if [ -n "$WIZ_CLIENT_ID" ] && [ -n "$WIZ_CLIENT_SECRET" ]; then
     # Fetch digest of Docker image for Graph enrichment
     ./wizcli docker tag --image ${docker_image_name} > /dev/null 2>&1 || true
     set -e  # Re-enable exit on error
+    echo "Wiz image scan completed."
 fi
 
 docker run \
