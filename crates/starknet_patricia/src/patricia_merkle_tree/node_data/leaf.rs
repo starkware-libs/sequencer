@@ -5,6 +5,7 @@ use std::future::Future;
 use starknet_patricia_storage::db_object::{
     DBObject,
     EmptyDeserializationContext,
+    EmptyKeyContext,
     HasStaticPrefix,
 };
 use starknet_types_core::felt::Felt;
@@ -64,6 +65,10 @@ pub trait Leaf:
         Ok(new_leaf == previous_leaf)
     }
 }
+
+pub trait LeafWithEmptyKeyContext: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext> {}
+
+impl<L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext>> LeafWithEmptyKeyContext for L {}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SkeletonLeaf {
