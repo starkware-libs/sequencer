@@ -13,6 +13,14 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
 )
 from starkware.starknet.core.os.os_config.os_config import StarknetOsConfig
 
+// Configuration for the virtual OS.
+// Virtual OS is a restricted mode for client-side proving, allowing the execution of transactions
+// over an existing Starknet block.
+// This mode should be disabled in the Starknet sequencer.
+struct VirtualOsConfig {
+    enabled: felt,
+}
+
 // Struct to group compiled class facts parameters.
 struct CompiledClassFactsBundle {
     n_compiled_class_facts: felt,
@@ -27,6 +35,9 @@ struct OsGlobalContext {
     // OS config available globally for all blocks.
     starknet_os_config: StarknetOsConfig,
     starknet_os_config_hash: felt,
+
+    // Configuration for the virtual OS.
+    virtual_os_config: VirtualOsConfig,
 
     // Compiled class facts available globally for all blocks.
     compiled_class_facts_bundle: CompiledClassFactsBundle,

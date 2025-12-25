@@ -19,6 +19,7 @@ from starkware.starknet.core.os.block_context import (
     BlockContext,
     CompiledClassFactsBundle,
     OsGlobalContext,
+    VirtualOsConfig,
     get_block_context,
 )
 from starkware.starknet.core.os.builtins import get_builtin_params
@@ -41,6 +42,7 @@ from starkware.starknet.core.os.os_config.os_config import (
 )
 from starkware.starknet.core.os.os_utils import (
     get_block_os_output_header,
+    get_virtual_os_config,
     pre_process_block,
     process_os_output,
 )
@@ -327,9 +329,12 @@ func get_os_global_context{
     let (execute_deprecated_syscalls_ptr) = get_label_location(
         label_value=execute_deprecated_syscalls
     );
+
+    let virtual_os_config = get_virtual_os_config();
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
         starknet_os_config=[starknet_os_config],
         starknet_os_config_hash=starknet_os_config_hash,
+        virtual_os_config=virtual_os_config,
         compiled_class_facts_bundle=CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,

@@ -4,7 +4,7 @@ from starkware.cairo.common.dict import dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_nn
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
-from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext
+from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext, VirtualOsConfig
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
@@ -201,4 +201,10 @@ func process_os_output{
         public_keys=public_keys,
     );
     return ();
+}
+
+// Returns the virtual OS config, which is always disabled in the Starknet sequencer OS.
+func get_virtual_os_config() -> VirtualOsConfig {
+    let virtual_os_config = VirtualOsConfig(enabled=FALSE);
+    return virtual_os_config;
 }
