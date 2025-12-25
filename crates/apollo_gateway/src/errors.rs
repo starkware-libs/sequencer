@@ -10,6 +10,7 @@ use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_gateway_types::gateway_types::SUPPORTED_TRANSACTION_VERSIONS;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
+use apollo_proof_manager_types::{ProofManagerClientError, ProofManagerError};
 use blockifier::state::errors::StateError;
 use reqwest::StatusCode;
 use serde_json::{Error as SerdeError, Value};
@@ -451,5 +452,27 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             message: err.to_string(),
         },
         StarknetApiError::InvalidProofFacts(_) => todo!(),
+    }
+}
+
+pub fn convert_proof_manager_error(err: ProofManagerClientError) -> StarknetError {
+    match err {
+        ProofManagerClientError::ClientError(client_error) => {
+            StarknetError::internal_with_logging("Proof manager client error", &client_error)
+        }
+        ProofManagerClientError::ProofManagerError(proof_manager_error) => {
+            match proof_manager_error {
+                ProofManagerError::Client(_) => StarknetError::internal_with_logging(
+                    "Proof manager error",
+                    &proof_manager_error,
+                ),
+                ProofManagerError::ProofStorage(_) | ProofManagerError::Io(_) => {
+                    StarknetError::internal_with_logging(
+                        "Proof manager storage error",
+                        &proof_manager_error,
+                    )
+                }
+            }
+        }
     }
 }
