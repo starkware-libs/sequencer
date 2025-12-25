@@ -1,10 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::{BlockHash, BlockNumber};
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::core::{CompiledClassHash, ContractAddress};
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
 use starknet_os::io::os_input::{
+    CommitmentInfo,
     OsBlockInput,
     OsChainInfo,
     OsHints,
@@ -18,6 +23,59 @@ use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
 use crate::storage_proofs::StorageProofProvider;
 use crate::virtual_block_executor::VirtualBlockExecutor;
+
+/// Virtual block input containing all non-trivial fields for OS block input construction.
+pub struct VirtualOsBlockInput {
+    pub contract_state_commitment_info: CommitmentInfo,
+    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    pub contract_class_commitment_info: CommitmentInfo,
+    pub transactions: Vec<(InvokeTransaction, TransactionHash)>,
+    pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
+    pub block_info: BlockInfo,
+    pub initial_reads: StateMaps,
+    pub prev_base_block_hash: BlockHash,
+    pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+}
+
+impl From<VirtualOsBlockInput> for StarknetOsInput {
+    fn from(virtual_os_block_input: VirtualOsBlockInput) -> Self {
+        let os_block_input = OsBlockInput {
+            block_hash_commitments: BlockHeaderCommitments::default(),
+            contract_state_commitment_info: virtual_os_block_input.contract_state_commitment_info,
+            address_to_storage_commitment_info: virtual_os_block_input
+                .address_to_storage_commitment_info,
+            contract_class_commitment_info: virtual_os_block_input.contract_class_commitment_info,
+            transactions: virtual_os_block_input
+                .transactions
+                .into_iter()
+                .map(|(invoke_tx, tx_hash)| {
+                    starknet_api::executable_transaction::Transaction::Account(
+                        starknet_api::executable_transaction::AccountTransaction::Invoke(
+                            starknet_api::executable_transaction::InvokeTransaction {
+                                tx: invoke_tx,
+                                tx_hash,
+                            },
+                        ),
+                    )
+                })
+                .collect(),
+            tx_execution_infos: virtual_os_block_input.tx_execution_infos,
+            prev_block_hash: virtual_os_block_input.prev_base_block_hash,
+            block_info: virtual_os_block_input.block_info,
+            initial_reads: virtual_os_block_input.initial_reads,
+            declared_class_hash_to_component_hashes: HashMap::new(),
+            new_block_hash: BlockHash::default(),
+            old_block_number_and_hash: None,
+            class_hashes_to_migrate: HashMap::new(),
+        };
+
+        StarknetOsInput {
+            os_block_inputs: vec![os_block_input],
+            deprecated_compiled_classes: BTreeMap::new(),
+            compiled_classes: virtual_os_block_input.compiled_classes,
+        }
+    }
+}
 
 pub struct Runner<C, S, V>
 where
@@ -76,10 +134,8 @@ where
         // Merge initial_reads with proof_state.
         execution_data.initial_reads.extend(&storage_proofs.proof_state);
 
-        // Assemble OsBlockInput.
-        let os_block_input = OsBlockInput {
-            // TODO(Aviv): Add block hash commitments.
-            block_hash_commitments: BlockHeaderCommitments::default(),
+        // Assemble VirtualOsBlockInput.
+        let virtual_os_block_input = VirtualOsBlockInput {
             contract_state_commitment_info: storage_proofs
                 .commitment_infos
                 .contracts_trie_commitment_info,
@@ -89,42 +145,18 @@ where
             contract_class_commitment_info: storage_proofs
                 .commitment_infos
                 .classes_trie_commitment_info,
-            transactions: txs
-                .into_iter()
-                .map(|(invoke_tx, tx_hash)| {
-                    starknet_api::executable_transaction::Transaction::Account(
-                        starknet_api::executable_transaction::AccountTransaction::Invoke(
-                            starknet_api::executable_transaction::InvokeTransaction {
-                                tx: invoke_tx,
-                                tx_hash,
-                            },
-                        ),
-                    )
-                })
-                .collect(),
+            transactions: txs,
             tx_execution_infos,
-            // We assume that no classes are declared.
-            declared_class_hash_to_component_hashes: HashMap::new(),
-            // We assume that no classes are migrated.
-            class_hashes_to_migrate: HashMap::new(),
-            // Virtual OS does not update the block hash mapping.
-            old_block_number_and_hash: None,
-            // Block info and hashes from execution context.
             block_info: execution_data.block_context.block_info().clone(),
-            // TODO(Aviv): Add prev and new block hashes.
-            prev_block_hash: BlockHash::default(),
-            new_block_hash: BlockHash::default(),
             initial_reads: execution_data.initial_reads,
+            // TODO(Aviv): Use the actual previous block hash.
+            prev_base_block_hash: BlockHash::default(),
+            compiled_classes: classes.compiled_classes,
         };
 
         // Build OsHints.
         Ok(OsHints {
-            os_input: StarknetOsInput {
-                os_block_inputs: vec![os_block_input],
-                // We do not support deprecated contract classes.
-                deprecated_compiled_classes: BTreeMap::new(),
-                compiled_classes: classes.compiled_classes,
-            },
+            os_input: virtual_os_block_input.into(),
             // TODO(Aviv): choose os hints config.
             os_hints_config: OsHintsConfig {
                 debug_mode: false,
