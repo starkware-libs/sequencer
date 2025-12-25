@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransactionWithoutTxHash, RpcInvokeTransaction};
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
@@ -166,7 +167,6 @@ impl TransactionProvider for ProposeTransactionProvider {
 }
 
 pub struct ProofValidator {
-    #[allow(dead_code)]
     proof_manager_client: SharedProofManagerClient,
 }
 
@@ -177,8 +177,31 @@ impl ProofValidator {
 
     /// Validates the proof embedded in the transaction.
     /// Returns Ok(()) if validation succeeds, Err with error message otherwise.
-    pub fn validate_proof(&self, _tx: &InternalConsensusTransaction) -> Result<(), String> {
-        // TODO(Einat): Implement proof validation.
+    pub async fn validate_proof(&self, tx: &InternalConsensusTransaction) -> Result<(), String> {
+        if let InternalConsensusTransaction::RpcTransaction(internal_rpc_tx) = tx {
+            if let InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) =
+                &internal_rpc_tx.tx
+            {
+                // Only validate if proof_facts is not empty
+                if !tx.proof_facts.is_empty() {
+                    let proof_facts_hash = tx.proof_facts.hash();
+                    let contains_proof = self
+                        .proof_manager_client
+                        .contains_proof(proof_facts_hash)
+                        .await
+                        .map_err(|e| format!("Failed to check proof existence: {e}"))?;
+
+                    if !contains_proof {
+                        // TODO(Einat): Verify the proof before setting it in the proof manager.
+                        // Return an error if the proof is not valid.
+                        self.proof_manager_client
+                            .set_proof(proof_facts_hash, tx.proof.clone())
+                            .await
+                            .map_err(|e| format!("Failed to set proof: {e}"))?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -243,7 +266,7 @@ impl TransactionProvider for ValidateTransactionProvider {
                 continue;
             }
             // TODO(Einat): Filter out transactions with empty proof field.
-            self.proof_validator.validate_proof(tx).map_err(|e| {
+            self.proof_validator.validate_proof(tx).await.map_err(|e| {
                 TransactionProviderError::ProofValidationFailed { tx_hash: tx.tx_hash(), error: e }
             })?;
         }
