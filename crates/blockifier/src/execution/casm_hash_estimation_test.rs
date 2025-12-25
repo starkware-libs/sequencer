@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -18,7 +18,7 @@ impl EstimatedExecutionResources {
     pub fn v1(
         n_steps: usize,
         n_memory_holes: usize,
-        builtin_instance_counter: HashMap<BuiltinName, usize>,
+        builtin_instance_counter: BTreeMap<BuiltinName, usize>,
     ) -> Self {
         Self::V1Hash {
             resources: ExecutionResources { n_steps, n_memory_holes, builtin_instance_counter },
@@ -29,7 +29,7 @@ impl EstimatedExecutionResources {
     pub fn v2(
         n_steps: usize,
         n_memory_holes: usize,
-        builtin_instance_counter: HashMap<BuiltinName, usize>,
+        builtin_instance_counter: BTreeMap<BuiltinName, usize>,
         blake_count: usize,
     ) -> Self {
         Self::V2Hash {
@@ -58,25 +58,25 @@ fn add_assign_estimated_resources_panics_on_variant_mismatch(
 
 #[rstest]
 #[case::v1_to_v1(
-    EstimatedExecutionResources::v1(1, 1, HashMap::from([(BuiltinName::poseidon, 2)])),
-    EstimatedExecutionResources::v1(1, 1, HashMap::from([(BuiltinName::poseidon, 1)])),
+    EstimatedExecutionResources::v1(1, 1, BTreeMap::from([(BuiltinName::poseidon, 2)])),
+    EstimatedExecutionResources::v1(1, 1, BTreeMap::from([(BuiltinName::poseidon, 1)])),
     // Expected execution resources.
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 2,
-        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 3)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::poseidon, 3)]),
     },
     // Expected blake count.
     None,
 )]
 #[case::v2_to_v2(
-    EstimatedExecutionResources::v2(1, 1, HashMap::from([(BuiltinName::range_check, 2)]), 2),
-    EstimatedExecutionResources::v2(1, 1, HashMap::from([(BuiltinName::range_check, 1)]), 1),
+    EstimatedExecutionResources::v2(1, 1, BTreeMap::from([(BuiltinName::range_check, 2)]), 2),
+    EstimatedExecutionResources::v2(1, 1, BTreeMap::from([(BuiltinName::range_check, 1)]), 1),
     // Expected execution resources.
     ExecutionResources {
         n_steps: 2,
         n_memory_holes: 2,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+        builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
     },
     // Expected blake count.
     Some(3),

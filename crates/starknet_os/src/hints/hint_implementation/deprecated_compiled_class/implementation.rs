@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::rc::Rc;
 
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::state_api::StateReader;
@@ -96,19 +95,21 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         hint_processor.program,
     )?;
     let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;
-    let constants = Rc::new(dep_class.program.constants.clone());
+    let constants = dep_class.program.constants.clone();
 
     let mut hint_extension = HintExtension::new();
 
     for (pc, hints_params) in hints.iter() {
         let abs_pc = Relocatable::from((byte_code_ptr.segment_index, *pc));
         let mut compiled_hints = Vec::new();
+        // TODO(Dori): handle accessible_scopes var.
         for params in hints_params.iter() {
             let compiled_hint = hint_processor.compile_hint(
                 &params.code,
                 &params.flow_tracking_data.ap_tracking,
                 &params.flow_tracking_data.reference_ids,
                 &dep_class.program.shared_program_data.reference_manager,
+                &[],
                 constants.clone(),
             )?;
             compiled_hints.push(compiled_hint);

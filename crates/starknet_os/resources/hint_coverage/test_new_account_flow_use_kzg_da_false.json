@@ -156,12 +156,6 @@
     "StatelessHint": "AllocateSegmentsForMessages"
   },
   {
-    "StatelessHint": "CheckPackedValuesEndAndSize"
-  },
-  {
-    "StatelessHint": "UnpackFeltsToU32s"
-  },
-  {
     "CommonHint": "SetProofFactTopology"
   },
   {
