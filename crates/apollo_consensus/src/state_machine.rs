@@ -24,7 +24,7 @@ use crate::metrics::{
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_TYPE,
 };
-use crate::types::{ProposalCommitment, Round, ValidatorId};
+use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
 
 /// The unique identifier for a specific validator's vote in a specific round.
@@ -59,7 +59,7 @@ pub(crate) enum StateMachineEvent {
 }
 
 /// Requests the SM/SHC sends to the caller for execution.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum SMRequest {
     /// Request to build a proposal for a new round.
     StartBuildProposal(Round),
@@ -70,7 +70,7 @@ pub(crate) enum SMRequest {
     /// Request to schedule a timeout for a specific step and round.
     ScheduleTimeout(Step, Round),
     /// Decision reached for the given proposal and round.
-    DecisionReached(ProposalCommitment, Round),
+    DecisionReached(Decision),
     /// Request to re-propose (sent by the leader after advancing to a new round
     /// with a locked/valid value).
     Repropose(ProposalCommitment, ProposalInit),
@@ -168,10 +168,6 @@ impl StateMachine {
 
     pub(crate) fn height(&self) -> BlockNumber {
         self.height
-    }
-
-    pub(crate) fn precommits_ref(&self) -> &VotesMap {
-        &self.precommits
     }
 
     pub(crate) fn has_proposal_for_round(&self, round: Round) -> bool {
@@ -323,7 +319,7 @@ impl StateMachine {
                         output_requests.push_back(r);
                         return output_requests;
                     }
-                    SMRequest::DecisionReached(_, _) => {
+                    SMRequest::DecisionReached(_) => {
                         // These requests stop processing and return immediately.
                         output_requests.push_back(r);
                         return output_requests;
@@ -719,7 +715,18 @@ impl StateMachine {
             return VecDeque::new();
         }
 
-        VecDeque::from([SMRequest::DecisionReached(*proposal_id, round)])
+        // Collect all supporting precommits for this proposal and round.
+        let supporting_precommits: Vec<Vote> = self
+            .precommits
+            .iter()
+            .filter(|(&(r, _voter), (v, _w))| {
+                r == round && v.proposal_commitment == Some(*proposal_id)
+            })
+            .map(|(_vote_key, (v, _w))| v.clone())
+            .collect();
+
+        let decision = Decision { precommits: supporting_precommits, block: *proposal_id };
+        VecDeque::from([SMRequest::DecisionReached(decision)])
     }
 
     // LOC 55 in the paper.
