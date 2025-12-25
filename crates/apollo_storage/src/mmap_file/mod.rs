@@ -107,6 +107,13 @@ pub(crate) trait Writer<V: ValueSerde> {
     /// Inserts an object to the file, returns the [`LocationInFile`] of the object.
     fn append(&mut self, val: &V::Value) -> LocationInFile;
 
+    /// Inserts multiple objects to the file in a batch, returns their [`LocationInFile`]s.
+    /// This is more efficient than calling `append` multiple times as it:
+    /// - Serializes all objects first
+    /// - Writes them all at once
+    /// - Performs a single flush operation for all objects
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile>;
+
     /// Flushes the mmap to the file.
     fn flush(&self);
 }
@@ -146,12 +153,22 @@ struct MMapFile<V: ValueSerde> {
 }
 
 impl<V: ValueSerde> MMapFile<V> {
-    /// Grows the file by the growth step.
-    fn grow(&mut self) {
+    /// Grows the file to accommodate at least the target size.
+    /// Grows in multiples of growth_step for efficiency.
+    fn grow_to_target(&mut self, target_size: usize) {
+        if self.size >= target_size {
+            return;
+        }
         self.flush();
-        let new_size = self.size + self.config.growth_step;
+        // Calculate how many growth steps needed, rounding up.
+        let growth_needed = target_size.saturating_sub(self.size);
+        let growth_steps = growth_needed.div_ceil(self.config.growth_step);
+        let new_size = self.size + (growth_steps * self.config.growth_step);
         let new_size_u64 = u64::try_from(new_size).expect("usize should fit in u64");
-        debug!("Growing file to size: {}", new_size);
+        debug!(
+            "Growing file to size: {} (target: {}, steps: {})",
+            new_size, target_size, growth_steps
+        );
         self.file.set_len(new_size_u64).expect("Failed to set the file size");
         self.size = new_size;
     }
@@ -161,6 +178,30 @@ impl<V: ValueSerde> MMapFile<V> {
         trace!("Flushing mmap to file");
         self.mmap.flush().expect("Failed to flush the mmap");
         self.should_flush = false;
+    }
+
+    /// Writes serialized data to the mmap at the current offset.
+    /// Returns the location where data was written and updates the offset.
+    fn write_at_current_offset(&mut self, serialized: &[u8]) -> LocationInFile {
+        let len = serialized.len();
+        let offset = self.offset;
+
+        trace!("Inserting object at offset: {}", offset);
+
+        // Copy data to mmap.
+        let mmap_slice = &mut self.mmap[offset..];
+        assert!(
+            mmap_slice.len() >= len,
+            "Not enough space in mmap slice: available={}, needed={}",
+            mmap_slice.len(),
+            len
+        );
+        mmap_slice[..len].copy_from_slice(serialized);
+
+        // Update offset
+        self.offset += len;
+
+        LocationInFile { offset, len }
     }
 }
 
@@ -213,12 +254,13 @@ unsafe impl<V: ValueSerde, Mode: TransactionKind> Sync for FileHandler<V, Mode> 
 impl<V: ValueSerde> FileHandler<V, RW> {
     fn grow_file_if_needed(&mut self, offset: usize) {
         let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
-        if mmap_file.size < offset + mmap_file.config.max_object_size {
+        let required_size = offset + mmap_file.config.max_object_size;
+        if mmap_file.size < required_size {
             debug!(
-                "Attempting to grow file. File size: {}, offset: {}, max_object_size: {}",
-                mmap_file.size, offset, mmap_file.config.max_object_size
+                "Attempting to grow file. File size: {}, offset: {}, required_size: {}",
+                mmap_file.size, offset, required_size
             );
-            mmap_file.grow();
+            mmap_file.grow_to_target(required_size);
         }
     }
 }
@@ -228,23 +270,71 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
         trace!("Inserting object: {:?}", val);
         let serialized = V::serialize(val).expect("Should be able to serialize");
         let len = serialized.len();
-        let offset;
+        let location;
         {
             let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
-            offset = mmap_file.offset;
-            trace!("Inserting object at offset: {}", offset);
-            let mmap_slice = &mut mmap_file.mmap[offset..];
-            mmap_slice[..len].copy_from_slice(&serialized);
+            location = mmap_file.write_at_current_offset(&serialized);
             mmap_file
                 .mmap
-                .flush_async_range(offset, len)
+                .flush_async_range(location.offset, len)
                 .expect("Failed to asynchronously flush the mmap after inserting");
-            mmap_file.offset += len;
             mmap_file.should_flush = true;
         }
-        let location = LocationInFile { offset, len };
         self.grow_file_if_needed(location.next_offset());
         location
+    }
+
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile> {
+        if vals.is_empty() {
+            return Vec::new();
+        }
+
+        trace!("Batch inserting {} objects", vals.len());
+
+        // First, serialize all values.
+        let mut serialized_vals = Vec::with_capacity(vals.len());
+        let mut total_len = 0;
+        for val in vals {
+            let serialized = V::serialize(val).expect("Should be able to serialize");
+            total_len += serialized.len();
+            serialized_vals.push(serialized);
+        }
+
+        // Ensure we have enough space before writing.
+        let start_offset = {
+            let mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+            mmap_file.offset
+        };
+        let final_offset = start_offset + total_len;
+        self.grow_file_if_needed(final_offset);
+
+        // Then, write all at once and record locations.
+        let mut locations = Vec::with_capacity(vals.len());
+        {
+            let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+
+            trace!(
+                "Batch inserting at starting offset: {}, total size: {}",
+                start_offset,
+                total_len
+            );
+
+            for serialized in &serialized_vals {
+                let location = mmap_file.write_at_current_offset(serialized);
+                locations.push(location);
+            }
+
+            // Single flush for all objects.
+            mmap_file
+                .mmap
+                .flush_async_range(start_offset, total_len)
+                .expect("Failed to asynchronously flush the mmap after batch insert");
+
+            mmap_file.should_flush = true;
+        }
+
+        trace!("Batch insert complete. Wrote {} objects totaling {} bytes", vals.len(), total_len);
+        locations
     }
 
     fn flush(&self) {
