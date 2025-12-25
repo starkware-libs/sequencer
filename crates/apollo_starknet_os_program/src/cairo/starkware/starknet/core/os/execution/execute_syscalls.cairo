@@ -173,10 +173,10 @@ from starkware.starknet.core.os.execution.account_backward_compatibility import 
     is_v1_bound_account_cairo1,
     should_exclude_l1_data_gas,
 )
+from starkware.starknet.core.os.execution.deploy_contract import deploy_contract
 from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
     select_execute_entry_point_func,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_syscalls import deploy_contract
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.execute_transaction_utils import fill_deprecated_tx_info
 from starkware.starknet.core.os.execution.revert import (

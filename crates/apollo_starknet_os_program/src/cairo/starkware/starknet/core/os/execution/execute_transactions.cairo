@@ -54,7 +54,7 @@ from starkware.starknet.core.os.contract_class.contract_class import (
     ContractClassComponentHashes,
     finalize_class_hash,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_syscalls import deploy_contract
+from starkware.starknet.core.os.execution.deploy_contract import deploy_contract
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.execute_transaction_utils import (
     assert_deprecated_tx_fields_consistency,
