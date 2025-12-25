@@ -16,6 +16,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
+shared_execution_objects.workspace = true
 starknet-rust.workspace = true
 starknet-rust-core.workspace = true
 starknet-types-core.workspace = true
