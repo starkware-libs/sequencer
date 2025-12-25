@@ -5,7 +5,6 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
@@ -83,7 +82,6 @@ async fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
-        &EmptyKeyContext,
     )
     .await?;
 
@@ -94,7 +92,6 @@ async fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
-        &EmptyKeyContext,
     )
     .await?;
 
@@ -118,7 +115,6 @@ async fn fetch_all_patricia_paths(
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
-            &EmptyKeyContext,
         )
         .await?;
         contracts_trie_storage_proofs.insert(

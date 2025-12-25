@@ -288,7 +288,10 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
     Ok(())
 }
 
-pub async fn create_original_skeleton_tree<'a, L: Leaf>(
+pub async fn create_original_skeleton_tree<
+    'a,
+    L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext>,
+>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -366,7 +369,6 @@ pub async fn create_contracts_trie<'a>(
         contracts_trie_sorted_indices,
         &HashMap::new(),
         &OriginalSkeletonTrieConfig::new(false),
-        &EmptyKeyContext,
     )
     .await?)
 }
