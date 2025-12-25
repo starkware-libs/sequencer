@@ -361,7 +361,7 @@ fn test_error_every_n_logs_to_error() {
 fn test_log_every_n_ms_logs_first_time() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    warn_every_n_ms!(1_000_000, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches(LOG_MESSAGE).count(),
@@ -371,15 +371,15 @@ fn test_log_every_n_ms_logs_first_time() {
     );
 }
 
-// TODO(guy.f): Refactor the code so we can inject the time and don't need to use `sleep` in the
-// tests below.
+
 
 #[test]
 fn test_log_every_n_ms_does_not_log_more_than_every_n() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
     for _ in 0..2 {
-        warn_every_n_ms!(1000, LOG_MESSAGE);
+        // The following assumes the iterations take less than 100ms.
+        warn_every_n_ms!(100, LOG_MESSAGE);
     }
 
     assert_eq!(
@@ -395,9 +395,9 @@ fn test_log_every_n_logs_every_n_ms() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
     for _ in 0..5 {
-        warn_every_n_ms!(2000, LOG_MESSAGE);
+        warn_every_n_ms!(100, LOG_MESSAGE);
         // Every second log should be logged due to the sleep.
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_millis(50));
     }
 
     assert_eq!(
@@ -412,8 +412,8 @@ fn test_log_every_n_logs_every_n_ms() {
 fn test_log_every_n_ms_different_lines_count_separately() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    warn_every_n_ms!(1000, LOG_MESSAGE);
-    warn_every_n_ms!(1000, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches(LOG_MESSAGE).count(),
