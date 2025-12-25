@@ -324,6 +324,16 @@
     "privacy": "Public",
     "value": 1
   },
+  "batcher_config.storage.batch_config.batch_size": {
+    "description": "Number of items to accumulate before flushing the batch.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.storage.batch_config.enable_batching": {
+    "description": "Whether to enable batching (accumulate writes and commit in single transaction).",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -418,6 +428,16 @@
     "description": "Limitation of compiled contract class object size.",
     "privacy": "Public",
     "value": 4089446
+  },
+  "class_manager_config.class_storage_config.class_hash_storage_config.batch_config.batch_size": {
+    "description": "Number of items to accumulate before flushing the batch.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "class_manager_config.class_storage_config.class_hash_storage_config.batch_config.enable_batching": {
+    "description": "Whether to enable batching (accumulate writes and commit in single transaction).",
+    "privacy": "Public",
+    "value": false
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -1959,6 +1979,16 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.batch_size": {
+    "description": "Number of items to accumulate before flushing the batch.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.enable_batching": {
+    "description": "Whether to enable batching (accumulate writes and commit in single transaction).",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -3213,6 +3243,16 @@
     "description": "URL for communicating with Starknet in write_api methods.",
     "pointer_target": "starknet_url",
     "privacy": "Public"
+  },
+  "state_sync_config.storage_config.batch_config.batch_size": {
+    "description": "Number of items to accumulate before flushing the batch.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.storage_config.batch_config.enable_batching": {
+    "description": "Whether to enable batching (accumulate writes and commit in single transaction).",
+    "privacy": "Public",
+    "value": false
   },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",

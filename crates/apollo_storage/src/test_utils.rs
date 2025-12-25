@@ -10,7 +10,7 @@ use tempfile::{tempdir, TempDir};
 
 use crate::db::DbConfig;
 use crate::mmap_file::MmapFileConfig;
-use crate::{open_storage, StorageConfig, StorageReader, StorageScope, StorageWriter};
+use crate::{BatchConfig, StorageConfig, StorageReader, StorageScope, StorageWriter, open_storage};
 
 fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> StorageConfig {
     StorageConfig {
@@ -25,6 +25,7 @@ fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> St
         },
         scope: storage_scope,
         mmap_file_config: get_mmap_file_test_config(),
+        batch_config: BatchConfig::default(),
     }
 }
 
