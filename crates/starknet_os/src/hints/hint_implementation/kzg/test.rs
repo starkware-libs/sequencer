@@ -240,3 +240,9 @@ fn test_commitment_happy_flow(
 
     validate_kzg_segment(&da_segment, &kzg_segment);
 }
+
+#[rstest]
+#[should_panic(expected = "Invalid number of blobs.")]
+fn test_invalid_number_of_blobs() {
+    run_compute_os_kzg_commitment_info(0);
+}
