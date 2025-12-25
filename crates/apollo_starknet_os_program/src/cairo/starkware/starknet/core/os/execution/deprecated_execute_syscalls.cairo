@@ -1,13 +1,10 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.find_element import find_element
-from starkware.cairo.common.math import assert_not_equal, assert_not_zero
+from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.segments import relocate_segment
-from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import ExecutionInfo
 from starkware.starknet.common.syscalls import (
     CALL_CONTRACT_SELECTOR,
@@ -61,21 +58,19 @@ from starkware.starknet.core.os.builtins import (
     SelectableBuiltins,
 )
 from starkware.starknet.core.os.constants import (
-    ALIAS_CONTRACT_ADDRESS,
-    BLOCK_HASH_CONTRACT_ADDRESS,
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DEFAULT_INITIAL_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
     EXECUTE_ENTRY_POINT_SELECTOR,
-    RESERVED_CONTRACT_ADDRESS,
 )
 from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
 from starkware.starknet.core.os.execution.account_backward_compatibility import (
     check_tip_for_v1_bound_accounts,
     is_v1_bound_account_cairo0,
 )
+from starkware.starknet.core.os.execution.deploy_contract import deploy_contract
 from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
     select_execute_entry_point_func,
 )
@@ -90,7 +85,7 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     os_carried_outputs_new,
 )
-from starkware.starknet.core.os.state.commitment import UNINITIALIZED_CLASS_HASH, StateEntry
+from starkware.starknet.core.os.state.commitment import StateEntry
 
 // Calls execute_entry_point and generates the corresponding CallContractResponse.
 func contract_call_helper{
@@ -764,77 +759,4 @@ func execute_deprecated_syscalls{
         syscall_size=syscall_size - SendMessageToL1SysCall.SIZE,
         syscall_ptr=syscall_ptr + SendMessageToL1SysCall.SIZE,
     );
-}
-
-// Deploys a contract and invokes its constructor.
-// Returns the constructor's return data.
-//
-// Arguments:
-// block_context - A global context that is fixed throughout the block.
-// constructor_execution_context - The ExecutionContext of the constructor.
-// TODO(Yoni, 1/1/2026): move to another file and handle failures.
-func deploy_contract{
-    range_check_ptr,
-    remaining_gas: felt,
-    builtin_ptrs: BuiltinPointers*,
-    contract_state_changes: DictAccess*,
-    contract_class_changes: DictAccess*,
-    revert_log: RevertLogEntry*,
-    outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*, constructor_execution_context: ExecutionContext*) -> (
-    retdata_size: felt, retdata: felt*
-) {
-    alloc_locals;
-
-    local contract_address = constructor_execution_context.execution_info.contract_address;
-
-    // Assert that we don't deploy to one of the reserved addresses.
-    assert_not_zero(
-        (contract_address - ORIGIN_ADDRESS) * (contract_address - BLOCK_HASH_CONTRACT_ADDRESS) * (
-            contract_address - ALIAS_CONTRACT_ADDRESS
-        ) * (contract_address - RESERVED_CONTRACT_ADDRESS),
-    );
-
-    local state_entry: StateEntry*;
-    %{ GetContractAddressStateEntry %}
-    assert state_entry.class_hash = UNINITIALIZED_CLASS_HASH;
-    assert state_entry.nonce = 0;
-
-    tempvar new_state_entry = new StateEntry(
-        class_hash=constructor_execution_context.class_hash,
-        storage_ptr=state_entry.storage_ptr,
-        nonce=0,
-    );
-
-    dict_update{dict_ptr=contract_state_changes}(
-        key=contract_address,
-        prev_value=cast(state_entry, felt),
-        new_value=cast(new_state_entry, felt),
-    );
-
-    // Entries before this point belong to the caller.
-    // Note the caller is the deployer (not the caller of the deployer).
-    assert [revert_log] = RevertLogEntry(
-        selector=CHANGE_CONTRACT_ENTRY,
-        value=constructor_execution_context.execution_info.caller_address,
-    );
-    let revert_log = &revert_log[1];
-
-    assert [revert_log] = RevertLogEntry(
-        selector=CHANGE_CLASS_ENTRY, value=UNINITIALIZED_CLASS_HASH
-    );
-    let revert_log = &revert_log[1];
-
-    // Invoke the contract constructor.
-    let (is_reverted, retdata_size, retdata, _is_deprecated) = select_execute_entry_point_func(
-        block_context=block_context, execution_context=constructor_execution_context
-    );
-
-    // Entries before this point belong to the deployed contract.
-    assert [revert_log] = RevertLogEntry(selector=CHANGE_CONTRACT_ENTRY, value=contract_address);
-    let revert_log = &revert_log[1];
-
-    // The deprecated deploy syscalls do not support reverts.
-    assert is_reverted = 0;
-    return (retdata_size=retdata_size, retdata=retdata);
 }
