@@ -15,7 +15,7 @@ use super::utils::{
     compress,
     get_bucket_offsets,
     get_n_elms_per_felt,
-    pack_usize_in_felts,
+    pack_in_felts,
     BitsArray,
     BucketElement,
     BucketElement125,
@@ -238,7 +238,7 @@ fn test_buckets() {
 fn test_usize_pack_and_unpack() {
     let nums = vec![34, 0, 11111, 1034, 3404, 16, 32, 127, 129, 128];
     let elm_bound = 12345;
-    let packed = pack_usize_in_felts(&nums, elm_bound);
+    let packed = pack_in_felts(&nums, elm_bound);
     let unpacked = unpack_felts_to_usize(packed.as_ref(), nums.len(), elm_bound);
     assert_eq!(nums, unpacked);
 }

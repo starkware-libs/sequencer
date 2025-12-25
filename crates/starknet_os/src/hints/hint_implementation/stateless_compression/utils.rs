@@ -424,12 +424,12 @@ pub(crate) fn compress(data: &[Felt]) -> Vec<Felt> {
         .chain([compression_set.n_repeating_values()])
         .collect();
 
-    let packed_header = pack_usize_in_felts(&header, HEADER_ELM_BOUND);
-    let packed_repeating_value_pointers = pack_usize_in_felts(
+    let packed_header = pack_in_felts(&header, HEADER_ELM_BOUND);
+    let packed_repeating_value_pointers = pack_in_felts(
         &compression_set.get_repeating_value_pointers(),
         u32::try_from(n_unique_values).expect("Too many unique values"),
     );
-    let packed_bucket_index_per_elm = pack_usize_in_felts(
+    let packed_bucket_index_per_elm = pack_in_felts(
         &compression_set.bucket_index_per_elm,
         u32::try_from(TOTAL_N_BUCKETS).expect("Too many buckets"),
     );
@@ -454,15 +454,23 @@ pub fn get_n_elms_per_felt(elm_bound: u32) -> usize {
 
 /// Packs a list of elements into multiple felts, ensuring that each felt contains as many elements
 /// as can fit.
-pub fn pack_usize_in_felts(elms: &[usize], elm_bound: u32) -> Vec<Felt> {
+pub fn pack_in_felts<U>(elms: &[U], elm_bound: u32) -> Vec<Felt>
+where
+    U: Copy,
+    BigUint: From<U>,
+{
     elms.chunks(get_n_elms_per_felt(elm_bound))
-        .map(|chunk| pack_usize_in_felt(chunk, elm_bound))
+        .map(|chunk| pack_in_felt(chunk, elm_bound))
         .collect()
 }
 
 /// Packs a chunk of elements into a single felt. Assumes that the elms fit in a felt.
-fn pack_usize_in_felt(elms: &[usize], elm_bound: u32) -> Felt {
-    let elm_bound_as_big = BigUint::from(elm_bound);
+fn pack_in_felt<U>(elms: &[U], elm_bound: u32) -> Felt
+where
+    U: Copy,
+    BigUint: From<U>,
+{
+    let elm_bound_as_big: BigUint = elm_bound.into();
     elms.iter()
         .enumerate()
         .fold(BigUint::zero(), |acc, (i, elm)| {
