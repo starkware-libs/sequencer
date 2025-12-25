@@ -269,6 +269,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "batcher_config.first_block_with_partial_block_hash.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.first_block_with_partial_block_hash.block_hash": {
     "description": "The hash of the first block with a partial block hash components.",
     "privacy": "Public",
