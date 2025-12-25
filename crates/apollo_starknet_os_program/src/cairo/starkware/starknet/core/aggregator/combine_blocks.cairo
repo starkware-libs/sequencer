@@ -98,7 +98,7 @@ func combine_blocks{range_check_ptr}(
     let res = combine_blocks_inner(aggregated=aggregated, n=n - 1, os_outputs=&os_outputs[1]);
     local res_state_update: SquashedOsStateUpdate = [res.squashed_os_state_update];
 
-    %{ state_update_pointers = None %}
+    %{ SetStateUpdatePointersToNone %}
 
     // Squash the contract state diff dict.
     let (n_contract_state_changes, squashed_contract_state_dict) = squash_state_changes(
