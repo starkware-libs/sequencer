@@ -42,6 +42,7 @@ use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageConfig,
@@ -60,8 +61,6 @@ use tokio::sync::RwLock;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
 
-use crate::StateSyncStorageReaderServer;
-
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     // TODO(Matan): change client and server to requester and responder respectively
@@ -71,7 +70,7 @@ pub struct StateSyncRunner {
     new_block_dev_null_future: BoxFuture<'static, Never>,
     rpc_server_future: BoxFuture<'static, ()>,
     register_metrics_future: BoxFuture<'static, ()>,
-    pub storage_reader_server: Option<StateSyncStorageReaderServer>,
+    pub storage_reader_server: Option<GenericStorageReaderServer>,
 }
 
 #[async_trait]
@@ -107,7 +106,7 @@ pub struct StateSyncResources {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub storage_reader_server: Option<StateSyncStorageReaderServer>,
+    pub storage_reader_server: Option<GenericStorageReaderServer>,
 }
 
 impl StateSyncResources {
