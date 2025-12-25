@@ -377,6 +377,7 @@ fn test_calculate_tx_gas_usage(
     let account_contract_address = account_contract.get_instance_address(0);
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
 
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),

@@ -5,11 +5,11 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use starknet_api::core::ContractAddress;
-use starknet_api::invoke_tx_args;
+use starknet_api::core::{felt, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::{valid_resource_bounds_for_testing, NonceManager};
+use starknet_api::{invoke_tx_args, proof, proof_facts};
 
 const N_TXS: usize = 100;
 
@@ -35,6 +35,8 @@ impl TransactionGenerator {
             sender_address: self.sender_address,
             resource_bounds: valid_resource_bounds_for_testing(),
             calldata: create_trivial_calldata(self.test_contract_address),
+            proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
+            proof: proof!(1, 2, 3, 4, 5),
         );
         rpc_invoke_tx(invoke_args)
     }

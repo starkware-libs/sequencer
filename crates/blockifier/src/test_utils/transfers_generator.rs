@@ -97,6 +97,7 @@ pub enum ExecutorWrapper {
     Sequential(TransactionExecutor<DictStateReader>),
 }
 
+// TODO(AvivG): Do we want a " generate_private_transfer"?
 impl TransfersGenerator {
     pub fn new(config: TransfersGeneratorConfig) -> Self {
         let account_contract = FeatureContract::AccountWithoutValidations(config.cairo_version);

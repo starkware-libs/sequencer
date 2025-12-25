@@ -14,7 +14,15 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+    proof,
+    proof_facts,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -236,6 +244,8 @@ fn test_invoke(
         calldata,
         version,
         resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
+        proof: proof!(1, 2, 3, 4, 5),
     });
     let tx = AccountTransaction::new_for_sequencing(invoke_tx).into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
