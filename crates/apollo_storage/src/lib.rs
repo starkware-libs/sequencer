@@ -76,6 +76,81 @@
 //! [`Starknet`]: https://starknet.io/
 //! [`libmdbx`]: https://docs.rs/libmdbx/latest/libmdbx/
 
+use std::collections::{BTreeMap, HashMap};
+use std::fmt::Debug;
+use std::fs;
+use std::sync::Arc;
+
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_metrics::metrics::MetricGauge;
+use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
+use body::events::EventIndex;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use db::db_stats::{DbTableStats, DbWholeStats};
+use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
+use db::table_types::{CommonPrefix, NoValue, Table, TableType};
+use mmap_file::{
+    FileHandler,
+    LocationInFile,
+    MMapFileError,
+    MmapFileConfig,
+    Reader,
+    Writer,
+    open_file,
+};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use starknet_api::block::{
+    BlockBody,
+    BlockHash,
+    BlockHeader,
+    BlockNumber,
+    BlockSignature,
+    StarknetVersion,
+};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_types_core::felt::Felt;
+use tracing::{debug, info, warn};
+use validator::Validate;
+use version::{StorageVersionError, Version};
+
+use crate::base_layer::BaseLayerStorageWriter;
+use crate::body::{BodyStorageWriter, TransactionIndex};
+use crate::class::ClassStorageWriter;
+use crate::compiled_class::CasmStorageWriter;
+use crate::consensus::LastVotedMarker;
+use crate::db::table_types::SimpleTable;
+use crate::db::{
+    DbConfig,
+    DbError,
+    DbReader,
+    DbTransaction,
+    DbWriter,
+    RO,
+    RW,
+    TableHandle,
+    TableIdentifier,
+    TransactionKind,
+    open_env,
+};
+use crate::header::{HeaderStorageWriter, StorageBlockHeader};
+use crate::metrics::{STORAGE_COMMIT_LATENCY, register_metrics};
+use crate::mmap_file::MMapFileStats;
+use crate::state::StateStorageWriter;
+use crate::state::data::IndexedDeprecatedContractClass;
+use crate::storage_reader_server::{
+    ServerConfig,
+    StorageReaderServer,
+    StorageReaderServerHandler,
+    create_storage_reader_server,
+};
+use crate::version::{VersionStorageReader, VersionStorageWriter};
+
 pub mod base_layer;
 pub mod block_hash;
 pub mod body;
@@ -110,75 +185,97 @@ mod test_instances;
 #[cfg(test)]
 mod open_storage_test;
 
+#[cfg(test)]
+mod batching_test;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
 #[cfg(any(feature = "testing", test))]
 pub mod storage_reader_server_test_utils;
 
-use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
-use std::fs;
-use std::sync::Arc;
+/// Configuration for storage write batching.
+#[derive(Serialize, Debug, Deserialize, Clone, PartialEq)]
+pub struct BatchConfig {
+    /// Whether to enable batching (accumulate writes and commit in single transaction).
+    pub enable_batching: bool,
+    /// Number of items to accumulate before flushing the batch.
+    pub batch_size: usize,
+}
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_metrics::metrics::MetricGauge;
-use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
-use body::events::EventIndex;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use db::db_stats::{DbTableStats, DbWholeStats};
-use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
-use db::table_types::{CommonPrefix, NoValue, Table, TableType};
-use mmap_file::{
-    open_file,
-    FileHandler,
-    LocationInFile,
-    MMapFileError,
-    MmapFileConfig,
-    Reader,
-    Writer,
-};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
-use starknet_types_core::felt::Felt;
-use tracing::{debug, info, warn};
-use validator::Validate;
-use version::{StorageVersionError, Version};
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { enable_batching: false, batch_size: 100 }
+    }
+}
 
-use crate::body::TransactionIndex;
-use crate::consensus::LastVotedMarker;
-use crate::db::table_types::SimpleTable;
-use crate::db::{
-    open_env,
-    DbConfig,
-    DbError,
-    DbReader,
-    DbTransaction,
-    DbWriter,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RO,
-    RW,
-};
-use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
-use crate::mmap_file::MMapFileStats;
-use crate::state::data::IndexedDeprecatedContractClass;
-use crate::storage_reader_server::{
-    create_storage_reader_server,
-    ServerConfig,
-    StorageReaderServer,
-    StorageReaderServerHandler,
-};
-use crate::version::{VersionStorageReader, VersionStorageWriter};
+impl SerializeConfig for BatchConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "enable_batching",
+                &self.enable_batching,
+                "Whether to enable batching (accumulate writes and commit in single transaction).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batch_size",
+                &self.batch_size,
+                "Number of items to accumulate before flushing the batch.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// Represents a pending write operation to storage.
+/// This is storage-agnostic- for any application that wants to batch writes to the storage.
+/// Each variant represents a specific storage API call that will be executed during flush.
+#[derive(Debug)]
+enum PendingWrite {
+    AppendHeader(BlockNumber, Box<BlockHeader>),
+    AppendBody(BlockNumber, Box<BlockBody>),
+    AppendBlockSignature(BlockNumber, BlockSignature),
+    AppendStateDiff(BlockNumber, Box<ThinStateDiff>),
+    AppendClasses(
+        BlockNumber,
+        Vec<(ClassHash, SierraContractClass)>,
+        Vec<(ClassHash, DeprecatedContractClass)>,
+    ),
+    AppendCasm(ClassHash, Box<CasmContractClass>),
+    UpdateBaseLayerBlockMarker(BlockNumber),
+}
+
+impl PendingWrite {
+    /// Applies this pending write operation to the given transaction.
+    fn apply(self, txn: StorageTxn<'_, RW>) -> StorageResult<StorageTxn<'_, RW>> {
+        match self {
+            PendingWrite::AppendHeader(block_number, block_header) => {
+                txn.append_header(block_number, &block_header)
+            }
+            PendingWrite::AppendBody(block_number, block_body) => {
+                txn.append_body(block_number, *block_body)
+            }
+            PendingWrite::AppendBlockSignature(block_number, block_signature) => {
+                txn.append_block_signature(block_number, &block_signature)
+            }
+            PendingWrite::AppendStateDiff(block_number, thin_state_diff) => {
+                txn.append_state_diff(block_number, *thin_state_diff)
+            }
+            PendingWrite::AppendClasses(block_number, classes, deprecated_classes) => {
+                let classes_refs: Vec<(ClassHash, &SierraContractClass)> =
+                    classes.iter().map(|(hash, class)| (*hash, class)).collect();
+                let deprecated_refs: Vec<(ClassHash, &DeprecatedContractClass)> =
+                    deprecated_classes.iter().map(|(hash, class)| (*hash, class)).collect();
+                txn.append_classes(block_number, &classes_refs, &deprecated_refs)
+            }
+            PendingWrite::AppendCasm(class_hash, casm) => txn.append_casm(&class_hash, &casm),
+            PendingWrite::UpdateBaseLayerBlockMarker(block_number) => {
+                txn.update_base_layer_block_marker(&block_number)
+            }
+        }
+    }
+}
 
 // For more details on the storage version, see the module documentation.
 /// The current version of the storage state code.
@@ -275,14 +372,20 @@ fn open_storage_internal(
         &tables.file_offsets,
     )?;
 
-    let reader = StorageReader {
+    let reader = StorageReader::new(
         db_reader,
-        tables: tables.clone(),
-        scope: storage_config.scope,
+        tables.clone(),
+        storage_config.scope,
         file_readers,
         open_readers_metric,
-    };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    );
+    let writer = StorageWriter::new(
+        db_writer,
+        tables,
+        storage_config.scope,
+        file_writers,
+        storage_config.batch_config,
+    );
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -492,6 +595,17 @@ pub struct StorageReader {
 }
 
 impl StorageReader {
+    /// Creates a new StorageReader instance.
+    pub(crate) fn new(
+        db_reader: DbReader,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+        file_readers: FileHandlers<RO>,
+        open_readers_metric: Option<&'static MetricGauge>,
+    ) -> Self {
+        Self { db_reader, tables, scope, file_readers, open_readers_metric }
+    }
+
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
     pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
@@ -532,9 +646,36 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    /// Configuration for batching behavior.
+    batch_config: BatchConfig,
+    /// Queue of pending write operations waiting to be flushed in a single transaction.
+    /// When batching is enabled, writes go here instead of immediately to disk.
+    batch_queue: Vec<PendingWrite>,
+    /// Reusable buffer for processing pending writes during flush, kept as a field to avoid
+    /// repeated allocations.
+    pending_writes_buffer: Vec<PendingWrite>,
 }
 
 impl StorageWriter {
+    /// Creates a new StorageWriter instance.
+    pub(crate) fn new(
+        db_writer: DbWriter,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+        file_writers: FileHandlers<RW>,
+        batch_config: BatchConfig,
+    ) -> Self {
+        Self {
+            db_writer,
+            tables,
+            scope,
+            file_writers,
+            batch_config,
+            batch_queue: Vec::new(),
+            pending_writes_buffer: Vec::new(),
+        }
+    }
+
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading and modifying data in the storage.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
@@ -545,6 +686,129 @@ impl StorageWriter {
             self.scope,
             MetricsHandler::new(None),
         ))
+    }
+
+    /// Flush the batch queue: write all queued operations in a single transaction.
+    /// This is the core batching optimization- instead of N commits, we commit only once.
+    pub fn flush_batch(&mut self) -> StorageResult<()> {
+        if self.batch_queue.is_empty() {
+            return Ok(());
+        }
+
+        // Reuse the pending_writes_buffer to avoid repeated allocations.
+        // Clear the buffer (keeps capacity) and append items from batch_queue.
+        self.pending_writes_buffer.clear();
+        self.pending_writes_buffer.append(&mut self.batch_queue);
+
+        // Take ownership of the buffer temporarily to avoid borrow checker issues.
+        let mut pending_writes = std::mem::take(&mut self.pending_writes_buffer);
+
+        let mut txn = self.begin_rw_txn()?;
+
+        // Execute all pending write operations in order.
+        for pending_write in pending_writes.drain(..) {
+            txn = pending_write.apply(txn)?;
+        }
+
+        txn.commit()?;
+
+        // Restore the buffer (now empty but with its capacity intact) for reuse.
+        self.pending_writes_buffer = pending_writes;
+
+        Ok(())
+    }
+
+    /// Flushes the batch if needed (batching disabled or batch size reached).
+    fn flush_if_needed(&mut self) -> StorageResult<()> {
+        if !self.batch_config.enable_batching
+            || self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+        Ok(())
+    }
+
+    /// Internal helper to queue an item and handle auto-flushing.
+    /// Flushes immediately if batching is disabled, or when batch size is reached if enabled.
+    fn queue_item(&mut self, item: PendingWrite) -> StorageResult<()> {
+        self.batch_queue.push(item);
+        self.flush_if_needed()
+    }
+
+    /// Queue a block header write operation.
+    /// When batching is enabled, this adds to the queue instead of writing immediately.
+    pub fn queue_header(
+        &mut self,
+        block_number: BlockNumber,
+        block_header: BlockHeader,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendHeader(block_number, Box::new(block_header)))
+    }
+
+    /// Queue a block body write operation.
+    pub fn queue_body(
+        &mut self,
+        block_number: BlockNumber,
+        block_body: BlockBody,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendBody(block_number, Box::new(block_body)))
+    }
+
+    /// Queue a block signature write operation.
+    pub fn queue_signature(
+        &mut self,
+        block_number: BlockNumber,
+        block_signature: BlockSignature,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendBlockSignature(block_number, block_signature))
+    }
+
+    /// Queue a state diff write operation.
+    pub fn queue_state_diff(
+        &mut self,
+        block_number: BlockNumber,
+        thin_state_diff: ThinStateDiff,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendStateDiff(block_number, Box::new(thin_state_diff)))
+    }
+
+    /// Queue classes write operation.
+    pub fn queue_classes(
+        &mut self,
+        block_number: BlockNumber,
+        classes: Vec<(ClassHash, SierraContractClass)>,
+        deprecated_classes: Vec<(ClassHash, DeprecatedContractClass)>,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendClasses(block_number, classes, deprecated_classes))
+    }
+
+    /// Queue a compiled class (CASM) write operation.
+    pub fn queue_casm(
+        &mut self,
+        class_hash: ClassHash,
+        casm: CasmContractClass,
+    ) -> StorageResult<()> {
+        self.queue_item(PendingWrite::AppendCasm(class_hash, Box::new(casm)))
+    }
+
+    /// Queue a base layer block marker update.
+    pub fn queue_base_layer_marker(&mut self, block_number: BlockNumber) -> StorageResult<()> {
+        self.queue_item(PendingWrite::UpdateBaseLayerBlockMarker(block_number))
+    }
+
+    /// Returns the current size of the batch queue.
+    pub fn batch_queue_len(&self) -> usize {
+        self.batch_queue.len()
+    }
+
+    /// Returns true if batching is enabled in the configuration.
+    pub fn is_batching_enabled(&self) -> bool {
+        self.batch_config.enable_batching
+    }
+
+    /// Returns the configured batch size.
+    pub fn batch_size(&self) -> usize {
+        self.batch_config.batch_size
     }
 }
 
@@ -767,6 +1031,8 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -780,6 +1046,7 @@ impl SerializeConfig for StorageConfig {
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
+        dumped_config.extend(prepend_sub_config_name(self.batch_config.dump(), "batch_config"));
         dumped_config
     }
 }
@@ -832,35 +1099,41 @@ impl FileHandlers<RW> {
     // Appends a thin state diff to the corresponding file and returns its location.
     #[latency_histogram("storage_file_handler_append_state_diff_latency_seconds", true)]
     fn append_state_diff(&self, thin_state_diff: &ThinStateDiff) -> LocationInFile {
-        self.clone().thin_state_diff.append(thin_state_diff)
+        self.thin_state_diff.clone().append(thin_state_diff)
     }
 
-    // Appends a contract class to the corresponding file and returns its location.
-    fn append_contract_class(&self, contract_class: &SierraContractClass) -> LocationInFile {
-        self.clone().contract_class.append(contract_class)
+    // Appends multiple contract classes in batch and returns their locations.
+    fn append_contract_classes_batch(
+        &self,
+        contract_classes: &[&SierraContractClass],
+    ) -> Vec<LocationInFile> {
+        self.contract_class.clone().append_batch(contract_classes)
     }
 
     // Appends a CASM to the corresponding file and returns its location.
     fn append_casm(&self, casm: &CasmContractClass) -> LocationInFile {
-        self.clone().casm.append(casm)
+        self.casm.clone().append(casm)
     }
 
-    // Appends a deprecated contract class to the corresponding file and returns its location.
-    fn append_deprecated_contract_class(
+    // Appends multiple deprecated contract classes in batch and returns their locations.
+    fn append_deprecated_contract_classes_batch(
         &self,
-        deprecated_contract_class: &DeprecatedContractClass,
-    ) -> LocationInFile {
-        self.clone().deprecated_contract_class.append(deprecated_contract_class)
+        deprecated_contract_classes: &[&DeprecatedContractClass],
+    ) -> Vec<LocationInFile> {
+        self.deprecated_contract_class.clone().append_batch(deprecated_contract_classes)
     }
 
-    // Appends a thin transaction output to the corresponding file and returns its location.
-    fn append_transaction_output(&self, transaction_output: &TransactionOutput) -> LocationInFile {
-        self.clone().transaction_output.append(transaction_output)
+    // Appends multiple transaction outputs in batch and returns their locations.
+    fn append_transaction_outputs_batch(
+        &self,
+        transaction_outputs: &[&TransactionOutput],
+    ) -> Vec<LocationInFile> {
+        self.transaction_output.clone().append_batch(transaction_outputs)
     }
 
-    // Appends a transaction to the corresponding file and returns its location.
-    fn append_transaction(&self, transaction: &Transaction) -> LocationInFile {
-        self.clone().transaction.append(transaction)
+    // Appends multiple transactions in batch and returns their locations.
+    fn append_transactions_batch(&self, transactions: &[&Transaction]) -> Vec<LocationInFile> {
+        self.transaction.clone().append_batch(transactions)
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
