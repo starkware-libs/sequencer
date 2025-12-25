@@ -51,7 +51,7 @@ pub enum ProofManagerError {
     Io(String),
 }
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum ProofManagerClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
