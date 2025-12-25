@@ -969,10 +969,7 @@ func execute_storage_read{range_check_ptr, syscall_ptr: felt*, contract_state_ch
     let syscall_ptr = syscall_ptr + StorageReadResponse.SIZE;
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     // Update the contract's storage.
     static_assert StorageReadRequest.SIZE == 2;

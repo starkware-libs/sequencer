@@ -78,9 +78,6 @@
     "StatelessHint": "GetContractAddressStateEntry"
   },
   {
-    "StatelessHint": "GetContractAddressStateEntryAndSetNewStateEntry"
-  },
-  {
     "StatelessHint": "IsDeprecated"
   },
   {

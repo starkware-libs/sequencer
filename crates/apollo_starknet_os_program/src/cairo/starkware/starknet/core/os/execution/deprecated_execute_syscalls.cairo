@@ -354,12 +354,7 @@ func execute_storage_read{contract_state_changes: DictAccess*}(
 ) {
     alloc_locals;
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.contract_address
-        ]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar value = syscall_ptr.response.value;
     %{
