@@ -5,6 +5,7 @@ use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
 use strum::EnumCount;
+use strum_macros::EnumCount as EnumCountMacro;
 use tracing::{info, instrument};
 
 const PORTS_PER_INSTANCE: u16 = 60;
@@ -23,7 +24,7 @@ const _: () = {
 };
 
 #[repr(u16)]
-#[derive(Debug, Copy, Clone, IntoPrimitive, EnumCount)]
+#[derive(Debug, Copy, Clone, IntoPrimitive, EnumCountMacro)]
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
     EndToEndFlowTest,
