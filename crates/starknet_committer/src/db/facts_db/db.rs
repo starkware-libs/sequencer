@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
-use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
@@ -16,6 +18,7 @@ use crate::block_committer::input::{FactsDbInitialRead, ReaderConfig, StarknetSt
 use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
 use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
+use crate::db::index_db::leaves::TrieType;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
@@ -30,12 +33,33 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 /// have the db keys of its children.
 pub struct FactsNodeLayout {}
 
-impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
+impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout
+where
+    L: HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
     type NodeData = HashOutput;
+
+    type NodeDbObject = FactDbFilledNode<L>;
 
     type DeserializationContext = FactNodeDeserializationContext;
 
     type SubTree = FactsSubTree<'a>;
+
+    fn create_subtree(
+        sorted_leaf_indices: SortedLeafIndices<'a>,
+        root_index: NodeIndex,
+        root_hash: HashOutput,
+    ) -> Self::SubTree {
+        FactsSubTree::create(sorted_leaf_indices, root_index, root_hash)
+    }
+
+    fn generate_key_context(_trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
+        EmptyKeyContext
+    }
+
+    fn get_filled_node(node_db_object: Self::NodeDbObject) -> FilledNode<L, Self::NodeData> {
+        node_db_object
+    }
 }
 
 pub struct FactsDb<S: Storage> {
