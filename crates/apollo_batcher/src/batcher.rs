@@ -35,6 +35,7 @@ use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
@@ -179,6 +180,9 @@ pub struct Batcher {
     /// Optional storage reader server for handling remote storage reader queries.
     #[allow(dead_code)]
     storage_reader_server: Option<BatcherStorageReaderServer>,
+    /// The proof manager client for proof retrieval.
+    #[allow(dead_code)]
+    proof_manager_client: SharedProofManagerClient,
 }
 
 impl Batcher {
@@ -194,6 +198,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         storage_reader_server: Option<BatcherStorageReaderServer>,
+        proof_manager_client: SharedProofManagerClient,
     ) -> Self {
         Self {
             config,
@@ -215,6 +220,7 @@ impl Batcher {
             proposals_counter: 1,
             prev_proposal_commitment: None,
             storage_reader_server,
+            proof_manager_client,
         }
     }
 
@@ -1105,6 +1111,7 @@ pub fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
+    proof_manager_client: SharedProofManagerClient,
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
@@ -1145,6 +1152,7 @@ pub fn create_batcher(
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         storage_reader_server,
+        proof_manager_client,
     )
 }
 
