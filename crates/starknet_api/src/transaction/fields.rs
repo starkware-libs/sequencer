@@ -7,6 +7,7 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::block::{GasPrice, NonzeroGasPrice};
+use crate::crypto::utils::HashChain;
 use crate::execution_resources::{GasAmount, GasVector};
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
@@ -625,6 +626,10 @@ pub struct ProofFacts(pub Arc<Vec<Felt>>);
 impl ProofFacts {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn hash(&self) -> Felt {
+        HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
 }
 
