@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_committer_types::errors::CommitterError;
+use assert_matches::assert_matches;
 use async_trait::async_trait;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
@@ -67,4 +69,111 @@ fn commit_block_request(
             .map(|commitment| StateDiffCommitment(PoseidonHash(commitment.into()))),
         height: BlockNumber(height),
     }
+}
+
+#[tokio::test]
+async fn commit_height_hole() {
+    let mut committer = new_test_committer().await;
+    let response = committer.commit_block(commit_block_request(0, Some(1), 1)).await;
+    // The input height is greater than the committer's offset.
+    assert_matches!(
+        response,
+        Err(CommitterError::HeightHole {
+            input_height: BlockNumber(input_height),
+            committer_offset: BlockNumber(committer_offset),
+        })
+        if input_height == 1 && committer_offset == 0
+    );
+}
+
+#[tokio::test]
+async fn commit_different_state_diff_commitment() {
+    let mut committer = new_test_committer().await;
+    let block_number = 0;
+    let state_diff = 1;
+    let state_diff_commitment = 1;
+    let another_state_diff_commitment = 2;
+
+    committer
+        .commit_block(commit_block_request(state_diff, Some(state_diff_commitment), block_number))
+        .await
+        .unwrap();
+
+    // Commit with a different state diff commitment.
+    let response = committer
+        .commit_block(commit_block_request(
+            state_diff,
+            Some(another_state_diff_commitment),
+            block_number,
+        ))
+        .await;
+    // The input state diff commitment does not match the stored one.
+    assert_matches!(
+        response,
+        Err(CommitterError::InvalidStateDiffCommitment {
+            input_commitment: StateDiffCommitment(PoseidonHash(
+                input_commitment
+            )),
+            stored_commitment: StateDiffCommitment(PoseidonHash(stored_commitment)),
+            height: BlockNumber(block_number),
+        })
+        if (
+            input_commitment == another_state_diff_commitment.into()
+            && stored_commitment == state_diff_commitment.into()
+            && block_number == block_number
+        )
+    );
+}
+
+#[tokio::test]
+async fn commit_different_state_diff() {
+    // Compare by the commitment of the state diff, where the state diff commitment is not given.
+    let mut committer = new_test_committer().await;
+    let block_number = 0;
+    let state_diff = 1;
+    let another_state_diff = 2;
+
+    committer.commit_block(commit_block_request(state_diff, None, block_number)).await.unwrap();
+    let response =
+        committer.commit_block(commit_block_request(another_state_diff, None, block_number)).await;
+    assert_matches!(response, Err(CommitterError::InvalidStateDiffCommitment { .. }));
+}
+
+#[tokio::test]
+/// The committer's offset starts at 0 and is incremented.
+async fn committer_offset() {
+    // TODO(Yoav): Test offset at initialization of the committer.
+    let mut committer = new_test_committer().await;
+    assert_eq!(committer.offset, BlockNumber(0));
+
+    committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert_eq!(committer.offset, BlockNumber(1));
+
+    committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert_eq!(committer.offset, BlockNumber(1));
+
+    committer.commit_block(commit_block_request(2, Some(2), 1)).await.unwrap();
+    assert_eq!(committer.offset, BlockNumber(2));
+
+    // The offset is not incremented in case of error.
+    committer.commit_block(commit_block_request(3, Some(3), 3)).await.unwrap_err();
+    assert_eq!(committer.offset, BlockNumber(2));
+
+    committer.commit_block(commit_block_request(2, Some(4), 1)).await.unwrap_err();
+    assert_eq!(committer.offset, BlockNumber(2));
+}
+
+#[tokio::test]
+/// Committing the same block twice returns the same state root.
+async fn commit_idempotent_test() {
+    let mut committer = new_test_committer().await;
+    let state_root_1 = committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    let state_root_2 = committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert_eq!(state_root_1, state_root_2);
+
+    let state_root_3 = committer.commit_block(commit_block_request(2, None, 1)).await.unwrap();
+    let state_root_4 = committer.commit_block(commit_block_request(2, None, 1)).await.unwrap();
+    assert_eq!(state_root_3, state_root_4);
+
+    assert_ne!(state_root_1, state_root_3);
 }

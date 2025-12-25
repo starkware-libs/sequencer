@@ -1074,6 +1074,7 @@ dependencies = [
  "apollo_committer_types",
  "apollo_infra",
  "apollo_metrics",
+ "assert_matches",
  "async-trait",
  "indexmap 2.12.0",
  "starknet_api",
