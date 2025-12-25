@@ -15,6 +15,7 @@ use cairo_native::starknet::{
     SyscallResult,
     TxInfo,
     TxV2Info,
+    TxV3Info,
     U256,
 };
 use num_bigint::BigUint;
@@ -36,7 +37,11 @@ use crate::execution::entry_point::{
     ExecutableCallEntryPoint,
 };
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
+use crate::execution::native::utils::{
+    calculate_resource_bounds,
+    default_tx_v2_info,
+    tx_v2_info_to_tx_v3_info,
+};
 use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR_FELT};
@@ -244,6 +249,16 @@ impl<'state> NativeSyscallHandler<'state> {
             }),
         }
     }
+
+    fn get_tx_info_v3(&self) -> SyscallResult<TxV3Info> {
+        let tx_v2_info = self.get_tx_info_v2()?;
+        let proof_facts = match &self.base.context.tx_context.tx_info {
+            TransactionInfo::Deprecated(_) => vec![],
+            TransactionInfo::Current(context) => context.proof_facts.0.to_vec(),
+        };
+        Ok(tx_v2_info_to_tx_v3_info(tx_v2_info, proof_facts))
+    }
+
     pub fn finalize(&mut self) {
         self.base.finalize();
     }
@@ -320,12 +335,20 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         })
     }
 
-    // TODO(Meshi): Implement get execution info v3 syscall.
-    fn get_execution_info_v3(
-        &mut self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<ExecutionInfoV3> {
-        todo!()
+    fn get_execution_info_v3(&mut self, remaining_gas: &mut u64) -> SyscallResult<ExecutionInfoV3> {
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.get_execution_info.base_syscall_cost(),
+            SyscallSelector::GetExecutionInfo,
+        )?;
+
+        Ok(ExecutionInfoV3 {
+            block_info: self.get_block_info(),
+            tx_info: self.get_tx_info_v3()?,
+            caller_address: Felt::from(self.base.call.caller_address),
+            contract_address: Felt::from(self.base.call.storage_address),
+            entry_point_selector: self.base.call.entry_point_selector.0,
+        })
     }
 
     fn deploy(
