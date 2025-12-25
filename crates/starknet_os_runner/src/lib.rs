@@ -1,3 +1,4 @@
+pub mod classes_provider;
 pub mod errors;
 pub mod storage_proofs;
 pub mod virtual_block_executor;
