@@ -243,6 +243,10 @@ impl SequencerConsensusContext {
             None => false,
         }
     }
+
+    pub fn get_config(&self) -> &ContextConfig {
+        &self.config
+    }
 }
 
 #[async_trait]
