@@ -144,10 +144,29 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: ConsensusTransaction,
     ) -> TransactionConverterResult<InternalConsensusTransaction> {
         match tx {
-            ConsensusTransaction::RpcTransaction(tx) => self
-                .convert_rpc_tx_to_internal_rpc_tx(tx)
-                .await
-                .map(InternalConsensusTransaction::RpcTransaction),
+            ConsensusTransaction::RpcTransaction(tx) => {
+                if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = tx {
+                    if !invoke_tx.proof_facts.is_empty() {
+                        // Check if the proof manager already contains this proof, meaning it has
+                        // already been verified.
+                        let contains_proof = self
+                            .proof_manager_client
+                            .contains_proof(invoke_tx.proof_facts.clone())
+                            .await?;
+                        // Otherwise, verify the proof.
+                        if !contains_proof {
+                            self._verify_proof(
+                                invoke_tx.proof_facts.clone(),
+                                invoke_tx.proof.clone(),
+                            )?;
+                        }
+                    }
+                }
+
+                self.convert_rpc_tx_to_internal_rpc_tx(tx)
+                    .await
+                    .map(InternalConsensusTransaction::RpcTransaction)
+            }
             ConsensusTransaction::L1Handler(tx) => self
                 .convert_consensus_l1_handler_to_internal_l1_handler(tx)
                 .map(InternalConsensusTransaction::L1Handler),
