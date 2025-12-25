@@ -25,7 +25,6 @@ use starknet_types_core::felt::Felt;
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -33,6 +32,7 @@ use crate::block_committer::input::{
     StateDiff,
 };
 use crate::db::facts_db::db::FactsDb;
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::ForestReader;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
