@@ -18,7 +18,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
 use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
+use crate::db::trie_traversal::create_original_skeleton_tree;
 
 // TODO(Ariel, 14/12/2025): make this generic over the layout.
 pub async fn tree_computation_flow<L, TH>(
