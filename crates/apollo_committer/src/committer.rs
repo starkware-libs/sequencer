@@ -26,6 +26,11 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
 
+#[cfg(test)]
+#[path = "committer_test.rs"]
+#[allow(dead_code)]
+mod committer_test;
+
 pub type ApolloStorage = MapStorage;
 pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockImpl>;
 
