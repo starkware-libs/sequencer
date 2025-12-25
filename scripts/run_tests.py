@@ -70,6 +70,9 @@ class BaseCommand(Enum):
 
             with_cairo_native = (not CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates)) or is_nightly
 
+            # TODO(Avi): re-enable with_cairo_native
+            with_cairo_native = False
+
             print(
                 f"Composing sequencer integration test commands, with_cairo_native={with_cairo_native}."
             )
