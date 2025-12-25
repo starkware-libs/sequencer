@@ -6,6 +6,7 @@ use apollo_l1_provider_types::{
     ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -95,7 +96,7 @@ impl MockDependencies {
             self.final_n_executed_txs_receiver,
             Arc::new(self.l1_provider_client),
             HEIGHT,
-            ProofValidator::new(),
+            ProofValidator::new(Arc::new(MockProofManagerClient::new())),
         );
         (validate_tx_provider, self.final_n_executed_txs_sender)
     }
