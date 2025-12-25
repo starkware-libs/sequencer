@@ -625,6 +625,18 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     ) -> StorageResult<ThinStateDiff> {
         self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
     }
+
+    /// Returns the storage value for a contract at a given address, key, and block number.
+    pub fn get_contract_storage(
+        &self,
+        contract_address: ContractAddress,
+        storage_key: StorageKey,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Felt>> {
+        let contract_storage_table = self.open_table(&self.tables.contract_storage)?;
+        Ok(contract_storage_table
+            .get(&self.txn, &((contract_address, storage_key), block_number))?)
+    }
 }
 
 /// Returns the names of the tables in the storage.
