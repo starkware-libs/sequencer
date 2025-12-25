@@ -28,7 +28,6 @@ use tracing::error;
 
 #[cfg(test)]
 #[path = "committer_test.rs"]
-#[allow(dead_code)]
 mod committer_test;
 
 pub type ApolloStorage = MapStorage;
