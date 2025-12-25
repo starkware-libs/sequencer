@@ -1376,13 +1376,7 @@ func execute_sha256_process_block{
     // slot in the sha256 segment (`actual_out_state`) and assert that the two pointers are equal.
     // Also copy [state_ptr] into [actual_out_state], since finalize_sha256 reads from
     // [actual_out_state] and the relocation happens in the opposite direction.
-    %{
-        state_ptr = ids.response.state_ptr.address_
-        actual_out_state = ids.actual_out_state.address_
-        for i in range(8):
-            memory[actual_out_state + i] = memory[state_ptr + i]
-        memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)
-    %}
+    %{ RelocateSha256Segment %}
 
     assert [response] = Sha256ProcessBlockResponse(state_ptr=actual_out_state);
     let syscall_ptr = syscall_ptr + Sha256ProcessBlockResponse.SIZE;
