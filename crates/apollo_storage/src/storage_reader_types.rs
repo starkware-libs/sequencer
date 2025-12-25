@@ -186,9 +186,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 let state_diff = txn.get_state_diff_from_location(location)?;
                 Ok(StorageReaderResponse::StateDiffsFromLocation(state_diff))
             }
-            StorageReaderRequest::ContractStorage(_key, _block_number) => {
-                unimplemented!()
-            }
+            StorageReaderRequest::ContractStorage(
+                (contract_address, storage_key),
+                block_number,
+            ) => Ok(StorageReaderResponse::ContractStorage(txn.get_contract_storage(
+                contract_address,
+                storage_key,
+                block_number,
+            )?)),
             StorageReaderRequest::Nonces(_address, _block_number) => {
                 unimplemented!()
             }
