@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::{Arc, Mutex};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
 use apollo_test_utils::GetTestInstance;
@@ -28,7 +28,7 @@ use tracing::{debug, instrument, trace};
 use validator::{Validate, ValidationError};
 
 use crate::db::serialization::{StorageSerde, StorageSerdeError, ValueSerde};
-use crate::db::{TransactionKind, RO, RW};
+use crate::db::{RO, RW, TransactionKind};
 
 type MmapFileResult<V> = result::Result<V, MMapFileError>;
 
@@ -107,6 +107,13 @@ pub(crate) trait Writer<V: ValueSerde> {
     /// Inserts an object to the file, returns the [`LocationInFile`] of the object.
     fn append(&mut self, val: &V::Value) -> LocationInFile;
 
+    /// Inserts multiple objects to the file in a batch, returns their [`LocationInFile`]s.
+    /// This is more efficient than calling `append` multiple times as it:
+    /// - Serializes all objects first
+    /// - Writes them all at once
+    /// - Performs a single flush operation for all objects
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile>;
+
     /// Flushes the mmap to the file.
     fn flush(&self);
 }
@@ -161,6 +168,22 @@ impl<V: ValueSerde> MMapFile<V> {
         trace!("Flushing mmap to file");
         self.mmap.flush().expect("Failed to flush the mmap");
         self.should_flush = false;
+    }
+
+    /// Writes serialized data to the mmap at the current offset.
+    /// Returns the location where data was written and updates the offset.
+    fn write_at_current_offset(&mut self, serialized: &[u8]) -> LocationInFile {
+        let len = serialized.len();
+        let offset = self.offset;
+
+        // Copy data to mmap
+        let mmap_slice = &mut self.mmap[offset..];
+        mmap_slice[..len].copy_from_slice(serialized);
+
+        // Update offset
+        self.offset += len;
+
+        LocationInFile { offset, len }
     }
 }
 
@@ -228,23 +251,71 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
         trace!("Inserting object: {:?}", val);
         let serialized = V::serialize(val).expect("Should be able to serialize");
         let len = serialized.len();
-        let offset;
+        let location;
         {
             let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
-            offset = mmap_file.offset;
-            trace!("Inserting object at offset: {}", offset);
-            let mmap_slice = &mut mmap_file.mmap[offset..];
-            mmap_slice[..len].copy_from_slice(&serialized);
+            trace!("Inserting object at offset: {}", mmap_file.offset);
+            location = mmap_file.write_at_current_offset(&serialized);
             mmap_file
                 .mmap
-                .flush_async_range(offset, len)
+                .flush_async_range(location.offset, len)
                 .expect("Failed to asynchronously flush the mmap after inserting");
-            mmap_file.offset += len;
             mmap_file.should_flush = true;
         }
-        let location = LocationInFile { offset, len };
         self.grow_file_if_needed(location.next_offset());
         location
+    }
+
+    fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile> {
+        if vals.is_empty() {
+            return Vec::new();
+        }
+
+        trace!("Batch inserting {} objects", vals.len());
+
+        // First, serialize all values.
+        let mut serialized_vals = Vec::with_capacity(vals.len());
+        let mut total_len = 0;
+        for val in vals {
+            let serialized = V::serialize(val).expect("Should be able to serialize");
+            total_len += serialized.len();
+            serialized_vals.push(serialized);
+        }
+
+        // Ensure we have enough space before writing.
+        let start_offset = {
+            let mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+            mmap_file.offset
+        };
+        let final_offset = start_offset + total_len;
+        self.grow_file_if_needed(final_offset);
+
+        // Then, write all at once and record locations.
+        let mut locations = Vec::with_capacity(vals.len());
+        {
+            let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+
+            trace!(
+                "Batch inserting at starting offset: {}, total size: {}",
+                start_offset, total_len
+            );
+
+            for serialized in &serialized_vals {
+                let location = mmap_file.write_at_current_offset(serialized);
+                locations.push(location);
+            }
+
+            // Single flush for all objects.
+            mmap_file
+                .mmap
+                .flush_async_range(start_offset, total_len)
+                .expect("Failed to asynchronously flush the mmap after batch insert");
+
+            mmap_file.should_flush = true;
+        }
+
+        trace!("Batch insert complete. Wrote {} objects totaling {} bytes", vals.len(), total_len);
+        locations
     }
 
     fn flush(&self) {
