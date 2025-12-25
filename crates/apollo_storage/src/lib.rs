@@ -108,11 +108,64 @@ mod test_instances;
 #[cfg(test)]
 mod open_storage_test;
 
+#[cfg(test)]
+mod batching_test;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
 #[cfg(any(feature = "testing", test))]
 pub mod storage_reader_server_test_utils;
+
+/// Configuration for storage write batching.
+#[derive(Serialize, Debug, Deserialize, Clone, PartialEq)]
+pub struct BatchConfig {
+    /// Whether to enable batching (accumulate writes and commit in single transaction).
+    pub enable_batching: bool,
+    /// Number of items to accumulate before flushing the batch.
+    pub batch_size: usize,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { enable_batching: false, batch_size: 100 }
+    }
+}
+
+/// Represents a pending write operation to storage.
+/// This is storage-agnostic- for any application that wants to batch writes to the storage.
+/// Each variant represents a specific storage API call that will be executed during flush.
+#[derive(Debug)]
+enum PendingWrite {
+    AppendHeader {
+        block_number: BlockNumber,
+        block_header: Box<BlockHeader>,
+    },
+    AppendBody {
+        block_number: BlockNumber,
+        block_body: BlockBody,
+    },
+    AppendBlockSignature {
+        block_number: BlockNumber,
+        block_signature: BlockSignature,
+    },
+    AppendStateDiff {
+        block_number: BlockNumber,
+        thin_state_diff: ThinStateDiff,
+    },
+    AppendClasses {
+        block_number: BlockNumber,
+        classes: Vec<(ClassHash, SierraContractClass)>,
+        deprecated_classes: Vec<(ClassHash, DeprecatedContractClass)>,
+    },
+    AppendCasm {
+        class_hash: ClassHash,
+        casm: CasmContractClass,
+    },
+    UpdateBaseLayerBlockMarker {
+        block_number: BlockNumber,
+    },
+}
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
@@ -139,7 +192,14 @@ use mmap_file::{
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block::{
+    BlockBody,
+    BlockHash,
+    BlockHeader,
+    BlockNumber,
+    BlockSignature,
+    StarknetVersion,
+};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -149,7 +209,10 @@ use tracing::{debug, info, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
 
-use crate::body::TransactionIndex;
+use crate::base_layer::BaseLayerStorageWriter;
+use crate::body::{BodyStorageWriter, TransactionIndex};
+use crate::class::ClassStorageWriter;
+use crate::compiled_class::CasmStorageWriter;
 use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
@@ -165,10 +228,11 @@ use crate::db::{
     RO,
     RW,
 };
-use crate::header::StorageBlockHeader;
+use crate::header::{HeaderStorageWriter, StorageBlockHeader};
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
+use crate::state::StateStorageWriter;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -268,7 +332,14 @@ fn open_storage_internal(
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let writer = StorageWriter {
+        db_writer,
+        tables,
+        scope: storage_config.scope,
+        file_writers,
+        batch_config: storage_config.batch_config,
+        batch_queue: Vec::new(),
+    };
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -518,6 +589,11 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    /// Configuration for batching behavior.
+    batch_config: BatchConfig,
+    /// Queue of pending write operations waiting to be flushed in a single transaction.
+    /// When batching is enabled, writes go here instead of immediately to disk.
+    batch_queue: Vec<PendingWrite>,
 }
 
 impl StorageWriter {
@@ -531,6 +607,191 @@ impl StorageWriter {
             self.scope,
             MetricsHandler::new(None),
         ))
+    }
+
+    /// Flush the batch queue: write all queued operations in a single transaction.
+    /// This is the core batching optimization- instead of N commits, we commit only once.
+    pub fn flush_batch(&mut self) -> StorageResult<()> {
+        if self.batch_queue.is_empty() {
+            return Ok(());
+        }
+
+        let pending_writes: Vec<PendingWrite> = self.batch_queue.drain(..).collect();
+        let mut txn = self.begin_rw_txn()?;
+
+        // Execute all pending write operations in order.
+        for pending_write in pending_writes {
+            match pending_write {
+                PendingWrite::AppendHeader { block_number, block_header } => {
+                    txn = txn.append_header(block_number, &block_header)?;
+                }
+                PendingWrite::AppendBody { block_number, block_body } => {
+                    txn = txn.append_body(block_number, block_body)?;
+                }
+                PendingWrite::AppendBlockSignature { block_number, block_signature } => {
+                    txn = txn.append_block_signature(block_number, &block_signature)?;
+                }
+                PendingWrite::AppendStateDiff { block_number, thin_state_diff } => {
+                    txn = txn.append_state_diff(block_number, thin_state_diff)?;
+                }
+                PendingWrite::AppendClasses { block_number, classes, deprecated_classes } => {
+                    let classes_refs: Vec<(ClassHash, &SierraContractClass)> =
+                        classes.iter().map(|(hash, class)| (*hash, class)).collect();
+                    let deprecated_refs: Vec<(ClassHash, &DeprecatedContractClass)> =
+                        deprecated_classes.iter().map(|(hash, class)| (*hash, class)).collect();
+                    txn = txn.append_classes(block_number, &classes_refs, &deprecated_refs)?;
+                }
+                PendingWrite::AppendCasm { class_hash, casm } => {
+                    txn = txn.append_casm(&class_hash, &casm)?;
+                }
+                PendingWrite::UpdateBaseLayerBlockMarker { block_number } => {
+                    txn = txn.update_base_layer_block_marker(&block_number)?;
+                }
+            }
+        }
+
+        txn.commit()?;
+        Ok(())
+    }
+
+    /// Queue a block header write operation.
+    /// When batching is enabled, this adds to the queue instead of writing immediately.
+    pub fn queue_header(
+        &mut self,
+        block_number: BlockNumber,
+        block_header: BlockHeader,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendHeader {
+            block_number,
+            block_header: Box::new(block_header),
+        });
+
+        // Auto-flush when batch reaches configured size
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue a block body write operation.
+    pub fn queue_body(
+        &mut self,
+        block_number: BlockNumber,
+        block_body: BlockBody,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendBody { block_number, block_body });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue a block signature write operation.
+    pub fn queue_signature(
+        &mut self,
+        block_number: BlockNumber,
+        block_signature: BlockSignature,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendBlockSignature { block_number, block_signature });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue a state diff write operation.
+    pub fn queue_state_diff(
+        &mut self,
+        block_number: BlockNumber,
+        thin_state_diff: ThinStateDiff,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendStateDiff { block_number, thin_state_diff });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue classes write operation.
+    pub fn queue_classes(
+        &mut self,
+        block_number: BlockNumber,
+        classes: Vec<(ClassHash, SierraContractClass)>,
+        deprecated_classes: Vec<(ClassHash, DeprecatedContractClass)>,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendClasses {
+            block_number,
+            classes,
+            deprecated_classes,
+        });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue a compiled class (CASM) write operation.
+    pub fn queue_casm(
+        &mut self,
+        class_hash: ClassHash,
+        casm: CasmContractClass,
+    ) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::AppendCasm { class_hash, casm });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Queue a base layer block marker update.
+    pub fn queue_base_layer_marker(&mut self, block_number: BlockNumber) -> StorageResult<()> {
+        self.batch_queue.push(PendingWrite::UpdateBaseLayerBlockMarker { block_number });
+
+        if self.batch_config.enable_batching
+            && self.batch_queue.len() >= self.batch_config.batch_size
+        {
+            self.flush_batch()?;
+        }
+
+        Ok(())
+    }
+
+    /// Returns the current size of the batch queue.
+    pub fn batch_queue_len(&self) -> usize {
+        self.batch_queue.len()
+    }
+
+    /// Returns true if batching is enabled in the configuration.
+    pub fn is_batching_enabled(&self) -> bool {
+        self.batch_config.enable_batching
+    }
+
+    /// Returns the configured batch size.
+    pub fn batch_size(&self) -> usize {
+        self.batch_config.batch_size
     }
 }
 
@@ -755,6 +1016,7 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -822,9 +1084,12 @@ impl FileHandlers<RW> {
         self.clone().thin_state_diff.append(thin_state_diff)
     }
 
-    // Appends a contract class to the corresponding file and returns its location.
-    fn append_contract_class(&self, contract_class: &SierraContractClass) -> LocationInFile {
-        self.clone().contract_class.append(contract_class)
+    // Appends multiple contract classes in batch and returns their locations.
+    fn append_contract_classes_batch(
+        &self,
+        contract_classes: &[&SierraContractClass],
+    ) -> Vec<LocationInFile> {
+        self.clone().contract_class.append_batch(contract_classes)
     }
 
     // Appends a CASM to the corresponding file and returns its location.
@@ -832,22 +1097,25 @@ impl FileHandlers<RW> {
         self.clone().casm.append(casm)
     }
 
-    // Appends a deprecated contract class to the corresponding file and returns its location.
-    fn append_deprecated_contract_class(
+    // Appends multiple deprecated contract classes in batch and returns their locations.
+    fn append_deprecated_contract_classes_batch(
         &self,
-        deprecated_contract_class: &DeprecatedContractClass,
-    ) -> LocationInFile {
-        self.clone().deprecated_contract_class.append(deprecated_contract_class)
+        deprecated_contract_classes: &[&DeprecatedContractClass],
+    ) -> Vec<LocationInFile> {
+        self.clone().deprecated_contract_class.append_batch(deprecated_contract_classes)
     }
 
-    // Appends a thin transaction output to the corresponding file and returns its location.
-    fn append_transaction_output(&self, transaction_output: &TransactionOutput) -> LocationInFile {
-        self.clone().transaction_output.append(transaction_output)
+    // Appends multiple transaction outputs in batch and returns their locations.
+    fn append_transaction_outputs_batch(
+        &self,
+        transaction_outputs: &[&TransactionOutput],
+    ) -> Vec<LocationInFile> {
+        self.clone().transaction_output.append_batch(transaction_outputs)
     }
 
-    // Appends a transaction to the corresponding file and returns its location.
-    fn append_transaction(&self, transaction: &Transaction) -> LocationInFile {
-        self.clone().transaction.append(transaction)
+    // Appends multiple transactions in batch and returns their locations.
+    fn append_transactions_batch(&self, transactions: &[&Transaction]) -> Vec<LocationInFile> {
+        self.clone().transaction.append_batch(transactions)
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.

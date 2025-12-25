@@ -147,6 +147,7 @@ impl From<ClassHashStorageConfig> for StorageConfig {
             },
             scope: value.scope,
             mmap_file_config: value.mmap_file_config,
+            batch_config: Default::default(),
         }
     }
 }
