@@ -141,10 +141,10 @@
     "StatelessHint": "UnpackFeltsToU32s"
   },
   {
-    "CommonHint": "SetTreeStructure"
+    "CommonHint": "SetProofFactTopology"
   },
   {
-    "CommonHint": "GuessContractAddrStoragePtr"
+    "CommonHint": "LoadStoragePtrAndPrevState"
   },
   {
     "CommonHint": "UpdateClassesPtr"

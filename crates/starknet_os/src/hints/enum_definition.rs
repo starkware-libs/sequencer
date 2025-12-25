@@ -160,8 +160,8 @@ use crate::hints::hint_implementation::output::{
     set_compressed_start,
     set_encrypted_start,
     set_n_updates_small,
+    set_proof_fact_topology,
     set_state_updates_start,
-    set_tree_structure,
 };
 use crate::hints::hint_implementation::patricia::implementation::{
     assert_case_is_right,
@@ -208,9 +208,9 @@ use crate::hints::hint_implementation::stateful_compression::implementation::{
     enter_scope_with_aliases,
     get_class_hash_and_compiled_class_fact,
     guess_aliases_contract_storage_ptr,
-    guess_contract_addr_storage_ptr,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
+    load_storage_ptr_and_prev_state,
     read_alias_counter,
     read_alias_from_key,
     update_alias_counter,
@@ -701,77 +701,15 @@ memory[ap] = 1 if case != 'both' else 0"#
         assert val == 0
         offset += val_len"#}
     ),
-    (
-        GenerateKeysUsingSha256Hash,
-        calculate_keys_using_sha256_hash,
-        "generate_keys_from_hash(ids.compressed_start, ids.compressed_end, ids.n_keys)"
-    )
+    (GenerateKeysUsingSha256Hash, calculate_keys_using_sha256_hash)
 );
 
 define_common_hint_enum!(
     CommonHint,
-    (
-        SetTreeStructure,
-        set_tree_structure,
-        indoc! {r#"from starkware.python.math_utils import div_ceil
-
-    if __serialize_data_availability_create_pages__:
-        onchain_data_start = ids.da_start
-        onchain_data_size = ids.output_ptr - onchain_data_start
-
-        # TODO(Yoni,20/07/2023): Take from input.
-        max_page_size = 3800
-        n_pages = div_ceil(onchain_data_size, max_page_size)
-        for i in range(n_pages):
-            start_offset = i * max_page_size
-            output_builtin.add_page(
-                page_id=1 + i,
-                page_start=onchain_data_start + start_offset,
-                page_size=min(onchain_data_size - start_offset, max_page_size),
-            )
-        # Set the tree structure to a root with two children:
-        # * A leaf which represents the main part
-        # * An inner node for the onchain data part (which contains n_pages children).
-        #
-        # This is encoded using the following sequence:
-        output_builtin.add_attribute('gps_fact_topology', [
-            # Push 1 + n_pages pages (all of the pages).
-            1 + n_pages,
-            # Create a parent node for the last n_pages.
-            n_pages,
-            # Don't push additional pages.
-            0,
-            # Take the first page (the main part) and the node that was created (onchain data)
-            # and use them to construct the root of the fact tree.
-            2,
-        ])"#}
-    ),
-    (
-        GuessContractAddrStoragePtr,
-        guess_contract_addr_storage_ptr,
-        r#"if state_update_pointers is None:
-    ids.squashed_prev_state = segments.add()
-    ids.squashed_storage_ptr = segments.add()
-else:
-    ids.squashed_prev_state, ids.squashed_storage_ptr = (
-        state_update_pointers.get_contract_state_entry_and_storage_ptr(
-            contract_address=ids.state_changes.key
-        )
-    )"#
-    ),
-    (
-        UpdateClassesPtr,
-        update_classes_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_"
-    ),
-    (
-        ComputeIdsLow,
-        compute_ids_low,
-        indoc! {r#"
-            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
-        }
-    ),
+    (SetProofFactTopology, set_proof_fact_topology, "SetProofFactTopology"),
+    (LoadStoragePtrAndPrevState, load_storage_ptr_and_prev_state, "LoadStoragePtrAndPrevState"),
+    (UpdateClassesPtr, update_classes_ptr, "UpdateClassesPtr"),
+    (ComputeIdsLow, compute_ids_low, "ComputeIdsLow"),
     (
         StoreDaSegment,
         store_da_segment,

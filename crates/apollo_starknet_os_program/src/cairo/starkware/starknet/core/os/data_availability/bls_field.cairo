@@ -171,7 +171,7 @@ func bigint3_to_uint256{range_check_ptr}(value: BigInt3) -> Uint256 {
     let high = [range_check_ptr + 1];
 
     // Guess the low part of the result. This is done by taking the 128 LSB of value.
-    %{ ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1) %}
+    %{ ComputeIdsLow %}
 
     // Verify that low is indeed the 128 LSB of (value.d0 + value.d1 * BASE). This is done by
     // checking that the following division doesn't overflow.
