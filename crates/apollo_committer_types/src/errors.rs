@@ -5,7 +5,7 @@ use starknet_api::core::StateDiffCommitment;
 use starknet_committer::db::forest_trait::ForestMetadataType;
 use thiserror::Error;
 
-#[derive(Clone, Debug, Deserialize, Eq, Error, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Error, Serialize)]
 pub enum CommitterError {
     #[error("The next height to commit is {committer_offset}, got greater height {input_height}.")]
     HeightHole { input_height: BlockNumber, committer_offset: BlockNumber },
