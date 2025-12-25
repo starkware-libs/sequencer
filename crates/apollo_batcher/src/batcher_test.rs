@@ -198,7 +198,7 @@ impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReader::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-        storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
 
         let batcher_config = BatcherConfig {
@@ -275,7 +275,7 @@ async fn create_batcher_impl(
     // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
     // TODO(Amos): Add missing commitment tasks.
     let block_hash_height =
-        storage_reader.block_hash_height().expect("Failed to get block hash height from storage.");
+        storage_reader.global_root_height().expect("Failed to get block hash height from storage.");
 
     let commitment_manager = CommitmentManager::new_or_none(
         &CommitmentManagerConfig::default(),
@@ -577,7 +577,7 @@ async fn consecutive_heights_success() {
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
-    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
@@ -884,7 +884,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
@@ -899,7 +899,7 @@ async fn propose_block_without_retrospective_block_hash() {
     storage_reader
         .expect_height()
         .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
-    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut batcher =
         create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
@@ -1175,7 +1175,7 @@ async fn add_sync_block_mismatch_block_number() {
 async fn add_sync_block_missing_block_header_commitments() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-    storage_reader.expect_block_hash_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1201,7 +1201,7 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
     let block_number = FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.unchecked_next();
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(move || Ok(block_number));
-    storage_reader.expect_block_hash_height().returning(move || Ok(block_number));
+    storage_reader.expect_global_root_height().returning(move || Ok(block_number));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
@@ -1229,7 +1229,7 @@ async fn add_sync_block_for_first_new_block() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     storage_reader
-        .expect_block_hash_height()
+        .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
@@ -1288,7 +1288,7 @@ async fn add_sync_block_parent_hash_mismatch() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     storage_reader
-        .expect_block_hash_height()
+        .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
@@ -1358,7 +1358,7 @@ async fn revert_block_mismatch_block_number() {
 async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
-    storage_reader.expect_block_hash_height().returning(|| Ok(BlockNumber(0)));
+    storage_reader.expect_global_root_height().returning(|| Ok(BlockNumber(0)));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     mock_dependencies.batcher_config.revert_config.should_revert = true;
     let mut batcher = create_batcher(mock_dependencies).await;

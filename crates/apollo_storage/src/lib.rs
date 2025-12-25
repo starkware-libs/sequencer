@@ -78,7 +78,6 @@
 
 pub mod base_layer;
 pub mod block_hash;
-pub mod block_hash_marker;
 pub mod body;
 pub mod class;
 pub mod class_hash;
@@ -86,6 +85,7 @@ pub mod class_manager;
 pub mod compiled_class;
 pub mod consensus;
 pub mod global_root;
+pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
@@ -812,7 +812,7 @@ pub(crate) enum MarkerKind {
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
-    BlockHash,
+    GlobalRoot,
 }
 
 pub(crate) type MarkersTable<'env> =
