@@ -9,7 +9,14 @@ use std::time::{Duration, Instant};
 use apollo_storage::db::DbConfig;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
-use apollo_storage::{open_storage, StorageConfig, StorageError, StorageReader, StorageScope};
+use apollo_storage::{
+    open_storage,
+    BatchConfig,
+    StorageConfig,
+    StorageError,
+    StorageReader,
+    StorageScope,
+};
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 use nix::unistd::{fork, ForkResult};
 use starknet_api::block::BlockNumber;
@@ -39,6 +46,7 @@ fn get_test_config_with_path(storage_scope: Option<StorageScope>, path: PathBuf)
             growth_step: 1 << 20,     // 1MB
             max_object_size: 1 << 16, // 64KB
         },
+        batch_config: BatchConfig::default(),
     }
 }
 
