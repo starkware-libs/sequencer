@@ -28,11 +28,20 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
-use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
+use apollo_protobuf::consensus::{
+    ConsensusBlockInfo,
+    HeightAndRound,
+    ProposalCommitment as ProtoProposalCommitment,
+    ProposalFin,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::executor::block_on;
+use futures::SinkExt;
 use mockall::Sequence;
 use starknet_api::block::{
     BlockNumber,
@@ -320,6 +329,34 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         eth_to_fri_rate: ETH_TO_FRI_RATE,
     }
 }
+
+// Send the given block info, some txs, the number of txs, and the fin, returning the
+// content_receiver.
+pub(crate) async fn send_proposal_to_validator_context(
+    context: &mut SequencerConsensusContext,
+    block_info: ConsensusBlockInfo,
+) -> mpsc::Receiver<ProposalPart> {
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.get_config().static_config.proposal_buffer_size);
+    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+    content_sender.close_channel();
+    content_receiver
+}
+
 // Structs which aren't utilized but should not be dropped.
 pub(crate) struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
