@@ -460,6 +460,7 @@ define_string_enum! {
         (L2ToL1MessageHeader, "starkware.starknet.core.os.output.MessageToL1Header"),
         (NodeEdge, "starkware.cairo.common.patricia_utils.NodeEdge"),
         (NonSelectableBuiltins, "starkware.starknet.core.os.builtins.NonSelectableBuiltins"),
+        (OsKzgCommitmentInfo, "starkware.starknet.core.os.data_availability.commitment.OsKzgCommitmentInfo"),
         (OsStateUpdate, "starkware.starknet.core.os.state.state.OsStateUpdate"),
         (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
         (SecpNewResponsePtr, "starkware.starknet.common.new_syscalls.SecpNewResponse*"),
