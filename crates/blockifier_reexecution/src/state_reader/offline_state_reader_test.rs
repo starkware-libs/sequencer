@@ -38,6 +38,7 @@ fn reexecute_block_for_testing(block_number: u64) {
 #[case::v_0_13_5(1300000)]
 #[case::v_0_13_6(1743490)]
 #[case::v_0_14_0(2509604)]
+#[case::v_0_14_1(4448394)]
 #[case::first_v_0_13_5_rpc_v8(1400000)]
 #[case::second_v_0_13_5_rpc_v8(1450000)]
 #[case::invoke_with_replace_class_syscall(780008)]
