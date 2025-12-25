@@ -65,6 +65,7 @@ impl Default for FsClassStorageConfig {
                     max_object_size: 1 << 10, // 1KB; a class hash is 32B.
                 },
                 scope: StorageScope::StateOnly,
+                batch_config: Default::default(),
             },
         }
     }
