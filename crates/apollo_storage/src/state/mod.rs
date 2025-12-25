@@ -290,6 +290,25 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         get_nonce_at(block_number, address, self.txn, &self.nonces_table)
     }
 
+    /// Returns the nonce for a given contract address and block number using direct key-value
+    /// lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_nonce_by_key(
+        &self,
+        address: &ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Nonce>> {
+        let db_key = (*address, block_number);
+        let nonce = self.nonces_table.get(self.txn, &db_key)?;
+        Ok(nonce)
+    }
+
     /// Returns the compiled class hash at a given state number.
     /// If CompiledClassHash is not found at the given state number, returns `None`.
     ///

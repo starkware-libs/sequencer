@@ -172,6 +172,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
         match request {
             // ============ State-Related Requests ============
             StorageReaderRequest::StateDiffsLocation(block_number) => {
@@ -189,8 +190,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::ContractStorage(_key, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::Nonces(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::Nonces(address, block_number) => {
+                let nonce = state_reader.get_nonce_by_key(&address, block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Nonce".to_string(),
+                        resource_id: format!("address: {:?}, block: {}", address, block_number),
+                    },
+                )?;
+                Ok(StorageReaderResponse::Nonces(nonce))
             }
             StorageReaderRequest::DeployedContracts(_address, _block_number) => {
                 unimplemented!()
