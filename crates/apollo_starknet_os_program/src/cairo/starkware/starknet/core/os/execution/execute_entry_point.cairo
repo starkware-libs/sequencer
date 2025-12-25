@@ -176,14 +176,14 @@ func execute_entry_point{
     );
 
     if (success == 0) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_ENTRY_POINT_NOT_FOUND;
         return (is_reverted=1, retdata_size=1, retdata=retdata);
     }
 
     if (compiled_class_entry_point == cast(0, CompiledClassEntryPoint*)) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
         return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
@@ -201,7 +201,7 @@ func execute_entry_point{
 
     if (nondet %{ ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET %} != FALSE) {
         assert_lt(remaining_gas, ENTRY_POINT_INITIAL_BUDGET);
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_OUT_OF_GAS;
         return (is_reverted=1, retdata_size=1, retdata=retdata);
