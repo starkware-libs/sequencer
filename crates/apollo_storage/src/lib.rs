@@ -625,6 +625,16 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     ) -> StorageResult<ThinStateDiff> {
         self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
     }
+
+    /// Returns whether an event exists at a given contract address and transaction index.
+    pub fn get_event(
+        &self,
+        contract_address: ContractAddress,
+        tx_index: TransactionIndex,
+    ) -> StorageResult<bool> {
+        let events_table = self.open_table(&self.tables.events)?;
+        Ok(events_table.get(&self.txn, &(contract_address, tx_index))?.is_some())
+    }
 }
 
 /// Returns the names of the tables in the storage.

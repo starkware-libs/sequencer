@@ -195,8 +195,15 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::DeployedContracts(_address, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::Events(_address, _tx_index) => {
-                unimplemented!()
+            StorageReaderRequest::Events(address, tx_index) => {
+                let event = txn.get_event(address, tx_index)?;
+                match event {
+                    true => Ok(StorageReaderResponse::Events),
+                    false => Err(StorageError::NotFound {
+                        resource_type: "Event".to_string(),
+                        resource_id: format!("address: {address:?}, tx_index: {tx_index:?}"),
+                    }),
+                }
             }
             StorageReaderRequest::Markers(marker_kind) => {
                 let block_number = match marker_kind {
