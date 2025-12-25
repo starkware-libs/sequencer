@@ -109,15 +109,7 @@ func contract_call_helper{
             block_context=block_context, execution_context=execution_context
         );
     }
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.call_response.retdata, size=ids.call_response.retdata_size
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-        assert expected == actual, f'Return value mismatch expected={expected}, actual={actual}.'
-    %}
+    %{ CheckSyscallResponse %}
     relocate_segment(src_ptr=call_response.retdata, dest_ptr=retdata);
 
     // The deprecated call syscalls do not support reverts.
