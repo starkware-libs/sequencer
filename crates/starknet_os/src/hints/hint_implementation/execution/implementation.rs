@@ -282,7 +282,9 @@ pub(crate) fn is_deprecated(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> O
     Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
-pub(crate) fn enter_syscall_scopes(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_execute_transactions_inner(
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
+) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
     // variables since they are accessible via the hint processor.
@@ -1027,7 +1029,7 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn fetch_result(
+pub(crate) fn check_retdata_for_debug(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     // Fetch the result, up to 100 elements.

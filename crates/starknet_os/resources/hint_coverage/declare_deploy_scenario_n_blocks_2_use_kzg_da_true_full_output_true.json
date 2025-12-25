@@ -63,7 +63,7 @@
     "StatelessHint": "IsDeprecated"
   },
   {
-    "StatelessHint": "EnterSyscallScopes"
+    "StatelessHint": "EnterScopeExecuteTransactionsInner"
   },
   {
     "StatelessHint": "IsRemainingGasLtInitialBudget"
@@ -93,7 +93,7 @@
     "StatelessHint": "EnterScopeDescendEdge"
   },
   {
-    "StatelessHint": "FetchResult"
+    "StatelessHint": "CheckRetdataForDebug"
   },
   {
     "StatelessHint": "SearchSortedOptimistic"
