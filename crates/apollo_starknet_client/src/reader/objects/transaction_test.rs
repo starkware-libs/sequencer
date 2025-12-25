@@ -50,6 +50,7 @@ fn load_transaction_succeeds() {
     for file_name in [
         "reader/deploy_v0.json",
         "reader/invoke_v0.json",
+        "reader/invoke_v3_0_14_1.json",
         "reader/invoke_v3.json",
         "reader/declare_v0.json",
         "reader/declare_v3.json",
