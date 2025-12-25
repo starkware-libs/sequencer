@@ -32,12 +32,14 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
 use tracing::{debug, warn};
 
 use crate::errors::{
+    convert_proof_manager_error,
     mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
@@ -134,6 +136,18 @@ impl Gateway {
 
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&tx)?;
+
+        // TODO(Einat): Consider moving to `convert_rpc_tx_to_internal_and_executable_txs` function.
+        // If a transaction has a proof then we add it to the proof manager.
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref tx)) = tx {
+            if !tx.proof_facts.is_empty() {
+                let proof_facts_hash = tx.proof_facts.hash();
+                self.proof_manager_client
+                    .set_proof(proof_facts_hash, tx.proof.clone())
+                    .await
+                    .map_err(convert_proof_manager_error)?;
+            }
+        }
 
         let tx_signature = tx.signature().clone();
         let (internal_tx, executable_tx) =
