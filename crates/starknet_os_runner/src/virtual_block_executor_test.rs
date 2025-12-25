@@ -1,7 +1,5 @@
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
@@ -10,51 +8,13 @@ use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
-use crate::errors::VirtualBlockExecutorError;
-use crate::test_utils::{rpc_state_reader, SENDER_ADDRESS, STRK_TOKEN_ADDRESS, TEST_BLOCK_NUMBER};
+use crate::test_utils::{
+    rpc_virtual_block_executor,
+    SENDER_ADDRESS,
+    STRK_TOKEN_ADDRESS,
+    TEST_BLOCK_NUMBER,
+};
 use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
-
-/// Test wrapper for RpcStateReader that overrides execution flags to skip validation.
-struct TestRpcVirtualBlockExecutor(RpcVirtualBlockExecutor);
-
-impl VirtualBlockExecutor for TestRpcVirtualBlockExecutor {
-    fn block_context(
-        &self,
-        block_number: BlockNumber,
-    ) -> Result<blockifier::context::BlockContext, VirtualBlockExecutorError> {
-        self.0.block_context(block_number)
-    }
-
-    fn state_reader(
-        &self,
-        block_number: BlockNumber,
-    ) -> Result<
-        impl blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses
-        + Send
-        + Sync
-        + 'static,
-        VirtualBlockExecutorError,
-    > {
-        self.0.state_reader(block_number)
-    }
-
-    // Override the default implementation to skip validation.
-    fn convert_invoke_txs(
-        txs: Vec<(Transaction, TransactionHash)>,
-    ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
-        // Call the default trait implementation.
-        let mut blockifier_txs = RpcVirtualBlockExecutor::convert_invoke_txs(txs)?;
-
-        // Modify validate flag to false for all transactions.
-        for tx in &mut blockifier_txs {
-            if let BlockifierTransaction::Account(account_tx) = tx {
-                account_tx.execution_flags.validate = false;
-            }
-        }
-
-        Ok(blockifier_txs)
-    }
-}
 
 /// Constructs an Invoke transaction that calls `balanceOf` on the STRK token contract.
 ///
@@ -108,18 +68,17 @@ fn construct_balance_of_invoke() -> (Transaction, TransactionHash) {
 /// ```
 #[rstest]
 #[ignore] // Requires RPC access 
-fn test_execute_constructed_balance_of_transaction(rpc_state_reader: RpcStateReader) {
+fn test_execute_constructed_balance_of_transaction(
+    rpc_virtual_block_executor: RpcVirtualBlockExecutor,
+) {
     // Construct a balanceOf transaction (with execution flags set).
     let (tx, tx_hash) = construct_balance_of_invoke();
 
     // Create the virtual block executor.
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
-    let executor = TestRpcVirtualBlockExecutor(RpcVirtualBlockExecutor {
-        rpc_state_reader: rpc_state_reader.clone(),
-    });
 
     // Execute the transaction.
-    let result = executor
+    let result = rpc_virtual_block_executor
         .execute(BlockNumber(TEST_BLOCK_NUMBER), contract_class_manager, vec![(tx, tx_hash)])
         .unwrap();
 
