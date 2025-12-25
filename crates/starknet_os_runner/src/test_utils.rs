@@ -17,7 +17,11 @@ pub const TEST_BLOCK_NUMBER: u64 = 800000;
 pub const STRK_TOKEN_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d");
 
-/// A known account address on mainnet (Starknet Foundation).
+/// Some storage key on the STRK token contract.
+pub const STRK_TOKEN_STORAGE_KEY: Felt =
+    Felt::from_hex_unchecked("0x062dda50e44296e93d54cc6e3112215e277df219fe27f928dced77b8219b925d");
+
+/// A known account address on mainnet (Starkware sequencer).
 pub const SENDER_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x01176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8");
 
