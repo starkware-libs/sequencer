@@ -440,6 +440,10 @@ impl SequencerConsensusContext {
             error!("Failed to prepare blob for next height at height {height}: {e:?}");
         }
     }
+
+    pub fn get_config(&self) -> &ContextConfig {
+        &self.config
+    }
 }
 
 #[async_trait]
