@@ -1,5 +1,4 @@
 use blockifier::state::state_api::StateReader;
-use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use serde::{Deserialize, Serialize};
 use starknet_types_core::hash::{Blake2Felt252, Poseidon};
@@ -226,6 +225,55 @@ use crate::hints::hint_implementation::syscalls::{
     storage_read,
     storage_write,
 };
+use crate::hints::pythonic_hint_strings::builtin_selection::{SELECTED_BUILTINS, SELECT_BUILTIN};
+use crate::hints::pythonic_hint_strings::deprecated_syscalls::{
+    CALL_CONTRACT,
+    DELEGATE_CALL,
+    DELEGATE_L1_HANDLER,
+    DEPLOY,
+    EMIT_EVENT,
+    GET_BLOCK_NUMBER,
+    GET_BLOCK_TIMESTAMP,
+    GET_CALLER_ADDRESS,
+    GET_CONTRACT_ADDRESS,
+    GET_SEQUENCER_ADDRESS,
+    GET_TX_INFO,
+    GET_TX_SIGNATURE,
+    LIBRARY_CALL,
+    LIBRARY_CALL_L1_HANDLER,
+    REPLACE_CLASS,
+    SEND_MESSAGE_TO_L1,
+    STORAGE_READ,
+    STORAGE_WRITE,
+};
+use crate::hints::pythonic_hint_strings::find_element::SEARCH_SORTED_OPTIMISTIC;
+use crate::hints::pythonic_hint_strings::math::LOG2_CEIL;
+use crate::hints::pythonic_hint_strings::patricia::{
+    ASSERT_CASE_IS_RIGHT,
+    BUILD_DESCENT_MAP,
+    DECODE_NODE,
+    DECODE_NODE_2,
+    ENTER_SCOPE_DESCEND_EDGE,
+    ENTER_SCOPE_LEFT_CHILD,
+    ENTER_SCOPE_NEW_NODE,
+    ENTER_SCOPE_NEXT_NODE_BIT_0,
+    ENTER_SCOPE_NEXT_NODE_BIT_1,
+    ENTER_SCOPE_NODE,
+    ENTER_SCOPE_RIGHT_CHILD,
+    HEIGHT_IS_ZERO_OR_LEN_NODE_PREIMAGE_IS_TWO,
+    IS_CASE_RIGHT,
+    LOAD_BOTTOM,
+    LOAD_EDGE,
+    PREPARE_PREIMAGE_VALIDATION_NON_DETERMINISTIC_HASHES,
+    SET_AP_TO_DESCEND,
+    SET_BIT,
+    SET_SIBLINGS,
+    SPLIT_DESCEND,
+    WRITE_CASE_NOT_LEFT_TO_AP,
+};
+use crate::hints::pythonic_hint_strings::secp::IS_ON_CURVE;
+use crate::hints::pythonic_hint_strings::segment_arena::SEGMENTS_ADD;
+use crate::hints::pythonic_hint_strings::sha256::SHA2_FINALIZE;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{
     define_common_hint_enum,
@@ -313,92 +361,24 @@ define_hint_enum!(
     SnosHintProcessor<'_, S>,
     S,
     StateReader,
-    (
-        CallContract,
-        call_contract,
-        "syscall_handler.call_contract(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        DelegateCall,
-        delegate_call,
-        "syscall_handler.delegate_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        DelegateL1Handler,
-        delegate_l1_handler,
-        "syscall_handler.delegate_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (Deploy, deploy, "syscall_handler.deploy(segments=segments, syscall_ptr=ids.syscall_ptr)"),
-    (
-        EmitEvent,
-        emit_event,
-        "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetBlockNumber,
-        get_block_number,
-        "syscall_handler.get_block_number(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetBlockTimestamp,
-        get_block_timestamp,
-        "syscall_handler.get_block_timestamp(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetCallerAddress,
-        get_caller_address,
-        "syscall_handler.get_caller_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetContractAddress,
-        get_contract_address,
-        "syscall_handler.get_contract_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetSequencerAddress,
-        get_sequencer_address,
-        "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetTxInfo,
-        get_tx_info,
-        "syscall_handler.get_tx_info(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetTxSignature,
-        get_tx_signature,
-        "syscall_handler.get_tx_signature(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        LibraryCall,
-        library_call,
-        "syscall_handler.library_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        LibraryCallL1Handler,
-        library_call_l1_handler,
-        "syscall_handler.library_call_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        ReplaceClass,
-        replace_class,
-        "syscall_handler.replace_class(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        SendMessageToL1,
-        send_message_to_l1,
-        "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        StorageRead,
-        storage_read,
-        "syscall_handler.storage_read(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        StorageWrite,
-        storage_write,
-        "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
+    (CallContract, call_contract, CALL_CONTRACT),
+    (DelegateCall, delegate_call, DELEGATE_CALL),
+    (DelegateL1Handler, delegate_l1_handler, DELEGATE_L1_HANDLER),
+    (Deploy, deploy, DEPLOY),
+    (EmitEvent, emit_event, EMIT_EVENT),
+    (GetBlockNumber, get_block_number, GET_BLOCK_NUMBER),
+    (GetBlockTimestamp, get_block_timestamp, GET_BLOCK_TIMESTAMP),
+    (GetCallerAddress, get_caller_address, GET_CALLER_ADDRESS),
+    (GetContractAddress, get_contract_address, GET_CONTRACT_ADDRESS),
+    (GetSequencerAddress, get_sequencer_address, GET_SEQUENCER_ADDRESS),
+    (GetTxInfo, get_tx_info, GET_TX_INFO),
+    (GetTxSignature, get_tx_signature, GET_TX_SIGNATURE),
+    (LibraryCall, library_call, LIBRARY_CALL),
+    (LibraryCallL1Handler, library_call_l1_handler, LIBRARY_CALL_L1_HANDLER),
+    (ReplaceClass, replace_class, REPLACE_CLASS),
+    (SendMessageToL1, send_message_to_l1, SEND_MESSAGE_TO_L1),
+    (StorageRead, storage_read, STORAGE_READ),
+    (StorageWrite, storage_write, STORAGE_WRITE),
 );
 
 define_stateless_hint_enum!(
@@ -406,25 +386,8 @@ define_stateless_hint_enum!(
     (IsBlockNumberInBlockHashBuffer, is_block_number_in_block_hash_buffer),
     (GetBlockHashMapping, get_block_hash_mapping),
     (IsLeaf, is_leaf),
-    // Builtin selection hints are non-whitelisted hints that are part of cairo common.
-    (
-        SelectedBuiltins,
-        selected_builtins,
-        "vm_enter_scope({'n_selected_builtins': ids.n_selected_builtins})"
-    ),
-    (
-        SelectBuiltin,
-        select_builtin,
-        indoc! {r##"
-    # A builtin should be selected iff its encoding appears in the selected encodings list
-    # and the list wasn't exhausted.
-    # Note that testing inclusion by a single comparison is possible since the lists are sorted.
-    ids.select_builtin = int(
-      n_selected_builtins > 0 and memory[ids.selected_encodings] == memory[ids.all_encodings])
-    if ids.select_builtin:
-      n_selected_builtins = n_selected_builtins - 1"##
-        }
-    ),
+    (SelectedBuiltins, selected_builtins, SELECTED_BUILTINS),
+    (SelectBuiltin, select_builtin, SELECT_BUILTIN),
     (PrepareStateEntryForRevert, prepare_state_entry_for_revert),
     (GenerateDummyOsOutputSegment, generate_dummy_os_output_segment),
     (AssignBytecodeSegments, assign_bytecode_segments),
@@ -446,166 +409,41 @@ define_stateless_hint_enum!(
     (CompressionHint, compression_hint),
     (SetDecompressedDst, set_decompressed_dst),
     (SegmentsAddTempInitialTxsRangeCheckPtr, segments_add_temp_initial_txs_range_check_ptr),
-    (
-        SegmentsAdd,
-        segments_add,
-        // Still used in cairo-lang (segment arena).
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
-        }
-    ),
+    (SegmentsAdd, segments_add, SEGMENTS_ADD),
     (LogRemainingTxs, log_remaining_txs),
     (FillHolesInRc96Segment, fill_holes_in_rc96_segment),
-    // Non-whitelisted hints that is part of cairo common.
-    (
-        Sha2Finalize,
-        sha2_finalize,
-        indoc! {r#"# Add dummy pairs of input and output.
-from starkware.cairo.common.cairo_sha256.sha256_utils import (
-    IV,
-    compute_message_schedule,
-    sha2_compress_function,
-)
-
-number_of_missing_blocks = (-ids.n) % ids.BATCH_SIZE
-assert 0 <= number_of_missing_blocks < 20
-_sha256_input_chunk_size_felts = ids.SHA256_INPUT_CHUNK_SIZE_FELTS
-assert 0 <= _sha256_input_chunk_size_felts < 100
-
-message = [0] * _sha256_input_chunk_size_felts
-w = compute_message_schedule(message)
-output = sha2_compress_function(IV, w)
-padding = (message + IV + output) * number_of_missing_blocks
-segments.write_arg(ids.sha256_ptr_end, padding)"#}
-    ),
+    (Sha2Finalize, sha2_finalize, SHA2_FINALIZE),
     (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
     (GetContractAddressStateEntry, get_contract_address_state_entry),
     (EnterScopeExecuteTransactionsInner, enter_scope_execute_transactions_inner),
     (IsRemainingGasLtInitialBudget, is_remaining_gas_lt_initial_budget),
     (InitialGeRequiredGas, initial_ge_required_gas),
-    (EnterScopeNode, enter_scope_node, "vm_enter_scope(dict(node=node, **common_args))"),
-    (
-        EnterScopeNewNode,
-        enter_scope_new_node,
-        indoc! {r#"
-	ids.child_bit = 0 if case == 'left' else 1
-	new_node = left_child if case == 'left' else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeNextNodeBit0,
-        enter_scope_next_node_bit_0,
-        indoc! {r#"
-	new_node = left_child if ids.bit == 0 else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeNextNodeBit1,
-        enter_scope_next_node_bit_1,
-        indoc! {r#"
-	new_node = left_child if ids.bit == 1 else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeLeftChild,
-        enter_scope_left_child,
-        "vm_enter_scope(dict(node=left_child, **common_args))"
-    ),
-    (
-        EnterScopeRightChild,
-        enter_scope_right_child,
-        "vm_enter_scope(dict(node=right_child, **common_args))"
-    ),
-    (
-        EnterScopeDescendEdge,
-        enter_scope_descend_edge,
-        indoc! {r#"
-	new_node = node
-	for i in range(ids.length - 1, -1, -1):
-	    new_node = new_node[(ids.word >> i) & 1]
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
+    (EnterScopeNode, enter_scope_node, ENTER_SCOPE_NODE),
+    (EnterScopeNewNode, enter_scope_new_node, ENTER_SCOPE_NEW_NODE),
+    (EnterScopeNextNodeBit0, enter_scope_next_node_bit_0, ENTER_SCOPE_NEXT_NODE_BIT_0),
+    (EnterScopeNextNodeBit1, enter_scope_next_node_bit_1, ENTER_SCOPE_NEXT_NODE_BIT_1),
+    (EnterScopeLeftChild, enter_scope_left_child, ENTER_SCOPE_LEFT_CHILD),
+    (EnterScopeRightChild, enter_scope_right_child, ENTER_SCOPE_RIGHT_CHILD),
+    (EnterScopeDescendEdge, enter_scope_descend_edge, ENTER_SCOPE_DESCEND_EDGE),
     (CheckRetdataForDebug, check_retdata_for_debug),
-    (
-        SearchSortedOptimistic,
-        search_sorted_optimistic,
-        indoc! {r#"array_ptr = ids.array_ptr
-    elm_size = ids.elm_size
-    assert isinstance(elm_size, int) and elm_size > 0, \
-        f'Invalid value for elm_size. Got: {elm_size}.'
-
-    n_elms = ids.n_elms
-    assert isinstance(n_elms, int) and n_elms >= 0, \
-        f'Invalid value for n_elms. Got: {n_elms}.'
-    if '__find_element_max_size' in globals():
-        assert n_elms <= __find_element_max_size, \
-            f'find_element() can only be used with n_elms<={__find_element_max_size}. ' \
-            f'Got: n_elms={n_elms}.'
-
-    for i in range(n_elms):
-        if memory[array_ptr + elm_size * i] >= ids.key:
-            ids.index = i
-            ids.exists = 1 if memory[array_ptr + elm_size * i] == ids.key else 0
-            break
-    else:
-        ids.index = n_elms
-        ids.exists = 0"#}
-    ),
-    (
-        Log2Ceil,
-        log2_ceil,
-        indoc! {r#"from starkware.python.math_utils import log2_ceil
-            ids.res = log2_ceil(ids.value)"#
-        }
-    ),
+    (SearchSortedOptimistic, search_sorted_optimistic, SEARCH_SORTED_OPTIMISTIC),
+    (Log2Ceil, log2_ceil, LOG2_CEIL),
     (SetStateUpdatesStart, set_state_updates_start),
     (SetCompressedStart, set_compressed_start),
     (SetEncryptedStart, set_encrypted_start),
     (SetNUpdatesSmall, set_n_updates_small),
-    (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
-    (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
-    (
-        SetApToDescend,
-        set_ap_to_descend,
-        indoc! {r#"
-	descend = descent_map.get((ids.height, ids.path))
-	memory[ap] = 0 if descend is None else 1"#
-        }
-    ),
-    (AssertCaseIsRight, assert_case_is_right, "assert case == 'right'"),
-    (
-        WriteCaseNotLeftToAp,
-        write_case_not_left_to_ap,
-        indoc! {r#"
-            memory[ap] = int(case != 'left')"#
-        }
-    ),
-    (SplitDescend, split_descend, "ids.length, ids.word = descend"),
+    (SetSiblings, set_siblings, SET_SIBLINGS),
+    (IsCaseRight, is_case_right, IS_CASE_RIGHT),
+    (SetApToDescend, set_ap_to_descend, SET_AP_TO_DESCEND),
+    (AssertCaseIsRight, assert_case_is_right, ASSERT_CASE_IS_RIGHT),
+    (WriteCaseNotLeftToAp, write_case_not_left_to_ap, WRITE_CASE_NOT_LEFT_TO_AP),
+    (SplitDescend, split_descend, SPLIT_DESCEND),
     (RemainingGasGtMax, remaining_gas_gt_max),
-    (
-        DecodeNode,
-        decode_node,
-        indoc! {r#"
-	from starkware.python.merkle_tree import decode_node
-	left_child, right_child, case = decode_node(node)
-	memory[ap] = int(case != 'both')"#
-        }
-    ),
-    (
-        DecodeNode2,
-        decode_node,
-        indoc! {r#"
-from starkware.python.merkle_tree import decode_node
-left_child, right_child, case = decode_node(node)
-memory[ap] = 1 if case != 'both' else 0"#
-        }
-    ),
+    (DecodeNode, decode_node, DECODE_NODE),
+    (DecodeNode2, decode_node, DECODE_NODE_2),
     (WriteSplitResult, write_split_result),
-    (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
+    (IsOnCurve, is_on_curve, IS_ON_CURVE),
     (StarknetOsInput, starknet_os_input),
     (AllocateSegmentsForMessages, allocate_segments_for_messages),
     (NaiveUnpackFelt252ToU32s, naive_unpack_felt252_to_u32s),
@@ -690,60 +528,13 @@ define_hint_enum!(
     (GetNClassHashesToMigrate, get_n_class_hashes_to_migrate),
     (ConfigureKzgManager, configure_kzg_manager),
     (CheckBlockHashConsistency, check_block_hash_consistency),
-    (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
+    (SetBit, set_bit, SET_BIT),
     (
         PreparePreimageValidationNonDeterministicHashes,
         prepare_preimage_validation_non_deterministic_hashes,
-        indoc! {r#"
-	from starkware.python.merkle_tree import decode_node
-	left_child, right_child, case = decode_node(node)
-	left_hash, right_hash = preimage[ids.node]
-
-	# Fill non deterministic hashes.
-	hash_ptr = ids.current_hash.address_
-	memory[hash_ptr + ids.HashBuiltin.x] = left_hash
-	memory[hash_ptr + ids.HashBuiltin.y] = right_hash
-
-	if __patricia_skip_validation_runner:
-	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
-	    # mistakes in the preimage dict will be discovered only in the prover.
-	    __patricia_skip_validation_runner.verified_addresses.add(
-	        hash_ptr + ids.HashBuiltin.result)
-
-	memory[ap] = int(case != 'both')"#
-        }
+        PREPARE_PREIMAGE_VALIDATION_NON_DETERMINISTIC_HASHES
     ),
-    (
-        BuildDescentMap,
-        build_descent_map,
-        indoc! {r#"
-	from starkware.cairo.common.patricia_utils import canonic, patricia_guess_descents
-	from starkware.python.merkle_tree import build_update_tree
-
-	# Build modifications list.
-	modifications = []
-	DictAccess_key = ids.DictAccess.key
-	DictAccess_new_value = ids.DictAccess.new_value
-	DictAccess_SIZE = ids.DictAccess.SIZE
-	for i in range(ids.n_updates):
-	    curr_update_ptr = ids.update_ptr.address_ + i * DictAccess_SIZE
-	    modifications.append((
-	        memory[curr_update_ptr + DictAccess_key],
-	        memory[curr_update_ptr + DictAccess_new_value]))
-
-	node = build_update_tree(ids.height, modifications)
-	descent_map = patricia_guess_descents(
-	    ids.height, node, preimage, ids.prev_root, ids.new_root)
-	del modifications
-	__patricia_skip_validation_runner = globals().get(
-	    '__patricia_skip_validation_runner')
-
-	common_args = dict(
-	    preimage=preimage, descent_map=descent_map,
-	    __patricia_skip_validation_runner=__patricia_skip_validation_runner)
-	common_args['common_args'] = common_args"#
-        }
-    ),
+    (BuildDescentMap, build_descent_map, BUILD_DESCENT_MAP),
     (DebugExpectedInitialGas, debug_expected_initial_gas),
     (IsSierraGasMode, is_sierra_gas_mode),
     (ReadEcPointFromAddress, read_ec_point_from_address),
@@ -751,36 +542,12 @@ define_hint_enum!(
     (SetPreimageForClassCommitments, set_preimage_for_class_commitments),
     (SetPreimageForCurrentCommitmentInfo, set_preimage_for_current_commitment_info),
     (ShouldUseReadOptimizedPatriciaUpdate, should_use_read_optimized_patricia_update),
-    (
-        LoadEdge,
-        load_edge,
-        indoc! {r#"
-	ids.edge = segments.add()
-	ids.edge.length, ids.edge.path, ids.edge.bottom = preimage[ids.node]
-	ids.hash_ptr.result = ids.node - ids.edge.length
-	if __patricia_skip_validation_runner is not None:
-	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
-	    # mistakes in the preimage dict will be discovered only in the prover.
-	    __patricia_skip_validation_runner.verified_addresses.add(
-	        ids.hash_ptr + ids.HashBuiltin.result)"#
-        }
-    ),
-    (
-        LoadBottom,
-        load_bottom,
-        indoc! {r#"
-	ids.hash_ptr.x, ids.hash_ptr.y = preimage[ids.edge.bottom]
-	if __patricia_skip_validation_runner:
-	    # Skip validation of the preimage dict to speed up the VM. When this flag is
-	    # set, mistakes in the preimage dict will be discovered only in the prover.
-	    __patricia_skip_validation_runner.verified_addresses.add(
-	        ids.hash_ptr + ids.HashBuiltin.result)"#
-        }
-    ),
+    (LoadEdge, load_edge, LOAD_EDGE),
+    (LoadBottom, load_bottom, LOAD_BOTTOM),
     (
         HeightIsZeroOrLenNodePreimageIsTwo,
         height_is_zero_or_len_node_preimage_is_two,
-        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
+        HEIGHT_IS_ZERO_OR_LEN_NODE_PREIMAGE_IS_TWO
     ),
     (SetSyscallPtr, set_syscall_ptr),
     (OsLoggerEnterSyscallPrepareExitSyscall, os_logger_enter_syscall_prepare_exit_syscall),
