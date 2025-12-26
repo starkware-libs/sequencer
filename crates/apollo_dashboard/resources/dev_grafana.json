@@ -1091,6 +1091,15 @@
             "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Average L2 Gas Usage in Block",
+          "description": "The average L2 gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_l2_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
