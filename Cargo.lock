@@ -2478,6 +2478,7 @@ dependencies = [
  "blockifier",
  "cairo-vm",
  "expect-test",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",

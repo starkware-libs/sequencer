@@ -30,5 +30,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 blockifier.workspace = true
 expect-test.workspace = true
+rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
