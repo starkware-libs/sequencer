@@ -2228,6 +2228,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_propeller"
+version = "0.17.0-rc.0"
+
+[[package]]
 name = "apollo_protobuf"
 version = "0.17.0-rc.0"
 dependencies = [
