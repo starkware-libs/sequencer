@@ -39,6 +39,49 @@ impl MerkleTree {
         hasher.finalize().into()
     }
 
+    /// Create a new Merkle tree from data chunks.
+    ///
+    /// Each chunk is hashed to create a leaf, and the tree is built bottom-up.
+    pub fn new(data_chunks: &[Vec<u8>]) -> Self {
+        let mut leaves: Vec<MerkleHash> = Vec::with_capacity(data_chunks.len());
+        for chunk in data_chunks {
+            leaves.push(Self::hash_leaf(chunk));
+        }
+        Self::from_leaves(leaves)
+    }
+
+    /// Create a new Merkle tree from pre-computed leaf hashes.
+    pub fn from_leaves(leaves: Vec<MerkleHash>) -> Self {
+        if leaves.is_empty() {
+            return Self { nodes_by_level: vec![] };
+        }
+
+        // Build tree level by level
+        let mut levels = vec![];
+        let mut current_level = leaves;
+
+        loop {
+            levels.push(current_level.clone());
+
+            if current_level.len() <= 1 {
+                break;
+            }
+
+            let mut next_level = Vec::new();
+
+            for chunk in current_level.chunks(2) {
+                let left = chunk[0];
+                let right = chunk.last().expect("chunk is never empty");
+
+                next_level.push(hash_pair(&left, right));
+            }
+
+            current_level = next_level;
+        }
+
+        Self { nodes_by_level: levels }
+    }
+
     /// Get the root hash of the tree.
     pub fn root(&self) -> MerkleHash {
         self.nodes_by_level.last().map(|level| level[0]).unwrap_or(EMPTY_TREE_ROOT)
