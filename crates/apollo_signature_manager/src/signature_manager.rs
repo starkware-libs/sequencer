@@ -10,8 +10,13 @@ use apollo_signature_manager_types::{
 };
 use async_trait::async_trait;
 use starknet_api::block::BlockHash;
-use starknet_api::core::Nonce;
-use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature, SignatureConversionError};
+use starknet_api::crypto::utils::{
+    Challenge,
+    PrivateKey,
+    PublicKey,
+    RawSignature,
+    SignatureConversionError,
+};
 use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
 use starknet_core::types::Felt;
 use starknet_crypto::get_public_key;
@@ -54,9 +59,9 @@ impl<KS: KeyStore> SignatureManager<KS> {
     pub async fn identify(
         &self,
         peer_id: PeerId,
-        nonce: Nonce, // Used to challenge identity signatures.
+        challenge: Challenge,
     ) -> SignatureManagerResult<RawSignature> {
-        let message_digest = build_peer_identity_message_digest(peer_id, nonce);
+        let message_digest = build_peer_identity_message_digest(peer_id, challenge);
         self.sign(message_digest).await
     }
 
@@ -115,13 +120,12 @@ impl KeyStore for LocalKeyStore {
 
 // Utils.
 
-fn build_peer_identity_message_digest(peer_id: PeerId, nonce: Nonce) -> MessageDigest {
-    let nonce = nonce.to_bytes_be();
+fn build_peer_identity_message_digest(peer_id: PeerId, challenge: Challenge) -> MessageDigest {
     let peer_id = peer_id.to_bytes();
-    let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len() + nonce.len());
+    let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len() + challenge.0.len());
     message.extend_from_slice(INIT_PEER_ID);
     message.extend_from_slice(&peer_id);
-    message.extend_from_slice(&nonce);
+    message.extend_from_slice(&challenge.0);
 
     MessageDigest(blake2s_to_felt(&message))
 }
@@ -159,11 +163,11 @@ pub enum SignatureVerificationError {
 
 pub fn verify_identity(
     peer_id: PeerId,
-    nonce: Nonce,
+    challenge: Challenge,
     signature: RawSignature,
     public_key: PublicKey,
 ) -> SignatureVerificationResult<bool> {
-    let message_digest = build_peer_identity_message_digest(peer_id, nonce);
+    let message_digest = build_peer_identity_message_digest(peer_id, challenge);
     verify_signature(message_digest, signature, public_key)
 }
 

@@ -22,8 +22,8 @@ impl ComponentRequestHandler<SignatureManagerRequest, SignatureManagerResponse>
         request: SignatureManagerRequest,
     ) -> SignatureManagerResponse {
         match request {
-            SignatureManagerRequest::Identify(peer_id, nonce) => {
-                SignatureManagerResponse::Identify(self.identify(peer_id, nonce).await)
+            SignatureManagerRequest::Identify(peer_id, challenge) => {
+                SignatureManagerResponse::Identify(self.identify(peer_id, challenge).await)
             }
             SignatureManagerRequest::SignPrecommitVote(block_hash) => {
                 SignatureManagerResponse::SignPrecommitVote(
