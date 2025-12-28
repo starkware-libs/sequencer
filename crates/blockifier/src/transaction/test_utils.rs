@@ -33,6 +33,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     PaymasterData,
+    ProofFacts,
     Resource,
     ResourceBounds,
     TransactionSignature,
@@ -476,6 +477,7 @@ pub struct ExpectedExecutionInfo {
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub account_deployment_data: AccountDeploymentData,
+    pub proof_facts: ProofFacts,
     pub caller_address: ContractAddress,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
@@ -498,6 +500,7 @@ impl ExpectedExecutionInfo {
         sequencer_address: ContractAddress,
         resource_bounds: ValidResourceBounds,
         nonce: Nonce,
+        proof_facts: ProofFacts,
     ) -> Self {
         let mut version = Felt::THREE;
         if only_query {
@@ -521,6 +524,7 @@ impl ExpectedExecutionInfo {
             nonce_data_availability_mode: DataAvailabilityMode::default(),
             fee_data_availability_mode: DataAvailabilityMode::default(),
             account_deployment_data: AccountDeploymentData::default(),
+            proof_facts,
         }
     }
 
@@ -578,6 +582,7 @@ impl ExpectedExecutionInfo {
             expected_tx_info,
             expected_resource_bounds,
             expected_unsupported_fields,
+            (*self.proof_facts.0).clone(),
             expected_call_info,
         ]
         .concat()

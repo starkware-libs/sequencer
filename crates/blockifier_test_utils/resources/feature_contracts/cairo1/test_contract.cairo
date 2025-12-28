@@ -20,6 +20,7 @@ mod TestContract {
     use starknet::eth_address::U256IntoEthAddress;
     use starknet::eth_signature::verify_eth_signature;
     use starknet::info::v2::{ExecutionInfo, ResourceBounds, TxInfo};
+    use starknet::info::v3::TxInfo as TxInfoV3;
     use starknet::info::{BlockInfo, SyscallResultTrait, get_contract_address};
     use starknet::secp256_trait::{Signature, is_valid_signature};
     use starknet::secp256r1::{Secp256r1Impl, Secp256r1Point};
@@ -277,7 +278,7 @@ mod TestContract {
     fn test_get_execution_info(
         self: @ContractState,
         expected_block_info: BlockInfo,
-        expected_tx_info: TxInfo,
+        expected_tx_info: TxInfoV3,
         // Expected call info.
         expected_caller_address: felt252,
         expected_contract_address: felt252,
@@ -322,6 +323,8 @@ mod TestContract {
             tx_info.account_deployment_data == expected_tx_info.account_deployment_data,
             'DEPLOYMENT_DATA_MISMATCH',
         );
+
+        assert(tx_info.proof_facts == expected_tx_info.proof_facts, 'PROOF_FACTS_MISMATCH');
 
         assert(execution_info.caller_address.into() == expected_caller_address, 'CALLER_MISMATCH');
         assert(
