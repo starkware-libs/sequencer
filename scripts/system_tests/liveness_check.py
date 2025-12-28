@@ -1,19 +1,16 @@
 import argparse
 import os
-import socket
 import random
+import socket
 import subprocess
 import sys
 import time
 from multiprocessing import Process, Queue
-from typing import List, Union
 from typing import Any, Dict, List, Optional, Union
 
 import numbers
 import requests
-import socket
 from config_loader import find_workspace_root, load_and_merge_configs
-from multiprocessing import Process, Queue
 
 
 def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:

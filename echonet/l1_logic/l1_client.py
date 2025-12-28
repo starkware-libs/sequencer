@@ -1,12 +1,12 @@
 import functools
 import inspect
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 import eth_abi
 import requests
-from collections import defaultdict
 
 from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
