@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use tracing::{info, warn};
@@ -22,82 +23,96 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-// TODO(Yoav): Include InputContext and ForestReader as arguments of the Layer, when it's ready.
-pub async fn commit_block<I: InputContext, Reader: ForestReader<I>>(
-    input: Input<I>,
-    trie_reader: &mut Reader,
-    mut time_measurement: Option<&mut TimeMeasurement>,
-) -> BlockCommitmentResult<FilledForest> {
-    let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
-        get_all_modified_indices(&input.state_diff);
-    let forest_sorted_indices = ForestSortedIndices {
-        storage_tries_sorted_indices: storage_tries_indices
-            .iter_mut()
-            .map(|(address, indices)| (*address, SortedLeafIndices::new(indices)))
-            .collect(),
-        contracts_trie_sorted_indices: SortedLeafIndices::new(&mut contracts_trie_indices),
-        classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
-    };
-    let actual_storage_updates = input.state_diff.actual_storage_updates();
-    let actual_classes_updates = input.state_diff.actual_classes_updates();
-    // Reads - fetch_nodes.
-    if let Some(ref mut tm) = time_measurement {
-        tm.start_measurement(Action::Read);
-    }
-    let (mut original_forest, original_contracts_trie_leaves) = trie_reader
-        .read(
-            input.initial_read_context,
-            &actual_storage_updates,
-            &actual_classes_updates,
-            &forest_sorted_indices,
-            input.config.clone(),
-        )
-        .await?;
-    if let Some(ref mut tm) = time_measurement {
-        let n_read_facts =
-            original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-        tm.stop_measurement(Some(n_read_facts), Action::Read);
-    }
-    info!("Original skeleton forest created successfully.");
+// Remove this trait when the index layout is ready.
+#[async_trait]
+pub trait CommitBlockTrait: Send {
+    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
+        input: Input<I>,
+        trie_reader: &mut Reader,
+        mut time_measurement: Option<&mut TimeMeasurement>,
+    ) -> BlockCommitmentResult<FilledForest>;
+}
 
-    if input.config.warn_on_trivial_modifications() {
-        check_trivial_nonce_and_class_hash_updates(
+pub struct CommitBlockImpl;
+
+#[async_trait]
+impl CommitBlockTrait for CommitBlockImpl {
+    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
+        input: Input<I>,
+        trie_reader: &mut Reader,
+        mut time_measurement: Option<&mut TimeMeasurement>,
+    ) -> BlockCommitmentResult<FilledForest> {
+        let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
+            get_all_modified_indices(&input.state_diff);
+        let forest_sorted_indices = ForestSortedIndices {
+            storage_tries_sorted_indices: storage_tries_indices
+                .iter_mut()
+                .map(|(address, indices)| (*address, SortedLeafIndices::new(indices)))
+                .collect(),
+            contracts_trie_sorted_indices: SortedLeafIndices::new(&mut contracts_trie_indices),
+            classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
+        };
+        let actual_storage_updates = input.state_diff.actual_storage_updates();
+        let actual_classes_updates = input.state_diff.actual_classes_updates();
+        // Reads - fetch_nodes.
+        if let Some(ref mut tm) = time_measurement {
+            tm.start_measurement(Action::Read);
+        }
+        let (mut original_forest, original_contracts_trie_leaves) = trie_reader
+            .read(
+                input.initial_read_context,
+                &actual_storage_updates,
+                &actual_classes_updates,
+                &forest_sorted_indices,
+                input.config.clone(),
+            )
+            .await?;
+        if let Some(ref mut tm) = time_measurement {
+            let n_read_facts =
+                original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
+            tm.stop_measurement(Some(n_read_facts), Action::Read);
+        }
+        info!("Original skeleton forest created successfully.");
+
+        if input.config.warn_on_trivial_modifications() {
+            check_trivial_nonce_and_class_hash_updates(
+                &original_contracts_trie_leaves,
+                &input.state_diff.address_to_class_hash,
+                &input.state_diff.address_to_nonce,
+            );
+        }
+
+        // Compute the new topology.
+        if let Some(ref mut tm) = time_measurement {
+            tm.start_measurement(Action::Compute);
+        }
+        let updated_forest = UpdatedSkeletonForest::create(
+            &mut original_forest,
+            &input.state_diff.skeleton_classes_updates(),
+            &input.state_diff.skeleton_storage_updates(),
             &original_contracts_trie_leaves,
             &input.state_diff.address_to_class_hash,
             &input.state_diff.address_to_nonce,
-        );
-    }
+        )?;
+        info!("Updated skeleton forest created successfully.");
 
-    // Compute the new topology.
-    if let Some(ref mut tm) = time_measurement {
-        tm.start_measurement(Action::Compute);
-    }
-    let updated_forest = UpdatedSkeletonForest::create(
-        &mut original_forest,
-        &input.state_diff.skeleton_classes_updates(),
-        &input.state_diff.skeleton_storage_updates(),
-        &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
-    )?;
-    info!("Updated skeleton forest created successfully.");
+        // Compute the new hashes.
+        let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
+            updated_forest,
+            actual_storage_updates,
+            actual_classes_updates,
+            &original_contracts_trie_leaves,
+            &input.state_diff.address_to_class_hash,
+            &input.state_diff.address_to_nonce,
+        )
+        .await?;
+        if let Some(ref mut tm) = time_measurement {
+            tm.stop_measurement(None, Action::Compute);
+        }
+        info!("Filled forest created successfully.");
 
-    // Compute the new hashes.
-    let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
-        updated_forest,
-        actual_storage_updates,
-        actual_classes_updates,
-        &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
-    )
-    .await?;
-    if let Some(ref mut tm) = time_measurement {
-        tm.stop_measurement(None, Action::Compute);
+        Ok(filled_forest)
     }
-    info!("Filled forest created successfully.");
-
-    Ok(filled_forest)
 }
 
 /// Compares the previous state's nonce and class hash with the given in the state diff.

@@ -5,7 +5,7 @@ use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
     Input,
     ReaderConfig,
@@ -356,9 +356,10 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest = commit_block(input, &mut facts_db, Some(&mut time_measurement))
-            .await
-            .expect("Failed to commit the given block.");
+        let filled_forest =
+            CommitBlockImpl::commit_block(input, &mut facts_db, Some(&mut time_measurement))
+                .await
+                .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
         let n_new_facts =
             facts_db.write(&filled_forest).await.expect("failed to serialize db values");
