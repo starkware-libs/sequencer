@@ -9,6 +9,7 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+libp2p.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
 
