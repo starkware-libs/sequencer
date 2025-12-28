@@ -63,7 +63,7 @@ impl Clone for MockNegotiator {
 /// `Option<Negotiator>::None` (where you don't have a real type). Instances of this type should
 /// never be created.
 // We make it an enum to enforce that it is not possible to create an instance of this type.
-// TODO(noam.s): Try to remove this when we use the ComposedNoiseConfig in the network manager.
+// TODO(noam.s): Try to remove this.
 #[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) enum DummyNegotiatorType {}
