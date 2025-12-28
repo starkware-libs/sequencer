@@ -1,4 +1,5 @@
 pub mod behaviour;
+mod channel_utils;
 pub mod codec;
 pub mod config;
 mod core;

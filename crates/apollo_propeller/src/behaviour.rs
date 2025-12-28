@@ -17,10 +17,11 @@ use libp2p::swarm::{
 };
 use tokio::sync::mpsc;
 
+use crate::channel_utils::{send_non_critical, ChannelName};
 use crate::config::Config;
-use crate::core::{Core, CoreOutput};
+use crate::core::{Core, CoreCommand, CoreOutput};
 use crate::handler::{Handler, HandlerIn, HandlerOut};
-use crate::types::Event;
+use crate::types::{Channel, Event, PeerSetError};
 
 /// The Propeller network behaviour.
 pub struct Behaviour {
@@ -28,6 +29,8 @@ pub struct Behaviour {
     config: Config,
     /// Events to be returned to the swarm.
     events: VecDeque<ToSwarm<Event, HandlerIn>>,
+    /// Channel to send commands to Core task.
+    core_commands_tx: mpsc::Sender<CoreCommand>,
     /// Channel to receive outputs from Core task.
     core_outputs_rx: mpsc::Receiver<CoreOutput>,
 }
@@ -45,10 +48,26 @@ impl Behaviour {
             core.run(commands_rx, outputs_tx).await;
         });
 
-        // TODO(AndrewL): Store commands_tx when we need to send commands to core
-        drop(commands_tx);
+        Self {
+            config,
+            events: VecDeque::new(),
+            core_commands_tx: commands_tx,
+            core_outputs_rx: outputs_rx,
+        }
+    }
 
-        Self { config, events: VecDeque::new(), core_outputs_rx: outputs_rx }
+    /// Register a channel with peers and optional public keys.
+    pub async fn register_channel_peers(
+        &mut self,
+        channel: Channel,
+        peers: Vec<(PeerId, u64, Option<libp2p::identity::PublicKey>)>,
+    ) -> Result<(), PeerSetError> {
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+        let command = CoreCommand::RegisterChannelPeers { channel, peers, response: response_tx };
+
+        send_non_critical(&self.core_commands_tx, command, ChannelName::BehaviourToCore).await.ok();
+
+        response_rx.await.unwrap_or(Err(PeerSetError::LocalPeerNotInPeerWeights))
     }
 }
 
