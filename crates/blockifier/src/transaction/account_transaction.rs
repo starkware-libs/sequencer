@@ -15,6 +15,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
+    ProofFactsVariants,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -245,6 +246,22 @@ impl AccountTransaction {
         }
     }
 
+    fn validate_proof_facts(&self) -> TransactionPreValidationResult<()> {
+        if let Transaction::Invoke(tx) = &self.tx {
+            if tx.tx.version() == TransactionVersion::THREE {
+                let proof_facts_type = ProofFactsVariants::try_from(&tx.tx.proof_facts())
+                    .map_err(|e| TransactionPreValidationError::InvalidProofFacts(e.to_string()))?;
+                match proof_facts_type {
+                    ProofFactsVariants::Empty => {}
+                    ProofFactsVariants::Snos(_snos_proof_facts) => {
+                        // TODO(Meshi/ AvivG): add proof facts validations.
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     // Performs static checks before executing validation entry point.
     // Note that nonce is incremented during these checks.
     pub fn perform_pre_validation_stage<S: State + StateReader>(
@@ -260,6 +277,8 @@ impl AccountTransaction {
 
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
+
+        self.validate_proof_facts()?;
 
         Ok(())
     }
