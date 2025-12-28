@@ -1,8 +1,10 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use libp2p::identity::PublicKey;
 use libp2p::PeerId;
 
+use crate::tree::PropellerTreeManager;
 use crate::types::{Channel, ShardSignatureVerificationError};
 use crate::{signature, MessageRoot, PropellerUnit, ShardIndex, ShardValidationError};
 
@@ -18,6 +20,8 @@ pub struct UnitValidator {
     message_root: MessageRoot,
     /// The signature of the message.
     signature: Option<Vec<u8>>,
+    /// The tree manager to use.
+    tree_manager: Arc<PropellerTreeManager>,
     /// The indices of the received shards.
     received_indices: HashSet<ShardIndex>,
 }
@@ -28,11 +32,13 @@ impl UnitValidator {
         publisher: PeerId,
         publisher_public_key: Option<PublicKey>,
         message_root: MessageRoot,
+        tree_manager: Arc<PropellerTreeManager>,
     ) -> Self {
         Self {
             channel,
             publisher,
             message_root,
+            tree_manager,
             publisher_public_key,
             signature: None,
             received_indices: HashSet::new(),
@@ -72,7 +78,7 @@ impl UnitValidator {
 
     pub fn validate_shard(
         &mut self,
-        _sender: PeerId,
+        sender: PeerId,
         unit: &PropellerUnit,
     ) -> Result<(), ShardValidationError> {
         assert_eq!(self.channel, unit.channel(), "Channel mismatch");
@@ -83,7 +89,7 @@ impl UnitValidator {
             return Err(ShardValidationError::DuplicateShard);
         }
 
-        // TODO(AndrewL): Add tree_manager.validate_origin(sender, unit)?
+        self.tree_manager.validate_origin(sender, unit)?;
         // TODO(AndrewL): Add proof verification
         self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
 
@@ -125,8 +131,9 @@ mod tests {
         let channel = Channel(1);
         let publisher = PeerId::random();
         let message_root = MessageRoot([1u8; 32]);
+        let tree_manager = Arc::new(PropellerTreeManager::new(PeerId::random()));
 
-        let validator = UnitValidator::new(channel, publisher, None, message_root);
+        let validator = UnitValidator::new(channel, publisher, None, message_root, tree_manager);
 
         assert_eq!(validator.channel, channel);
         assert_eq!(validator.publisher, publisher);
@@ -139,17 +146,59 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let publisher = PeerId::from(keypair.public());
         let message_root = MessageRoot([1u8; 32]);
+        let local_peer = PeerId::random();
 
-        let mut validator =
-            UnitValidator::new(channel, publisher, Some(keypair.public()), message_root);
+        let mut tree_manager = PropellerTreeManager::new(local_peer);
+        tree_manager.update_nodes(vec![(local_peer, 100), (publisher, 75)]).unwrap();
+
+        let mut validator = UnitValidator::new(
+            channel,
+            publisher,
+            Some(keypair.public()),
+            message_root,
+            Arc::new(tree_manager),
+        );
 
         let unit = create_valid_unit(channel, publisher, message_root, ShardIndex(0), &keypair);
 
-        // First validation (will fail on TODOs but should get past duplicate check and add index)
-        let _result1 = validator.validate_shard(PeerId::random(), &unit);
+        // First validation from publisher (should pass origin check and add index)
+        let _result1 = validator.validate_shard(publisher, &unit);
 
         // Second validation should fail with DuplicateShard
-        let result2 = validator.validate_shard(PeerId::random(), &unit);
+        let result2 = validator.validate_shard(publisher, &unit);
         assert!(matches!(result2, Err(ShardValidationError::DuplicateShard)));
+    }
+
+    #[test]
+    fn test_origin_verification() {
+        let channel = Channel(1);
+        let keypair = Keypair::generate_ed25519();
+        let publisher = PeerId::from(keypair.public());
+        let message_root = MessageRoot([1u8; 32]);
+        let local_peer = PeerId::random();
+        let wrong_sender = PeerId::random();
+
+        let mut tree_manager = PropellerTreeManager::new(local_peer);
+        tree_manager
+            .update_nodes(vec![(local_peer, 100), (publisher, 75), (wrong_sender, 50)])
+            .unwrap();
+
+        let mut validator = UnitValidator::new(
+            channel,
+            publisher,
+            Some(keypair.public()),
+            message_root,
+            Arc::new(tree_manager),
+        );
+
+        let unit = create_valid_unit(channel, publisher, message_root, ShardIndex(0), &keypair);
+
+        // Validation from wrong sender should fail
+        let result = validator.validate_shard(wrong_sender, &unit);
+        assert!(matches!(result, Err(ShardValidationError::UnexpectedSender { .. })));
+
+        // Validation from publisher (correct sender for shard 0) should pass
+        let result = validator.validate_shard(publisher, &unit);
+        assert!(result.is_ok());
     }
 }
