@@ -341,6 +341,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let storage_value = felt!(93_u8);
     let storage_key = storage_key!(1993_u16);
 
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     let tx_success = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
@@ -513,6 +514,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     let storage_key = storage_key!(1993_u16);
 
     // Both transactions change the same storage key.
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     let account_tx0 = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
@@ -731,6 +733,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
 
     let txs = (0..3)
         .map(|_| {
+            // TODO(AvivG): Do we want here an invoke_tx with proof fields?
             Transaction::Account(invoke_tx_with_default_flags(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),

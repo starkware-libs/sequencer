@@ -29,6 +29,7 @@ use crate::metrics::{
 
 /// Creates an executable invoke transaction with the given field subset (the rest receive default
 /// values).
+// TODO(AvivG): Do we want here tx with proof fields?
 #[macro_export]
 macro_rules! tx {
     (

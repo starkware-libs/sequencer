@@ -368,6 +368,7 @@ fn test_account_flow_test(
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
 
     // Invoke a function from the newly deployed contract.
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     run_invoke_tx(
         &mut state,
         &block_context,
@@ -739,6 +740,7 @@ fn test_revert_invoke(
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
 
     // Invoke a function that changes the state and reverts.
+    // TODO(AvivG): Do we want here an invoke_tx with proof fields?
     let storage_key = felt!(9_u8);
     let tx_execution_info = run_invoke_tx(
         &mut state,
