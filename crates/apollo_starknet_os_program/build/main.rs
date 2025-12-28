@@ -16,6 +16,11 @@ async fn main() {
     let virtual_cairo_root = virtual_os_utils::prepare_virtual_cairo_root()
         .expect("Failed to prepare virtual cairo root");
 
+    // Write the list of swapped files to OUT_DIR for use in tests.
+    let swapped_files_txt = virtual_cairo_root.swapped_files.join("\n");
+    std::fs::write(out_dir.join("virtual_os_swapped_files.txt"), swapped_files_txt)
+        .expect("Failed to write virtual_os_swapped_files.txt");
+
     let mut task_set = tokio::task::JoinSet::new();
     #[cfg(feature = "test_programs")]
     task_set.spawn(compile_program::compile_test_contracts(out_dir.clone()));
@@ -35,7 +40,7 @@ async fn main() {
         out_dir,
         "starkware/starknet/core/os/os.cairo",
         "virtual_os",
-        Some(virtual_cairo_root.path().to_path_buf()),
+        Some(virtual_cairo_root.temp_dir.path().to_path_buf()),
     ));
     task_set.join_all().await;
 }

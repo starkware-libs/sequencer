@@ -11,12 +11,21 @@ mod cairo_formatting_test;
 mod constants_test;
 pub mod os_code_snippets;
 pub mod program_hash;
+#[cfg(test)]
+mod virtual_os_test;
 #[cfg(feature = "test_programs")]
 pub mod test_programs;
 
 pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/cairo_files_map.json")))
         .unwrap_or_else(|error| panic!("Failed to deserialize cairo_files_map.json: {error:?}."))
+});
+
+pub static VIRTUAL_OS_SWAPPED_FILES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    include_str!(concat!(env!("OUT_DIR"), "/virtual_os_swapped_files.txt"))
+        .lines()
+        .map(String::from)
+        .collect()
 });
 
 pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
