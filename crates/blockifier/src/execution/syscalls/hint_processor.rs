@@ -462,7 +462,9 @@ impl<'a> SyscallHintProcessor<'a> {
                     zero_felt.clone(), // Nonce DA mode.
                     zero_felt.clone(), // Fee DA mode.
                     zero_felt.clone(), // Empty segment of account deployment data (start ptr).
-                    zero_felt,         // Empty segment of account deployment data (end ptr).
+                    zero_felt.clone(), // Empty segment of account deployment data (end ptr).
+                    zero_felt.clone(), // Empty segment of proof_facts (start ptr).
+                    zero_felt,         // Empty segment of proof_facts (end ptr).
                 ]);
             }
         };
