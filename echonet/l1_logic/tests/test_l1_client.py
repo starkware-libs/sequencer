@@ -8,13 +8,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import requests
 import unittest
-from l1_client import L1Client
 from test_utils import L1TestUtils
 from unittest.mock import Mock, patch
 
+from echonet.l1_logic.l1_client import L1Client
+
 
 class TestL1Client(unittest.TestCase):
-    @patch("l1_client.requests.post")
+    @patch("echonet.l1_logic.l1_client.requests.post")
     def test_get_logs_retries_after_exception_and_succeeds_on_second_attempt(self, mock_post):
         request_exception = requests.RequestException("some error")
 
@@ -43,7 +44,7 @@ class TestL1Client(unittest.TestCase):
                 to_block=10,
             )
 
-    @patch("l1_client.requests.post")
+    @patch("echonet.l1_logic.l1_client.requests.post")
     def test_get_logs_when_rpc_result_is_empty(self, mock_post):
         empty_response = L1TestUtils.logs_rpc_response_with_logs([])
         response_ok = Mock()
@@ -58,7 +59,7 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 1)
         self.assertEqual(logs, empty_response)
 
-    @patch("l1_client.requests.post")
+    @patch("echonet.l1_logic.l1_client.requests.post")
     def test_get_block_number_returns_rpc_response(self, mock_post):
         response_ok = Mock()
         response_ok.raise_for_status.return_value = None
@@ -70,7 +71,7 @@ class TestL1Client(unittest.TestCase):
 
         self.assertEqual(result, L1TestUtils.BLOCK_NUMBER_RPC_RESPONSE)
 
-    @patch("l1_client.requests.post")
+    @patch("echonet.l1_logic.l1_client.requests.post")
     def test_get_block_by_number_retries_after_failure_and_succeeds(self, mock_post):
         request_exception = requests.RequestException("some error")
 
@@ -86,7 +87,7 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 2)
         self.assertEqual(result, L1TestUtils.BLOCK_RPC_RESPONSE)
 
-    @patch("l1_client.requests.post")
+    @patch("echonet.l1_logic.l1_client.requests.post")
     def test_get_block_by_number_returns_none_when_rpc_result_is_empty(self, mock_post):
         empty_response = L1TestUtils.block_rpc_response_with_block(None)
         response_ok = Mock()
