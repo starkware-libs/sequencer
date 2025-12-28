@@ -31,6 +31,7 @@ use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args
 use starknet_types_core::felt::Felt;
 
 use crate::gateway::Gateway;
+use crate::proof_archive_writer::MockProofArchiveWriterTrait;
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
@@ -165,6 +166,7 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
     let mut mempool_client = MockMempoolClient::new();
     let class_manager_client = Arc::new(MockClassManagerClient::new());
     let proof_manager_client = Arc::new(MockProofManagerClient::new());
+    let proof_archive_writer = Arc::new(MockProofArchiveWriterTrait::new());
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
         proof_manager_client.clone(),
@@ -182,5 +184,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
         Arc::new(mempool_client),
         Arc::new(transaction_converter),
         stateless_tx_validator,
+        proof_archive_writer,
     )
 }
