@@ -9,10 +9,16 @@ use crate::dump_source::get_cairo_file_paths;
 
 const VIRTUAL_SUFFIX: &str = "__virtual";
 
+pub struct VirtualCairoRoot {
+    pub temp_dir: TempDir,
+    /// Sorted list of relative paths of files that were swapped (virtual replaced original).
+    pub swapped_files: Vec<String>,
+}
+
 /// Prepares a temporary Cairo root directory with `__virtual` files swapped in.
 ///
-/// Returns a `TempDir` that auto-deletes when dropped.
-pub fn prepare_virtual_cairo_root() -> io::Result<TempDir> {
+/// Returns a `VirtualCairoRoot` containing the temp directory and list of swapped files.
+pub fn prepare_virtual_cairo_root() -> io::Result<VirtualCairoRoot> {
     let source_root = cairo_root_path();
     let temp_dir = TempDir::new()?;
 
@@ -33,7 +39,14 @@ pub fn prepare_virtual_cairo_root() -> io::Result<TempDir> {
         std::fs::copy(src_path, dst_path)?;
     }
 
-    Ok(temp_dir)
+    // Collect sorted relative paths of swapped files.
+    let mut swapped_files: Vec<_> = replace_by_virtual
+        .iter()
+        .map(|p| p.strip_prefix(&source_root).unwrap().to_str().unwrap().to_string())
+        .collect();
+    swapped_files.sort();
+
+    Ok(VirtualCairoRoot { temp_dir, swapped_files })
 }
 
 fn is_virtual_file(path: &Path) -> bool {
