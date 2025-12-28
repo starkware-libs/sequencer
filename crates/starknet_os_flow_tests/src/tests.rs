@@ -55,6 +55,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     Fee,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -75,6 +76,7 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     invoke_tx_args,
+    proof_facts,
 };
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
@@ -1138,6 +1140,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let test_execution_info_selector_name = "test_get_execution_info";
     let test_execution_info_selector = selector_from_name(test_execution_info_selector_name);
     let only_query = false;
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
         *FUNDED_ACCOUNT_ADDRESS,
@@ -1150,6 +1153,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         contract_address!(TEST_SEQUENCER_ADDRESS),
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         test_manager.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        proof_facts,
     )
     .to_syscall_result();
     let invoke_tx_args = invoke_tx_args! {
@@ -1159,6 +1163,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
             main_contract_address, test_execution_info_selector_name, &expected_execution_info
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        proof_facts: proof_facts![felt!(1_u16), felt!(2_u16), felt!(3_u16)],
     };
     // Put the tx hash in the signature.
     let tx =
@@ -1211,6 +1216,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         contract_address!(TEST_SEQUENCER_ADDRESS),
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         test_manager.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        ProofFacts::default(),
     )
     .to_syscall_result();
     let invoke_tx_args = invoke_tx_args! {
