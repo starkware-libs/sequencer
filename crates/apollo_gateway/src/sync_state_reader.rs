@@ -474,6 +474,7 @@ impl GatewayFixedBlockStateReader for SyncOrGenesisFixedBlockStateReader {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
