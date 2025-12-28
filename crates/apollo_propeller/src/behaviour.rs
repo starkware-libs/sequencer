@@ -35,8 +35,8 @@ pub struct Behaviour {
 impl Behaviour {
     /// Create a new Propeller behaviour.
     pub fn new(local_peer_id: PeerId, config: Config) -> Self {
-        let (commands_tx, commands_rx) = mpsc::channel(100);
-        let (outputs_tx, outputs_rx) = mpsc::channel(100);
+        let (commands_tx, commands_rx) = mpsc::channel(config.channel_capacity());
+        let (outputs_tx, outputs_rx) = mpsc::channel(config.channel_capacity());
 
         let core = Core::new(local_peer_id, config.clone());
 
