@@ -6,6 +6,7 @@ use libp2p::PeerId;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 
+#[derive(PartialEq)]
 pub enum NegotiationSide {
     Inbound,
     Outbound,
