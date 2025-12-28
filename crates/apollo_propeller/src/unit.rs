@@ -1,9 +1,15 @@
 //! Message types for the Propeller protocol.
 
+use apollo_protobuf::protobuf::{
+    Hash256 as ProtoHash256,
+    MerkleProof as ProtoMerkleProof,
+    PeerId as ProtoPeerId,
+    PropellerUnit as ProtoPropellerUnit,
+};
 use libp2p::core::PeerId;
 
 use crate::types::{Channel, MessageRoot, ShardIndex};
-use crate::{MerkleProof, MerkleTree, ShardValidationError};
+use crate::{MerkleHash, MerkleProof, MerkleTree, ShardValidationError};
 
 /// A single shard unit in the Propeller protocol.
 ///
@@ -73,6 +79,87 @@ impl PropellerUnit {
         } else {
             Err(ShardValidationError::ProofVerificationFailed)
         }
+    }
+}
+
+impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
+    type Error = std::io::Error;
+
+    fn try_from(msg: ProtoPropellerUnit) -> Result<Self, Self::Error> {
+        let publisher_id = msg.publisher.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Missing publisher")
+        })?;
+        let merkle_proof = msg.merkle_proof.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Missing merkle_proof")
+        })?;
+        let index: u32 = msg.index.try_into().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Index too large for u32")
+        })?;
+        let merkle_root_bytes: [u8; 32] = msg
+            .merkle_root
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "Missing merkle_root")
+            })?
+            .elements
+            .try_into()
+            .map_err(|e: Vec<u8>| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Invalid message root length: {}", e.len()),
+                )
+            })?;
+
+        Ok(Self {
+            channel: Channel(msg.channel),
+            root: MessageRoot(merkle_root_bytes),
+            publisher: PeerId::from_bytes(&publisher_id.id)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?,
+            signature: msg.signature,
+            index: ShardIndex(index),
+            shard: msg.shard,
+            proof: proto_merkle_proof_to_merkle_proof(&merkle_proof)?,
+        })
+    }
+}
+
+impl From<PropellerUnit> for ProtoPropellerUnit {
+    fn from(msg: PropellerUnit) -> Self {
+        ProtoPropellerUnit {
+            shard: msg.shard,
+            index: msg.index.0.into(),
+            merkle_root: Some(ProtoHash256 { elements: msg.root.0.to_vec() }),
+            merkle_proof: Some(merkle_proof_to_proto(&msg.proof)),
+            publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
+            signature: msg.signature,
+            channel: msg.channel.0,
+        }
+    }
+}
+
+/// Convert a proto MerkleProof to a MerkleProof.
+fn proto_merkle_proof_to_merkle_proof(
+    proto: &ProtoMerkleProof,
+) -> Result<MerkleProof, std::io::Error> {
+    let mut siblings = Vec::with_capacity(proto.siblings.len());
+    for sibling in &proto.siblings {
+        let hash: MerkleHash = sibling.elements.as_slice().try_into().map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Invalid merkle proof sibling length: {} (expected 32)",
+                    sibling.elements.len()
+                ),
+            )
+        })?;
+        siblings.push(hash);
+    }
+    Ok(MerkleProof { siblings })
+}
+
+/// Convert a MerkleProof to a proto MerkleProof.
+fn merkle_proof_to_proto(proof: &MerkleProof) -> ProtoMerkleProof {
+    ProtoMerkleProof {
+        siblings: proof.siblings.iter().map(|h| ProtoHash256 { elements: h.to_vec() }).collect(),
     }
 }
 
