@@ -42,7 +42,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_REPROPOSALS,
 };
-use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::single_height_consensus::{Requests, SingleHeightConsensus};
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
@@ -572,49 +572,29 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
-            match shc.start(&leader_fn) {
-                ShcReturn::Decision(decision) => {
-                    // Start should generate either StartValidateProposal (validator) or
-                    // StartBuildProposal (proposer). We do not enforce this
-                    // since the Manager is intentionally not meant to
-                    // understand consensus in detail.
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(requests) => requests,
-            }
+            shc.start(&leader_fn)
         };
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (init, content_receiver) in cached_proposals {
-            match self
-                .handle_proposal_known_init(context, height, shc, init, content_receiver)
-                .await
-            {
-                ShcReturn::Decision(decision) => {
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
-            }
+            let new_requests =
+                self.handle_proposal_known_init(context, height, shc, init, content_receiver).await;
+            pending_requests.extend(new_requests);
         }
 
         let cached_votes = self.cache.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
-            match shc.handle_vote(&leader_fn, msg) {
-                ShcReturn::Decision(decision) => {
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
-            }
+            let new_requests = shc.handle_vote(&leader_fn, msg);
+            pending_requests.extend(new_requests);
         }
 
         // Reflect initial height/round to context before executing requests.
         context.set_height_and_round(height, shc.current_round()).await?;
         self.execute_requests(context, height, pending_requests, shc_events, broadcast_channels)
-            .await?;
-        Ok(None)
+            .await
     }
 
     /// Main consensus loop: handles incoming proposals, votes, events, and sync checks.
@@ -632,7 +612,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let mut sync_poll_deadline = clock.now() + sync_retry_interval;
         loop {
             self.cache.report_max_cached_block_number_metric(height);
-            let shc_return = tokio::select! {
+            let requests = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     self.handle_vote(context, height, Some(shc), message, broadcast_channels).await?
                 },
@@ -661,18 +641,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             };
             // Reflect current height/round to context.
             context.set_height_and_round(height, shc.current_round()).await?;
-            match shc_return {
-                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
-                ShcReturn::Requests(requests) => {
-                    self.execute_requests(
-                        context,
-                        height,
-                        requests,
-                        shc_events,
-                        broadcast_channels,
-                    )
-                    .await?;
-                }
+            if let Some(decision) = self
+                .execute_requests(context, height, requests, shc_events, broadcast_channels)
+                .await?
+            {
+                return Ok(RunHeightRes::Decision(decision));
             }
         }
     }
@@ -714,7 +687,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
         content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
-    ) -> Result<ShcReturn, ConsensusError> {
+    ) -> Result<Requests, ConsensusError> {
         CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
         let Some(mut content_receiver) = content_receiver else {
@@ -748,11 +721,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     // When moving to version 1.0 make sure this is addressed.
                     self.cache.cache_future_proposal(proposal_init, content_receiver);
                 }
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop proposal from past height. {:?}", proposal_init);
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
@@ -771,12 +744,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                             )
                             .await)
                     } else {
-                        Ok(ShcReturn::Requests(VecDeque::new()))
+                        Ok(VecDeque::new())
                     }
                 }
                 None => {
                     trace!("Drop proposal from just completed height. {:?}", proposal_init);
-                    Ok(ShcReturn::Requests(VecDeque::new()))
+                    Ok(VecDeque::new())
                 }
             },
         }
@@ -789,7 +762,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         proposal_init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
-    ) -> ShcReturn {
+    ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams
             .insert((height, proposal_init.round), content_receiver);
@@ -806,7 +779,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: Option<&mut SingleHeightConsensus>,
         vote: Option<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
         broadcast_channels: &mut BroadcastVoteChannel,
-    ) -> Result<ShcReturn, ConsensusError> {
+    ) -> Result<Requests, ConsensusError> {
         let message = match vote {
             None => Err(ConsensusError::InternalNetworkError(
                 "NetworkReceiver should never be closed".to_string(),
@@ -846,11 +819,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     trace!("Cache message for a future height. {:?}", message);
                     self.cache.cache_future_vote(message);
                 }
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop message from past height. {:?}", message);
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
@@ -858,12 +831,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         let leader_fn = make_leader_fn(context, height);
                         Ok(shc.handle_vote(&leader_fn, message))
                     } else {
-                        Ok(ShcReturn::Requests(VecDeque::new()))
+                        Ok(VecDeque::new())
                     }
                 }
                 None => {
                     trace!("Drop message from just completed height. {:?}", message);
-                    Ok(ShcReturn::Requests(VecDeque::new()))
+                    Ok(VecDeque::new())
                 }
             },
         }
@@ -876,15 +849,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         mut requests: VecDeque<SMRequest>,
         shc_events: &mut FuturesUnordered<BoxFuture<'static, StateMachineEvent>>,
         broadcast_channels: &mut BroadcastVoteChannel,
-    ) -> Result<(), ConsensusError> {
+    ) -> Result<Option<Decision>, ConsensusError> {
         while let Some(request) = requests.pop_front() {
-            if let Some(fut) =
-                self.run_request(context, height, request, broadcast_channels).await?
-            {
-                shc_events.push(fut);
+            match request {
+                SMRequest::DecisionReached(decision) => {
+                    return Ok(Some(decision));
+                }
+                _ => {
+                    if let Some(fut) =
+                        self.run_request(context, height, request, broadcast_channels).await?
+                    {
+                        shc_events.push(fut);
+                    }
+                }
             }
         }
-        Ok(())
+
+        Ok(None)
     }
 
     async fn run_request(
@@ -986,9 +967,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 CONSENSUS_REPROPOSALS.increment(1);
                 Ok(None)
             }
-            SMRequest::DecisionReached(_, _) => {
-                // Should be handled by SHC, not manager.
-                unreachable!("Manager received DecisionReached request");
+            SMRequest::DecisionReached(_) => {
+                unreachable!("DecisionReached request should be handled in execute_requests");
             }
         }
     }
