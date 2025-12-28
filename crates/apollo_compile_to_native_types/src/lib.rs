@@ -45,7 +45,7 @@ impl SierraCompilationConfig {
         Self {
             compiler_binary_path: None,
             max_file_size: Some(15 * 1024 * 1024),
-            max_cpu_time: Some(20),
+            max_cpu_time: Some(60),
             max_memory_usage: Some(5 * 1024 * 1024 * 1024),
             optimization_level: 0,
         }
