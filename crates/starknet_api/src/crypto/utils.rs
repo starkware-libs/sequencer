@@ -174,3 +174,6 @@ impl TryFrom<RawSignature> for starknet_crypto::Signature {
         Ok(starknet_crypto::Signature { r, s })
     }
 }
+
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct Challenge(pub u128);

@@ -3,8 +3,8 @@ use hex::FromHex;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::BlockHash;
-use starknet_api::core::Nonce;
-use starknet_api::{felt, nonce};
+use starknet_api::crypto::utils::Challenge;
+use starknet_api::felt;
 use starknet_core::crypto::Signature;
 use starknet_core::types::Felt;
 
@@ -15,12 +15,14 @@ use crate::signature_manager::{
     SignatureManager,
 };
 
+// Expected signature for PeerIdentity (peer_id + challenge 0xdead as u128).
+// The digest uses challenge.to_be_bytes() (16 bytes) since Challenge wraps u128.
 const ALICE_IDENTITY_SIGNATURE: Signature = Signature {
     r: Felt::from_hex_unchecked(
-        "0x4c275c7fae888bf8ce0f43e938ee63b48a719a82c44f5991bf8be407ebfb390",
+        "0x1edc5646f7649f9994736ffd2352db86c3f37e6025d9664b634cbc87a468903",
     ),
     s: Felt::from_hex_unchecked(
-        "0x41640caf231352af1efa2f7d608f99a3a93e58ece2edcd2cdf200c86bf17232",
+        "0x37c21925a1166bb992c031928ba38cb1029d5e48a204bf780b80912916389e2",
     ),
 };
 
@@ -34,7 +36,7 @@ const ALICE_PRECOMMIT_SIGNATURE: Signature = Signature {
 #[derive(Clone, Debug)]
 struct PeerIdentity {
     pub peer_id: PeerId,
-    pub nonce: Nonce,
+    pub challenge: Challenge,
 }
 
 impl PeerIdentity {
@@ -44,7 +46,7 @@ impl PeerIdentity {
             Vec::from_hex("00205cccc292b9dcc77610797e5f47b23d2b0fb7b77010d76481fc2c0652f6ca2fc2")
                 .unwrap();
 
-        Self { peer_id: PeerId::from_bytes(&peer_id).unwrap(), nonce: nonce!(0x1234) }
+        Self { peer_id: PeerId::from_bytes(&peer_id).unwrap(), challenge: Challenge(0xdead) }
     }
 }
 
@@ -55,10 +57,13 @@ impl PeerIdentity {
     false
 )]
 fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
-    let PeerIdentity { peer_id, nonce } = PeerIdentity::new();
+    let PeerIdentity { peer_id, challenge } = PeerIdentity::new();
     let public_key = LocalKeyStore::new_for_testing().public_key;
 
-    assert_eq!(verify_identity(peer_id, nonce, signature.into(), public_key).unwrap(), expected);
+    assert_eq!(
+        verify_identity(peer_id, challenge, signature.into(), public_key).unwrap(),
+        expected
+    );
 }
 
 #[rstest]
@@ -80,18 +85,18 @@ fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] ex
 }
 
 #[tokio::test]
-async fn test_identify() {
+async fn test_sign_identification() {
     let key_store = LocalKeyStore::new_for_testing();
     let signature_manager = SignatureManager::new(key_store);
 
-    let PeerIdentity { peer_id, nonce } = PeerIdentity::new();
-    let signature = signature_manager.identify(peer_id, nonce).await;
+    let PeerIdentity { peer_id, challenge } = PeerIdentity::new();
+    let signature = signature_manager.sign_identification(peer_id, challenge).await;
 
     assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 
     // Test alignment with verification function.
     assert_eq!(
-        verify_identity(peer_id, nonce, signature.unwrap(), key_store.public_key).unwrap(),
+        verify_identity(peer_id, challenge, signature.unwrap(), key_store.public_key).unwrap(),
         true
     );
 }
