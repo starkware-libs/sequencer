@@ -239,22 +239,14 @@ func select_execute_entry_point_func{
     // TODO(Yoni): SIERRA_GAS_MODE - remove once all Cairo 1 contracts run with Sierra gas mode.
     local caller_remaining_gas = remaining_gas;
     local is_sierra_gas_mode;
-    %{ ids.is_sierra_gas_mode = execution_helper.call_info.tracked_resource.is_sierra_gas() %}
+    %{ IsSierraGasMode %}
     if (is_sierra_gas_mode != FALSE) {
         tempvar inner_remaining_gas = remaining_gas;
     } else {
         // Run with high enough gas to avoid out-of-gas.
         tempvar inner_remaining_gas = DEFAULT_INITIAL_GAS_COST;
     }
-    %{
-        if execution_helper.debug_mode:
-            expected_initial_gas = execution_helper.call_info.call.initial_gas
-            call_initial_gas = ids.inner_remaining_gas
-            assert expected_initial_gas == call_initial_gas, (
-                f"Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n"
-                f"{execution_helper.call_info=}"
-            )
-    %}
+    %{ DebugExpectedInitialGas %}
 
     let (is_reverted, retdata_size, retdata) = execute_entry_point{
         remaining_gas=inner_remaining_gas
