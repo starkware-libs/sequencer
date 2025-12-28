@@ -1,5 +1,6 @@
 pub mod codec;
 pub mod merkle;
+pub mod protocol;
 pub mod reed_solomon;
 pub mod signature;
 pub mod tree;
