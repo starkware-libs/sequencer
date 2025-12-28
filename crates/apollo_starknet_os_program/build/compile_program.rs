@@ -7,11 +7,13 @@ pub async fn compile_and_output_program(
     out_dir: PathBuf,
     path_to_main_file_from_cairo_root: &str,
     program_name: &str,
+    cairo_root: Option<PathBuf>,
 ) {
+    let cairo_root = cairo_root.unwrap_or_else(cairo_root_path);
     println!("cargo::warning=Compiling {program_name} program...");
     let bytes = match compile_cairo0_program(
-        cairo_root_path().join(path_to_main_file_from_cairo_root),
-        cairo_root_path(),
+        cairo_root.join(path_to_main_file_from_cairo_root),
+        cairo_root,
     ) {
         Ok(bytes) => bytes,
         Err(Cairo0CompilerError::Cairo0CompilerVersion(error)) => {
@@ -42,10 +44,11 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         out_dir.clone(),
         "starkware/starknet/core/os/state/aliases_test.cairo",
         "aliases_test",
+        None,
     ));
     task_set.join_all().await;
 }
 
-fn cairo_root_path() -> PathBuf {
+pub fn cairo_root_path() -> PathBuf {
     PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo")
 }

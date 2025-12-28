@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
-use crate::{AGGREGATOR_PROGRAM, OS_PROGRAM};
+use crate::{AGGREGATOR_PROGRAM, OS_PROGRAM, VIRTUAL_OS_PROGRAM};
 
 #[cfg(test)]
 #[path = "program_hash_test.rs"]
@@ -22,6 +22,7 @@ pub enum ProgramHashError {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ProgramHashes {
     pub os: Felt,
+    pub virtual_os: Felt,
     pub aggregator: Felt,
     pub aggregator_with_prefix: Felt,
 }
@@ -49,6 +50,11 @@ fn compute_program_hash(program: &Program) -> Result<Felt, ProgramHashError> {
 
 pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
     compute_program_hash(&OS_PROGRAM)
+}
+
+pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
+    // TODO(Yoni): use blake.
+    compute_program_hash(&VIRTUAL_OS_PROGRAM)
 }
 
 pub fn compute_aggregator_program_hash() -> Result<AggregatorHash, ProgramHashError> {
