@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-import json
 import logging
-||||||| 427336df66
-import json
-=======
->>>>>>> origin/main-v0.14.1
 from dataclasses import dataclass
 from typing import Callable
 

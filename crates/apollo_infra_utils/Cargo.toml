@@ -25,12 +25,8 @@ tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 tracing.workspace = true
-<<<<<<< HEAD
 tracing-subscriber.workspace = true
-||||||| 427336df66
-=======
 url.workspace = true
->>>>>>> origin/main-v0.14.1
 
 [dev-dependencies]
 assert-json-diff.workspace = true

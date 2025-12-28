@@ -30,8 +30,7 @@
   "components.class_manager.remote_server_config.bind_ip": "0.0.0.0",
   "components.class_manager.remote_server_config.max_streams_per_connection": 8,
   "components.class_manager.remote_server_config.set_tcp_nodelay": true,
-<<<<<<< HEAD
-  "components.class_manager.url": "sequencer-core-service",
+  "components.class_manager.url": "remote_service",
   "components.committer.execution_mode": "Remote",
   "components.committer.local_server_config.#is_none": true,
   "components.committer.max_concurrency": 128,
@@ -46,12 +45,7 @@
   "components.committer.remote_client_config.retries": 150,
   "components.committer.remote_client_config.set_tcp_nodelay": true,
   "components.committer.remote_server_config.#is_none": true,
-  "components.committer.url": "sequencer-committer-service",
-||||||| 427336df66
-  "components.class_manager.url": "sequencer-core-service",
-=======
-  "components.class_manager.url": "remote_service",
->>>>>>> origin/main-v0.14.1
+  "components.committer.url": "remote_service",
   "components.config_manager.execution_mode": "LocalExecutionWithRemoteDisabled",
   "components.config_manager.local_server_config.#is_none": false,
   "components.config_manager.local_server_config.high_priority_requests_channel_capacity": 1024,

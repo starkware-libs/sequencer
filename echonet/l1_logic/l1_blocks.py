@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import logging
-||||||| 427336df66
-=======
 from dataclasses import dataclass
->>>>>>> origin/main-v0.14.1
 from typing import Optional
 
 from l1_client import L1Client

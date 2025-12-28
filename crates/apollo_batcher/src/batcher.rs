@@ -171,16 +171,10 @@ pub struct Batcher {
     /// Optional storage reader server for handling remote storage reader queries.
     /// Kept alive to maintain the server running.
     #[allow(dead_code)]
-<<<<<<< HEAD
-    storage_reader_server: Option<BatcherStorageReaderServer>,
+    storage_reader_server: Option<GenericStorageReaderServer>,
     /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
     /// commitment manager because commitments are reverted in a blocking call.
     commitment_manager: Option<CommitmentManager>,
-||||||| 427336df66
-    storage_reader_server: Option<BatcherStorageReaderServer>,
-=======
-    storage_reader_server: Option<GenericStorageReaderServer>,
->>>>>>> origin/main-v0.14.1
 }
 
 impl Batcher {
@@ -195,14 +189,8 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
-<<<<<<< HEAD
-        storage_reader_server: Option<BatcherStorageReaderServer>,
-        commitment_manager: Option<CommitmentManager>,
-||||||| 427336df66
-        storage_reader_server: Option<BatcherStorageReaderServer>,
-=======
         storage_reader_server: Option<GenericStorageReaderServer>,
->>>>>>> origin/main-v0.14.1
+        commitment_manager: Option<CommitmentManager>,
     ) -> Self {
         Self {
             config,

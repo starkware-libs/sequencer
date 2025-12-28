@@ -41,22 +41,6 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl ServiceNameInner for ConsolidatedNodeServiceName {
-<<<<<<< HEAD
-    fn get_controller(&self) -> Controller {
-        match self {
-            Self::Node => Controller::StatefulSet,
-        }
-    }
-
-||||||| 427336df66
-    fn get_controller(&self) -> Controller {
-        match self {
-            ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
-        }
-    }
-
-=======
->>>>>>> origin/main-v0.14.1
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Node => ScalePolicy::StaticallyScaled,
@@ -104,22 +88,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Self::Node => ComponentConfigInService::iter().collect(),
         }
     }
-<<<<<<< HEAD
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            Self::Node => UpdateStrategy::RollingUpdate,
-        }
-    }
-||||||| 427336df66
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
-        }
-    }
-=======
->>>>>>> origin/main-v0.14.1
 }
 
 fn get_consolidated_config() -> ComponentConfig {

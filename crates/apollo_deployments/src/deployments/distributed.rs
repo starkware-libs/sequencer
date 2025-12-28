@@ -152,43 +152,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-<<<<<<< HEAD
-    fn get_controller(&self) -> Controller {
-        match self {
-            Self::Batcher => Controller::StatefulSet,
-            Self::ClassManager => Controller::StatefulSet,
-            Self::Committer => Controller::StatefulSet,
-            Self::ConsensusManager => Controller::StatefulSet,
-            Self::HttpServer => Controller::Deployment,
-            Self::Gateway => Controller::Deployment,
-            Self::L1 => Controller::Deployment,
-            Self::Mempool => Controller::Deployment,
-            Self::SierraCompiler => Controller::Deployment,
-            Self::StateSync => Controller::StatefulSet,
-            // TODO(Nadin): Decide on controller for the SignatureManager.
-            Self::SignatureManager => Controller::StatefulSet,
-        }
-    }
-
-||||||| 427336df66
-    fn get_controller(&self) -> Controller {
-        match self {
-            DistributedNodeServiceName::Batcher => Controller::StatefulSet,
-            DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
-            DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
-            DistributedNodeServiceName::HttpServer => Controller::Deployment,
-            DistributedNodeServiceName::Gateway => Controller::Deployment,
-            DistributedNodeServiceName::L1 => Controller::Deployment,
-            DistributedNodeServiceName::Mempool => Controller::Deployment,
-            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
-            DistributedNodeServiceName::StateSync => Controller::StatefulSet,
-            // TODO(Nadin): Decide on controller for the SignatureManager.
-            DistributedNodeServiceName::SignatureManager => Controller::StatefulSet,
-        }
-    }
-
-=======
->>>>>>> origin/main-v0.14.1
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Batcher
@@ -220,95 +183,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
-<<<<<<< HEAD
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            Self::ConsensusManager | Self::Mempool | Self::StateSync => true,
-            Self::Batcher
-            | Self::ClassManager
-            | Self::Committer
-            | Self::HttpServer
-            | Self::Gateway
-            | Self::L1
-            | Self::SierraCompiler
-            | Self::SignatureManager => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        None
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
-    }
-
-||||||| 427336df66
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            DistributedNodeServiceName::ConsensusManager
-            | DistributedNodeServiceName::Mempool
-            | DistributedNodeServiceName::StateSync => true,
-            DistributedNodeServiceName::Batcher
-            | DistributedNodeServiceName::ClassManager
-            | DistributedNodeServiceName::HttpServer
-            | DistributedNodeServiceName::Gateway
-            | DistributedNodeServiceName::L1
-            | DistributedNodeServiceName::SierraCompiler
-            | DistributedNodeServiceName::SignatureManager => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        None
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
-    }
-
-=======
->>>>>>> origin/main-v0.14.1
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
 
@@ -926,41 +800,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
         components
     }
-<<<<<<< HEAD
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            Self::Batcher => UpdateStrategy::RollingUpdate,
-            Self::ClassManager => UpdateStrategy::Recreate,
-            Self::Committer => UpdateStrategy::RollingUpdate,
-            Self::ConsensusManager => UpdateStrategy::Recreate,
-            Self::HttpServer => UpdateStrategy::RollingUpdate,
-            Self::Gateway => UpdateStrategy::RollingUpdate,
-            Self::L1 => UpdateStrategy::RollingUpdate,
-            Self::Mempool => UpdateStrategy::Recreate,
-            Self::SierraCompiler => UpdateStrategy::RollingUpdate,
-            Self::SignatureManager => UpdateStrategy::Recreate,
-            Self::StateSync => UpdateStrategy::Recreate,
-        }
-    }
-||||||| 427336df66
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            DistributedNodeServiceName::Batcher => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::ClassManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::ConsensusManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::Mempool => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
-            DistributedNodeServiceName::SignatureManager => UpdateStrategy::Recreate,
-            DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
-        }
-    }
-=======
->>>>>>> origin/main-v0.14.1
 }
 
 fn get_committer_component_config(

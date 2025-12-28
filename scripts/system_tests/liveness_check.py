@@ -1,34 +1,19 @@
 import argparse
 import os
-<<<<<<< HEAD
 import socket
-||||||| 427336df66
-=======
 import random
->>>>>>> origin/main-v0.14.1
 import subprocess
 import sys
 import time
-<<<<<<< HEAD
 from multiprocessing import Process, Queue
 from typing import List, Union
-||||||| 427336df66
-from typing import List, Union
-=======
 from typing import Any, Dict, List, Optional, Union
->>>>>>> origin/main-v0.14.1
 
 import numbers
 import requests
-<<<<<<< HEAD
-||||||| 427336df66
-import socket
-from multiprocessing import Process, Queue
-=======
 import socket
 from config_loader import find_workspace_root, load_and_merge_configs
 from multiprocessing import Process, Queue
->>>>>>> origin/main-v0.14.1
 
 
 def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:
@@ -127,76 +112,10 @@ def run_service_check(
     port_forward_retry_delay: int = 2,
     port_wait_timeout: int = 30,
 ):
-<<<<<<< HEAD
-    try:
-        monitoring_port = get_monitoring_endpoint_port(
-            base_config_dir=config_dir,
-            relative_config_paths=config_paths,
-        )
-        local_port = monitoring_port + offset
-        print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
-
-        # Start port-forward process, capture output
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-||||||| 427336df66
-    try:
-        monitoring_port = get_monitoring_endpoint_port(
-            base_config_dir=config_dir,
-            relative_config_paths=config_paths,
-        )
-        local_port = monitoring_port + offset
-        print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
-
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-=======
     pf_process = None
     port_established = False
     local_port = monitoring_port + offset
->>>>>>> origin/main-v0.14.1
 
-<<<<<<< HEAD
-        # Check for port availability
-        print(f"[{service_name}] ⏳ Waiting for localhost:{local_port} to become available...")
-        if not wait_for_port("127.0.0.1", local_port, timeout=30):
-            # Dump last 20 lines of kubectl output for diagnosis
-            try:
-                output = pf_process.stdout.read()
-                print(
-                    f"[{service_name}] ❌ Port-forward did not establish.\n--- kubectl output ---\n{output}\n----------------------"
-                )
-            except Exception as e:
-                print(f"[{service_name}] ❌ Port-forward failed, could not read output: {e}")
-            process_queue.put((service_name, False, "Port-forward did not establish successfully."))
-            return
-
-        address = f"http://localhost:{local_port}/monitoring/alive"
-        success = check_service_alive(
-            address=address,
-            timeout=timeout,
-            interval=interval,
-            initial_delay=initial_delay,
-        )
-        if success:
-            print(f"[{service_name}] ✅ Passed for {timeout}s")
-            process_queue.put((service_name, True, "Health check passed"))
-        else:
-            print(f"[{service_name}] ❌ Failed health check")
-            process_queue.put((service_name, False, "Health check failed"))
-||||||| 427336df66
-        try:
-            if not wait_for_port("127.0.0.1", local_port, timeout=15):
-                process_queue.put((service_name, False, "Port-forward did not establish"))
-                return
-=======
     # Retry port-forward setup
     for attempt in range(1, port_forward_retries + 1):
         try:
@@ -207,27 +126,7 @@ def run_service_check(
                     pf_process.wait(timeout=2)
                 except Exception:
                     pass
->>>>>>> origin/main-v0.14.1
 
-<<<<<<< HEAD
-||||||| 427336df66
-            address = f"http://localhost:{local_port}/monitoring/alive"
-            success = check_service_alive(
-                address=address,
-                timeout=timeout,
-                interval=interval,
-                initial_delay=initial_delay,
-            )
-            if success:
-                print(f"[{service_name}] ✅ Passed for {timeout}s")
-                process_queue.put((service_name, True, "Health check passed"))
-            else:
-                print(f"[{service_name}] ❌ Failed health check")
-                process_queue.put((service_name, False, "Health check failed"))
-        finally:
-            pf_process.terminate()
-            pf_process.wait()
-=======
             print(
                 f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
             )
@@ -284,23 +183,13 @@ def run_service_check(
         else:
             print(f"[{service_name}] ❌ Failed health check")
             process_queue.put((service_name, False, "Health check failed"))
->>>>>>> origin/main-v0.14.1
     except Exception as e:
         print(f"[{service_name}] 💥 Exception during service check: {e}")
         process_queue.put((service_name, False, str(e)))
-<<<<<<< HEAD
-    finally:
-        if "pf_process" in locals():
-            print(f"[{service_name}] 🔚 Cleaning up port-forward process...")
-            pf_process.terminate()
-            pf_process.wait(timeout=5)
-||||||| 427336df66
-=======
     finally:
         if pf_process:
             pf_process.terminate()
             pf_process.wait()
->>>>>>> origin/main-v0.14.1
 
 
 def main(

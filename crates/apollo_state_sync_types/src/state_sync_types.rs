@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD
-use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-||||||| 427336df66
-use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
-=======
-use starknet_api::block::BlockHeaderWithoutHash;
->>>>>>> origin/main-v0.14.1
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 

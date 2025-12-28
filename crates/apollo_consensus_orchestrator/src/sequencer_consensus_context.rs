@@ -499,24 +499,12 @@ impl ConsensusContext for SequencerConsensusContext {
             proposals.remove_proposals_below_or_at_height(&height);
         }
 
-<<<<<<< HEAD
-        // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
-        // build a blob.
         let DecisionReachedResponse {
             state_diff,
             l2_gas_used,
             central_objects,
             block_header_commitments,
-        } = self.batcher_decision_reached(proposal_id).await;
-||||||| 427336df66
-        // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
-        // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            self.batcher_decision_reached(proposal_id).await;
-=======
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
->>>>>>> origin/main-v0.14.1
+        } = self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -617,26 +605,6 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         self.sync_add_new_block(sync_block).await;
 
-<<<<<<< HEAD
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
-||||||| 427336df66
-        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
-        // version of `execution_infos`.
-        let stripped_execution_infos =
-            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
-
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
-=======
-        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
-        // version of `execution_infos`.
-        let stripped_execution_infos =
-            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
-
->>>>>>> origin/main-v0.14.1
         let _ = self
             .deps
             .cende_ambassador

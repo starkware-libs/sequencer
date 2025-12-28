@@ -10,20 +10,10 @@ use url::Url;
 use crate::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockReference, MockBaseLayerContract, MockError};
 
-<<<<<<< HEAD
-fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Url, MockError> {
-    if num_url_calls_made.load(Ordering::Relaxed).is_multiple_of(2) {
-        Ok(Url::parse("http://first_endpoint").unwrap())
-||||||| 427336df66
-fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Url, MockError> {
-    if num_url_calls_made.load(Ordering::Relaxed) % 2 == 0 {
-        Ok(Url::parse("http://first_endpoint").unwrap())
-=======
 fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Sensitive<Url>, MockError> {
-    if num_url_calls_made.load(Ordering::Relaxed) % 2 == 0 {
+    if num_url_calls_made.load(Ordering::Relaxed).is_multiple_of(2) {
         Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
             .with_redactor(to_safe_string))
->>>>>>> origin/main-v0.14.1
     } else {
         Ok(Sensitive::new(Url::parse("http://second_endpoint").unwrap())
             .with_redactor(to_safe_string))
