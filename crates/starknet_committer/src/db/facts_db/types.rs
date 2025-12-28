@@ -1,4 +1,4 @@
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
     FactNodeDeserializationContext,
     PatriciaPrefix,
@@ -8,6 +8,8 @@ use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, Unmodifie
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
+
+use crate::block_committer::input::InputContext;
 
 #[derive(Debug, PartialEq)]
 pub struct FactsSubTree<'a> {
@@ -59,3 +61,8 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
         self.root_hash.0.to_bytes_be().to_vec()
     }
 }
+/// Used for reading the roots in facts layout case.
+#[derive(Debug, PartialEq)]
+pub struct FactsDbInitialRead(pub StateRoots);
+
+impl InputContext for FactsDbInitialRead {}
