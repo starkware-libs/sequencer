@@ -13,7 +13,6 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_STATE_MARKER,
 };
 use starknet_api::block::BlockNumber;
-use tokio::try_join;
 use tracing::info;
 
 /// Gets the latest block number from the batcher's metrics.
@@ -101,7 +100,6 @@ pub async fn await_sync_block(
 }
 
 pub async fn await_block(
-    batcher_monitoring_client: &MonitoringClient,
     state_sync_monitoring_client: &MonitoringClient,
     expected_block_number: BlockNumber,
     node_index: usize,
@@ -114,26 +112,17 @@ pub async fn await_block(
         |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
     let expected_height = expected_block_number.unchecked_next();
-    let [batcher_logger, sync_logger] = ["Batcher", "Sync"].map(|component_name| {
-        CustomLogger::new(
-            TraceLevel::Info,
-            Some(format!(
-                "Waiting for {component_name} height metric to reach block {expected_height} in \
-                 sequencer {node_index}.",
-            )),
-        )
-    });
-    // TODO(noamsp): Change this so we get both values with one metrics query.
-    try_join!(
-        await_batcher_block(5000, condition, 50, batcher_monitoring_client, batcher_logger),
-        await_sync_block(5000, condition, 50, state_sync_monitoring_client, sync_logger)
-    )
-    .unwrap_or_else(|_| {
-        panic!(
-            "Test conditions of reaching block {expected_block_number} by node {node_index}
-            haven't been met."
-        )
-    });
+    let sync_logger = CustomLogger::new(
+        TraceLevel::Info,
+        Some(format!(
+            "Waiting for sync height metric to reach block {expected_height} in sequencer \
+             {node_index}.",
+        )),
+    );
+    await_sync_block(5000, condition, 50, state_sync_monitoring_client, sync_logger).await.expect(
+        "Test conditions of reaching block {expected_block_number} by node {node_index} haven't \
+         been met.",
+    );
 }
 
 pub async fn verify_txs_accepted(

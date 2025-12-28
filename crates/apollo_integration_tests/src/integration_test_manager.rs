@@ -780,10 +780,8 @@ impl IntegrationTestManager {
     async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
         self.perform_action_on_all_running_nodes(|running_node| {
             let node_setup = &running_node.node_setup;
-            let batcher_monitoring_client = node_setup.batcher_monitoring_client();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
             await_block(
-                batcher_monitoring_client,
                 state_sync_monitoring_client,
                 expected_block_number,
                 running_node.get_node_index(),
