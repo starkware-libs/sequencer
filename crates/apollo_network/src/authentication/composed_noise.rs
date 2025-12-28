@@ -44,8 +44,6 @@ impl<T> ComposedNoiseConfig<T>
 where
     T: Negotiator + 'static,
 {
-    // TODO(noam.s): Remove this once we use the ComposedNoiseConfig in the network manager.
-    #[allow(dead_code)]
     pub fn new(
         identity: &identity::Keypair,
         negotiator: Option<T>,
