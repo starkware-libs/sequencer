@@ -218,3 +218,58 @@ impl std::fmt::Display for PeerSetError {
 }
 
 impl std::error::Error for PeerSetError {}
+
+// ****************************************************************************
+
+/// Specific errors that can occur during shard verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShardValidationError {
+    /// Publisher should not receive their own shards (they broadcast them).
+    ReceivedPublishedShard,
+    /// Shard is already in cache (duplicate).
+    DuplicateShard,
+    /// Failed to get parent in tree topology.
+    TreeError(TreeGenerationError),
+    /// Shard received from an unexpected sender.
+    UnexpectedSender {
+        /// The expected sender
+        expected_sender: PeerId,
+        /// The index of the shard that was received from the unexpected sender.
+        shard_index: ShardIndex,
+    },
+    /// Shard signature verification failed.
+    SignatureVerificationFailed(ShardSignatureVerificationError),
+    /// Shard proof verification failed.
+    ProofVerificationFailed,
+}
+
+impl std::fmt::Display for ShardValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShardValidationError::ReceivedPublishedShard => {
+                write!(f, "Publisher should not receive their own shard")
+            }
+            ShardValidationError::DuplicateShard => {
+                write!(f, "Received shard that is already in cache")
+            }
+            ShardValidationError::TreeError(e) => {
+                write!(f, "Received shard but error getting parent in tree: {}", e)
+            }
+            ShardValidationError::UnexpectedSender { expected_sender, shard_index } => {
+                write!(
+                    f,
+                    "Shard failed parent verification (expected sender = {}, shard index = {})",
+                    expected_sender, shard_index
+                )
+            }
+            ShardValidationError::SignatureVerificationFailed(e) => {
+                write!(f, "Shard failed signature verification: {}", e)
+            }
+            ShardValidationError::ProofVerificationFailed => {
+                write!(f, "Shard failed proof verification")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ShardValidationError {}
