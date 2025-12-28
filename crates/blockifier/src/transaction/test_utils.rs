@@ -33,6 +33,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     PaymasterData,
+    ProofFacts,
     Resource,
     ResourceBounds,
     TransactionSignature,
@@ -476,6 +477,7 @@ pub struct ExpectedExecutionInfo {
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub account_deployment_data: AccountDeploymentData,
+    pub proof_facts: ProofFacts,
     pub caller_address: ContractAddress,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
@@ -498,6 +500,7 @@ impl ExpectedExecutionInfo {
         sequencer_address: ContractAddress,
         resource_bounds: ValidResourceBounds,
         nonce: Nonce,
+        proof_facts: ProofFacts,
     ) -> Self {
         let mut version = Felt::THREE;
         if only_query {
@@ -515,6 +518,7 @@ impl ExpectedExecutionInfo {
             sequencer_address,
             resource_bounds,
             nonce,
+            proof_facts,
             max_fee: Fee::default(),
             transaction_hash: TransactionHash::default(),
             paymaster_data: PaymasterData::default(),
@@ -572,12 +576,18 @@ impl ExpectedExecutionInfo {
             felt!(self.block_timestamp.0),
             **self.sequencer_address,
         ];
+        let mut proof_facts: Vec<Felt> = self.proof_facts.0.to_vec();
+
+        // Cairo array ABI expects the first element to be the array length.
+        let len: u128 = proof_facts.len().try_into().expect("proof_facts length is too large");
+        proof_facts.insert(0, felt!(len));
 
         [
             expected_block_info,
             expected_tx_info,
             expected_resource_bounds,
             expected_unsupported_fields,
+            proof_facts,
             expected_call_info,
         ]
         .concat()
