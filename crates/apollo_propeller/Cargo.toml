@@ -10,6 +10,8 @@ testing = []
 
 [dependencies]
 apollo_protobuf.workspace = true
+asynchronous-codec.workspace = true
+bytes.workspace = true
 libp2p.workspace = true
 prost.workspace = true
 reed-solomon-simd.workspace = true

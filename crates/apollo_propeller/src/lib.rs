@@ -1,3 +1,4 @@
+pub mod codec;
 pub mod merkle;
 pub mod reed_solomon;
 pub mod signature;
