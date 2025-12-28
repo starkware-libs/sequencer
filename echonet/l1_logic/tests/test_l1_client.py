@@ -81,7 +81,7 @@ class TestL1Client(unittest.TestCase):
         mock_post.side_effect = [request_exception, successful_response]
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_by_number(L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_block_by_number(L1TestUtils.BLOCK_NUMBER)
 
         self.assertEqual(mock_post.call_count, 2)
         self.assertEqual(result, L1TestUtils.BLOCK_RPC_RESPONSE)
@@ -96,7 +96,7 @@ class TestL1Client(unittest.TestCase):
         mock_post.return_value = response_ok
 
         client = L1Client(api_key="api_key")
-        result = client.get_block_by_number(block_number=L1TestUtils.BLOCK_NUMBER_HEX)
+        result = client.get_block_by_number(block_number=L1TestUtils.BLOCK_NUMBER)
 
         self.assertEqual(mock_post.call_count, 1)
         self.assertEqual(result, empty_response)
@@ -109,7 +109,7 @@ class TestL1Client(unittest.TestCase):
         result = client.get_timestamp_of_block(L1TestUtils.BLOCK_NUMBER)
 
         self.assertEqual(result, L1TestUtils.BLOCK_TIMESTAMP)
-        mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER_HEX)
+        mock_get_block_by_number.assert_called_once_with(L1TestUtils.BLOCK_NUMBER)
 
     @patch.object(L1Client, "get_block_by_number")
     def test_get_timestamp_of_block_returns_none_when_block_not_found(

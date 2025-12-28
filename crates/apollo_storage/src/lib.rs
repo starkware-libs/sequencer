@@ -100,6 +100,8 @@ mod serialization;
 pub mod state;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
+/// Storage reader request and response types.
+pub mod storage_reader_types;
 mod version;
 
 mod deprecated;
@@ -193,15 +195,8 @@ pub fn open_storage(
     open_storage_internal(storage_config, None)
 }
 
-/// Same as [`open_storage`], but also updates the given metric for the number of open readers.
-pub fn open_storage_with_metric(
-    storage_config: StorageConfig,
-    open_readers_metric: &'static MetricGauge,
-) -> StorageResult<(StorageReader, StorageWriter)> {
-    open_storage_internal(storage_config, Some(open_readers_metric))
-}
-
-/// Same as [`open_storage_with_metric`], but also creates a storage reader server.
+/// Same as [`open_storage`], but also updates the given metric for the number of open readers and
+/// creates a storage reader server.
 pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
@@ -630,6 +625,14 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     ) -> StorageResult<Option<LocationInFile>> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
         Ok(state_diffs_table.get(&self.txn, &block_number)?)
+    }
+
+    /// Returns the thin state diff stored in the mmap file at the given location.
+    pub fn get_state_diff_from_location(
+        &self,
+        state_diff_location: LocationInFile,
+    ) -> StorageResult<ThinStateDiff> {
+        self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
     }
 }
 

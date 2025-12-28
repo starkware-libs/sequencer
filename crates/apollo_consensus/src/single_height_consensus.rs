@@ -261,6 +261,11 @@ impl SingleHeightConsensus {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         trace!("Received {:?}", vote);
+        let height = self.state_machine.height();
+        if vote.height != height {
+            warn!("Invalid vote height: expected {:?}, got {:?}", height, vote.height);
+            return ShcReturn::Requests(VecDeque::new());
+        }
         if !self.validators.contains(&vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
             return ShcReturn::Requests(VecDeque::new());

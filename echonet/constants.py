@@ -1,3 +1,5 @@
+ETHEREUM_AVERAGE_SECONDS_PER_BLOCK = 12
+
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs
 STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"

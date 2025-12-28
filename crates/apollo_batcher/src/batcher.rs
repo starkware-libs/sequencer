@@ -5,9 +5,6 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
-    BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -49,7 +46,7 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::storage_reader_server::StorageReaderServer;
+use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -124,11 +121,6 @@ use crate::utils::{
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
-type BatcherStorageReaderServer = StorageReaderServer<
-    BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
->;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -176,13 +168,19 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    // TODO(Nadin): Remove #[allow(dead_code)].
     /// Optional storage reader server for handling remote storage reader queries.
+    /// Kept alive to maintain the server running.
     #[allow(dead_code)]
+<<<<<<< HEAD
     storage_reader_server: Option<BatcherStorageReaderServer>,
     /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
     /// commitment manager because commitments are reverted in a blocking call.
     commitment_manager: Option<CommitmentManager>,
+||||||| 427336df66
+    storage_reader_server: Option<BatcherStorageReaderServer>,
+=======
+    storage_reader_server: Option<GenericStorageReaderServer>,
+>>>>>>> origin/main-v0.14.1
 }
 
 impl Batcher {
@@ -197,8 +195,14 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
+<<<<<<< HEAD
         storage_reader_server: Option<BatcherStorageReaderServer>,
         commitment_manager: Option<CommitmentManager>,
+||||||| 427336df66
+        storage_reader_server: Option<BatcherStorageReaderServer>,
+=======
+        storage_reader_server: Option<GenericStorageReaderServer>,
+>>>>>>> origin/main-v0.14.1
     ) -> Self {
         Self {
             config,

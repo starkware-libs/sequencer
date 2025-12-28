@@ -13,16 +13,11 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
-
-const TESTING_NODE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -46,12 +41,22 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl ServiceNameInner for ConsolidatedNodeServiceName {
+<<<<<<< HEAD
     fn get_controller(&self) -> Controller {
         match self {
             Self::Node => Controller::StatefulSet,
         }
     }
 
+||||||| 427336df66
+    fn get_controller(&self) -> Controller {
+        match self {
+            ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
+        }
+    }
+
+=======
+>>>>>>> origin/main-v0.14.1
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Node => ScalePolicy::StaticallyScaled,
@@ -62,38 +67,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match self {
             Self::Node => DEFAULT_RETRIES,
         }
-    }
-
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        true
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        Some(TESTING_NODE_STORAGE)
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
@@ -131,12 +104,22 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Self::Node => ComponentConfigInService::iter().collect(),
         }
     }
+<<<<<<< HEAD
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
             Self::Node => UpdateStrategy::RollingUpdate,
         }
     }
+||||||| 427336df66
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
+        }
+    }
+=======
+>>>>>>> origin/main-v0.14.1
 }
 
 fn get_consolidated_config() -> ComponentConfig {

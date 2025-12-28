@@ -24,6 +24,7 @@
   "components.class_manager.remote_client_config.retries": 150,
   "components.class_manager.remote_client_config.set_tcp_nodelay": true,
   "components.class_manager.remote_server_config.#is_none": true,
+<<<<<<< HEAD
   "components.class_manager.url": "sequencer-classmanager-service",
   "components.committer.execution_mode": "Disabled",
   "components.committer.local_server_config.#is_none": true,
@@ -32,6 +33,11 @@
   "components.committer.remote_client_config.#is_none": true,
   "components.committer.remote_server_config.#is_none": true,
   "components.committer.url": "localhost",
+||||||| 427336df66
+  "components.class_manager.url": "sequencer-classmanager-service",
+=======
+  "components.class_manager.url": "remote_service",
+>>>>>>> origin/main-v0.14.1
   "components.config_manager.execution_mode": "LocalExecutionWithRemoteDisabled",
   "components.config_manager.local_server_config.#is_none": false,
   "components.config_manager.local_server_config.high_priority_requests_channel_capacity": 1024,
@@ -57,7 +63,7 @@
   "components.gateway.remote_server_config.bind_ip": "0.0.0.0",
   "components.gateway.remote_server_config.max_streams_per_connection": 8,
   "components.gateway.remote_server_config.set_tcp_nodelay": true,
-  "components.gateway.url": "sequencer-gateway-service",
+  "components.gateway.url": "remote_service",
   "components.http_server.execution_mode": "Disabled",
   "components.l1_gas_price_provider.execution_mode": "Disabled",
   "components.l1_gas_price_provider.local_server_config.#is_none": true,
@@ -89,7 +95,7 @@
   "components.mempool.remote_client_config.retries": 150,
   "components.mempool.remote_client_config.set_tcp_nodelay": true,
   "components.mempool.remote_server_config.#is_none": true,
-  "components.mempool.url": "sequencer-mempool-service",
+  "components.mempool.url": "remote_service",
   "components.mempool_p2p.execution_mode": "Disabled",
   "components.mempool_p2p.local_server_config.#is_none": true,
   "components.mempool_p2p.max_concurrency": 128,
@@ -126,7 +132,7 @@
   "components.state_sync.remote_client_config.retries": 150,
   "components.state_sync.remote_client_config.set_tcp_nodelay": true,
   "components.state_sync.remote_server_config.#is_none": true,
-  "components.state_sync.url": "sequencer-statesync-service",
+  "components.state_sync.url": "remote_service",
   "config_manager_config.#is_none": false,
   "consensus_manager_config.#is_none": true,
   "gateway_config.#is_none": false,

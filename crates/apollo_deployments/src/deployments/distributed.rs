@@ -13,14 +13,11 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
@@ -155,6 +152,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
+<<<<<<< HEAD
     fn get_controller(&self) -> Controller {
         match self {
             Self::Batcher => Controller::StatefulSet,
@@ -172,6 +170,25 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+||||||| 427336df66
+    fn get_controller(&self) -> Controller {
+        match self {
+            DistributedNodeServiceName::Batcher => Controller::StatefulSet,
+            DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
+            DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
+            DistributedNodeServiceName::HttpServer => Controller::Deployment,
+            DistributedNodeServiceName::Gateway => Controller::Deployment,
+            DistributedNodeServiceName::L1 => Controller::Deployment,
+            DistributedNodeServiceName::Mempool => Controller::Deployment,
+            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
+            DistributedNodeServiceName::StateSync => Controller::StatefulSet,
+            // TODO(Nadin): Decide on controller for the SignatureManager.
+            DistributedNodeServiceName::SignatureManager => Controller::StatefulSet,
+        }
+    }
+
+=======
+>>>>>>> origin/main-v0.14.1
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Batcher
@@ -203,6 +220,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+<<<<<<< HEAD
     fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
         None
     }
@@ -245,6 +263,52 @@ impl ServiceNameInner for DistributedNodeServiceName {
         false
     }
 
+||||||| 427336df66
+    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
+        None
+    }
+
+    fn get_ingress(
+        &self,
+        _environment: &Environment,
+        _ingress_params: IngressParams,
+    ) -> Option<Ingress> {
+        None
+    }
+
+    fn has_p2p_interface(&self) -> bool {
+        match self {
+            DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync => true,
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::Gateway
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::SierraCompiler
+            | DistributedNodeServiceName::SignatureManager => false,
+        }
+    }
+
+    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
+        None
+    }
+
+    fn get_resources(&self, _environment: &Environment) -> Resources {
+        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+    }
+
+    fn get_replicas(&self, _environment: &Environment) -> usize {
+        1
+    }
+
+    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
+        false
+    }
+
+=======
+>>>>>>> origin/main-v0.14.1
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
 
@@ -862,6 +926,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
         components
     }
+<<<<<<< HEAD
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
@@ -878,6 +943,24 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::StateSync => UpdateStrategy::Recreate,
         }
     }
+||||||| 427336df66
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            DistributedNodeServiceName::Batcher => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::ClassManager => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::ConsensusManager => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::Mempool => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::SignatureManager => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
+        }
+    }
+=======
+>>>>>>> origin/main-v0.14.1
 }
 
 fn get_committer_component_config(

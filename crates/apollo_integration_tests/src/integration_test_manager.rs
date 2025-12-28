@@ -43,7 +43,7 @@ use tokio::time::{sleep, Instant};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
-use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
+use crate::executable_setup::{ExecutableSetup, NodeExecutableId};
 use crate::monitoring_utils::{
     assert_no_reverted_txs,
     await_batcher_block,
@@ -222,7 +222,7 @@ impl NodeSetup {
         let executable_setup = self.get_executable_by_service(service);
         spawn_run_node(
             vec![executable_setup.node_config_path.clone()],
-            executable_setup.node_execution_id.into(),
+            executable_setup.node_executable_id.clone().into(),
         )
     }
 
@@ -235,7 +235,7 @@ impl NodeSetup {
                     *service,
                     spawn_run_node(
                         vec![executable.node_config_path.clone()],
-                        executable.node_execution_id.into(),
+                        executable.node_executable_id.clone().into(),
                     ),
                 )
             })
@@ -246,18 +246,19 @@ impl NodeSetup {
     pub fn get_node_index(&self) -> Option<usize> {
         self.get_executables()
             .next()
-            .map(|executable| executable.node_execution_id.get_node_index())
+            .map(|executable| executable.node_executable_id.get_node_index())
     }
 
     pub fn get_l1_gas_price_scraper_config(&self) -> L1GasPriceScraperConfig {
-        for executable_setup in self.get_executables() {
-            if let Some(l1_gas_price_scraper_config) =
-                &executable_setup.get_config().l1_gas_price_scraper_config
-            {
-                return l1_gas_price_scraper_config.clone();
-            }
-        }
-        unreachable!("No executable with a set l1 gas price scraper config.")
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::L1GasPriceScraper,
+        )
+        .get_config()
+        .l1_gas_price_scraper_config
+        .clone()
+        .expect("No executable with a set l1 gas price scraper config.")
     }
 }
 
@@ -272,7 +273,7 @@ impl RunningNode {
         let await_alive_tasks = self.node_setup.get_executables().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
-                panic!("Executable {:?} should be alive.", executable.node_execution_id)
+                panic!("Executable {:?} should be alive.", executable.node_executable_id)
             })
         });
 
@@ -440,7 +441,7 @@ impl IntegrationTestManager {
                 .get_mut(&node_index)
                 .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
             node_setup.get_executables_mut().for_each(|executable| {
-                info!("Modifying {} config.", executable.node_execution_id);
+                info!("Modifying {} config.", executable.node_executable_id);
                 executable.modify_config(modify_config_fn);
             });
         });
@@ -461,7 +462,7 @@ impl IntegrationTestManager {
                 .get_mut(&node_index)
                 .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
             node_setup.get_executables_mut().for_each(|executable| {
-                info!("Modifying {} config pointers.", executable.node_execution_id);
+                info!("Modifying {} config pointers.", executable.node_executable_id);
                 executable.modify_config_pointers(modify_config_pointers_fn);
             });
         });
@@ -608,24 +609,22 @@ impl IntegrationTestManager {
             .map(|node| &(node.node_setup))
             .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
-        for executable_setup in node_0_setup.get_executables() {
-            if let Some(http_server_config) = &executable_setup.get_config().http_server_config {
-                let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
-                let monitoring_port = executable_setup
-                    .get_config()
-                    .monitoring_endpoint_config
-                    .as_ref()
-                    .expect("Should have a monitoring endpoint config")
-                    .port;
-                return SequencerSimulator::new(
-                    &localhost_url,
-                    http_server_config.port,
-                    &localhost_url,
-                    monitoring_port,
-                );
-            }
-        }
-        unreachable!("No executable with a set http server.")
+        let http_server = node_0_setup.get_http_server();
+        let http_server_port = http_server
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .expect("No executable with a set http server.")
+            .port;
+        let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
+        let monitoring_port = http_server
+            .get_config()
+            .monitoring_endpoint_config
+            .as_ref()
+            .expect("Should have a monitoring endpoint config")
+            .port;
+
+        SequencerSimulator::new(&localhost_url, http_server_port, &localhost_url, monitoring_port)
     }
 
     #[instrument(skip(self))]
@@ -883,31 +882,31 @@ impl IntegrationTestManager {
             .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
             .expect("There should be at least one running or idle node");
 
-        for executable_setup in node_setup.get_executables() {
-            if let Some(batcher_config) = &executable_setup.get_config().batcher_config {
-                return batcher_config.block_builder_config.chain_info.chain_id.clone();
-            }
-        }
-        unreachable!("No executable with a set batcher.")
+        node_setup
+            .get_batcher()
+            .get_config()
+            .batcher_config
+            .as_ref()
+            .expect("No executable with a set batcher.")
+            .block_builder_config
+            .chain_info
+            .chain_id
+            .clone()
     }
 
     /// This function returns the number of accepted transactions on the running nodes specified by
     /// the given node indices.
     /// It queries the state sync monitoring client to get the latest value of the processed txs
     /// metric.
-    // TODO(noamsp): await on multiple nodes instead of a loop.
     pub async fn get_num_accepted_txs_on_running_nodes(
         &self,
         node_indices: &HashSet<usize>,
     ) -> HashMap<usize, usize> {
-        let mut result = HashMap::new();
-        for node_idx in node_indices {
-            let running_node = self.running_nodes.get(node_idx).expect("Running node should exist");
+        self.perform_action_on_running_nodes(node_indices.clone(), |running_node| async {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            let num_accepted = sequencer_num_accepted_txs(monitoring_client).await;
-            result.insert(*node_idx, num_accepted);
-        }
-        result
+            sequencer_num_accepted_txs(monitoring_client).await
+        })
+        .await
     }
 
     /// This function returns the number of accepted transactions on all running nodes.
@@ -1168,13 +1167,16 @@ async fn get_sequencer_setup_configs(
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
 
-            let node_execution_id = NodeExecutionId::new(node_index);
+            let node_executable_id = NodeExecutableId::new(
+                node_index,
+                format!("{node_service:?}").to_lowercase().replace(['('], "_").replace([')'], ""),
+            );
             let exec_config_path =
-                custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
+                custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_executable_id));
 
             executables.insert(
                 node_service,
-                ExecutableSetup::new(base_app_config, node_execution_id, exec_config_path).await,
+                ExecutableSetup::new(base_app_config, node_executable_id, exec_config_path).await,
             );
         }
 

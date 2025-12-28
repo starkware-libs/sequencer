@@ -1,0 +1,378 @@
+# Common configuration with all CDK8s constructs enabled
+# This overlay demonstrates all available Kubernetes constructs
+
+imagePullSecrets: []
+
+metaLabels:
+  app: sequencer
+  overlay: all-constructs
+
+image:
+  repository: ghcr.io/starkware-libs/sequencer/sequencer
+  tag: dev
+  digest: ''
+  imagePullPolicy: IfNotPresent
+
+config:
+  configList: deployments/sequencer/test/app_configs/sequencer/replacer_deployment_common.json
+  sequencerConfig:
+    components_fake_field: "overridden in common.yaml"
+
+service:
+  enabled: true
+  type: "ClusterIP"
+  ports:
+  - name: monitoring-endpoint
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8082"
+  labels:
+    service-type: "monitoring"
+  sessionAffinity: "ClientIP"
+  loadBalancerSourceRanges: []
+  externalIPs: []
+
+# Ingress Configuration - Enabled
+ingress:
+  enabled: true
+  ingressClassName: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - "sequencer-test.local"
+  path: "/"
+  pathType: "Prefix"
+  extraPaths: []
+  alternative_names: []
+  rules: []
+  tls:
+    - secretName: "sequencer-tls"
+      hosts:
+        - "sequencer-test.local"
+
+# Secret Configuration - Enabled
+secret:
+  enabled: true
+  name: null
+  type: "Opaque"
+  file: "crates/apollo_deployments/resources/testing_secrets.json"
+  data: {}
+  stringData: {}
+  annotations:
+    secret-type: "testing"
+  labels:
+    secret-category: "app-secrets"
+  immutable: false
+  mountPath: null
+  readOnly: true
+
+# ExternalSecret Configuration - Enabled
+externalSecret:
+  enabled: true
+  secretStore:
+    name: "external-secrets-store"
+    kind: "ClusterSecretStore"
+    provider: "gcp"
+  refreshInterval: "1m"
+  targetName: null
+  data:
+    - secretKey: "external-secret.json"
+      remoteRef:
+        key: "sequencer/secrets"
+        property: null
+        version: null
+        decoding_strategy: null
+  deletionPolicy: "Retain"
+  mountPath: null
+  readOnly: true
+  template: null
+  metadata: null
+
+# ServiceAccount Configuration - Enabled
+serviceAccount:
+  enabled: true
+  name: null
+  annotations:
+    iam.gke.io/gcp-service-account: "sequencer-test@project.iam.gserviceaccount.com"
+  labels:
+    service-account-type: "workload"
+  automountServiceAccountToken: true
+  imagePullSecrets: []
+  secrets: []
+
+# RBAC Configuration - Enabled
+rbac:
+  enabled: true
+  type: "Role"
+  roleName: null
+  roleBindingName: null
+  roleRef: null
+  annotations:
+    rbac-type: "namespaced"
+  labels:
+    rbac-scope: "namespace"
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "configmaps"]
+      verbs: ["get", "list", "watch"]
+  subjects:
+    - kind: "ServiceAccount"
+      name: "sequencer-core"
+      namespace: "default"
+
+# HPA Configuration - Enabled
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  scaleUpStabilizationWindowSeconds: 0
+  scaleDownStabilizationWindowSeconds: 300
+  metrics: []
+  behavior: null
+  scaleUpPolicies: []
+  scaleDownPolicies: []
+
+# PodDisruptionBudget Configuration - Enabled
+podDisruptionBudget:
+  enabled: true
+  name: null
+  annotations:
+    pdb-type: "availability"
+  labels:
+    pdb-scope: "service"
+  selector:
+    matchLabels: {}
+    matchExpressions: []
+  minAvailable: 1
+  maxUnavailable: null
+  unhealthyPodEvictionPolicy: "IfHealthyBudget"
+
+# NetworkPolicy Configuration - Enabled
+networkPolicy:
+  enabled: true
+  name: null
+  annotations:
+    network-policy-type: "default-deny"
+  labels:
+    network-policy-scope: "namespace"
+  podSelector:
+    matchLabels:
+      app: sequencer
+    matchExpressions: []
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: sequencer
+      ports:
+        - protocol: TCP
+          port: 8082
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: sequencer
+      ports:
+        - protocol: TCP
+          port: 8082
+
+# PriorityClass Configuration - Enabled
+priorityClass:
+  enabled: true
+  existingPriorityClass: null
+  value: 1000
+  globalDefault: false
+  description: "Priority class for sequencer services"
+  preemptionPolicy: "PreemptLowerPriority"
+  annotations:
+    priority-class-type: "high-priority"
+  labels:
+    priority-level: "high"
+
+# GCP PodMonitoring Configuration - Enabled
+gcpPodMonitoring:
+  enabled: true
+  name: null
+  annotations:
+    monitoring-type: "prometheus"
+  labels:
+    monitoring-scope: "application"
+  spec:
+    selector:
+      matchLabels:
+        app: sequencer
+      matchExpressions: []
+    endpoints:
+      - port: 8082
+        path: "/monitoring/metrics"
+        interval: "10s"
+        timeout: "5s"
+        scheme: "http"
+        params: null
+        proxyUrl: null
+        metricRelabeling: []
+        authorization: null
+        basicAuth: null
+        oauth2: null
+        tls: null
+    filterRunning: true
+    limits: null
+    targetLabels: null
+
+# GCP BackendConfig Configuration - Enabled
+gcpBackendConfig:
+  enabled: true
+  customRequestHeaders:
+    - "X-Forwarded-Proto: https"
+  connectionDrainingTimeoutSeconds: 60
+  securityPolicy: null
+  timeOutSeconds: 30
+  healthCheck:
+    port: 8082
+    requestPath: "/monitoring/alive"
+    checkIntervalSeconds: 10
+    timeoutSeconds: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+
+# PersistentVolume Configuration - Enabled
+persistentVolume:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  mountPath: "/data"
+  size: "10Gi"
+  storageClass: ""
+  volumeMode: "Filesystem"
+  readOnly: false
+  existingClaim: null
+  volumeName: null
+  annotations:
+    volume-type: "persistent"
+  labels:
+    volume-category: "application-data"
+
+# Container Configuration
+terminationGracePeriodSeconds: 30
+command: []
+args: []
+dnsPolicy: "ClusterFirst"
+
+env:
+- name: RUST_LOG
+  value: debug
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'
+
+startupProbe:
+  enabled: true
+  probeScheme: null
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+readinessProbe:
+  enabled: true
+  probeScheme: null
+  path: /monitoring/ready
+  successThreshold: 2
+  failureThreshold: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+livenessProbe:
+  enabled: true
+  probeScheme: null
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+  runAsGroup: 1000
+  fsGroup: 1000
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8082"
+  prometheus.io/path: "/monitoring/metrics"
+
+podLabels:
+  workload-type: "application"
+  monitoring-enabled: "true"
+
+configMapAnnotations:
+  config-type: "application"
+
+deploymentAnnotations:
+  deployment-strategy: "rolling-update"
+
+nodeSelector:
+  workload-type: "compute"
+
+tolerations:
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferred:
+      - weight: 100
+        matchExpressions:
+          - key: "topology.kubernetes.io/zone"
+            operator: "In"
+            values: ["us-west1-a"]
+        matchFields: []
+    required: []
+  podAffinity:
+    preferred:
+      - weight: 100
+        topologyKey: "topology.kubernetes.io/zone"
+        labelSelector:
+          matchLabels:
+            app: sequencer
+        namespaceSelector: {}
+    required: []
+
+podAntiAffinity:
+  enabled: true
+  preferred:
+    - weight: 100
+      topologyKey: "kubernetes.io/hostname"
+      labelSelector:
+        matchLabels:
+          app: sequencer
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: "topology.kubernetes.io/zone"
+    whenUnsatisfiable: "DoNotSchedule"
+    labelSelector:
+      matchLabels:
+        app: sequencer

@@ -1,0 +1,47 @@
+# Gateway service configuration with all constructs enabled
+name: gateway
+
+# StatefulSet disabled (gateway uses Deployment by default)
+statefulSet:
+  enabled: false
+
+# UpdateStrategy for Deployment
+updateStrategy:
+  type: "RollingUpdate"
+  rollingUpdate:
+    maxUnavailable: "25%"
+
+# Service with ports
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: gateway
+      port: 55002
+      targetPort: 55002
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# Ingress enabled for gateway
+ingress:
+  enabled: true
+  ingressClassName: "nginx"
+  hosts:
+    - "gateway.sequencer-test.local"
+  path: "/"
+  pathType: "Prefix"
+
+# Extra Services example
+extraServices:
+  - name: gateway-external
+    type: "LoadBalancer"
+    ports:
+      - name: gateway
+        port: 55002
+        targetPort: 55002
+        protocol: TCP
+    annotations:
+      cloud.google.com/load-balancer-type: "Internal"

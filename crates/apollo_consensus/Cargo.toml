@@ -10,6 +10,7 @@ description = "Reach consensus for Starknet"
 testing = ["mockall", "tempfile"]
 
 [dependencies]
+apollo_batcher_types.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
 apollo_infra_utils.workspace = true

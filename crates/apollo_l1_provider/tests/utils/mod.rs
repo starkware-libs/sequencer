@@ -43,12 +43,13 @@ use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::channel;
 use tokio::time::Instant;
 
+pub(crate) const ROUND_TO_SEC_MARGIN_DURATION: Duration = Duration::from_secs(1);
 pub(crate) const POLLING_INTERVAL_DURATION: Duration = Duration::from_secs(10);
 pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_secs(30);
 pub(crate) const TIMELOCK_DURATION: Duration = Duration::from_secs(30);
 pub(crate) const WAIT_FOR_ASYNC_PROCESSING_DURATION: Duration = Duration::from_millis(50);
 const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
-const CHAIN_ID: ChainId = ChainId::Mainnet;
+pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 pub(crate) const L1_CONTRACT_ADDRESS: u64 = 1;
 pub(crate) const L2_ENTRY_POINT: u64 = 34;
 pub(crate) const CALL_DATA: &[u8] = &[1_u8, 2_u8];
@@ -81,6 +82,7 @@ pub(crate) async fn setup_scraper_and_provider<
     E: Error + Send + Sync + Debug + 'static,
 >(
     base_layer: T,
+    l1_scraper_config: Option<L1ScraperConfig>,
 ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
     let fake_clock = Arc::new(TokioLinkedClock::new());
 
@@ -122,11 +124,11 @@ pub(crate) async fn setup_scraper_and_provider<
     });
 
     // Set up the L1 scraper and run it as a server.
-    let l1_scraper_config = L1ScraperConfig {
+    let l1_scraper_config = l1_scraper_config.unwrap_or_else(|| L1ScraperConfig {
         polling_interval_seconds: POLLING_INTERVAL_DURATION,
         chain_id: CHAIN_ID,
         ..Default::default()
-    };
+    });
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client.clone()),

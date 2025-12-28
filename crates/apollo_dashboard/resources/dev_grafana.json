@@ -1102,8 +1102,8 @@
           "description": "Server-side compilation of Sierra to Casm duration",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))",
+            "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))"
           ],
           "extra_params": {
             "unit": "s"
@@ -1123,8 +1123,8 @@
           "description": "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))",
+            "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))"
           ],
           "extra_params": {
             "unit": "decmbytes",

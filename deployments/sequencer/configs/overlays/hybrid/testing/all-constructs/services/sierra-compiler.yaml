@@ -1,0 +1,36 @@
+# Sierra Compiler service configuration with all constructs enabled
+name: sierracompiler
+
+# StatefulSet disabled (sierra-compiler uses Deployment by default)
+statefulSet:
+  enabled: false
+
+# Service with ports
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: sierra-compiler
+      port: 55007
+      targetPort: 55007
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# Ingress enabled for sierra-compiler
+ingress:
+  enabled: true
+  ingressClassName: "nginx"
+  hosts:
+    - "sierra-compiler.sequencer-test.local"
+  path: "/"
+  pathType: "Prefix"
+
+# HPA enabled for sierra-compiler (stateless, can scale)
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 80

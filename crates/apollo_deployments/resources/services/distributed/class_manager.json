@@ -23,6 +23,7 @@
   "components.class_manager.remote_server_config.bind_ip": "0.0.0.0",
   "components.class_manager.remote_server_config.max_streams_per_connection": 8,
   "components.class_manager.remote_server_config.set_tcp_nodelay": true,
+<<<<<<< HEAD
   "components.class_manager.url": "sequencer-classmanager-service",
   "components.committer.execution_mode": "Disabled",
   "components.committer.local_server_config.#is_none": true,
@@ -31,6 +32,11 @@
   "components.committer.remote_client_config.#is_none": true,
   "components.committer.remote_server_config.#is_none": true,
   "components.committer.url": "localhost",
+||||||| 427336df66
+  "components.class_manager.url": "sequencer-classmanager-service",
+=======
+  "components.class_manager.url": "remote_service",
+>>>>>>> origin/main-v0.14.1
   "components.config_manager.execution_mode": "LocalExecutionWithRemoteDisabled",
   "components.config_manager.local_server_config.#is_none": false,
   "components.config_manager.local_server_config.high_priority_requests_channel_capacity": 1024,
@@ -96,7 +102,7 @@
   "components.sierra_compiler.remote_client_config.retries": 150,
   "components.sierra_compiler.remote_client_config.set_tcp_nodelay": true,
   "components.sierra_compiler.remote_server_config.#is_none": true,
-  "components.sierra_compiler.url": "sequencer-sierracompiler-service",
+  "components.sierra_compiler.url": "remote_service",
   "components.signature_manager.execution_mode": "Disabled",
   "components.signature_manager.local_server_config.#is_none": true,
   "components.signature_manager.max_concurrency": 128,

@@ -1,6 +1,3 @@
-use std::fmt::{Display, Formatter, Result};
-use std::path::PathBuf;
-
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
@@ -25,33 +22,8 @@ const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
-pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Environment {
-    #[serde(rename = "local_k8s")]
-    LocalK8s,
-}
-
-impl Display for Environment {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            Environment::LocalK8s => write!(f, "testing"),
-        }
-    }
-}
-
-impl Environment {
-    pub fn env_dir_path(&self) -> PathBuf {
-        let env_str = match self {
-            Environment::LocalK8s => "testing".to_string(),
-        };
-        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(env_str)
-    }
-}
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct StateSyncConfig {

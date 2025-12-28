@@ -24,6 +24,7 @@ fn run_panics_when_network_future_returns() {
         new_block_dev_null_future,
         rpc_server_future,
         register_metrics_future,
+        storage_reader_server: None,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -47,6 +48,7 @@ fn run_panics_when_network_future_returns_error() {
         new_block_dev_null_future,
         rpc_server_future,
         register_metrics_future,
+        storage_reader_server: None,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -69,6 +71,7 @@ fn run_panics_when_sync_client_future_returns_error() {
         new_block_dev_null_future,
         rpc_server_future,
         register_metrics_future,
+        storage_reader_server: None,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
