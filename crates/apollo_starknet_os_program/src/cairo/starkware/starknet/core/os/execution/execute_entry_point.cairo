@@ -196,7 +196,7 @@ func execute_entry_point{
     let (local os_context: felt*) = alloc();
     let (local syscall_ptr: felt*) = alloc();
 
-    %{ syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr) %}
+    %{ SetSyscallPtr %}
     assert [os_context] = cast(syscall_ptr, felt);
 
     if (nondet %{ ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET %} != FALSE) {
