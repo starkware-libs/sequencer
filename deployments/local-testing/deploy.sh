@@ -27,6 +27,11 @@ SEQUENCER_OVERLAY="hybrid.testing.node-0"
 ANVIL_NAMESPACE="${NAMESPACE}"  # Use same namespace as sequencer
 ANVIL_PORT="8545"
 
+# Flags (can be set via command line)
+SKIP_DOCKER_BUILD=false
+SKIP_INSTALL_MONITORING=false
+SKIP_BUILD_RUST_BINARIES=false
+
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEQUENCER_ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -165,12 +170,15 @@ check_prerequisites() {
     
     # Check all required tools
     for cmd in docker k3d kubectl helm cargo rustc pipenv cdk8s python3 curl; do
+        printf "\r${GREEN}[INFO]${NC} Checking: %-10s" "$cmd"
         if ! command -v "$cmd" &> /dev/null; then
+            printf "\n"
             log_error "✗ $cmd is not installed"
             missing_tools+=("$cmd")
             missing=1
         else
             # Show version for some tools
+            printf "\n"
             case "$cmd" in
                 docker)
                     local version=$(docker --version 2>/dev/null | head -1)
@@ -202,6 +210,7 @@ check_prerequisites() {
             esac
         fi
     done
+    printf "\n"
     
     if [ "$missing" -eq 1 ]; then
         log_error ""
@@ -256,6 +265,7 @@ build_binaries() {
     cd "${SEQUENCER_ROOT_DIR}"
     
     # Build sequencer_node_setup and sequencer_simulator
+    # Note: Python script sequencer_simulator.py calls the Rust sequencer_simulator binary
     cargo build --bin sequencer_node_setup --bin sequencer_simulator || {
         log_error "Failed to build binaries"
         exit 1
@@ -390,11 +400,11 @@ build_images() {
     fi
     
     # Build images
+    # Note: sequencer-simulator Docker image is NOT needed - simulator runs as Python script locally
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
         "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
-        "sequencer-simulator:deployments/images/sequencer/simulator.Dockerfile"
     )
     
     for image_spec in "${images[@]}"; do
@@ -417,6 +427,51 @@ build_images() {
     done
     
     log_info "All images built and pushed"
+}
+
+# Rollout restart all deployments and statefulsets to pick up new images
+rollout_restart_all() {
+    verify_k3d_cluster
+    log_info "Restarting all deployments and statefulsets to pick up new images..."
+    
+    # Restart all deployments
+    local deployments=$(kubectl get deployments -n "${NAMESPACE}" -o name 2>/dev/null || echo "")
+    if [ -n "$deployments" ]; then
+        log_info "Restarting deployments..."
+        kubectl rollout restart deployments -n "${NAMESPACE}"
+    fi
+    
+    # Restart all statefulsets
+    local statefulsets=$(kubectl get statefulsets -n "${NAMESPACE}" -o name 2>/dev/null || echo "")
+    if [ -n "$statefulsets" ]; then
+        log_info "Restarting statefulsets..."
+        kubectl rollout restart statefulsets -n "${NAMESPACE}"
+    fi
+    
+    # Wait for rollouts to complete
+    log_info "Waiting for rollouts to complete..."
+    kubectl rollout status deployments -n "${NAMESPACE}" --timeout=300s 2>/dev/null || true
+    kubectl rollout status statefulsets -n "${NAMESPACE}" --timeout=300s 2>/dev/null || true
+    
+    log_info "All workloads restarted ✓"
+}
+
+# Prompt user to deploy after build
+prompt_deploy_after_build() {
+    echo ""
+    log_info "════════════════════════════════════════════════════════════"
+    log_info "  Images built successfully!"
+    log_info "════════════════════════════════════════════════════════════"
+    echo ""
+    read -p "$(echo -e ${YELLOW}[PROMPT]${NC}) Deploy new images to the cluster? (restart all pods) [y/N]: " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rollout_restart_all
+    else
+        log_info "Skipped deployment. To deploy later, run:"
+        log_info "  kubectl rollout restart deployments -n ${NAMESPACE}"
+        log_info "  kubectl rollout restart statefulsets -n ${NAMESPACE}"
+    fi
 }
 
 # Create k3d cluster
@@ -486,15 +541,15 @@ install_monitoring() {
     }
     
     # Wait for pods to be ready manually (more reliable than Helm's --wait for LoadBalancer)
-    log_info "Waiting for monitoring pods to be ready (timeout: 120s)..."
     local max_wait=180
     local waited=0
+    log_info "Waiting for monitoring pods to be ready (timeout: ${max_wait}s)..."
     while [ $waited -lt $max_wait ]; do
         local grafana_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
         local prometheus_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
         
         # Show progress with elapsed time and status
-        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds | Grafana: %-10s | Prometheus: %-10s" "$waited" "${grafana_ready:-Pending}" "${prometheus_ready:-Pending}"
+        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%3ds | Grafana: %-10s | Prometheus: %-10s" "$waited" "$max_wait" "${grafana_ready:-Pending}" "${prometheus_ready:-Pending}"
         
         if [ "$grafana_ready" = "Running" ] && [ "$prometheus_ready" = "Running" ]; then
             printf "\n"
@@ -636,6 +691,235 @@ extract_anvil_addresses() {
     
     export SENDER_ADDRESS
     export RECEIVER_ADDRESS
+}
+
+# Rerun simulator test with fresh state
+# Wipes PVC data, regenerates state, copies to pod, runs simulator
+rerun_simulator() {
+    verify_k3d_cluster
+    log_info "Resetting sequencer state and running simulator test..."
+    
+    # Determine which service to target based on layout
+    local service_label
+    local sts_name
+    if [ "$SEQUENCER_LAYOUT" == "hybrid" ]; then
+        service_label="service=sequencer-core"
+    else
+        service_label="app=sequencer"
+    fi
+    
+    # Find the StatefulSet name
+    sts_name=$(kubectl get statefulsets -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    
+    if [ -z "$sts_name" ]; then
+        # Try to find by common naming pattern
+        sts_name=$(kubectl get statefulsets -n "${NAMESPACE}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$sts_name" ]; then
+        log_error "No StatefulSet found in namespace ${NAMESPACE}"
+        exit 1
+    fi
+    
+    log_info "Found StatefulSet: ${sts_name}"
+    
+    # Step 1: Scale down StatefulSet to 0 (stops pod without recreation)
+    log_info "Scaling down StatefulSet to 0 replicas..."
+    kubectl scale statefulset -n "${NAMESPACE}" "${sts_name}" --replicas=0
+    
+    # Wait for pod to terminate
+    log_info "Waiting for pod to terminate..."
+    local max_wait=60
+    local waited=0
+    while [ $waited -lt $max_wait ]; do
+        local pod_count=$(kubectl get pods -n "${NAMESPACE}" -l "${service_label}" --no-headers 2>/dev/null | wc -l)
+        if [ "$pod_count" -eq 0 ]; then
+            log_info "Pod terminated successfully"
+            break
+        fi
+        printf "\r${GREEN}[INFO]${NC} Waiting for pod termination... %ds/%ds" "$waited" "$max_wait"
+        sleep 2
+        waited=$((waited + 2))
+    done
+    echo ""  # New line after progress
+    
+    # Step 2: Delete sequencer PVC (now safe since no pod is using it)
+    # StatefulSet PVCs follow pattern: <volumeClaimTemplateName>-<statefulsetName>-<ordinal>
+    log_info "Wiping sequencer PVC data..."
+    local pvc_name=""
+    
+    # Try to find PVC by label first
+    pvc_name=$(kubectl get pvc -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    
+    # If not found by label, try common naming patterns for the StatefulSet
+    if [ -z "$pvc_name" ]; then
+        # Common patterns: data-<sts>-0, <sts>-data-0, sequencer-core-data
+        for pattern in "data-${sts_name}-0" "${sts_name}-data" "sequencer-core-data"; do
+            if kubectl get pvc -n "${NAMESPACE}" "${pattern}" &>/dev/null; then
+                pvc_name="${pattern}"
+                break
+            fi
+        done
+    fi
+    
+    if [ -n "$pvc_name" ]; then
+        log_info "Deleting PVC: ${pvc_name}"
+        kubectl delete pvc -n "${NAMESPACE}" "${pvc_name}" --wait=true || true
+        log_info "PVC ${pvc_name} deleted"
+    else
+        log_warn "No sequencer PVC found to delete"
+        # List available PVCs for debugging
+        log_info "Available PVCs in namespace:"
+        kubectl get pvc -n "${NAMESPACE}" -o custom-columns=NAME:.metadata.name,STATUS:.status.phase 2>/dev/null || true
+    fi
+    
+    # Step 3: Regenerate state
+    log_info "Regenerating state..."
+    generate_state
+    
+    # Step 4: Reapply the sequencer manifests (this recreates the PVC and scales up)
+    log_info "Reapplying sequencer manifests..."
+    local sequencer_manifest_dir="${SCRIPT_DIR}/manifests/sequencer"
+    kubectl apply -R -f "$sequencer_manifest_dir" || {
+        log_error "Failed to reapply sequencer manifests"
+        exit 1
+    }
+    
+    # Step 5: Ensure StatefulSet is scaled back to 1
+    log_info "Scaling StatefulSet back to 1 replica..."
+    kubectl scale statefulset -n "${NAMESPACE}" "${sts_name}" --replicas=1
+    
+    # Step 6: Wait for pod and copy state
+    log_info "Waiting for new pod and copying state..."
+    wait_and_copy_state
+    
+    # Step 7: Extract Anvil addresses and run simulator
+    log_info "Running simulator test..."
+    extract_anvil_addresses || {
+        log_error "Could not extract Anvil addresses"
+        exit 1
+    }
+    run_simulator
+    
+    log_info "Reset and test complete ✓"
+}
+
+# Prepare box for Vagrant packaging
+# Builds Docker images and Rust binaries to warm caches, then cleans up for smaller box size
+prepare_box() {
+    log_info "════════════════════════════════════════════════════════════"
+    log_info "  Preparing VM for Vagrant box packaging"
+    log_info "════════════════════════════════════════════════════════════"
+    
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+    
+    # Step 1: Build Docker images (cache layers locally)
+    log_info ""
+    log_info "Step 1/4: Building Docker images to cache layers..."
+    log_info "─────────────────────────────────────────────────────────────"
+    
+    local images=(
+        "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
+        "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
+        "sequencer:deployments/images/sequencer/Dockerfile"
+    )
+    
+    for image_spec in "${images[@]}"; do
+        IFS=':' read -r image_name dockerfile_path <<< "$image_spec"
+        log_info "Building ${image_name}..."
+        
+        local build_args=""
+        if [ "$image_name" == "sequencer" ]; then
+            build_args="--build-arg BUILD_MODE=debug"
+        fi
+        
+        # Build locally only (no push, no registry needed)
+        docker build \
+            $build_args \
+            -f "${SEQUENCER_ROOT_DIR}/${dockerfile_path}" \
+            -t "${image_name}:local" \
+            "${SEQUENCER_ROOT_DIR}" || {
+            log_warn "Failed to build ${image_name}, continuing..."
+        }
+    done
+    log_info "Docker images built ✓"
+    
+    # Step 2: Build Rust binaries (warm cargo cache)
+    log_info ""
+    log_info "Step 2/4: Building Rust binaries to warm cargo cache..."
+    log_info "─────────────────────────────────────────────────────────────"
+    
+    cd "${SEQUENCER_ROOT_DIR}"
+    cargo build --release --bin sequencer_node || log_warn "sequencer_node build failed"
+    cargo build --release --bin sequencer_node_setup || log_warn "sequencer_node_setup build failed"
+    cargo build --release --bin sequencer_simulator || log_warn "sequencer_simulator build failed"
+    cd "${SCRIPT_DIR}"
+    log_info "Rust binaries built ✓"
+    
+    # Step 3: Clean up caches and logs
+    log_info ""
+    log_info "Step 3/4: Cleaning up unnecessary files..."
+    log_info "─────────────────────────────────────────────────────────────"
+    
+    # Clean apt cache
+    log_info "Cleaning apt cache..."
+    sudo apt-get clean
+    sudo apt-get autoremove -y
+    
+    # Clean old logs
+    log_info "Cleaning logs..."
+    sudo journalctl --vacuum-time=1d 2>/dev/null || true
+    sudo rm -rf /var/log/*.gz /var/log/*.1 /var/log/*.old 2>/dev/null || true
+    
+    # Clean npm cache if exists
+    rm -rf ~/.npm/_cacache/ 2>/dev/null || true
+    
+    # Keep Rust target directory (contains built binaries)
+    # Only clean incremental build cache to save space
+    log_info "Cleaning Rust incremental build cache (keeping binaries)..."
+    rm -rf "${SEQUENCER_ROOT_DIR}/target/release/incremental/" 2>/dev/null || true
+    rm -rf "${SEQUENCER_ROOT_DIR}/target/debug/incremental/" 2>/dev/null || true
+    rm -rf "${SEQUENCER_ROOT_DIR}/target/release/.fingerprint/" 2>/dev/null || true
+    rm -rf "${SEQUENCER_ROOT_DIR}/target/debug/.fingerprint/" 2>/dev/null || true
+    
+    # Keep cargo registry index but remove extracted crate cache
+    rm -rf ~/.cargo/registry/cache/ 2>/dev/null || true
+    
+    # Clean pipenv cache
+    rm -rf ~/.cache/pipenv/ 2>/dev/null || true
+    
+    log_info "Cleanup complete ✓"
+    
+    # Step 4: Zero free space for better compression
+    log_info ""
+    log_info "Step 4/4: Zeroing free space for better compression..."
+    log_info "─────────────────────────────────────────────────────────────"
+    log_info "This may take a few minutes..."
+    
+    sudo dd if=/dev/zero of=/zero.fill bs=1M 2>/dev/null || true
+    sudo rm -f /zero.fill
+    
+    log_info "Free space zeroed ✓"
+    
+    # Done
+    log_info ""
+    log_info "════════════════════════════════════════════════════════════"
+    log_info "  Box preparation complete!"
+    log_info "════════════════════════════════════════════════════════════"
+    log_info ""
+    log_info "  Next steps (run on HOST, not in VM):"
+    log_info ""
+    log_info "    1. Exit the VM:        exit"
+    log_info "    2. Halt the VM:        vagrant halt"
+    log_info "    3. Package the box:    vagrant package --output sequencer-dev.box"
+    log_info ""
+    log_info "  The box will include:"
+    log_info "    ✓ All prerequisites (k3d, helm, docker, rust, etc.)"
+    log_info "    ✓ Docker image layers (faster rebuilds)"
+    log_info "    ✓ Rust binaries (ready to use)"
+    log_info "    ✓ Cargo registry cache (faster Rust builds)"
+    log_info ""
 }
 
 # Run sequencer simulator
@@ -1595,11 +1879,19 @@ deploy_up() {
     
     # Step 1: Install monitoring stack first (Grafana/Prometheus)
     # This allows monitoring to collect metrics from the start
-    install_monitoring || {
-        log_warn "Monitoring installation had issues, but continuing with deployment..."
-    }
+    if [ "$SKIP_INSTALL_MONITORING" = true ]; then
+        log_info "Skipping monitoring installation (--skip-install-monitoring flag set)"
+    else
+        install_monitoring || {
+            log_warn "Monitoring installation had issues, but continuing with deployment..."
+        }
+    fi
     
-    build_images
+    if [ "$SKIP_DOCKER_BUILD" = true ]; then
+        log_info "Skipping Docker image build (--skip-docker-build flag set)"
+    else
+        build_images
+    fi
     
     # Step 2: Deploy Anvil (required for l1 service and simulator)
     deploy_anvil
@@ -1612,7 +1904,11 @@ deploy_up() {
     apply_dummy_services
     
     # Step 4: Generate state (after dummy services are ready)
-    build_binaries
+    if [ "$SKIP_BUILD_RUST_BINARIES" = true ]; then
+        log_info "Skipping Rust binary build (--skip-build-rust-binaries flag set)"
+    else
+        build_binaries
+    fi
     generate_state
     
     # Step 5: Generate and deploy sequencer
@@ -1649,7 +1945,7 @@ deploy_up() {
     log_info "Useful commands:"
     log_info "  - Check status: ./deploy.sh status"
     log_info "  - View logs: ./deploy.sh logs"
-    log_info "  - Run simulator again: ./deploy.sh run-simulator"
+    log_info "  - Rerun simulator test: ./deploy.sh rerun-simulator"
 }
 
 # Teardown
@@ -1717,6 +2013,31 @@ show_status() {
 
 # Main command handler
 main() {
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --skip-docker-build)
+                SKIP_DOCKER_BUILD=true
+                shift
+                ;;
+            --skip-install-monitoring)
+                SKIP_INSTALL_MONITORING=true
+                shift
+                ;;
+            --skip-build-rust-binaries)
+                SKIP_BUILD_RUST_BINARIES=true
+                shift
+                ;;
+            -*)
+                log_error "Unknown flag: $1"
+                exit 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
     case "${1:-}" in
         up)
             deploy_up
@@ -1730,6 +2051,11 @@ main() {
         build)
             check_prerequisites
             build_images
+            prompt_deploy_after_build
+            ;;
+        restart)
+            check_prerequisites
+            rollout_restart_all
             ;;
         build-binaries)
             check_prerequisites
@@ -1756,14 +2082,12 @@ main() {
             check_prerequisites
             upload_alerts "${2:-dev}"  # Default to dev, accepts: dev, testnet, mainnet
             ;;
-        run-simulator)
+        rerun-simulator)
             check_prerequisites
-            extract_anvil_addresses || {
-                log_error "Could not extract Anvil addresses"
-                log_error "Make sure Anvil is deployed and running"
-                exit 1
-            }
-            run_simulator
+            rerun_simulator
+            ;;
+        prepare-box)
+            prepare_box
             ;;
         logs)
             show_logs
@@ -1772,13 +2096,19 @@ main() {
             show_status
             ;;
         *)
-            echo "Usage: $0 {up|down|create-cluster|build|build-binaries|generate-state|copy-state|install-monitoring|update-dashboards|update-alerts|run-simulator|logs|status}"
+            echo "Usage: $0 [flags] {up|down|create-cluster|build|restart|build-binaries|generate-state|copy-state|install-monitoring|update-dashboards|update-alerts|rerun-simulator|prepare-box|logs|status}"
+            echo ""
+            echo "Flags:"
+            echo "  --skip-docker-build       - Skip Docker image build (use existing images)"
+            echo "  --skip-install-monitoring - Skip Prometheus/Grafana installation"
+            echo "  --skip-build-rust-binaries - Skip Rust binary compilation"
             echo ""
             echo "Commands:"
             echo "  up                      - Full deployment: Anvil, dummy services, state, sequencer, simulator test"
             echo "  down                    - Tear down cluster and clean up"
             echo "  create-cluster          - Create k3d cluster only (without deploying services)"
-            echo "  build                   - Just rebuild and push Docker images"
+            echo "  build                   - Rebuild Docker images and optionally deploy them"
+            echo "  restart                 - Restart all pods to pick up new images"
             echo "  build-binaries          - Build Rust binaries (sequencer_node_setup, sequencer_simulator)"
             echo "  generate-state          - Build binaries and generate initial sequencer state"
             echo "  copy-state              - Copy generated state to sequencer pod and restart it"
@@ -1786,7 +2116,8 @@ main() {
             echo "  update-dashboards       - Upload/update Grafana dashboards and alert rules"
             echo "  update-alerts [ENV]     - Upload/update Grafana alert rules"
             echo "                            ENV: dev (uses mainnet alerts), testnet, mainnet; default: dev"
-            echo "  run-simulator           - Run sequencer simulator to test transactions"
+            echo "  rerun-simulator         - Wipe state, regenerate, copy to pod, run simulator test"
+            echo "  prepare-box             - Prepare VM for Vagrant box: build images, binaries, cleanup"
             echo "  logs                    - Follow sequencer logs"
             echo "  status                  - Show pod/service status"
             exit 1
