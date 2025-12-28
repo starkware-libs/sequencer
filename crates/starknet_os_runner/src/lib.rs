@@ -5,6 +5,8 @@ pub mod storage_proofs;
 pub mod virtual_block_executor;
 
 #[cfg(test)]
+mod runner_test;
+#[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
 pub mod test_utils;

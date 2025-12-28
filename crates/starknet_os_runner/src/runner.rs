@@ -137,6 +137,12 @@ where
         // Merge initial_reads with proof_state.
         execution_data.initial_reads.extend(&storage_proofs.proof_state);
 
+        // Filter out declared_contracts from initial_reads before passing to OS.
+        // The OS doesn't provide local_contract_cache_updates, so we must not include
+        // declared_contracts in the initial_reads to avoid the consistency check failure
+        // in CachedState::update_cache.
+        execution_data.initial_reads.declared_contracts.clear();
+
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
             contract_state_commitment_info: storage_proofs

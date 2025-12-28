@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use apollo_gateway::rpc_objects::BlockHeader;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutionOutput,
@@ -9,7 +10,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
@@ -19,7 +20,7 @@ use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
@@ -154,14 +155,22 @@ pub trait VirtualBlockExecutor {
         let state_reader_and_contract_manager =
             StateReaderAndContractManager::new(state_reader, contract_class_manager, None);
 
-        let block_state = CachedState::new(state_reader_and_contract_manager);
+        // Calculate old block number and hash for pre-processing.
+        let current_block_number = base_block_info.block_context.block_info().block_number;
+        let old_block_number = if current_block_number.0 >= STORED_BLOCK_HASH_BUFFER {
+            BlockNumber(current_block_number.0 - STORED_BLOCK_HASH_BUFFER)
+        } else {
+            BlockNumber(0)
+        };
+        let old_block_hash = base_block_info.prev_base_block_hash;
 
-        // Create executor WITHOUT preprocessing (no pre_process_block call).
-        let mut transaction_executor = TransactionExecutor::new(
-            block_state,
+        // Create executor with pre-processing.
+        let mut transaction_executor = TransactionExecutor::pre_process_and_create(
+            state_reader_and_contract_manager,
             base_block_info.block_context.clone(),
+            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             TransactionExecutorConfig::default(),
-        );
+        )?;
 
         // Execute all transactions.
         let execution_results = transaction_executor.execute_txs(&blockifier_txs, None);
@@ -175,6 +184,10 @@ pub trait VirtualBlockExecutor {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
+
+        let block_execution_summary = transaction_executor.finalize().unwrap();
+
+        let _state_diff = block_execution_summary.state_diff;
 
         // Get initial state reads.
         let initial_reads = transaction_executor
