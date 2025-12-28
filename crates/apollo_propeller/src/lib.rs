@@ -1,6 +1,7 @@
 pub mod behaviour;
 pub mod codec;
 pub mod config;
+mod core;
 pub mod handler;
 pub mod merkle;
 pub mod protocol;
