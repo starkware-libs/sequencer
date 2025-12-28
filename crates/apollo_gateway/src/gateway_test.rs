@@ -67,7 +67,7 @@ use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
     VALID_ACCOUNT_BALANCE,
 };
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{TransactionSignature, VIRTUAL_SNOS};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
     contract_address,
@@ -185,7 +185,7 @@ fn invoke_args() -> InvokeTxArgs {
         sender_address: account_contract().get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         // TODO(AvivG): Consider adding function to generate proof_facts and proof for testing.
-        proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
+        proof_facts: proof_facts![felt!(VIRTUAL_SNOS), felt!("0x1"), felt!("0x2"), felt!("0x3"), felt!("0x4")],
         proof: proof!(1, 2, 3, 4, 5),
     );
     let internal_tx = args.get_internal_tx();
