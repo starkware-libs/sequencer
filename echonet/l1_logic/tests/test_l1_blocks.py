@@ -149,7 +149,9 @@ class TestL1Blocks(unittest.TestCase):
         result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
 
         self.assertIsNone(result)
-        self.assertEqual(mock_client.get_timestamp_of_block.call_count, 10)
+        self.assertEqual(
+            mock_client.get_timestamp_of_block.call_count, L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS
+        )
 
     def test_matches_l1_handler_tx_success(self):
         l1_event = L1TestUtils.L1_EVENT
