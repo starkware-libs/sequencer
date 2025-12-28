@@ -18,12 +18,14 @@ use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
-use libp2p::identity::Keypair;
+use libp2p::identity::{self, Keypair};
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::authentication::composed_noise::ComposedNoiseConfig;
+use crate::authentication::negotiator::{DummyNegotiatorType, Negotiator};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -702,8 +704,20 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
-        mut metrics: Option<NetworkMetrics>,
+        metrics: Option<NetworkMetrics>,
     ) -> Self {
+        Self::new_with_custom_handshake::<DummyNegotiatorType>(config, None, node_version, metrics)
+    }
+
+    pub fn new_with_custom_handshake<T>(
+        config: NetworkConfig,
+        handshake_negotiator: Option<T>,
+        node_version: Option<String>,
+        mut metrics: Option<NetworkMetrics>,
+    ) -> Self
+    where
+        T: Negotiator + 'static,
+    {
         let NetworkConfig {
             port,
             session_timeout,
@@ -723,6 +737,9 @@ impl NetworkManager {
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
+        let composite_security_upgrade =
+            |identity: &identity::Keypair| ComposedNoiseConfig::new(identity, handshake_negotiator);
+
         let key_pair = match secret_key {
             Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.expose_secret())
                 .expect("Error while parsing secret key"),
@@ -731,7 +748,7 @@ impl NetworkManager {
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         // TODO(AndrewL): .with_quic()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .with_tcp(Default::default(), composite_security_upgrade, yamux::Config::default)
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
