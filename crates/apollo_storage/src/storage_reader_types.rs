@@ -18,7 +18,7 @@ use crate::header::StorageBlockHeader;
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
-use crate::version::Version;
+use crate::version::{Version, VersionStorageReader};
 use crate::{MarkerKind, OffsetKind, StorageError, StorageReader, TransactionMetadata};
 
 /// Type alias for the generic storage reader server.
@@ -275,7 +275,11 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 unimplemented!()
             }
             StorageReaderRequest::BlocksStorageVersion => {
-                unimplemented!()
+                let version = txn.get_blocks_version()?.ok_or(StorageError::NotFound {
+                    resource_type: "Blocks storage version".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::BlocksStorageVersion(version))
             }
         }
     }
