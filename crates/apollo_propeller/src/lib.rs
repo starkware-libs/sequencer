@@ -12,6 +12,6 @@ pub mod unit_validator;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerTreeManager, Stake};
-pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
+pub use types::{Channel, Event, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;

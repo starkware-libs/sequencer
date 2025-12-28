@@ -8,6 +8,66 @@ use crate::MerkleHash;
 
 // ****************************************************************************
 
+/// Events emitted by the Propeller protocol to the application layer.
+pub enum Event {
+    /// A complete message has been reconstructed from shards.
+    MessageReceived {
+        /// The publisher of the message.
+        publisher: PeerId,
+        /// The merkle root of the message.
+        message_root: MessageRoot,
+        /// The reconstructed message data.
+        message: Vec<u8>,
+    },
+    /// Failed to reconstruct a message from shards.
+    MessageReconstructionFailed {
+        /// The merkle root of the message.
+        message_root: MessageRoot,
+        /// The publisher of the shard.
+        publisher: PeerId,
+        /// The error that occurred.
+        error: ReconstructionError,
+    },
+    /// Failed to broadcast a shard.
+    ShardPublishFailed {
+        /// The error that occurred.
+        error: ShardPublishError,
+    },
+    /// Failed to send a shard to a peer.
+    ShardSendFailed {
+        /// The peer we sent the shard from.
+        sent_from: Option<PeerId>,
+        /// The peer we sent the shard to.
+        sent_to: Option<PeerId>,
+        /// The error that occurred.
+        error: ShardPublishError,
+    },
+    /// Failed to verify shard
+    ShardValidationFailed {
+        /// The sender of the shard that filed verification.
+        ///
+        /// They should probably be reported
+        sender: PeerId,
+        /// The stated publisher of the shard, might not have verified yet.
+        claimed_root: MessageRoot,
+        /// The claimed publisher of the shard.
+        claimed_publisher: PeerId,
+        /// The specific verification error that occurred.
+        error: ShardValidationError,
+    },
+    /// Message processing timed out before completion.
+    MessageTimeout {
+        /// The channel of the message.
+        channel: Channel,
+        /// The publisher of the message.
+        publisher: PeerId,
+        /// The merkle root of the message.
+        message_root: MessageRoot,
+    },
+}
+
+// ****************************************************************************
+
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct Channel(pub u32);
 
