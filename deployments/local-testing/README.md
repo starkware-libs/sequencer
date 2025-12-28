@@ -1,8 +1,127 @@
-# Local Testing Environment (k3d)
+# Local Testing Environment
 
 A complete local Kubernetes development environment for the Starkware Sequencer using k3d.
 
-## Prerequisites
+This environment can be deployed in two ways:
+1. **Vagrant VM** (Recommended) - Isolated VM with all prerequisites pre-installed
+2. **Direct k3d** - Run k3d directly on your host machine
+
+## Deployment Methods
+
+### Option 1: Vagrant VM (Recommended)
+
+The Vagrant setup provides a fully isolated development environment with all prerequisites pre-installed. This is the recommended approach for consistent, reproducible environments.
+
+#### Vagrant Prerequisites
+
+**On Ubuntu 24.04:**
+```bash
+# Run the automated installer (installs Vagrant + libvirt)
+# This script is idempotent - safe to run multiple times
+./install-vagrant.sh
+```
+
+The `install-vagrant.sh` script automatically:
+- Installs KVM/libvirt and required packages
+- Adds your user to `libvirt` and `kvm` groups
+- Enables and starts the `libvirtd` service
+- Installs Vagrant from HashiCorp repository
+- Installs the `vagrant-libvirt` plugin
+- Verifies the installation
+
+**Important:** After running `install-vagrant.sh`, you need to log out and log back in (or run `newgrp libvirt`) for group changes to take effect.
+
+**Manual Installation (if needed):**
+- **Vagrant** >= 2.4.0 (install from [HashiCorp](https://www.vagrantup.com/downloads))
+- **libvirt** (KVM) - For Linux hosts
+  ```bash
+  sudo apt-get install qemu-kvm libvirt-daemon-system libvirt-clients
+  sudo usermod -aG libvirt $USER
+  ```
+- **vagrant-libvirt plugin**
+  ```bash
+  vagrant plugin install vagrant-libvirt
+  ```
+- **VirtualBox** (alternative for macOS/Windows)
+  ```bash
+  vagrant plugin install vagrant-vbguest
+  ```
+
+#### Vagrant Quick Start
+
+```bash
+# First time: Install Vagrant + libvirt (Ubuntu)
+./install-vagrant.sh
+
+# Start the VM (uses pre-baked box if available, otherwise base image)
+vagrant up
+
+# SSH into the VM
+vagrant ssh
+
+# Inside the VM, deploy the sequencer stack
+cd ~/sequencer/deployments/local-testing
+./deploy.sh up
+```
+
+#### Vagrant Features
+
+**Pre-baked Box Support:**
+- The Vagrantfile automatically detects and uses a pre-baked box (`sequencer-dev`) if available
+- Pre-baked boxes include all prerequisites pre-installed, making `vagrant up` much faster
+- To force using the base image: `BOX=cloud-image/ubuntu-24.04 vagrant up`
+- To explicitly use pre-baked box: `BOX=sequencer-dev vagrant up`
+
+**Dynamic Resource Allocation:**
+- **CPU**: Automatically allocates all host CPUs minus 2 (minimum 4 CPUs)
+- **Memory**: 16 GB RAM
+- **Disk**: 100 GB (automatically expanded on first boot)
+
+**Port Forwarding:**
+All services are accessible from your host machine:
+- Grafana: `http://localhost:3000`
+- Prometheus: `http://localhost:9090`
+- Sequencer HTTP: `http://localhost:8080`
+- Docker Registry: `http://localhost:5050`
+
+**File Synchronization:**
+- Uses `rsync` for one-way sync from host to VM
+- Excludes large directories: `.git/`, `target/`, `node_modules/`, `.venv/`, `output/`, `*.box`
+- To re-sync after making changes: `vagrant rsync`
+
+**Pre-installed Prerequisites:**
+The VM comes with everything pre-installed:
+- Docker (with insecure registry configured for k3d)
+- k3d, kubectl, Helm
+- Rust toolchain
+- Python 3.10, pipenv
+- Node.js 20.x, cdk8s-cli
+- Anvil (Foundry v0.3.0)
+- kubectx, kubens
+- All build tools and dependencies
+
+**VM Management:**
+```bash
+vagrant up          # Start the VM
+vagrant halt        # Stop the VM
+vagrant destroy     # Delete the VM (destroys all data)
+vagrant ssh         # SSH into the VM
+vagrant rsync       # Re-sync files from host to VM
+vagrant status      # Check VM status
+vagrant box list    # List installed Vagrant boxes
+```
+
+**Workflow Tips:**
+- After making code changes on your host, run `vagrant rsync` to sync them to the VM
+- The VM starts in `~/sequencer` directory automatically
+- All prerequisites are pre-installed, so you can immediately run `./deploy.sh up`
+- The VM uses bash with helpful aliases (`k=kubectl`, `kctx=kubectx`, `kns=kubens`)
+
+### Option 2: Direct k3d (Host Machine)
+
+Run k3d directly on your host machine. Requires all prerequisites to be installed manually.
+
+#### Direct k3d Prerequisites
 
 - Rust toolchain (for building `sequencer_node_setup` and `sequencer_simulator`)
 - Docker >= 24.0
@@ -19,6 +138,25 @@ A complete local Kubernetes development environment for the Starkware Sequencer 
   ```
 
 ## Quick Start
+
+### Using Vagrant VM
+
+```bash
+# 1. Install Vagrant + libvirt (first time only, Ubuntu)
+./install-vagrant.sh
+
+# 2. Start the VM
+vagrant up
+
+# 3. SSH into the VM
+vagrant ssh
+
+# 4. Inside the VM, deploy everything
+cd ~/sequencer/deployments/local-testing
+./deploy.sh up
+```
+
+### Using Direct k3d
 
 ```bash
 # Deploy everything (cluster, binaries, state, images, services, monitoring)
@@ -116,6 +254,34 @@ All services are deployed using their existing cdk8s projects. Manifests are gen
 **Sequencer Overlay**: The sequencer uses the overlay `hybrid.testing.node-0` by default. To change this, edit the `SEQUENCER_OVERLAY` variable in `deploy.sh`.
 
 ## Troubleshooting
+
+### Vagrant Issues
+
+**VM won't start:**
+- Ensure libvirt/KVM is installed and running: `systemctl status libvirtd`
+- Check user is in libvirt group: `groups | grep libvirt`
+- If not, run `newgrp libvirt` or log out/in after running `install-vagrant.sh`
+- For VirtualBox users: Ensure VirtualBox is installed and running
+
+**Pre-baked box not found:**
+- Pre-baked boxes are optional - Vagrant will use the base Ubuntu image if not available
+- To check installed boxes: `vagrant box list`
+- To use base image explicitly: `BOX=cloud-image/ubuntu-24.04 vagrant up`
+
+**File sync issues:**
+- Run `vagrant rsync` to manually sync files from host to VM
+- Check rsync exclusions in Vagrantfile if files are missing
+- Large files (target/, node_modules/, etc.) are excluded by default
+
+**Port forwarding not working:**
+- Ensure ports 3000, 9090, 8080, 5050 are not in use on host
+- Check VM is running: `vagrant status`
+- Verify port forwarding: `vagrant port`
+
+**VM out of disk space:**
+- The VM automatically expands disk on first boot
+- If issues persist, check disk: `vagrant ssh` then `df -h`
+- Increase disk size in Vagrantfile: `libvirt.machine_virtual_size = 200`
 
 ### Cluster creation fails
 - Ensure Docker is running

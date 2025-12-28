@@ -16,28 +16,31 @@ def argument_parser():
         "--image", required=True, type=str, help="Required: Docker image for the simulator."
     )
     parser.add_argument(
-        "--http-url", type=str, default="http://sequencer-node-service", 
-        help="HTTP URL for sequencer (default: http://sequencer-node-service)"
+        "--http-url",
+        type=str,
+        default="http://sequencer-node-service",
+        help="HTTP URL for sequencer (default: http://sequencer-node-service)",
     )
     parser.add_argument(
-        "--http-port", type=int, default=8080,
-        help="HTTP port for sequencer (default: 8080)"
+        "--http-port", type=int, default=8080, help="HTTP port for sequencer (default: 8080)"
     )
     parser.add_argument(
-        "--monitoring-url", type=str, default="http://sequencer-node-service",
-        help="Monitoring URL for sequencer (default: http://sequencer-node-service)"
+        "--monitoring-url",
+        type=str,
+        default="http://sequencer-node-service",
+        help="Monitoring URL for sequencer (default: http://sequencer-node-service)",
     )
     parser.add_argument(
-        "--monitoring-port", type=int, default=8082,
-        help="Monitoring port for sequencer (default: 8082)"
+        "--monitoring-port",
+        type=int,
+        default=8082,
+        help="Monitoring port for sequencer (default: 8082)",
     )
     parser.add_argument(
-        "--sender-address", type=str, required=False,
-        help="Anvil sender address (0x...)"
+        "--sender-address", type=str, required=False, help="Anvil sender address (0x...)"
     )
     parser.add_argument(
-        "--receiver-address", type=str, required=False,
-        help="Anvil receiver address (0x...)"
+        "--receiver-address", type=str, required=False, help="Anvil receiver address (0x...)"
     )
 
     return parser.parse_args()
@@ -63,13 +66,17 @@ class Simulator(Chart):
 
         # Build command arguments
         args = [
-            "--http-url", http_url,
-            "--http-port", str(http_port),
-            "--monitoring-url", monitoring_url,
-            "--monitoring-port", str(monitoring_port),
+            "--http-url",
+            http_url,
+            "--http-port",
+            str(http_port),
+            "--monitoring-url",
+            monitoring_url,
+            "--monitoring-port",
+            str(monitoring_port),
             "--run-forever",  # Run continuously
         ]
-        
+
         if sender_address:
             args.extend(["--sender-address", sender_address])
         if receiver_address:
