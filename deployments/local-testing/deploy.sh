@@ -486,14 +486,19 @@ install_monitoring() {
     }
     
     # Wait for pods to be ready manually (more reliable than Helm's --wait for LoadBalancer)
-    log_info "Waiting for monitoring pods to be ready..."
-    local max_wait=120
+    log_info "Waiting for monitoring pods to be ready (timeout: 120s)..."
+    local max_wait=180
     local waited=0
     while [ $waited -lt $max_wait ]; do
-        local grafana_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
-        local prometheus_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
+        local grafana_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
+        local prometheus_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
+        
+        # Show progress with elapsed time and status
+        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds | Grafana: %-10s | Prometheus: %-10s" "$waited" "${grafana_ready:-Pending}" "${prometheus_ready:-Pending}"
+        
         if [ "$grafana_ready" = "Running" ] && [ "$prometheus_ready" = "Running" ]; then
-            log_info "Monitoring pods are ready"
+            printf "\n"
+            log_info "Monitoring pods are ready ✓"
             break
         fi
         sleep 2
@@ -501,7 +506,8 @@ install_monitoring() {
     done
     
     if [ $waited -ge $max_wait ]; then
-        log_warn "Monitoring pods did not become ready within timeout, but continuing..."
+        printf "\n"
+        log_warn "Monitoring pods did not become ready within ${max_wait}s timeout, but continuing..."
     fi
     
     # Patch Prometheus service to NodePort (Prometheus Operator may not respect Helm values)
@@ -929,7 +935,7 @@ apply_sequencer() {
 # Wait for sequencer pod and copy state
 wait_and_copy_state() {
     verify_k3d_cluster
-    log_info "Waiting for sequencer pod to be ready before copying state..."
+    log_info "Waiting for sequencer pod to be ready before copying state (timeout: 180s)..."
     
     local service_label
     if [ "$SEQUENCER_LAYOUT" == "hybrid" ]; then
@@ -947,12 +953,13 @@ wait_and_copy_state() {
         local pod_name
         pod_name=$(kubectl get pods -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
         
+        local pod_phase="NotFound"
         if [ -n "$pod_name" ]; then
-            local pod_phase
-            pod_phase=$(kubectl get pod -n "${NAMESPACE}" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+            pod_phase=$(kubectl get pod -n "${NAMESPACE}" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
             
             if [ "$pod_phase" == "Running" ]; then
-                log_info "Sequencer pod is running, copying state..."
+                printf "\n"
+                log_info "Sequencer pod is running ✓, copying state..."
                 if copy_state_and_restart; then
                     pod_ready=true
                     break
@@ -963,14 +970,15 @@ wait_and_copy_state() {
             fi
         fi
         
+        # Show progress with elapsed time and status
+        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%ds | Pod: %-12s" "$waited" "$max_wait" "$pod_phase"
+        
         sleep 3
         waited=$((waited + 3))
-        if [ $((waited % 15)) -eq 0 ]; then
-            log_info "Still waiting for sequencer pod to be ready... (${waited}s/${max_wait}s)"
-        fi
     done
     
     if [ "$pod_ready" = false ]; then
+        printf "\n"
         log_error "Sequencer pod did not become ready in time (waited ${waited}s)"
         exit 1
     fi
@@ -1021,20 +1029,20 @@ upload_dashboards() {
     local datasource_created=false
     
     # Wait for Grafana API to be ready
-    log_info "Waiting for Grafana API to be ready..."
+    log_info "Waiting for Grafana API to be ready (timeout: ${max_wait}s)..."
     while [ $waited -lt $max_wait ]; do
         if curl -s -f -u admin:admin http://localhost:3000/api/health > /dev/null 2>&1; then
-            log_info "Grafana API is ready"
+            printf "\n"
+            log_info "Grafana API is ready ✓"
             break
         fi
+        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%ds | Grafana API: Connecting..." "$waited" "$max_wait"
         sleep 3
         waited=$((waited + 3))
-        if [ $((waited % 15)) -eq 0 ]; then
-            log_info "Still waiting for Grafana API... (${waited}s/${max_wait}s)"
-        fi
     done
     
     if [ $waited -ge $max_wait ]; then
+        printf "\n"
         log_error "Grafana API not ready after ${max_wait}s, cannot create datasource"
         return 1
     fi
@@ -1468,19 +1476,22 @@ upload_alerts() {
     fi
     
     # Wait for Grafana API to be ready
-    log_info "Waiting for Grafana API to be ready..."
+    log_info "Waiting for Grafana API to be ready (timeout: 60s)..."
     local max_wait=60
     local waited=0
     while [ $waited -lt $max_wait ]; do
         if curl -s -f -u admin:admin http://localhost:3000/api/health > /dev/null 2>&1; then
-            log_info "Grafana API is ready"
+            printf "\n"
+            log_info "Grafana API is ready ✓"
             break
         fi
+        printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%ds | Grafana API: Connecting..." "$waited" "$max_wait"
         sleep 3
         waited=$((waited + 3))
     done
     
     if [ $waited -ge $max_wait ]; then
+        printf "\n"
         log_error "Grafana API not ready after ${max_wait}s"
         return 1
     fi
