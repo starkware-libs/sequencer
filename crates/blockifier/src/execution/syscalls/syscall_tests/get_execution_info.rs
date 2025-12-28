@@ -48,6 +48,7 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
+use crate::transaction::test_utils::proof_facts_as_entry_point_arg;
 
 #[cfg_attr(
     feature = "cairo_native",
@@ -429,6 +430,13 @@ fn test_get_execution_info(
         }
     };
 
+    // Only transaction V3 supports non-trivial proof facts.
+    let proof_facts = if version == TransactionVersion::THREE {
+        ProofFacts::snos_proof_facts_for_testing()
+    } else {
+        ProofFacts::default()
+    };
+
     let expected_tx_info: Vec<Felt>;
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
@@ -479,8 +487,7 @@ fn test_get_execution_info(
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
-            // TODO(Meshi): Add proof facts.
-            proof_facts: ProofFacts::default(),
+            proof_facts: proof_facts.clone(),
         });
     }
 
@@ -490,19 +497,27 @@ fn test_get_execution_info(
         *test_contract_address.0.key(), // Storage address.
         entry_point_selector.0,         // Entry point selector.
     ];
+
+    let expected_proof_facts = proof_facts_as_entry_point_arg(proof_facts);
+    let mut calldata = vec![
+        expected_block_info.to_vec(),
+        expected_tx_info,
+        expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+    ];
+
+    // Only `TestContract` was updated to call the `get_execution_info_v3` that includes
+    // `proof_facts`. The other contracts continue to call `get_execution_info_v1`, so their
+    // calldata layout must remain unchanged.
+    if matches!(test_contract, FeatureContract::TestContract(_)) {
+        calldata.push(expected_proof_facts);
+    }
+
+    calldata.push(expected_call_info);
+
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
         code_address: None,
-        calldata: Calldata(
-            [
-                expected_block_info.to_vec(),
-                expected_tx_info,
-                expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-                expected_call_info,
-            ]
-            .concat()
-            .into(),
-        ),
+        calldata: Calldata(calldata.concat().into()),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
     let result = entry_point_call.execute_directly_given_tx_info(
