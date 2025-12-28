@@ -1,0 +1,6 @@
+RawSignature(
+    [
+        0xe16ecc38c135735e8aed7ffdb150ebb956a93ec19ac53e8295cdbd04d552b2,
+        0x4de081a9459b0e7defc49f7166f8869b33313020a20ffcc97506b8df6c42a7b,
+    ],
+)

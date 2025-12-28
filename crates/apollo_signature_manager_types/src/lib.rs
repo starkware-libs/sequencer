@@ -15,10 +15,10 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
-use starknet_api::core::Nonce;
-use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
+use starknet_api::crypto::utils::{Challenge, PrivateKey, RawSignature, SignatureConversionError};
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
+
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
 pub type SignatureManagerClientResult<T> = Result<T, SignatureManagerClientError>;
@@ -51,10 +51,10 @@ pub enum KeyStoreError {
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait SignatureManagerClient: Send + Sync {
-    async fn identify(
+    async fn sign_identification(
         &self,
         peer_id: PeerId,
-        nonce: Nonce,
+        challenge: Challenge,
     ) -> SignatureManagerClientResult<RawSignature>;
 
     async fn sign_precommit_vote(
@@ -90,7 +90,7 @@ pub enum SignatureManagerClientError {
     strum(serialize_all = "snake_case")
 )]
 pub enum SignatureManagerRequest {
-    Identify(PeerId, Nonce),
+    SignIdentification(PeerId, Challenge),
     SignPrecommitVote(BlockHash),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerRequest);
@@ -103,7 +103,7 @@ generate_permutation_labels! {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum SignatureManagerResponse {
-    Identify(SignatureManagerResult<RawSignature>),
+    SignIdentification(SignatureManagerResult<RawSignature>),
     SignPrecommitVote(SignatureManagerResult<RawSignature>),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerResponse);
@@ -114,17 +114,17 @@ where
     ComponentClientType:
         Send + Sync + ComponentClient<SignatureManagerRequest, SignatureManagerResponse>,
 {
-    async fn identify(
+    async fn sign_identification(
         &self,
         peer_id: PeerId,
-        nonce: Nonce,
+        challenge: Challenge,
     ) -> SignatureManagerClientResult<RawSignature> {
-        let request = SignatureManagerRequest::Identify(peer_id, nonce);
+        let request = SignatureManagerRequest::SignIdentification(peer_id, challenge);
         handle_all_response_variants!(
             self,
             request,
             SignatureManagerResponse,
-            Identify,
+            SignIdentification,
             SignatureManagerClientError,
             SignatureManagerError,
             Direct
