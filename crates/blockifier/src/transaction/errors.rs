@@ -144,6 +144,10 @@ pub enum TransactionPreValidationError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TransactionFeeError(#[from] Box<TransactionFeeError>),
+    #[error("Unsupported proof facts type: {0}")]
+    UnsupportedProofFactsType(StarknetApiError),
+    #[error("Invalid proof facts: {0}")]
+    InvalidProofFacts(StarknetApiError),
 }
 
 #[derive(Debug, Error)]
