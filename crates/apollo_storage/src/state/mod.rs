@@ -271,6 +271,25 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         }
     }
 
+    /// Returns the class hash for a given contract address and block number using direct key-value
+    /// lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_class_hash_by_key(
+        &self,
+        address: &ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ClassHash>> {
+        let db_key = (*address, block_number);
+        let class_hash = self.deployed_contracts_table.get(self.txn, &db_key)?;
+        Ok(class_hash)
+    }
+
     /// Returns the nonce at a given state number.
     /// If there is no nonce at the given state number, returns `None`.
     ///
