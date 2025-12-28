@@ -39,7 +39,7 @@ pub fn validate_vec_u256(vec: &[u8]) -> Result<(), ValidationError> {
 pub fn validate_optional_sensitive_vec_u256(
     secret_key: &Sensitive<Vec<u8>>,
 ) -> Result<(), ValidationError> {
-    validate_vec_u256(secret_key.as_ref())
+    validate_vec_u256(secret_key.peek_inner())
 }
 
 /// Struct for parsing a validation error.

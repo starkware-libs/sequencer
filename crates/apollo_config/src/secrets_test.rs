@@ -32,23 +32,15 @@ fn test_debug_display_serialize() {
 }
 
 #[test]
-fn test_into() {
+fn test_expose_inner() {
     let sensitive = Sensitive::new("secret");
     assert_eq!(sensitive.expose_inner(), "secret");
 }
 
 #[test]
-fn test_ref() {
+fn test_peek_inner() {
     let sensitive = Sensitive::new("secret");
-    assert_eq!(sensitive.as_ref(), &"secret");
-}
-
-#[test]
-fn test_mut() {
-    let mut sensitive = Sensitive::new("secret".to_string());
-    let inner = sensitive.as_mut();
-    inner.push_str("123");
-    assert_eq!(sensitive.expose_inner(), "secret123".to_string());
+    assert_eq!(sensitive.peek_inner(), &"secret");
 }
 
 #[test]
