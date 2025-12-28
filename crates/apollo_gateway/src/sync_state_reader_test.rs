@@ -21,22 +21,25 @@ use starknet_api::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
 };
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ClassHash, SequencerContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
+use starknet_types_core::felt::Felt;
 
 use crate::gateway_fixed_block_state_reader::{
     GatewayFixedBlockStateReader,
     GatewayFixedBlockSyncStateClient,
 };
-use crate::sync_state_reader::SyncStateReader;
+use crate::state_reader::StateReaderFactory;
+use crate::sync_state_reader::{SyncStateReader, SyncStateReaderFactory};
 
 static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u32));
 
@@ -386,4 +389,139 @@ async fn test_fetch_compiled_classes_is_declared(
         .await
         .unwrap();
     assert_eq!(result.expect("unexpected error in state reader"), expected_result.unwrap())
+}
+
+#[tokio::test]
+async fn test_returns_genesis_readers_when_no_blocks_exist() {
+    use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+    use apollo_state_sync_types::communication::SharedStateSyncClient;
+    use assert_matches::assert_matches;
+    use blockifier::state::errors::StateError;
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client.expect_get_latest_block_number().times(1).returning(|| Ok(None));
+
+    let shared_state_sync_client: SharedStateSyncClient = Arc::new(state_sync_client);
+    let class_manager_client: SharedClassManagerClient = Arc::new(EmptyClassManagerClient);
+
+    let factory = SyncStateReaderFactory {
+        shared_state_sync_client,
+        class_manager_client,
+        runtime: tokio::runtime::Handle::current(),
+    };
+
+    let (state_reader, fixed_block_reader) = factory
+        .get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block()
+        .await
+        .unwrap();
+
+    // All storage, nonce, and class hash operations should return zero.
+    assert_eq!(
+        state_reader.get_storage_at(contract_address!("0x1"), storage_key!("0x2")).unwrap(),
+        Felt::default()
+    );
+    assert_eq!(state_reader.get_nonce_at(contract_address!("0x1")).unwrap(), Default::default());
+    assert_eq!(
+        state_reader.get_class_hash_at(contract_address!("0x1")).unwrap(),
+        Default::default()
+    );
+
+    // Asking for a compiled class should return an error.
+    let class_hash = class_hash!(123_u32);
+    assert_matches!(
+        state_reader.get_compiled_class(class_hash),
+        Err(StateError::UndeclaredClassHash(ch)) if ch == class_hash
+    );
+    assert_matches!(
+        state_reader.get_compiled_classes(class_hash),
+        Err(StateError::UndeclaredClassHash(ch)) if ch == class_hash
+    );
+    assert!(!state_reader.is_declared(class_hash).unwrap());
+
+    // The genesis fixed-block reader should return the "minimal genesis block".
+    let block_info = fixed_block_reader.get_block_info().await.unwrap();
+    assert_eq!(block_info.block_number, BlockNumber(0));
+    assert_eq!(block_info.block_timestamp, BlockTimestamp(0));
+    assert_eq!(block_info.sequencer_address, ContractAddress::default());
+    assert!(!block_info.use_kzg_da);
+
+    // Ensure gas prices are non-zero.
+    let one: NonzeroGasPrice = 1_u128.try_into().unwrap();
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l1_gas_price, one);
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l1_data_gas_price, one);
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l2_gas_price, one);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l1_gas_price, one);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l1_data_gas_price, one);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l2_gas_price, one);
+
+    assert_eq!(
+        fixed_block_reader.get_nonce(contract_address!("0x1")).await.unwrap(),
+        Default::default()
+    );
+}
+
+#[tokio::test]
+async fn test_returns_latest_block_fixed_reader_when_blocks_exist() {
+    use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+    use apollo_state_sync_types::communication::SharedStateSyncClient;
+
+    let latest = BlockNumber(0);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client.expect_get_latest_block_number().times(1).returning(move || Ok(Some(latest)));
+
+    let header = BlockHeaderWithoutHash {
+        block_number: latest,
+        timestamp: BlockTimestamp(99),
+        sequencer: SequencerContractAddress(ContractAddress::default()),
+        l1_gas_price: GasPricePerToken { price_in_wei: GasPrice(11), price_in_fri: GasPrice(21) },
+        l1_data_gas_price: GasPricePerToken {
+            price_in_wei: GasPrice(12),
+            price_in_fri: GasPrice(22),
+        },
+        l2_gas_price: GasPricePerToken { price_in_wei: GasPrice(13), price_in_fri: GasPrice(23) },
+        l1_da_mode: L1DataAvailabilityMode::Blob,
+        ..Default::default()
+    };
+    let sync_block = SyncBlock { block_header_without_hash: header.clone(), ..Default::default() };
+
+    // Assert the fixed-block reader asks state sync for exactly the latest block.
+    state_sync_client.expect_get_block().times(1).returning(move |bn| {
+        assert_eq!(bn, latest);
+        Ok(sync_block.clone())
+    });
+
+    let shared_state_sync_client: SharedStateSyncClient = Arc::new(state_sync_client);
+    let class_manager_client: SharedClassManagerClient = Arc::new(EmptyClassManagerClient);
+
+    let factory = SyncStateReaderFactory {
+        shared_state_sync_client,
+        class_manager_client,
+        runtime: tokio::runtime::Handle::current(),
+    };
+
+    let (_state_reader, fixed_block_reader) = factory
+        .get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block()
+        .await
+        .unwrap();
+
+    let block_info = fixed_block_reader.get_block_info().await.unwrap();
+    assert_eq!(block_info.block_number, latest);
+    assert_eq!(block_info.block_timestamp, BlockTimestamp(99));
+    assert_eq!(block_info.sequencer_address, ContractAddress::default());
+    assert!(block_info.use_kzg_da);
+
+    let expected_wei_l1: NonzeroGasPrice = GasPrice(11).try_into().unwrap();
+    let expected_wei_l1_data: NonzeroGasPrice = GasPrice(12).try_into().unwrap();
+    let expected_wei_l2: NonzeroGasPrice = GasPrice(13).try_into().unwrap();
+    let expected_fri_l1: NonzeroGasPrice = GasPrice(21).try_into().unwrap();
+    let expected_fri_l1_data: NonzeroGasPrice = GasPrice(22).try_into().unwrap();
+    let expected_fri_l2: NonzeroGasPrice = GasPrice(23).try_into().unwrap();
+
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l1_gas_price, expected_wei_l1);
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l1_data_gas_price, expected_wei_l1_data);
+    assert_eq!(block_info.gas_prices.eth_gas_prices.l2_gas_price, expected_wei_l2);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l1_gas_price, expected_fri_l1);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l1_data_gas_price, expected_fri_l1_data);
+    assert_eq!(block_info.gas_prices.strk_gas_prices.l2_gas_price, expected_fri_l2);
 }
