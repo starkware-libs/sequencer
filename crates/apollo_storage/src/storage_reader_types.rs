@@ -201,8 +201,15 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::Nonces(_address, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::DeployedContracts(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::DeployedContracts(address, block_number) => {
+                let state_reader = txn.get_state_reader()?;
+                let class_hash = state_reader
+                    .get_class_hash_by_key(&address, block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Deployed contract".to_string(),
+                        resource_id: format!("address: {address}, block_number: {block_number:?}"),
+                    })?;
+                Ok(StorageReaderResponse::DeployedContracts(class_hash))
             }
             StorageReaderRequest::Events(_address, _tx_index) => {
                 unimplemented!()
