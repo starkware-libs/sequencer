@@ -51,9 +51,6 @@ class L1ClientCache:
 
 class L1Client:
     L1_MAINNET_URL = "https://eth-mainnet.g.alchemy.com/v2/{api_key}"
-    DATA_BLOCKS_BY_TIMESTAMP_URL_FMT = (
-        "https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
-    )
 
     @dataclass(frozen=True)
     class L1Event:
@@ -77,7 +74,6 @@ class L1Client:
         self.timeout = timeout
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
-        self.data_api_url = self.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
         self.cache = L1ClientCache()
 
     def _run_request_with_retry(

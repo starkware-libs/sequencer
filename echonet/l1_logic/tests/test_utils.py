@@ -1,3 +1,9 @@
+import os
+
+# Set environment variables required by echonet_types for tests.
+os.environ.setdefault("START_BLOCK_DEFAULT", "0")
+os.environ.setdefault("L1_ALCHEMY_API_KEY", "test-key")
+
 import copy
 
 from echonet.l1_logic.l1_client import L1Client
