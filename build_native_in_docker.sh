@@ -30,6 +30,8 @@ if [ -n "$WIZ_CLIENT_ID" ] && [ -n "$WIZ_CLIENT_SECRET" ]; then
     ./wizcli docker tag --image ${docker_image_name} > /dev/null 2>&1 || true
     set -e  # Re-enable exit on error
     echo "Wiz image scan completed."
+else
+    echo "Wiz credentials not provided (WIZ_CLIENT_ID and WIZ_CLIENT_SECRET), skipping image scan"
 fi
 
 docker run \
