@@ -391,7 +391,8 @@ impl Mempool {
 
     /// Adds a new transaction to the mempool.
     #[instrument(
-        level = "debug",
+        level = "info",
+        name = "mempool_add_tx_victor",
         skip(self, args),
         fields( // Log subset of (informative) fields.
             tx_nonce = %args.tx.nonce(),

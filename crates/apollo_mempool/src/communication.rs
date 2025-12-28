@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use tracing::warn;
+use tracing::{instrument, warn};
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
@@ -95,6 +95,7 @@ impl MempoolCommunicationWrapper {
         self.mempool.update_dynamic_config(mempool_dynamic_config);
     }
 
+    #[instrument(level = "info", name = "mempool_comm_add_tx_victor", skip(self, args_wrapper))]
     pub(crate) async fn add_tx(
         &mut self,
         args_wrapper: AddTransactionArgsWrapper,

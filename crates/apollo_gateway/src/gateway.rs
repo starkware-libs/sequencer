@@ -34,7 +34,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
-use tracing::{debug, warn};
+use tracing::{debug, instrument, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -90,6 +90,11 @@ impl Gateway {
         }
     }
 
+    #[instrument(
+        level = "info",
+        name = "gateway_add_tx_victor",
+        skip(self, tx, p2p_message_metadata)
+    )]
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,

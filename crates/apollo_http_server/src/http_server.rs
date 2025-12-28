@@ -105,7 +105,7 @@ impl HttpServer {
 
 // HttpServer handlers.
 
-#[instrument(skip(app_state))]
+#[instrument(level = "info", name = "add_rpc_tx_victor", skip(app_state))]
 async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
@@ -116,7 +116,7 @@ async fn add_rpc_tx(
     add_tx_inner(app_state, headers, tx).await
 }
 
-#[instrument(skip(app_state))]
+#[instrument(level = "info", name = "add_tx_victor", skip(app_state))]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     State(app_state): State<AppState>,
