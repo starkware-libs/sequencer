@@ -749,6 +749,26 @@ impl From<CasmContractEntryPoints> for EntryPointsByType<EntryPointV1> {
     }
 }
 
+impl From<&EntryPointV1> for CasmContractEntryPoint {
+    fn from(ep: &EntryPointV1) -> Self {
+        CasmContractEntryPoint {
+            selector: ep.selector.0.to_biguint(),
+            offset: ep.offset.0,
+            builtins: ep.builtins.iter().map(|b| b.to_str().to_string()).collect(),
+        }
+    }
+}
+
+impl From<&EntryPointsByType<EntryPointV1>> for CasmContractEntryPoints {
+    fn from(entry_points: &EntryPointsByType<EntryPointV1>) -> Self {
+        CasmContractEntryPoints {
+            external: entry_points.external.iter().map(Into::into).collect(),
+            l1_handler: entry_points.l1_handler.iter().map(Into::into).collect(),
+            constructor: entry_points.constructor.iter().map(Into::into).collect(),
+        }
+    }
+}
+
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
     pub fn get_entry_point(
         &self,
