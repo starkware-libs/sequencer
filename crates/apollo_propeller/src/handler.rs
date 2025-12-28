@@ -36,14 +36,19 @@ pub enum HandlerIn {
     SendUnit(PropellerUnit),
 }
 
+const CONCURRENT_STREAMS: usize = 1;
+
 /// Protocol Handler that manages substreams with a peer.
 pub struct Handler {
     /// Upgrade configuration for the propeller protocol.
     listen_protocol: PropellerProtocol,
-    /// The single long-lived inbound substream.
-    inbound_substream: Option<InboundSubstreamState>,
     /// The single long-lived outbound substream.
-    outbound_substream: Option<OutboundSubstreamState>,
+    outbound_substream: [Option<OutboundSubstreamState>; CONCURRENT_STREAMS],
+    /// Flag indicating that an outbound substream is being established to prevent duplicate
+    /// requests.
+    establishing_outbound_substream: [bool; CONCURRENT_STREAMS],
+    /// The single long-lived inbound substream.
+    inbound_substream: [Option<InboundSubstreamState>; CONCURRENT_STREAMS],
     /// Queue of messages to send.
     send_queue: VecDeque<ProtoUnit>,
     /// Queue of received messages to emit.
@@ -72,8 +77,19 @@ impl Handler {
         let protocol = PropellerProtocol::new(stream_protocol, max_wire_message_size);
         Handler {
             listen_protocol: protocol,
-            inbound_substream: None,
-            outbound_substream: None,
+            inbound_substream: (0..CONCURRENT_STREAMS)
+                .map(|_| None)
+                .collect::<Vec<_>>()
+                .try_into()
+                .map_err(|_| "Failed to convert Vec to array")
+                .unwrap(),
+            outbound_substream: (0..CONCURRENT_STREAMS)
+                .map(|_| None)
+                .collect::<Vec<_>>()
+                .try_into()
+                .map_err(|_| "Failed to convert Vec to array")
+                .unwrap(),
+            establishing_outbound_substream: [false; CONCURRENT_STREAMS],
             send_queue: VecDeque::new(),
             receive_queue: VecDeque::new(),
             max_wire_message_size,
@@ -108,18 +124,28 @@ impl Handler {
 
     fn on_fully_negotiated_inbound(&mut self, substream: Framed<Stream, PropellerCodec>) {
         tracing::trace!("New inbound substream request");
-        // TODO(AndrewL): Handle concurrent streams with array indexing
-        self.inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
+        let Some(index) = self.inbound_substream.iter().position(|s| s.is_none()) else {
+            tracing::error!("No available slot for inbound substream");
+            return;
+        };
+        self.inbound_substream[index] = Some(InboundSubstreamState::WaitingInput(substream));
     }
 
     fn on_fully_negotiated_outbound(
         &mut self,
-        fully_negotiated_outbound: FullyNegotiatedOutbound<
+        FullyNegotiatedOutbound { protocol, .. }: FullyNegotiatedOutbound<
             <Handler as ConnectionHandler>::OutboundProtocol,
         >,
     ) {
-        let substream = fully_negotiated_outbound.protocol;
-        self.outbound_substream = Some(OutboundSubstreamState { substream, should_flush: false });
+        let substream = protocol;
+        let index = self
+            .outbound_substream
+            .iter()
+            .position(|s| s.is_none())
+            .expect("No available slot for outbound substream");
+        self.outbound_substream[index] =
+            Some(OutboundSubstreamState { substream, should_flush: false });
+        self.establishing_outbound_substream[index] = false;
     }
 
     fn poll_send(
@@ -132,71 +158,80 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
-        // If we don't have an outbound substream, request one
-        if self.outbound_substream.is_none() {
-            return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
-                protocol: SubstreamProtocol::new(self.listen_protocol.clone(), ()),
-            });
-        }
+        for (outbound_substream, is_establishing) in
+            self.outbound_substream.iter_mut().zip(self.establishing_outbound_substream.iter_mut())
+        {
+            if outbound_substream.is_none() {
+                if !*is_establishing {
+                    *is_establishing = true;
+                    return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
+                        protocol: SubstreamProtocol::new(self.listen_protocol.clone(), ()),
+                    });
+                }
+                continue;
+            }
 
-        loop {
-            let mut state = self.outbound_substream.take().unwrap();
-            if self.send_queue.is_empty() {
-                // Queue is empty, maybe we just need to flush the stream
-                if state.should_flush {
-                    match Sink::poll_flush(Pin::new(&mut state.substream), cx) {
+            loop {
+                let mut state = outbound_substream.take().unwrap();
+                if self.send_queue.is_empty() {
+                    // Queue is empty, maybe we just need to flush the stream
+                    if state.should_flush {
+                        match Sink::poll_flush(Pin::new(&mut state.substream), cx) {
+                            Poll::Ready(Ok(())) => {
+                                state.should_flush = false;
+                                *outbound_substream = Some(state);
+                                continue;
+                            }
+                            Poll::Ready(Err(e)) => {
+                                tracing::error!("Failed to flush outbound stream: {e}");
+                                return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                    HandlerOut::SendError(e.to_string()),
+                                ));
+                            }
+                            Poll::Pending => {
+                                *outbound_substream = Some(state);
+                                break;
+                            }
+                        }
+                    } else {
+                        *outbound_substream = Some(state);
+                        break;
+                    }
+                } else {
+                    match Sink::poll_ready(Pin::new(&mut state.substream), cx) {
                         Poll::Ready(Ok(())) => {
-                            state.should_flush = false;
-                            self.outbound_substream = Some(state);
-                            continue;
+                            let message = Self::create_message_batch(
+                                &mut self.send_queue,
+                                self.max_wire_message_size,
+                            );
+                            match Sink::start_send(Pin::new(&mut state.substream), message) {
+                                Ok(()) => {
+                                    // Try sending more messages if there are any
+                                    state.should_flush = true;
+                                    *outbound_substream = Some(state);
+                                    continue;
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        "Failed to send message on outbound stream: {e}"
+                                    );
+                                    return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
+                                        HandlerOut::SendError(e.to_string()),
+                                    ));
+                                }
+                            }
                         }
                         Poll::Ready(Err(e)) => {
-                            tracing::error!("Failed to flush outbound stream: {e}");
+                            tracing::error!("Failed to send message on outbound stream: {e}");
                             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
                                 HandlerOut::SendError(e.to_string()),
                             ));
                         }
                         Poll::Pending => {
-                            self.outbound_substream = Some(state);
+                            // Not ready to send more messages yet
+                            *outbound_substream = Some(state);
                             break;
                         }
-                    }
-                } else {
-                    self.outbound_substream = Some(state);
-                    break;
-                }
-            } else {
-                match Sink::poll_ready(Pin::new(&mut state.substream), cx) {
-                    Poll::Ready(Ok(())) => {
-                        let message = Self::create_message_batch(
-                            &mut self.send_queue,
-                            self.max_wire_message_size,
-                        );
-                        match Sink::start_send(Pin::new(&mut state.substream), message) {
-                            Ok(()) => {
-                                // Try sending more messages if there are any
-                                state.should_flush = true;
-                                self.outbound_substream = Some(state);
-                                continue;
-                            }
-                            Err(e) => {
-                                tracing::error!("Failed to send message on outbound stream: {e}");
-                                return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
-                                    HandlerOut::SendError(e.to_string()),
-                                ));
-                            }
-                        }
-                    }
-                    Poll::Ready(Err(e)) => {
-                        tracing::error!("Failed to send message on outbound stream: {e}");
-                        return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
-                            HandlerOut::SendError(e.to_string()),
-                        ));
-                    }
-                    Poll::Pending => {
-                        // Not ready to send more messages yet
-                        self.outbound_substream = Some(state);
-                        break;
                     }
                 }
             }
@@ -226,66 +261,76 @@ impl Handler {
         }
 
         // Handle inbound messages
-        loop {
-            match self.inbound_substream.take() {
-                Some(InboundSubstreamState::WaitingInput(mut substream)) => {
-                    match substream.poll_next_unpin(cx) {
-                        Poll::Ready(Some(Ok(batch))) => {
-                            self.inbound_substream =
-                                Some(InboundSubstreamState::WaitingInput(substream));
-                            // Add all received units to the receive queue
-                            for proto_unit in batch.batch {
-                                match PropellerUnit::try_from(proto_unit) {
-                                    Ok(unit) => {
-                                        self.receive_queue.push_back(unit);
-                                    }
-                                    Err(e) => {
-                                        tracing::error!(
-                                            "Failed to convert protobuf unit to unit: {e}"
-                                        );
+        for inbound_substream in self.inbound_substream.iter_mut() {
+            loop {
+                match inbound_substream.take() {
+                    Some(InboundSubstreamState::WaitingInput(mut substream)) => {
+                        match substream.poll_next_unpin(cx) {
+                            Poll::Ready(Some(Ok(messages))) => {
+                                *inbound_substream =
+                                    Some(InboundSubstreamState::WaitingInput(substream));
+                                // Add all received messages to the queue
+                                for proto_unit in messages.batch {
+                                    match PropellerUnit::try_from(proto_unit) {
+                                        Ok(unit) => {
+                                            self.receive_queue.push_back(unit);
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                "Failed to convert protobuf unit to unit: {e}"
+                                            );
+                                        }
                                     }
                                 }
+                                // Wake up to emit the first message
+                                cx.waker().wake_by_ref();
+                                break;
                             }
-                            // Wake up to emit the first message
-                            cx.waker().wake_by_ref();
-                            break;
-                        }
-                        Poll::Ready(Some(Err(error))) => {
-                            tracing::trace!("Failed to read from inbound stream: {error}");
-                            self.inbound_substream =
-                                Some(InboundSubstreamState::Closing(substream));
-                        }
-                        Poll::Ready(None) => {
-                            tracing::trace!("Inbound stream closed by remote");
-                            self.inbound_substream =
-                                Some(InboundSubstreamState::Closing(substream));
-                        }
-                        Poll::Pending => {
-                            self.inbound_substream =
-                                Some(InboundSubstreamState::WaitingInput(substream));
-                            break;
+                            Poll::Ready(Some(Err(error))) => {
+                                tracing::trace!("Failed to read from inbound stream: {error}");
+                                // Close this side of the stream. If the
+                                // peer is still around, they will re-establish their
+                                // outbound stream i.e. our inbound stream.
+                                *inbound_substream =
+                                    Some(InboundSubstreamState::Closing(substream));
+                            }
+                            // peer closed the stream
+                            Poll::Ready(None) => {
+                                tracing::trace!("Inbound stream closed by remote");
+                                *inbound_substream =
+                                    Some(InboundSubstreamState::Closing(substream));
+                            }
+                            Poll::Pending => {
+                                *inbound_substream =
+                                    Some(InboundSubstreamState::WaitingInput(substream));
+                                break;
+                            }
                         }
                     }
-                }
-                Some(InboundSubstreamState::Closing(mut substream)) => {
-                    match Sink::poll_close(Pin::new(&mut substream), cx) {
-                        Poll::Ready(res) => {
-                            if let Err(e) = res {
-                                tracing::trace!("Inbound substream error while closing: {e}");
+                    Some(InboundSubstreamState::Closing(mut substream)) => {
+                        match Sink::poll_close(Pin::new(&mut substream), cx) {
+                            Poll::Ready(res) => {
+                                if let Err(e) = res {
+                                    // Don't close the connection but just drop the inbound
+                                    // substream. In case the
+                                    // remote has more to send, they will open up a new
+                                    // substream.
+                                    tracing::trace!("Inbound substream error while closing: {e}");
+                                }
+                                *inbound_substream = None;
+                                break;
                             }
-                            self.inbound_substream = None;
-                            break;
-                        }
-                        Poll::Pending => {
-                            self.inbound_substream =
-                                Some(InboundSubstreamState::Closing(substream));
-                            break;
+                            Poll::Pending => {
+                                *inbound_substream =
+                                    Some(InboundSubstreamState::Closing(substream));
+                                break;
+                            }
                         }
                     }
-                }
-                None => {
-                    self.inbound_substream = None;
-                    break;
+                    None => {
+                        *inbound_substream = None;
+                        break;
+                    }
                 }
             }
         }
