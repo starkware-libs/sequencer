@@ -25,7 +25,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{felt, invoke_tx_args, nonce};
+use starknet_api::{felt, invoke_tx_args, nonce, proof_facts};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::AllocationCost;
@@ -200,6 +200,7 @@ fn get_pre_validate_test_args(
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
         version,
+       proof_facts: proof_facts![felt!(0x1_u8), felt!(0x2_u8)],
     };
     (block_context, state, pre_validation_base_args, nonce_manager)
 }
