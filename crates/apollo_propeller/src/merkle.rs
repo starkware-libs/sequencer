@@ -8,6 +8,14 @@ use sha2::{Digest, Sha256};
 /// A hash value in the Merkle tree (32 bytes from SHA-256).
 pub type MerkleHash = [u8; 32];
 
+/// A Merkle tree for verifying data integrity.
+#[derive(Debug, Clone)]
+pub struct MerkleTree {
+    /// All nodes in the tree, stored level by level from bottom to top.
+    /// Index 0 contains the leaves, and the last element contains the root.
+    nodes_by_level: Vec<Vec<MerkleHash>>,
+}
+
 /// A Merkle proof that can be used to verify a leaf is part of the tree.
 ///
 /// MerkleProof is succinct because it is sent over the wire, so it doesn't contain proof
@@ -16,6 +24,85 @@ pub type MerkleHash = [u8; 32];
 pub struct MerkleProof {
     /// The sibling hashes needed to reconstruct the path to the root.
     pub siblings: Vec<MerkleHash>,
+}
+
+impl MerkleTree {
+    /// Hash a data chunk to create a leaf hash.
+    pub fn hash_leaf(data: &[u8]) -> MerkleHash {
+        let mut hasher = Sha256::new();
+        // TODO(AndrewL): Talk with the team about these hash wrappings and what to do with them.
+        hasher.update(b"<leaf>");
+        hasher.update(data);
+        hasher.update(b"</leaf>");
+        hasher.finalize().into()
+    }
+
+    /// Get the root hash of the tree.
+    /// Returns `None` if the tree is empty.
+    pub fn root(&self) -> Option<MerkleHash> {
+        self.nodes_by_level.last().and_then(|level| level.first().copied())
+    }
+
+    /// Get the number of leaves in the tree.
+    pub fn leaf_count(&self) -> usize {
+        self.nodes_by_level.first().map(|level| level.len()).unwrap_or(0)
+    }
+
+    /// Get the leaves of the tree.
+    /// Returns `None` if the tree is empty.
+    pub fn leaves(&self) -> Option<&[MerkleHash]> {
+        self.nodes_by_level.first().map(|level| level.as_slice())
+    }
+
+    // TODO(AndrewL): CRITICAL: make leaves have different depths instead of this hack.
+
+    /// Generate a Merkle proof for a specific leaf index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    pub fn prove(&self, leaf_index: usize) -> Option<MerkleProof> {
+        let leaves = self.nodes_by_level.first()?;
+        if leaf_index >= leaves.len() {
+            return None;
+        }
+
+        let mut siblings = Vec::new();
+        let mut index = leaf_index;
+
+        // Iterate through levels from bottom to top (excluding the root)
+        for level in &self.nodes_by_level[..self.nodes_by_level.len() - 1] {
+            let level_size = level.len();
+
+            // Check if sibling exists
+            if level_size <= 1 {
+                index /= 2;
+                continue;
+            }
+
+            // If the index is even, take the left sibling, else take the right sibling
+            let sibling_index = index ^ 1;
+
+            // Add sibling hash
+            debug_assert!(index < level_size);
+            let sibling_index = if sibling_index == level_size { index } else { sibling_index };
+            // TODO(AndrewL): consider skipping the sibling if it is the same as the current node.
+            siblings.push(level[sibling_index]);
+
+            // Move to parent level
+            index /= 2;
+        }
+
+        Some(MerkleProof { siblings })
+    }
+
+    /// Verify a Merkle proof against this tree's root.
+    pub fn verify(
+        &self,
+        leaf_hash: &MerkleHash,
+        proof: &MerkleProof,
+        leaf_index: usize,
+    ) -> Option<bool> {
+        self.root().and_then(|root| Some(proof.verify(&root, leaf_hash, leaf_index)))
+    }
 }
 
 /// Hash a pair of nodes to create a parent hash.
