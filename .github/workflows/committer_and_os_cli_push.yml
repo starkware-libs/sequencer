@@ -79,6 +79,9 @@ jobs:
 
       - name: Build CLI binary
         run: ./build_native_in_docker.sh cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
 
       - id: auth
         uses: "google-github-actions/auth@v2"

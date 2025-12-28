@@ -110,6 +110,9 @@ jobs:
       - name: Build native blockifier
         run: |
           ./build_native_in_docker.sh scripts/build_native_blockifier.sh
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
 
       # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
       - name: Rename shared object
