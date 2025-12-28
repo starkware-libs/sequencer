@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::marker::PhantomData;
 
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
@@ -8,7 +9,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
@@ -26,7 +27,7 @@ use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
 
 pub type ApolloStorage = MapStorage;
-pub type ApolloCommitter = Committer<ApolloStorage>;
+pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockImpl>;
 
 pub trait StorageConstructor {
     fn create_storage() -> Self;
@@ -39,16 +40,18 @@ impl StorageConstructor for ApolloStorage {
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
-pub struct Committer<S: Storage + StorageConstructor> {
+pub struct Committer<S: Storage + StorageConstructor, CB: CommitBlockTrait> {
     /// Storage for forest operations.
     forest_storage: MockForestStorage<S>,
     /// Committer config.
     config: CommitterConfig,
     /// The next block number to commit.
     offset: BlockNumber,
+    // Allow define the generic type CB and not use it.
+    phantom: PhantomData<CB>,
 }
 
-impl<S: Storage + StorageConstructor> Committer<S> {
+impl<S: Storage + StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
         let db_offset = forest_storage
@@ -66,7 +69,7 @@ impl<S: Storage + StorageConstructor> Committer<S> {
             .unwrap_or_default()
             .0;
 
-        Self { forest_storage, config, offset }
+        Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
     /// Commits a block to the forest.
@@ -110,7 +113,7 @@ impl<S: Storage + StorageConstructor> Committer<S> {
             config: self.config.reader_config.clone(),
         };
         let time_measurement = None;
-        let filled_forest = commit_block(input, &mut self.forest_storage, time_measurement)
+        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
             .await
             .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();

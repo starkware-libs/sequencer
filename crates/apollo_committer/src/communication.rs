@@ -2,17 +2,18 @@ use apollo_committer_types::communication::{CommitterRequest, CommitterResponse}
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
+use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::committer::{Committer, StorageConstructor};
 
-pub type LocalCommitterServer<S> =
-    LocalComponentServer<Committer<S>, CommitterRequest, CommitterResponse>;
+pub type LocalCommitterServer<S, CB> =
+    LocalComponentServer<Committer<S, CB>, CommitterRequest, CommitterResponse>;
 pub type RemoteCommitterServer = RemoteComponentServer<CommitterRequest, CommitterResponse>;
 
 #[async_trait]
-impl<S: Storage + StorageConstructor> ComponentRequestHandler<CommitterRequest, CommitterResponse>
-    for Committer<S>
+impl<S: Storage + StorageConstructor, CB: CommitBlockTrait>
+    ComponentRequestHandler<CommitterRequest, CommitterResponse> for Committer<S, CB>
 {
     async fn handle_request(&mut self, request: CommitterRequest) -> CommitterResponse {
         match request {
