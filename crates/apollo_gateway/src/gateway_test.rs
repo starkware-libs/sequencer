@@ -94,6 +94,7 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
+use crate::proof_archive_writer::MockProofArchiveWriterTrait;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
@@ -134,12 +135,14 @@ fn mock_dependencies() -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
+    let mock_proof_archive_writer = MockProofArchiveWriterTrait::new();
     MockDependencies {
         config,
         state_reader_factory,
         mock_mempool_client,
         mock_transaction_converter,
         mock_stateless_transaction_validator,
+        mock_proof_archive_writer,
     }
 }
 
@@ -149,6 +152,7 @@ struct MockDependencies {
     mock_mempool_client: MockMempoolClient,
     mock_transaction_converter: MockTransactionConverterTrait,
     mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
+    mock_proof_archive_writer: MockProofArchiveWriterTrait,
 }
 
 impl MockDependencies {
@@ -160,6 +164,7 @@ impl MockDependencies {
             Arc::new(self.mock_mempool_client),
             Arc::new(self.mock_transaction_converter),
             Arc::new(self.mock_stateless_transaction_validator),
+            Arc::new(self.mock_proof_archive_writer),
         )
     }
 
@@ -578,6 +583,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -630,6 +636,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;

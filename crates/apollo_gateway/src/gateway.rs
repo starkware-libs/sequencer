@@ -43,6 +43,7 @@ use crate::errors::{
     GatewayResult,
 };
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::proof_archive_writer::{GcsProofArchiveWriter, ProofArchiveWriterTrait};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
@@ -65,6 +66,7 @@ pub struct Gateway {
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
+    pub proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
 }
 
 impl Gateway {
@@ -74,6 +76,7 @@ impl Gateway {
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<dyn TransactionConverterTrait>,
         stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
+        proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
@@ -88,6 +91,7 @@ impl Gateway {
             }),
             mempool_client,
             transaction_converter,
+            proof_archive_writer,
         }
     }
 
@@ -242,12 +246,15 @@ pub fn create_gateway(
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.stateless_tx_validator_config.clone(),
     });
+    let proof_archive_writer =
+        Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()));
     Gateway::new(
         config,
         state_reader_factory,
         mempool_client,
         transaction_converter,
         stateless_tx_validator,
+        proof_archive_writer,
     )
 }
 
