@@ -94,7 +94,7 @@ func execute_syscalls{
 
     if (selector == STORAGE_READ_SELECTOR) {
         execute_storage_read(contract_address=execution_context.execution_info.contract_address);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -104,7 +104,7 @@ func execute_syscalls{
 
     if (selector == STORAGE_WRITE_SELECTOR) {
         execute_storage_write(contract_address=execution_context.execution_info.contract_address);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -114,7 +114,7 @@ func execute_syscalls{
 
     if (selector == GET_EXECUTION_INFO_SELECTOR) {
         execute_get_execution_info(execution_context=execution_context);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -126,7 +126,7 @@ func execute_syscalls{
         execute_call_contract(
             block_context=block_context, caller_execution_context=execution_context
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -138,7 +138,7 @@ func execute_syscalls{
         execute_library_call(
             block_context=block_context, caller_execution_context=execution_context
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -152,7 +152,7 @@ func execute_syscalls{
         reduce_syscall_gas_and_write_response_header(
             total_gas_cost=EMIT_EVENT_GAS_COST, request_struct_size=EmitEventRequest.SIZE
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -162,7 +162,7 @@ func execute_syscalls{
 
     if (selector == DEPLOY_SELECTOR) {
         execute_deploy(block_context=block_context, caller_execution_context=execution_context);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -172,7 +172,7 @@ func execute_syscalls{
 
     if (selector == GET_BLOCK_HASH_SELECTOR) {
         execute_get_block_hash(block_context=block_context);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -182,7 +182,7 @@ func execute_syscalls{
 
     if (selector == GET_CLASS_HASH_AT_SELECTOR) {
         execute_get_class_hash_at();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -192,7 +192,7 @@ func execute_syscalls{
 
     if (selector == REPLACE_CLASS_SELECTOR) {
         execute_replace_class(contract_address=execution_context.execution_info.contract_address);
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -202,7 +202,7 @@ func execute_syscalls{
 
     if (selector == KECCAK_SELECTOR) {
         execute_keccak();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -212,7 +212,7 @@ func execute_syscalls{
 
     if (selector == SHA256_PROCESS_BLOCK_SELECTOR) {
         execute_sha256_process_block();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -222,7 +222,7 @@ func execute_syscalls{
 
     if (selector == SECP256K1_GET_POINT_FROM_X_SELECTOR) {
         execute_secp256k1_get_point_from_x();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -232,7 +232,7 @@ func execute_syscalls{
 
     if (selector == SECP256R1_GET_POINT_FROM_X_SELECTOR) {
         execute_secp256r1_get_point_from_x();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -242,7 +242,7 @@ func execute_syscalls{
 
     if (selector == SECP256K1_NEW_SELECTOR) {
         execute_secp256k1_new();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -252,7 +252,7 @@ func execute_syscalls{
 
     if (selector == SECP256R1_NEW_SELECTOR) {
         execute_secp256r1_new();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -262,7 +262,7 @@ func execute_syscalls{
 
     if (selector == SECP256K1_ADD_SELECTOR) {
         execute_secp256k1_add();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -272,7 +272,7 @@ func execute_syscalls{
 
     if (selector == SECP256R1_ADD_SELECTOR) {
         execute_secp256r1_add();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -282,7 +282,7 @@ func execute_syscalls{
 
     if (selector == SECP256K1_MUL_SELECTOR) {
         execute_secp256k1_mul();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -292,7 +292,7 @@ func execute_syscalls{
 
     if (selector == SECP256R1_MUL_SELECTOR) {
         execute_secp256r1_mul();
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -305,7 +305,7 @@ func execute_syscalls{
             curve_prime=Uint256(low=SECP256K1_PRIME_LOW, high=SECP256K1_PRIME_HIGH),
             gas_cost=SECP256K1_GET_XY_GAS_COST,
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -318,7 +318,7 @@ func execute_syscalls{
             curve_prime=Uint256(low=SECP256R1_PRIME_LOW, high=SECP256R1_PRIME_HIGH),
             gas_cost=SECP256R1_GET_XY_GAS_COST,
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -330,7 +330,7 @@ func execute_syscalls{
         execute_send_message_to_l1(
             contract_address=execution_context.execution_info.contract_address
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -340,7 +340,7 @@ func execute_syscalls{
 
     assert selector = META_TX_V0_SELECTOR;
     execute_meta_tx_v0(block_context=block_context, caller_execution_context=execution_context);
-    %{ exit_syscall() %}
+    %{ OsLoggerExitSyscall %}
     return execute_syscalls(
         block_context=block_context,
         execution_context=execution_context,

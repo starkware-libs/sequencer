@@ -960,7 +960,7 @@ define_hint_enum!(
     ),
     (SetSyscallPtr, set_syscall_ptr),
     (OsLoggerEnterSyscallPrepareExitSyscall, os_logger_enter_syscall_prepare_exit_syscall),
-    (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
+    (OsLoggerExitSyscall, os_logger_exit_syscall),
     (
         InitStateUpdatePointers,
         init_state_update_pointer,
