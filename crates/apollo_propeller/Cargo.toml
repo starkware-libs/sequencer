@@ -13,6 +13,7 @@ testing = []
 sha2.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
 
 
 [lints]
