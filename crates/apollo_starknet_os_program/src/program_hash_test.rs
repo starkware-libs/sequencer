@@ -7,6 +7,7 @@ use expect_test::expect_file;
 use crate::program_hash::{
     compute_aggregator_program_hash,
     compute_os_program_hash,
+    compute_virtual_os_program_hash,
     AggregatorHash,
     ProgramHashes,
 };
@@ -26,6 +27,7 @@ fn test_program_hashes() {
     let AggregatorHash { with_prefix, without_prefix } = compute_aggregator_program_hash().unwrap();
     let computed_hashes = ProgramHashes {
         os: compute_os_program_hash().unwrap(),
+        virtual_os: compute_virtual_os_program_hash().unwrap(),
         aggregator: without_prefix,
         aggregator_with_prefix: with_prefix,
     };
