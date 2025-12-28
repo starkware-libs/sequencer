@@ -51,6 +51,7 @@ use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
     StatefulTransactionValidatorFactoryTrait,
+    StatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator,
@@ -63,7 +64,13 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 pub mod gateway_test;
 
 #[derive(Clone)]
-pub struct Gateway(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
+pub struct Gateway(
+    GenericGateway<
+        StatelessTransactionValidator,
+        TransactionConverter,
+        StatefulTransactionValidatorFactory<SyncStateReaderFactory>,
+    >,
+);
 
 impl Gateway {
     fn new(
@@ -97,10 +104,11 @@ impl Gateway {
 pub(crate) struct GenericGateway<
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
+    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > {
     config: Arc<GatewayConfig>,
     stateless_tx_validator: Arc<TStatelessValidator>,
-    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
+    stateful_tx_validator_factory: Arc<TStatefulValidatorFactory>,
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
@@ -109,11 +117,17 @@ pub(crate) struct GenericGateway<
 impl<
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
-> GenericGateway<TStatelessValidator, TTransactionConverter>
+    TStateReaderFactory: StateReaderFactory,
+>
+    GenericGateway<
+        TStatelessValidator,
+        TTransactionConverter,
+        StatefulTransactionValidatorFactory<TStateReaderFactory>,
+    >
 {
-    pub(crate) fn new<StateReaderFactoryGeneric: StateReaderFactory + 'static>(
+    pub(crate) fn new(
         config: GatewayConfig,
-        state_reader_factory: Arc<StateReaderFactoryGeneric>,
+        state_reader_factory: Arc<TStateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
@@ -135,7 +149,13 @@ impl<
             proof_archive_writer,
         }
     }
-
+}
+impl<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
+> GenericGateway<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
+{
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub(crate) async fn add_tx(
         &self,
