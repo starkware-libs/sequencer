@@ -22,7 +22,6 @@ use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     PaymasterData,
-    ProofFacts,
     Resource,
     ResourceBounds,
     Tip,
@@ -31,7 +30,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::{felt, nonce, tx_hash};
+use starknet_api::{felt, nonce, proof_facts, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -479,8 +478,7 @@ fn test_get_execution_info(
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
-            // TODO(Meshi): Add proof facts.
-            proof_facts: ProofFacts::default(),
+            proof_facts: proof_facts![felt!(1_u16), felt!(2_u16), felt!(3_u16)],
         });
     }
 
@@ -490,19 +488,35 @@ fn test_get_execution_info(
         *test_contract_address.0.key(), // Storage address.
         entry_point_selector.0,         // Entry point selector.
     ];
+
+    // Transaction V1 doesn't support proof facts.
+    let proof_facts = if version == TransactionVersion::ONE {
+        vec![Felt::ZERO]
+    } else {
+        vec![felt!(3_u16), felt!(1_u16), felt!(2_u16), felt!(3_u16)]
+    };
+
+    let calldata = match test_contract {
+        // We only changed the 'test_get_execution_info' logic in the test contract to make sure the
+        // other tests still checks the old behavior.
+        FeatureContract::TestContract(_) => vec![
+            expected_block_info.to_vec(),
+            expected_tx_info,
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+            proof_facts,
+            expected_call_info,
+        ],
+        _ => vec![
+            expected_block_info.to_vec(),
+            expected_tx_info,
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+            expected_call_info,
+        ],
+    };
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
         code_address: None,
-        calldata: Calldata(
-            [
-                expected_block_info.to_vec(),
-                expected_tx_info,
-                expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-                expected_call_info,
-            ]
-            .concat()
-            .into(),
-        ),
+        calldata: Calldata(calldata.concat().into()),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
     let result = entry_point_call.execute_directly_given_tx_info(
