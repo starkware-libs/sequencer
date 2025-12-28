@@ -133,6 +133,12 @@ pub trait HeaderStorageReader {
         block_number: BlockNumber,
     ) -> StorageResult<Option<StarknetVersion>>;
 
+    /// Returns the Starknet version for a given block number using direct key-value lookup.
+    fn get_starknet_version_by_key(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>>;
+
     /// Returns the signature of the block with the given number.
     fn get_block_signature(
         &self,
@@ -249,6 +255,15 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
                  have at least a single mapping."
             ),
         }
+    }
+
+    fn get_starknet_version_by_key(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>> {
+        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
+        let starknet_version = starknet_version_table.get(&self.txn, &block_number)?;
+        Ok(starknet_version)
     }
 
     fn get_block_signature(

@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
-use crate::header::StorageBlockHeader;
+use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
@@ -264,8 +264,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::FileOffsets(_offset_kind) => {
                 unimplemented!()
             }
-            StorageReaderRequest::StarknetVersion(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::StarknetVersion(block_number) => {
+                let starknet_version = txn.get_starknet_version_by_key(block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Starknet version".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    },
+                )?;
+                Ok(StorageReaderResponse::StarknetVersion(starknet_version))
             }
             StorageReaderRequest::StorageVersion(_version_name) => {
                 unimplemented!()
