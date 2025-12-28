@@ -1,12 +1,12 @@
-use std::env::args;
+// use std::env::args;
 
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
-use apollo_node::servers::run_component_servers;
-use apollo_node::utils::create_node_modules;
-use apollo_node_config::config_utils::load_and_validate_config;
-use tracing::info;
+// use apollo_node::servers::run_component_servers;
+// use apollo_node::utils::create_node_modules;
+// use apollo_node_config::config_utils::load_and_validate_config;
+// use tracing::info;
 
 set_global_allocator!();
 
@@ -23,20 +23,21 @@ fn set_exit_process_on_panic() {
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
 
-    let prometheus_handle = metrics_recorder(MetricsConfig::enabled());
+    let _prometheus_handle = metrics_recorder(MetricsConfig::enabled());
 
     set_exit_process_on_panic();
+    panic!("check this out");
 
-    let cli_args: Vec<String> = args().collect();
-    let config = load_and_validate_config(cli_args.clone(), true)
-        .expect("Failed to load and validate config");
+    // let cli_args: Vec<String> = args().collect();
+    // let config = load_and_validate_config(cli_args.clone(), true)
+    //     .expect("Failed to load and validate config");
 
-    // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config, prometheus_handle, cli_args).await;
+    // // Clients are currently unused, but should not be dropped.
+    // let (_clients, servers) = create_node_modules(&config, prometheus_handle, cli_args).await;
 
-    info!("START_UP: Starting components!");
-    run_component_servers(servers).await;
+    // info!("START_UP: Starting components!");
+    // run_component_servers(servers).await;
 
-    // TODO(Tsabary): Add graceful shutdown.
-    Ok(())
+    // // TODO(Tsabary): Add graceful shutdown.
+    // Ok(())
 }

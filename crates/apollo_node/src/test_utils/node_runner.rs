@@ -72,7 +72,7 @@ async fn spawn_node_child_process(
     info!("Running the node from: {}", node_executable);
     let mut node_process: Child = create_shell_command(node_executable.as_str())
         .args(config_file_args)
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .kill_on_drop(true) // Required for stopping when the handle is dropped.
         .spawn()
@@ -92,36 +92,65 @@ async fn spawn_node_child_process(
 
     info!("Node PID: {:?}, Annotator PID: {:?}", node_process.id(), annotator_process.id());
 
-    // Get the node stdout and the annotator stdin.
+    // Get the node stdout and stderr, and the annotator stdin.
     let node_stdout = node_process.stdout.take().expect("Node stdout should be available.");
+    let node_stderr = node_process.stderr.take().expect("Node stderr should be available.");
+
     let mut annotator_stdin =
         annotator_process.stdin.take().expect("Annotator stdin should be available.");
 
     // Spawn a task to connect the node stdout with the annotator stdin.
     let pipe_task = AbortOnDropHandle::new(tokio::spawn(async move {
-        let mut reader = BufReader::new(node_stdout).lines();
+        let mut stdout_reader = BufReader::new(node_stdout).lines();
+        let mut stderr_reader = BufReader::new(node_stderr).lines();
+
         info!("Writing node logs to file: {:?}", node_runner.logs_file_path());
         let mut file =
             File::create(node_runner.logs_file_path()).await.expect("Failed to create log file.");
-        while let Some(line) = reader.next_line().await.transpose() {
-            match line {
-                Ok(line) => {
-                    // Write to annotator stdin
-                    if let Err(e) = annotator_stdin.write_all(line.as_bytes()).await {
-                        error!("Failed to write to annotator stdin: {}", e);
+
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+
+        loop {
+            if stdout_done && stderr_done {
+                break;
+            }
+
+            let res = tokio::select! {
+                // Only poll stdout if it's not done.
+                res = stdout_reader.next_line(), if !stdout_done => {
+                    match res {
+                        Ok(line) => { Ok(line) }
+                        Err(e) => {  stdout_done = true; Err(e)}
                     }
-                    if let Err(e) = annotator_stdin.write_all(b"\n").await {
-                        error!("Failed to write newline to annotator stdin: {}", e);
+                }
+
+                // Only poll stderr if it's not done.
+                res = stderr_reader.next_line(), if !stderr_done => {
+                    match res {
+                        Ok(line) => { Ok(line) }
+                        Err(e) => {  stderr_done = true;Err(e) }
+                    }
+                }
+            };
+
+            match res {
+                Ok(Some(line)) => {
+                    let mut line = line;
+                    line.push('\n');
+                    let line_with_newline = line.as_bytes();
+
+                    // Write to annotator stdin
+                    if let Err(e) = annotator_stdin.write_all(line_with_newline).await {
+                        error!("Failed to write to annotator stdin: {}", e);
                     }
 
                     // Write to file
-                    if let Err(e) = file.write_all(line.as_bytes()).await {
+                    if let Err(e) = file.write_all(line_with_newline).await {
                         error!("Failed to write to file: {}", e);
                     }
-                    if let Err(e) = file.write_all(b"\n").await {
-                        error!("Failed to write newline to file: {}", e);
-                    }
                 }
+                Ok(None) => {}
                 Err(e) => {
                     error!("Error while reading node stdout: {}", e);
                 }
