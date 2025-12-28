@@ -174,3 +174,14 @@ impl TryFrom<RawSignature> for starknet_crypto::Signature {
         Ok(starknet_crypto::Signature { r, s })
     }
 }
+
+/// A 16-byte challenge, e.g. for peer identification. Stored as bytes for JSON/serde-safe
+/// wire format (u128 in JSON is fragile across languages and decoders).
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct Challenge(pub [u8; 16]);
+
+impl From<u128> for Challenge {
+    fn from(value: u128) -> Self {
+        Self(value.to_be_bytes())
+    }
+}
