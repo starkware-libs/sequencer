@@ -20,6 +20,8 @@ use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     PaymasterData,
+    Proof,
+    ProofFacts,
     ResourceBounds,
     TransactionSignature,
     ValidResourceBounds,
@@ -66,6 +68,8 @@ pub struct RpcTransactionArgs {
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+    pub proof_facts: ProofFacts,
+    pub proof: Proof,
 }
 
 impl Default for RpcTransactionArgs {
@@ -79,6 +83,8 @@ impl Default for RpcTransactionArgs {
             paymaster_data: Default::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
+            proof_facts: ProofFacts::default(),
+            proof: Proof::default(),
         }
     }
 }
@@ -96,6 +102,8 @@ pub fn rpc_tx_for_testing(
         paymaster_data,
         nonce_data_availability_mode,
         fee_data_availability_mode,
+        proof_facts,
+        proof,
     } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
@@ -143,7 +151,8 @@ pub fn rpc_tx_for_testing(
             paymaster_data,
             nonce_data_availability_mode,
             fee_data_availability_mode,
-            // TODO(AvivG): Add proof fields after supporting them in `RpcTransactionArgs`.
+            proof_facts,
+            proof,
         )),
     }
 }
