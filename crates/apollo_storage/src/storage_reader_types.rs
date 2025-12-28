@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
@@ -40,8 +40,8 @@ pub enum StorageReaderRequest {
     ContractStorage((ContractAddress, StorageKey), BlockNumber),
     /// Nonce for a contract at a specific block.
     Nonces(ContractAddress, BlockNumber),
-    /// Class hash for a deployed contract at a specific block.
-    DeployedContracts(ContractAddress, BlockNumber),
+    /// Class hash for a deployed contract at a specific state.
+    DeployedContracts(ContractAddress, StateNumber),
     /// If an event exists at a given contract address and transaction index.
     Events(ContractAddress, TransactionIndex),
     /// A marker by kind.
@@ -192,8 +192,18 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::Nonces(_address, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::DeployedContracts(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::DeployedContracts(address, state_number) => {
+                let state_reader = txn.get_state_reader()?;
+                let class_hash = state_reader.get_class_hash_at(state_number, &address)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Deployed contract".to_string(),
+                        resource_id: format!(
+                            "address: {}, state_number: {:?}",
+                            address, state_number
+                        ),
+                    },
+                )?;
+                Ok(StorageReaderResponse::DeployedContracts(class_hash))
             }
             StorageReaderRequest::Events(_address, _tx_index) => {
                 unimplemented!()
