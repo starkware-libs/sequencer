@@ -144,6 +144,8 @@ pub enum TransactionPreValidationError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TransactionFeeError(#[from] Box<TransactionFeeError>),
+    #[error("Invalid proof facts: {0}")]
+    InvalidProofFacts(String),
 }
 
 #[derive(Debug, Error)]

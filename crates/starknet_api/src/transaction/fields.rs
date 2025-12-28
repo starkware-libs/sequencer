@@ -649,18 +649,18 @@ impl ProofFacts {
 ///
 /// Currently, only SNOS proof facts are supported. The `Empty` variant indicates that the
 /// transaction does not utilize the client-side proving feature.
-pub enum ProofFactsVariants {
+pub enum ProofFactsVariant {
     Empty,
     Snos(SnosProofFacts),
 }
 
-impl TryFrom<&ProofFacts> for ProofFactsVariants {
+impl TryFrom<&ProofFacts> for ProofFactsVariant {
     type Error = StarknetApiError;
     fn try_from(proof_facts: &ProofFacts) -> Result<Self, Self::Error> {
         if proof_facts.is_empty() {
-            Ok(ProofFactsVariants::Empty)
+            Ok(ProofFactsVariant::Empty)
         } else if proof_facts.0[0] == Felt::from(VIRTUAL_SNOS) {
-            Ok(ProofFactsVariants::Snos(SnosProofFacts {
+            Ok(ProofFactsVariant::Snos(SnosProofFacts {
                 program_hash: proof_facts.get_field_at_idx(1, "program hash")?,
                 block_number: BlockNumber(
                     proof_facts.get_field_at_idx(2, "block number")?.try_into().map_err(|_| {
