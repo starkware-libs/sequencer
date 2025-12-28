@@ -14,8 +14,9 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
@@ -24,9 +25,7 @@ use crate::errors::VirtualBlockExecutorError;
 
 /// Captures execution data for a virtual block (multiple transactions).
 ///
-/// A virtual block is a set of transactions executed together without block preprocessing,
-/// useful for OS input generation and proving. This struct contains all the transaction execution
-/// outputs, block context, and initial state reads needed for proof generation.
+/// This struct contains all the execution data needed for proof generation.
 pub struct VirtualBlockExecutionData {
     /// Execution outputs for all transactions in the virtual block.
     pub execution_outputs: Vec<TransactionExecutionOutput>,
@@ -36,6 +35,8 @@ pub struct VirtualBlockExecutionData {
     pub initial_reads: StateMaps,
     /// The class hashes of all contracts executed in the virtual block.
     pub executed_class_hashes: HashSet<ClassHash>,
+    /// The block hash of the state at the start of the virtual block.
+    pub prev_base_block_hash: BlockHash,
 }
 
 /// Executes a virtual block of transactions.
@@ -86,6 +87,7 @@ pub trait VirtualBlockExecutor {
         let blockifier_txs = self.convert_invoke_txs(txs)?;
         let block_context = self.block_context(block_number)?;
         let state_reader = self.state_reader(block_number)?;
+        let prev_base_block_hash = self.prev_base_block_hash(block_number)?;
 
         // Create state reader with contract manager.
         let state_reader_and_contract_manager =
@@ -132,6 +134,7 @@ pub trait VirtualBlockExecutor {
             block_context,
             initial_reads,
             executed_class_hashes,
+            prev_base_block_hash,
         })
     }
 
@@ -171,6 +174,12 @@ pub trait VirtualBlockExecutor {
         &self,
         block_number: BlockNumber,
     ) -> Result<BlockContext, VirtualBlockExecutorError>;
+
+    /// Returns the block hash of the state at the start of the virtual block.
+    fn prev_base_block_hash(
+        &self,
+        block_number: BlockNumber,
+    ) -> Result<BlockHash, VirtualBlockExecutorError>;
 
     /// Returns a state reader that implements `FetchCompiledClasses` for the given block number.
     /// Must be `Send + Sync + 'static` to be used in the transaction executor.
@@ -216,6 +225,15 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     ) -> Result<BlockContext, VirtualBlockExecutorError> {
         self.rpc_state_reader
             .get_block_context()
+            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+    }
+
+    fn prev_base_block_hash(
+        &self,
+        block_number: BlockNumber,
+    ) -> Result<BlockHash, VirtualBlockExecutorError> {
+        self.rpc_state_reader
+            .get_old_block_hash(block_number)
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
     }
 
