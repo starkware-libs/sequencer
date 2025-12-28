@@ -418,13 +418,7 @@ define_hint_enum!(
 
 define_stateless_hint_enum!(
     StatelessHint,
-    (
-        IsBlockNumberInBlockHashBuffer,
-        is_block_number_in_block_hash_buffer,
-        // CHANGED: whitespaces.
-        r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
-           ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
-    ),
+    (IsBlockNumberInBlockHashBuffer, is_block_number_in_block_hash_buffer),
     (GetBlockHashMapping, get_block_hash_mapping),
     (IsLeaf, is_leaf),
     // Builtin selection hints are non-whitelisted hints that are part of cairo common.
