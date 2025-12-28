@@ -429,6 +429,13 @@ fn test_get_execution_info(
         }
     };
 
+    // Only transaction V3 supports non-trivial proof facts.
+    let proof_facts = if version == TransactionVersion::THREE {
+        ProofFacts::snos_proof_facts_for_testing()
+    } else {
+        ProofFacts::default()
+    };
+
     let expected_tx_info: Vec<Felt>;
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
@@ -463,7 +470,6 @@ fn test_get_execution_info(
             felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
             nonce.0,                              // Nonce.
         ];
-
         tx_info = TransactionInfo::Current(CurrentTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: tx_hash,
@@ -479,8 +485,7 @@ fn test_get_execution_info(
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
-            // TODO(Meshi): Add proof facts.
-            proof_facts: ProofFacts::default(),
+            proof_facts: proof_facts.clone(),
         });
     }
 
@@ -490,19 +495,33 @@ fn test_get_execution_info(
         *test_contract_address.0.key(), // Storage address.
         entry_point_selector.0,         // Entry point selector.
     ];
+
+
+    let mut expected_proof_facts = proof_facts.clone().0.to_vec();
+    let len: u128 = expected_proof_facts.len().try_into().expect("proof_facts length is too large");
+    expected_proof_facts.insert(0, felt!(len));
+
+    let calldata = match test_contract {
+        // We only changed the 'test_get_execution_info' logic in the test contract to make sure the
+        // other tests still checks the old behavior.
+        FeatureContract::TestContract(_) => vec![
+            expected_block_info.to_vec(),
+            expected_tx_info,
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+            expected_proof_facts,
+            expected_call_info,
+        ],
+        _ => vec![
+            expected_block_info.to_vec(),
+            expected_tx_info,
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+            expected_call_info,
+        ],
+    };
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
         code_address: None,
-        calldata: Calldata(
-            [
-                expected_block_info.to_vec(),
-                expected_tx_info,
-                expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-                expected_call_info,
-            ]
-            .concat()
-            .into(),
-        ),
+        calldata: Calldata(calldata.concat().into()),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
     let result = entry_point_call.execute_directly_given_tx_info(
