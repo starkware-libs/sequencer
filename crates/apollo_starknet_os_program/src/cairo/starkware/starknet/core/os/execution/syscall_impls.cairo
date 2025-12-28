@@ -670,14 +670,7 @@ func execute_storage_write{
 
     local prev_value: felt;
     local state_entry: StateEntry*;
-    %{
-        storage = execution_helper.storage_by_address[ids.contract_address]
-        ids.prev_value = storage.read(key=ids.request.key)
-        storage.write(key=ids.request.key, value=ids.request.value)
-
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ WriteSyscallResult %}
 
     // Update the contract's storage.
     static_assert StorageWriteRequest.SIZE == 3;

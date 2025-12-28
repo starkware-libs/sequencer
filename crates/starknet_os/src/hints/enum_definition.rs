@@ -842,30 +842,8 @@ define_hint_enum!(
         set_fp_plus_4_to_tx_nonce,
         "memory[fp + 4] = to_felt_or_relocatable(tx.nonce)"
     ),
-    (
-        WriteSyscallResultDeprecated,
-        write_syscall_result_deprecated,
-        indoc! {r#"
-	storage = execution_helper.storage_by_address[ids.contract_address]
-	ids.prev_value = storage.read(key=ids.syscall_ptr.address)
-	storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
-
-	# Fetch a state_entry in this hint and validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
-    (
-        WriteSyscallResult,
-        write_syscall_result,
-        indoc! {r#"
-    storage = execution_helper.storage_by_address[ids.contract_address]
-    ids.prev_value = storage.read(key=ids.request.key)
-    storage.write(key=ids.request.key, value=ids.request.value)
-
-    # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
+    (WriteSyscallResultDeprecated, write_syscall_result_deprecated),
+    (WriteSyscallResult, write_syscall_result),
     (
         DeclareTxFields,
         declare_tx_fields,
