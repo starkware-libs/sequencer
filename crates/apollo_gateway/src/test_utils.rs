@@ -33,6 +33,7 @@ use starknet_types_core::felt::Felt;
 use crate::gateway::Gateway;
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::large_storage_writer::MockLargeStorageWriterTrait;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
@@ -165,6 +166,7 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
     let mut mempool_client = MockMempoolClient::new();
     let class_manager_client = Arc::new(MockClassManagerClient::new());
     let proof_manager_client = Arc::new(MockProofManagerClient::new());
+    let large_storage_writer = Arc::new(MockLargeStorageWriterTrait::new());
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
         gateway_config.chain_info.chain_id.clone(),
@@ -182,5 +184,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
         Arc::new(transaction_converter),
         stateless_tx_validator,
         proof_manager_client,
+        large_storage_writer,
     )
 }

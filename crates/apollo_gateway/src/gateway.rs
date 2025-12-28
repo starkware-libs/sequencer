@@ -55,6 +55,7 @@ use crate::stateless_transaction_validator::{
     StatelessTransactionValidatorTrait,
 };
 use crate::sync_state_reader::SyncStateReaderFactory;
+use crate::large_storage_writer::{LargeStorageWriter, LargeStorageWriterTrait};
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -68,6 +69,7 @@ pub struct Gateway {
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
     pub proof_manager_client: SharedProofManagerClient,
+    pub large_storage_writer: Arc<dyn LargeStorageWriterTrait>,
 }
 
 impl Gateway {
@@ -78,6 +80,7 @@ impl Gateway {
         transaction_converter: Arc<dyn TransactionConverterTrait>,
         stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
         proof_manager_client: SharedProofManagerClient,
+        large_storage_writer: Arc<dyn LargeStorageWriterTrait>,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
@@ -93,6 +96,7 @@ impl Gateway {
             mempool_client,
             transaction_converter,
             proof_manager_client,
+            large_storage_writer,
         }
     }
 
@@ -258,7 +262,7 @@ pub fn create_gateway(
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.stateless_tx_validator_config.clone(),
     });
-
+    let large_storage_writer = Arc::new(LargeStorageWriter::new());
     Gateway::new(
         config,
         state_reader_factory,
@@ -266,6 +270,7 @@ pub fn create_gateway(
         transaction_converter,
         stateless_tx_validator,
         proof_manager_client,
+        large_storage_writer,
     )
 }
 
