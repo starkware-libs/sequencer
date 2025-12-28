@@ -27,22 +27,7 @@ func main{
     // Guess the Starknet OS outputs of the inner blocks.
     let (local os_outputs: OsOutput*) = alloc();
 
-    %{
-        from starkware.starknet.core.aggregator.output_parser import parse_bootloader_output
-        from starkware.starknet.core.aggregator.utils import OsOutputToCairo
-
-        tasks = parse_bootloader_output(program_input["bootloader_output"])
-        assert len(tasks) > 0, "No tasks found in the bootloader output."
-        ids.os_program_hash = tasks[0].program_hash
-        ids.n_tasks = len(tasks)
-        os_output_to_cairo = OsOutputToCairo(segments)
-        for i, task in enumerate(tasks):
-            os_output_to_cairo.process_os_output(
-                segments=segments,
-                dst_ptr=ids.os_outputs[i].address_,
-                os_output=task.os_output,
-            )
-    %}
+    %{ GetOsOuputForInnerBlocks %}
 
     // Guess whether to use KZG commitment scheme and whether to output the full state.
     tempvar use_kzg_da = nondet %{ program_input["use_kzg_da"] %};
@@ -51,11 +36,7 @@ func main{
     // Guess the committee's public keys.
     local public_keys: felt*;
     local n_public_keys: felt;
-    %{
-        public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
-        ids.public_keys = segments.gen_arg(public_keys)
-        ids.n_public_keys = len(public_keys)
-    %}
+    %{ GetPublicKeysFromAggregatorInput %}
 
     check_public_keys{hash_ptr=pedersen_ptr}(
         n_public_keys=n_public_keys,
@@ -89,17 +70,7 @@ func main{
     );
 
     // Output the combined result. This represents the "output" of the aggregator.
-    %{
-        from starkware.starknet.core.os.kzg_manager import KzgManager
-
-        __serialize_data_availability_create_pages__ = True
-        if "polynomial_coefficients_to_kzg_commitment_callback" not in globals():
-            from services.utils import kzg_utils
-            polynomial_coefficients_to_kzg_commitment_callback = (
-                kzg_utils.polynomial_coefficients_to_kzg_commitment
-            )
-        kzg_manager = KzgManager(polynomial_coefficients_to_kzg_commitment_callback)
-    %}
+    %{ GetAggregatorOutput %}
 
     serialize_os_output(
         os_output=combined_output,
@@ -108,15 +79,7 @@ func main{
         public_keys=public_keys,
     );
 
-    %{
-        import json
-
-        da_path = program_input.get("da_path")
-        if da_path is not None:
-            da_segment = kzg_manager.da_segment if program_input["use_kzg_da"] else None
-            with open(da_path, "w") as da_file:
-                json.dump(da_segment, da_file)
-    %}
+    %{ WriteDaSegment %}
 
     return ();
 }
@@ -145,13 +108,7 @@ func output_blocks{
     assert output_ptr[0] = os_program_hash;
     let output_ptr = output_ptr + 1;
 
-    %{
-        # Note that `serialize_os_output` splits its output to memory pages
-        # (see OutputBuiltinRunner.add_page).
-        # Since this output is only used internally and will not be used in the final fact,
-        # we need to disable page creation.
-        __serialize_data_availability_create_pages__ = False
-    %}
+    %{ DisableDaPageCreation %}
     serialize_os_output(
         os_output=&os_outputs[0],
         replace_keys_with_aliases=FALSE,
