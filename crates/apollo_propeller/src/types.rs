@@ -106,3 +106,59 @@ impl std::fmt::Display for TreeGenerationError {
 }
 
 impl std::error::Error for TreeGenerationError {}
+
+// ****************************************************************************
+
+/// Errors that can occur when sending a shard.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShardPublishError {
+    LocalPeerNotInPeerWeights,
+    InvalidDataSize,
+    SigningFailed(String),
+    ErasureEncodingFailed(String),
+    NotConnectedToPeer(PeerId),
+    HandlerError(String),
+    TreeGenerationError(TreeGenerationError),
+    ChannelNotRegistered(Channel),
+    BroadcastFailed,
+}
+
+impl std::fmt::Display for ShardPublishError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShardPublishError::LocalPeerNotInPeerWeights => {
+                write!(f, "Local peer not in peer weights")
+            }
+            ShardPublishError::InvalidDataSize => {
+                write!(
+                    f,
+                    "Invalid data size for broadcasting, data size must be divisible by number of \
+                     data shards"
+                )
+            }
+            ShardPublishError::SigningFailed(e) => {
+                write!(f, "Signing failed: {}", e)
+            }
+            ShardPublishError::ErasureEncodingFailed(e) => {
+                write!(f, "Erasure encoding failed: {}", e)
+            }
+            ShardPublishError::NotConnectedToPeer(peer_id) => {
+                write!(f, "Not connected to peer {}", peer_id)
+            }
+            ShardPublishError::HandlerError(e) => {
+                write!(f, "Handler error: {}", e)
+            }
+            ShardPublishError::TreeGenerationError(e) => {
+                write!(f, "Tree generation error: {}", e)
+            }
+            ShardPublishError::ChannelNotRegistered(channel) => {
+                write!(f, "Channel not registered: {}", channel)
+            }
+            ShardPublishError::BroadcastFailed => {
+                write!(f, "Broadcast failed to complete")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ShardPublishError {}
