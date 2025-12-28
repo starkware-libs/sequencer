@@ -1,5 +1,6 @@
 use apollo_batcher::metrics::{
     BATCHER_CLASS_CACHE_METRICS,
+    L2_GAS_IN_LAST_BLOCK,
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
     SIERRA_GAS_IN_LAST_BLOCK,
@@ -112,6 +113,19 @@ fn get_panel_proving_gas_in_last_block() -> Panel {
     )
 }
 
+fn get_panel_l2_gas_used_in_last_block() -> Panel {
+    Panel::new(
+        "Average L2 Gas Usage in Block",
+        "The average L2 gas usage in block (10m window)",
+        format!(
+            "avg_over_time({}[10m])/{}",
+            L2_GAS_IN_LAST_BLOCK.get_name_with_filter(),
+            DENOMINATOR_DIVISOR_FOR_READABILITY
+        ),
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
@@ -125,6 +139,7 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_transactions_per_block(),
             get_panel_sierra_gas_in_last_block(),
             get_panel_proving_gas_in_last_block(),
+            get_panel_l2_gas_used_in_last_block(),
         ],
     )
 }
