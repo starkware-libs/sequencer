@@ -143,6 +143,7 @@ pub fn rpc_tx_for_testing(
             paymaster_data,
             nonce_data_availability_mode,
             fee_data_availability_mode,
+            // TODO(AvivG): Add proof fields after supporting them in `RpcTransactionArgs`.
         )),
     }
 }
