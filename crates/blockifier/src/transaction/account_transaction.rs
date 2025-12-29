@@ -246,15 +246,31 @@ impl AccountTransaction {
         }
     }
 
-    fn validate_proof_facts(&self) -> TransactionPreValidationResult<()> {
+    fn validate_proof_facts(
+        &self,
+        tx_context: &TransactionContext,
+    ) -> TransactionPreValidationResult<()> {
         if let Transaction::Invoke(tx) = &self.tx {
             if tx.tx.version() == TransactionVersion::THREE {
                 let proof_facts_variant = ProofFactsVariant::try_from(&tx.tx.proof_facts())
                     .map_err(|e| TransactionPreValidationError::InvalidProofFacts(e.to_string()))?;
                 match proof_facts_variant {
                     ProofFactsVariant::Empty => {}
-                    ProofFactsVariant::Snos(_snos_proof_facts) => {
+                    ProofFactsVariant::Snos(snos_proof_facts) => {
                         // TODO(Meshi/ AvivG): add proof facts validations.
+
+                        // Validates the proof facts program hash.
+                        let allowed = &tx_context
+                            .block_context
+                            .versioned_constants
+                            .os_constants
+                            .allowed_virtual_os_program_hashes;
+                        if !allowed.contains(&snos_proof_facts.program_hash) {
+                            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                                "Virtual OS program hash {} is not allowed",
+                                snos_proof_facts.program_hash
+                            )));
+                        }
                     }
                 }
             }
@@ -278,7 +294,7 @@ impl AccountTransaction {
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
-        self.validate_proof_facts()?;
+        self.validate_proof_facts(tx_context)?;
 
         Ok(())
     }

@@ -18,6 +18,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
@@ -97,6 +98,9 @@ pub struct RawVersionedConstants {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
+    // Allowed virtual OS program hashes for client-side proving.
+    pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
     pub default_entry_point_selector: EntryPointSelector,
@@ -240,6 +244,7 @@ pub struct VersionedConstants {
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     pub min_sierra_version_for_sierra_gas: SierraVersion,
+
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
@@ -1097,6 +1102,9 @@ impl GasCosts {
 pub struct OsConstants {
     pub gas_costs: GasCosts,
 
+    // Allowed virtual OS program hashes for client-side proving.
+    pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
     pub default_entry_point_selector: EntryPointSelector,
@@ -1177,6 +1185,9 @@ impl OsConstants {
 
         Self {
             gas_costs,
+            allowed_virtual_os_program_hashes: raw_constants
+                .allowed_virtual_os_program_hashes
+                .clone(),
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,

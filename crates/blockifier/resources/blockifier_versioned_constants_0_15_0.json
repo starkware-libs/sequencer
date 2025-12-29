@@ -66,6 +66,9 @@
         "entry_point_initial_budget": {
             "step_gas_cost": 100
         },
+        "allowed_virtual_os_program_hashes": [
+            "0x030206a40921880628605041292e995870334451179c63090221210893986a2"
+        ],
         "entry_point_type_constructor": 2,
         "entry_point_type_external": 0,
         "entry_point_type_l1_handler": 1,
