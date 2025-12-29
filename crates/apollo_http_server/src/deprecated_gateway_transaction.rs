@@ -35,6 +35,9 @@ use starknet_api::transaction::fields::{
 #[path = "deprecated_gateway_transaction_test.rs"]
 mod deprecated_gateway_transaction_test;
 
+/// Legacy V3 transaction formats accepted by the Starknet Gateway for backward compatibility.
+/// Allows existing clients using the old Gateway API to submit transactions while the system
+/// transitions to the newer RPC-based transaction format.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
