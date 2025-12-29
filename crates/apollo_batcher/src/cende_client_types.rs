@@ -46,6 +46,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -503,6 +504,8 @@ pub struct IntermediateInvokeTransaction {
     pub paymaster_data: Option<PaymasterData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_deployment_data: Option<AccountDeploymentData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_facts: Option<ProofFacts>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
 }
@@ -579,6 +582,7 @@ impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
                     fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
                     paymaster_data: Some(tx.paymaster_data),
                     account_deployment_data: Some(tx.account_deployment_data),
+                    proof_facts: Some(tx.proof_facts),
                     version,
                     transaction_hash: tx_hash,
                     // Irrelevant for V3 invoke transactions.
