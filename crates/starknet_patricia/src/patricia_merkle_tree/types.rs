@@ -68,15 +68,12 @@ impl NodeIndex {
     }
 
     // TODO(Amos, 1/5/2024): Move to EdgePath.
-    pub(crate) fn compute_bottom_index(
-        index: NodeIndex,
-        path_to_bottom: &PathToBottom,
-    ) -> NodeIndex {
+    pub fn compute_bottom_index(index: NodeIndex, path_to_bottom: &PathToBottom) -> NodeIndex {
         let PathToBottom { path, length, .. } = path_to_bottom;
         (index << u8::from(*length)) + Self::new(path.into())
     }
 
-    pub(crate) fn get_children_indices(&self) -> [Self; 2] {
+    pub fn get_children_indices(&self) -> [Self; 2] {
         let left_child = *self << 1;
         [left_child, left_child + 1]
     }

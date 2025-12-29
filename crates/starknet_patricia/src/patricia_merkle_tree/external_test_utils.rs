@@ -20,6 +20,7 @@ use super::node_data::inner_node::{EdgePathLength, PathToBottom};
 use super::node_data::leaf::Leaf;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
 use super::types::{NodeIndex, SubTreeHeight};
+use crate::db_layout::TrieType;
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -28,6 +29,44 @@ pub(crate) const TEST_PREFIX: &[u8] = &[0];
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub Felt);
+
+#[derive(Debug, PartialEq, Clone, Copy, Default, Eq, derive_more::From)]
+pub struct MockIndexLayoutLeaf(pub MockLeaf);
+
+/// A mock leaf with KeyContext = TrieType
+impl HasStaticPrefix for MockIndexLayoutLeaf {
+    type KeyContext = TrieType;
+    fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
+        DbKeyPrefix::new(TEST_PREFIX.into())
+    }
+}
+
+impl DBObject for MockIndexLayoutLeaf {
+    type DeserializeContext = EmptyDeserializationContext;
+    fn serialize(&self) -> SerializationResult<DbValue> {
+        self.0.serialize()
+    }
+    fn deserialize(
+        value: &DbValue,
+        _deserialize_context: &Self::DeserializeContext,
+    ) -> Result<Self, DeserializationError> {
+        Ok(Self(MockLeaf::deserialize(value, _deserialize_context)?))
+    }
+}
+
+impl Leaf for MockIndexLayoutLeaf {
+    type Input = Felt;
+    type Output = String;
+
+    fn is_empty(&self) -> bool {
+        self.0.0 == Felt::ZERO
+    }
+
+    // Create a leaf with value equal to input. If input is `Felt::MAX`, returns an error.
+    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
+        MockLeaf::create(input).await.map(|(leaf, output)| (Self(leaf), output))
+    }
+}
 
 impl HasStaticPrefix for MockLeaf {
     type KeyContext = EmptyKeyContext;
