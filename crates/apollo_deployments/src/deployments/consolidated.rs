@@ -116,6 +116,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     | InfraServicePort::Gateway
                     | InfraServicePort::L1GasPriceProvider
                     | InfraServicePort::L1Provider
+                    | InfraServicePort::ProofManager
                     | InfraServicePort::SierraCompiler
                     | InfraServicePort::StateSync
                     | InfraServicePort::SignatureManager => {}
@@ -157,7 +158,7 @@ fn get_consolidated_config() -> ComponentConfig {
         mempool: base.clone(),
         mempool_p2p: base.clone(),
         monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
-        proof_manager: ReactiveComponentExecutionConfig::disabled(),
+        proof_manager: base.clone(),
         sierra_compiler: base.clone(),
         signature_manager: base.clone(),
         state_sync: base.clone(),
