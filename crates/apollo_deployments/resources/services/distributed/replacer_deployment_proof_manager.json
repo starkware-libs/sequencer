@@ -1,0 +1,7 @@
+[
+  "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_proof_manager_config.json",
+  "crates/apollo_deployments/resources/services/distributed/replacer_proof_manager.json"
+]
