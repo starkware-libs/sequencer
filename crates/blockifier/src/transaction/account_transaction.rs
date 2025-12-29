@@ -24,6 +24,7 @@ use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use super::errors::ResourceBoundsError;
+use crate::blockifier_versioned_constants::OsConstants;
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -246,15 +247,25 @@ impl AccountTransaction {
         }
     }
 
-    fn validate_proof_facts(&self) -> TransactionPreValidationResult<()> {
+    fn validate_proof_facts(
+        &self,
+        os_constants: &OsConstants,
+    ) -> TransactionPreValidationResult<()> {
         if let Transaction::Invoke(tx) = &self.tx {
             if tx.tx.version() == TransactionVersion::THREE {
                 let proof_facts_variant = ProofFactsVariant::try_from(&tx.tx.proof_facts())
                     .map_err(|e| TransactionPreValidationError::InvalidProofFacts(e.to_string()))?;
                 match proof_facts_variant {
                     ProofFactsVariant::Empty => {}
-                    ProofFactsVariant::Snos(_snos_proof_facts) => {
-                        // TODO(Meshi/ AvivG): add proof facts validations.
+                    ProofFactsVariant::Snos(snos_proof_facts) => {
+                        // Validates the proof facts program hash.
+                        let allowed = &os_constants.allowed_virtual_os_program_hashes;
+                        if !allowed.contains(&snos_proof_facts.program_hash) {
+                            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                                "Virtual OS program hash {} is not allowed",
+                                snos_proof_facts.program_hash
+                            )));
+                        }
                     }
                 }
             }
@@ -278,7 +289,7 @@ impl AccountTransaction {
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
-        self.validate_proof_facts()?;
+        self.validate_proof_facts(&tx_context.block_context.versioned_constants.os_constants)?;
 
         Ok(())
     }
