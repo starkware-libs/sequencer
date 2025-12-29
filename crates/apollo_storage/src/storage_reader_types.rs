@@ -172,6 +172,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
         match request {
             // ============ State-Related Requests ============
             StorageReaderRequest::StateDiffsLocation(block_number) => {
@@ -213,8 +214,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::DeclaredClassesFromLocation(_location) => {
                 unimplemented!()
             }
-            StorageReaderRequest::DeclaredClassesBlock(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesBlock(class_hash) => {
+                let block_number = state_reader
+                    .get_class_definition_block_number(&class_hash)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Declared class block".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeclaredClassesBlock(block_number))
             }
             StorageReaderRequest::DeprecatedDeclaredClassesLocation(_class_hash) => {
                 unimplemented!()
