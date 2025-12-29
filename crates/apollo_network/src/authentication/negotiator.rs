@@ -2,6 +2,8 @@ use std::io::Error as IoError;
 
 use async_trait::async_trait;
 use libp2p::PeerId;
+#[cfg(test)]
+use mockall::automock;
 use prost::Message;
 
 pub enum NegotiationSide {
@@ -54,4 +56,42 @@ pub trait Negotiator: Send + Clone {
     /// "strk_id_v2".
     // TODO(noam.s): Consider making this a const.
     fn protocol_name(&self) -> &'static str;
+}
+
+// Automock does not implement Clone, so we need to do it manually.
+#[cfg(test)]
+impl Clone for MockNegotiator {
+    fn clone(&self) -> Self {
+        MockNegotiator::default()
+    }
+}
+
+/// This is a dummy implementation of the Negotiator trait used only so you can use
+/// `Option<Negotiator>::None` (where you don't have a real type). Instances of this type should
+/// never be created.
+// We make it an enum to enforce that it is not possible to create an instance of this type.
+// TODO(noam.s): Try to remove this when we use the ComposedNoiseConfig in the network manager.
+#[derive(Clone)]
+#[allow(dead_code)]
+pub(crate) enum DummyNegotiatorType {}
+
+#[async_trait]
+impl Negotiator for DummyNegotiatorType {
+    type WireMessage = apollo_protobuf::protobuf::StarkAuthentication;
+    type Error = IoError;
+
+    fn protocol_name(&self) -> &'static str {
+        unreachable!("Methods of DummyNegotiatorType should never be invoked");
+    }
+
+    async fn negotiate_connection(
+        &mut self,
+        _my_peer_id: PeerId,
+        _other_peer_id: PeerId,
+        _connection_sender: &mut dyn ConnectionSender<Self::WireMessage>,
+        _connection_receiver: &mut dyn ConnectionReceiver<Self::WireMessage>,
+        _side: NegotiationSide,
+    ) -> Result<NegotiatorOutput, Self::Error> {
+        unreachable!("Methods of DummyNegotiatorType should never be invoked");
+    }
 }
