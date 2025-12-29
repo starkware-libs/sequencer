@@ -20,6 +20,7 @@ const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
 const L1_PROVIDER_PORT: u16 = 55004;
 const MEMPOOL_PORT: u16 = 55006;
 pub(crate) const MEMPOOL_P2P_PORT: u16 = 53200;
+const PROOF_MANAGER_PORT: u16 = 55012;
 const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
@@ -116,6 +117,7 @@ pub enum InfraServicePort {
     L1GasPriceProvider,
     L1Provider,
     Mempool,
+    ProofManager,
     SierraCompiler,
     SignatureManager,
     StateSync,
@@ -131,6 +133,7 @@ impl InfraServicePort {
             InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
             InfraServicePort::L1Provider => L1_PROVIDER_PORT,
             InfraServicePort::Mempool => MEMPOOL_PORT,
+            InfraServicePort::ProofManager => PROOF_MANAGER_PORT,
             InfraServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
             InfraServicePort::SignatureManager => SIGNATURE_MANAGER_PORT,
             InfraServicePort::StateSync => STATE_SYNC_PORT,
@@ -189,6 +192,7 @@ pub enum ComponentConfigInService {
     Mempool,
     MempoolP2p,
     MonitoringEndpoint,
+    ProofManager,
     SierraCompiler,
     SignatureManager,
     StateSync,
@@ -220,6 +224,7 @@ impl ComponentConfigInService {
             ComponentConfigInService::MonitoringEndpoint => {
                 vec!["monitoring_endpoint_config".to_string()]
             }
+            ComponentConfigInService::ProofManager => vec!["proof_manager_config".to_string()],
             ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
             // Signature manager does not have a separate config sub-struct in
             // `SequencerNodeConfig`. Keep this empty to avoid generating
