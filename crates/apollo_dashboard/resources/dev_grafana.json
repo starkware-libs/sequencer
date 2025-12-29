@@ -52,7 +52,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Transactions Failed by Reason",
@@ -123,7 +125,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Consensus Decisions Reached As Proposer",
