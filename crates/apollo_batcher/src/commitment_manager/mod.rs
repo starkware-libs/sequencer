@@ -2,9 +2,13 @@
 
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherConfig;
 use apollo_reverts::RevertConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::block_hash::block_hash_calculator::calculate_block_hash;
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
+    PartialBlockHashComponents,
+};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
@@ -59,19 +63,24 @@ pub(crate) struct CommitmentManager {
     pub(crate) commitment_task_offset: BlockNumber,
 }
 
+// TODO(amos): Sort methods and associated functions: public methods, private methods, public
+// associated functions, private associated functions.
+// TODO(amos): Think which methods / functions should be private.
 impl CommitmentManager {
     /// Initializes and returns the Commitment manager, or None when in revert mode.
     pub(crate) fn new_or_none(
         config: &CommitmentManagerConfig,
         revert_config: &RevertConfig,
-        block_hash_height: BlockNumber,
+        global_root_height: BlockNumber,
     ) -> Option<Self> {
         if revert_config.should_revert {
+            info!("Revert mode is enabled, not initializing commitment manager.");
             None
         } else {
+            info!("Initializing commitment manager.");
             Some(CommitmentManager::initialize(
                 CommitmentManagerConfig::default(),
-                block_hash_height,
+                global_root_height,
             ))
         }
     }
@@ -79,7 +88,7 @@ impl CommitmentManager {
     /// Initializes the CommitmentManager. This includes starting the state committer task.
     pub(crate) fn initialize(
         config: CommitmentManagerConfig,
-        block_hash_height: BlockNumber,
+        global_root_height: BlockNumber,
     ) -> Self {
         info!("Initializing CommitmentManager with config {config:?}");
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
@@ -94,7 +103,7 @@ impl CommitmentManager {
             results_receiver,
             commitment_task_performer,
             config,
-            commitment_task_offset: block_hash_height,
+            commitment_task_offset: global_root_height,
         }
     }
 
@@ -221,5 +230,78 @@ impl CommitmentManager {
                 Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
             }
         }
+    }
+    pub(crate) async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
+        &mut self,
+        height: BlockNumber,
+        batcher_storage_reader: &R,
+        batcher_config: &BatcherConfig,
+    ) {
+        let state_diff = match batcher_storage_reader.get_state_diff(height) {
+            Ok(Some(diff)) => diff,
+            Ok(None) => panic!("Missing state diff for height {height}."),
+            Err(err) => panic!("Failed to read state diff for height {height}: {err}"),
+        };
+        let no_state_diff_commitment = matches!(&batcher_config.first_block_with_partial_block_hash,
+            Some(config) if height < config.block_number);
+
+        let state_diff_commitment = if no_state_diff_commitment {
+            None
+        } else {
+            // TODO(Amos): Add method to fetch only hash commitment and use it here.
+            match batcher_storage_reader.get_parent_hash_and_partial_block_hash_components(height) {
+                Ok((_, Some(PartialBlockHashComponents { header_commitments, .. }))) => {
+                    Some(header_commitments.state_diff_commitment)
+                }
+                Ok((_, None)) => panic!("Missing hash commitment for height {height}."),
+                Err(err) => panic!("Failed to read hash commitment for height {height}: {err}"),
+            }
+        };
+        self.add_commitment_task(height, state_diff, state_diff_commitment).await.unwrap();
+        info!(
+            "Added commitment task for block {height}, {state_diff_commitment:?} to commitment \
+             manager."
+        );
+    }
+
+    /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
+    /// unfinished commitment tasks / results not written to storage when the sequencer is shut
+    /// down.
+    pub(crate) async fn add_missing_commitment_tasks<R: BatcherStorageReader>(
+        &mut self,
+        current_block_height: BlockNumber,
+        batcher_config: &BatcherConfig,
+        batcher_storage_reader: &R,
+    ) {
+        let start = self.get_commitment_task_offset();
+        let end = current_block_height;
+        for height in start.iter_up_to(end) {
+            self.read_commitment_input_and_add_task(height, batcher_storage_reader, batcher_config)
+                .await;
+        }
+        info!("Added missing commitment tasks for blocks [{start}, {end}) to commitment manager.");
+    }
+
+    /// If not in revert mode - creates and initializes the commitment manager, and also adds
+    /// missing commitment tasks. Otherwise, returns None.
+    pub(crate) async fn create_commitment_manager_or_none<R: BatcherStorageReader>(
+        batcher_config: &BatcherConfig,
+        commitment_manager_config: &CommitmentManagerConfig,
+        storage_reader: &R,
+    ) -> Option<Self> {
+        let global_root_height = storage_reader
+            .global_root_height()
+            .expect("Failed to get block hash height from storage.");
+        let mut commitment_manager = Self::new_or_none(
+            commitment_manager_config,
+            &batcher_config.revert_config,
+            global_root_height,
+        );
+        if let Some(ref mut cm) = commitment_manager {
+            let block_height =
+                storage_reader.height().expect("Failed to get block height from storage.");
+            cm.add_missing_commitment_tasks(block_height, batcher_config, storage_reader).await;
+        };
+        commitment_manager
     }
 }
