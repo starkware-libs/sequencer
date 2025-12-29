@@ -90,8 +90,10 @@ pub enum StorageReaderRequest {
     FileOffsets(OffsetKind),
     /// Starknet version by block number.
     StarknetVersion(BlockNumber),
-    /// Storage version by version name.
-    StorageVersion(String),
+    /// State storage version.
+    StateStorageVersion,
+    /// Block storage version.
+    BlocksStorageVersion,
 }
 
 /// Storage-related response.
@@ -156,8 +158,10 @@ pub enum StorageReaderResponse {
     FileOffsets(usize),
     /// A Starknet version.
     StarknetVersion(StarknetVersion),
-    /// A storage version.
-    StorageVersion(Version),
+    /// State storage version.
+    StateStorageVersion(Version),
+    /// Block storage version.
+    BlocksStorageVersion(Version),
 }
 
 /// Generic handler for storage reader requests.
@@ -277,7 +281,10 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::StarknetVersion(_block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::StorageVersion(_version_name) => {
+            StorageReaderRequest::StateStorageVersion => {
+                unimplemented!()
+            }
+            StorageReaderRequest::BlocksStorageVersion => {
                 unimplemented!()
             }
         }
