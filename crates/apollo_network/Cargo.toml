@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Peer-to-peer networking layer for Starknet nodes using libp2p."
 
 [features]
-testing = []
+testing = ["mockall"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -35,6 +35,7 @@ libp2p = { workspace = true, features = [
   "tokio",
   "yamux",
 ] }
+mockall = { workspace = true, optional = true }
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
@@ -46,7 +47,6 @@ tokio-retry.workspace = true
 tracing.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
-
 
 [dev-dependencies]
 apollo_network_types = { workspace = true, features = ["testing"] }
