@@ -15,11 +15,7 @@ use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxAr
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::test_utils::valid_resource_bounds_for_testing;
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    ContractAddressSalt,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, ContractAddressSalt, PaymasterData, Proof, ProofFacts, Tip, TransactionSignature
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
@@ -65,11 +61,14 @@ fn create_invoke_tx() -> RpcTransaction {
         nonce: nonce!(1),
         paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
         account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+        proof: Proof::proof_for_testing(),
         ..Default::default()
     })
 }
 
 // Test the custom serde/deserde of RPC transactions.
+// TODO(AvivG): Consider backward compatibility test of RPC transactions without proof fields.
 #[rstest]
 #[case(create_declare_tx())]
 #[case(create_deploy_account_tx())]
@@ -141,7 +140,7 @@ fn test_invoke_tx_size_of() {
         // + tx_v3.proof.dynamic_size();
 
         // Check the size of the V3 invoke transaction.
-        assert_eq!(tx_v3.size_bytes(), 512);
+        assert_eq!(tx_v3.size_bytes(), 628);
     } else {
         panic!("Expected RpcTransaction::Invoke");
     }
