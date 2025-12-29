@@ -254,10 +254,9 @@ pub struct ClassHashStorage {
 
 impl ClassHashStorage {
     pub fn new(
-        config: ClassHashStorageConfig,
+        storage_config: StorageConfig,
         storage_reader_server_config: ServerConfig,
     ) -> ClassHashStorageResult<Self> {
-        let storage_config = StorageConfig::from(config);
         let (reader, writer, storage_reader_server) =
             apollo_storage::open_storage_with_metric_and_server(
                 storage_config,

@@ -22,18 +22,10 @@ use crate::test_utils::FsClassStorageBuilderForTesting;
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
-        let config = ClassHashStorageConfig {
-            class_hash_db_config: ClassHashDbConfig {
-                path_prefix: path_prefix.path().to_path_buf(),
-                enforce_file_exists: false,
-                max_size: 1 << 30,    // 1GB.
-                min_size: 1 << 10,    // 1KB.
-                growth_step: 1 << 26, // 64MB.
-                max_readers: 1 << 13, // 8K readers
-            },
-            ..Default::default()
-        };
-        Self::new(config, ServerConfig::default()).unwrap()
+        let builder = FsClassStorageBuilderForTesting::default();
+        let (_, config, _) =
+            builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
+        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
     }
 }
 

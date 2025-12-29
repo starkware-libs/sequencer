@@ -160,4 +160,6 @@ pub enum ConsensusError {
     InternalNetworkError(String),
     #[error("Block info conversion error: {0}")]
     BlockInfoConversion(#[from] starknet_api::StarknetApiError),
+    #[error("{0}")]
+    Other(String),
 }

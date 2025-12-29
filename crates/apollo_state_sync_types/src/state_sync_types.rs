@@ -1,10 +1,5 @@
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-};
+use starknet_api::block::BlockHeaderWithoutHash;
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
