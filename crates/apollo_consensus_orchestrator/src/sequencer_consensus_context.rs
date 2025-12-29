@@ -302,6 +302,9 @@ impl ConsensusContext for SequencerConsensusContext {
             + total_build_proposal_time
                 .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
 
+        let use_state_sync_block_timestamp =
+            self.config.deployment_mode.use_state_sync_block_timestamp();
+
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_deadline,
@@ -321,6 +324,7 @@ impl ConsensusContext for SequencerConsensusContext {
             retrospective_block_hash_retry_interval_millis: self
                 .config
                 .retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp,
         };
         let handle = tokio::spawn(
             async move {
