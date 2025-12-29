@@ -60,11 +60,12 @@ serviceAccount:
 service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
-  ports: # List of service ports
+  ports: [] # List of service ports
     # - name: batcher
     #   port: 55000
     #   targetPort: 55000
     #   protocol: TCP
+
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels
   # servicePort: null  #  Legacy port configuration
