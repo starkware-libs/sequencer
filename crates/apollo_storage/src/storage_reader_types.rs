@@ -12,6 +12,7 @@ use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
+use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class_manager::ClassManagerStorageReader;
 use crate::consensus::LastVotedMarker;
@@ -204,9 +205,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::DeployedContracts(_address, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::Events(_address, _tx_index) => {
-                unimplemented!()
-            }
+            StorageReaderRequest::Events(address, tx_index) => txn
+                .has_event(address, tx_index)?
+                .map(|_| StorageReaderResponse::Events)
+                .ok_or_else(|| StorageError::NotFound {
+                    resource_type: "Event".to_string(),
+                    resource_id: format!("({}, {:?})", address, tx_index),
+                }),
             StorageReaderRequest::Markers(marker_kind) => {
                 let block_number = match marker_kind {
                     MarkerKind::State => txn.get_state_marker()?,
