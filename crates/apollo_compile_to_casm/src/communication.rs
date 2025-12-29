@@ -1,7 +1,5 @@
 use apollo_compile_to_casm_types::{
-    SierraCompilerError,
-    SierraCompilerRequest,
-    SierraCompilerResponse,
+    SierraCompilerError, SierraCompilerRequest, SierraCompilerResponse,
 };
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
@@ -19,8 +17,12 @@ impl ComponentRequestHandler<SierraCompilerRequest, SierraCompilerResponse> for 
     async fn handle_request(&mut self, request: SierraCompilerRequest) -> SierraCompilerResponse {
         match request {
             SierraCompilerRequest::Compile(contract_class) => {
-                let compilation_result =
-                    self.compile(contract_class).map_err(SierraCompilerError::from);
+                let compiler = self.clone();
+                let compilation_result = tokio::task::spawn_blocking(move || {
+                    compiler.compile(contract_class).map_err(SierraCompilerError::from)
+                })
+                .await
+                .expect("Compilation task panicked");
                 SierraCompilerResponse::Compile(compilation_result)
             }
         }
