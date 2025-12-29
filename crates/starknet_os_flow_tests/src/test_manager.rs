@@ -347,6 +347,16 @@ impl<S: FlowTestState> TestManager<S> {
         self.nonce_manager.get(account_address)
     }
 
+    /// Returns the first block number to be used for execution (based on the initial state).
+    pub(crate) fn first_block_number(&self) -> BlockNumber {
+        self.initial_state.block_context.block_info().block_number.next().unwrap()
+    }
+
+    /// Returns the chain ID from the initial state's block context.
+    pub(crate) fn chain_id(&self) -> ChainId {
+        self.initial_state.block_context.chain_info().chain_id.clone()
+    }
+
     /// Advances the manager to the next block when adding new transactions.
     pub(crate) fn move_to_next_block(&mut self) {
         self.per_block_transactions.push(vec![]);
@@ -405,11 +415,10 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) fn add_invoke_tx_from_args(
         &mut self,
         args: InvokeTxArgs,
-        chain_id: &ChainId,
         revert_reason: Option<String>,
     ) {
         self.add_invoke_tx(
-            InvokeTransaction::create(invoke_tx(args), chain_id).unwrap(),
+            InvokeTransaction::create(invoke_tx(args), &self.chain_id()).unwrap(),
             revert_reason,
         );
     }
@@ -426,7 +435,6 @@ impl<S: FlowTestState> TestManager<S> {
                 resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
                 ..additional_args
             },
-            &CHAIN_ID_FOR_TESTS,
             None,
         );
     }
@@ -484,10 +492,11 @@ impl<S: FlowTestState> TestManager<S> {
         test_params: &TestParameters,
     ) -> OsTestOutput<S> {
         let n_blocks = self.per_block_transactions.len();
+        let next_block_number = self.first_block_number();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
                 block_context_for_flow_tests(
-                    BlockNumber(self.initial_state.next_block_number.0 + u64::try_from(i).unwrap()),
+                    BlockNumber(next_block_number.0 + u64::try_from(i).unwrap()),
                     test_params.use_kzg_da,
                 )
             })
