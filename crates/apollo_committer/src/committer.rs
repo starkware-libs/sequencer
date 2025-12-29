@@ -58,21 +58,7 @@ pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
 impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
-        let db_offset = forest_storage
-            .read_metadata(ForestMetadataType::CommitmentOffset)
-            .await
-            .expect("Failed to read commitment offset");
-
-        let offset = db_offset
-            .map(|value| {
-                let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
-                    panic!("Failed to deserialize commitment offset from {value:?}")
-                });
-                DbBlockNumber::deserialize(array_value)
-            })
-            .unwrap_or_default()
-            .0;
-
+        let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
@@ -159,6 +145,23 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         let db_value =
             self.read_metadata(ForestMetadataType::StateRoot(DbBlockNumber(block_number))).await?;
         Ok(GlobalRoot(deserialize_felt_no_packing(&db_value)))
+    }
+
+    async fn load_offset_or_panic(forest_storage: &mut MockForestStorage<S>) -> BlockNumber {
+        let db_offset = forest_storage
+            .read_metadata(ForestMetadataType::CommitmentOffset)
+            .await
+            .expect("Failed to read commitment offset");
+
+        db_offset
+            .map(|value| {
+                let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
+                    panic!("Failed to deserialize commitment offset from {value:?}")
+                });
+                DbBlockNumber::deserialize(array_value)
+            })
+            .unwrap_or_default()
+            .0
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
