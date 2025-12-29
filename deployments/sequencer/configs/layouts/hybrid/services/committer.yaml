@@ -11,9 +11,9 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_committer.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig:
-    components_committer_port: 55013
-    components_committer_url: "sequencer-committer-service"
+  sequencerConfig: {}
+    # components_committer_port: 55013
+    # components_committer_url: "sequencer-committer-service"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
