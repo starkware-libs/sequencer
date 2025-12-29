@@ -61,7 +61,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{
     L1HandlerTransaction,
-    L1ToL2Payload,
     L2ToL1Payload,
     MessageToL1,
     TransactionVersion,
@@ -85,7 +84,6 @@ use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
-use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
@@ -102,7 +100,7 @@ use crate::special_contracts::{
 };
 use crate::test_manager::{
     TestManager,
-    TestParameters,
+    TestManagerConfig,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
@@ -166,8 +164,11 @@ async fn declare_deploy_scenario(
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard_with_config(
+        [],
+        TestManagerConfig { use_kzg_da, full_output, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
 
     // Declare a test contract.
@@ -212,9 +213,7 @@ async fn declare_deploy_scenario(
     .unwrap();
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
     test_manager.divide_transactions_into_n_blocks(n_blocks);
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da, full_output, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     let partial_state_diff = StateDiff {
         // Deployed contract.
@@ -258,12 +257,11 @@ async fn trivial_diff_scenario(
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
-        .await;
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard_with_config(
+        [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+        TestManagerConfig { use_kzg_da, full_output, ..Default::default() },
+    )
+    .await;
 
     let key = Felt::from(10u8);
     let value = Felt::from(11u8);
@@ -278,9 +276,7 @@ async fn trivial_diff_scenario(
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Execute the test.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da, full_output, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Explicitly check the test contract has no storage update.
     assert!(
@@ -313,14 +309,11 @@ async fn test_reverted_invoke_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
 ) {
-    let (use_kzg_da, full_output) = (true, false);
-
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
-        .await;
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard_with_config(
+        [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+        TestManagerConfig { use_kzg_da: true, ..Default::default() },
+    )
+    .await;
 
     // Call a reverting function that changes the storage.
     let invoke_tx_args = invoke_tx_args! {
@@ -332,9 +325,7 @@ async fn test_reverted_invoke_tx(
     test_manager.add_invoke_tx_from_args(invoke_tx_args, Some(revert_reason.to_string()));
 
     // Execute the test.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da, full_output, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Check that the storage was reverted (no change in test contract address).
     assert!(
@@ -358,12 +349,14 @@ async fn test_encrypted_state_diff(
         Vec<Felt>,
     >,
 ) {
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard_with_config(
+        [(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
             calldata![Felt::ONE, Felt::TWO],
-        )])
-        .await;
+        )],
+        TestManagerConfig { use_kzg_da, full_output, private_keys: private_keys.clone() },
+    )
+    .await;
 
     // Invoke a function on the test contract that changes the storage.
     let (key, value) = (Felt::from(10u8), Felt::from(11u8));
@@ -371,14 +364,7 @@ async fn test_encrypted_state_diff(
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test and assert the diff is as expected.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            use_kzg_da,
-            full_output,
-            private_keys: private_keys.clone(),
-            ..Default::default()
-        })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
     let perform_global_validations = true;
     let partial_state_diff = StateDiff {
         storage_updates: HashMap::from([(
@@ -422,11 +408,7 @@ async fn test_reverted_l1_handler_tx(
     #[case] revert_reason: &str,
 ) {
     let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
-        .await;
+        TestManager::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
 
     // Add a reverting L1 handler transaction that changes the storage.
     let tx = ExecutableL1HandlerTransaction::create(
@@ -444,7 +426,7 @@ async fn test_reverted_l1_handler_tx(
     .unwrap();
     test_manager.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
 
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Check that the storage was reverted (no change in test contract address).
     assert!(
@@ -464,7 +446,7 @@ async fn test_deprecated_call_contract_variants() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_contract2 = FeatureContract::TestContract2;
     let (mut test_manager, [test_contract_address, test_contract2_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
+        TestManager::create_standard([
             (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
             (test_contract2, calldata![]),
         ])
@@ -500,7 +482,7 @@ async fn test_deprecated_call_contract_variants() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata, signature });
 
     // Run the test.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_deprecated_call_contract_variants");
 }
@@ -511,8 +493,11 @@ async fn test_os_logic(
     #[values(1, 3)] n_blocks_in_multi_block: usize,
     #[values(None, Some(vec![Felt::ONE, Felt::TWO]))] private_keys: Option<Vec<Felt>>,
 ) {
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard_with_config(
+        [],
+        TestManagerConfig { private_keys: private_keys.clone(), ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
     let n_expected_txs = 31;
     let mut expected_storage_updates = HashMap::new();
@@ -651,11 +636,11 @@ async fn test_os_logic(
         ],
     );
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    let expected_message_to_l1 = MessageToL1 {
+    test_manager.messages_to_l1.push(MessageToL1 {
         from_address: contract_addresses[0],
         to_address: EthAddress::try_from(Felt::from(85)).unwrap(),
         payload: L2ToL1Payload(vec![Felt::from(12), Felt::from(34)]),
-    };
+    });
 
     // Test get_caller_address syscall.
     let calldata = create_calldata(
@@ -782,21 +767,11 @@ async fn test_os_logic(
     )
     .unwrap();
     test_manager.add_l1_handler_tx(tx, None);
-    let expected_message_to_l2 = MessageToL2 {
-        from_address: EthAddress::try_from(l1_handler_calldata.0[0]).unwrap(),
-        to_address: delegate_proxy_address,
-        payload: L1ToL2Payload(l1_handler_calldata.0[1..].to_vec()),
-        nonce: l1_handler_nonce,
-        selector: l1_handler_selector,
-    };
     update_expected_storage(
         &mut expected_storage_updates,
         delegate_proxy_address,
-        **get_storage_var_address(
-            "two_counters",
-            &[Felt::from(expected_message_to_l2.from_address)],
-        ),
-        *expected_message_to_l2.payload.0.last().unwrap(),
+        **get_storage_var_address("two_counters", &[l1_handler_calldata.0[0]]),
+        l1_handler_calldata.0[1],
     );
 
     // Call test_library_call_syntactic_sugar from contract_addresses[0] to test library calls
@@ -893,15 +868,8 @@ async fn test_os_logic(
 
     // Run the test.
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
-    let n_private_keys = private_keys.as_ref().map(|keys| keys.len()).unwrap_or(0);
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            messages_to_l1: vec![expected_message_to_l1],
-            messages_to_l2: vec![expected_message_to_l2],
-            private_keys,
-            ..Default::default()
-        })
-        .await;
+    let n_private_keys = private_keys.map(|keys| keys.len()).unwrap_or(0);
+    let test_output = test_manager.execute_flow_test().await;
 
     // Perform validations.
     let perform_global_validations = true;
@@ -919,8 +887,7 @@ async fn test_v1_bound_accounts_cairo0() {
     let test_contract = &V1_BOUND_CAIRO0_CONTRACT;
     let class_hash = ClassHash(compute_deprecated_class_hash(test_contract).unwrap());
     let vc = VersionedConstants::latest_constants();
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard([]).await;
     let chain_id = &test_manager.chain_id();
 
     assert!(vc.os_constants.v1_bound_accounts_cairo0.contains(&class_hash));
@@ -979,7 +946,7 @@ async fn test_v1_bound_accounts_cairo0() {
     test_manager.add_invoke_tx_from_args(validate_tx_args, None);
 
     // Run test and verify the signer was set.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
 
     let expected_storage_updates = HashMap::from([(
         v1_bound_account_address,
@@ -1005,8 +972,7 @@ async fn test_v1_bound_accounts_cairo1() {
     let vc = VersionedConstants::latest_constants();
     let max_tip = vc.os_constants.v1_bound_accounts_max_tip;
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard([]).await;
     let chain_id = &test_manager.chain_id();
 
     // Declare the V1-bound account.
@@ -1062,7 +1028,7 @@ async fn test_v1_bound_accounts_cairo1() {
     test_manager.add_invoke_tx_from_args(invoke_tx_args, None);
 
     // Run the test, and make sure the account storage has the expected changes.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     let isrc6_id = Felt::from_hex_unchecked(
         "0x2CECCEF7F994940B3962A6C67E0BA4FCD37DF7D131417C604F91E03CAECC1CD",
     );
@@ -1095,12 +1061,11 @@ async fn test_v1_bound_accounts_cairo1() {
 async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
-    let (mut test_manager, [main_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ZERO, Felt::ZERO],
-        )])
-        .await;
+    let (mut test_manager, [main_contract_address]) = TestManager::create_standard_with_config(
+        [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+        TestManagerConfig { use_kzg_da, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
     let current_block_number = test_manager.first_block_number();
 
@@ -1212,8 +1177,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     );
 
     // Run the test.
-    let test_output =
-        test_manager.execute_flow_test(&TestParameters { use_kzg_da, ..Default::default() }).await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Perform general validations and storage update validations.
     test_output.perform_default_validations();
@@ -1230,8 +1194,11 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 #[rstest]
 #[tokio::test]
 async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: bool) {
-    let (mut test_manager, []) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, []) = TestManager::create_standard_with_config(
+        [],
+        TestManagerConfig { use_kzg_da, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
 
     // Declare the experimental contract.
@@ -1265,8 +1232,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     );
     test_manager.add_invoke_tx(deploy_tx, None);
 
-    let test_output =
-        test_manager.execute_flow_test(&TestParameters { use_kzg_da, ..Default::default() }).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 
     // Validate poseidon usage.
@@ -1300,8 +1266,11 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
 #[rstest]
 #[tokio::test]
 async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
-    let (mut test_manager, []) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, []) = TestManager::create_standard_with_config(
+        [],
+        TestManagerConfig { use_kzg_da, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
     let current_block_number = test_manager.first_block_number();
 
@@ -1309,8 +1278,6 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
         "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
     );
-
-    let mut expected_messages_to_l1 = Vec::new();
 
     // Declare a Cairo 1.0 account contract.
     // TODO(Noa): Replace the main account of the test with this Cairo 1 account.
@@ -1390,7 +1357,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &empty_contract_sierra);
     // The faulty account's __execute__ sends a message to L1.
-    expected_messages_to_l1.push(MessageToL1 {
+    test_manager.messages_to_l1.push(MessageToL1 {
         from_address: faulty_account_address,
         to_address: EthAddress::default(),
         payload: L2ToL1Payload::default(),
@@ -1406,20 +1373,14 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, None);
     // The faulty account's __execute__ sends a message to L1.
-    expected_messages_to_l1.push(MessageToL1 {
+    test_manager.messages_to_l1.push(MessageToL1 {
         from_address: faulty_account_address,
         to_address: EthAddress::default(),
         payload: L2ToL1Payload::default(),
     });
 
     // Run the test.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            use_kzg_da,
-            messages_to_l1: expected_messages_to_l1,
-            ..Default::default()
-        })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Perform general validations and storage update validations.
     test_output.perform_default_validations();
@@ -1441,10 +1402,13 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
     let (mut test_manager, [main_contract_address, contract_address2]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
-        ])
+        TestManager::create_standard_with_config(
+            [
+                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            ],
+            TestManagerConfig { use_kzg_da, ..Default::default() },
+        )
         .await;
     let current_block_number = test_manager.first_block_number();
 
@@ -1454,7 +1418,6 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     );
 
     // Prepare expected storage updates.
-    let mut expected_messages_to_l1 = Vec::new();
     let mut expected_storage_updates = HashMap::new();
 
     // Call test_increment twice.
@@ -1532,12 +1495,12 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             test_send_message_to_l1_payload[1],
         ],
     );
-    expected_messages_to_l1.push(MessageToL1 {
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_manager.messages_to_l1.push(MessageToL1 {
         from_address: contract_address2,
         to_address: EthAddress::try_from(test_send_message_to_l1_to_address).unwrap(),
         payload: L2ToL1Payload(test_send_message_to_l1_payload),
     });
-    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Call test_poseidon_hades_permutation.
     let calldata = create_calldata(main_contract_address, "test_poseidon_hades_permutation", &[]);
@@ -1692,13 +1655,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         n_blocks_in_multi_block,
     );
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            use_kzg_da,
-            messages_to_l1: expected_messages_to_l1,
-            ..Default::default()
-        })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Perform general validations and storage update validations.
     let perform_global_validations = true;
@@ -1728,20 +1685,20 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
 #[rstest]
 #[tokio::test]
 async fn test_syscalls_with_alternating_inner_calls() {
-    let use_kzg_da = true;
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard_with_config(
+        [(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
             calldata![Felt::ZERO, Felt::ZERO],
-        )])
-        .await;
+        )],
+        TestManagerConfig { use_kzg_da: true, ..Default::default() },
+    )
+    .await;
 
     let calldata =
         create_calldata(test_contract_address, "test_sha256_with_alternating_inner_calls", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
-    let test_output =
-        test_manager.execute_flow_test(&TestParameters { use_kzg_da, ..Default::default() }).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
@@ -1752,11 +1709,7 @@ async fn test_deprecated_tx_info() {
     let class_hash = get_class_hash_of_feature_contract(tx_info_writer);
     // Initialize the test manager with the tx info writer already declared.
     // We can ignore the address of the deployed instance.
-    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([(
-        tx_info_writer,
-        calldata![],
-    )])
-    .await;
+    let (mut test_manager, _) = TestManager::create_standard([(tx_info_writer, calldata![])]).await;
     let chain_id = &test_manager.chain_id();
 
     // Prepare to deploy: precompute the address.
@@ -1832,16 +1785,7 @@ async fn test_deprecated_tx_info() {
     test_manager.add_l1_handler_tx(l1_handler_tx.clone(), None);
 
     // Run the test.
-    let messages_to_l2 = vec![MessageToL2 {
-        from_address: from_address.try_into().unwrap(),
-        to_address: tx_info_account_address,
-        selector,
-        payload: L1ToL2Payload::default(),
-        nonce: Nonce::default(),
-    }];
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { messages_to_l2, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     // Perform general validations and storage update validations.
     let mut contract_storage_updates = HashMap::new();
@@ -1896,30 +1840,23 @@ async fn test_deprecated_tx_info() {
 #[rstest]
 #[tokio::test]
 async fn test_deprecated_send_to_l1() {
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            FeatureContract::TestContract(CairoVersion::Cairo0),
-            calldata![Felt::ZERO, Felt::ZERO],
-        )])
-        .await;
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard([(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        calldata![Felt::ZERO, Felt::ZERO],
+    )])
+    .await;
 
     let to_address = Felt::from(85);
     let calldata = create_calldata(test_contract_address, "send_message", &[to_address]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-
-    let expected_messages_to_l1 = vec![MessageToL1 {
+    test_manager.messages_to_l1.push(MessageToL1 {
         from_address: test_contract_address,
         to_address: to_address.try_into().unwrap(),
         // These numbers are hard-coded in the `send_message` entrypoint.
         payload: L2ToL1Payload(vec![Felt::from(12), Felt::from(34)]),
-    }];
+    });
 
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            messages_to_l1: expected_messages_to_l1,
-            ..Default::default()
-        })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
@@ -1930,7 +1867,7 @@ async fn test_replace_class() {
     let (
         mut test_manager,
         [test_contract_address_cairo0, test_contract_address_cairo1, _empty_contract_address],
-    ) = TestManager::<DictStateReader>::new_with_default_initial_state([
+    ) = TestManager::create_standard([
         (FeatureContract::TestContract(CairoVersion::Cairo0), calldata![Felt::ZERO, Felt::ZERO]),
         (
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -1946,7 +1883,7 @@ async fn test_replace_class() {
         test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
     }
 
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
@@ -1959,7 +1896,7 @@ async fn test_deploy_syscall() {
     let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
     // Initialize the test manager with the test contract and empty contract already declared.
     // We can ignore the addresses of the deployed instances.
-    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([
+    let (mut test_manager, _) = TestManager::create_standard([
         (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
         (empty_contract, calldata![]),
     ])
@@ -1994,7 +1931,7 @@ async fn test_deploy_syscall() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test and verify storage changes.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     let perform_global_validations = true;
     test_output.perform_validations(
         perform_global_validations,
@@ -2031,7 +1968,7 @@ async fn test_inner_deploy_failure() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_manager, [test_contract_address, _empty_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
+        TestManager::create_standard([
             (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
             (empty_contract, calldata![]),
         ])
@@ -2052,7 +1989,7 @@ async fn test_inner_deploy_failure() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test and verify storage changes.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
@@ -2064,8 +2001,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let test_contract = FeatureContract::BlockInfoTestContract(cairo_version);
     let class_hash = get_class_hash_of_feature_contract(test_contract);
     let is_validate = Felt::ONE;
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard([]).await;
     let chain_id = &test_manager.chain_id();
 
     // Prepare block info data.
@@ -2182,7 +2118,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     let cairo_type = if is_cairo0 { "cairo0" } else { "cairo1" };
     test_output.expect_hint_coverage(&format!("test_block_info_{}", cairo_type));
@@ -2192,12 +2128,11 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
 #[tokio::test]
 async fn test_initial_sierra_gas() {
     let account_contract = FeatureContract::Experimental;
-    let (mut test_manager, [account_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            account_contract,
-            calldata![],
-        )])
-        .await;
+    let (mut test_manager, [account_address]) = TestManager::create_standard_with_config(
+        [(account_contract, calldata![])],
+        TestManagerConfig { use_kzg_da: true, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
 
     // Fund the account.
@@ -2272,22 +2207,9 @@ async fn test_initial_sierra_gas() {
     )
     .unwrap();
     test_manager.add_l1_handler_tx(l1_handler_tx.clone(), None);
-    let messages_to_l2 = vec![MessageToL2 {
-        from_address: EthAddress::try_from(from_address).unwrap(),
-        to_address: account_address,
-        nonce: Nonce::default(),
-        selector,
-        payload: L1ToL2Payload(calldata),
-    }];
 
     // Run test.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters {
-            use_kzg_da: true,
-            messages_to_l2,
-            ..Default::default()
-        })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_initial_sierra_gas");
@@ -2301,14 +2223,17 @@ async fn test_reverted_call() {
     let test_contract2 = FeatureContract::TestContract2;
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
     let (mut test_manager, [main_contract_address, test_contract2_address, empty_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
-            // The `my_storage_var` cell is initialized as the sum of the ctor args in the
-            // constructor. This cell is also used in revert tests, so it must be
-            // initialized to zero.
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
-            (test_contract2, calldata![]),
-            (empty_contract, calldata![]),
-        ])
+        TestManager::create_standard_with_config(
+            [
+                // The `my_storage_var` cell is initialized as the sum of the ctor args in the
+                // constructor. This cell is also used in revert tests, so it must be
+                // initialized to zero.
+                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+                (test_contract2, calldata![]),
+                (empty_contract, calldata![]),
+            ],
+            TestManagerConfig { use_kzg_da: true, ..Default::default() },
+        )
         .await;
 
     // Tests 1+2.
@@ -2404,9 +2329,7 @@ async fn test_reverted_call() {
 
     // Run the test and assert only the fee token contract and the OS contracts have storage
     // updates.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da: true, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     test_output.perform_default_validations();
 
@@ -2436,10 +2359,10 @@ async fn test_reverted_call() {
 async fn test_resources_type() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_manager, [sierra_gas_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ZERO, Felt::ZERO],
-        )])
+        TestManager::create_standard_with_config(
+            [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+            TestManagerConfig { use_kzg_da: true, ..Default::default() },
+        )
         .await;
     let chain_id = &test_manager.chain_id();
 
@@ -2518,9 +2441,7 @@ async fn test_resources_type() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run test and check storage updates.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da: true, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
 
     let expected_storage_updates =
         HashMap::from([(key, value), (key + Felt::ONE, value + Felt::ONE)]);
@@ -2541,8 +2462,7 @@ async fn test_data_gas_accounts() {
     assert!(
         VersionedConstants::latest_constants().os_constants.data_gas_accounts.contains(&class_hash)
     );
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard([]).await;
     let chain_id = &test_manager.chain_id();
 
     // Declare the data gas account.
@@ -2588,7 +2508,7 @@ async fn test_data_gas_accounts() {
     test_manager.add_invoke_tx(tx, None);
 
     // Run test.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_data_gas_accounts");
 }
@@ -2601,10 +2521,10 @@ async fn test_direct_execute_call() {
     let dummy_account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_manager, [test_contract_address, dummy_account_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
-            (dummy_account, calldata![]),
-        ])
+        TestManager::create_standard_with_config(
+            [(test_contract, calldata![Felt::ZERO, Felt::ZERO]), (dummy_account, calldata![])],
+            TestManagerConfig { use_kzg_da: true, ..Default::default() },
+        )
         .await;
 
     let calldata = create_calldata(
@@ -2623,9 +2543,7 @@ async fn test_direct_execute_call() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run test.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da: true, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
@@ -2638,10 +2556,10 @@ async fn test_meta_tx() {
     let meta_tx_contract = FeatureContract::MetaTx(RunnableCairo1::Casm);
     let tx_info_contract = FeatureContract::TxInfoWriter;
     let (mut test_manager, [meta_tx_contract_address, tx_info_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
-            (meta_tx_contract, calldata![]),
-            (tx_info_contract, calldata![]),
-        ])
+        TestManager::create_standard_with_config(
+            [(meta_tx_contract, calldata![]), (tx_info_contract, calldata![])],
+            TestManagerConfig { use_kzg_da: true, ..Default::default() },
+        )
         .await;
     let chain_id = &test_manager.chain_id();
 
@@ -2826,9 +2744,7 @@ async fn test_meta_tx() {
     );
 
     // Run the test and verify the storage changes.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da: true, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(meta_tx_contract_address, expected_meta_tx_contract_diffs);
     test_output.assert_storage_diff_eq(tx_info_contract_address, expected_tx_info_writer_diffs);
@@ -2842,8 +2758,11 @@ async fn test_meta_tx() {
 /// 2. The deployed contract's storage is properly initialized.
 /// 3. The class hash to compiled class hash mapping appears in the state diff.
 async fn test_declare_and_deploy_in_separate_blocks() {
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard_with_config(
+        [],
+        TestManagerConfig { use_kzg_da: true, ..Default::default() },
+    )
+    .await;
     let chain_id = &test_manager.chain_id();
 
     // Declare a test contract.
@@ -2880,9 +2799,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
     test_manager.add_invoke_tx(deploy_tx, None);
 
     // Run the test and verify the storage changes.
-    let test_output = test_manager
-        .execute_flow_test(&TestParameters { use_kzg_da: true, ..Default::default() })
-        .await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     // The test contract constructor writes the sum of the two input arguments to storage.
     test_output.assert_storage_diff_eq(
@@ -2907,9 +2824,8 @@ async fn test_declare_and_deploy_in_separate_blocks() {
 #[rstest]
 #[tokio::test]
 async fn test_single_empty_block() {
-    let (test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let (test_manager, _) = TestManager::create_standard([]).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
@@ -2919,8 +2835,7 @@ async fn test_single_empty_block() {
 #[rstest]
 #[tokio::test]
 async fn test_empty_multi_block() {
-    let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let (mut test_manager, _) = TestManager::create_standard([]).await;
     let next_block_number = test_manager.first_block_number().0;
     assert!(next_block_number > STORED_BLOCK_HASH_BUFFER);
 
@@ -2931,7 +2846,7 @@ async fn test_empty_multi_block() {
     }
 
     // Run the test and verify the storage changes.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(
         Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
@@ -2953,11 +2868,8 @@ async fn test_empty_multi_block() {
 #[tokio::test]
 async fn test_deploy_no_ctor_contract() {
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
-    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([(
-        empty_contract_cairo0,
-        calldata![],
-    )])
-    .await;
+    let (mut test_manager, _) =
+        TestManager::create_standard([(empty_contract_cairo0, calldata![])]).await;
     let class_hash = get_class_hash_of_feature_contract(empty_contract_cairo0);
 
     // Deploy the empty contract using the deploy syscall.
@@ -2971,19 +2883,18 @@ async fn test_deploy_no_ctor_contract() {
     test_manager.add_invoke_tx(deploy_tx, None);
 
     // Run the test.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_load_bottom() {
-    let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            FeatureContract::TestContract(CairoVersion::Cairo0),
-            calldata![Felt::ZERO, Felt::ZERO],
-        )])
-        .await;
+    let (mut test_manager, [test_contract_address]) = TestManager::create_standard([(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        calldata![Felt::ZERO, Felt::ZERO],
+    )])
+    .await;
 
     // Run some transactions that go through the load_bottom hint.
     let address = 12u8;
@@ -2997,7 +2908,7 @@ async fn test_load_bottom() {
     test_manager.divide_transactions_into_n_blocks(test_manager.total_txs());
 
     // Run the test.
-    let test_output = test_manager.execute_flow_test(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_load_bottom");
 }
