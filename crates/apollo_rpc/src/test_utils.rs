@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::MockStarknetWriter;
 use apollo_storage::test_utils::get_test_storage_by_scope;
 use apollo_storage::{StorageScope, StorageWriter};
 use jsonrpsee::core::RpcResult;
@@ -61,13 +60,12 @@ pub(crate) fn get_test_rpc_server_and_storage_writer<T: JsonRpcServerTrait>()
 }
 
 pub(crate) fn get_test_rpc_server_and_storage_writer_from_params<T: JsonRpcServerTrait>(
-    mock_client: Option<MockStarknetWriter>,
+    _mock_client: Option<()>,
     shared_highest_block: Option<Arc<RwLock<Option<BlockHashAndNumber>>>>,
     pending_data: Option<Arc<RwLock<PendingData>>>,
     pending_classes: Option<Arc<RwLock<PendingClasses>>>,
     storage_scope: Option<StorageScope>,
 ) -> (RpcModule<T>, StorageWriter) {
-    let mock_client = mock_client.unwrap_or_default();
     let shared_highest_block = shared_highest_block.unwrap_or(get_test_highest_block());
     let pending_data = pending_data.unwrap_or(get_test_pending_data());
     let pending_classes = pending_classes.unwrap_or(get_test_pending_classes());
@@ -75,7 +73,6 @@ pub(crate) fn get_test_rpc_server_and_storage_writer_from_params<T: JsonRpcServe
 
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage_by_scope(storage_scope);
     let config = get_test_rpc_config();
-    let mock_client_arc = Arc::new(mock_client);
     (
         T::new(
             config.chain_id,
@@ -87,7 +84,6 @@ pub(crate) fn get_test_rpc_server_and_storage_writer_from_params<T: JsonRpcServe
             shared_highest_block,
             pending_data,
             pending_classes,
-            mock_client_arc,
             None,
         )
         .into_rpc_module(),

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
+use super::broadcasted_transaction::DeprecatedContractClass;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
