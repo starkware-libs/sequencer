@@ -24,7 +24,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 const TEST_CORE_STORAGE: usize = 1;
 
@@ -32,7 +32,8 @@ const TEST_CORE_STORAGE: usize = 1;
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
     Committer,
-    Core, // Comprises the batcher, class manager, consensus manager, and state sync.
+    Core, /* Comprises the batcher, class manager, proof manager, consensus manager, and state
+           * sync. */
     HttpServer,
     Gateway,
     L1, // Comprises the various l1 components.
@@ -83,6 +84,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
         let mempool =
             Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let proof_manager =
+            Self::Core.component_config_pair(service_ports[&InfraServicePort::ProofManager]);
         let sierra_compiler = Self::SierraCompiler
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
         let signature_manager =
@@ -103,6 +106,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     l1_provider.remote(),
                     state_sync.local(),
                     mempool.remote(),
+                    proof_manager.local(),
                     sierra_compiler.remote(),
                     signature_manager.local(),
                 ),
@@ -240,6 +244,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SierraCompiler
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync => {}
@@ -261,6 +266,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
@@ -292,6 +298,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -321,6 +328,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::SignatureManager
@@ -347,6 +355,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -376,6 +385,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Gateway
                             | InfraServicePort::SignatureManager
@@ -404,6 +414,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -646,6 +657,7 @@ fn get_core_component_config(
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_local_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
     signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -657,6 +669,7 @@ fn get_core_component_config(
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
+    config.proof_manager = proof_manager_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;

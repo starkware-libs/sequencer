@@ -270,6 +270,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -298,6 +299,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -326,6 +328,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -352,6 +355,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -378,6 +382,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -407,6 +412,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -434,6 +440,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -462,6 +469,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -491,6 +499,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync => {}
                         },
@@ -519,6 +528,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
                         },
@@ -547,6 +557,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::SierraCompiler => {}
                         },
