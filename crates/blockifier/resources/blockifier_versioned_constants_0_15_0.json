@@ -61,6 +61,9 @@
     "max_recursion_depth": 50,
     "segment_arena_cells": false,
     "os_constants": {
+        "allowed_virtual_os_program_hashes": [
+            "0x030206a40921880628605041292e995870334451179c63090221210893986a2"
+        ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
         "entry_point_initial_budget": {

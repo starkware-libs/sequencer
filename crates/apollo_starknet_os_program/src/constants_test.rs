@@ -40,16 +40,16 @@ fn quote_string(s: &str) -> String {
 /// "#;
 /// assert_eq!(stringify_class_hash_list("X", &[ClassHash(1), ClassHash(2)]), expected);
 /// ```
-fn stringify_class_hash_list(name: &str, class_hashes: &[ClassHash]) -> String {
+fn stringify_class_hash_list(name: &str, class_hashes: &[Felt]) -> String {
     class_hashes
         .iter()
         .enumerate()
         .map(|(i, class_hash)| {
             // If the line ends up longer than 100 chars, wrap the value in parenthesis, so the
             // formatter can split the lines.
-            let line = format!("const {name}_{i} = {:#066x};", class_hash.0);
+            let line = format!("const {name}_{i} = {:#066x};", class_hash);
             if line.len() > 100 {
-                format!("const {name}_{i} = ({:#066x});", class_hash.0)
+                format!("const {name}_{i} = ({:#066x});", class_hash)
             } else {
                 line
             }
@@ -57,6 +57,10 @@ fn stringify_class_hash_list(name: &str, class_hashes: &[ClassHash]) -> String {
         .chain(std::iter::once(format!("const {name}_LEN = {};", class_hashes.len())))
         .collect::<Vec<String>>()
         .join("\n")
+}
+
+fn class_hash_list_to_felt_list(class_hashes: &[ClassHash]) -> Vec<Felt> {
+    class_hashes.iter().map(|class_hash| class_hash.0).collect()
 }
 
 fn generate_constants_file() -> String {
@@ -96,6 +100,10 @@ fn generate_constants_file() -> String {
             contract_address_to_hex(&os_constants.os_contract_addresses.alias_contract_address()),
         RESERVED_CONTRACT_ADDRESS = contract_address_to_hex(
             &os_constants.os_contract_addresses.reserved_contract_address()
+        ),
+        ALLOWED_VIRTUAL_OS_PROGRAM_HASHES = stringify_class_hash_list(
+            "ALLOWED_VIRTUAL_OS_PROGRAM_HASHES",
+            &os_constants.allowed_virtual_os_program_hashes
         ),
         // Base costs.
         STEP_GAS_COST = os_constants.gas_costs.base.step_gas_cost,
@@ -193,16 +201,18 @@ fn generate_constants_file() -> String {
         // Backward compatibility accounts.
         V1_BOUND_ACCOUNTS_CAIRO0 = stringify_class_hash_list(
             "V1_BOUND_ACCOUNTS_CAIRO0",
-            &os_constants.v1_bound_accounts_cairo0
+            &class_hash_list_to_felt_list(&os_constants.v1_bound_accounts_cairo0)
         ),
         V1_BOUND_ACCOUNTS_CAIRO1 = stringify_class_hash_list(
             "V1_BOUND_ACCOUNTS_CAIRO1",
-            &os_constants.v1_bound_accounts_cairo1
+            &class_hash_list_to_felt_list(&os_constants.v1_bound_accounts_cairo1)
         ),
         V1_BOUND_ACCOUNTS_MAX_TIP =
             format!("{:#?}", Felt::from(os_constants.v1_bound_accounts_max_tip)),
-        DATA_GAS_ACCOUNTS =
-            stringify_class_hash_list("DATA_GAS_ACCOUNTS", &os_constants.data_gas_accounts),
+        DATA_GAS_ACCOUNTS = stringify_class_hash_list(
+            "DATA_GAS_ACCOUNTS",
+            &class_hash_list_to_felt_list(&os_constants.data_gas_accounts)
+        ),
     );
 
     // Format and return.
