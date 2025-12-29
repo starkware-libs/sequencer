@@ -1,7 +1,7 @@
 use crate::errors::{DeserializationError, SerializationResult};
 use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 
-const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
+pub const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
 
 pub struct EmptyKeyContext;
 
