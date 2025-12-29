@@ -12,6 +12,7 @@ use crate::state_reader::{
     CLASS_HASH_STORAGE_DB_PATH_SUFFIX,
     CLASS_MANAGER_DB_PATH_SUFFIX,
     CONSENSUS_DB_PATH_SUFFIX,
+    PROOF_MANAGER_DB_PATH_SUFFIX,
     STATE_SYNC_DB_PATH_SUFFIX,
 };
 
@@ -45,7 +46,9 @@ impl StorageExecutablePaths {
     pub fn get_consensus_exec_path(&self) -> &PathBuf {
         &self.path
     }
-
+    pub fn get_proof_manager_exec_path(&self) -> &PathBuf {
+        &self.path
+    }
     pub fn get_batcher_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(BATCHER_DB_PATH_SUFFIX)
     }
@@ -60,6 +63,9 @@ impl StorageExecutablePaths {
 
     pub fn get_consensus_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(CONSENSUS_DB_PATH_SUFFIX)
+    }
+    pub fn get_proof_manager_path_with_db_suffix(&self) -> PathBuf {
+        self.path.join(PROOF_MANAGER_DB_PATH_SUFFIX)
     }
 }
 
@@ -129,6 +135,9 @@ pub fn get_integration_test_storage(
                 .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
             storage_config.consensus_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_consensus_exec_path().join(CONSENSUS_DB_PATH_SUFFIX);
+            storage_config.proof_manager_config.persistent_root = custom_storage_exec_paths
+                .get_proof_manager_exec_path()
+                .join(PROOF_MANAGER_DB_PATH_SUFFIX);
         }
     }
 
@@ -138,6 +147,7 @@ pub fn get_integration_test_storage(
             storage_config.state_sync_storage_config,
             storage_config.class_manager_storage_config,
             storage_config.consensus_storage_config,
+            storage_config.proof_manager_config,
         ),
         storage_handles,
     }

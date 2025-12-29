@@ -36,6 +36,8 @@ pub struct ComponentConfig {
     #[validate(nested)]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate(nested)]
+    pub proof_manager: ReactiveComponentExecutionConfig,
+    #[validate(nested)]
     pub sierra_compiler: ReactiveComponentExecutionConfig,
     #[validate(nested)]
     pub signature_manager: ReactiveComponentExecutionConfig,
@@ -72,6 +74,7 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.mempool.dump(), "mempool"),
             prepend_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             prepend_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
+            prepend_sub_config_name(self.proof_manager.dump(), "proof_manager"),
             prepend_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
             prepend_sub_config_name(self.signature_manager.dump(), "signature_manager"),
             prepend_sub_config_name(self.state_sync.dump(), "state_sync"),
@@ -98,6 +101,7 @@ impl ComponentConfig {
             mempool: ReactiveComponentExecutionConfig::disabled(),
             mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
+            proof_manager: ReactiveComponentExecutionConfig::disabled(),
             sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
             signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
@@ -115,6 +119,7 @@ impl ComponentConfig {
         self.l1_gas_price_provider.set_url_to_localhost();
         self.mempool.set_url_to_localhost();
         self.mempool_p2p.set_url_to_localhost();
+        self.proof_manager.set_url_to_localhost();
         self.sierra_compiler.set_url_to_localhost();
         self.signature_manager.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
