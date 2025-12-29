@@ -51,6 +51,11 @@ impl<T> Sensitive<T> {
         self.inner
     }
 
+    /// Returns a reference to the inner sensitive value.
+    pub fn peek_inner(&self) -> &T {
+        &self.inner
+    }
+
     // Returns the redacted string representation.
     fn redact(&self) -> String {
         match &self.redactor {
@@ -83,19 +88,6 @@ where
 impl<T> From<T> for Sensitive<T> {
     fn from(value: T) -> Self {
         Sensitive::new(value)
-    }
-}
-
-// TODO(Tsabary): consider if AsRef and AsMut are needed.
-impl<T> AsRef<T> for Sensitive<T> {
-    fn as_ref(&self) -> &T {
-        &self.inner
-    }
-}
-
-impl<T> AsMut<T> for Sensitive<T> {
-    fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
     }
 }
 

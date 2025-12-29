@@ -374,7 +374,7 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                     &self
                         .ordered_l1_endpoint_urls
                         .iter()
-                        .map(|url| url.as_ref().clone())
+                        .map(|url| url.peek_inner().clone())
                         .collect::<Vec<_>>(),
                 ),
                 "An ordered list of URLs for communicating with Ethereum. The list is used in \
