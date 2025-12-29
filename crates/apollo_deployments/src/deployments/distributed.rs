@@ -23,7 +23,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 pub const RETRIES_FOR_L1_SERVICES: usize = 0;
 
@@ -39,6 +39,7 @@ pub enum DistributedNodeServiceName {
     HttpServer,
     Gateway,
     L1,
+    ProofManager,
     Mempool,
     SierraCompiler,
     SignatureManager,
@@ -87,6 +88,8 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
         let mempool =
             Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let proof_manager = Self::ProofManager
+            .component_config_pair(service_ports[&InfraServicePort::ProofManager]);
         let sierra_compiler = Self::SierraCompiler
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
         let signature_manager = Self::SignatureManager
@@ -103,6 +106,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     committer.remote(),
                     l1_provider.remote(),
                     mempool.remote(),
+                    proof_manager.remote(),
                 ),
                 Self::Committer => {
                     get_committer_component_config(committer.local(), batcher.remote())
@@ -115,6 +119,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     batcher.remote(),
                     class_manager.remote(),
                     l1_gas_price_provider.remote(),
+                    proof_manager.remote(),
                     state_sync.remote(),
                     signature_manager.remote(),
                 ),
@@ -123,6 +128,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     gateway.local(),
                     class_manager.remote(),
                     mempool.remote(),
+                    proof_manager.remote(),
                     state_sync.remote(),
                 ),
                 Self::L1 => get_l1_component_config(
@@ -135,7 +141,9 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     mempool.local(),
                     class_manager.remote(),
                     gateway.remote(),
+                    proof_manager.remote(),
                 ),
+                Self::ProofManager => get_proof_manager_component_config(proof_manager.local()),
                 Self::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
                 }
@@ -167,6 +175,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::Mempool => Controller::Deployment,
             Self::SierraCompiler => Controller::Deployment,
             Self::StateSync => Controller::StatefulSet,
+            Self::ProofManager => Controller::StatefulSet,
             // TODO(Nadin): Decide on controller for the SignatureManager.
             Self::SignatureManager => Controller::StatefulSet,
         }
@@ -181,6 +190,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Self::HttpServer
             | Self::L1
             | Self::Mempool
+            | Self::ProofManager
             | Self::StateSync
             | Self::SignatureManager => ScalePolicy::StaticallyScaled,
             Self::Gateway | Self::SierraCompiler => ScalePolicy::AutoScaled,
@@ -195,6 +205,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Self::ConsensusManager
             | Self::HttpServer
             | Self::Mempool
+            | Self::ProofManager
             | Self::StateSync
             | Self::SignatureManager
             | Self::Gateway
@@ -224,6 +235,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Self::HttpServer
             | Self::Gateway
             | Self::L1
+            | Self::ProofManager
             | Self::SierraCompiler
             | Self::SignatureManager => false,
         }
@@ -270,6 +282,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -298,6 +311,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -326,6 +340,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -352,6 +367,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -378,6 +394,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -407,6 +424,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -434,6 +452,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::Gateway
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -462,6 +481,36 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::Gateway
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
+                            | InfraServicePort::SignatureManager
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SierraCompiler => {}
+                        },
+                    }
+                }
+            }
+            Self::ProofManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2p
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::ProofManager => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
@@ -491,6 +540,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync => {}
                         },
@@ -519,6 +569,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SierraCompiler => {}
                         },
@@ -547,6 +598,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::SierraCompiler => {}
                         },
@@ -583,6 +635,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -610,6 +663,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -637,6 +691,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -664,6 +719,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -691,6 +747,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -718,6 +775,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -745,6 +803,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -772,6 +831,35 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::ProofManager
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            Self::ProofManager => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::ProofManager => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -800,6 +888,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
@@ -827,6 +916,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::StateSync => {}
                     }
@@ -854,6 +944,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager => {}
                     }
@@ -873,6 +964,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::Gateway => UpdateStrategy::RollingUpdate,
             Self::L1 => UpdateStrategy::RollingUpdate,
             Self::Mempool => UpdateStrategy::Recreate,
+            Self::ProofManager => UpdateStrategy::Recreate,
             Self::SierraCompiler => UpdateStrategy::RollingUpdate,
             Self::SignatureManager => UpdateStrategy::Recreate,
             Self::StateSync => UpdateStrategy::Recreate,
@@ -898,6 +990,7 @@ fn get_batcher_component_config(
     committer_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
@@ -906,6 +999,7 @@ fn get_batcher_component_config(
     config.committer = committer_remote_config;
     config.l1_provider = l1_provider_remote_config;
     config.mempool = mempool_remote_config;
+    config.proof_manager = proof_manager_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -936,6 +1030,7 @@ fn get_gateway_component_config(
     gateway_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -943,6 +1038,7 @@ fn get_gateway_component_config(
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.mempool = mempool_remote_config;
+    config.proof_manager = proof_manager_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -952,6 +1048,7 @@ fn get_mempool_component_config(
     mempool_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     gateway_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.mempool = mempool_local_config;
@@ -959,6 +1056,17 @@ fn get_mempool_component_config(
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.gateway = gateway_remote_config;
+    config.proof_manager = proof_manager_remote_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
+fn get_proof_manager_component_config(
+    proof_manager_local_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.proof_manager = proof_manager_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -989,6 +1097,7 @@ fn get_consensus_manager_component_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -998,6 +1107,7 @@ fn get_consensus_manager_component_config(
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
+    config.proof_manager = proof_manager_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.signature_manager = signature_manager_remote_config;

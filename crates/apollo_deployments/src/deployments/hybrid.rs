@@ -24,7 +24,7 @@ use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 const TEST_CORE_STORAGE: usize = 1;
 
@@ -32,7 +32,8 @@ const TEST_CORE_STORAGE: usize = 1;
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
     Committer,
-    Core, // Comprises the batcher, class manager, consensus manager, and state sync.
+    Core, /* Comprises the batcher, class manager, proof manager, consensus manager, and state
+           * sync. */
     HttpServer,
     Gateway,
     L1, // Comprises the various l1 components.
@@ -83,6 +84,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
         let mempool =
             Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let proof_manager =
+            Self::Core.component_config_pair(service_ports[&InfraServicePort::ProofManager]);
         let sierra_compiler = Self::SierraCompiler
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
         let signature_manager =
@@ -103,6 +106,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     l1_provider.remote(),
                     state_sync.local(),
                     mempool.remote(),
+                    proof_manager.local(),
                     sierra_compiler.remote(),
                     signature_manager.local(),
                 ),
@@ -111,6 +115,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     gateway.local(),
                     class_manager.remote(),
                     mempool.remote(),
+                    proof_manager.remote(),
                     state_sync.remote(),
                 ),
                 Self::L1 => get_l1_component_config(
@@ -123,6 +128,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     mempool.local(),
                     class_manager.remote(),
                     gateway.remote(),
+                    proof_manager.remote(),
                 ),
                 Self::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
@@ -240,6 +246,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::SierraCompiler
                             | InfraServicePort::SignatureManager
                             | InfraServicePort::StateSync => {}
@@ -261,6 +268,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
@@ -292,6 +300,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -321,6 +330,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::SignatureManager
@@ -347,6 +357,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
                             | InfraServicePort::Committer
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -376,6 +387,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Gateway
                             | InfraServicePort::SignatureManager
@@ -404,6 +416,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::Committer
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
+                            | InfraServicePort::ProofManager
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -440,6 +453,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -455,6 +469,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
@@ -494,6 +509,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -521,6 +537,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -548,6 +565,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -575,6 +593,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
@@ -603,6 +622,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
@@ -646,6 +666,7 @@ fn get_core_component_config(
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_local_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
     signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -657,6 +678,7 @@ fn get_core_component_config(
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
+    config.proof_manager = proof_manager_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
@@ -669,6 +691,7 @@ fn get_gateway_component_config(
     gateway_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -676,6 +699,7 @@ fn get_gateway_component_config(
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.mempool = mempool_remote_config;
+    config.proof_manager = proof_manager_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -703,6 +727,7 @@ fn get_mempool_component_config(
     mempool_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     gateway_remote_config: ReactiveComponentExecutionConfig,
+    proof_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.mempool = mempool_local_config;
@@ -710,6 +735,7 @@ fn get_mempool_component_config(
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.gateway = gateway_remote_config;
+    config.proof_manager = proof_manager_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
