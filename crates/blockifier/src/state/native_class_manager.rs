@@ -292,7 +292,7 @@ fn process_compilation_request(
     let start = Instant::now();
     let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
-    log::debug!(
+    log::info!(
         "Compiling to native contract with class hash: {:#066x}. Duration: {:.3} seconds",
         class_hash.0,
         duration.as_secs_f32()
@@ -304,7 +304,7 @@ fn process_compilation_request(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
             );
-            log::debug!("Compilation succeeded");
+            log::info!("Compilation succeeded");
             Ok(())
         }
         Err(err) => {
@@ -312,7 +312,7 @@ fn process_compilation_request(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(casm)),
             );
-            log::debug!(
+            log::error!(
                 "Error compiling contract class with class hash: {:#066x}: {err}",
                 class_hash.0
             );
