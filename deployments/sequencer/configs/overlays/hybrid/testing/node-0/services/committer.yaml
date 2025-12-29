@@ -7,6 +7,8 @@ config:
   sequencerConfig:
     components_batcher_port: 55000
     components_batcher_url: sequencer-core-service
+    components_committer_port: 55013
+    components_committer_url: sequencer-committer-service
 
 service:
   enabled: true
