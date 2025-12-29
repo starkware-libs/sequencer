@@ -16,20 +16,13 @@ pub enum NegotiatorOutput {
     DuplicatePeer(PeerId),
 }
 
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum NegotiatorError {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error("Authentication failed")]
-    AuthenticationFailed,
-}
-
 pub type ConnectionSender = dyn Sink<Vec<u8>, Error = IoError> + Unpin + Send;
 pub type ConnectionReceiver = dyn Stream<Item = Result<Vec<u8>, IoError>> + Unpin + Send;
 
 #[async_trait]
 pub trait Negotiator: Send + Clone {
+    type Error: std::error::Error + Send + Sync;
+
     /// Performs the handshake protocol.
     /// `connection_sender` is the channel that can be used to send data to the remote peer.
     /// `connection_receiver` is the channel that can be used to receive data from the remote peer.
@@ -40,7 +33,7 @@ pub trait Negotiator: Send + Clone {
         connection_sender: &mut ConnectionSender,
         connection_receiver: &mut ConnectionReceiver,
         side: NegotiationSide,
-    ) -> Result<NegotiatorOutput, NegotiatorError>;
+    ) -> Result<NegotiatorOutput, Self::Error>;
 
     /// A unique identified for your authentication protocol. For example: "strk_id" or
     /// "strk_id_v2".
