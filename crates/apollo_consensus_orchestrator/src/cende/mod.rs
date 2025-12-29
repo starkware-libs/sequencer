@@ -145,7 +145,7 @@ impl CendeContext for CendeAmbassador {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone().expose_inner()); // TODO(victork): make sure we're allowed to expose the URL here
+        let request_builder = self.client.post(self.url.clone().expose_secret()); // TODO(victork): make sure we're allowed to expose the URL here
 
         task::spawn(
             async move {
