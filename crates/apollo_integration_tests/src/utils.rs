@@ -225,6 +225,7 @@ pub fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
+    let proof_manager_config = storage_config.proof_manager_config.clone();
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
@@ -301,6 +302,8 @@ pub fn create_node_config(
     let monitoring_endpoint_config =
         wrap_if_component_config_expected!(monitoring_endpoint, monitoring_endpoint_config);
     let monitoring_config = MonitoringConfig::default();
+    let proof_manager_config =
+        wrap_if_component_config_expected!(proof_manager, proof_manager_config);
     let sierra_compiler_config =
         wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
@@ -323,6 +326,7 @@ pub fn create_node_config(
         mempool_p2p_config,
         monitoring_endpoint_config,
         monitoring_config,
+        proof_manager_config,
         sierra_compiler_config,
         state_sync_config,
     };
