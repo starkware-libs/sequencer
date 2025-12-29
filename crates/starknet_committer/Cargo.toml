@@ -19,7 +19,6 @@ hex.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
-rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core = { workspace = true, features = ["hash", "papyrus-serialization"] }
@@ -32,6 +31,9 @@ tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+async-recursion.workspace = true
+rstest.workspace = true
+rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 
