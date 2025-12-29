@@ -20,8 +20,6 @@ use apollo_starknet_client::reader::objects::transaction::{
     TransactionReceipt as ClientTransactionReceipt,
 };
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::{StarknetWriter, WriterClientError};
-use apollo_starknet_client::ClientError;
 use apollo_storage::body::events::{EventIndex, EventsReader};
 use apollo_storage::body::{BodyStorageReader, TransactionIndex};
 use apollo_storage::compiled_class::CasmStorageReader;
@@ -116,11 +114,6 @@ use super::super::transaction::{
     TypedDeployAccountTransaction,
     TypedInvokeTransaction,
 };
-use super::super::write_api_error::{
-    starknet_error_to_declare_error,
-    starknet_error_to_deploy_account_error,
-    starknet_error_to_invoke_error,
-};
 use super::super::write_api_result::{
     AddDeclareOkResult,
     AddDeployAccountOkResult,
@@ -170,7 +163,6 @@ pub struct JsonRpcServerImpl {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub writer_client: Arc<dyn StarknetWriter>,
     pub class_manager_client: Option<SharedClassManagerClient>,
 }
 
@@ -947,54 +939,31 @@ impl JsonRpcServer for JsonRpcServerImpl {
     #[instrument(skip(self), level = "debug", err, ret)]
     async fn add_invoke_transaction(
         &self,
-        invoke_transaction: TypedInvokeTransaction,
+        _invoke_transaction: TypedInvokeTransaction,
     ) -> RpcResult<AddInvokeOkResult> {
-        let result = self.writer_client.add_invoke_transaction(&invoke_transaction.into()).await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_invoke_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
+        Err(internal_server_error_with_msg(
+            "add_invoke_transaction is not supported - gateway client has been removed",
+        ))
     }
 
     #[instrument(skip(self), level = "debug", err, ret)]
     async fn add_deploy_account_transaction(
         &self,
-        deploy_account_transaction: TypedDeployAccountTransaction,
+        _deploy_account_transaction: TypedDeployAccountTransaction,
     ) -> RpcResult<AddDeployAccountOkResult> {
-        let result = self
-            .writer_client
-            .add_deploy_account_transaction(&deploy_account_transaction.into())
-            .await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_deploy_account_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
+        Err(internal_server_error_with_msg(
+            "add_deploy_account_transaction is not supported - gateway client has been removed",
+        ))
     }
 
     #[instrument(skip(self), level = "debug", err, ret)]
     async fn add_declare_transaction(
         &self,
-        declare_transaction: BroadcastedDeclareTransaction,
+        _declare_transaction: BroadcastedDeclareTransaction,
     ) -> RpcResult<AddDeclareOkResult> {
-        let result = self
-            .writer_client
-            .add_declare_transaction(
-                &declare_transaction.try_into().map_err(internal_server_error)?,
-            )
-            .await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_declare_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
+        Err(internal_server_error_with_msg(
+            "add_declare_transaction is not supported - gateway client has been removed",
+        ))
     }
 
     #[instrument(skip(self, transactions), level = "debug", err, ret)]
@@ -1788,7 +1757,6 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
         shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
         pending_data: Arc<RwLock<PendingData>>,
         pending_classes: Arc<RwLock<PendingClasses>>,
-        writer_client: Arc<dyn StarknetWriter>,
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         Self {
@@ -1801,7 +1769,6 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
             shared_highest_block,
             pending_data,
             pending_classes,
-            writer_client,
             class_manager_client,
         }
     }
