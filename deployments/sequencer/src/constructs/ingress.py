@@ -33,10 +33,21 @@ class IngressConstruct(BaseConstruct):
             {**self.labels, **ingress_config.labels} if ingress_config.labels else self.labels
         )
 
-        # Get service port
-        service_port = 8080
-        if self.service_config.service and self.service_config.service.ports:
-            service_port = self.service_config.service.ports[0].port
+        # Get backend service name (use custom if provided, otherwise default)
+        backend_service_name = (
+            ingress_config.backendServiceName
+            if ingress_config.backendServiceName
+            else f"sequencer-{self.service_config.name}-service"
+        )
+
+        # Backend port is required when ingress is enabled (validated in schema)
+        # This check provides a safety net in case validation somehow didn't catch it
+        backend_service_port = ingress_config.backendServicePort
+        if backend_service_port is None:
+            raise ValueError(
+                "backendServicePort is required when ingress is enabled. "
+                "Please explicitly set backendServicePort in your ingress configuration."
+            )
 
         return k8s.KubeIngress(
             self,
@@ -58,8 +69,10 @@ class IngressConstruct(BaseConstruct):
                                     path_type=ingress_config.pathType or "Prefix",
                                     backend=k8s.IngressBackend(
                                         service=k8s.IngressServiceBackend(
-                                            name=f"sequencer-{self.service_config.name}-service",
-                                            port=k8s.ServiceBackendPort(number=service_port),
+                                            name=backend_service_name,
+                                            port=k8s.ServiceBackendPort(
+                                                number=backend_service_port
+                                            ),
                                         )
                                     ),
                                 )

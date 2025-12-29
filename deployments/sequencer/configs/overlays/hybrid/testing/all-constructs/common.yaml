@@ -35,26 +35,6 @@ service:
   loadBalancerSourceRanges: []
   externalIPs: []
 
-# Ingress Configuration - Enabled
-ingress:
-  enabled: true
-  ingressClassName: "nginx"
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
-  hosts:
-    - "sequencer-test.local"
-  path: "/"
-  pathType: "Prefix"
-  extraPaths: []
-  alternative_names: []
-  rules: []
-  tls:
-    - secretName: "sequencer-tls"
-      hosts:
-        - "sequencer-test.local"
-
 # Secret Configuration - Enabled
 secret:
   enabled: true
