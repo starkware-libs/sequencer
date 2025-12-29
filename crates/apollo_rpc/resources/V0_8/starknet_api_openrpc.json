@@ -2782,14 +2782,6 @@
                                     "$ref": "#/components/schemas/FELT"
                                 },
                                 "description": "The proof facts for the transaction for client-side proving"
-                            },
-                            "proof": {
-                                "title": "Proof",
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/components/schemas/u32"
-                                },
-                                "description": "The proof for the transaction for client-side proving"
                             }
                         },
                         "required": [

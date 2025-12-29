@@ -34,6 +34,5 @@
     "fee_data_availability_mode": 0,
     "paymaster_data": [],
     "account_deployment_data": [],
-    "proof_facts": [],
-    "proof": []
+    "proof_facts": []
 }
