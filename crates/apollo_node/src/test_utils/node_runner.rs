@@ -18,22 +18,20 @@ const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
 #[derive(Debug, Clone)]
 pub struct NodeRunner {
     node_index: usize,
-    node_execution_id: String,
 }
 
 impl NodeRunner {
-    pub fn new(node_index: usize, node_execution_id: String) -> Self {
+    pub fn new(node_index: usize) -> Self {
         create_dir_all(TEMP_LOGS_DIR).unwrap();
-        Self { node_index, node_execution_id }
+        Self { node_index }
     }
 
     pub fn get_description(&self) -> String {
-        format!("Node {} {}:", self.node_index, self.node_execution_id)
+        format!("Node id {}:", self.node_index)
     }
 
     pub fn logs_file_path(&self) -> PathBuf {
-        PathBuf::from(TEMP_LOGS_DIR)
-            .join(format!("node_{}_{}.log", self.node_index, self.node_execution_id))
+        PathBuf::from(TEMP_LOGS_DIR).join(format!("node_{}.log", self.node_index))
     }
 }
 
