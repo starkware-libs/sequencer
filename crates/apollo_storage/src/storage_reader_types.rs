@@ -207,11 +207,17 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Class-Related Requests ============
-            StorageReaderRequest::DeclaredClassesLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesLocation(class_hash) => {
+                let class_location =
+                    txn.get_class_location(&class_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "Declared class".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeclaredClassesLocation(class_location))
             }
-            StorageReaderRequest::DeclaredClassesFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesFromLocation(location) => {
+                let class = txn.get_class_from_location(location)?;
+                Ok(StorageReaderResponse::DeclaredClassesFromLocation(class))
             }
             StorageReaderRequest::DeclaredClassesBlock(_class_hash) => {
                 unimplemented!()
