@@ -2,8 +2,6 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
-use std::sync::Arc;
-
 use prost::Message;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
@@ -15,7 +13,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{AllResourceBounds, Proof, ValidResourceBounds};
+use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
 
 use super::common::missing;
@@ -114,27 +112,19 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
 
 impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(mut value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
-        // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
-        // carry a `proof` field.
-        let proof = Proof::from(std::mem::take(&mut value.proof));
-
+    fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
         let snapi_invoke: InvokeTransactionV3 = value.try_into()?;
-
         // This conversion can fail only if the resource_bounds are not AllResources.
-        Ok(Self { proof, ..snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)? })
+        // TODO(AvivG): Currently creates the tx with a default proof, should be populated by the
+        // ProofManager.
+        snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)
     }
 }
 
 impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
-    fn from(mut value: RpcInvokeTransactionV3) -> Self {
-        // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
-        // carry a `proof` field.
-        let proof = Arc::unwrap_or_clone(std::mem::take(&mut value.proof).0);
-
+    fn from(value: RpcInvokeTransactionV3) -> Self {
         let snapi_invoke: InvokeTransactionV3 = value.into();
-
-        Self { proof, ..snapi_invoke.into() }
+        snapi_invoke.into()
     }
 }
 
