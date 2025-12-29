@@ -24,7 +24,6 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::StarknetGatewayClient;
 use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
@@ -79,9 +78,9 @@ pub struct RpcConfig {
     pub max_events_keys: usize,
     // TODO(lev,shahak): remove once we remove papyrus.
     pub collect_metrics: bool,
+    pub execution_config: ExecutionConfig,
     pub starknet_url: String,
     pub apollo_gateway_retry_config: RetryConfig,
-    pub execution_config: ExecutionConfig,
 }
 
 impl Default for RpcConfig {
@@ -93,13 +92,13 @@ impl Default for RpcConfig {
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
+            execution_config: ExecutionConfig::default(),
             starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
             apollo_gateway_retry_config: RetryConfig {
                 retry_base_millis: 50,
                 retry_max_delay_millis: 1000,
                 max_retries: 5,
             },
-            execution_config: ExecutionConfig::default(),
         }
     }
 }
@@ -234,11 +233,6 @@ pub async fn run_server(
         shared_highest_block,
         pending_data,
         pending_classes,
-        Arc::new(StarknetGatewayClient::new(
-            &config.starknet_url,
-            node_version,
-            config.apollo_gateway_retry_config,
-        )?),
         class_manager_client,
     );
     let addr;

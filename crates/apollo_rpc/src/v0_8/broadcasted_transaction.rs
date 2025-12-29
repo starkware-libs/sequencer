@@ -10,13 +10,14 @@
 #[path = "broadcasted_transaction_test.rs"]
 mod broadcasted_transaction_test;
 
-use apollo_starknet_client::writer::objects::transaction as client_transaction;
-use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
-use apollo_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
-use starknet_api::compression_utils::compress_and_encode;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::deprecated_contract_class::{
+    ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
+    EntryPointV0 as DeprecatedEntryPoint,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,
@@ -24,7 +25,6 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_api::transaction::TransactionVersion;
 
 use super::state::ContractClass;
 use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};
@@ -123,73 +123,13 @@ pub enum DeclareType {
     Declare,
 }
 
-impl TryFrom<BroadcastedDeclareTransaction> for client_transaction::DeclareTransaction {
-    type Error = StorageSerdeError;
-
-    fn try_from(value: BroadcastedDeclareTransaction) -> Result<Self, Self::Error> {
-        match value {
-            BroadcastedDeclareTransaction::V1(declare_v1) => {
-                Ok(Self::DeclareV1(client_transaction::DeclareV1Transaction {
-                    contract_class: declare_v1.contract_class,
-                    sender_address: declare_v1.sender_address,
-                    nonce: declare_v1.nonce,
-                    max_fee: declare_v1.max_fee,
-                    signature: declare_v1.signature,
-                    version: TransactionVersion::ONE,
-                    r#type: client_transaction::DeclareType::default(),
-                }))
-            }
-            BroadcastedDeclareTransaction::V2(declare_v2) => {
-                Ok(Self::DeclareV2(client_transaction::DeclareV2Transaction {
-                    contract_class: client_transaction::ContractClass {
-                        compressed_sierra_program: compress_and_encode(
-                            &declare_v2.contract_class.sierra_program,
-                        )?,
-                        contract_class_version: declare_v2.contract_class.contract_class_version,
-                        entry_points_by_type: declare_v2
-                            .contract_class
-                            .entry_points_by_type
-                            .to_hash_map(),
-                        abi: declare_v2.contract_class.abi,
-                    },
-                    compiled_class_hash: declare_v2.compiled_class_hash,
-                    sender_address: declare_v2.sender_address,
-                    nonce: declare_v2.nonce,
-                    max_fee: declare_v2.max_fee,
-                    signature: declare_v2.signature,
-                    version: TransactionVersion::TWO,
-                    r#type: client_transaction::DeclareType::default(),
-                }))
-            }
-            BroadcastedDeclareTransaction::V3(declare_v3) => {
-                Ok(Self::DeclareV3(client_transaction::DeclareV3Transaction {
-                    contract_class: client_transaction::ContractClass {
-                        compressed_sierra_program: compress_and_encode(
-                            &declare_v3.contract_class.sierra_program,
-                        )?,
-                        contract_class_version: declare_v3.contract_class.contract_class_version,
-                        entry_points_by_type: declare_v3
-                            .contract_class
-                            .entry_points_by_type
-                            .to_hash_map(),
-                        abi: declare_v3.contract_class.abi,
-                    },
-                    resource_bounds: declare_v3.resource_bounds.into(),
-                    tip: declare_v3.tip,
-                    signature: declare_v3.signature,
-                    nonce: declare_v3.nonce,
-                    compiled_class_hash: declare_v3.compiled_class_hash,
-                    sender_address: declare_v3.sender_address,
-                    nonce_data_availability_mode:
-                        client_transaction::ReservedDataAvailabilityMode::Reserved,
-                    fee_data_availability_mode:
-                        client_transaction::ReservedDataAvailabilityMode::Reserved,
-                    paymaster_data: declare_v3.paymaster_data,
-                    account_deployment_data: declare_v3.account_deployment_data,
-                    version: TransactionVersion::THREE,
-                    r#type: client_transaction::DeclareType::Declare,
-                }))
-            }
-        }
-    }
+/// A deprecated contract class for Cairo 0 contracts.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DeprecatedContractClass {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub abi: Option<Vec<DeprecatedContractClassAbiEntry>>,
+    #[serde(rename = "program")]
+    pub compressed_program: String,
+    pub entry_points_by_type: std::collections::HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
 }
