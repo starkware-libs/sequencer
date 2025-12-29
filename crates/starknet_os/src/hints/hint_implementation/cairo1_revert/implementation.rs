@@ -1,6 +1,7 @@
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -57,11 +58,13 @@ pub(crate) fn write_storage_key_for_revert<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn generate_dummy_os_output_segment(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn generate_dummy_os_output_segment(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
     let base = vm.add_memory_segment();
     let segment_data =
         [MaybeRelocatable::from(vm.add_memory_segment()), MaybeRelocatable::from(Felt::ZERO)];
     vm.load_data(base, &segment_data)?;
-    insert_value_into_ap(vm, base)?;
+    insert_value_from_var_name(Ids::Outputs.into(), base, vm, ids_data, ap_tracking)?;
     Ok(())
 }

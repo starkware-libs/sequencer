@@ -229,6 +229,7 @@ define_string_enum! {
         (OsProgramHash),
         (OsStateUpdate),
         (OutputPtr),
+        (Outputs),
         (PackedFelt),
         (PackedValue),
         (PackedValues),
