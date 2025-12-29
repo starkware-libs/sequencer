@@ -2,6 +2,7 @@ use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
+use starknet_committer::db::forest_trait::ForestMetadataType;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Deserialize, Error, Serialize)]
@@ -19,6 +20,8 @@ pub enum CommitterError {
         stored_commitment: StateDiffCommitment,
         height: BlockNumber,
     },
+    #[error("Failed to read metadata for {0:?}")]
+    MissingMetadata(ForestMetadataType),
     #[error("State root for the committed block number {height} is missing.")]
     MissingStateRoot { height: BlockNumber },
 }

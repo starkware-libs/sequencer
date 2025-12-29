@@ -1074,6 +1074,7 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_patricia_storage",
+ "tracing",
 ]
 
 [[package]]
@@ -1097,6 +1098,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
