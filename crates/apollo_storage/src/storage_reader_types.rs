@@ -242,8 +242,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::Headers(_block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::BlockHashToNumber(_block_hash) => {
-                unimplemented!()
+            StorageReaderRequest::BlockHashToNumber(block_hash) => {
+                let block_number =
+                    txn.get_block_number_by_hash(&block_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block number".to_string(),
+                        resource_id: format!("hash: {}", block_hash),
+                    })?;
+                Ok(StorageReaderResponse::BlockHashToNumber(block_number))
             }
             StorageReaderRequest::BlockSignatures(block_number) => {
                 let block_signature =
