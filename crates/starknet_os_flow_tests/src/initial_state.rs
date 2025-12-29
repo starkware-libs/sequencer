@@ -6,6 +6,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use blockifier::context::BlockContext;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
@@ -120,8 +121,8 @@ pub(crate) struct InitialState<S: FlowTestState> {
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
-    // Next available block number.
-    pub(crate) next_block_number: BlockNumber,
+    // Block context of the initial state block.
+    pub(crate) block_context: BlockContext,
 }
 
 /// Creates the initial state for the flow test which includes:
@@ -143,11 +144,12 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     let initial_state_reader = S::create_empty_state();
     let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
     let use_kzg_da = false;
+    let block_context = block_context_for_flow_tests(initial_block_number, use_kzg_da);
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
         execute_transactions(
             initial_state_reader,
             &default_initial_state_txs,
-            block_context_for_flow_tests(initial_block_number, use_kzg_da),
+            block_context.clone(),
         );
     assert_eq!(
         execution_outputs.len(),
@@ -180,7 +182,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
         commitment_storage,
         contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
         classes_trie_root_hash: commitment_output.classes_trie_root_hash,
-        next_block_number: initial_block_number.next().unwrap(),
+        block_context,
     };
 
     (

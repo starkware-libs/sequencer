@@ -39,7 +39,6 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
-    CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -169,6 +168,7 @@ async fn declare_deploy_scenario(
 
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Declare a test contract.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -184,8 +184,7 @@ async fn declare_deploy_scenario(
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(test_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     // Add the transaction to the test manager.
     test_manager.add_cairo1_declare_tx(tx, &test_contract_sierra);
     let arg1 = Felt::from(7);
@@ -338,11 +337,7 @@ async fn test_reverted_invoke_tx(
         calldata: create_calldata(test_contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    test_manager.add_invoke_tx_from_args(
-        invoke_tx_args,
-        &CHAIN_ID_FOR_TESTS,
-        Some(revert_reason.to_string()),
-    );
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, Some(revert_reason.to_string()));
 
     // Execute the test.
     let test_output = test_manager
@@ -455,7 +450,7 @@ async fn test_reverted_l1_handler_tx(
             // from_address (L1 address), key, value.
             calldata: calldata![Felt::THREE, Felt::ONE, Felt::TWO],
         },
-        &CHAIN_ID_FOR_TESTS,
+        &test_manager.chain_id(),
         Fee(1_000_000),
     )
     .unwrap();
@@ -532,6 +527,7 @@ async fn test_os_logic(
 ) {
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
     let n_expected_txs = 31;
     let mut expected_storage_updates = HashMap::new();
 
@@ -546,8 +542,7 @@ async fn test_os_logic(
     };
     let account_declare_tx = declare_tx(declare_args);
     let class_info = get_class_info_of_feature_contract(cairo0_test_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager
         .add_cairo0_declare_tx(tx, get_class_hash_of_feature_contract(cairo0_test_contract));
 
@@ -648,8 +643,8 @@ async fn test_os_logic(
     }
 
     // Call test_get_block_number(expected_block_number).
-    let expected_block_number = test_manager.initial_state.next_block_number.0 - 1
-        + u64::try_from(block_number_offset).unwrap();
+    let expected_block_number =
+        test_manager.next_block_number().0 - 1 + u64::try_from(block_number_offset).unwrap();
     let calldata = create_calldata(
         contract_addresses[0],
         "test_get_block_number",
@@ -722,8 +717,7 @@ async fn test_os_logic(
         max_fee: Fee(1_000_000_000_000_000),
     });
     let class_info = get_class_info_of_feature_contract(delegate_proxy_contract);
-    let tx = DeclareTransaction::create(delegate_proxy_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
-        .unwrap();
+    let tx = DeclareTransaction::create(delegate_proxy_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo0_declare_tx(tx, delegate_proxy_class_hash);
 
     let contract_address_salt = ContractAddressSalt(Felt::ZERO);
@@ -797,7 +791,7 @@ async fn test_os_logic(
             entry_point_selector: l1_handler_selector,
             calldata: l1_handler_calldata.clone(),
         },
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
         Fee(1_000_000),
     )
     .unwrap();
@@ -863,8 +857,7 @@ async fn test_os_logic(
         max_fee: Fee(1_000_000_000_000_000),
     });
     let class_info = get_class_info_of_feature_contract(test_contract2);
-    let tx = DeclareTransaction::create(test_contract2_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
-        .unwrap();
+    let tx = DeclareTransaction::create(test_contract2_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo0_declare_tx(tx, test_contract2_class_hash);
 
     // Use library_call to call test_contract2.test_storage_write(address=555, value=888).
@@ -942,6 +935,7 @@ async fn test_v1_bound_accounts_cairo0() {
     let vc = VersionedConstants::latest_constants();
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     assert!(vc.os_constants.v1_bound_accounts_cairo0.contains(&class_hash));
 
@@ -954,8 +948,7 @@ async fn test_v1_bound_accounts_cairo0() {
     };
     let account_declare_tx = declare_tx(declare_args);
     let class_info = get_class_info_of_cairo0_contract((**test_contract).clone());
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo0_declare_tx(tx, class_hash);
 
     // Deploy it.
@@ -990,15 +983,14 @@ async fn test_v1_bound_accounts_cairo0() {
         tip: vc.os_constants.v1_bound_accounts_max_tip,
     };
     let validate_tx =
-        InvokeTransaction::create(invoke_tx(validate_tx_args.clone()), &CHAIN_ID_FOR_TESTS)
-            .unwrap();
+        InvokeTransaction::create(invoke_tx(validate_tx_args.clone()), chain_id).unwrap();
     assert_eq!(validate_tx.version(), TransactionVersion::THREE);
     let Signature { r, s } = ecdsa_sign(&private_key, &validate_tx.tx_hash()).unwrap().into();
     let validate_tx_args = invoke_tx_args! {
         signature: TransactionSignature(Arc::new(vec![r, s])),
         ..validate_tx_args
     };
-    test_manager.add_invoke_tx_from_args(validate_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_invoke_tx_from_args(validate_tx_args, None);
 
     // Run test and verify the signer was set.
     let test_output =
@@ -1030,6 +1022,7 @@ async fn test_v1_bound_accounts_cairo1() {
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Declare the V1-bound account.
     let declare_args = declare_tx_args! {
@@ -1047,8 +1040,7 @@ async fn test_v1_bound_accounts_cairo1() {
         abi_length: test_contract_sierra.abi.len(),
         sierra_version,
     };
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, test_contract_sierra);
 
     // Deploy it (from funded account).
@@ -1075,15 +1067,14 @@ async fn test_v1_bound_accounts_cairo1() {
         calldata: Calldata(Arc::new(vec![Felt::ZERO])),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let invoke_tx =
-        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
     assert_eq!(invoke_tx.version(), TransactionVersion::THREE);
     let Signature { r, s } = ecdsa_sign(&private_key, &invoke_tx.tx_hash()).unwrap().into();
     let invoke_tx_args = invoke_tx_args! {
         signature: TransactionSignature(Arc::new(vec![r, s])),
         ..invoke_tx_args
     };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, None);
 
     // Run the test, and make sure the account storage has the expected changes.
     let test_output =
@@ -1126,7 +1117,8 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
             calldata![Felt::ZERO, Felt::ZERO],
         )])
         .await;
-    let current_block_number = test_manager.initial_state.next_block_number;
+    let chain_id = &test_manager.chain_id();
+    let current_block_number = test_manager.next_block_number();
 
     assert!(
         current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
@@ -1143,7 +1135,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         *FUNDED_ACCOUNT_ADDRESS,
         *FUNDED_ACCOUNT_ADDRESS,
         main_contract_address,
-        CHAIN_ID_FOR_TESTS.clone(),
+        chain_id.clone(),
         test_execution_info_selector,
         current_block_number,
         BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
@@ -1161,14 +1153,12 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     // Put the tx hash in the signature.
-    let tx =
-        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
     test_manager.add_invoke_tx_from_args(
         invoke_tx_args! {
             signature: TransactionSignature(Arc::new(vec![tx.tx_hash.0])),
             ..invoke_tx_args
         },
-        &CHAIN_ID_FOR_TESTS,
         None,
     );
 
@@ -1204,7 +1194,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         *FUNDED_ACCOUNT_ADDRESS,
         main_contract_address,
         contract_address2,
-        CHAIN_ID_FOR_TESTS.clone(),
+        chain_id.clone(),
         test_execution_info_selector,
         current_block_number,
         BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
@@ -1228,14 +1218,12 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     // Put the tx hash in the signature.
-    let invoke_tx =
-        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
     test_manager.add_invoke_tx_from_args(
         invoke_tx_args! {
             signature: TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0])),
             ..invoke_tx_args
         },
-        &CHAIN_ID_FOR_TESTS,
         None,
     );
 
@@ -1264,6 +1252,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: bool) {
     let (mut test_manager, []) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Declare the experimental contract.
     // Test the bootstrap variant of the V3 transaction.
@@ -1282,8 +1271,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(experimental_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
 
     // Deploy it.
@@ -1338,7 +1326,8 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
 async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     let (mut test_manager, []) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
-    let current_block_number = test_manager.initial_state.next_block_number;
+    let chain_id = &test_manager.chain_id();
+    let current_block_number = test_manager.next_block_number();
 
     assert!(
         current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
@@ -1363,8 +1352,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(faulty_account);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &faulty_account_sierra);
 
     // Deploy it.
@@ -1404,7 +1392,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     let deploy_account_tx =
         deploy_account_tx(deploy_tx_args, test_manager.next_nonce(faulty_account_address));
     test_manager.add_deploy_account_tx(
-        DeployAccountTransaction::create(deploy_account_tx, &CHAIN_ID_FOR_TESTS).unwrap(),
+        DeployAccountTransaction::create(deploy_account_tx, chain_id).unwrap(),
     );
 
     // Declare a contract using the newly deployed account.
@@ -1423,8 +1411,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(empty_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &empty_contract_sierra);
     // The faulty account's __execute__ sends a message to L1.
     expected_messages_to_l1.push(MessageToL1 {
@@ -1441,7 +1428,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         signature: TransactionSignature(Arc::new(vec![valid])),
     };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, None);
     // The faulty account's __execute__ sends a message to L1.
     expected_messages_to_l1.push(MessageToL1 {
         from_address: faulty_account_address,
@@ -1483,7 +1470,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
         ])
         .await;
-    let current_block_number = test_manager.initial_state.next_block_number;
+    let current_block_number = test_manager.next_block_number();
 
     assert!(
         current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
@@ -1798,6 +1785,7 @@ async fn test_deprecated_tx_info() {
         calldata![],
     )])
     .await;
+    let chain_id = &test_manager.chain_id();
 
     // Prepare to deploy: precompute the address.
     let salt = Felt::ZERO;
@@ -1820,7 +1808,7 @@ async fn test_deprecated_tx_info() {
     };
     let deploy_account_tx = DeployAccountTransaction::create(
         deploy_account_tx(deploy_tx_args, test_manager.next_nonce(tx_info_account_address)),
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
     )
     .unwrap();
     test_manager.add_deploy_account_tx(deploy_account_tx.clone());
@@ -1832,7 +1820,7 @@ async fn test_deprecated_tx_info() {
         calldata: calldata![Felt::ZERO],
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     test_manager.add_invoke_tx(invoke_tx.clone(), None);
 
     // Declare.
@@ -1850,8 +1838,7 @@ async fn test_deprecated_tx_info() {
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(empty_contract);
-    let declare_tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let declare_tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(declare_tx.clone(), &empty_contract_sierra);
 
     // L1 handler (call `l1_write`).
@@ -1866,7 +1853,7 @@ async fn test_deprecated_tx_info() {
             // from_address (L1 address), key, value.
             calldata: calldata![from_address],
         },
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
         Fee(1_000_000),
     )
     .unwrap();
@@ -1908,7 +1895,7 @@ async fn test_deprecated_tx_info() {
             .insert(get_storage_var_address("signature_len", tx_type), Felt::ZERO);
         contract_storage_updates.insert(
             get_storage_var_address("chain_id", tx_type),
-            Felt::try_from(&*CHAIN_ID_FOR_TESTS).unwrap(),
+            Felt::try_from(chain_id).unwrap(),
         );
         let version = match tx.tx_type() {
             TransactionType::L1Handler => Felt::ZERO,
@@ -2113,9 +2100,10 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let is_validate = Felt::ONE;
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Prepare block info data.
-    let next_block_number = test_manager.initial_state.next_block_number;
+    let next_block_number = test_manager.next_block_number();
     let rounded_block_number = (next_block_number.0 / 100) * 100;
     let next_block_timestamp = BlockInfo::create_for_testing().block_timestamp.0;
     let rounded_next_block_timestamp = (next_block_timestamp / 3600) * 3600;
@@ -2141,8 +2129,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
             nonce: Nonce::default(),
         };
         let account_declare_tx = declare_tx(declare_args);
-        let tx = DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
-            .unwrap();
+        let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
         test_manager.add_cairo0_declare_tx(tx, class_hash);
     } else {
         let test_contract_sierra = test_contract.get_sierra();
@@ -2157,8 +2144,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         };
         let account_declare_tx = declare_tx(declare_tx_args);
         let declare_tx =
-            DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
-                .unwrap();
+            DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
         test_manager.add_cairo1_declare_tx(declare_tx, &test_contract_sierra);
     }
 
@@ -2188,7 +2174,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
             deploy_account_tx_args,
             test_manager.next_nonce(block_info_account_address),
         ),
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
     )
     .unwrap();
     test_manager.add_deploy_account_tx(deploy_account_tx);
@@ -2206,8 +2192,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(empty_contract);
-    let declare_tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let declare_tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(declare_tx, &empty_contract.get_sierra());
 
     // Test `validate` and `execute`.
@@ -2218,7 +2203,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_invoke_tx_from_args(invoke_args, None);
 
     // Test `constructor` in execute mode.
     let ctor_calldata = [Felt::ZERO]; // Not validate mode (execute mode).
@@ -2248,6 +2233,7 @@ async fn test_initial_sierra_gas() {
             calldata![],
         )])
         .await;
+    let chain_id = &test_manager.chain_id();
 
     // Fund the account.
     test_manager.add_fund_address_tx_with_default_amount(account_address);
@@ -2296,7 +2282,7 @@ async fn test_initial_sierra_gas() {
             ),
             resource_bounds: resource_bounds,
         };
-        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        test_manager.add_invoke_tx_from_args(invoke_args, None);
     }
 
     // L1 handler bounds test.
@@ -2316,7 +2302,7 @@ async fn test_initial_sierra_gas() {
             entry_point_selector: selector,
             calldata: Calldata(Arc::new([vec![from_address], calldata.clone()].concat())),
         },
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
         Fee(1_000_000),
     )
     .unwrap();
@@ -2493,6 +2479,7 @@ async fn test_resources_type() {
             calldata![Felt::ZERO, Felt::ZERO],
         )])
         .await;
+    let chain_id = &test_manager.chain_id();
 
     // Define an updated Cairo 1.0 contract by overriding the encoded sierra version.
     let mut cairo_steps_contract_sierra = test_contract.get_sierra();
@@ -2529,8 +2516,7 @@ async fn test_resources_type() {
             sierra_version: old_sierra_version,
         },
     };
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &cairo_steps_contract_sierra);
 
     // Deploy it.
@@ -2598,6 +2584,7 @@ async fn test_data_gas_accounts() {
     );
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Declare the data gas account.
     let declare_args = declare_tx_args! {
@@ -2615,8 +2602,7 @@ async fn test_data_gas_accounts() {
         abi_length: test_contract_sierra.abi.len(),
         sierra_version,
     };
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, test_contract_sierra);
 
     // Deploy it (from funded account).
@@ -2637,7 +2623,7 @@ async fn test_data_gas_accounts() {
         calldata: create_calldata(data_gas_account_address, "test_resource_bounds", &[]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let tx = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     assert_eq!(tx.version(), TransactionVersion::THREE);
     assert_matches!(tx.resource_bounds(), ValidResourceBounds::AllResources(_));
     test_manager.add_invoke_tx(tx, None);
@@ -2702,6 +2688,7 @@ async fn test_meta_tx() {
             (tx_info_contract, calldata![]),
         ])
         .await;
+    let chain_id = &test_manager.chain_id();
 
     let argument = Felt::from(1234);
     let signature = vec![Felt::from(5432), Felt::from(100)];
@@ -2727,7 +2714,7 @@ async fn test_meta_tx() {
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let tx0 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx0 = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     let tx0_hash = tx0.tx_hash();
     let tx0_nonce = tx0.nonce();
     assert!(tx0_nonce != Nonce(Felt::ZERO));
@@ -2741,7 +2728,7 @@ async fn test_meta_tx() {
             calldata: calldata![argument],
             max_fee: Fee(0),
         }),
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
     )
     .unwrap()
     .tx_hash();
@@ -2768,7 +2755,7 @@ async fn test_meta_tx() {
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let tx1 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx1 = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     let tx1_hash = tx1.tx_hash();
     let tx1_nonce = tx1.nonce();
     assert!(tx1_nonce != Nonce(Felt::ZERO));
@@ -2782,7 +2769,7 @@ async fn test_meta_tx() {
             calldata: calldata![argument1],
             max_fee: Fee(0),
         }),
-        &CHAIN_ID_FOR_TESTS,
+        chain_id,
     )
     .unwrap()
     .tx_hash();
@@ -2807,7 +2794,7 @@ async fn test_meta_tx() {
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let tx2 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx2 = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     assert!(tx2.nonce() != Nonce(Felt::ZERO));
     let tx2_hash = tx2.tx_hash();
     let tx2_nonce = tx2.nonce();
@@ -2875,7 +2862,7 @@ async fn test_meta_tx() {
             (**get_storage_var_address("transaction_hash", &[Felt::ZERO]), *meta_tx_hash1),
             (
                 **get_storage_var_address("chain_id", &[Felt::ZERO]),
-                Felt::try_from(&*CHAIN_ID_FOR_TESTS).unwrap(),
+                Felt::try_from(chain_id).unwrap(),
             ),
             (**get_storage_var_address("nonce", &[Felt::ZERO]), Felt::ZERO),
         ]
@@ -2905,6 +2892,7 @@ async fn test_meta_tx() {
 async fn test_declare_and_deploy_in_separate_blocks() {
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let chain_id = &test_manager.chain_id();
 
     // Declare a test contract.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -2920,8 +2908,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(test_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_manager.add_cairo1_declare_tx(tx, &test_contract_sierra);
 
     // Move on to the next block, with an empty block in between.
@@ -2986,7 +2973,7 @@ async fn test_single_empty_block() {
 async fn test_empty_multi_block() {
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
-    let next_block_number = test_manager.initial_state.next_block_number.0;
+    let next_block_number = test_manager.next_block_number().0;
     assert!(next_block_number > STORED_BLOCK_HASH_BUFFER);
 
     // Create empty blocks.
