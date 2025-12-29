@@ -19,15 +19,6 @@ service:
       targetPort: 8082
       protocol: TCP
 
-# Ingress enabled for mempool
-ingress:
-  enabled: true
-  ingressClassName: "nginx"
-  hosts:
-    - "mempool.sequencer-test.local"
-  path: "/"
-  pathType: "Prefix"
-
 # HPA enabled for mempool (stateless, can scale)
 hpa:
   enabled: true
