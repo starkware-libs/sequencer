@@ -6,10 +6,6 @@
 //!
 //! [`Starknet`]: https://starknet.io/
 
-#[cfg(test)]
-#[path = "transaction_test.rs"]
-mod transaction_test;
-
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
