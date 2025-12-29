@@ -21,6 +21,8 @@ config:
     components_batcher_url: sequencer-core-service
     components_class_manager_port: 55001
     components_class_manager_url: sequencer-core-service
+    components_committer_port: 55013
+    components_committer_url: sequencer-committer-service
     components_l1_gas_price_provider_port: 55003
     components_l1_gas_price_provider_url: sequencer-l1-service
     components_l1_provider_port: 55004

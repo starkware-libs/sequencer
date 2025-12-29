@@ -13,8 +13,8 @@ service:
   type: ClusterIP
   ports:
   - name: committer
-    port: 55011
-    targetPort: 55011
+    port: 55013
+    targetPort: 55013
     protocol: TCP
 
 statefulSet:

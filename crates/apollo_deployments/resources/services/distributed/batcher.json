@@ -35,7 +35,7 @@
   "components.committer.execution_mode": "Remote",
   "components.committer.local_server_config.#is_none": true,
   "components.committer.max_concurrency": 128,
-  "components.committer.port": 55011,
+  "components.committer.port": 55013,
   "components.committer.remote_client_config.#is_none": false,
   "components.committer.remote_client_config.attempts_per_log": 1,
   "components.committer.remote_client_config.connection_timeout_ms": 500,

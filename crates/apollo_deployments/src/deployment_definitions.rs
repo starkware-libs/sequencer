@@ -10,7 +10,7 @@ mod deployment_definitions_test;
 
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
-const COMMITTER_PORT: u16 = 55011;
+const COMMITTER_PORT: u16 = 55013;
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
 const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;

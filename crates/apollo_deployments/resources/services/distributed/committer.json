@@ -32,7 +32,7 @@
   "components.committer.local_server_config.normal_priority_requests_channel_capacity": 1024,
   "components.committer.local_server_config.processing_time_warning_threshold_ms": 3000,
   "components.committer.max_concurrency": 128,
-  "components.committer.port": 55011,
+  "components.committer.port": 55013,
   "components.committer.remote_client_config.#is_none": true,
   "components.committer.remote_server_config.#is_none": false,
   "components.committer.remote_server_config.bind_ip": "0.0.0.0",
