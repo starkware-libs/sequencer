@@ -11,10 +11,20 @@ use apollo_config::converters::{
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DeploymentMode {
+    // Production mode.
+    #[default]
+    Starknet,
+    // Echonet mode.
+    Echonet,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
@@ -137,6 +147,7 @@ pub struct ContextConfig {
     /// The interval between retrospective block hash retries.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    pub deployment_mode: DeploymentMode,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -280,6 +291,12 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
+        dump.extend([ser_param(
+            "deployment_mode",
+            &format!("{:?}", self.deployment_mode).to_lowercase(),
+            "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
+            ParamPrivacyInput::Public,
+        )]);
         dump
     }
 }
@@ -308,6 +325,7 @@ impl Default for ContextConfig {
             override_eth_to_fri_rate: None,
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
+            deployment_mode: DeploymentMode::default(),
         }
     }
 }
