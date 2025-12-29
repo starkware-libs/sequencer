@@ -26,6 +26,12 @@ pub enum DeploymentMode {
     Echonet,
 }
 
+impl DeploymentMode {
+    pub fn use_state_sync_block_timestamp(&self) -> bool {
+        matches!(self, DeploymentMode::Echonet)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
     pub recorder_url: Sensitive<Url>,
