@@ -24,7 +24,15 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
+use starknet_api::core::{
+    ChainId,
+    ClassHash,
+    ContractAddress,
+    EthAddress,
+    GlobalRoot,
+    Nonce,
+    PatriciaKey,
+};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -39,7 +47,7 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
-use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -110,13 +118,10 @@ pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
 #[derive(Default)]
-pub(crate) struct TestParameters {
+pub(crate) struct TestManagerConfig {
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
-    pub(crate) messages_to_l1: Vec<MessageToL1>,
-    pub(crate) messages_to_l2: Vec<MessageToL2>,
     pub(crate) private_keys: Option<Vec<Felt>>,
-    pub(crate) rng_seed_salt: Option<Felt>,
 }
 
 pub(crate) struct FlowTestTx {
@@ -312,6 +317,9 @@ pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
+    pub(crate) config: TestManagerConfig,
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
+    pub(crate) messages_to_l2: Vec<MessageToL2>,
 
     per_block_txs: Vec<Vec<FlowTestTx>>,
 }
@@ -323,6 +331,9 @@ impl<S: FlowTestState> TestManager<S> {
             initial_state: initial_state_data.initial_state,
             nonce_manager: initial_state_data.nonce_manager,
             execution_contracts: initial_state_data.execution_contracts,
+            config: TestManagerConfig::default(),
+            messages_to_l1: Vec::new(),
+            messages_to_l2: Vec::new(),
             per_block_txs: vec![vec![]],
         }
     }
@@ -467,6 +478,17 @@ impl<S: FlowTestState> TestManager<S> {
         tx: L1HandlerTransaction,
         expected_revert_reason: Option<String>,
     ) {
+        // If the transaction is not expected to revert, add the corresponding message-to-L2.
+        if expected_revert_reason.is_none() {
+            let calldata = &tx.tx.calldata.0;
+            self.messages_to_l2.push(MessageToL2 {
+                from_address: EthAddress::try_from(calldata[0]).unwrap(),
+                to_address: tx.tx.contract_address,
+                nonce: tx.tx.nonce,
+                selector: tx.tx.entry_point_selector,
+                payload: L1ToL2Payload(calldata[1..].to_vec()),
+            });
+        }
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
             expected_revert_reason,
@@ -562,7 +584,7 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     // Executes the flow test.
-    pub(crate) async fn execute_flow_test(self, test_params: &TestParameters) -> OsTestOutput<S> {
+    pub(crate) async fn execute_flow_test(self) -> OsTestOutput<S> {
         let mut os_block_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
@@ -576,7 +598,7 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let mut entire_state_diff = StateDiff::default();
         let expected_previous_global_root = previous_state_roots.global_root();
-        let use_kzg_da = test_params.use_kzg_da;
+        let use_kzg_da = self.config.use_kzg_da;
 
         let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
@@ -693,7 +715,7 @@ impl<S: FlowTestState> TestManager<S> {
                 .collect(),
         };
         let public_keys =
-            test_params.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
+            self.config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
         let blockifier_chain_info = base_block_context.chain_info();
         let chain_info = OsChainInfo {
             chain_id: blockifier_chain_info.chain_id.clone(),
@@ -705,10 +727,10 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da,
-            full_output: test_params.full_output,
+            full_output: self.config.full_output,
             public_keys,
             debug_mode: false,
-            rng_seed_salt: test_params.rng_seed_salt,
+            rng_seed_salt: None,
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
@@ -718,13 +740,13 @@ impl<S: FlowTestState> TestManager<S> {
                 &os_output,
                 &state,
                 alias_keys,
-                test_params.private_keys.as_ref(),
+                self.config.private_keys.as_ref(),
             ),
         ));
 
         OsTestOutput {
             runner_output: os_output,
-            private_keys: test_params.private_keys.clone(),
+            private_keys: self.config.private_keys.clone(),
             decompressed_state_diff,
             final_state: state,
             expected_values: OsTestExpectedValues {
@@ -735,11 +757,11 @@ impl<S: FlowTestState> TestManager<S> {
                 previous_block_hash: expected_previous_block_hash,
                 new_block_hash: expected_new_block_hash,
                 config_hash: expected_config_hash,
-                full_output: test_params.full_output,
+                full_output: self.config.full_output,
                 // The OS will not compute a KZG commitment in full output mode.
-                use_kzg_da: use_kzg_da && !test_params.full_output,
-                messages_to_l1: test_params.messages_to_l1.clone(),
-                messages_to_l2: test_params.messages_to_l2.clone(),
+                use_kzg_da: use_kzg_da && !self.config.full_output,
+                messages_to_l1: self.messages_to_l1,
+                messages_to_l2: self.messages_to_l2,
                 committed_state_diff: initial_state.nontrivial_diff(entire_state_diff),
             },
         }
