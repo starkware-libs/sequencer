@@ -67,17 +67,14 @@ use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
     VALID_ACCOUNT_BALANCE,
 };
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
     contract_address,
     declare_tx_args,
     deploy_account_tx_args,
-    felt,
     invoke_tx_args,
     nonce,
-    proof,
-    proof_facts,
 };
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
@@ -184,9 +181,8 @@ fn invoke_args() -> InvokeTxArgs {
         resource_bounds: valid_resource_bounds_for_testing(),
         sender_address: account_contract().get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        // TODO(AvivG): Consider adding function to generate proof_facts and proof for testing.
-        proof_facts: proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")],
-        proof: proof!(1, 2, 3, 4, 5),
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+        proof: Proof::proof_for_testing(),
     );
     let internal_tx = args.get_internal_tx();
     args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();

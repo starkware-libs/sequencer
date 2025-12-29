@@ -20,15 +20,22 @@ use crate::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
 use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
+use crate::transaction::fields::{
+    AllResourceBounds,
+    Fee,
+    Proof,
+    ProofFacts,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use crate::transaction::{Transaction, TransactionHash};
+use crate::{contract_address, felt};
 
 pub mod declare;
 pub mod deploy_account;
@@ -356,4 +363,20 @@ pub(crate) fn py_json_dumps<T: ?Sized + Serialize>(value: &T) -> Result<String, 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PyJsonFormatter);
     value.serialize(&mut ser)?;
     Ok(String::from_utf8(string_buffer).expect("serialized JSON should be valid UTF-8"))
+}
+
+impl ProofFacts {
+    /// Returns a ProofFacts instance for testing with SNOS proof facts structure.
+    ///
+    /// See [`crate::transaction::fields::SnosProofFacts`].
+    pub fn snos_proof_facts_for_testing() -> Self {
+        proof_facts!(felt!("0x5"), felt!("0x4"), felt!("0x3"), felt!("0x2"), felt!("0x1"))
+    }
+}
+
+impl Proof {
+    pub fn proof_for_testing() -> Self {
+        // Arbitrary proof values.
+        proof!(1, 2, 3, 4, 5, 6)
+    }
 }
