@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Configuration types for the Apollo L1 gas price provider."
 
 [lints]
 workspace = true
