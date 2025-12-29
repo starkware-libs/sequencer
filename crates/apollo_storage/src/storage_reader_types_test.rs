@@ -47,8 +47,8 @@ async fn state_diff_location_request() {
         .unwrap()
         .expect("State diff location should exist");
 
-    let request = StorageReaderRequest::StateDiffLocation(block_number);
+    let request = StorageReaderRequest::StateDiffsLocation(block_number);
     let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
 
-    assert_eq!(response, StorageReaderResponse::StateDiffLocation(expected_location));
+    assert_eq!(response, StorageReaderResponse::StateDiffsLocation(expected_location));
 }
