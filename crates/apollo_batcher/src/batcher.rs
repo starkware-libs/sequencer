@@ -1306,6 +1306,7 @@ pub async fn create_batcher(
         &config,
         &CommitmentManagerConfig::default(),
         storage_reader.as_ref(),
+        committer_client.clone(),
     )
     .await;
 
