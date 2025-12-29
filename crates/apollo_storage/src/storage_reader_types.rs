@@ -5,7 +5,7 @@ mod storage_reader_types_test;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
-use crate::header::StorageBlockHeader;
+use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
@@ -141,7 +141,7 @@ pub enum StorageReaderResponse {
     /// A block number.
     BlockHashToNumber(BlockNumber),
     /// A block signature.
-    BlockSignatures(BlockNumber),
+    BlockSignatures(BlockSignature),
 
     // ============ Transaction-Related Responses ============
     /// Transaction metadata.
@@ -245,8 +245,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::BlockHashToNumber(_block_hash) => {
                 unimplemented!()
             }
-            StorageReaderRequest::BlockSignatures(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::BlockSignatures(block_number) => {
+                let block_signature =
+                    txn.get_block_signature(block_number)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block signature".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::BlockSignatures(block_signature))
             }
 
             // ============ Transaction-Related Requests ============
