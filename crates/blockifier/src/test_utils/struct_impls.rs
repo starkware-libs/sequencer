@@ -10,7 +10,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
-use starknet_api::block::BlockInfo;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_address;
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
@@ -227,6 +227,21 @@ impl BlockContext {
             block_info: BlockInfo::create_for_testing_with_kzg(use_kzg_da),
             ..Self::create_for_account_testing()
         }
+    }
+
+    /// Returns a BlockContext for the given block index based on the base context.
+    pub fn from_base_context(
+        base_context: &BlockContext,
+        block_index: usize,
+        use_kzg_da: bool,
+    ) -> Self {
+        let mut new_context = base_context.clone();
+        // TODO(Yoni): add "add" function to BlockNumber (for testing) and refactor the codebase.
+        new_context.block_info.block_number = BlockNumber(
+            new_context.block_info.block_number.0 + u64::try_from(block_index + 1).unwrap(),
+        );
+        new_context.block_info.use_kzg_da = use_kzg_da;
+        new_context
     }
 }
 
