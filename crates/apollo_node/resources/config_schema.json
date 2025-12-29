@@ -1894,6 +1894,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.deployment_mode": {
+    "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
+    "privacy": "Public",
+    "value": "starknet"
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
