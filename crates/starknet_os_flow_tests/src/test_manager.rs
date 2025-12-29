@@ -492,21 +492,6 @@ impl<S: FlowTestState> TestManager<S> {
                 )
             })
             .collect();
-        self.execute_test_with_block_contexts(block_contexts, test_params).await
-    }
-
-    /// Executes the test using the provided block contexts.
-    /// Panics if the number of contexts does not match the number of blocks.
-    pub(crate) async fn execute_test_with_block_contexts(
-        self,
-        block_contexts: Vec<BlockContext>,
-        test_params: &TestParameters,
-    ) -> OsTestOutput<S> {
-        assert_eq!(
-            block_contexts.len(),
-            self.per_block_transactions.len(),
-            "Number of block contexts must match number of transaction blocks."
-        );
         self.execute_flow_test(block_contexts, test_params).await
     }
 
@@ -618,6 +603,12 @@ impl<S: FlowTestState> TestManager<S> {
         block_contexts: Vec<BlockContext>,
         test_params: &TestParameters,
     ) -> OsTestOutput<S> {
+        assert_eq!(
+            block_contexts.len(),
+            self.per_block_transactions.len(),
+            "Number of block contexts must match number of transaction blocks."
+        );
+
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
