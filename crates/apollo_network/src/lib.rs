@@ -141,7 +141,9 @@ impl SerializeConfig for NetworkConfig {
         ));
         config.extend([ser_param(
             "secret_key",
-            &serialize_optional_vec_u8(&self.secret_key.as_ref().map(|s| s.clone().expose_inner())),
+            &serialize_optional_vec_u8(
+                &self.secret_key.as_ref().map(|s| s.clone().expose_secret()),
+            ),
             "The secret key used for building the peer id. If it's an empty string a random one \
              will be used.",
             ParamPrivacyInput::Private,

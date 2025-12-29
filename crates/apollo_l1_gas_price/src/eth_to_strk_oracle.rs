@@ -78,8 +78,8 @@ impl EthToStrkOracleClient {
             .expect("url_header_list should be set in the config")
             .iter()
             .map(|uh| UrlAndHeaderMap {
-                url: uh.peek_inner().url.clone(),
-                headers: btreemap_to_headermap(uh.peek_inner().headers.clone()).into(),
+                url: uh.peek_secret().url.clone(),
+                headers: btreemap_to_headermap(uh.peek_secret().headers.clone()).into(),
             })
             .collect::<Vec<_>>();
         Self {
@@ -117,7 +117,7 @@ impl EthToStrkOracleClient {
                     // TODO(victork): make sure we're allowed to expose the headers here
                     let response = client
                         .get(url.clone())
-                        .headers(headers.peek_inner().clone())
+                        .headers(headers.peek_secret().clone())
                         .send()
                         .await?;
                     let body = response.text().await?;

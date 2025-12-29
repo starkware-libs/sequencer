@@ -37,7 +37,7 @@ impl SerializeConfig for EthToStrkOracleConfig {
                 "url_header_list",
                 &serialize_optional_list_with_url_and_headers(
                     &self.url_header_list.as_ref().map(|list| {
-                        list.iter().map(|s| s.peek_inner()).cloned().collect()
+                        list.iter().map(|s| s.peek_secret()).cloned().collect()
                     }),
                 ),
                 "A list of Url+HTTP headers for the eth to strk oracle. \
