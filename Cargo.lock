@@ -2119,6 +2119,7 @@ dependencies = [
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
  "apollo_node_config",
+ "apollo_proof_manager",
  "apollo_signature_manager",
  "apollo_signature_manager_types",
  "apollo_state_sync",
