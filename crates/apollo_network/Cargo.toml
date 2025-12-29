@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Peer-to-peer networking layer for Starknet nodes using libp2p."
 
 [features]
-testing = []
+testing = ["mockall"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -37,6 +37,7 @@ libp2p = { workspace = true, features = [
 ] }
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+mockall = { workspace = true, optional = true }
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
