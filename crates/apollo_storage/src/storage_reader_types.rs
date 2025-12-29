@@ -172,6 +172,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
         match request {
             // ============ State-Related Requests ============
             StorageReaderRequest::StateDiffsLocation(block_number) => {
@@ -186,8 +187,11 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 let state_diff = txn.get_state_diff_from_location(location)?;
                 Ok(StorageReaderResponse::StateDiffsFromLocation(state_diff))
             }
-            StorageReaderRequest::ContractStorage(_key, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::ContractStorage((address, key), block_number) => {
+                let value = state_reader
+                    .get_storage_by_key(address, key, block_number)?
+                    .unwrap_or_default();
+                Ok(StorageReaderResponse::ContractStorage(value))
             }
             StorageReaderRequest::Nonces(_address, _block_number) => {
                 unimplemented!()

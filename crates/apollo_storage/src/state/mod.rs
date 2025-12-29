@@ -352,6 +352,27 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         }
     }
 
+    /// Returns the storage value for a given contract address, storage key, and block number using
+    /// direct key-value lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * key - storage key to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_storage_by_key(
+        &self,
+        address: ContractAddress,
+        key: StorageKey,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Felt>> {
+        let db_key = ((address, key), block_number);
+        let value = self.storage_table.get(self.txn, &db_key)?;
+        Ok(value)
+    }
+
     /// Returns the class definition at a given state number.
     ///
     /// If class_hash is not found, returns `None`.
