@@ -25,6 +25,7 @@ use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
+use crate::hash::StarkHash;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use crate::transaction::fields::{
     AllResourceBounds,
@@ -212,6 +213,12 @@ pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
+// Virtual OS program hash for testing. Should match one of the allowed virtual OS program hashes in
+// the current versioned constants.
+pub const VIRTUAL_OS_PROGRAM_HASH: StarkHash = StarkHash::from_hex_unchecked(
+    "0x030206a40921880628605041292e995870334451179c63090221210893986a2",
+);
+
 impl BlockInfo {
     pub fn create_for_testing() -> Self {
         Self {
@@ -372,7 +379,13 @@ impl ProofFacts {
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
         // TODO(AvivG): Change to valid values when available.
-        proof_facts![felt!(VIRTUAL_SNOS), felt!("0x4"), felt!("0x3"), felt!("0x2"), felt!("0x1")]
+        proof_facts![
+            felt!(VIRTUAL_SNOS),
+            felt!(VIRTUAL_OS_PROGRAM_HASH),
+            felt!("0x3"),
+            felt!("0x2"),
+            felt!("0x1")
+        ]
     }
 }
 
