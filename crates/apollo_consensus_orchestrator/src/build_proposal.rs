@@ -23,7 +23,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_time::time::DateTime;
+use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time::{Clock, DateTime};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -64,6 +65,7 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    pub use_state_sync_block_timestamp: bool,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -128,8 +130,29 @@ pub(crate) async fn build_proposal(
     Ok(proposal_commitment)
 }
 
+async fn get_proposal_timestamp(
+    use_state_sync_block_timestamp: bool,
+    state_sync_client: &SharedStateSyncClient,
+    clock: &dyn Clock,
+) -> u64 {
+    if use_state_sync_block_timestamp {
+        if let Ok(Some(block_number)) = state_sync_client.get_latest_block_number().await {
+            if let Ok(block) = state_sync_client.get_block(block_number).await {
+                return block.block_header_without_hash.timestamp.0;
+            }
+        }
+        warn!("No latest block number available from state sync, falling back to clock time");
+    }
+    clock.unix_now()
+}
+
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
-    let timestamp = args.deps.clock.unix_now();
+    let timestamp = get_proposal_timestamp(
+        args.use_state_sync_block_timestamp,
+        &args.deps.state_sync_client,
+        args.deps.clock.as_ref(),
+    )
+    .await;
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
