@@ -695,8 +695,6 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
                 .iter()
                 .map(|proof_fact| (*proof_fact).into())
                 .collect(),
-            // TODO(AvivG): Understand in what flow this is used. Is info lost?
-            proof: vec![],
         }
     }
 }
