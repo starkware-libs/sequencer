@@ -35,6 +35,7 @@ use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
+use apollo_proof_manager_config::config::ProofManagerConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
@@ -220,6 +221,8 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
     #[validate(nested)]
+    pub proof_manager_config: Option<ProofManagerConfig>,
+    #[validate(nested)]
     pub sierra_compiler_config: Option<SierraCompilationConfig>,
     #[validate(nested)]
     pub state_sync_config: Option<StateSyncConfig>,
@@ -253,6 +256,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ),
             ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
             ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
+            ser_optional_sub_config(&self.proof_manager_config, "proof_manager_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
             ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
@@ -283,6 +287,7 @@ impl Default for SequencerNodeConfig {
             mempool_config: Some(MempoolConfig::default()),
             mempool_p2p_config: Some(MempoolP2pConfig::default()),
             monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
+            proof_manager_config: Some(ProofManagerConfig::default()),
             sierra_compiler_config: Some(SierraCompilationConfig::default()),
             state_sync_config: Some(StateSyncConfig::default()),
         }
@@ -388,6 +393,11 @@ impl SequencerNodeConfig {
             self,
             mempool_p2p,
             mempool_p2p_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            proof_manager,
+            proof_manager_config
         );
         validate_component_config_is_set_iff_running_locally!(
             self,
