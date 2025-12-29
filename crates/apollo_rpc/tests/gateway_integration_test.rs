@@ -6,7 +6,6 @@ use apollo_rpc::{
     InvokeTransactionV1RPC0_8,
     TransactionVersion1RPC0_8,
 };
-use apollo_starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
@@ -119,7 +118,7 @@ async fn test_gw_integration_testnet() {
     let invoke_res = client
         .request::<AddInvokeOkResultRPC0_8, _>(
             "starknet_addInvokeTransaction",
-            rpc_params!(SNClientInvokeTransaction::from(invoke_tx)),
+            rpc_params!(InvokeTransactionRPC0_8::Version1(invoke_tx)),
         )
         .await
         .unwrap_or_else(|err| panic!("Failed to add tx '{hash}' with nonce '{nonce:?}'.: {err}"));

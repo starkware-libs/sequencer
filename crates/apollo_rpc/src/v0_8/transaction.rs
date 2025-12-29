@@ -8,7 +8,6 @@ use std::ops::Add;
 use std::sync::Arc;
 
 use apollo_rpc_execution::objects::PriceUnit;
-use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::StorageTxn;
@@ -351,43 +350,6 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
     }
 }
 
-impl From<DeployAccountTransaction> for client_transaction::DeployAccountTransaction {
-    fn from(tx: DeployAccountTransaction) -> Self {
-        match tx {
-            DeployAccountTransaction::Version1(deploy_account_tx) => {
-                Self::DeployAccountV1(client_transaction::DeployAccountV1Transaction {
-                    contract_address_salt: deploy_account_tx.contract_address_salt,
-                    class_hash: deploy_account_tx.class_hash,
-                    constructor_calldata: deploy_account_tx.constructor_calldata,
-                    nonce: deploy_account_tx.nonce,
-                    max_fee: deploy_account_tx.max_fee,
-                    signature: deploy_account_tx.signature,
-                    version: TransactionVersion::ONE,
-                    r#type: client_transaction::DeployAccountType::DeployAccount,
-                })
-            }
-            DeployAccountTransaction::Version3(deploy_account_tx) => {
-                Self::DeployAccountV3(client_transaction::DeployAccountV3Transaction {
-                    contract_address_salt: deploy_account_tx.contract_address_salt,
-                    class_hash: deploy_account_tx.class_hash,
-                    constructor_calldata: deploy_account_tx.constructor_calldata,
-                    nonce: deploy_account_tx.nonce,
-                    signature: deploy_account_tx.signature,
-                    version: TransactionVersion::THREE,
-                    resource_bounds: deploy_account_tx.resource_bounds.into(),
-                    tip: deploy_account_tx.tip,
-                    nonce_data_availability_mode:
-                        client_transaction::ReservedDataAvailabilityMode::Reserved,
-                    fee_data_availability_mode:
-                        client_transaction::ReservedDataAvailabilityMode::Reserved,
-                    paymaster_data: deploy_account_tx.paymaster_data,
-                    r#type: client_transaction::DeployAccountType::DeployAccount,
-                })
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV0 {
     pub max_fee: Fee,
@@ -398,20 +360,6 @@ pub struct InvokeTransactionV0 {
     pub calldata: Calldata,
 }
 
-impl From<InvokeTransactionV0> for client_transaction::InvokeTransaction {
-    fn from(tx: InvokeTransactionV0) -> Self {
-        Self::InvokeV0(client_transaction::InvokeV0Transaction {
-            max_fee: tx.max_fee,
-            version: TransactionVersion::ZERO,
-            signature: tx.signature,
-            contract_address: tx.contract_address,
-            entry_point_selector: tx.entry_point_selector,
-            calldata: tx.calldata,
-            r#type: client_transaction::InvokeType::Invoke,
-        })
-    }
-}
-
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV1 {
     pub max_fee: Fee,
@@ -420,20 +368,6 @@ pub struct InvokeTransactionV1 {
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
-}
-
-impl From<InvokeTransactionV1> for client_transaction::InvokeTransaction {
-    fn from(tx: InvokeTransactionV1) -> Self {
-        Self::InvokeV1(client_transaction::InvokeV1Transaction {
-            max_fee: tx.max_fee,
-            version: TransactionVersion::ONE,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            sender_address: tx.sender_address,
-            calldata: tx.calldata,
-            r#type: client_transaction::InvokeType::Invoke,
-        })
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -451,38 +385,6 @@ pub struct InvokeTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub proof_facts: ProofFacts,
     pub proof: Proof,
-}
-
-impl From<InvokeTransactionV3> for client_transaction::InvokeTransaction {
-    fn from(tx: InvokeTransactionV3) -> Self {
-        Self::InvokeV3(client_transaction::InvokeV3Transaction {
-            sender_address: tx.sender_address,
-            calldata: tx.calldata,
-            version: TransactionVersion::THREE,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            resource_bounds: tx.resource_bounds.into(),
-            tip: tx.tip,
-            nonce_data_availability_mode:
-                client_transaction::ReservedDataAvailabilityMode::Reserved,
-            fee_data_availability_mode: client_transaction::ReservedDataAvailabilityMode::Reserved,
-            paymaster_data: tx.paymaster_data,
-            account_deployment_data: tx.account_deployment_data,
-            r#type: client_transaction::InvokeType::Invoke,
-            proof_facts: tx.proof_facts,
-            proof: tx.proof,
-        })
-    }
-}
-
-impl From<InvokeTransaction> for client_transaction::InvokeTransaction {
-    fn from(tx: InvokeTransaction) -> Self {
-        match tx {
-            InvokeTransaction::Version0(invoke_tx) => invoke_tx.into(),
-            InvokeTransaction::Version1(invoke_tx) => invoke_tx.into(),
-            InvokeTransaction::Version3(invoke_tx) => invoke_tx.into(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -1346,13 +1248,6 @@ pub enum TypedInvokeTransaction {
     Invoke(InvokeTransaction),
 }
 
-impl From<TypedInvokeTransaction> for client_transaction::InvokeTransaction {
-    fn from(tx: TypedInvokeTransaction) -> Self {
-        let TypedInvokeTransaction::Invoke(tx) = tx;
-        tx.into()
-    }
-}
-
 /// A DeployAccountTransaction that has the type field. This enum can be used to
 /// serialize/deserialize deploy account transactions directly while `DeployAccountTransaction` can
 /// be serialized/deserialized only from the `Transaction` enum.
@@ -1362,11 +1257,4 @@ impl From<TypedInvokeTransaction> for client_transaction::InvokeTransaction {
 pub enum TypedDeployAccountTransaction {
     #[serde(rename = "DEPLOY_ACCOUNT")]
     DeployAccount(DeployAccountTransaction),
-}
-
-impl From<TypedDeployAccountTransaction> for client_transaction::DeployAccountTransaction {
-    fn from(tx: TypedDeployAccountTransaction) -> Self {
-        let TypedDeployAccountTransaction::DeployAccount(tx) = tx;
-        tx.into()
-    }
 }

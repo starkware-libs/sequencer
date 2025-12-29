@@ -25,17 +25,6 @@ use apollo_starknet_client::starknet_error::{
     StarknetError,
     StarknetErrorCode,
 };
-use apollo_starknet_client::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
-};
-use apollo_starknet_client::writer::objects::transaction::{
-    DeclareTransaction as ClientDeclareTransaction,
-    DeployAccountTransaction as ClientDeployAccountTransaction,
-    InvokeTransaction as ClientInvokeTransaction,
-};
-use apollo_starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
 use apollo_starknet_client::ClientError;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::body::events::EventIndex;

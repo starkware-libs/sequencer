@@ -520,7 +520,7 @@ impl TryFrom<BroadcastedDeclareTransaction> for ExecutableTransactionInput {
 }
 
 fn user_deprecated_contract_class_to_sn_api(
-    value: apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass,
+    value: super::broadcasted_transaction::DeprecatedContractClass,
 ) -> Result<starknet_api::deprecated_contract_class::ContractClass, ErrorObjectOwned> {
     Ok(starknet_api::deprecated_contract_class::ContractClass {
         abi: value.abi,
