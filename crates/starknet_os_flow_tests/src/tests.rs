@@ -213,7 +213,7 @@ async fn declare_deploy_scenario(
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             full_output,
             ..Default::default()
@@ -283,7 +283,7 @@ async fn trivial_diff_scenario(
 
     // Execute the test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             full_output,
             ..Default::default()
@@ -341,7 +341,7 @@ async fn test_reverted_invoke_tx(
 
     // Execute the test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             full_output,
             ..Default::default()
@@ -384,7 +384,7 @@ async fn test_encrypted_state_diff(
 
     // Run the test and assert the diff is as expected.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             full_output,
             private_keys: private_keys.clone(),
@@ -457,7 +457,7 @@ async fn test_reverted_l1_handler_tx(
     test_manager.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
 
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
 
     // Check that the storage was reverted (no change in test contract address).
     assert!(
@@ -514,7 +514,7 @@ async fn test_deprecated_call_contract_variants() {
 
     // Run the test.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_deprecated_call_contract_variants");
 }
@@ -909,7 +909,7 @@ async fn test_os_logic(
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
     let n_private_keys = private_keys.as_ref().map(|keys| keys.len()).unwrap_or(0);
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             messages_to_l1: vec![expected_message_to_l1],
             messages_to_l2: vec![expected_message_to_l2],
             private_keys,
@@ -994,7 +994,7 @@ async fn test_v1_bound_accounts_cairo0() {
 
     // Run test and verify the signer was set.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
 
     let expected_storage_updates = HashMap::from([(
         v1_bound_account_address,
@@ -1078,7 +1078,7 @@ async fn test_v1_bound_accounts_cairo1() {
 
     // Run the test, and make sure the account storage has the expected changes.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     let isrc6_id = Felt::from_hex_unchecked(
         "0x2CECCEF7F994940B3962A6C67E0BA4FCD37DF7D131417C604F91E03CAECC1CD",
     );
@@ -1229,7 +1229,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 
     // Run the test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             ..Default::default()
         })
@@ -1286,7 +1286,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     test_manager.add_invoke_tx(deploy_tx, None);
 
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             ..Default::default()
         })
@@ -1438,7 +1438,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
 
     // Run the test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             messages_to_l1: expected_messages_to_l1,
             ..Default::default()
@@ -1717,7 +1717,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     );
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             messages_to_l1: expected_messages_to_l1,
             ..Default::default()
@@ -1765,7 +1765,7 @@ async fn test_syscalls_with_alternating_inner_calls() {
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da,
             ..Default::default()
         })
@@ -1868,7 +1868,7 @@ async fn test_deprecated_tx_info() {
         nonce: Nonce::default(),
     }];
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             messages_to_l2,
             ..Default::default()
         })
@@ -1946,7 +1946,7 @@ async fn test_deprecated_send_to_l1() {
     }];
 
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             messages_to_l1: expected_messages_to_l1,
             ..Default::default()
         })
@@ -1978,7 +1978,7 @@ async fn test_replace_class() {
     }
 
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
 }
 
@@ -2027,7 +2027,7 @@ async fn test_deploy_syscall() {
 
     // Run the test and verify storage changes.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     let perform_global_validations = true;
     test_output.perform_validations(
         perform_global_validations,
@@ -2086,7 +2086,7 @@ async fn test_inner_deploy_failure() {
 
     // Run the test and verify storage changes.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
 }
 
@@ -2217,7 +2217,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
 
     // Run the test.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
     let cairo_type = if is_cairo0 { "cairo0" } else { "cairo1" };
     test_output.expect_hint_coverage(&format!("test_block_info_{}", cairo_type));
@@ -2317,7 +2317,7 @@ async fn test_initial_sierra_gas() {
 
     // Run test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             messages_to_l2,
             ..Default::default()
@@ -2440,7 +2440,7 @@ async fn test_reverted_call() {
     // Run the test and assert only the fee token contract and the OS contracts have storage
     // updates.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             ..Default::default()
         })
@@ -2557,7 +2557,7 @@ async fn test_resources_type() {
 
     // Run test and check storage updates.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             ..Default::default()
         })
@@ -2630,7 +2630,7 @@ async fn test_data_gas_accounts() {
 
     // Run test.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_data_gas_accounts");
 }
@@ -2666,7 +2666,7 @@ async fn test_direct_execute_call() {
 
     // Run test.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             ..Default::default()
         })
@@ -2872,7 +2872,7 @@ async fn test_meta_tx() {
 
     // Run the test and verify the storage changes.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             ..Default::default()
         })
@@ -2929,7 +2929,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
 
     // Run the test and verify the storage changes.
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
+        .execute_flow_test(&TestParameters {
             use_kzg_da: true,
             ..Default::default()
         })
@@ -2961,7 +2961,7 @@ async fn test_single_empty_block() {
     let (test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
 }
 
@@ -2984,7 +2984,7 @@ async fn test_empty_multi_block() {
 
     // Run the test and verify the storage changes.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(
         Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
@@ -3025,7 +3025,7 @@ async fn test_deploy_no_ctor_contract() {
 
     // Run the test.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
 }
 
@@ -3052,7 +3052,7 @@ async fn test_load_bottom() {
 
     // Run the test.
     let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+        test_manager.execute_flow_test(&TestParameters::default()).await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_load_bottom");
 }
