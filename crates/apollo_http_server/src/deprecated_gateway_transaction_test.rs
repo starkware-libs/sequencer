@@ -28,6 +28,7 @@ fn deprecated_gateway_declare_tx() -> DeprecatedGatewayDeclareTransaction {
 
 #[test]
 fn deprecated_gateway_invoke_tx_deserialization() {
+    //TODO(AvivG): Consider adding JSON with proof facts and proof.
     let _: DeprecatedGatewayInvokeTransaction =
         read_json_file(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH);
 }

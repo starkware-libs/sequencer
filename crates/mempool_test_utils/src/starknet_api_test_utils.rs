@@ -92,6 +92,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let mut nonce_manager = NonceManager::default();
     let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
 
+    //TODO(AvivG): Consider adding proof facts and proof.
     rpc_invoke_tx(invoke_tx_args!(
         resource_bounds: valid_resource_bounds_for_testing(),
         nonce : nonce_manager.next(sender_address),
