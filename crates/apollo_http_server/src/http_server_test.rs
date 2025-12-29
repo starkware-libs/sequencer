@@ -172,6 +172,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
 #[case::add_deprecated_gateway_declare(2, deprecated_gateway_declare_tx())]
 #[case::add_rpc_invoke(3, rpc_invoke_tx())]
 #[tokio::test]
+// TODO(AvivG): Add test cases for client-side proving transactions (with non-trivial proof fields).
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
 
