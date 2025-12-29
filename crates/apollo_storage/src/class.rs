@@ -93,6 +93,18 @@ pub trait ClassStorageReader {
     /// Returns the Cairo 1 class with the given hash.
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>>;
 
+    /// Returns the location of the Cairo 1 class in the mmap file for the given class hash.
+    fn get_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<crate::LocationInFile>>;
+
+    /// Returns the Cairo 1 class stored in the mmap file at the given location.
+    fn get_class_from_location(
+        &self,
+        location: crate::LocationInFile,
+    ) -> StorageResult<SierraContractClass>;
+
     /// Returns the Cairo 0 class with the given hash.
     fn get_deprecated_class(
         &self,
@@ -127,11 +139,23 @@ where
 
 impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
+        let contract_class_location = self.get_class_location(class_hash)?;
+        contract_class_location.map(|location| self.get_class_from_location(location)).transpose()
+    }
+
+    fn get_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<crate::LocationInFile>> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        let contract_class_location = declared_classes_table.get(&self.txn, class_hash)?;
-        contract_class_location
-            .map(|location| self.file_handlers.get_contract_class_unchecked(location))
-            .transpose()
+        Ok(declared_classes_table.get(&self.txn, class_hash)?)
+    }
+
+    fn get_class_from_location(
+        &self,
+        location: crate::LocationInFile,
+    ) -> StorageResult<SierraContractClass> {
+        self.file_handlers.get_contract_class_unchecked(location)
     }
 
     fn get_deprecated_class(
