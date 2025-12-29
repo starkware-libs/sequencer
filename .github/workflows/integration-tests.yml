@@ -21,6 +21,11 @@ on:
         required: false
         type: string
         default: ''
+      timeout_minutes:
+        description: 'Timeout for each integration test in minutes'
+        required: false
+        type: number
+        default: 30
 
 jobs:
   build-integration-tests:
