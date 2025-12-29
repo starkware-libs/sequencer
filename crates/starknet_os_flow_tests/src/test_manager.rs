@@ -124,15 +124,6 @@ pub(crate) struct FlowTestTx {
     expected_revert_reason: Option<String>,
 }
 
-/// Manages the execution of flow tests by maintaining the initial state and transactions.
-pub(crate) struct TestManager<S: FlowTestState> {
-    pub(crate) initial_state: InitialState<S>,
-    pub(crate) nonce_manager: NonceManager,
-    pub(crate) execution_contracts: OsExecutionContracts,
-
-    per_block_transactions: Vec<Vec<FlowTestTx>>,
-}
-
 pub(crate) struct OsTestExpectedValues {
     pub(crate) previous_global_root: GlobalRoot,
     pub(crate) new_global_root: GlobalRoot,
@@ -314,6 +305,15 @@ impl<S: FlowTestState> OsTestOutput<S> {
     pub(crate) fn expect_hint_coverage(&self, test_name: &str) {
         expect_hint_coverage(&self.runner_output.unused_hints, test_name);
     }
+}
+
+/// Manages the execution of flow tests by maintaining the initial state and transactions.
+pub(crate) struct TestManager<S: FlowTestState> {
+    pub(crate) initial_state: InitialState<S>,
+    pub(crate) nonce_manager: NonceManager,
+    pub(crate) execution_contracts: OsExecutionContracts,
+
+    per_block_transactions: Vec<Vec<FlowTestTx>>,
 }
 
 impl<S: FlowTestState> TestManager<S> {
