@@ -759,11 +759,6 @@
     "privacy": "Public",
     "value": 500
   },
-  "components.committer.remote_client_config.connection_timeout_ms": {
-    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
-    "privacy": "Public",
-    "value": 500
-  },
   "components.committer.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1503,6 +1498,116 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
+  },
+  "components.proof_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.proof_manager.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.proof_manager.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.proof_manager.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.proof_manager.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.proof_manager.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "components.proof_manager.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.proof_manager.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.proof_manager.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.proof_manager.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.proof_manager.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
+  "components.proof_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.proof_manager.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.proof_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.proof_manager.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "components.proof_manager.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 150
+  },
+  "components.proof_manager.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.proof_manager.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.proof_manager.remote_server_config.bind_ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.proof_manager.remote_server_config.max_streams_per_connection": {
+    "description": "Maximal number of streams per HTTP connection.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.proof_manager.remote_server_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the server responses.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.proof_manager.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
   },
   "components.sierra_compiler.execution_mode": {
     "description": "The component execution mode.",
@@ -2853,6 +2958,16 @@
     "description": "The monitoring endpoint port.",
     "privacy": "Public",
     "value": 8082
+  },
+  "proof_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "proof_manager_config.persistent_root": {
+    "description": "Persistent root for proof storage.",
+    "privacy": "Public",
+    "value": "/data/proofs"
   },
   "recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
