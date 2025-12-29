@@ -47,12 +47,12 @@ impl<T> Sensitive<T> {
     }
 
     /// Consumes the wrapper and returns the inner sensitive value.
-    pub fn expose_inner(self) -> T {
+    pub fn expose_secret(self) -> T {
         self.inner
     }
 
     /// Returns a reference to the inner sensitive value.
-    pub fn peek_inner(&self) -> &T {
+    pub fn peek_secret(&self) -> &T {
         &self.inner
     }
 
