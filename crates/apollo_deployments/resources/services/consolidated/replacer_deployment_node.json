@@ -15,6 +15,7 @@
   "crates/apollo_deployments/resources/app_configs/replacer_mempool_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_mempool_p2p_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_proof_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_sierra_compiler_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_state_sync_config.json",
   "crates/apollo_deployments/resources/services/consolidated/replacer_node.json"
