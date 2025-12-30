@@ -36,6 +36,23 @@ impl MerkleTree {
         hasher.finalize().into()
     }
 
+    /// Create a new Merkle tree from data chunks.
+    ///
+    /// Each chunk is hashed to create a leaf, and the tree is built bottom-up.
+    pub fn new(data_chunks: &[Vec<u8>]) -> Self {
+        let mut leaves: Vec<MerkleHash> = Vec::with_capacity(data_chunks.len());
+        for chunk in data_chunks {
+            leaves.push(Self::hash_leaf(chunk));
+        }
+        Self::from_leaves(leaves)
+    }
+
+    /// Create a new Merkle tree from pre-computed leaf hashes.
+    pub fn from_leaves(leaves: Vec<MerkleHash>) -> Self {
+        let nodes = build_tree(leaves);
+        Self { nodes }
+    }
+
     /// Get the root hash of the tree.
     pub fn root(&self) -> MerkleHash {
         self.nodes.last().map(|level| level[0]).unwrap_or(EMPTY_TREE_ROOT)
@@ -122,4 +139,39 @@ impl MerkleProof {
 
         current_hash == *root
     }
+}
+
+/// Build the Merkle tree from leaves, returning all levels (bottom to top).
+fn build_tree(leaves: Vec<MerkleHash>) -> Vec<Vec<MerkleHash>> {
+    if leaves.is_empty() {
+        return vec![];
+    }
+
+    if leaves.len() == 1 {
+        return vec![leaves];
+    }
+
+    // Build tree level by level
+    let mut levels = vec![leaves];
+
+    while levels.last().unwrap().len() > 1 {
+        let current_level = levels.last().unwrap();
+        let mut next_level = Vec::new();
+
+        for i in (0..current_level.len()).step_by(2) {
+            let left = current_level[i];
+            let right = if i + 1 < current_level.len() {
+                current_level[i + 1]
+            } else {
+                // Odd number of nodes: duplicate the last one
+                current_level[i]
+            };
+
+            next_level.push(hash_pair(&left, &right));
+        }
+
+        levels.push(next_level);
+    }
+
+    levels
 }
