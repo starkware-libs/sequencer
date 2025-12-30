@@ -100,7 +100,6 @@ impl<S: FetchCompiledClasses + Send + Sync + 'static> ClassesProvider
         class_hash: ClassHash,
     ) -> Result<(CompiledClassHash, CasmContractClass), ClassesProviderError> {
         let compiled_class = self.get_compiled_class(class_hash)?;
-        // TODO(Aviv): Make sure that the state reader is not returning dummy compiled class hash.
         let compiled_class_hash = self.get_compiled_class_hash_v2(class_hash, &compiled_class)?;
         match compiled_class {
             RunnableCompiledClass::V0(_v0) => {
