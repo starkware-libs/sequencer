@@ -1444,7 +1444,7 @@ async fn decision_reached() {
         .with(eq(IndexSet::new()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
-    let expected_partial_block_hash = expected_artifacts.partial_block_hash_components().await;
+    let expected_partial_block_hash = expected_artifacts.partial_block_hash_components();
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
