@@ -12,7 +12,8 @@ use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
-use crate::body::TransactionIndex;
+use crate::body::{BodyStorageReader, TransactionIndex};
+use crate::class_manager::ClassManagerStorageReader;
 use crate::consensus::LastVotedMarker;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
@@ -209,6 +210,12 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::Markers(marker_kind) => {
                 let block_number = match marker_kind {
                     MarkerKind::State => txn.get_state_marker()?,
+                    MarkerKind::Header => txn.get_header_marker()?,
+                    MarkerKind::Body => txn.get_body_marker()?,
+                    MarkerKind::ClassManagerBlock => txn.get_class_manager_block_marker()?,
+                    MarkerKind::CompilerBackwardCompatibility => {
+                        txn.get_compiler_backward_compatibility_marker()?
+                    }
                     _ => unimplemented!(),
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
