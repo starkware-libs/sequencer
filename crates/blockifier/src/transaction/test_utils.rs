@@ -36,6 +36,7 @@ use starknet_api::transaction::fields::{
     ProofFacts,
     Resource,
     ResourceBounds,
+    Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -473,6 +474,7 @@ pub struct ExpectedExecutionInfo {
     pub chain_id: ChainId,
     pub nonce: Nonce,
     pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
@@ -484,6 +486,12 @@ pub struct ExpectedExecutionInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
     pub sequencer_address: ContractAddress,
+    /// When true, use V3 resource bounds format even if version displays as V1.
+    /// Used for v1_bound_account which shows V1 version but has V3 resource bounds.
+    pub use_v3_resource_bounds: bool,
+    /// When true, exclude L1 data gas from resource bounds (2 types instead of 3).
+    /// Used for data_gas_accounts.
+    pub exclude_l1_data_gas: bool,
 }
 
 impl ExpectedExecutionInfo {
@@ -521,11 +529,46 @@ impl ExpectedExecutionInfo {
             proof_facts,
             max_fee: Fee::default(),
             transaction_hash: TransactionHash::default(),
+            tip: Tip(0),
             paymaster_data: PaymasterData::default(),
             nonce_data_availability_mode: DataAvailabilityMode::default(),
             fee_data_availability_mode: DataAvailabilityMode::default(),
             account_deployment_data: AccountDeploymentData::default(),
+            use_v3_resource_bounds: false,
+            exclude_l1_data_gas: false,
         }
+    }
+
+    pub fn with_tip(mut self, tip: Tip) -> Self {
+        self.tip = tip;
+        self
+    }
+
+    /// Set version to V1 with the given max_fee. V1 transactions use max_fee instead of resource
+    /// bounds.
+    pub fn with_v1(mut self, max_fee: Fee) -> Self {
+        self.version = TransactionVersion::ONE;
+        self.max_fee = max_fee;
+        self
+    }
+
+    /// Set displayed version to V1 but keep V3 resource bounds format.
+    /// Used for v1_bound_account which shows V1 version but has V3 resource bounds.
+    pub fn with_v1_display_v3_bounds(mut self, only_query: bool) -> Self {
+        let mut version = Felt::ONE;
+        if only_query {
+            version += *QUERY_VERSION_BASE;
+        }
+        self.version = TransactionVersion(version);
+        self.use_v3_resource_bounds = true;
+        self
+    }
+
+    /// Exclude L1 data gas from resource bounds (2 types instead of 3).
+    /// Used for data_gas_accounts.
+    pub fn with_exclude_l1_data_gas(mut self) -> Self {
+        self.exclude_l1_data_gas = true;
+        self
     }
 
     pub fn to_syscall_result(self) -> Vec<Felt> {
@@ -539,35 +582,65 @@ impl ExpectedExecutionInfo {
             self.nonce.0,
         ];
 
-        let expected_resource_bounds = match self.resource_bounds {
-            ValidResourceBounds::L1Gas(l1_gas) => vec![
-                Felt::ONE, // One resource type.
-                felt!(Resource::L1Gas.to_hex()),
-                felt!(l1_gas.max_amount.0),
-                felt!(l1_gas.max_price_per_unit.0),
-            ],
-            ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas,
-                l2_gas,
-                l1_data_gas,
-            }) => {
-                vec![
-                    Felt::THREE, // Three resource types.
+        // Determine if we should use V3 resource bounds format.
+        // Either: version is V3-like, or use_v3_resource_bounds flag is set.
+        let is_v1_version = self.version == TransactionVersion::ONE
+            || self.version == TransactionVersion(*QUERY_VERSION_BASE + Felt::ONE);
+        let use_resource_bounds = !is_v1_version || self.use_v3_resource_bounds;
+
+        let expected_resource_bounds = if use_resource_bounds {
+            match self.resource_bounds {
+                ValidResourceBounds::L1Gas(l1_gas) => vec![
+                    Felt::ONE, // One resource type.
                     felt!(Resource::L1Gas.to_hex()),
                     felt!(l1_gas.max_amount.0),
                     felt!(l1_gas.max_price_per_unit.0),
-                    felt!(Resource::L2Gas.to_hex()),
-                    felt!(l2_gas.max_amount.0),
-                    felt!(l2_gas.max_price_per_unit.0),
-                    felt!(Resource::L1DataGas.to_hex()),
-                    felt!(l1_data_gas.max_amount.0),
-                    felt!(l1_data_gas.max_price_per_unit.0),
-                ]
+                ],
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l1_gas,
+                    l2_gas,
+                    l1_data_gas,
+                }) => {
+                    if self.exclude_l1_data_gas {
+                        // Only 2 resource types (exclude L1 data gas).
+                        vec![
+                            Felt::TWO,
+                            felt!(Resource::L1Gas.to_hex()),
+                            felt!(l1_gas.max_amount.0),
+                            felt!(l1_gas.max_price_per_unit.0),
+                            felt!(Resource::L2Gas.to_hex()),
+                            felt!(l2_gas.max_amount.0),
+                            felt!(l2_gas.max_price_per_unit.0),
+                        ]
+                    } else {
+                        // All 3 resource types.
+                        vec![
+                            Felt::THREE,
+                            felt!(Resource::L1Gas.to_hex()),
+                            felt!(l1_gas.max_amount.0),
+                            felt!(l1_gas.max_price_per_unit.0),
+                            felt!(Resource::L2Gas.to_hex()),
+                            felt!(l2_gas.max_amount.0),
+                            felt!(l2_gas.max_price_per_unit.0),
+                            felt!(Resource::L1DataGas.to_hex()),
+                            felt!(l1_data_gas.max_amount.0),
+                            felt!(l1_data_gas.max_price_per_unit.0),
+                        ]
+                    }
+                }
             }
+        } else {
+            vec![Felt::ZERO] // Empty resource bounds array (length 0).
         };
 
         // Tip, Paymaster data, Nonce DA, Fee DA, Account data.
-        let expected_unsupported_fields = vec![Felt::ZERO; 5];
+        let expected_unsupported_fields = vec![
+            self.tip.into(), // Tip
+            Felt::ZERO,      // Paymaster data
+            Felt::ZERO,      // Nonce DA
+            Felt::ZERO,      // Fee DA
+            Felt::ZERO,      // Account data
+        ];
 
         let expected_call_info =
             vec![**self.caller_address, **self.contract_address, self.entry_point_selector.0];
