@@ -86,10 +86,10 @@ where
                     e,
                 )
             })?;
-        // Convert Box<ConcreteType> to Box<dyn GatewayStateReaderWithCompiledClasses>. This is safe
-        // because StateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses
+        // Convert concrete type to trait object. This is safe because
+        // StateReaderWithCompiledClasses implements GatewayStateReaderWithCompiledClasses.
         let boxed_state_reader: Box<dyn GatewayStateReaderWithCompiledClasses> =
-            blockifier_state_reader;
+            Box::new(blockifier_state_reader);
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
             boxed_state_reader,
             self.contract_class_manager.clone(),

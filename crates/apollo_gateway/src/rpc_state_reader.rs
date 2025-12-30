@@ -240,11 +240,11 @@ impl StateReaderFactory for RpcStateReaderFactory {
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<Self::StateReaderWithCompiledClasses>,
+        Self::StateReaderWithCompiledClasses,
         Box<dyn GatewayFixedBlockStateReader>,
     )> {
         let reader = RpcStateReader::from_latest(&self.config);
         let fixed_client = RpcStateReader::from_latest(&self.config);
-        Ok((Box::new(reader), Box::new(fixed_client)))
+        Ok((reader, Box::new(fixed_client)))
     }
 }

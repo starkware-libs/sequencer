@@ -97,10 +97,10 @@ impl StateReaderFactory for TestStateReaderFactory {
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
-        Box<Self::StateReaderWithCompiledClasses>,
+        Self::StateReaderWithCompiledClasses,
         Box<dyn GatewayFixedBlockStateReader>,
     )> {
-        Ok((Box::new(self.state_reader.clone()), Box::new(self.gateway_fixed_block.clone())))
+        Ok((self.state_reader.clone(), Box::new(self.gateway_fixed_block.clone())))
     }
 }
 
