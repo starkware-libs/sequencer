@@ -681,15 +681,28 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
+        let optional_state_diff_commitment = match &storage_commitment_block_hash {
+            StorageCommitmentBlockHash::ParentHash(_) => None,
+            StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
+                ref header_commitments,
+                ..
+            }) => Some(header_commitments.state_diff_commitment),
+        };
+
         self.commit_proposal_and_block(
             height,
-            state_diff,
+            state_diff.clone(),
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
             storage_commitment_block_hash,
         )
         .await?;
+
+        self.commitment_manager
+            .add_commitment_task(height, state_diff, optional_state_diff_commitment)
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given height.");
 
         // Write ready commitments to storage.
         self.write_commitment_results_to_storage().await?;
@@ -732,7 +745,9 @@ impl Batcher {
         )
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
-            block_execution_artifacts.partial_block_hash_components().await;
+            block_execution_artifacts.partial_block_hash_components();
+        let state_diff_commitment =
+            partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
         self.commit_proposal_and_block(
@@ -744,6 +759,15 @@ impl Batcher {
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
         )
         .await?;
+
+        self.commitment_manager
+            .add_commitment_task(
+                height,
+                state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+                Some(state_diff_commitment),
+            )
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given height.");
 
         // Write ready commitments to storage.
         self.write_commitment_results_to_storage().await?;
@@ -784,8 +808,6 @@ impl Batcher {
         })
     }
 
-    // The `partial_block_hash_components` is optional as it doesn't exist for old blocks coming
-    // from sync.
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
