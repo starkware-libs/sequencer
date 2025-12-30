@@ -82,8 +82,10 @@ pub enum StorageReaderRequest {
     BlockSignatures(BlockNumber),
 
     // ============ Transaction-Related Requests ============
-    /// Transaction metadata by transaction index.
-    TransactionMetadata(TransactionIndex),
+    /// The location in file for transaction metadata at a given transaction index.
+    TransactionMetadataLocation(TransactionIndex),
+    /// Transaction metadata from a specific location in file.
+    TransactionMetadataFromLocation(LocationInFile),
     /// Transaction index by transaction hash.
     TransactionHashToIdx(TransactionHash),
 
@@ -150,8 +152,10 @@ pub enum StorageReaderResponse {
     BlockSignatures(BlockSignature),
 
     // ============ Transaction-Related Responses ============
+    /// The location of transaction metadata in file.
+    TransactionMetadataLocation(LocationInFile),
     /// Transaction metadata.
-    TransactionMetadata(TransactionMetadata),
+    TransactionMetadataFromLocation(TransactionMetadata),
     /// A transaction index.
     TransactionHashToIdx(TransactionIndex),
 
@@ -314,7 +318,10 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Transaction-Related Requests ============
-            StorageReaderRequest::TransactionMetadata(_tx_index) => {
+            StorageReaderRequest::TransactionMetadataLocation(_tx_index) => {
+                unimplemented!()
+            }
+            StorageReaderRequest::TransactionMetadataFromLocation(_location) => {
                 unimplemented!()
             }
             StorageReaderRequest::TransactionHashToIdx(_tx_hash) => {
