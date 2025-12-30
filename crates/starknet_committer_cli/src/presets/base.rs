@@ -24,6 +24,7 @@ use crate::presets::types::PresetFields;
 pub static BASE_PRESET: LazyLock<PresetFields> = LazyLock::new(|| {
     PresetFields::new(
         FlavorFields {
+            data_path: "/mnt/data/committer_storage_benchmark".to_string(),
             seed: 42,
             n_iterations: 1000000,
             flavor: BenchmarkFlavor::Constant,
@@ -36,7 +37,6 @@ pub static BASE_PRESET: LazyLock<PresetFields> = LazyLock::new(|| {
             log_level: Level::WARN,
         },
         StorageLayout::Fact(SingleStorageFields::FileBased(FileBasedStorageFields {
-            data_path: "/mnt/data/committer_storage_benchmark".to_string(),
             storage_path: "/mnt/data/storage".to_string(),
             global_fields: SingleStorageGlobalFields {
                 short_key_size: None,
