@@ -78,6 +78,22 @@ Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
 Use `todo!` for to-be-completed code sections.
 Don't use `unreachable!` and `unimplemented!`, as they are very similar in meaning to `panic!` and `todo!` and it's not worth the headache of figuring which one fits better.
 
+### Unnecessary panics
+If possible, avoid using code that can panic, and the only reason it doesn't panic is because of a check done above it. Instead, integrate both the check and the panicking code to one code that does both.
+
+```rust
+// BAD
+if my_vec.is_empty() {
+    return;
+}
+let x = my_vec[0]; // This panics if my_vec is empty
+
+// GOOD
+let Some(x) = my_vec.front() else {
+    return;
+}
+```
+
 ### Error Types
 
 Use `thiserror` for library errors and `anyhow` for binary errors.
