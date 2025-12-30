@@ -3,7 +3,12 @@ use std::error::Error;
 use std::marker::PhantomData;
 
 use apollo_committer_config::config::CommitterConfig;
-use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    CommitBlockResponse,
+    RevertBlockRequest,
+    RevertBlockResponse,
+};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
@@ -26,6 +31,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
+use starknet_types_core::felt::Felt;
 use tracing::error;
 
 #[cfg(test)]
@@ -121,6 +127,59 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .map_err(|err| self.map_internal_error(err))?;
         self.offset = next_offset;
         Ok(CommitBlockResponse { state_root: global_root })
+    }
+
+    pub async fn revert_block(
+        &mut self,
+        RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
+    ) -> CommitterResult<RevertBlockResponse> {
+        if height > self.offset {
+            // Request to revert a future height. Nothing to revert.
+            return Ok(RevertBlockResponse::Uncommitted);
+        }
+
+        if height == self.offset {
+            // Request to revert the next future height.
+            // Nothing to revert, but we have the resulted state root.
+            let db_state_root = self.load_global_root(height).await?;
+            return Ok(RevertBlockResponse::AlreadyReverted(db_state_root));
+        }
+
+        let last_committed_block =
+            self.offset.prev().expect("offset is 0, but it greater than height");
+        if height < last_committed_block {
+            // Request to revert an old height. Nothing to revert.
+            // Returns an error, indicating the committer has a hole in the revert series.
+            return Err(CommitterError::RevertHeightHole {
+                input_height: height,
+                last_committed_block,
+            });
+        }
+
+        // Happy flow. Reverts the state diff and returns the computed global root.
+        let (filled_forest, revert_global_root) =
+            self.commit_state_diff(reversed_state_diff).await?;
+
+        let metadata = HashMap::from([
+            (
+                ForestMetadataType::CommitmentOffset,
+                DbValue(DbBlockNumber(last_committed_block).serialize().to_vec()),
+            ),
+            (
+                ForestMetadataType::StateRoot(DbBlockNumber(self.offset)),
+                serialize_felt_no_packing(Felt::ZERO),
+            ),
+            (
+                ForestMetadataType::StateDiffHash(DbBlockNumber(self.offset)),
+                serialize_felt_no_packing(Felt::ZERO),
+            ),
+        ]);
+        self.forest_storage
+            .write_with_metadata(&filled_forest, metadata)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        self.offset = last_committed_block;
+        Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
     async fn load_state_diff_commitment(

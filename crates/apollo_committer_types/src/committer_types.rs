@@ -19,12 +19,16 @@ pub struct CommitBlockResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RevertBlockRequest {
     // A synthetic state diff that undoes the state diff of the given height.
-    reversed_state_diff: ThinStateDiff,
-    height: BlockNumber,
+    pub reversed_state_diff: ThinStateDiff,
+    pub height: BlockNumber,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RevertBlockResponse {
-    Uncommitted,
+    // Nothing to revert, the committer has the resulted state root.
+    AlreadyReverted(GlobalRoot),
+    // Commit the reverted state diff and return the new state root.
     RevertedTo(GlobalRoot),
+    // Nothing to revert. A future block that is not committed.
+    Uncommitted,
 }
