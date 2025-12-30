@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use rstest_reuse::{apply, template};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
@@ -21,11 +22,13 @@ use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::StarkHash;
 
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
     Input,
+    InputContext,
     ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -34,6 +37,8 @@ use crate::block_committer::input::{
 use crate::db::facts_db::db::FactsDb;
 use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::ForestReader;
+use crate::db::index_db::db::IndexDb;
+use crate::db::index_db::test_utils::convert_facts_forest_db_to_index_db;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
@@ -61,14 +66,24 @@ pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (DbKey, DbValue) {
     (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize().unwrap())
 }
 
-pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
-    let felt = Felt::from(val);
+pub(crate) fn create_contract_state_leaf_entry(
+    nonce: u128,
+    storage_root: u128,
+    class_hash: u128,
+    hash: Option<u128>,
+) -> (DbKey, DbValue) {
+    let (nonce, storage_root, class_hash) =
+        (Felt::from(nonce), Felt::from(storage_root), Felt::from(class_hash));
     let leaf = ContractState {
-        nonce: Nonce(felt),
-        storage_root_hash: HashOutput(felt),
-        class_hash: ClassHash(felt),
+        nonce: Nonce(nonce),
+        storage_root_hash: HashOutput(storage_root),
+        class_hash: ClassHash(class_hash),
     };
-    (leaf.get_db_key(&EmptyKeyContext, &felt.to_bytes_be()), leaf.serialize().unwrap())
+    let mut hash = hash.map(Felt::from);
+    if hash.is_none() {
+        hash = Some(AdditionHash::hash_array(&[class_hash, storage_root, nonce]));
+    }
+    (leaf.get_db_key(&EmptyKeyContext, &hash.unwrap().to_bytes_be()), leaf.serialize().unwrap())
 }
 
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
@@ -133,7 +148,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 ///       /  \     \     \                             / \   \     \
 ///      NZ   2     NZ    NZ                          NZ  9  16    15
 
-#[tokio::test]
+#[template]
 #[rstest]
 #[case(
     Input {
@@ -165,9 +180,10 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_edge_entry_from_u128::<AdditionHash>(554, 1, 1),
         create_binary_entry_from_u128::<AdditionHash>(305, 556),
         // Contracts trie leaves.
-        create_contract_state_leaf_entry(277),
-        create_contract_state_leaf_entry(303),
-        create_contract_state_leaf_entry(1),
+        // Note that these leaves are not read in both layouts, so we can lie about the hash.
+        create_contract_state_leaf_entry(277, 277, 277, Some(277)),
+        create_contract_state_leaf_entry(303, 303, 303, Some(303)),
+        create_contract_state_leaf_entry(0, 0, 1, None),
         // Classes trie inner nodes.
         create_binary_entry_from_u128::<AdditionHash>(33, 47),
         create_edge_entry_from_u128::<AdditionHash>(72, 1, 1),
@@ -298,7 +314,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         vec![6, 7, 0],
         vec![7, 6, 0],
 )]
-async fn test_create_original_skeleton_forest(
+fn create_original_skeleton_forest_cases(
     #[case] input: Input<FactsDbInitialRead>,
     #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
@@ -307,8 +323,77 @@ async fn test_create_original_skeleton_forest(
     #[case] expected_contracts_trie_sorted_indices: Vec<u128>,
     #[case] expected_classes_trie_sorted_indices: Vec<u128>,
 ) {
+}
+
+#[apply(create_original_skeleton_forest_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_create_original_skeleton_forest_facts_layout(
+    #[case] input: Input<FactsDbInitialRead>,
+    #[case] storage: MapStorage,
+    #[case] expected_forest: OriginalSkeletonForest<'_>,
+    #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
+    #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
+    #[case] expected_contracts_trie_sorted_indices: Vec<u128>,
+    #[case] expected_classes_trie_sorted_indices: Vec<u128>,
+) {
+    test_create_original_skeleton_forest::<FactsDbInitialRead, FactsDb<MapStorage>>(
+        input,
+        storage,
+        expected_forest,
+        expected_original_contracts_trie_leaves,
+        expected_storage_tries_sorted_indices,
+        expected_contracts_trie_sorted_indices,
+        expected_classes_trie_sorted_indices,
+        |storage| FactsDb::new(storage),
+    )
+    .await;
+}
+
+#[apply(create_original_skeleton_forest_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_create_original_skeleton_forest_index_layout(
+    #[case] input: Input<FactsDbInitialRead>,
+    #[case] mut storage: MapStorage,
+    #[case] expected_forest: OriginalSkeletonForest<'_>,
+    #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
+    #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
+    #[case] expected_contracts_trie_sorted_indices: Vec<u128>,
+    #[case] expected_classes_trie_sorted_indices: Vec<u128>,
+) {
+    let index_storage =
+        convert_facts_forest_db_to_index_db(&mut storage, input.initial_read_context.0, false)
+            .await;
+    test_create_original_skeleton_forest::<FactsDbInitialRead, IndexDb<MapStorage>>(
+        input,
+        index_storage,
+        expected_forest,
+        expected_original_contracts_trie_leaves,
+        expected_storage_tries_sorted_indices,
+        expected_contracts_trie_sorted_indices,
+        expected_classes_trie_sorted_indices,
+        |storage| IndexDb::new(storage),
+    )
+    .await;
+}
+
+async fn test_create_original_skeleton_forest<
+    ReaderInputContext: InputContext,
+    Reader: ForestReader<ReaderInputContext>,
+>(
+    input: Input<ReaderInputContext>,
+    storage: MapStorage,
+    expected_forest: OriginalSkeletonForest<'_>,
+    expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
+    expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
+    expected_contracts_trie_sorted_indices: Vec<u128>,
+    expected_classes_trie_sorted_indices: Vec<u128>,
+    reader_generator: impl FnOnce(MapStorage) -> Reader,
+) {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);
+
     let forest_sorted_indices = ForestSortedIndices {
         storage_tries_sorted_indices: storage_tries_indices
             .iter_mut()
@@ -320,7 +405,8 @@ async fn test_create_original_skeleton_forest(
 
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
-    let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
+    let mut reader = reader_generator(storage);
+    let (actual_forest, original_contracts_trie_leaves) = reader
         .read(
             input.initial_read_context,
             &actual_storage_updates,
