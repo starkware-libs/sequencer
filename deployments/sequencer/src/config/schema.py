@@ -126,6 +126,21 @@ class Ingress(StrictBaseModel):
     # Additional fields for more complex ingress configurations
     alternative_names: List[str] = Field(default_factory=list)
     rules: List[AnyDict] = Field(default_factory=list)
+    # Backend configuration
+    backendServiceName: Optional[
+        str
+    ] = None  # Custom backend service name (defaults to sequencer-{service-name}-service)
+    backendServicePort: Optional[
+        int
+    ] = None  # Backend port (required when enabled=True - no hardcoded defaults)
+
+    def model_post_init(self, __context):
+        """Validate that backendServicePort is required when ingress is enabled."""
+        if self.enabled is True and self.backendServicePort is None:
+            raise ValueError(
+                "backendServicePort is required when ingress is enabled. "
+                "Please explicitly set backendServicePort in your ingress configuration."
+            )
 
 
 class PodDisruptionBudget(StrictBaseModel):

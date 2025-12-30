@@ -1093,3 +1093,61 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
         .await;
     assert_eq!(res, Ok(RunHeightRes::Sync));
 }
+
+#[rstest]
+#[tokio::test]
+async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusConfig) {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let mut context = MockTestContext::new();
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_try_sync().returning(|_| false);
+
+    // Send proposal with no content.
+    send_proposal(&mut proposal_receiver_sender, vec![]).await;
+
+    // Send a proposal with invalid Init.
+    send_proposal(&mut proposal_receiver_sender, vec![TestProposalPart::Invalid]).await;
+
+    // Send a valid proposal and valid votes.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+
+    // TODO(Dafna): Test also invalid votes.
+
+    // Run the manager for height 1.
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+    let decision = manager
+        .run_height(
+            &mut context,
+            HEIGHT_1,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE, ROUND_0);
+}

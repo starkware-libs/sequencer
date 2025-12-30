@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Base layer (L1) interaction and Ethereum contract interface for Starknet."
 
 [lints]
 workspace = true

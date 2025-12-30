@@ -3,16 +3,23 @@ import inspect
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import eth_abi
+<<<<<<< HEAD
+=======
+import functools
+import inspect
+>>>>>>> origin/main-v0.14.1
 import requests
 
 from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
 )
+from echonet.echonet_types import JsonObject
 from echonet.helpers import rpc_response
+from echonet.logger import get_logger
 
 
 class L1ClientCache:
@@ -50,9 +57,6 @@ class L1ClientCache:
 
 class L1Client:
     L1_MAINNET_URL = "https://eth-mainnet.g.alchemy.com/v2/{api_key}"
-    DATA_BLOCKS_BY_TIMESTAMP_URL_FMT = (
-        "https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
-    )
 
     @dataclass(frozen=True)
     class L1Event:
@@ -72,17 +76,16 @@ class L1Client:
         retries_count: int = 2,
     ):
         self.api_key = api_key
-        self.logger = logging.Logger("L1Client")
+        self.logger = get_logger("l1_client")
         self.timeout = timeout
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
-        self.data_api_url = self.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
         self.cache = L1ClientCache()
 
     def _run_request_with_retry(
         self,
         request_func: Callable,
-        additional_log_context: Dict[str, Any],
+        additional_log_context: JsonObject,
     ) -> Optional[Dict]:
         caller_name = inspect.currentframe().f_back.f_code.co_name
 

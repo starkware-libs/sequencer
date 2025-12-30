@@ -33,15 +33,6 @@ service:
       targetPort: 8082
       protocol: TCP
 
-# Ingress enabled for core
-ingress:
-  enabled: true
-  ingressClassName: "nginx"
-  hosts:
-    - "core.sequencer-test.local"
-  path: "/"
-  pathType: "Prefix"
-
 # PersistentVolume enabled for core (StatefulSet needs storage)
 persistentVolume:
   enabled: true

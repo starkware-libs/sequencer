@@ -88,6 +88,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_PROVIDER_ERRORS,
+    L2_GAS_IN_LAST_BLOCK,
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
@@ -763,6 +764,7 @@ impl Batcher {
         SIERRA_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.bouncer_weights.sierra_gas.0);
         PROVING_GAS_IN_LAST_BLOCK
             .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
+        L2_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.l2_gas_used.0);
 
         Ok(DecisionReachedResponse {
             state_diff,

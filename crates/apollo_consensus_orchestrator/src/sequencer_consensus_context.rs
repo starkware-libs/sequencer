@@ -216,7 +216,7 @@ impl SequencerConsensusContext {
             .outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
-            .expect("Failed to send proposal receiver");
+            .expect("Failed to send proposal receiver. Receiver channel closed.");
         StreamSender { proposal_sender }
     }
 
@@ -476,8 +476,12 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         trace!("Broadcasting message: {message:?}");
-        self.deps.vote_broadcast_client.broadcast_message(message).await?;
-        Ok(())
+        // Can fail only if the channel is disconnected, which should never happen.
+        self.deps
+            .vote_broadcast_client
+            .broadcast_message(message)
+            .await
+            .map_err(|e| ConsensusError::InternalNetworkError(e.to_string()))
     }
 
     async fn decision_reached(

@@ -89,6 +89,7 @@ pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
         ),
         PanelType::TimeSeries,
     )
+    .with_log_query("\"State sync is not ready\" OR \"to fetch retrospective block hash\"")
 }
 
 pub(crate) fn get_panel_consensus_round() -> Panel {

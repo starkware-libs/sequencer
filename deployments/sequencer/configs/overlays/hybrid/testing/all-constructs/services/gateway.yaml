@@ -25,14 +25,27 @@ service:
       targetPort: 8082
       protocol: TCP
 
-# Ingress enabled for gateway
+# Ingress Configuration - Enabled
 ingress:
   enabled: true
   ingressClassName: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
   hosts:
-    - "gateway.sequencer-test.local"
+    - "sequencer-test.local"
   path: "/"
   pathType: "Prefix"
+  backendServiceName: "sequencer-gateway-service"
+  backendServicePort: 8082
+  extraPaths: []
+  alternative_names: []
+  rules: []
+  tls:
+    - secretName: "sequencer-tls"
+      hosts:
+        - "sequencer-test.local"
 
 # Extra Services example
 extraServices:

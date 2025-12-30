@@ -96,7 +96,7 @@ impl StarknetClient {
         retry_config: RetryConfig,
     ) -> Result<Self, ClientCreationError> {
         let header_map = match http_headers {
-            Some(inner) => (&inner.expose_inner())
+            Some(inner) => (&inner.expose_secret())
                 .try_into()
                 .map_err(|_| ClientCreationError::HttpHeaderError)?,
             None => HeaderMap::new(),

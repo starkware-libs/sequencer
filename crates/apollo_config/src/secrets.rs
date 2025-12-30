@@ -47,8 +47,13 @@ impl<T> Sensitive<T> {
     }
 
     /// Consumes the wrapper and returns the inner sensitive value.
-    pub fn expose_inner(self) -> T {
+    pub fn expose_secret(self) -> T {
         self.inner
+    }
+
+    /// Returns a reference to the inner sensitive value.
+    pub fn peek_secret(&self) -> &T {
+        &self.inner
     }
 
     // Returns the redacted string representation.
@@ -83,19 +88,6 @@ where
 impl<T> From<T> for Sensitive<T> {
     fn from(value: T) -> Self {
         Sensitive::new(value)
-    }
-}
-
-// TODO(Tsabary): consider if AsRef and AsMut are needed.
-impl<T> AsRef<T> for Sensitive<T> {
-    fn as_ref(&self) -> &T {
-        &self.inner
-    }
-}
-
-impl<T> AsMut<T> for Sensitive<T> {
-    fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
     }
 }
 

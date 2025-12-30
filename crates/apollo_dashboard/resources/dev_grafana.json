@@ -52,7 +52,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Transactions Failed by Reason",
@@ -123,7 +125,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Consensus Decisions Reached As Proposer",
@@ -1089,6 +1093,15 @@
           "type": "timeseries",
           "exprs": [
             "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average L2 Gas Usage in Block",
+          "description": "The average L2 gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_l2_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
           ],
           "extra_params": {}
         }

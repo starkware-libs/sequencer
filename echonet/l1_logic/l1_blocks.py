@@ -2,12 +2,17 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+<<<<<<< HEAD
 from l1_client import L1Client
 
+=======
+>>>>>>> origin/main-v0.14.1
 from echonet.constants import ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
 from echonet.helpers import timestamp_to_iso
+from echonet.l1_logic.l1_client import L1Client
+from echonet.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("l1_blocks")
 
 
 class L1Blocks:

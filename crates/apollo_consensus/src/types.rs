@@ -149,10 +149,6 @@ impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
 #[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ConsensusError {
     #[error(transparent)]
-    ProtobufConversionError(#[from] ProtobufConversionError),
-    #[error(transparent)]
-    SendError(#[from] mpsc::SendError),
-    #[error(transparent)]
     BatcherError(#[from] BatcherClientError),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.

@@ -374,7 +374,7 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                     &self
                         .ordered_l1_endpoint_urls
                         .iter()
-                        .map(|url| url.as_ref().clone())
+                        .map(|url| url.peek_secret().clone())
                         .collect::<Vec<_>>(),
                 ),
                 "An ordered list of URLs for communicating with Ethereum. The list is used in \
@@ -442,7 +442,7 @@ fn build_contract_instance(
         "Building contract instance for Starknet contract address: {} and node URL: {}",
         starknet_contract_address, node_url
     );
-    let l1_client = ProviderBuilder::default().connect_http(node_url.expose_inner());
+    let l1_client = ProviderBuilder::default().connect_http(node_url.expose_secret());
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)
