@@ -255,8 +255,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 let class = txn.get_class_from_location(location)?;
                 Ok(StorageReaderResponse::DeclaredClassesFromLocation(class))
             }
-            StorageReaderRequest::DeclaredClassesBlock(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesBlock(class_hash) => {
+                let block_number = state_reader
+                    .get_class_definition_block_number(&class_hash)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Declared class block".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeclaredClassesBlock(block_number))
             }
             StorageReaderRequest::DeprecatedDeclaredClassesLocation(class_hash) => {
                 let location = txn.get_deprecated_class_location(&class_hash)?.ok_or(
