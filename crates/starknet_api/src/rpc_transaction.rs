@@ -671,6 +671,71 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
     }
 }
 
+/// An [RpcInvokeTransactionV3] that excludes the proof field (only keeps proof_facts).
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
+pub struct InternalRpcInvokeTransactionV3 {
+    pub sender_address: ContractAddress,
+    pub calldata: Calldata,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub resource_bounds: AllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub proof_facts: ProofFacts,
+}
+
+impl InternalRpcInvokeTransactionV3 {
+    pub fn version(&self) -> TransactionVersion {
+        TransactionVersion::THREE
+    }
+}
+
+impl InvokeTransactionV3Trait for InternalRpcInvokeTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        ValidResourceBounds::AllResources(self.resource_bounds)
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn account_deployment_data(&self) -> &AccountDeploymentData {
+        &self.account_deployment_data
+    }
+    fn sender_address(&self) -> &ContractAddress {
+        &self.sender_address
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn calldata(&self) -> &Calldata {
+        &self.calldata
+    }
+    fn proof_facts(&self) -> &ProofFacts {
+        &self.proof_facts
+    }
+}
+
+impl TransactionHasher for InternalRpcInvokeTransactionV3 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        get_invoke_transaction_v3_hash(self, chain_id, transaction_version)
+    }
+}
+
 // TODO(Aviv): remove duplication with sequencer/crates/apollo_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
