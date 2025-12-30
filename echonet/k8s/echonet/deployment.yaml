@@ -42,6 +42,21 @@ spec:
               readOnly: true
             - name: app-src
               mountPath: /app
+        - name: sync-echonet-keys
+          image: alpine:3.20
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              mkdir -p /data/echonet
+              cp /keys/echonet_keys.json /data/echonet/echonet_keys.json
+              chmod 600 /data/echonet/echonet_keys.json || true
+          volumeMounts:
+            - name: echonet-keys
+              mountPath: /keys
+              readOnly: true
+            - name: data-dir
+              mountPath: /data
 
       containers:
         - name: echonet
@@ -77,6 +92,7 @@ spec:
           volumeMounts:
             - { name: app-src, mountPath: /app }
             - { name: data-dir, mountPath: /data }
+            - { name: echonet-secrets, mountPath: /etc/echonet, readOnly: true }
 
       volumes:
         - name: echonet-src-bundle
@@ -84,6 +100,16 @@ spec:
             name: echonet-src
             items:
               - { key: echonet-src.tgz.b64, path: echonet-src.tgz.b64 }
+        - name: echonet-keys
+          configMap:
+            name: echonet-keys
+            items:
+              - { key: echonet_keys.json, path: echonet_keys.json }
+        - name: echonet-secrets
+          secret:
+            secretName: echonet-secrets
+            items:
+              - { key: echonet_secrets.json, path: echonet_secrets.json }
         - name: app-src
           emptyDir: {}
         - name: data-dir

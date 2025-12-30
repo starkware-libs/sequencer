@@ -1,7 +1,5 @@
 {
-    "start_block_default": 0,
-    "l1_provider_api_key": "",
-    "feeder_x_throttling_bypass": "",
+    "start_block": 0,
     "blocked_senders": "",
     "resync_error_threshold": 1
 }

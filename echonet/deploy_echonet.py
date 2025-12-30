@@ -2,20 +2,19 @@
 """
 Python wrapper to deploy echonet via Kustomize.
 
-  -x  delete existing resources first (kubectl delete -k)
-  -n  namespace (kubectl -n <ns>)
-  -t  X-Throttling-Bypass token value for feeder requests (sets FEEDER_X_THROTTLING_BYPASS env)
-  -s  starting block number (sets START_BLOCK_DEFAULT env)
-  -e  resync error threshold (sets RESYNC_ERROR_THRESHOLD env)
-  -a  L1 provider API key (sets L1_PROVIDER_API_KEY env)
-  -B  blocked sender addresses (comma-separated) (sets BLOCKED_SENDERS env)
-  --conf  load defaults from JSON config file.
+- packages echonet source into a configmap-friendly bundle
+- copies `echonet/echonet_keys.json` into `echonet/k8s/echonet/generated/echonet_keys.json`
+- `kubectl apply -k` on the kustomize dir
+
+Secrets must be applied separately (once):
+  kubectl apply -f echonet/k8s/echonet/secret.yaml
+
+Use argument `-x` to delete existing resources first (kubectl delete -k).
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 from pathlib import Path
 
@@ -24,6 +23,8 @@ import logging
 import shlex
 import shutil
 import tarfile
+from constants import ECHONET_KEYS_FILENAME
+from helpers import read_json_object
 
 logger = logging.getLogger("deploy_echonet")
 
@@ -131,11 +132,27 @@ def _build_source_bundle(echonet_dir: Path, out_path: Path) -> None:
     tmp_tgz.unlink()
     tmp_b64.replace(out_path)
     size_kb = out_path.stat().st_size / 1024.0
-    print(f"[deploy] Built source bundle: {out_path} ({size_kb:.1f} KiB, base64)")
+    logger.info("Built source bundle: %s (%.1f KiB, base64)", out_path, size_kb)
 
 
 def _namespace_args(namespace: str | None) -> list[str]:
     return ["-n", namespace] if namespace else []
+
+
+def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
+    """
+    Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
+
+    This file is consumed by the kustomize configMapGenerator (`echonet-keys`),
+    then copied into the echonet PVC at /data/echonet/echonet_keys.json by an initContainer.
+    """
+    generated_path.parent.mkdir(parents=True, exist_ok=True)
+    data = read_json_object(keys_in_repo)
+    if "start_block" not in data:
+        raise ValueError("Missing required key: start_block")
+
+    shutil.copyfile(keys_in_repo, generated_path)
+    logger.info("Copied keys file: %s -> %s", keys_in_repo, generated_path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -145,82 +162,13 @@ def main(argv: list[str] | None = None) -> int:
     _check_gcloud_auth()
 
     parser = argparse.ArgumentParser(description="Deploy echonet via kubectl + kustomize.")
-
-    # Simple, imperative workflow:
-    # - (optional) delete existing resources
-    # - generate the source bundle consumed by kustomize
-    # - kubectl apply -k
-    # - (optional) kubectl set env
     parser.add_argument(
         "-x",
         dest="delete_first",
         action="store_true",
         help="Delete existing resources first (kubectl delete -k).",
     )
-
-    parser.add_argument(
-        "-n",
-        dest="namespace",
-        metavar="NAMESPACE",
-        help="Kubernetes namespace to target (kubectl -n <ns>).",
-    )
-    parser.add_argument(
-        "--conf",
-        help=(
-            "Load defaults from JSON config file.\n"
-            "Priority: CLI arguments override config file, config file overrides hardcoded defaults.\n"
-            "Required fields: start_block_default, l1_provider_api_key\n"
-            "Update echonet_keys.json with your values, and delete fields if you want to use their hardcoded defaults.\n"
-            "Run: python deploy_echonet.py --conf <PATH_TO_SECRETS.json>"
-        ),
-    )
-    parser.add_argument(
-        "-t",
-        dest="feeder_x_throttling_bypass",
-        metavar="TOKEN",
-        help="X-Throttling-Bypass token value for feeder requests (FEEDER_X_THROTTLING_BYPASS env).",
-    )
-    parser.add_argument(
-        "-s",
-        dest="start_block_default",
-        metavar="BLOCK",
-        help="Starting block number (START_BLOCK_DEFAULT env).",
-    )
-    parser.add_argument(
-        "-e",
-        dest="resync_error_threshold",
-        metavar="COUNT",
-        help="Resync error threshold (RESYNC_ERROR_THRESHOLD env).",
-    )
-    parser.add_argument(
-        "-a",
-        dest="l1_provider_api_key",
-        metavar="API_KEY",
-        help="L1 provider API key (L1_PROVIDER_API_KEY env).",
-    )
-    parser.add_argument(
-        "-B",
-        "--blocked-senders",
-        dest="blocked_senders",
-        metavar="CSV",
-        help="Comma-separated sender addresses to block (BLOCKED_SENDERS env).",
-    )
-
-    # Get config file specified via --conf flag.
     args = parser.parse_args(argv)
-    if args.conf:
-        with open(args.conf, "r", encoding="utf-8") as f:
-            config_data = json.load(f)
-        if not isinstance(config_data, dict):
-            logger.error("Config file must contain a JSON object: %s", args.conf)
-            return 1
-
-        # Update parser defaults from config file, if they exist.
-        parser.set_defaults(**config_data)
-        logger.info("Loaded config defaults from %s", args.conf)
-
-        # Parse again so CLI arguments override config file.
-        args = parser.parse_args(argv)
 
     # Paths
     script_dir = Path(__file__).resolve().parent
@@ -236,39 +184,22 @@ def main(argv: list[str] | None = None) -> int:
     bundle_path = generated_dir / "echonet-src.tgz.b64"
     _build_source_bundle(echonet_dir=script_dir, out_path=bundle_path)
 
-    namespace_args = _namespace_args(args.namespace)
+    # Write non-secret echonet keys file into generated/ so kustomize can build the configmap.
+    keys_in_repo = script_dir / ECHONET_KEYS_FILENAME
+    generated_keys_path = generated_dir / ECHONET_KEYS_FILENAME
+    _copy_generated_keys(keys_in_repo=keys_in_repo, generated_path=generated_keys_path)
 
-    # 1. Optional delete
+    namespace_args = _namespace_args(None)
+
     if args.delete_first:
         logger.info("Deleting existing resources...")
-        _run(
-            ["kubectl", *namespace_args, "delete", "-k", str(kustomize_dir), "--ignore-not-found"],
-        )
+        _run(["kubectl", *namespace_args, "delete", "-k", str(kustomize_dir), "--ignore-not-found"])
 
-    # 2. Apply manifests
+    # Apply manifests
     logger.info("Applying manifests...")
     _run(["kubectl", *namespace_args, "apply", "-k", str(kustomize_dir)])
 
-    # 3. Optional env vars
-    env_args: list[str] = []
-    if args.feeder_x_throttling_bypass:
-        env_args.append(f"FEEDER_X_THROTTLING_BYPASS={args.feeder_x_throttling_bypass}")
-    if args.start_block_default:
-        env_args.append(f"START_BLOCK_DEFAULT={args.start_block_default}")
-    if args.resync_error_threshold:
-        env_args.append(f"RESYNC_ERROR_THRESHOLD={args.resync_error_threshold}")
-    if args.l1_provider_api_key:
-        env_args.append(f"L1_PROVIDER_API_KEY={args.l1_provider_api_key}")
-    if args.blocked_senders:
-        env_args.append(f"BLOCKED_SENDERS={args.blocked_senders}")
-
-    if env_args:
-        logger.info("Setting env on deployment/echonet: %s", " ".join(env_args))
-        _run(
-            ["kubectl", *namespace_args, "set", "env", "deployment/echonet", *env_args],
-        )
-
-    # 4. Wait for rollout to complete.
+    # Wait for rollout to complete.
     logger.info("Waiting for rollout status deployment/echonet...")
     _run(["kubectl", *namespace_args, "rollout", "status", "deployment/echonet"])
 
