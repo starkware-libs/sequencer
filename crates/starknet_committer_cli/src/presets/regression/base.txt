@@ -1,0 +1,40 @@
+PresetFields {
+    flavor_fields: FlavorFields {
+        data_path: "/mnt/data/committer_storage_benchmark",
+        seed: 42,
+        n_iterations: 1000000,
+        flavor: Constant,
+        interference_fields: InterferenceFields {
+            interference_type: None,
+            interference_concurrency_limit: 20,
+        },
+        n_updates: 1000,
+        checkpoint_interval: 1000,
+        log_level: Level(
+            Warn,
+        ),
+    },
+    storage_layout: Fact(
+        FileBased(
+            FileBasedStorageFields {
+                storage_path: "/mnt/data/storage",
+                global_fields: SingleStorageGlobalFields {
+                    short_key_size: None,
+                    cache_fields: Some(
+                        CachedStorageConfig {
+                            cache_size: 10000000,
+                            cache_on_write: true,
+                            include_inner_stats: false,
+                        },
+                    ),
+                },
+                specific_db_fields: RocksDb(
+                    RocksDbFields {
+                        use_column_families: false,
+                        allow_mmap: true,
+                    },
+                ),
+            },
+        ),
+    ),
+}
