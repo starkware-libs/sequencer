@@ -95,10 +95,10 @@ where
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
-        // Convert Box<ConcreteType> to Box<dyn GatewayFixedBlockStateReader>.
-        // This is safe because FixedBlockStateReader: GatewayFixedBlockStateReader.
+        // Convert concrete type to trait object. This is safe because
+        // FixedBlockStateReader implements GatewayFixedBlockStateReader.
         let boxed_gateway_fixed_block_state_reader: Box<dyn GatewayFixedBlockStateReader> =
-            gateway_fixed_block_state_reader;
+            Box::new(gateway_fixed_block_state_reader);
         Ok(Box::new(StatefulTransactionValidator::new(
             self.config.clone(),
             self.chain_info.clone(),
