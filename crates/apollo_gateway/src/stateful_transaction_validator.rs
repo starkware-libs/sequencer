@@ -40,14 +40,32 @@ use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFact
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-#[cfg_attr(test, mockall::automock)]
+// TODO(Arni): Split this PR into two PRs. Step 1. This change: add the `type
+// StatefulTransactionValidatorGeneric`. Step 2. The rest of the PR.
 #[async_trait]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
+    type StatefulTransactionValidatorGeneric: StatefulTransactionValidatorTrait;
+
     async fn instantiate_validator(
         &self,
-    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+    ) -> StatefulTransactionValidatorResult<Box<Self::StatefulTransactionValidatorGeneric>>;
 }
 
+#[cfg(test)]
+mockall::mock! {
+    pub StatefulTransactionValidatorFactoryTrait {}
+
+    #[async_trait]
+    impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactoryTrait {
+        type StatefulTransactionValidatorGeneric = MockStatefulTransactionValidatorTrait;
+
+        async fn instantiate_validator(
+            &self,
+        ) -> StatefulTransactionValidatorResult<Box<MockStatefulTransactionValidatorTrait>>;
+    }
+}
+
+#[derive(Clone)]
 pub struct StatefulTransactionValidatorFactory<GenericStateReaderFactory>
 where
     GenericStateReaderFactory: StateReaderFactory,
@@ -64,9 +82,14 @@ impl<GenericStateReaderFactory> StatefulTransactionValidatorFactoryTrait
 where
     GenericStateReaderFactory: StateReaderFactory,
 {
+    type StatefulTransactionValidatorGeneric = StatefulTransactionValidator<
+        <GenericStateReaderFactory as StateReaderFactory>::StateReaderWithCompiledClasses,
+        <GenericStateReaderFactory as StateReaderFactory>::FixedBlockStateReader,
+    >;
+
     async fn instantiate_validator(
         &self,
-    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
+    ) -> StatefulTransactionValidatorResult<Box<Self::StatefulTransactionValidatorGeneric>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let (blockifier_state_reader, gateway_fixed_block_state_reader) = self
