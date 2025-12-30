@@ -21,11 +21,10 @@ SEQUENCER_BINARY_NAME: str = "apollo_node"
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_restart_flow",
-    # TODO(AndrewL): bring back these tests
-    # "integration_test_positive_flow",
-    # "integration_test_restart_service_multiple_nodes_flow",
-    # "integration_test_restart_service_single_node_flow",
-    # "integration_test_revert_flow",
+    "integration_test_positive_flow",
+    "integration_test_restart_service_multiple_nodes_flow",
+    "integration_test_restart_service_single_node_flow",
+    "integration_test_revert_flow",
     # TODO(shahak): revive this test
     # "integration_test_central_and_p2p_sync_flow",
 ]
