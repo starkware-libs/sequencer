@@ -314,8 +314,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::FileOffsets(_offset_kind) => {
                 unimplemented!()
             }
-            StorageReaderRequest::StarknetVersion(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::StarknetVersion(block_number) => {
+                let starknet_version = txn.get_starknet_version_by_key(block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Starknet version".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    },
+                )?;
+                Ok(StorageReaderResponse::StarknetVersion(starknet_version))
             }
             StorageReaderRequest::StateStorageVersion => {
                 let version = txn.get_state_version()?.ok_or(StorageError::NotFound {
