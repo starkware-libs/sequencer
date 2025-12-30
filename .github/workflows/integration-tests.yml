@@ -21,10 +21,16 @@ on:
         required: false
         type: string
         default: ''
+      timeout_minutes:
+        description: 'Timeout for each integration test in minutes'
+        required: false
+        type: number
+        default: 30
 
 jobs:
   build-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     outputs:
       test_binaries: ${{ steps.build.outputs.test_binaries }}
     steps:
@@ -82,6 +88,7 @@ jobs:
     needs: build-integration-tests
     if: needs.build-integration-tests.outputs.test_binaries
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     strategy:
       fail-fast: false
       matrix:
