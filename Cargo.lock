@@ -927,7 +927,6 @@ name = "apollo_batcher_config"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
- "apollo_reverts",
  "apollo_storage",
  "blockifier",
  "serde",
