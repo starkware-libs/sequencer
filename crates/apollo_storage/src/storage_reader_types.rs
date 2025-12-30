@@ -293,7 +293,11 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 Ok(StorageReaderResponse::StateStorageVersion(version))
             }
             StorageReaderRequest::BlocksStorageVersion => {
-                unimplemented!()
+                let version = txn.get_blocks_version()?.ok_or(StorageError::NotFound {
+                    resource_type: "Blocks storage version".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::BlocksStorageVersion(version))
             }
         }
     }
