@@ -21,7 +21,7 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -105,6 +105,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             }
             StateSyncRequest::GetLatestBlockNumber() => {
                 StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number().await)
+            }
+            StateSyncRequest::GetLatestBlockHeader() => {
+                StateSyncResponse::GetLatestBlockHeader(self.get_latest_block_header().await)
             }
             StateSyncRequest::IsCairo1ClassDeclaredAt(block_number, class_hash) => {
                 StateSyncResponse::IsCairo1ClassDeclaredAt(
@@ -244,6 +247,16 @@ impl StateSync {
         let txn = storage_reader.begin_ro_txn()?;
         let latest_block_number = latest_synced_block(&txn)?;
         Ok(latest_block_number)
+    }
+
+    async fn get_latest_block_header(&self) -> StateSyncResult<Option<BlockHeader>> {
+        let storage_reader = self.storage_reader.clone();
+        let txn = storage_reader.begin_ro_txn()?;
+        let latest_block_number = latest_synced_block(&txn)?;
+        match latest_block_number {
+            Some(block_number) => Ok(txn.get_block_header(block_number)?),
+            None => Ok(None),
+        }
     }
 
     async fn is_cairo_1_class_declared_at(
