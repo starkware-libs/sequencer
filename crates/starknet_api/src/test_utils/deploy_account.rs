@@ -73,13 +73,13 @@ impl Default for DeployAccountTxArgs {
 /// Utility macro for creating `DeployAccountTxArgs` to reduce boilerplate.
 #[macro_export]
 macro_rules! deploy_account_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+    ($($field:ident $(: $value:expr_2021)?),* $(,)?) => {
         $crate::test_utils::deploy_account::DeployAccountTxArgs {
             $($field $(: $value)?,)*
             ..Default::default()
         }
     };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+    ($($field:ident $(: $value:expr_2021)?),* , ..$defaults:expr_2021) => {
         $crate::test_utils::deploy_account::DeployAccountTxArgs {
             $($field $(: $value)?,)*
             ..$defaults

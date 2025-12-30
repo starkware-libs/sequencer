@@ -25,7 +25,7 @@ pub async fn run_committer_cli(
     info!("Starting committer-cli with command: \n{:?}", committer_command);
     match committer_command.command {
         Command::StorageBenchmark(storage_benchmark_args) => {
-            let GlobalArgs { ref log_level, .. } = storage_benchmark_args.global_args();
+            let GlobalArgs { log_level, .. } = storage_benchmark_args.global_args();
             modify_log_level(log_level.clone(), log_filter_handle);
             storage_benchmark_args.run_benchmark().await;
         }

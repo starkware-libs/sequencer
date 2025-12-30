@@ -80,7 +80,7 @@ pub trait LogCompatibleToStringExt: std::fmt::Display {
 /// ```
 #[macro_export]
 macro_rules! info_every_n {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::info, $n, $($arg)*);
         }
@@ -91,7 +91,7 @@ macro_rules! info_every_n {
 /// See `info_every_n!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! warn_every_n {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::warn, $n, $($arg)*);
         }
@@ -102,7 +102,7 @@ macro_rules! warn_every_n {
 /// See `info_every_n!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! error_every_n {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::error, $n, $($arg)*);
         }
@@ -113,7 +113,7 @@ macro_rules! error_every_n {
 /// See `info_every_n!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! debug_every_n {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::debug, $n, $($arg)*);
         }
@@ -124,7 +124,7 @@ macro_rules! debug_every_n {
 /// See `info_every_n!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! trace_every_n {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::trace, $n, $($arg)*);
         }
@@ -166,7 +166,7 @@ macro_rules! trace_every_n {
 /// ```
 #[macro_export]
 macro_rules! info_every_n_sec {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::info, $n, $($arg)*);
         }
@@ -177,7 +177,7 @@ macro_rules! info_every_n_sec {
 /// See `info_every_n_sec!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! warn_every_n_sec {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::warn, $n, $($arg)*);
         }
@@ -188,7 +188,7 @@ macro_rules! warn_every_n_sec {
 /// See `info_every_n_sec!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! error_every_n_sec {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::error, $n, $($arg)*);
         }
@@ -199,7 +199,7 @@ macro_rules! error_every_n_sec {
 /// See `info_every_n_sec!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! debug_every_n_sec {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::debug, $n, $($arg)*);
         }
@@ -210,7 +210,7 @@ macro_rules! debug_every_n_sec {
 /// See `info_every_n_sec!` for detailed usage and behavior.
 #[macro_export]
 macro_rules! trace_every_n_sec {
-    ($n:expr, $($arg:tt)*) => {
+    ($n:expr_2021, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::trace, $n, $($arg)*);
         }

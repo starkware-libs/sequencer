@@ -114,7 +114,7 @@ impl NonceManager {
 /// representation.
 #[macro_export]
 macro_rules! nonce {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::core::Nonce(starknet_types_core::felt::Felt::from($s))
     };
 }
@@ -123,7 +123,7 @@ macro_rules! nonce {
 /// unsigned integer representation.
 #[macro_export]
 macro_rules! storage_key {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::state::StorageKey(starknet_api::patricia_key!($s))
     };
 }
@@ -132,7 +132,7 @@ macro_rules! storage_key {
 /// string / unsigned integer representation.
 #[macro_export]
 macro_rules! compiled_class_hash {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
     };
 }

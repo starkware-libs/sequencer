@@ -911,7 +911,7 @@ impl TransactionHash {
     pub fn random(rng: &mut impl rand::Rng) -> Self {
         let mut byte_vec = vec![];
         for _ in 0..32 {
-            byte_vec.push(rng.gen::<u8>());
+            byte_vec.push(rng.r#gen::<u8>());
         }
         let byte_array = byte_vec.try_into().expect("Expected a Vec of length 32");
         TransactionHash(StarkHash::from_bytes_be(&byte_array))
@@ -922,7 +922,7 @@ impl TransactionHash {
 #[cfg(any(feature = "testing", test))]
 #[macro_export]
 macro_rules! tx_hash {
-    ($tx_hash:expr) => {
+    ($tx_hash:expr_2021) => {
         $crate::transaction::TransactionHash($crate::hash::StarkHash::from($tx_hash))
     };
 }

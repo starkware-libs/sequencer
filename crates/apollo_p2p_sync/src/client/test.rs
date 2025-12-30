@@ -136,7 +136,7 @@ async fn receive_blocks_out_of_order() {
     let state_diff_0 = sync_block_0.state_diff.clone();
 
     // We need to forward the rng to the next generated num to make sure the blocks are different.
-    rng.gen::<u8>();
+    rng.r#gen::<u8>();
     let account_transaction_hashes_len_1 = 3;
     let l1_transaction_hashes_len_1 = 1;
     let sync_block_1 = create_random_sync_block(

@@ -242,10 +242,13 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
 
 async fn print_write_blob_response(response: Response) {
     info!("write blob response status code: {}", response.status());
-    if let Ok(text) = response.text().await {
-        info!("write blob response text: {text}");
-    } else {
-        info!("Failed to get response text.");
+    match response.text().await {
+        Ok(text) => {
+            info!("write blob response text: {text}");
+        }
+        _ => {
+            info!("Failed to get response text.");
+        }
     }
 }
 

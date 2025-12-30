@@ -88,7 +88,7 @@ pub fn derive_dynamic_size(input: TokenStream) -> TokenStream {
     let generics = add_trait_bounds(input.generics); // Add the SizeOf trait bound
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl(); // Split the generics into parts for the impl block.
 
-    let gen = match input.data {
+    let r#gen = match input.data {
         Data::Struct(data_struct) => derive_macro_for_struct(data_struct),
         Data::Enum(data_enum) => derive_macro_for_enum(data_enum),
         Data::Union(_) => unimplemented!("SizeOf can only be derived for structs and enums."),
@@ -100,7 +100,7 @@ pub fn derive_dynamic_size(input: TokenStream) -> TokenStream {
     quote! {
         impl #impl_generics SizeOf for #name #ty_generics #where_clause {
             fn dynamic_size(&self) -> usize {
-                #gen
+                #r#gen
             }
         }
     }
@@ -150,7 +150,7 @@ fn derive_macro_for_enum(data_enum: DataEnum) -> TokenStream2 {
 
         // Match arms for each variant, calculating the size based on its fields.
         match &variant.fields {
-            Fields::Named(ref fields) => {
+            Fields::Named(fields) => {
                 let idents: Vec<_> =
                     fields.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
                 let bindings: Vec<_> = idents.iter().map(|id| quote! { #id }).collect();
@@ -166,7 +166,7 @@ fn derive_macro_for_enum(data_enum: DataEnum) -> TokenStream2 {
                     }
                 }
             }
-            Fields::Unnamed(ref fields) => {
+            Fields::Unnamed(fields) => {
                 let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
                     .map(|i| syn::Ident::new(&format!("f{}", i), vname.span()))
                     .collect();

@@ -133,12 +133,12 @@ pub struct SequencerNodeServers {
 #[macro_export]
 macro_rules! create_remote_server {
     (
-        $execution_mode:expr,
-        $local_client_getter:expr,
-        $remote_server_config:expr,
-        $port:expr,
-        $max_concurrency:expr,
-        $metrics:expr
+        $execution_mode:expr_2021,
+        $local_client_getter:expr_2021,
+        $remote_server_config:expr_2021,
+        $port:expr_2021,
+        $max_concurrency:expr_2021,
+        $metrics:expr_2021
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -207,12 +207,12 @@ macro_rules! create_remote_server {
 macro_rules! create_local_server {
     (
         $server_type:tt,
-        $execution_mode:expr,
-        $component:expr,
-        $local_server_config:expr,
-        $receiver:expr,
-        $server_metrics:expr
-        $(, $max_concurrency:expr)?
+        $execution_mode:expr_2021,
+        $component:expr_2021,
+        $local_server_config:expr_2021,
+        $receiver:expr_2021,
+        $server_metrics:expr_2021
+        $(, $max_concurrency:expr_2021)?
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -272,7 +272,7 @@ macro_rules! create_local_server {
 /// }
 /// ```
 macro_rules! create_wrapper_server {
-    ($execution_mode:expr, $component:expr) => {
+    ($execution_mode:expr_2021, $component:expr_2021) => {
         match *$execution_mode {
             ActiveComponentExecutionMode::Enabled => Some(Box::new(WrapperServer::new(
                 $component.take().expect(concat!(stringify!($component), " is not initialized.")),

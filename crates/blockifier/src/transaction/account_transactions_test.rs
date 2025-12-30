@@ -1285,7 +1285,7 @@ fn test_n_reverted_computation_units(
 #[rstest]
 fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     macro_rules! assert_max_steps_as_expected {
-        ($account_tx:expr, $expected_max_steps:expr $(,)?) => {
+        ($account_tx:expr_2021, $expected_max_steps:expr_2021 $(,)?) => {
             let tx_context = Arc::new(block_context.to_tx_context(&$account_tx));
             let execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context,

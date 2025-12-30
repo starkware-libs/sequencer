@@ -44,7 +44,7 @@
 /// ```
 #[macro_export]
 macro_rules! generate_permutations {
-    ($const_name:ident, $(($name:expr, $enum:ty)),* $(,)?) => {
+    ($const_name:ident, $(($name:expr_2021, $enum:ty)),* $(,)?) => {
         $crate::paste::paste! {
             // The generated constant containing all permutations.
             pub const $const_name: [[(&'static str, &'static str); {
@@ -154,7 +154,7 @@ macro_rules! generate_permutations {
 /// ```
 #[macro_export]
 macro_rules! convert_array {
-    ($name:ident, $input:expr) => {
+    ($name:ident, $input:expr_2021) => {
         // A **slice reference** to the converted input array.
         // This allows the macro to return a dynamically sized slice
         // instead of a fixed-size array.
@@ -212,7 +212,7 @@ macro_rules! convert_array {
 /// ```
 #[macro_export]
 macro_rules! generate_permutation_labels {
-    ($const_name:ident, $(($name:expr, $enum:ty)),* $(,)?) => {
+    ($const_name:ident, $(($name:expr_2021, $enum:ty)),* $(,)?) => {
         $crate::paste::paste! {
             // Define the intermediate permutations constant by calling `generate_permutations!`.
             $crate::generate_permutations!([<$const_name _PERMUTATIONS>], $(($name, $enum)),*);

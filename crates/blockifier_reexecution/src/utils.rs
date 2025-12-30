@@ -142,7 +142,7 @@ impl TryFrom<ReexecutionStateMaps> for StateMaps {
 
 #[macro_export]
 macro_rules! retry_request {
-    ($retry_config:expr, $closure:expr) => {{
+    ($retry_config:expr_2021, $closure:expr_2021) => {{
         let mut attempt_number = 0;
         retry::retry(
             retry::delay::Fixed::from_millis($retry_config.retry_interval_milliseconds)
@@ -220,7 +220,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
-    ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
+    ($expected_state_diff:expr_2021, $actual_state_diff:expr_2021 $(,)?) => {
         pretty_assertions::assert_eq!(
             $crate::utils::ComparableStateDiff::from($expected_state_diff,),
             $crate::utils::ComparableStateDiff::from($actual_state_diff,),

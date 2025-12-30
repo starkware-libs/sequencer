@@ -38,7 +38,7 @@ macro_rules! define_string_enum {
         $visibility:vis enum $enum_name:ident {
             $(
                 $(#[$variant_meta:meta])*
-                ($variant:ident $(, $variant_str:expr)?)
+                ($variant:ident $(, $variant_str:expr_2021)?)
             ),+ $(,)?
         }
     ) => {
@@ -77,7 +77,7 @@ macro_rules! define_string_enum {
 #[macro_export]
 macro_rules! string_or_snake_case {
     // Explicit string provided.
-    ($variant:ident, $variant_str:expr) => {
+    ($variant:ident, $variant_str:expr_2021) => {
         $variant_str
     };
     // No explicit string provided: snake case.

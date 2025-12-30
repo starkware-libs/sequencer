@@ -41,13 +41,13 @@ fn test_encrypt_decrypt_roundtrip_random() {
     }
 
     // Random symmetric key.
-    let symmetric_key = Felt::from_bytes_be(&rng.gen::<[u8; 32]>());
+    let symmetric_key = Felt::from_bytes_be(&rng.r#gen::<[u8; 32]>());
 
     // Random state diff.
     let state_diff_length: usize = rng.gen_range(0..=20);
     let mut state_diff: Vec<Felt> = Vec::with_capacity(state_diff_length);
     for _ in 0..state_diff_length {
-        state_diff.push(Felt::from_bytes_be(&rng.gen::<[u8; 32]>()))
+        state_diff.push(Felt::from_bytes_be(&rng.r#gen::<[u8; 32]>()))
     }
 
     // Encrypt and then decrypt with every keypair.
@@ -117,7 +117,7 @@ fn test_decrypt_state_diff_from_blobs() {
     }
 
     // Random symmetric key.
-    let symmetric_key = Felt::from_bytes_be(&rng.gen::<[u8; 32]>());
+    let symmetric_key = Felt::from_bytes_be(&rng.r#gen::<[u8; 32]>());
 
     // Encrypt the DA segment
     let encrypted_state_diff = encrypt_state_diff(symmetric_key, &da_segment);

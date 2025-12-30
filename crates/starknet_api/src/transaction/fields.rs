@@ -125,7 +125,7 @@ impl From<Vec<Felt>> for Calldata {
 
 #[macro_export]
 macro_rules! calldata {
-    ( $( $x:expr ),* ) => {
+    ( $( $x:expr_2021 ),* ) => {
         $crate::transaction::fields::Calldata(vec![$($x),*].into())
     };
 }

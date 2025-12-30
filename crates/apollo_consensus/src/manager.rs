@@ -894,20 +894,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             SMRequest::StartValidateProposal(init) => {
                 // Look up the stored stream.
                 let key = (height, init.round);
-                if let Some(stream) = self.current_height_proposals_streams.remove(&key) {
-                    let timeout = timeouts.get_proposal_timeout(init.round);
-                    let receiver = context.validate_proposal(init, timeout, stream).await;
-                    let round = init.round;
-                    let valid_round = init.valid_round;
-                    let fut = async move {
-                        let proposal_id = receiver.await.ok();
-                        StateMachineEvent::FinishedValidation(proposal_id, round, valid_round)
+                match self.current_height_proposals_streams.remove(&key) {
+                    Some(stream) => {
+                        let timeout = timeouts.get_proposal_timeout(init.round);
+                        let receiver = context.validate_proposal(init, timeout, stream).await;
+                        let round = init.round;
+                        let valid_round = init.valid_round;
+                        let fut = async move {
+                            let proposal_id = receiver.await.ok();
+                            StateMachineEvent::FinishedValidation(proposal_id, round, valid_round)
+                        }
+                        .boxed();
+                        Ok(Some(fut))
                     }
-                    .boxed();
-                    Ok(Some(fut))
-                } else {
-                    // No stream available; ignore.
-                    Ok(None)
+                    _ => {
+                        // No stream available; ignore.
+                        Ok(None)
+                    }
                 }
             }
             SMRequest::BroadcastVote(vote) => {

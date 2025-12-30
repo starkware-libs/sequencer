@@ -75,13 +75,13 @@ impl Default for InvokeTxArgs {
 /// Utility macro for creating `InvokeTxArgs` to reduce boilerplate.
 #[macro_export]
 macro_rules! invoke_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+    ($($field:ident $(: $value:expr_2021)?),* $(,)?) => {
         $crate::test_utils::invoke::InvokeTxArgs {
             $($field $(: $value)?,)*
             ..Default::default()
         }
     };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+    ($($field:ident $(: $value:expr_2021)?),* , ..$defaults:expr_2021) => {
         $crate::test_utils::invoke::InvokeTxArgs {
             $($field $(: $value)?,)*
             ..$defaults

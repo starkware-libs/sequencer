@@ -185,7 +185,7 @@ pub fn trivial_external_entry_point_with_address(
 
 #[macro_export]
 macro_rules! check_inner_exc_for_custom_hint {
-    ($inner_exc:expr, $expected_hint:expr) => {{
+    ($inner_exc:expr_2021, $expected_hint:expr_2021) => {{
         use cairo_vm::vm::errors::hint_errors::HintError;
         use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 
@@ -203,7 +203,7 @@ macro_rules! check_inner_exc_for_custom_hint {
 
 #[macro_export]
 macro_rules! check_inner_exc_for_invalid_scenario {
-    ($inner_exc:expr) => {{
+    ($inner_exc:expr_2021) => {{
         use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 
         if let VirtualMachineError::DiffAssertValues(_) = $inner_exc {
@@ -215,7 +215,7 @@ macro_rules! check_inner_exc_for_invalid_scenario {
 
 #[macro_export]
 macro_rules! check_entry_point_execution_error {
-    ($error:expr, $expected_hint:expr $(,)?) => {{
+    ($error:expr_2021, $expected_hint:expr_2021 $(,)?) => {{
         use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
         use cairo_vm::vm::errors::vm_exception::VmException;
         use $crate::execution::errors::EntryPointExecutionError;
@@ -243,14 +243,14 @@ macro_rules! check_entry_point_execution_error {
 /// Checks that the given error is a `HintError::CustomHint` with the given hint.
 #[macro_export]
 macro_rules! check_entry_point_execution_error_for_custom_hint {
-    ($error:expr, $expected_hint:expr $(,)?) => {
+    ($error:expr_2021, $expected_hint:expr_2021 $(,)?) => {
         $crate::check_entry_point_execution_error!($error, Some($expected_hint))
     };
 }
 
 #[macro_export]
 macro_rules! check_tx_execution_error_inner {
-    ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {{
+    ($error:expr_2021, $expected_hint:expr_2021, $validate_constructor:expr_2021 $(,)?) => {{
         use $crate::execution::errors::ConstructorEntryPointExecutionError;
         use $crate::transaction::errors::TransactionExecutionError;
 
@@ -276,7 +276,7 @@ macro_rules! check_tx_execution_error_inner {
 
 #[macro_export]
 macro_rules! check_tx_execution_error_for_custom_hint {
-    ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
+    ($error:expr_2021, $expected_hint:expr_2021, $validate_constructor:expr_2021 $(,)?) => {
         $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
@@ -289,7 +289,7 @@ macro_rules! check_tx_execution_error_for_custom_hint {
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
 macro_rules! check_tx_execution_error_for_invalid_scenario {
-    ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
+    ($cairo_version:expr_2021, $error:expr_2021, $validate_constructor:expr_2021 $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
                 $crate::check_tx_execution_error_inner!(

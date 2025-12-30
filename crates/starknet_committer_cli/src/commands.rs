@@ -163,16 +163,16 @@ impl BenchmarkFlavor {
 /// benchmark.
 macro_rules! generate_short_key_benchmark {
     (
-        $key_size:expr,
-        $seed:expr,
-        $n_iterations:expr,
-        $flavor:expr,
-        $n_updates:expr,
-        $interference_type:expr,
-        $output_dir:expr,
-        $checkpoint_dir_arg:expr,
-        $storage:expr,
-        $checkpoint_interval:expr,
+        $key_size:expr_2021,
+        $seed:expr_2021,
+        $n_iterations:expr_2021,
+        $flavor:expr_2021,
+        $n_updates:expr_2021,
+        $interference_type:expr_2021,
+        $output_dir:expr_2021,
+        $checkpoint_dir_arg:expr_2021,
+        $storage:expr_2021,
+        $checkpoint_interval:expr_2021,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
         match $key_size {
