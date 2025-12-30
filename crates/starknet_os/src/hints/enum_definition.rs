@@ -459,12 +459,7 @@ define_stateless_hint_enum!(
     (DictionaryFromBucket, dictionary_from_bucket),
     (GetPrevOffset, get_prev_offset),
     (CompressionHint, compression_hint),
-    (
-        SetDecompressedDst,
-        set_decompressed_dst,
-        indoc! {r#"memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound"#
-        }
-    ),
+    (SetDecompressedDst, set_decompressed_dst),
     (
         SegmentsAddTemp,
         segments_add_temp,
