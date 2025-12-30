@@ -15,6 +15,7 @@ use starknet_types_core::felt::Felt;
 use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
+use crate::class_hash::ClassHashStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
 use crate::consensus::LastVotedMarker;
@@ -288,8 +289,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::CompiledClassHash(_class_hash, _block_number) => {
                 unimplemented!()
             }
-            StorageReaderRequest::StatelessCompiledClassHashV2(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::StatelessCompiledClassHashV2(class_hash) => {
+                let compiled_class_hash = txn.get_executable_class_hash_v2(&class_hash)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Stateless compiled class hash v2".to_string(),
+                        resource_id: class_hash.to_string(),
+                    },
+                )?;
+                Ok(StorageReaderResponse::StatelessCompiledClassHashV2(compiled_class_hash))
             }
 
             // ============ Block-Related Requests ============
