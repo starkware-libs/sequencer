@@ -346,7 +346,7 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             sequencers_setup.first().unwrap().get_l1_gas_price_scraper_config();
 
-        let anvil_base_layer = AnvilBaseLayer::new(Some(1)).await;
+        let anvil_base_layer = AnvilBaseLayer::new(Some(1), None).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
@@ -1100,7 +1100,8 @@ async fn get_sequencer_setup_configs(
     let mut base_layer_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
-    let base_layer_config = AnvilBaseLayer::config();
+    let base_layer_config =
+        AnvilBaseLayer::config(AnvilBaseLayer::url_static(base_layer_ports.get_next_port()));
 
     let mut nodes = Vec::new();
 
