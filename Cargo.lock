@@ -12744,6 +12744,8 @@ dependencies = [
  "blockifier",
  "blockifier_reexecution",
  "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-vm",
  "indexmap 2.12.0",
  "rstest",
  "starknet-rust",

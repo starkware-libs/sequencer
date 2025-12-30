@@ -1,4 +1,6 @@
+use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
+use starknet_api::core::ClassHash;
 use starknet_os::errors::StarknetOsError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
@@ -43,4 +45,10 @@ pub enum ProofProviderError {
 pub enum ClassesProviderError {
     #[error("Failed to get classes: {0}")]
     GetClassesError(String),
+    #[error(
+        "Starknet os does not support deprecated contract classes, class hash: {0} is deprecated"
+    )]
+    DeprecatedContractError(ClassHash),
+    #[error(transparent)]
+    StateError(#[from] StateError),
 }
