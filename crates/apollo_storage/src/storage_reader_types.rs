@@ -293,8 +293,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Block-Related Requests ============
-            StorageReaderRequest::Headers(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::Headers(block_number) => {
+                let storage_block_header =
+                    txn.get_storage_block_header(&block_number)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block header".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::Headers(storage_block_header))
             }
             StorageReaderRequest::BlockHashToNumber(block_hash) => {
                 let block_number =
