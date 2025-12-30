@@ -149,8 +149,7 @@ where
             tx_execution_infos,
             block_info: execution_data.block_context.block_info().clone(),
             initial_reads: execution_data.initial_reads,
-            // TODO(Aviv): Use the actual previous block hash.
-            prev_base_block_hash: BlockHash::default(),
+            prev_base_block_hash: execution_data.prev_base_block_hash,
             compiled_classes: classes.compiled_classes,
         };
 

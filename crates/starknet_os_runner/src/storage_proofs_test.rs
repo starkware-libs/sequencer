@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
@@ -47,6 +47,7 @@ fn test_get_storage_proofs_from_rpc(
         block_context: BlockContext::create_for_account_testing(),
         initial_reads: state_maps,
         executed_class_hashes: HashSet::new(),
+        prev_base_block_hash: BlockHash::default(),
     };
 
     let result = rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data);
