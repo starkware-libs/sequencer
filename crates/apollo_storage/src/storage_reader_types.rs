@@ -314,8 +314,13 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Transaction-Related Requests ============
-            StorageReaderRequest::TransactionMetadata(_tx_index) => {
-                unimplemented!()
+            StorageReaderRequest::TransactionMetadata(tx_index) => {
+                let metadata =
+                    txn.get_transaction_metadata(&tx_index)?.ok_or(StorageError::NotFound {
+                        resource_type: "Transaction metadata".to_string(),
+                        resource_id: format!("tx_index: {:?}", tx_index),
+                    })?;
+                Ok(StorageReaderResponse::TransactionMetadata(metadata))
             }
             StorageReaderRequest::TransactionHashToIdx(_tx_hash) => {
                 unimplemented!()
