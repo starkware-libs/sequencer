@@ -50,55 +50,6 @@ pub trait StorageFromArgs: Default {
     fn storage(&self) -> impl Future<Output = impl Storage> + Send;
 }
 
-/// Key size, in bytes, for the short key storage.
-// TODO(Dori): Delete this duplicated enum.
-#[derive(Clone, PartialEq, Debug)]
-pub enum ShortKeySizeArg {
-    U16,
-    U17,
-    U18,
-    U19,
-    U20,
-    U21,
-    U22,
-    U23,
-    U24,
-    U25,
-    U26,
-    U27,
-    U28,
-    U29,
-    U30,
-    U31,
-    U32,
-}
-
-/// Define this conversion to make sure the arg-enum matches the original enum.
-/// The original enum defines the possible sizes, but we do not want to implement ValueEnum for it.
-impl From<ShortKeySizeArg> for ShortKeySize {
-    fn from(arg: ShortKeySizeArg) -> Self {
-        match arg {
-            ShortKeySizeArg::U16 => Self::U16,
-            ShortKeySizeArg::U17 => Self::U17,
-            ShortKeySizeArg::U18 => Self::U18,
-            ShortKeySizeArg::U19 => Self::U19,
-            ShortKeySizeArg::U20 => Self::U20,
-            ShortKeySizeArg::U21 => Self::U21,
-            ShortKeySizeArg::U22 => Self::U22,
-            ShortKeySizeArg::U23 => Self::U23,
-            ShortKeySizeArg::U24 => Self::U24,
-            ShortKeySizeArg::U25 => Self::U25,
-            ShortKeySizeArg::U26 => Self::U26,
-            ShortKeySizeArg::U27 => Self::U27,
-            ShortKeySizeArg::U28 => Self::U28,
-            ShortKeySizeArg::U29 => Self::U29,
-            ShortKeySizeArg::U30 => Self::U30,
-            ShortKeySizeArg::U31 => Self::U31,
-            ShortKeySizeArg::U32 => Self::U32,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct GlobalArgs {
     /// Seed for the random number generator.
@@ -115,7 +66,7 @@ pub struct GlobalArgs {
     pub n_updates: usize,
 
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
-    pub key_size: Option<ShortKeySizeArg>,
+    pub key_size: Option<ShortKeySize>,
 
     /// Interval at which to save checkpoints.
     pub checkpoint_interval: usize,
