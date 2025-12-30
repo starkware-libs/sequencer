@@ -176,7 +176,7 @@ pub fn internal_invoke_tx(invoke_args: InvokeTxArgs) -> InternalRpcTransaction {
         panic!("Expected RpcTransaction::Invoke");
     };
 
-    let invoke_tx = InternalRpcTransactionWithoutTxHash::Invoke(tx);
+    let invoke_tx = InternalRpcTransactionWithoutTxHash::Invoke(tx.into());
 
     InternalRpcTransaction { tx: invoke_tx, tx_hash }
 }

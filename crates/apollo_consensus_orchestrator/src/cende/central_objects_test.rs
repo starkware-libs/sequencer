@@ -90,12 +90,12 @@ use starknet_api::rpc_transaction::{
     EntryPointByType,
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
+    InternalRpcInvokeTransaction,
+    InternalRpcInvokeTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
 };
 use starknet_api::state::{
     EntryPoint,
@@ -112,7 +112,6 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
-    Proof,
     ProofFacts,
     ResourceBounds,
     Tip,
@@ -256,8 +255,8 @@ fn central_compressed_state_diff() -> CentralCompressedStateDiff {
     (state_diff, (block_info, starknet_version).into()).into()
 }
 
-fn invoke_transaction() -> RpcInvokeTransaction {
-    RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+fn invoke_transaction() -> InternalRpcInvokeTransaction {
+    InternalRpcInvokeTransaction::V3(InternalRpcInvokeTransactionV3 {
         resource_bounds: resource_bounds(),
         tip: Tip(1),
         signature: TransactionSignature(felt_vector().into()),
@@ -271,7 +270,6 @@ fn invoke_transaction() -> RpcInvokeTransaction {
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
         proof_facts: ProofFacts::default(),
-        proof: Proof::default(),
     })
 }
 
@@ -1105,7 +1103,6 @@ fn test_invoke_tx_size_of() {
     // + internal_invoke_tx.signature.dynamic_size()
     // + internal_invoke_tx.tip.dynamic_size();
     // + internal_invoke_tx.proof_facts.dynamic_size();
-    // + internal_invoke_tx.proof.dynamic_size();
 
-    assert_eq!(invoke_tx.size_bytes(), 512);
+    assert_eq!(invoke_tx.size_bytes(), 488);
 }
