@@ -138,12 +138,12 @@ async fn get_proposal_timestamp(
     clock: &dyn Clock,
 ) -> u64 {
     if use_state_sync_block_timestamp {
-        if let Ok(Some(block_number)) = state_sync_client.get_latest_block_number().await {
-            if let Ok(block) = state_sync_client.get_block(block_number).await {
-                return block.block_header_without_hash.timestamp.0;
-            }
+        if let Ok(Some(block_header)) =
+            state_sync_client.get_latest_block_header_without_hash().await
+        {
+            return block_header.timestamp.0;
         }
-        warn!("No latest block number available from state sync, falling back to clock time");
+        warn!("No latest block header available from state sync, falling back to clock time");
     }
     clock.unix_now()
 }
