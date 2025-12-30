@@ -12,7 +12,7 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::hints::enum_definition::{AllHints, OsHint, StatelessHint};
+use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
     calculate_padding,
@@ -108,13 +108,17 @@ pub(crate) fn sha2_finalize(
     Ok(())
 }
 
-pub(crate) fn segments_add_temp(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
     let temp_segment = vm.add_temporary_segment();
-    insert_nondet_hint_value(
-        vm,
-        AllHints::StatelessHint(StatelessHint::SegmentsAddTemp),
+    Ok(insert_value_from_var_name(
+        Ids::InitialTxsRangeCheckPtr.into(),
         temp_segment,
-    )
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
