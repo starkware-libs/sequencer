@@ -86,8 +86,12 @@ where
                     e,
                 )
             })?;
+        // Convert Box<ConcreteType> to Box<dyn GatewayStateReaderWithCompiledClasses>. This is safe
+        // because StateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses
+        let boxed_state_reader: Box<dyn GatewayStateReaderWithCompiledClasses> =
+            blockifier_state_reader;
         let state_reader_and_contract_manager = StateReaderAndContractManager::new(
-            blockifier_state_reader,
+            boxed_state_reader,
             self.contract_class_manager.clone(),
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
