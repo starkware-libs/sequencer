@@ -170,7 +170,9 @@ func bytecode_hash_internal_node{
             assert [range_check_ptr] = segment_length;
             tempvar range_check_ptr = range_check_ptr + 1;
             tempvar poseidon_ptr = poseidon_ptr;
-            tempvar current_segment_hash = nondet %{ bytecode_segment_structure.poseidon_hash() %};
+            let current_segment_hash = [ap];
+            %{ SetApToSegmentHashPoseidon %}
+            ap += 1;
         }
     }
 
