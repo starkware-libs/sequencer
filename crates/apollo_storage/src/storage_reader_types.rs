@@ -286,8 +286,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 let casm = txn.get_casm_from_location(location)?;
                 Ok(StorageReaderResponse::CasmsFromLocation(casm))
             }
-            StorageReaderRequest::CompiledClassHash(_class_hash, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::CompiledClassHash(class_hash, block_number) => {
+                let compiled_class_hash = txn
+                    .get_compiled_class_hash(class_hash, block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Compiled class hash".to_string(),
+                        resource_id: format!("class: {class_hash}, block: {block_number}"),
+                    })?;
+                Ok(StorageReaderResponse::CompiledClassHash(compiled_class_hash))
             }
             StorageReaderRequest::StatelessCompiledClassHashV2(class_hash) => {
                 let compiled_class_hash = txn.get_executable_class_hash_v2(&class_hash)?.ok_or(
