@@ -18,7 +18,10 @@ use apollo_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use apollo_batcher_types::communication::BatcherClient;
-use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -44,6 +47,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
+use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
@@ -182,6 +186,14 @@ pub struct SequencerConsensusContextDeps {
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+}
+
+#[derive(thiserror::Error, PartialEq, Debug)]
+enum ReproposeError {
+    #[error(transparent)]
+    SendError(#[from] SendError),
+    #[error(transparent)]
+    ConvertError(#[from] TransactionConverterError),
 }
 
 impl SequencerConsensusContext {
@@ -515,9 +527,11 @@ impl ConsensusContext for SequencerConsensusContext {
         let handle = tokio::spawn(
             async move {
                 let res = build_proposal(args).await.map(|proposal_commitment| {
-                    fin_sender
-                        .send(proposal_commitment)
-                        .map_err(|_| BuildProposalError::SendError(proposal_commitment))?;
+                    fin_sender.send(proposal_commitment).map_err(|e| {
+                        BuildProposalError::SendError(format!(
+                            "Failed to send proposal commitment: {e:?}"
+                        ))
+                    })?;
                     Ok::<_, BuildProposalError>(proposal_commitment)
                 });
                 match res {
@@ -605,48 +619,23 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                stream_sender
-                    .send(ProposalPart::Init(init))
-                    .await
-                    .expect("Failed to send proposal init");
-                stream_sender
-                    .send(ProposalPart::BlockInfo(block_info.clone()))
-                    .await
-                    .expect("Failed to send block info");
-                let mut n_executed_txs: usize = 0;
-                for batch in txs.iter() {
-                    let transactions = futures::future::join_all(batch.iter().map(|tx| {
-                        transaction_converter
-                            .convert_internal_consensus_tx_to_consensus_tx(tx.clone())
-                    }))
-                    .await
-                    .into_iter()
-                    .collect::<Result<Vec<_>, _>>();
-                    let Ok(transactions) = transactions else {
-                        // transaction_converter is an external dependency (class manager) and so
-                        // we can't assume success on reproposal.
-                        error!("Failed converting transaction during repropose: {transactions:?}");
-                        return;
-                    };
-
-                    stream_sender
-                        .send(ProposalPart::Transactions(TransactionBatch { transactions }))
-                        .await
-                        .expect("Failed to broadcast proposal content");
-                    n_executed_txs += batch.len();
+                let res = send_reproposal(
+                    id,
+                    init,
+                    block_info,
+                    txs,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
+                match res {
+                    Ok(()) => {
+                        info!(?id, ?init, "Reproposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("REPROPOSE_FAILED: Reproposal failed. Error: {e:?}");
+                    }
                 }
-                stream_sender
-                    .send(ProposalPart::ExecutedTransactionCount(
-                        n_executed_txs
-                            .try_into()
-                            .expect("Number of executed transactions should fit in u64"),
-                    ))
-                    .await
-                    .expect("Failed to broadcast executed transaction count");
-                stream_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
-                    .await
-                    .expect("Failed to broadcast proposal fin");
             }
             .instrument(error_span!("consensus_repropose", round = init.round)),
         );
@@ -907,6 +896,39 @@ async fn validate_and_send(
         .send(proposal_commitment)
         .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
     Ok(proposal_commitment)
+}
+
+async fn send_reproposal(
+    id: ProposalCommitment,
+    init: ProposalInit,
+    block_info: ConsensusBlockInfo,
+    txs: Vec<Vec<InternalConsensusTransaction>>,
+    stream_sender: &mut StreamSender,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
+) -> Result<(), ReproposeError> {
+    stream_sender.send(ProposalPart::Init(init)).await?;
+    stream_sender.send(ProposalPart::BlockInfo(block_info)).await?;
+    let mut n_executed_txs: usize = 0;
+    for batch in txs.iter() {
+        let transactions = futures::future::join_all(batch.iter().map(|tx| {
+            // transaction_converter is an external dependency (class manager) and so
+            // we can't assume success on reproposal.
+            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
+        }))
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+        stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
+        n_executed_txs += batch.len();
+    }
+    stream_sender
+        .send(ProposalPart::ExecutedTransactionCount(
+            n_executed_txs.try_into().expect("Number of executed transactions should fit in u64"),
+        ))
+        .await?;
+    stream_sender.send(ProposalPart::Fin(ProposalFin { proposal_commitment: id })).await?;
+
+    Ok(())
 }
 
 fn get_eth_to_fri_rate(sync_block: &SyncBlock) -> u128 {
