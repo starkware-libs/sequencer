@@ -19,9 +19,8 @@ impl<S: StorageConstructor, CB: CommitBlockTrait>
             CommitterRequest::CommitBlock(commit_block_request) => {
                 CommitterResponse::CommitBlock(self.commit_block(commit_block_request).await)
             }
-            CommitterRequest::RevertBlock(_) => {
-                // TODO(Yoav): Call the committer.
-                unimplemented!()
+            CommitterRequest::RevertBlock(revert_block_request) => {
+                CommitterResponse::RevertBlock(self.revert_block(revert_block_request).await)
             }
         }
     }
