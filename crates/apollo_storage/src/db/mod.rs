@@ -280,6 +280,35 @@ impl DbWriteTransaction<'_> {
     }
 }
 
+/// A write transaction that owns its environment reference via Arc.
+/// This allows the transaction to be stored in a struct without lifetime issues.
+///
+/// The transaction holds a clone of the `Arc<Environment>`, ensuring the environment
+/// stays alive as long as the transaction exists.
+#[allow(dead_code)]
+pub(crate) struct OwnedDbWriteTransaction {
+    pub(crate) txn: DbWriteTransaction<'static>,
+    // Keep the Arc alive to ensure the environment isn't dropped while the transaction exists.
+    #[allow(dead_code)]
+    env: Arc<Environment>,
+}
+
+impl OwnedDbWriteTransaction {
+    /// Commits the transaction.
+    #[latency_histogram("storage_commit_inner_db_latency_seconds", false)]
+    pub(crate) fn commit(self) -> DbResult<()> {
+        self.txn.commit()
+    }
+
+    /// Opens a table in this transaction.
+    pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+        &self,
+        table_id: &TableIdentifier<K, V, T>,
+    ) -> DbResult<TableHandle<'_, K, V, T>> {
+        self.txn.open_table(table_id)
+    }
+}
+
 #[doc(hidden)]
 // Transaction wrappers.
 pub trait TransactionKind {
