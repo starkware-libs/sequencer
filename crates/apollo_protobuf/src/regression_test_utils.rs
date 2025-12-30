@@ -24,7 +24,7 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
     debug!("Files: {:?}", proto_files);
 
     // OUT_DIR env variable is required by protoc_prebuilt
-    // TODO: Audit that the environment access only happens in single-threaded code.
+    // TODO(Dan): Audit that the environment access only happens in single-threaded code.
     unsafe { env::set_var("OUT_DIR", &out_dir) };
 
     if get_valid_preinstalled_protoc_version().is_none() {
@@ -37,7 +37,7 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
         If this issue persists please download Protoc following the instructions at http://protobuf.dev/installation/",
         );
         info!("Prebuilt protoc added to the project.");
-        // TODO: Audit that the environment access only happens in single-threaded code.
+        // TODO(Dan): Audit that the environment access only happens in single-threaded code.
         unsafe { env::set_var("PROTOC", protoc_bin) };
     }
 

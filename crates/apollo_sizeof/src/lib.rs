@@ -212,7 +212,7 @@ mod tests {
     fn test_should_not_compile() {
         // Note: this sets the TRYBUILD=overwrite env variable globally. If used elsewhere in the
         // future, consider changing this or removing this test.
-        // TODO: Audit that the environment access only happens in single-threaded code.
+        // TODO(Dan): Audit that the environment access only happens in single-threaded code.
         unsafe { env::set_var("TRYBUILD", "overwrite") };
         let t = trybuild::TestCases::new();
         t.compile_fail("negative_tests/*.rs");

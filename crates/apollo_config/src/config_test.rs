@@ -167,7 +167,7 @@ fn test_update_dumped_config() {
     }
     .dump();
     let args = vec!["Testing", "--a", "1234", "--b", "15", "--d", "-2", "--e", "20", "--f", "0.5"];
-    // TODO: Audit that the environment access only happens in single-threaded code.
+    // TODO(Dan): Audit that the environment access only happens in single-threaded code.
     unsafe { env::set_var("C", "true") };
     let args: Vec<String> = args.into_iter().map(|s| s.to_owned()).collect();
 
@@ -196,9 +196,9 @@ fn test_env_nested_params() {
     }
     .dump();
     let args = vec!["Testing", "--opt_elem", "1234"];
-    // TODO: Audit that the environment access only happens in single-threaded code.
+    // TODO(Dan): Audit that the environment access only happens in single-threaded code.
     unsafe { env::set_var("OPT_CONFIG____IS_NONE__", "true") };
-    // TODO: Audit that the environment access only happens in single-threaded code.
+    // TODO(Dan): Audit that the environment access only happens in single-threaded code.
     unsafe { env::set_var("INNER_CONFIG__O", "4") };
     let args: Vec<String> = args.into_iter().map(|s| s.to_owned()).collect();
 
