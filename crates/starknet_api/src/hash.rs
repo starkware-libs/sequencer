@@ -71,7 +71,7 @@ impl TryIntoFelt<&str> for FeltConverter {
 #[cfg(any(feature = "testing", test))]
 #[macro_export]
 macro_rules! felt {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         <$crate::hash::FeltConverter as $crate::hash::TryIntoFelt<_>>::to_felt_unchecked($s)
     };
 }

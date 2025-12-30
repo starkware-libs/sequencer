@@ -116,7 +116,7 @@ macro_rules! impl_common_hint_processor_logic {
                     let rng = self.get_rng();
                     let (random_x, random_y) = loop {
                         // Randomizing 31 bytes to make sure it is in range.
-                        let x_bytes: [u8; 31] = rng.gen();
+                        let x_bytes: [u8; 31] = rng.r#gen();
                         let random_x = Felt::from_bytes_be_slice(&x_bytes);
                         let random_y_squared = random_x * random_x * random_x + random_x + BETA;
                         if let Some(random_y) = random_y_squared.sqrt() {

@@ -78,9 +78,9 @@ macro_rules! define_versioned_constants {
     (
         $struct_name:ident,
         $error_type:ident,
-        $first_version:expr,
+        $first_version:expr_2021,
         $path_to_diff_dir:literal,
-        $(($variant:ident, $path_to_json:expr)),* $(,)?
+        $(($variant:ident, $path_to_json:expr_2021)),* $(,)?
     ) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
@@ -108,9 +108,9 @@ macro_rules! define_versioned_constants {
         $struct_name:ident,
         $intermediate_struct_name:ident,
         $error_type:ident,
-        $first_version:expr,
+        $first_version:expr_2021,
         $path_to_diff_dir:literal,
-        $(($variant:ident, $path_to_json:expr)),* $(,)?
+        $(($variant:ident, $path_to_json:expr_2021)),* $(,)?
     ) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
@@ -143,9 +143,9 @@ macro_rules! define_versioned_constants_inner {
     (
         $struct_name:ident,
         $error_type:ident,
-        $first_version:expr,
+        $first_version:expr_2021,
         $path_to_diff_dir:literal,
-        $(($variant:ident, $path_to_json:expr)),* $(,)?
+        $(($variant:ident, $path_to_json:expr_2021)),* $(,)?
     ) => {
         paste::paste! {
             $(

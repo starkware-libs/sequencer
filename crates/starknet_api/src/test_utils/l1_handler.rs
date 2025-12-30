@@ -16,13 +16,13 @@ pub struct L1HandlerTxArgs {
 /// Utility macro for creating `L1HandlerTransaction` to reduce boilerplate.
 #[macro_export]
 macro_rules! l1_handler_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+    ($($field:ident $(: $value:expr_2021)?),* $(,)?) => {
         $crate::test_utils::l1_handler::L1HandlerTxArgs {
             $($field $(: $value)?,)*
             ..Default::default()
         }
     };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+    ($($field:ident $(: $value:expr_2021)?),* , ..$defaults:expr_2021) => {
         $crate::test_utils::l1_handler::L1HandlerTxArgs {
             $($field $(: $value)?,)*
             ..$defaults

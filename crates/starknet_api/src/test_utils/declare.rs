@@ -80,13 +80,13 @@ impl Default for DeclareTxArgs {
 /// Utility macro for creating `DeclareTxArgs` to reduce boilerplate.
 #[macro_export]
 macro_rules! declare_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+    ($($field:ident $(: $value:expr_2021)?),* $(,)?) => {
         $crate::test_utils::declare::DeclareTxArgs {
             $($field $(: $value)?,)*
             ..Default::default()
         }
     };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+    ($($field:ident $(: $value:expr_2021)?),* , ..$defaults:expr_2021) => {
         $crate::test_utils::declare::DeclareTxArgs {
             $($field $(: $value)?,)*
             ..$defaults

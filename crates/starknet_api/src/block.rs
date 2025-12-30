@@ -314,7 +314,7 @@ impl BlockNumber {
     }
 
     /// Returns an iterator over the block numbers from self to up_to (exclusive).
-    pub fn iter_up_to(&self, up_to: Self) -> impl Iterator<Item = BlockNumber> {
+    pub fn iter_up_to(&self, up_to: Self) -> impl Iterator<Item = BlockNumber> + use<> {
         let range = self.0..up_to.0;
         range.map(Self)
     }

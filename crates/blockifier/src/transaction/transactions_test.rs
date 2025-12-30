@@ -1201,7 +1201,7 @@ fn test_max_fee_exceeds_balance(
 
     // V3 txs.
     macro_rules! assert_resource_overdraft {
-        ($invalid_resource_bounds:expr) => {
+        ($invalid_resource_bounds:expr_2021) => {
             // V3 invoke.
             let invalid_tx = invoke_tx_with_default_flags(invoke_tx_args! {
                 resource_bounds: $invalid_resource_bounds,
@@ -2276,8 +2276,8 @@ fn test_deploy_account_tx(
     }) = tx
     {
         match tx {
-            starknet_api::transaction::DeployAccountTransaction::V1(ref mut tx) => tx.nonce = nonce,
-            starknet_api::transaction::DeployAccountTransaction::V3(ref mut tx) => tx.nonce = nonce,
+            starknet_api::transaction::DeployAccountTransaction::V1(tx) => tx.nonce = nonce,
+            starknet_api::transaction::DeployAccountTransaction::V3(tx) => tx.nonce = nonce,
         }
     }
     let deploy_account = AccountTransaction::new_with_default_flags(tx);

@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! define_hint_enum_base {
-    ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident, $hint_str:expr_2021)),+ $(,)?) => {
         #[cfg_attr(
             any(test, feature = "testing"),
             derive(Default, Deserialize, Serialize, Ord, PartialOrd, strum_macros::EnumIter)
@@ -40,7 +40,7 @@ macro_rules! define_hint_enum_helper {
     (
         $enum_name:ident,
         $hp_arg:ident,
-        $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)?, $hint_str:expr $(, $passed_arg:ident)?)),+ $(,)?
+        $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)?, $hint_str:expr_2021 $(, $passed_arg:ident)?)),+ $(,)?
     ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
@@ -65,7 +65,7 @@ macro_rules! define_hint_enum_helper {
 
 #[macro_export]
 macro_rules! define_stateless_hint_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)?, $hint_str:expr)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)?, $hint_str:expr_2021)),+ $(,)?) => {
         $crate::define_hint_enum_helper!(
             $enum_name,
             _hint_processor,
@@ -76,7 +76,7 @@ macro_rules! define_stateless_hint_enum {
 
 #[macro_export]
 macro_rules! define_common_hint_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr_2021)),+ $(,)?) => {
         $crate::define_hint_enum_helper!(
             $enum_name,
             hint_processor,
@@ -91,7 +91,7 @@ macro_rules! define_hint_enum {
         $enum_name:ident,
         $hp: ty
         $(, $generic_var:ident, $generic:ident)?,
-        $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?
+        $(($hint_name:ident, $implementation:ident, $hint_str:expr_2021)),+ $(,)?
     ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
@@ -120,7 +120,7 @@ macro_rules! define_hint_enum {
 /// implement OS hints like `vm_load_program`.
 #[macro_export]
 macro_rules! define_hint_extension_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr_2021)),+ $(,)?) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
@@ -146,7 +146,7 @@ macro_rules! define_hint_extension_enum {
 
 #[macro_export]
 macro_rules! log_time {
-    ($command:expr, $hint:expr) => {{
+    ($command:expr_2021, $hint:expr_2021) => {{
         let start = std::time::Instant::now();
         let result = $command;
         let elapsed = start.elapsed().as_secs_f64() * 1000.0;

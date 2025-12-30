@@ -213,7 +213,7 @@ impl SyscallExecutionError {
 ///     starknet_types_core::felt::Felt::from_hex_unchecked(MY_ERR);
 /// ```
 macro_rules! const_felt_error {
-    ($name:ident, $value:expr) => {
+    ($name:ident, $value:expr_2021) => {
         pub const $name: &str = $value;
         paste::paste! { pub const [<$name _FELT>]: Felt = Felt::from_hex_unchecked($name); }
     };

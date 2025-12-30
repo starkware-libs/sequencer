@@ -268,7 +268,7 @@ pub fn create_node_config(
     // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
     // otherwise returns `None`. Assumes `components` is in scope.
     macro_rules! wrap_if_component_config_expected {
-        ($component_field:ident, $config_field:expr) => {{
+        ($component_field:ident, $config_field:expr_2021) => {{
             if components.$component_field.is_running_locally() {
                 Some($config_field)
             } else {

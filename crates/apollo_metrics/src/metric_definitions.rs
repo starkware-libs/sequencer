@@ -18,10 +18,10 @@ macro_rules! define_metrics {
                 $(
                     $type:ident { // Metric type, e.g., MetricCounter, MetricGauge, etc.
                         $name:ident, // Metric name, e.g., MEMPOOL_TRANSACTIONS_COMMITTED
-                        $key:expr, // Metric key, e.g., "mempool_txs_committed"
-                        $desc:expr // Metric description, e.g., "The number of transactions that were committed to block"
-                        $(, init = $init:expr)? // Optional initialization value for counters and gauges
-                        $(, labels = $labels:expr)? // Optional labels for labeled metrics
+                        $key:expr_2021, // Metric key, e.g., "mempool_txs_committed"
+                        $desc:expr_2021 // Metric description, e.g., "The number of transactions that were committed to block"
+                        $(, init = $init:expr_2021)? // Optional initialization value for counters and gauges
+                        $(, labels = $labels:expr_2021)? // Optional labels for labeled metrics
                     }
                 ),*
                 $(,)?
@@ -49,8 +49,8 @@ macro_rules! define_metrics {
         )*
     };
 
-    (@define_single $scope:ident, $type:ident, $name:ident, $key:expr, $desc:expr
-        $(, init = $init:expr)? $(, labels = $labels:expr)?
+    (@define_single $scope:ident, $type:ident, $name:ident, $key:expr_2021, $desc:expr_2021
+        $(, init = $init:expr_2021)? $(, labels = $labels:expr_2021)?
     ) => {
         $crate::paste::paste! {
             pub const $name: $crate::metrics::$type = $crate::metrics::$type::new(

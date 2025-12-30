@@ -311,15 +311,15 @@ impl SequencerNodeClients {
 /// ```
 macro_rules! create_client {
     (
-        $execution_mode:expr,
+        $execution_mode:expr_2021,
         $local_client_type:ty,
         $remote_client_type:ty,
-        $channel_expr:expr,
-        $remote_client_config:expr,
-        $url:expr,
-        $port:expr,
-        $local_client_metrics:expr,
-        $remote_client_metrics:expr
+        $channel_expr:expr_2021,
+        $remote_client_config:expr_2021,
+        $url:expr_2021,
+        $port:expr_2021,
+        $local_client_metrics:expr_2021,
+        $remote_client_metrics:expr_2021
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled

@@ -36,7 +36,7 @@ pub mod create_facts_tree_test;
 
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
-    ($index:expr, $value:expr) => {
+    ($index:expr_2021, $value:expr_2021) => {
         warn!("Encountered a trivial modification at index {:?}, with value {:?}", $index, $value);
     };
 }

@@ -39,7 +39,7 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 macro_rules! compare_skeleton_tree {
-    ($actual_skeleton:expr, $expected_skeleton:expr, $expected_indices:expr) => {{
+    ($actual_skeleton:expr_2021, $expected_skeleton:expr_2021, $expected_indices:expr_2021) => {{
         let mut indices = create_expected_sorted_indices($expected_indices);
         let sorted_indices = SortedLeafIndices::new(&mut indices);
         let copied_expected_skeleton =

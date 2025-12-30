@@ -76,7 +76,7 @@ impl std::fmt::Display for ChainId {
             ChainId::Mainnet => write!(f, "SN_MAIN"),
             ChainId::Sepolia => write!(f, "SN_SEPOLIA"),
             ChainId::IntegrationSepolia => write!(f, "SN_INTEGRATION_SEPOLIA"),
-            ChainId::Other(ref s) => write!(f, "{s}"),
+            ChainId::Other(s) => write!(f, "{s}"),
         }
     }
 }
@@ -489,7 +489,7 @@ impl Debug for PatriciaKey {
 #[cfg(any(feature = "testing", test))]
 #[macro_export]
 macro_rules! patricia_key {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::core::PatriciaKey::try_from($crate::felt!($s)).unwrap()
     };
 }
@@ -498,7 +498,7 @@ macro_rules! patricia_key {
 #[cfg(any(feature = "testing", test))]
 #[macro_export]
 macro_rules! class_hash {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::core::ClassHash($crate::felt!($s))
     };
 }
@@ -508,7 +508,7 @@ macro_rules! class_hash {
 #[cfg(any(feature = "testing", test))]
 #[macro_export]
 macro_rules! contract_address {
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::core::ContractAddress($crate::patricia_key!($s))
     };
 }

@@ -508,7 +508,7 @@ fn extract_virtual_machine_error_into_stack_trace(
     vm_error: &VirtualMachineError,
 ) {
     match vm_error {
-        VirtualMachineError::Hint(ref boxed_hint_error) => {
+        VirtualMachineError::Hint(boxed_hint_error) => {
             if let HintError::Internal(internal_vm_error) = &boxed_hint_error.1 {
                 return extract_virtual_machine_error_into_stack_trace(
                     error_stack,

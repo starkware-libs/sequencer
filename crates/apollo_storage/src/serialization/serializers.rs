@@ -641,7 +641,7 @@ macro_rules! auto_storage_serde {
         auto_storage_serde!($($rest)*);
     };
     // enums.
-    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
+    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr_2021 ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
                 #[allow(clippy::as_conversions)]

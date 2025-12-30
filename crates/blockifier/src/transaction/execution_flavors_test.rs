@@ -444,7 +444,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
 
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
     macro_rules! execute_and_check_gas_and_fee {
-        ($max_fee:expr, $resource_bounds:expr) => {{
+        ($max_fee:expr_2021, $resource_bounds:expr_2021) => {{
             let tx = executable_invoke_tx(invoke_tx_args! {
                 max_fee: $max_fee,
                 resource_bounds: $resource_bounds,

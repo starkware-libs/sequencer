@@ -33,9 +33,9 @@ use crate::{felt, tx_hash};
 /// and asserts that the block hash changes as a result.
 macro_rules! test_hash_changes {
     (
-        PartialBlockHashComponents { $($partial_block_hash_components_field:ident: $partial_block_hash_components_value:expr),* $(,)? },
-        state_root: $state_root:expr,
-        parent_hash: $parent_hash:expr
+        PartialBlockHashComponents { $($partial_block_hash_components_field:ident: $partial_block_hash_components_value:expr_2021),* $(,)? },
+        state_root: $state_root:expr_2021,
+        parent_hash: $parent_hash:expr_2021
     ) => {
         {
             let partial_block_hash_components = PartialBlockHashComponents {

@@ -321,7 +321,7 @@ fn test_compiled_class_hash(
     let mut actual_builtin_usage_parts: Vec<_> = actual_execution_resources
         .builtin_instance_counter
         .iter()
-        .filter(|(_, &count)| count > 0)
+        .filter(|&(_, &count)| count > 0)
         .map(|(name, count)| format!("{}: {}", name.to_str_with_suffix(), count))
         .collect();
     actual_builtin_usage_parts.sort();

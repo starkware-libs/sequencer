@@ -234,8 +234,8 @@ impl TransfersGenerator {
         execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutionInfo> {
         let results = match executor_wrapper {
-            ExecutorWrapper::Concurrent(ref mut executor, _) => executor.add_txs_and_wait(txs),
-            ExecutorWrapper::Sequential(ref mut executor) => {
+            ExecutorWrapper::Concurrent(executor, _) => executor.add_txs_and_wait(txs),
+            ExecutorWrapper::Sequential(executor) => {
                 executor.execute_txs(txs, execution_deadline)
             }
         };

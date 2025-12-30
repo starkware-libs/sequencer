@@ -74,7 +74,7 @@ impl MockSwarm {
     pub fn get_responses_sent_to_inbound_session(
         &mut self,
         inbound_session_id: InboundSessionId,
-    ) -> impl Future<Output = Vec<Bytes>> {
+    ) -> impl Future<Output = Vec<Bytes>> + use<> {
         let (responses_sender, responses_receiver) = unbounded();
         if self
             .inbound_session_id_to_response_sender
@@ -86,19 +86,19 @@ impl MockSwarm {
         responses_receiver.collect()
     }
 
-    pub fn stream_messages_we_broadcasted(&mut self) -> impl Stream<Item = (Bytes, TopicHash)> {
+    pub fn stream_messages_we_broadcasted(&mut self) -> impl Stream<Item = (Bytes, TopicHash)> + use<> {
         let (sender, receiver) = unbounded();
         self.broadcasted_messages_senders.push(sender);
         receiver
     }
 
-    pub fn get_reported_peers_stream(&mut self) -> impl Stream<Item = PeerId> {
+    pub fn get_reported_peers_stream(&mut self) -> impl Stream<Item = PeerId> + use<> {
         let (sender, receiver) = unbounded();
         self.reported_peer_senders.push(sender);
         receiver
     }
 
-    pub fn get_supported_inbound_protocol(&mut self) -> impl Stream<Item = StreamProtocol> {
+    pub fn get_supported_inbound_protocol(&mut self) -> impl Stream<Item = StreamProtocol> + use<> {
         let (sender, receiver) = unbounded();
         self.supported_inbound_protocols_senders.push(sender);
         receiver

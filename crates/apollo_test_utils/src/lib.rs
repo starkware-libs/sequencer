@@ -205,7 +205,7 @@ pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_re
 pub fn get_rng() -> ChaCha8Rng {
     let seed: u64 = match env::var("SEED") {
         Ok(seed_str) => seed_str.parse().unwrap(),
-        _ => rand::thread_rng().gen(),
+        _ => rand::thread_rng().r#gen(),
     };
     // Will be printed if the test failed.
     println!("Testing with seed: {seed:?}");
@@ -1034,7 +1034,7 @@ macro_rules! auto_impl_get_test_instance {
         auto_impl_get_test_instance!($($rest)*);
     };
     // enums.
-    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
+    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr_2021 ,)* } $($rest:tt)*) => {
         impl GetTestInstance for $name {
             fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
                 use rand::Rng;
@@ -1122,7 +1122,7 @@ impl<K: GetTestInstance + Eq + Ord, V: GetTestInstance> GetTestInstance for BTre
 // Counts the number of variants of an enum.
 #[macro_export]
 macro_rules! get_number_of_variants {
-    (enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* }) => {
+    (enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr_2021 ,)* }) => {
         get_number_of_variants!(@count $($variant),+)
     };
     (@count $t1:tt, $($t:tt),+) => { 1 + get_number_of_variants!(@count $($t),+) };

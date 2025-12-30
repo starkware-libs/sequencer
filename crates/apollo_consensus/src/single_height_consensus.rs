@@ -317,7 +317,7 @@ impl SingleHeightConsensus {
             .state_machine
             .precommits_ref()
             .iter()
-            .filter(|(&(r, _voter), (v, _w))| {
+            .filter(|&(&(r, _voter), &(ref v, ref _w))| {
                 r == round && v.proposal_commitment == Some(proposal_id)
             })
             .map(|(_vote_key, (v, _w))| v.clone())
