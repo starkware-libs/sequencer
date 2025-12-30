@@ -67,7 +67,7 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
-    let mut base_layer = AnvilBaseLayer::new(None).await;
+    let mut base_layer = AnvilBaseLayer::new(None, None).await;
     anvil_mine_blocks(base_layer.ethereum_base_layer.config.clone(), NUMBER_OF_BLOCKS_TO_MINE)
         .await;
     // We use a really long timeout because in the tests we sometimes advance the fake time by large

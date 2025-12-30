@@ -123,7 +123,7 @@ impl FlowTestSetup {
             .try_into()
             .unwrap();
 
-        let anvil_base_layer = AnvilBaseLayer::new(None).await;
+        let anvil_base_layer = AnvilBaseLayer::new(None, None).await;
         let base_layer_url = anvil_base_layer.get_url().await.unwrap();
         let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
 

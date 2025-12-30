@@ -41,18 +41,19 @@ use url::Url;
 pub struct AnvilBaseLayer {
     pub anvil_provider: DynProvider,
     pub ethereum_base_layer: EthereumBaseLayerContract,
+    pub port: u16,
 }
 
 impl AnvilBaseLayer {
     pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
         StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-    const DEFAULT_ANVIL_PORT: u16 = 8545;
+    pub const DEFAULT_ANVIL_PORT: u16 = 8545;
     const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
     /// Note: if you have port conflicts, you might have a zombie anvil instance
     /// running, but that should be impossible if using through this service, you probably have a
     /// manually triggered Anvil instance somewhere in your shell.
-    pub async fn new(block_time: Option<u64>) -> Self {
+    pub async fn new(block_time: Option<u64>, port: Option<u16>) -> Self {
         let is_unit_test = cfg!(test);
         if is_unit_test {
             panic!(
@@ -80,10 +81,10 @@ curl -L \
                 panic!("Failed anvil version check: {error:?}")
             }
         });
-
+        let port = port.unwrap_or(Self::DEFAULT_ANVIL_PORT);
         let anvil_client = ProviderBuilder::new()
             .connect_anvil_with_wallet_and_config(|anvil| {
-                let anvil = anvil.port(Self::DEFAULT_ANVIL_PORT);
+                let anvil = anvil.port(port);
                 if let Some(block_time) = block_time { anvil.block_time(block_time) } else { anvil }
             })
             .unwrap_or_else(|error| match error {
@@ -97,7 +98,7 @@ curl -L \
 
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
-        let config = Self::config();
+        let config = Self::config(Self::url_static(port));
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
@@ -105,6 +106,7 @@ curl -L \
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
             ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
+            port,
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -118,14 +120,18 @@ curl -L \
         send_message_to_l2(&self.ethereum_base_layer.contract, l1_handler).await
     }
 
-    pub fn url() -> Url {
-        format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap()
+    pub fn url(&self) -> Url {
+        Self::url_static(self.port)
     }
 
-    pub fn config() -> EthereumBaseLayerConfig {
+    pub fn url_static(port: u16) -> Url {
+        format!("http://127.0.0.1:{}", port).parse().unwrap()
+    }
+
+    pub fn config(url: Url) -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-            ordered_l1_endpoint_urls: vec![Self::url().into()],
+            ordered_l1_endpoint_urls: vec![url.into()],
             ..Default::default()
         }
     }
