@@ -13,6 +13,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::body::{BodyStorageReader, TransactionIndex};
+use crate::class::ClassStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::consensus::LastVotedMarker;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
@@ -231,11 +232,18 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::DeclaredClassesBlock(_class_hash) => {
                 unimplemented!()
             }
-            StorageReaderRequest::DeprecatedDeclaredClassesLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeprecatedDeclaredClassesLocation(class_hash) => {
+                let location = txn.get_deprecated_class_location(&class_hash)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Deprecated declared class location".to_string(),
+                        resource_id: class_hash.to_string(),
+                    },
+                )?;
+                Ok(StorageReaderResponse::DeprecatedDeclaredClassesLocation(location))
             }
-            StorageReaderRequest::DeprecatedDeclaredClassesFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::DeprecatedDeclaredClassesFromLocation(location) => {
+                let deprecated_class = txn.get_deprecated_class_from_location(location)?;
+                Ok(StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(deprecated_class))
             }
             StorageReaderRequest::DeprecatedDeclaredClassesBlock(_class_hash) => {
                 unimplemented!()
