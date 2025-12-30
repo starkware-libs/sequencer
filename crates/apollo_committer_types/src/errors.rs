@@ -1,7 +1,7 @@
 use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_committer::db::forest_trait::ForestMetadataType;
 use thiserror::Error;
 
@@ -18,6 +18,15 @@ pub enum CommitterError {
     InvalidStateDiffCommitment {
         input_commitment: StateDiffCommitment,
         stored_commitment: StateDiffCommitment,
+        height: BlockNumber,
+    },
+    #[error(
+        "Global root for the committed block number {height} is {stored_global_root}, got \
+         {input_global_root}."
+    )]
+    InvalidGlobalRoot {
+        input_global_root: GlobalRoot,
+        stored_global_root: GlobalRoot,
         height: BlockNumber,
     },
     #[error("Failed to read metadata for {0:?}")]

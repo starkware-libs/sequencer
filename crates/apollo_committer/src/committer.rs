@@ -160,6 +160,20 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         let (filled_forest, revert_global_root) =
             self.commit_state_diff(reversed_state_diff).await?;
 
+        // The last committed block is offset-1. After the revert, the last committed block wll be
+        // offset-2 (if exists).
+        if let Some(prev_committed_block) = last_committed_block.prev() {
+            let stored_global_root = self.load_global_root(prev_committed_block).await?;
+            if stored_global_root != revert_global_root {
+                // The revert global root is not the same as the stored global root.
+                return Err(CommitterError::InvalidGlobalRoot {
+                    input_global_root: revert_global_root,
+                    stored_global_root,
+                    height: prev_committed_block,
+                });
+            }
+        }
+
         let metadata = HashMap::from([
             (
                 ForestMetadataType::CommitmentOffset,
