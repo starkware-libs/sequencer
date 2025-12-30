@@ -1,6 +1,7 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
+    BLOCK_HASH_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
@@ -62,6 +63,15 @@ fn get_panel_storage_height() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")
+}
+
+fn get_panel_block_hash_height() -> Panel {
+    Panel::new(
+        "Block Hash Height",
+        "The height of the first block without block hash stored.",
+        BLOCK_HASH_HEIGHT.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
@@ -142,6 +152,7 @@ pub(crate) fn get_batcher_row() -> Row {
         "Batcher",
         vec![
             get_panel_storage_height(),
+            get_panel_block_hash_height(),
             get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),

@@ -335,6 +335,15 @@
           }
         },
         {
+          "title": "Block Hash Height",
+          "description": "The height of the first block without block hash stored.",
+          "type": "stat",
+          "exprs": [
+            "batcher_block_hash_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Average Block Time",
           "description": "Average block time (1m window)",
           "type": "timeseries",
