@@ -12748,6 +12748,7 @@ dependencies = [
  "cairo-vm",
  "indexmap 2.12.0",
  "rstest",
+ "shared_execution_objects",
  "starknet-rust",
  "starknet-rust-core 0.16.0",
  "starknet-types-core",
