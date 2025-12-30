@@ -56,7 +56,7 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
+        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
     };
 
     let result = stateful_validator
@@ -107,7 +107,7 @@ async fn test_run_pre_validation_checks(
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
+        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
     };
 
     let resource_bounds = if zero_gas_fee {
@@ -210,7 +210,7 @@ async fn test_skip_validate(
         },
         chain_info: ChainInfo::create_for_testing(),
         state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
+        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
     };
 
     let skip_validate = stateful_validator
@@ -313,7 +313,7 @@ async fn validate_resource_bounds(
         },
         chain_info: ChainInfo::create_for_testing(),
         state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
+        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
     };
 
     let result = stateful_validator.validate_resource_bounds(&executable_tx).await;
@@ -423,7 +423,7 @@ async fn run_pre_validation_checks_test(
         },
         chain_info: ChainInfo::create_for_testing(),
         state_reader_and_contract_manager: None,
-        gateway_fixed_block_state_reader: Box::new(mock_gateway_fixed_block),
+        gateway_fixed_block_state_reader: mock_gateway_fixed_block,
     };
 
     let mut mempool_client = MockMempoolClient::new();
