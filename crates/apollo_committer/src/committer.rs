@@ -29,7 +29,7 @@ use tracing::error;
 pub type ApolloStorage = MapStorage;
 pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockImpl>;
 
-pub trait StorageConstructor {
+pub trait StorageConstructor: Storage {
     fn create_storage() -> Self;
 }
 
@@ -40,7 +40,7 @@ impl StorageConstructor for ApolloStorage {
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
-pub struct Committer<S: Storage + StorageConstructor, CB: CommitBlockTrait> {
+pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
     /// Storage for forest operations.
     forest_storage: MockForestStorage<S>,
     /// Committer config.
@@ -51,7 +51,7 @@ pub struct Committer<S: Storage + StorageConstructor, CB: CommitBlockTrait> {
     phantom: PhantomData<CB>,
 }
 
-impl<S: Storage + StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
+impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
         let db_offset = forest_storage
