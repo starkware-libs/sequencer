@@ -22,6 +22,8 @@ pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(||
 pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
 pub const AGGREGATOR_PROGRAM_BYTES: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/starknet_aggregator_bytes"));
+pub const VIRTUAL_OS_PROGRAM_BYTES: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/virtual_os_bytes"));
 
 pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
     Program::from_bytes(OS_PROGRAM_BYTES, Some("main")).expect("Failed to load the OS bytes.")
@@ -29,6 +31,10 @@ pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
 pub static AGGREGATOR_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
     Program::from_bytes(AGGREGATOR_PROGRAM_BYTES, Some("main"))
         .expect("Failed to load the aggregator bytes.")
+});
+pub static VIRTUAL_OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
+    Program::from_bytes(VIRTUAL_OS_PROGRAM_BYTES, Some("main"))
+        .expect("Failed to load the virtual OS bytes.")
 });
 
 pub static PROGRAM_HASHES: LazyLock<ProgramHashes> = LazyLock::new(|| {
