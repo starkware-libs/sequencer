@@ -7,7 +7,7 @@ Python wrapper to deploy echonet via Kustomize.
   -t  X-Throttling-Bypass token value for feeder requests (sets FEEDER_X_THROTTLING_BYPASS env)
   -s  starting block number (sets START_BLOCK_DEFAULT env)
   -e  resync error threshold (sets RESYNC_ERROR_THRESHOLD env)
-  -a  L1 Alchemy API key (sets L1_ALCHEMY_API_KEY env)
+  -a  L1 provider API key (sets L1_PROVIDER_API_KEY env)
   -B  blocked sender addresses (comma-separated) (sets BLOCKED_SENDERS env)
   --conf  load defaults from JSON config file.
 """
@@ -169,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Load defaults from JSON config file.\n"
             "Priority: CLI arguments override config file, config file overrides hardcoded defaults.\n"
-            "Required fields: start_block_default, l1_alchemy_api_key\n"
+            "Required fields: start_block_default, l1_provider_api_key\n"
             "Update echonet_keys.json with your values, and delete fields if you want to use their hardcoded defaults.\n"
             "Run: python deploy_echonet.py --conf <PATH_TO_SECRETS.json>"
         ),
@@ -194,9 +194,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "-a",
-        dest="l1_alchemy_api_key",
+        dest="l1_provider_api_key",
         metavar="API_KEY",
-        help="L1 Alchemy API key (L1_ALCHEMY_API_KEY env).",
+        help="L1 provider API key (L1_PROVIDER_API_KEY env).",
     )
     parser.add_argument(
         "-B",
@@ -257,8 +257,8 @@ def main(argv: list[str] | None = None) -> int:
         env_args.append(f"START_BLOCK_DEFAULT={args.start_block_default}")
     if args.resync_error_threshold:
         env_args.append(f"RESYNC_ERROR_THRESHOLD={args.resync_error_threshold}")
-    if args.l1_alchemy_api_key:
-        env_args.append(f"L1_ALCHEMY_API_KEY={args.l1_alchemy_api_key}")
+    if args.l1_provider_api_key:
+        env_args.append(f"L1_PROVIDER_API_KEY={args.l1_provider_api_key}")
     if args.blocked_senders:
         env_args.append(f"BLOCKED_SENDERS={args.blocked_senders}")
 
