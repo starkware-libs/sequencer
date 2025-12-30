@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables, unused_mut)]
 
+use apollo_committer_types::communication::SharedCommitterClient;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
@@ -9,7 +10,7 @@ use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput
 pub(crate) struct StateCommitter {
     pub(crate) tasks_receiver: Receiver<CommitmentTaskInput>,
     pub(crate) results_sender: Sender<CommitmentTaskOutput>,
-    // TODO(Nimrod): Add committer client here.
+    pub(crate) committer_client: SharedCommitterClient,
 }
 
 impl StateCommitter {

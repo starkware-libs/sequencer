@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
+use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_reverts::RevertConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
@@ -72,6 +73,7 @@ impl CommitmentManager {
         config: &CommitmentManagerConfig,
         revert_config: &RevertConfig,
         global_root_height: BlockNumber,
+        committer_client: SharedCommitterClient,
     ) -> Option<Self> {
         if revert_config.should_revert {
             info!("Revert mode is enabled, not initializing commitment manager.");
@@ -81,6 +83,7 @@ impl CommitmentManager {
             Some(CommitmentManager::initialize(
                 CommitmentManagerConfig::default(),
                 global_root_height,
+                committer_client,
             ))
         }
     }
@@ -89,12 +92,13 @@ impl CommitmentManager {
     pub(crate) fn initialize(
         config: CommitmentManagerConfig,
         global_root_height: BlockNumber,
+        committer_client: SharedCommitterClient,
     ) -> Self {
         info!("Initializing CommitmentManager with config {config:?}");
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
         let (results_sender, results_receiver) = channel(config.results_channel_size);
 
-        let state_committer = StateCommitter { tasks_receiver, results_sender };
+        let state_committer = StateCommitter { tasks_receiver, results_sender, committer_client };
 
         let commitment_task_performer = state_committer.run();
 
@@ -288,6 +292,7 @@ impl CommitmentManager {
         batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
         storage_reader: &R,
+        committer_client: SharedCommitterClient,
     ) -> Option<Self> {
         let global_root_height = storage_reader
             .global_root_height()
@@ -296,6 +301,7 @@ impl CommitmentManager {
             commitment_manager_config,
             &batcher_config.revert_config,
             global_root_height,
+            committer_client,
         );
         if let Some(ref mut cm) = commitment_manager {
             let block_height =
