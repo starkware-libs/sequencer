@@ -93,6 +93,9 @@ pub trait BodyStorageReader {
     /// The body marker is the first block number that doesn't exist yet.
     fn get_body_marker(&self) -> StorageResult<BlockNumber>;
 
+    /// The event marker is the first block number that doesn't have events indexed yet.
+    fn get_event_marker(&self) -> StorageResult<BlockNumber>;
+
     /// Returns the transaction and its execution status at the given index.
     fn get_transaction(
         &self,
@@ -179,6 +182,11 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     fn get_body_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table.get(&self.txn, &MarkerKind::Body)?.unwrap_or_default())
+    }
+
+    fn get_event_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
     }
 
     // TODO(dvir): add option to get transaction with its hash.
