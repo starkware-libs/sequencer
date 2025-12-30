@@ -150,7 +150,10 @@ struct MockDependencies {
 }
 
 impl MockDependencies {
-    fn gateway(self) -> GatewayImplementation<MockStatelessTransactionValidatorTrait> {
+    fn gateway(
+        self,
+    ) -> GatewayImplementation<MockStatelessTransactionValidatorTrait, MockTransactionConverterTrait>
+    {
         register_metrics();
         GatewayImplementation::new(
             self.config,
@@ -564,7 +567,10 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = GatewayImplementation {
+    let gateway = GatewayImplementation::<
+        MockStatelessTransactionValidatorTrait,
+        MockTransactionConverterTrait,
+    > {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
@@ -616,7 +622,10 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = GatewayImplementation {
+    let gateway = GatewayImplementation::<
+        MockStatelessTransactionValidatorTrait,
+        MockTransactionConverterTrait,
+    > {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),

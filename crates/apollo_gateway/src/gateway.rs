@@ -58,14 +58,14 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 pub mod gateway_test;
 
 #[derive(Clone)]
-pub struct Gateway(GatewayImplementation<StatelessTransactionValidator>);
+pub struct Gateway(GatewayImplementation<StatelessTransactionValidator, TransactionConverter>);
 
 impl Gateway {
     pub(crate) fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
-        transaction_converter: Arc<dyn TransactionConverterTrait>,
+        transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
     ) -> Self {
         Self(GatewayImplementation::new(
@@ -87,27 +87,29 @@ impl Gateway {
 }
 
 #[derive(Clone)]
-struct GatewayImplementation<GenericStatelessTransactionValidator>
+struct GatewayImplementation<GenericStatelessTransactionValidator, GenericTransactionConverter>
 where
     GenericStatelessTransactionValidator: StatelessTransactionValidatorTrait,
+    GenericTransactionConverter: TransactionConverterTrait,
 {
     config: Arc<GatewayConfig>,
     stateless_tx_validator: Arc<GenericStatelessTransactionValidator>,
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     mempool_client: SharedMempoolClient,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
+    transaction_converter: Arc<GenericTransactionConverter>,
 }
 
-impl<GenericStatelessTransactionValidator>
-    GatewayImplementation<GenericStatelessTransactionValidator>
+impl<GenericStatelessTransactionValidator, GenericTransactionConverter>
+    GatewayImplementation<GenericStatelessTransactionValidator, GenericTransactionConverter>
 where
     GenericStatelessTransactionValidator: StatelessTransactionValidatorTrait,
+    GenericTransactionConverter: TransactionConverterTrait,
 {
     fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
-        transaction_converter: Arc<dyn TransactionConverterTrait>,
+        transaction_converter: Arc<GenericTransactionConverter>,
         stateless_tx_validator: Arc<GenericStatelessTransactionValidator>,
     ) -> Self {
         Self {
