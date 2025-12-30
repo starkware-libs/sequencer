@@ -634,50 +634,52 @@ impl ProofFacts {
     pub fn hash(&self) -> Felt {
         HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
-
-    fn get_field_at_idx(&self, idx: usize, expected_field_name: &str) -> StarknetApiResult<Felt> {
-        self.0.get(idx).cloned().ok_or_else(|| {
-            StarknetApiError::InvalidProofFacts(format!(
-                "there was no value at index {idx}. In SNOS proof facts we assume field \
-                 {expected_field_name} is at index {idx}."
-            ))
-        })
-    }
 }
 
 /// Represents the variants of proof facts associated with a transaction.
 ///
-/// Currently, only SNOS proof facts are supported. The `Empty` variant indicates that the
-/// transaction does not utilize the client-side proving feature.
-pub enum ProofFactsVariants {
+/// Currently, only SNOS proof facts are supported. Non-SNOS proofs are not supported.
+/// The `Empty` variant indicates that the transaction does not utilize the client-side proving
+/// feature.
+pub enum ProofFactsVariant {
     Empty,
     Snos(SnosProofFacts),
 }
 
-impl TryFrom<&ProofFacts> for ProofFactsVariants {
+impl TryFrom<&ProofFacts> for ProofFactsVariant {
     type Error = StarknetApiError;
     fn try_from(proof_facts: &ProofFacts) -> Result<Self, Self::Error> {
-        if proof_facts.is_empty() {
-            Ok(ProofFactsVariants::Empty)
-        } else if proof_facts.0[0] == Felt::from(VIRTUAL_SNOS) {
-            Ok(ProofFactsVariants::Snos(SnosProofFacts {
-                program_hash: proof_facts.get_field_at_idx(1, "program hash")?,
-                block_number: BlockNumber(
-                    proof_facts.get_field_at_idx(2, "block number")?.try_into().map_err(|_| {
-                        StarknetApiError::InvalidProofFacts(
-                            "block number was not a valid u64".to_string(),
-                        )
-                    })?,
-                ),
-                block_hash: BlockHash(proof_facts.get_field_at_idx(3, "block hash")?),
-                config_hash: proof_facts.get_field_at_idx(4, "config hash")?,
-            }))
-        } else {
-            Err(StarknetApiError::InvalidProofFacts(format!(
-                "Non empty ProofFacts first field should be {} (VIRTUAL_SNOS) got {}",
-                Felt::from(VIRTUAL_SNOS),
-                proof_facts.0[0]
-            )))
+        match proof_facts.0.as_slice() {
+            [] => Ok(ProofFactsVariant::Empty),
+            [first, program_hash, block_number_felt, block_hash, config_hash, ..]
+                if *first == Felt::from(VIRTUAL_SNOS) =>
+            {
+                let block_number = BlockNumber((*block_number_felt).try_into().map_err(|_| {
+                    StarknetApiError::InvalidProofFacts(format!(
+                        "Block number field at index 2 is not a valid u64: {}",
+                        block_number_felt
+                    ))
+                })?);
+
+                Ok(ProofFactsVariant::Snos(SnosProofFacts {
+                    program_hash: *program_hash,
+                    block_number,
+                    block_hash: BlockHash(*block_hash),
+                    config_hash: *config_hash,
+                }))
+            }
+            [first, ..] if *first != Felt::from(VIRTUAL_SNOS) => {
+                Err(StarknetApiError::InvalidProofFacts(format!(
+                    "Non-SNOS proofs are not currently supported. Expected first field to be {} \
+                     (VIRTUAL_SNOS), but got {}",
+                    Felt::from(VIRTUAL_SNOS),
+                    first
+                )))
+            }
+            _ => Err(StarknetApiError::InvalidProofFacts(format!(
+                "SNOS proof facts must have at least 5 fields, got {}",
+                proof_facts.0.len()
+            ))),
         }
     }
 }
