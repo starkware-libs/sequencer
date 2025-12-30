@@ -451,12 +451,7 @@ define_stateless_hint_enum!(
     (EnterScopeWithAliases, enter_scope_with_aliases),
     (KeyLtMinAliasAllocValue, key_lt_min_alias_alloc_value),
     (AssertKeyBigEnoughForAlias, assert_key_big_enough_for_alias),
-    (
-        ContractAddressLeMaxForCompression,
-        contract_address_le_max_for_compression,
-        "memory[ap] = to_felt_or_relocatable(ids.contract_address <= \
-         ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS)"
-    ),
+    (ContractAddressLeMaxForCompression, contract_address_le_max_for_compression),
     (
         ComputeCommitmentsOnFinalizedStateWithAliases,
         compute_commitments_on_finalized_state_with_aliases
