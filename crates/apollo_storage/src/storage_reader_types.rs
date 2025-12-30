@@ -16,6 +16,7 @@ use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
+use crate::compiled_class::CasmStorageReader;
 use crate::consensus::LastVotedMarker;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
@@ -272,11 +273,17 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::DeprecatedDeclaredClassesBlock(_class_hash) => {
                 unimplemented!()
             }
-            StorageReaderRequest::CasmsLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::CasmsLocation(class_hash) => {
+                let location =
+                    txn.get_casm_location(&class_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "CASM location".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::CasmsLocation(location))
             }
-            StorageReaderRequest::CasmsFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::CasmsFromLocation(location) => {
+                let casm = txn.get_casm_from_location(location)?;
+                Ok(StorageReaderResponse::CasmsFromLocation(casm))
             }
             StorageReaderRequest::CompiledClassHash(_class_hash, _block_number) => {
                 unimplemented!()
