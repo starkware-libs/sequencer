@@ -93,6 +93,18 @@ pub trait BodyStorageReader {
     /// The body marker is the first block number that doesn't exist yet.
     fn get_body_marker(&self) -> StorageResult<BlockNumber>;
 
+    /// Returns the location in file for a transaction at the given index.
+    fn get_transaction_location(
+        &self,
+        transaction_index: TransactionIndex,
+    ) -> StorageResult<Option<crate::mmap_file::LocationInFile>>;
+
+    /// Returns the transaction from a specific location in file.
+    fn get_transaction_from_location(
+        &self,
+        location: crate::mmap_file::LocationInFile,
+    ) -> StorageResult<Transaction>;
+
     /// Returns the transaction and its execution status at the given index.
     fn get_transaction(
         &self,
@@ -175,18 +187,31 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         Ok(markers_table.get(&self.txn, &MarkerKind::Body)?.unwrap_or_default())
     }
 
+    fn get_transaction_location(
+        &self,
+        transaction_index: TransactionIndex,
+    ) -> StorageResult<Option<crate::mmap_file::LocationInFile>> {
+        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        Ok(transaction_metadata_table
+            .get(&self.txn, &transaction_index)?
+            .map(|tx_metadata| tx_metadata.tx_location))
+    }
+
+    fn get_transaction_from_location(
+        &self,
+        location: crate::mmap_file::LocationInFile,
+    ) -> StorageResult<Transaction> {
+        self.file_handlers.get_transaction_unchecked(location)
+    }
+
     // TODO(dvir): add option to get transaction with its hash.
     fn get_transaction(
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<Transaction>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let Some(tx_metadata) = transaction_metadata_table.get(&self.txn, &transaction_index)?
-        else {
-            return Ok(None);
-        };
-        let transaction = self.file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
-        Ok(Some(transaction))
+        self.get_transaction_location(transaction_index)?
+            .map(|location| self.get_transaction_from_location(location))
+            .transpose()
     }
 
     fn get_transaction_output(
