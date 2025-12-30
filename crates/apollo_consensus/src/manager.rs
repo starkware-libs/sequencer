@@ -474,7 +474,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.cache.report_max_cached_block_number_metric(height);
 
-        if let Some(sync_result) = self.check_and_wait_for_sync(context, height).await? {
+        if let Some(sync_result) = self.check_and_wait_for_sync(context, height).await {
             return Ok(sync_result);
         }
 
@@ -501,12 +501,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 
     /// Check if we need to sync and wait if necessary.
-    /// Returns Some(RunHeightRes::Sync) if sync is needed, None otherwise.
+    /// Returns Some(RunHeightRes::Sync) if sync height was learned via sync, None otherwise.
     async fn check_and_wait_for_sync(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-    ) -> Result<Option<RunHeightRes>, ConsensusError> {
+    ) -> Option<RunHeightRes> {
         // If we already voted for this height, do not proceed until we sync to this height.
         // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
         // consensus.
@@ -522,11 +522,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 self.last_voted_height_at_initialization.unwrap().0
             );
             self.wait_until_sync_reaches_height(height, context).await;
-            return Ok(Some(RunHeightRes::Sync));
+            return Some(RunHeightRes::Sync);
         } else if context.try_sync(height).await {
-            return Ok(Some(RunHeightRes::Sync));
+            return Some(RunHeightRes::Sync);
         }
-        Ok(None)
+        None
     }
 
     /// Initialize consensus for a height: get validators, create SHC, and set up events.
