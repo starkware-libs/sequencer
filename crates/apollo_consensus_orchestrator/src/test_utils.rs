@@ -117,6 +117,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
+            config_manager_client: None,
         }
     }
 }
@@ -146,7 +147,6 @@ impl TestDeps {
         );
         self.batcher
             .expect_start_height()
-            .times(1)
             .withf(move |input| input.height == block_number)
             .return_const(Ok(()));
         let proposal_id_clone = Arc::clone(&proposal_id);
@@ -183,6 +183,7 @@ impl TestDeps {
         assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let mut seq = Sequence::new();
+
         for _ in 0..number_of_times {
             let proposal_id = Arc::new(OnceLock::new());
             let proposal_id_clone = Arc::clone(&proposal_id);
@@ -196,6 +197,7 @@ impl TestDeps {
                 .expect_start_height()
                 .withf(move |input| input.height == block_number)
                 .return_const(Ok(()));
+
             let proposal_id_clone = Arc::clone(&proposal_id);
             self.batcher
                 .expect_send_proposal_content()
