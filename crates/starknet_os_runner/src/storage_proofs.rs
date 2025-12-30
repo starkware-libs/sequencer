@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
@@ -32,8 +33,9 @@ use crate::virtual_block_executor::VirtualBlockExecutionData;
 /// The returned `StorageProofs` contains:
 /// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
+#[async_trait]
 pub trait StorageProofProvider {
-    fn get_storage_proofs(
+    async fn get_storage_proofs(
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
@@ -288,16 +290,16 @@ impl RpcStorageProofsProvider {
     }
 }
 
+#[async_trait]
 impl StorageProofProvider for RpcStorageProofsProvider {
-    fn get_storage_proofs(
+    async fn get_storage_proofs(
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
-        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-        let rpc_proof = runtime.block_on(self.fetch_proofs(block_number, &query))?;
+        let rpc_proof = self.fetch_proofs(block_number, &query).await?;
 
         Self::to_storage_proofs(&rpc_proof, &query)
     }
