@@ -825,6 +825,8 @@ pub enum MarkerKind {
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
+    // TODO(Dori): fill in the missing doc.
+    #[allow(missing_docs)]
     GlobalRoot,
 }
 
