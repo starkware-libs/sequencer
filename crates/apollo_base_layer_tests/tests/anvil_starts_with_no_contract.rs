@@ -17,7 +17,7 @@ async fn anvil_starts_with_no_contract() {
     // TODO(GuyNir/Shahak): avoid this hard-coded port number, and align port usages throughout the
     // anvil instances.
     let anvil = Anvil::new()
-        .port(9999_u16)
+        .port(10_999_u16)
         .try_spawn()
         .expect("Anvil not installed, see anvil base layer for installation instructions.");
     let base_layer_config = EthereumBaseLayerConfig {
