@@ -36,7 +36,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 200.0
+    scale_timeout_seconds: float = 1000.0
 
 
 class SequencerManager:
