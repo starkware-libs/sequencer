@@ -97,6 +97,8 @@ use starknet_api::rpc_transaction::{
     EntryPointByType,
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
+    InternalRpcInvokeTransaction,
+    InternalRpcInvokeTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
@@ -801,7 +803,7 @@ auto_impl_get_test_instance! {
     pub enum InternalRpcTransactionWithoutTxHash {
         Declare(InternalRpcDeclareTransactionV3) = 0,
         DeployAccount(InternalRpcDeployAccountTransaction) = 1,
-        Invoke(RpcInvokeTransaction) = 2,
+        Invoke(InternalRpcInvokeTransaction) = 2,
     }
     pub struct InternalRpcDeclareTransactionV3 {
         pub sender_address: ContractAddress,
@@ -819,6 +821,22 @@ auto_impl_get_test_instance! {
     pub struct InternalRpcDeployAccountTransaction {
         pub tx: RpcDeployAccountTransaction,
         pub contract_address: ContractAddress,
+    }
+    pub enum InternalRpcInvokeTransaction {
+        V3(InternalRpcInvokeTransactionV3) = 0,
+    }
+    pub struct InternalRpcInvokeTransactionV3 {
+        pub sender_address: ContractAddress,
+        pub calldata: Calldata,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub proof_facts: ProofFacts,
     }
     pub enum RpcTransaction {
         Declare(RpcDeclareTransaction) = 0,

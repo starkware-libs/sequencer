@@ -12,15 +12,18 @@ use starknet_api::executable_transaction::{
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
+    InternalRpcInvokeTransaction,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, Proof};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
@@ -148,7 +151,23 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: InternalRpcTransaction,
     ) -> TransactionConverterResult<RpcTransaction> {
         match tx.tx {
-            InternalRpcTransactionWithoutTxHash::Invoke(tx) => Ok(RpcTransaction::Invoke(tx)),
+            InternalRpcTransactionWithoutTxHash::Invoke(InternalRpcInvokeTransaction::V3(tx)) => {
+                Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+                    resource_bounds: tx.resource_bounds,
+                    signature: tx.signature,
+                    nonce: tx.nonce,
+                    tip: tx.tip,
+                    paymaster_data: tx.paymaster_data,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                    sender_address: tx.sender_address,
+                    calldata: tx.calldata,
+                    account_deployment_data: tx.account_deployment_data,
+                    proof_facts: tx.proof_facts,
+                    // TODO(AvivG): get proof from proof manager once implemented.
+                    proof: Proof::default(),
+                })))
+            }
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
                 Ok(RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
                     sender_address: tx.sender_address,
@@ -175,7 +194,7 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction> {
         let tx_without_hash = match tx {
-            RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx),
+            RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx.into()),
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
                     self.class_manager_client.add_class(tx.contract_class).await?;
