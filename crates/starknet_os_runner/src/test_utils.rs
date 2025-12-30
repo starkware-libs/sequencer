@@ -1,4 +1,5 @@
 use std::env;
+use std::sync::Arc;
 
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::fixture;
@@ -38,12 +39,14 @@ pub fn rpc_state_reader() -> RpcStateReader {
 }
 
 #[fixture]
-pub fn rpc_virtual_block_executor(rpc_state_reader: RpcStateReader) -> RpcVirtualBlockExecutor {
-    RpcVirtualBlockExecutor {
+pub fn rpc_virtual_block_executor(
+    rpc_state_reader: RpcStateReader,
+) -> Arc<RpcVirtualBlockExecutor> {
+    Arc::new(RpcVirtualBlockExecutor {
         rpc_state_reader,
         // Skip transaction validation for testing.
         validate_txs: false,
-    }
+    })
 }
 
 /// Fixture that creates an RpcStorageProofsProvider for testing.

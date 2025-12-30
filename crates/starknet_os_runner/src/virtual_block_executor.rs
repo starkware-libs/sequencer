@@ -1,5 +1,7 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutionOutput,
@@ -65,7 +67,10 @@ pub struct VirtualBlockExecutionData {
 /// let execution_data = executor.execute(block_number, contract_class_manager, transactions)?;
 /// // Use execution_data to build OS input for proving...
 /// ```
-pub trait VirtualBlockExecutor {
+#[async_trait]
+pub trait VirtualBlockExecutor: Sized + Clone + Send + Sync + 'static {
+    type Reader: FetchCompiledClasses + Send + Sync + 'static;
+
     /// Executes a virtual block based on the state and context at the given block number.
     ///
     /// # Arguments
@@ -78,64 +83,77 @@ pub trait VirtualBlockExecutor {
     ///
     /// Returns `VirtualBlockExecutionData` containing execution outputs for all
     /// transactions, or an error if any transaction fails.
-    fn execute(
+    async fn execute(
         &self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let blockifier_txs = self.convert_invoke_txs(txs)?;
-        let block_context = self.block_context(block_number)?;
-        let state_reader = self.state_reader(block_number)?;
-        let prev_base_block_hash = self.prev_base_block_hash(block_number)?;
 
-        // Create state reader with contract manager.
-        let state_reader_and_contract_manager =
-            StateReaderAndContractManager::new(state_reader, contract_class_manager, None);
+        // Setup phase: Concurrent I/O calls to fetch block context, state reader, and previous
+        // hash.
+        let (block_context, state_reader, prev_base_block_hash) = tokio::try_join!(
+            self.block_context(block_number),
+            self.state_reader(block_number),
+            self.prev_base_block_hash(block_number)
+        )?;
 
-        let block_state = CachedState::new(state_reader_and_contract_manager);
+        // Execution phase: Offload CPU-bound blockifier execution to the blocking thread pool.
+        tokio::task::spawn_blocking(move || {
+            // Create state reader with contract manager.
+            let state_reader_and_contract_manager =
+                StateReaderAndContractManager::new(state_reader, contract_class_manager, None);
 
-        // Create executor WITHOUT preprocessing (no pre_process_block call).
-        let mut transaction_executor = TransactionExecutor::new(
-            block_state,
-            block_context.clone(),
-            TransactionExecutorConfig::default(),
-        );
+            let block_state = CachedState::new(state_reader_and_contract_manager);
 
-        // Execute all transactions.
-        let execution_results = transaction_executor.execute_txs(&blockifier_txs, None);
+            // Create executor WITHOUT preprocessing (no pre_process_block call).
+            let mut transaction_executor = TransactionExecutor::new(
+                block_state,
+                block_context.clone(),
+                TransactionExecutorConfig::default(),
+            );
 
-        // Collect results, returning error if any transaction fails.
-        let execution_outputs: Vec<TransactionExecutionOutput> = execution_results
-            .into_iter()
-            .map(|result| {
-                result.map_err(|e| {
-                    VirtualBlockExecutorError::TransactionExecutionError(e.to_string())
+            // Execute all transactions.
+            // TODO(Aviv): Consider using the concurrent executor.
+            let execution_results = transaction_executor.execute_txs(&blockifier_txs, None);
+
+            // Collect results, returning error if any transaction fails.
+            let execution_outputs: Vec<TransactionExecutionOutput> = execution_results
+                .into_iter()
+                .map(|result| {
+                    result.map_err(|e| {
+                        VirtualBlockExecutorError::TransactionExecutionError(e.to_string())
+                    })
                 })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            // Get initial state reads.
+            let initial_reads = transaction_executor
+                .block_state
+                .as_ref()
+                .ok_or(VirtualBlockExecutorError::StateUnavailable)?
+                .get_initial_reads()
+                .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+
+            let executed_class_hashes = transaction_executor
+                .bouncer
+                .lock()
+                .expect("Bouncer lock failed.")
+                .get_executed_class_hashes();
+
+            Ok(VirtualBlockExecutionData {
+                execution_outputs,
+                block_context,
+                initial_reads,
+                executed_class_hashes,
+                prev_base_block_hash,
             })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Get initial state reads.
-        let initial_reads = transaction_executor
-            .block_state
-            .as_ref()
-            .ok_or(VirtualBlockExecutorError::StateUnavailable)?
-            .get_initial_reads()
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
-
-        let executed_class_hashes = transaction_executor
-            .bouncer
-            .lock()
-            .expect("Bouncer lock failed.")
-            .get_executed_class_hashes();
-
-        Ok(VirtualBlockExecutionData {
-            execution_outputs,
-            block_context,
-            initial_reads,
-            executed_class_hashes,
-            prev_base_block_hash,
         })
+        .await
+        .map_err(|e| {
+            VirtualBlockExecutorError::TransactionExecutionError(format!("Task join error: {e}"))
+        })?
     }
 
     /// Converts Invoke transactions to blockifier transactions.
@@ -170,23 +188,23 @@ pub trait VirtualBlockExecutor {
             .collect()
     }
     /// Returns the block context for the given block number.
-    fn block_context(
+    async fn block_context(
         &self,
         block_number: BlockNumber,
     ) -> Result<BlockContext, VirtualBlockExecutorError>;
 
     /// Returns the block hash of the state at the start of the virtual block.
-    fn prev_base_block_hash(
+    async fn prev_base_block_hash(
         &self,
         block_number: BlockNumber,
     ) -> Result<BlockHash, VirtualBlockExecutorError>;
 
     /// Returns a state reader that implements `FetchCompiledClasses` for the given block number.
     /// Must be `Send + Sync + 'static` to be used in the transaction executor.
-    fn state_reader(
+    async fn state_reader(
         &self,
         block_number: BlockNumber,
-    ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError>;
+    ) -> Result<Self::Reader, VirtualBlockExecutorError>;
 
     /// Returns whether transaction validation is enabled during execution.
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
@@ -218,29 +236,50 @@ impl RpcVirtualBlockExecutor {
 /// This executor fetches historical state from an RPC node and executes transactions
 /// without block preprocessing. Validation and fee charging are always skipped,
 /// making it suitable for simulation and OS input generation.
-impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
-    fn block_context(
+#[async_trait]
+impl VirtualBlockExecutor for Arc<RpcVirtualBlockExecutor> {
+    type Reader = RpcStateReader;
+
+    async fn block_context(
         &self,
         _block_number: BlockNumber,
     ) -> Result<BlockContext, VirtualBlockExecutorError> {
-        self.rpc_state_reader
-            .get_block_context()
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+        tokio::task::spawn_blocking({
+            let reader = self.rpc_state_reader.clone();
+            move || {
+                reader
+                    .get_block_context()
+                    .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+            }
+        })
+        .await
+        .map_err(|e| {
+            VirtualBlockExecutorError::TransactionExecutionError(format!("Task join error: {e}"))
+        })?
     }
 
-    fn prev_base_block_hash(
+    async fn prev_base_block_hash(
         &self,
         block_number: BlockNumber,
     ) -> Result<BlockHash, VirtualBlockExecutorError> {
-        self.rpc_state_reader
-            .get_old_block_hash(block_number)
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+        tokio::task::spawn_blocking({
+            let reader = self.rpc_state_reader.clone();
+            move || {
+                reader
+                    .get_old_block_hash(block_number)
+                    .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+            }
+        })
+        .await
+        .map_err(|e| {
+            VirtualBlockExecutorError::TransactionExecutionError(format!("Task join error: {e}"))
+        })?
     }
 
-    fn state_reader(
+    async fn state_reader(
         &self,
         _block_number: BlockNumber,
-    ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError> {
+    ) -> Result<Self::Reader, VirtualBlockExecutorError> {
         // Clone the RpcStateReader to avoid lifetime issues ( not a big struct).
         Ok(self.rpc_state_reader.clone())
     }

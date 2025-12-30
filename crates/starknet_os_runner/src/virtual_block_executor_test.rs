@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::rstest;
@@ -68,9 +70,10 @@ fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
 /// NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner -- --ignored
 /// ```
 #[rstest]
-#[ignore] // Requires RPC access 
-fn test_execute_constructed_balance_of_transaction(
-    rpc_virtual_block_executor: RpcVirtualBlockExecutor,
+#[ignore] // Requires RPC access
+#[tokio::test]
+async fn test_execute_constructed_balance_of_transaction(
+    rpc_virtual_block_executor: Arc<RpcVirtualBlockExecutor>,
 ) {
     // Construct a balanceOf transaction (with execution flags set).
     let (tx, tx_hash) = construct_balance_of_invoke();
@@ -81,6 +84,7 @@ fn test_execute_constructed_balance_of_transaction(
     // Execute the transaction.
     let result = rpc_virtual_block_executor
         .execute(BlockNumber(TEST_BLOCK_NUMBER), contract_class_manager, vec![(tx, tx_hash)])
+        .await
         .unwrap();
 
     // Verify execution produced output.

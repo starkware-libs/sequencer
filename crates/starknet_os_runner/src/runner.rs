@@ -107,11 +107,10 @@ where
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
         // Execute virtual block and get execution data.
-        let mut execution_data = self.virtual_block_executor.execute(
-            block_number,
-            contract_class_manager.clone(),
-            txs.clone(),
-        )?;
+        let mut execution_data = self
+            .virtual_block_executor
+            .execute(block_number, contract_class_manager.clone(), txs.clone())
+            .await?;
 
         // Extract chain info from block context.
         let chain_info = execution_data.block_context.chain_info();
