@@ -318,11 +318,17 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Transaction-Related Requests ============
-            StorageReaderRequest::TransactionMetadataLocation(_tx_index) => {
-                unimplemented!()
+            StorageReaderRequest::TransactionMetadataLocation(tx_index) => {
+                let location =
+                    txn.get_transaction_location(tx_index)?.ok_or(StorageError::NotFound {
+                        resource_type: "Transaction metadata location".to_string(),
+                        resource_id: format!("{tx_index:?}"),
+                    })?;
+                Ok(StorageReaderResponse::TransactionMetadataLocation(location))
             }
-            StorageReaderRequest::TransactionMetadataFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::TransactionMetadataFromLocation(location) => {
+                let transaction = txn.get_transaction_from_location(location)?;
+                Ok(StorageReaderResponse::TransactionMetadataFromLocation(transaction))
             }
             StorageReaderRequest::TransactionHashToIdx(_tx_hash) => {
                 unimplemented!()
