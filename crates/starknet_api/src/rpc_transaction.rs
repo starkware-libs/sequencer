@@ -110,7 +110,7 @@ pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DEPLOY_ACCOUNT")]
     DeployAccount(InternalRpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
-    Invoke(RpcInvokeTransaction),
+    Invoke(InternalRpcInvokeTransactionV3),
 }
 
 impl InternalRpcTransactionWithoutTxHash {
@@ -208,7 +208,7 @@ macro_rules! implement_internal_getters_for_internal_rpc {
                         let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
                         tx.$field_name.clone()
                     },
-                    InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.$field_name.clone(),
                 }
             }
         )*
@@ -227,7 +227,7 @@ impl InternalRpcTransaction {
         match &self.tx {
             InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.sender_address,
             InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
-            InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => {
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
                 tx.sender_address
             }
         }
@@ -813,6 +813,7 @@ impl From<InternalRpcInvokeTransactionV3> for InvokeTransaction {
         InvokeTransaction::V3(tx.into())
     }
 }
+
 
 // TODO(Aviv): remove duplication with sequencer/crates/apollo_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
