@@ -1,4 +1,31 @@
+use tracing::Level;
+
 pub const DEFAULT_INTERFERENCE_CONCURRENCY_LIMIT: usize = 20;
+
+pub struct FlavorFields {
+    /// Seed for the random number generator.
+    pub seed: u64,
+
+    /// Number of iterations to run the benchmark.
+    pub n_iterations: usize,
+
+    /// Benchmark flavor determines the size and structure of the generated state diffs.
+    pub flavor: BenchmarkFlavor,
+
+    /// Interference flavor determines the type and concurrency of the interference tasks.
+    /// Only applicable if the storage supports interference (parallel access).
+    pub interference_fields: InterferenceFields,
+
+    /// Number of updates per iteration, where applicable. Different flavors treat this value
+    /// differently, see [BenchmarkFlavor] for more details.
+    pub n_updates: usize,
+
+    /// Interval at which to save checkpoints.
+    pub checkpoint_interval: usize,
+
+    /// Log level.
+    pub log_level: Level,
+}
 
 /// Specific flavors of workloads to run in the benchmark.
 #[derive(Default)]
