@@ -15,7 +15,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -81,6 +81,12 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
+    /// Request the latest block header (without hash) the sync has downloaded.
+    /// Returns None if no latest block was yet downloaded.
+    async fn get_latest_block_header_without_hash(
+        &self,
+    ) -> StateSyncClientResult<Option<BlockHeaderWithoutHash>>;
+
     /// Returns whether the given class is a Cairo1 class and was declared at the given block or
     /// before it.
     async fn is_cairo_1_class_declared_at(
@@ -127,6 +133,7 @@ pub enum StateSyncRequest {
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
     GetLatestBlockNumber(),
+    GetLatestBlockHeaderWithoutHash(),
     IsCairo1ClassDeclaredAt(BlockNumber, ClassHash),
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
@@ -143,6 +150,7 @@ impl PrioritizedRequest for StateSyncRequest {
             | StateSyncRequest::GetClassHashAt(_, _)
             | StateSyncRequest::AddNewBlock(_)
             | StateSyncRequest::GetLatestBlockNumber()
+            | StateSyncRequest::GetLatestBlockHeaderWithoutHash()
             | StateSyncRequest::IsCairo1ClassDeclaredAt(_, _)
             | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
         }
@@ -158,6 +166,7 @@ pub enum StateSyncResponse {
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
+    GetLatestBlockHeaderWithoutHash(StateSyncResult<Option<BlockHeaderWithoutHash>>),
     IsCairo1ClassDeclaredAt(StateSyncResult<bool>),
     IsClassDeclaredAt(StateSyncResult<bool>),
 }
@@ -252,6 +261,19 @@ where
         handle_all_response_variants!(
             StateSyncResponse,
             GetLatestBlockNumber,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn get_latest_block_header_without_hash(
+        &self,
+    ) -> StateSyncClientResult<Option<BlockHeaderWithoutHash>> {
+        let request = StateSyncRequest::GetLatestBlockHeaderWithoutHash();
+        handle_all_response_variants!(
+            StateSyncResponse,
+            GetLatestBlockHeaderWithoutHash,
             StateSyncClientError,
             StateSyncError,
             Direct
