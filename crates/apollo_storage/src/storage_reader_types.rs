@@ -17,13 +17,20 @@ use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
 use crate::version::{Version, VersionStorageReader};
-use crate::{MarkerKind, OffsetKind, StorageError, StorageReader, TransactionMetadata};
+use crate::{
+    FileOffsetReader,
+    MarkerKind,
+    OffsetKind,
+    StorageError,
+    StorageReader,
+    TransactionMetadata,
+};
 
 /// Type alias for the generic storage reader server.
 pub type GenericStorageReaderServer = StorageReaderServer<
@@ -323,10 +330,18 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
 
             // ============ Other Requests ============
             StorageReaderRequest::LastVotedMarker => {
-                unimplemented!()
+                let marker = txn.get_last_voted_marker()?.ok_or(StorageError::NotFound {
+                    resource_type: "Last voted marker".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::LastVotedMarker(marker))
             }
-            StorageReaderRequest::FileOffsets(_offset_kind) => {
-                unimplemented!()
+            StorageReaderRequest::FileOffsets(offset_kind) => {
+                let offset = txn.get_file_offset(offset_kind)?.ok_or(StorageError::NotFound {
+                    resource_type: "File offset".to_string(),
+                    resource_id: format!("{:?}", offset_kind),
+                })?;
+                Ok(StorageReaderResponse::FileOffsets(offset))
             }
             StorageReaderRequest::StarknetVersion(block_number) => {
                 let starknet_version = txn.get_starknet_version_by_key(block_number)?.ok_or(
