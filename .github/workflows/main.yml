@@ -1,13 +1,6 @@
 name: Main-CI-Flow
 
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-
   pull_request:
     types:
       - opened
@@ -22,7 +15,6 @@ env:
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
-# Also, create different concurrency groups for different pushed commits, on push events.
 concurrency:
   group: >
     ${{ github.workflow }}-
@@ -67,31 +59,20 @@ jobs:
           git diff --exit-code Cargo.lock
 
       # Run code style on PR.
-      - name: "Run TODO style pull request"
-        if: github.event_name == 'pull_request'
+      - name: "Run TODO style"
         run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
-      - name: "Run clippy pull request"
-        if: github.event_name == 'pull_request'
+      - name: "Run clippy"
         run: scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-      - name: "Run cargo doc pull request"
-        if: github.event_name == 'pull_request'
+      - name: "Run cargo doc"
         run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-      - name: "Run python code style pull request"
-        if: github.event_name == 'pull_request'
+      - name: "Run python code style"
         run: scripts/py_code_style.py
 
-      # Run code style on push.
+      # Run code style
       - name: "Run rustfmt"
         # The nightly here is coupled with the one in install_rust/action.yml.
         # If we move the install here we can use a const.
         run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
-
-      - name: "Run clippy on push"
-        if: github.event_name == 'push'
-        run: scripts/run_tests.py --command clippy
-      - name: "Run cargo doc on push"
-        if: github.event_name == 'push'
-        run: scripts/run_tests.py --command doc
 
       - name: "Run taplo"
         run: scripts/taplo.sh
@@ -130,8 +111,7 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-      - name: "Run tests pull request"
-        if: github.event_name == 'pull_request'
+      - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
