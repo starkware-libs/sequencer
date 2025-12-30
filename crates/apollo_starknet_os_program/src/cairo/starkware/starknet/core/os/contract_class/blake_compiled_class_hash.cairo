@@ -177,7 +177,9 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
 
             assert [range_check_ptr] = segment_length;
             tempvar range_check_ptr = range_check_ptr + 1;
-            tempvar current_segment_hash = nondet %{ bytecode_segment_structure.hash_blake() %};
+            let current_segment_hash = [ap];
+            %{ SetApToSegmentHashBlake %}
+            ap += 1;
         }
     }
 
