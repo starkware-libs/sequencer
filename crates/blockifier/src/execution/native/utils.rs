@@ -1,7 +1,12 @@
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint;
-use cairo_native::starknet::{ResourceBounds, TxV2Info};
+use cairo_native::starknet::{ResourceBounds, TxV2Info, TxV3Info};
 use starknet_api::core::EntryPointSelector;
-use starknet_api::transaction::fields::{AllResourceBounds, Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    ProofFacts,
+    Resource,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::transaction::objects::CurrentTransactionInfo;
@@ -40,6 +45,29 @@ pub fn default_tx_v2_info() -> TxV2Info {
         nonce_data_availability_mode: 0,
         fee_data_availability_mode: 0,
         account_deployment_data: vec![],
+    }
+}
+
+pub fn default_tx_v3_info() -> TxV3Info {
+    tx_v2_info_to_tx_v3_info(default_tx_v2_info(), ProofFacts::default())
+}
+
+pub fn tx_v2_info_to_tx_v3_info(v2: TxV2Info, proof_facts: ProofFacts) -> TxV3Info {
+    TxV3Info {
+        version: v2.version,
+        account_contract_address: v2.account_contract_address,
+        max_fee: v2.max_fee,
+        signature: v2.signature,
+        transaction_hash: v2.transaction_hash,
+        chain_id: v2.chain_id,
+        nonce: v2.nonce,
+        resource_bounds: v2.resource_bounds,
+        tip: v2.tip,
+        paymaster_data: v2.paymaster_data,
+        nonce_data_availability_mode: v2.nonce_data_availability_mode,
+        fee_data_availability_mode: v2.fee_data_availability_mode,
+        account_deployment_data: v2.account_deployment_data,
+        proof_facts: proof_facts.0.to_vec(),
     }
 }
 
