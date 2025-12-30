@@ -198,8 +198,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                     .unwrap_or_default();
                 Ok(StorageReaderResponse::ContractStorage(value))
             }
-            StorageReaderRequest::Nonces(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::Nonces(address, block_number) => {
+                let nonce = state_reader.get_nonce_by_key(&address, block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Nonce".to_string(),
+                        resource_id: format!("address: {address:?}, block: {block_number}"),
+                    },
+                )?;
+                Ok(StorageReaderResponse::Nonces(nonce))
             }
             StorageReaderRequest::DeployedContracts(_address, _block_number) => {
                 unimplemented!()
