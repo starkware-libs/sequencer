@@ -50,7 +50,9 @@ fn test_get_storage_proofs_from_rpc(
         prev_base_block_hash: BlockHash::default(),
     };
 
-    let result = rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data);
+    let result = runtime.block_on(async {
+        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data).await
+    });
     assert!(result.is_ok(), "Failed to get storage proofs: {:?}", result.err());
 
     let storage_proofs = result.unwrap();

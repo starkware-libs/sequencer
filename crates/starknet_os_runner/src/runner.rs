@@ -79,8 +79,8 @@ impl From<VirtualOsBlockInput> for StarknetOsInput {
 
 pub struct Runner<C, S, V>
 where
-    C: ClassesProvider,
-    S: StorageProofProvider,
+    C: ClassesProvider + Sync,
+    S: StorageProofProvider + Sync,
     V: VirtualBlockExecutor,
 {
     pub classes_provider: C,
@@ -90,8 +90,8 @@ where
 
 impl<C, S, V> Runner<C, S, V>
 where
-    C: ClassesProvider,
-    S: StorageProofProvider,
+    C: ClassesProvider + Sync,
+    S: StorageProofProvider + Sync,
     V: VirtualBlockExecutor,
 {
     pub fn new(classes_provider: C, storage_proofs_provider: S, virtual_block_executor: V) -> Self {
@@ -100,7 +100,7 @@ where
 
     /// Creates the OS hints required to run the given transactions virtually
     /// on top of the given block number.
-    pub fn create_os_hints(
+    pub async fn create_os_hints(
         &self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
@@ -120,12 +120,13 @@ where
             strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
         };
 
-        // Fetch classes.
-        let classes = self.classes_provider.get_classes(&execution_data.executed_class_hashes)?;
-
-        // Fetch storage proofs.
-        let storage_proofs =
-            self.storage_proofs_provider.get_storage_proofs(block_number, &execution_data)?;
+        // Fetch classes and storage proofs in parallel.
+        let (classes, storage_proofs) = tokio::join!(
+            self.classes_provider.get_classes(&execution_data.executed_class_hashes),
+            self.storage_proofs_provider.get_storage_proofs(block_number, &execution_data)
+        );
+        let classes = classes?;
+        let storage_proofs = storage_proofs?;
 
         // Convert execution outputs to CentralTransactionExecutionInfo.
         let tx_execution_infos =
@@ -177,13 +178,13 @@ where
     /// 4. Runs the OS in stateless mode (all state pre-loaded in input)
     ///
     /// Returns the OS output containing the Cairo PIE and execution metrics.
-    pub fn run_os(
+    pub async fn run_os(
         &self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<StarknetOsRunnerOutput, RunnerError> {
-        let os_hints = self.create_os_hints(block_number, contract_class_manager, txs)?;
+        let os_hints = self.create_os_hints(block_number, contract_class_manager, txs).await?;
         let output = run_os_stateless(DEFAULT_OS_LAYOUT, os_hints)?;
         Ok(output)
     }

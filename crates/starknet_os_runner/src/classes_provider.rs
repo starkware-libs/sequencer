@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use blockifier::state::state_api::StateReader;
 use blockifier::state::state_reader_and_contract_manager::{
@@ -9,6 +11,7 @@ use blockifier::state::state_reader_and_contract_manager::{
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use futures::future::try_join_all;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
@@ -51,19 +54,31 @@ pub struct ClassesInput {
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
-pub trait ClassesProvider {
+#[async_trait]
+pub trait ClassesProvider: Sized + Clone + Send + Sync + 'static {
     /// Fetches all classes required for the OS run based on the executed class hashes.
-    fn get_classes(
+    /// This default implementation parallelizes fetching by spawning blocking tasks.
+    async fn get_classes(
         &self,
         executed_class_hashes: &HashSet<ClassHash>,
     ) -> Result<ClassesInput, ClassesProviderError> {
-        let mut compiled_classes = BTreeMap::new();
+        // Creating tasks to fetch classes in parallel.
+        let tasks = executed_class_hashes.iter().map(|&class_hash| {
+            let provider = self.clone();
+            tokio::task::spawn_blocking(move || provider.fetch_class(class_hash))
+        });
 
-        // TODO(Aviv): Parallelize the fetching of classes.
-        for &class_hash in executed_class_hashes {
-            let (compiled_class_hash, casm) = self.fetch_class(class_hash)?;
-            compiled_classes.insert(compiled_class_hash, casm);
-        }
+        // Fetching classes in parallel.
+        // If any task fails, the entire operation fails.
+        let results = try_join_all(tasks)
+            .await
+            .map_err(|e| ClassesProviderError::GetClassesError(format!("Task join error: {e}")))?;
+
+        // Collecting results into a BTreeMap.
+        let compiled_classes = results
+            .into_iter()
+            .collect::<Result<BTreeMap<CompiledClassHash, CasmContractClass>, ClassesProviderError>>()?;
+
         Ok(ClassesInput { compiled_classes })
     }
 
@@ -74,7 +89,10 @@ pub trait ClassesProvider {
     ) -> Result<(CompiledClassHash, CasmContractClass), ClassesProviderError>;
 }
 
-impl<S: FetchCompiledClasses> ClassesProvider for StateReaderAndContractManager<S> {
+#[async_trait]
+impl<S: FetchCompiledClasses + Send + Sync + 'static> ClassesProvider
+    for Arc<StateReaderAndContractManager<S>>
+{
     /// Fetch class from the state reader and contract manager.
     /// Returns error if the class is deprecated.
     fn fetch_class(
