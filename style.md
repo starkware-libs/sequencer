@@ -267,16 +267,74 @@ Use `submodule_name.rs`, as `mod.rs` [is considered legacy](https://doc.rust-lan
 
 ## Types
 
-### Newtypes
-
-If newtyping as a "pass-through" wrapper (`Foo(pub Bar)`), add `Deref` and `DerefMut`.
-
-Avoid "ip addresses" (`let bar = foo.0.0.0.0.1`): prefer `Deref` when the derivation is trivial, or switch to a struct wrapper instead of a tuple otherwise.
-
 ### Type Safety
 
-Before using raw types like `u64` to represent a value, first grep the repo for existing types that wrap around it.
-Rationale: mainly consistency, but also they might have constraints on the values.
+Define types that wrap primitive types (usize, f64, bool, etc.) for frequently used struct members, function arguments, and return values.
+
+This prevents bug where you accidentally mix up values.
+
+```rust
+// BAD
+fn foo(nonce: u64) -> u64 {...}
+fn bar(nonce: u64) -> u64 {...}
+fn generate_nonce() -> u64 {...}
+
+bar(foo(generate_nonce()));
+
+// GOOD
+struct Nonce(u64);
+struct Timestamp(u64);
+fn foo(nonce: Nonce) -> Nonce {...}
+fn bar(nonce: Nonce) -> Timestamp {...} // Now it's clearer what bar returns
+fn generate_nonce() -> Nonce {...}
+
+bar(foo(generate_nonce()));
+foo(bar(foo(generate_nonce()))); // This won't compile, which is good. It would've compiled before.
+
+// ALSO BAD - This doesn't enforce anything
+type Nonce = u64;
+type Timestamp = u64;
+
+fn foo(nonce: Nonce) -> Nonce {...}
+fn bar(nonce: Nonce) -> Timestamp {...} // Now it's clearer what bar returns
+fn generate_nonce() -> Nonce {...}
+
+bar(foo(generate_nonce()));
+foo(bar(foo(generate_nonce()))); // This will compile, even though it shouldn't.
+```
+
+### Newtypes
+
+If newtyping as a "pass-through" wrapper (`Foo(pub Bar)`), add `Deref` and `DerefMut` in order to avoid patterns of `foo.0.0.1`.
+
+```rust
+// BAD
+struct Bar(pub u64);
+struct Foo(pub Bar);
+...
+if foo.0.0 > 0 {...}
+
+// GOOD
+struct Bar(u64)
+struct Foo(Bar)
+
+// Do the same for Bar. Not written here to save space.
+impl Deref for Foo {
+    type Target = Bar;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Foo {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+...
+if **foo > 0 {...}
+```
 
 ## Performance & Allocations
 
