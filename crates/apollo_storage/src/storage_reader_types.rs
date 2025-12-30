@@ -13,7 +13,9 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::body::{BodyStorageReader, TransactionIndex};
+use crate::class_hash::ClassHashStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
+use crate::compiled_class::CasmStorageReader;
 use crate::consensus::LastVotedMarker;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
@@ -252,8 +254,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             StorageReaderRequest::CasmsFromLocation(_location) => {
                 unimplemented!()
             }
-            StorageReaderRequest::CompiledClassHash(_class_hash, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::CompiledClassHash(class_hash, block_number) => {
+                let compiled_class_hash = txn
+                    .get_compiled_class_hash(class_hash, block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Compiled class hash".to_string(),
+                        resource_id: format!("class: {class_hash}, block: {block_number}"),
+                    })?;
+                Ok(StorageReaderResponse::CompiledClassHash(compiled_class_hash))
             }
             StorageReaderRequest::StatelessCompiledClassHashV2(_class_hash) => {
                 unimplemented!()

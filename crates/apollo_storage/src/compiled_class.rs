@@ -50,7 +50,7 @@ mod casm_test;
 use apollo_proc_macros::latency_histogram;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 
 use crate::class::ClassStorageReader;
@@ -73,6 +73,14 @@ pub trait CasmStorageReader {
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<(Option<CasmContractClass>, Option<SierraContractClass>)>;
+
+    /// Returns the compiled class hash for the given Sierra class hash at a specific block number.
+    fn get_compiled_class_hash(
+        &self,
+        class_hash: ClassHash,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<CompiledClassHash>>;
+
     /// The block marker is the first block number that doesn't exist yet.
     ///
     /// Note: If the last blocks don't contain any declared classes, the marker will point at the
@@ -102,6 +110,15 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
         class_hash: &ClassHash,
     ) -> StorageResult<(Option<CasmContractClass>, Option<SierraContractClass>)> {
         Ok((self.get_casm(class_hash)?, self.get_class(class_hash)?))
+    }
+
+    fn get_compiled_class_hash(
+        &self,
+        class_hash: ClassHash,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<CompiledClassHash>> {
+        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
+        Ok(compiled_class_hash_table.get(&self.txn, &(class_hash, block_number))?)
     }
 
     fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber> {
