@@ -118,13 +118,16 @@ macro_rules! infra_error {
 }
 
 pub fn set_log_level(handle: &ReloadHandle, crate_name: &str, level: LevelFilter) {
-    match Directive::from_str(&format!("{crate_name}={level}")) { Ok(directive) => {
-        let _ = handle.modify(|filter| {
-            *filter = std::mem::take(filter).add_directive(directive);
-        });
-    } _ => {
-        warn!("{crate_name}: ignored invalid log-level directive");
-    }}
+    match Directive::from_str(&format!("{crate_name}={level}")) {
+        Ok(directive) => {
+            let _ = handle.modify(|filter| {
+                *filter = std::mem::take(filter).add_directive(directive);
+            });
+        }
+        _ => {
+            warn!("{crate_name}: ignored invalid log-level directive");
+        }
+    }
 }
 
 pub fn get_log_directives(handle: &ReloadHandle) -> Result<String, reload::Error> {
