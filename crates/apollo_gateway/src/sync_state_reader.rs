@@ -30,10 +30,7 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
-use crate::gateway_fixed_block_state_reader::{
-    GatewayFixedBlockStateReader,
-    GatewayFixedBlockSyncStateClient,
-};
+use crate::gateway_fixed_block_state_reader::GatewayFixedBlockSyncStateClient;
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
@@ -322,6 +319,7 @@ pub(crate) struct SyncStateReaderFactory {
 #[async_trait]
 impl StateReaderFactory for SyncStateReaderFactory {
     type StateReaderWithCompiledClasses = SyncStateReader;
+    type FixedBlockStateReader = GatewayFixedBlockSyncStateClient;
 
     // TODO(guy.f): The call to `get_latest_block_number()` is not counted in the storage metrics as
     // it is done prior to the creation of SharedStateSyncClientMetricWrapper, directly via the
@@ -330,7 +328,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
         &self,
     ) -> StateSyncClientResult<(
         Self::StateReaderWithCompiledClasses,
-        Box<dyn GatewayFixedBlockStateReader>,
+        Box<Self::FixedBlockStateReader>,
     )> {
         let latest_block_number = self
             .shared_state_sync_client

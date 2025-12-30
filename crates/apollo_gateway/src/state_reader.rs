@@ -12,12 +12,13 @@ use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 #[async_trait]
 pub trait StateReaderFactory: Send + Sync {
     type StateReaderWithCompiledClasses: GatewayStateReaderWithCompiledClasses + 'static;
+    type FixedBlockStateReader: GatewayFixedBlockStateReader + 'static;
 
     async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
         &self,
     ) -> StateSyncClientResult<(
         Self::StateReaderWithCompiledClasses,
-        Box<dyn GatewayFixedBlockStateReader>,
+        Box<Self::FixedBlockStateReader>,
     )>;
 }
 
