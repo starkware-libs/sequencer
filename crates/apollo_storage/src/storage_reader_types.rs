@@ -17,7 +17,7 @@ use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
@@ -323,7 +323,11 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
 
             // ============ Other Requests ============
             StorageReaderRequest::LastVotedMarker => {
-                unimplemented!()
+                let marker = txn.get_last_voted_marker()?.ok_or(StorageError::NotFound {
+                    resource_type: "Last voted marker".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::LastVotedMarker(marker))
             }
             StorageReaderRequest::FileOffsets(_offset_kind) => {
                 unimplemented!()
