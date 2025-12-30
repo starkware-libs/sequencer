@@ -16,6 +16,7 @@ use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
     StateReaderAndContractManager,
 };
+use blockifier::state::utils::get_compiled_class_hash_v2 as default_get_compiled_class_hash_v2;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
@@ -31,7 +32,6 @@ use crate::errors::ReexecutionResult;
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
-    DUMMY_COMPILED_CLASS_HASH,
 };
 use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
 use crate::utils::get_chain_info;
@@ -171,23 +171,16 @@ impl StateReader for OfflineStateReader {
         }
     }
 
-    /// Returns a dummy compiled class hash for reexecution purposes.
-    ///
-    /// This method is required since v0.14.1 for checking if compiled class hashes
-    /// need to be migrated from v1 to v2 format.
-    /// In reexecution we use a dummy value for both get_compiled_class_hash and
-    /// get_compiled_class_hash_v2, to avoid the migration process.
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        Ok(DUMMY_COMPILED_CLASS_HASH)
+        unimplemented!("The offline state reader does not support get_compiled_class_hash.")
     }
 
-    /// returns the same value as get_compiled_class_hash, to avoid the migration process.
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        self.get_compiled_class_hash(class_hash)
+        default_get_compiled_class_hash_v2(self, class_hash, compiled_class)
     }
 }
 
