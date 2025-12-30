@@ -1,13 +1,9 @@
-import logging
 from dataclasses import dataclass
 from typing import Callable
 
-<<<<<<< HEAD
 from l1_blocks import L1Blocks
 from l1_client import L1Client
 
-=======
->>>>>>> origin/main-v0.14.1
 from echonet.constants import (
     STATE_BLOCK_HASH_SELECTOR,
     STATE_BLOCK_NUMBER_SELECTOR,

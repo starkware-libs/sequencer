@@ -6,11 +6,9 @@ os.environ.setdefault("L1_ALCHEMY_API_KEY", "test-key")
 
 import copy
 
-<<<<<<< HEAD
 from l1_client import L1Client
-=======
+
 from echonet.l1_logic.l1_client import L1Client
->>>>>>> origin/main-v0.14.1
 
 
 class L1TestUtils:

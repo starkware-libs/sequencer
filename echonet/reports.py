@@ -6,15 +6,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, Mapping, Sequence, TypeVar
 
-import logging
 import requests
-from collections import defaultdict
 
 from echonet import helpers
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject

@@ -1,10 +1,10 @@
 import json
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any, List, Literal, Optional, Tuple, Union
 
 import flask  # pyright: ignore[reportMissingImports]
-import logging
 import requests
 
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType

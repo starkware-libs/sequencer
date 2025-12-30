@@ -4,9 +4,8 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, FrozenSet, Mapping, TypeAlias, TypedDict
-
 from types import MappingProxyType
+from typing import Any, FrozenSet, Mapping, TypeAlias, TypedDict
 
 from echonet import helpers
 from echonet.constants import MAX_BLOCK_NUMBER

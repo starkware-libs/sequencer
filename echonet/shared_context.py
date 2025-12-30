@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Mapping, Optional, Set
-
-import threading
 
 from echonet.echonet_types import CONFIG, JsonObject, ResyncTriggerMap
 from echonet.l1_logic.l1_client import L1Client

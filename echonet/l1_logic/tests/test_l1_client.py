@@ -6,13 +6,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import unittest
-<<<<<<< HEAD
 from unittest.mock import Mock, patch
 
 import requests
 from l1_client import L1Client
-=======
->>>>>>> origin/main-v0.14.1
 from test_utils import L1TestUtils
 
 from echonet.l1_logic.l1_client import L1Client

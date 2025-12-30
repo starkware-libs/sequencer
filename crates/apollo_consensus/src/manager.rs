@@ -434,14 +434,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     RunHeightRes::Sync
                 }
                 e @ ConsensusError::BlockInfoConversion(_)
-<<<<<<< HEAD
-                | e @ ConsensusError::ProtobufConversionError(_)
-                | e @ ConsensusError::SendError(_)
                 | e @ ConsensusError::InternalNetworkError(_)
                 | e @ ConsensusError::Other(_) => {
-=======
-                | e @ ConsensusError::InternalNetworkError(_) => {
->>>>>>> origin/main-v0.14.1
                     // The node is missing required components/data and cannot continue
                     // participating in the consensus. A fix and node restart are required.
                     return Err(e);

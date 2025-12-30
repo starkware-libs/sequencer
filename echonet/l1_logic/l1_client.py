@@ -1,16 +1,10 @@
 import functools
 import inspect
-import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
 import eth_abi
-<<<<<<< HEAD
-=======
-import functools
-import inspect
->>>>>>> origin/main-v0.14.1
 import requests
 
 from echonet.constants import (

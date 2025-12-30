@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Optional
-
-import logging
 
 _ECHO_NET_ROOT = "echonet"
 _CONFIGURED = False

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import gzip
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Optional, Sequence, Set
 
 import aiohttp
-import base64
-import gzip
 import requests
-import threading
 
 from echonet.echonet_types import CONFIG, JsonObject, TxType
 from echonet.feeder_client import FeederClient

@@ -15,15 +15,14 @@ Python wrapper to deploy echonet via Kustomize.
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
-from pathlib import Path
-
 import base64
+import json
 import logging
 import shlex
 import shutil
+import subprocess
 import tarfile
+from pathlib import Path
 
 logger = logging.getLogger("deploy_echonet")
 
