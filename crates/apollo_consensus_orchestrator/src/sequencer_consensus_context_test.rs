@@ -46,6 +46,7 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::test_utils::{
     block_info,
     create_test_and_network_deps,
+    send_proposal_to_validator_context,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
@@ -80,26 +81,10 @@ async fn validate_proposal_success() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) =
-        mpsc::channel(context.config.static_config.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-        }))
-        .await
-        .unwrap();
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, block_info(BlockNumber(0))).await;
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
@@ -257,23 +242,8 @@ async fn interrupt_active_proposal() {
     let fin_receiver_0 =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
 
-    let (mut content_sender_1, content_receiver) =
-        mpsc::channel(context.config.static_config.proposal_buffer_size);
-    content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
-    content_sender_1
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
-        .await
-        .unwrap();
-    content_sender_1
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender_1
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-        }))
-        .await
-        .unwrap();
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, block_info(BlockNumber(0))).await;
     let fin_receiver_1 = context
         .validate_proposal(
             ProposalInit { round: 1, ..Default::default() },
@@ -598,8 +568,6 @@ async fn gas_price_limits(#[case] maximum: bool) {
     let mut context = deps.build_context();
 
     context.set_height_and_round(BlockNumber(0), 0).await;
-    let (mut content_sender, content_receiver) =
-        mpsc::channel(context.config.static_config.proposal_buffer_size);
 
     let mut block_info = block_info(BlockNumber(0));
 
@@ -614,21 +582,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
     }
 
     // Send the block info, some transactions and then fin.
-    content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-        }))
-        .await
-        .unwrap();
+    let content_receiver = send_proposal_to_validator_context(&mut context, block_info).await;
 
     // Even though we used the minimum/maximum gas price, not the values we gave the provider,
     // the proposal should be still be valid due to the clamping of limit prices.
@@ -835,26 +789,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) =
-        mpsc::channel(context.config.static_config.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-        }))
-        .await
-        .unwrap();
+    let content_receiver =
+        send_proposal_to_validator_context(&mut context, block_info(BlockNumber(0))).await;
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
