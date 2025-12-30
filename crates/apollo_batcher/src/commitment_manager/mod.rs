@@ -294,7 +294,8 @@ impl CommitmentManager {
             .expect("Failed to get block hash height from storage.");
         let mut commitment_manager = Self::new_or_none(
             commitment_manager_config,
-            &batcher_config.revert_config,
+            // TODO(Amos): Always return commitment manager.
+            &RevertConfig::default(),
             global_root_height,
         );
         if let Some(ref mut cm) = commitment_manager {

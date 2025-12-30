@@ -10,7 +10,6 @@ use apollo_config::dumping::{
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_reverts::RevertConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::{StorageConfig, StorageScope};
@@ -196,8 +195,6 @@ pub struct BatcherConfig {
     pub propose_l1_txs_every: u64,
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_config: ServerConfig,
-    // Used to verify the Batcher is restarted before switching to / from revert mode.
-    pub revert_config: RevertConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -255,8 +252,6 @@ impl SerializeConfig for BatcherConfig {
             &self.first_block_with_partial_block_hash,
             "first_block_with_partial_block_hash",
         ));
-
-        dump.append(&mut prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
         dump
     }
 }
@@ -284,7 +279,6 @@ impl Default for BatcherConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
             storage_reader_server_config: ServerConfig::default(),
-            revert_config: RevertConfig::default(),
         }
     }
 }

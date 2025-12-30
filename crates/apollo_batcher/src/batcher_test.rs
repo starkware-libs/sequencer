@@ -851,9 +851,6 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
     batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
 
     for i in 0..N_PROPOSALS {
-        // The revert config shouldn't be toggled without restarting the Batcher. But in the context
-        // of the test it should be ok.
-        batcher.config.revert_config.should_revert = false;
         batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
         batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
         let content = batcher
@@ -870,7 +867,6 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         }
 
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-        batcher.config.revert_config.should_revert = true;
         batcher
             .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
             .await
@@ -1355,7 +1351,6 @@ async fn revert_block() {
         .returning(|_| ());
 
     let mut mock_dependencies = MockDependencies { storage_writer, ..Default::default() };
-    mock_dependencies.batcher_config.revert_config.should_revert = true;
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1372,9 +1367,7 @@ async fn revert_block() {
 
 #[tokio::test]
 async fn revert_block_mismatch_block_number() {
-    let mut mock_dependencies = MockDependencies::default();
-    mock_dependencies.batcher_config.revert_config.should_revert = true;
-    let mut batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
     let result = batcher.revert_block(revert_input).await;
@@ -1393,7 +1386,6 @@ async fn revert_block_empty_storage() {
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
     storage_reader.expect_global_root_height().returning(|| Ok(BlockNumber(0)));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
-    mock_dependencies.batcher_config.revert_config.should_revert = true;
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let revert_input = RevertBlockInput { height: BlockNumber(0) };
