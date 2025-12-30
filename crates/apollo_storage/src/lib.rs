@@ -1040,3 +1040,16 @@ pub enum OffsetKind {
     /// A transaction file.
     Transaction,
 }
+
+/// Interface for reading file offset data.
+pub trait FileOffsetReader {
+    /// Returns the file offset for a given offset kind.
+    fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>>;
+}
+
+impl<Mode: TransactionKind> FileOffsetReader for StorageTxn<'_, Mode> {
+    fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
+        let table = self.open_table(&self.tables.file_offsets)?;
+        Ok(table.get(&self.txn, &offset_kind)?)
+    }
+}
