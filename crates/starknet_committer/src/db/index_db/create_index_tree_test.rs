@@ -35,6 +35,7 @@ pub async fn convert_facts_db_to_index_db<FactsLeaf, IndexLeaf>(
     storage: &mut MapStorage,
     root_hash: HashOutput,
     trie_type: Option<TrieType>,
+    current_leaves: &mut Option<Vec<(NodeIndex, FactsLeaf)>>,
 ) -> MapStorage
 where
     FactsLeaf: Leaf + Into<IndexLeaf> + HasStaticPrefix<KeyContext = EmptyKeyContext>,
@@ -49,6 +50,7 @@ where
         NodeIndex::ROOT,
         root_hash,
         &trie_type,
+        current_leaves,
     )
     .await;
     index_layout_storage
@@ -61,11 +63,16 @@ async fn convert_facts_to_index_layout_inner<FactsLeaf, IndexLeaf>(
     current_root_index: NodeIndex,
     current_root_hash: HashOutput,
     trie_type: &TrieType,
+    current_leaves: &mut Option<Vec<(NodeIndex, FactsLeaf)>>,
 ) where
     FactsLeaf: Leaf + Into<IndexLeaf> + HasStaticPrefix<KeyContext = EmptyKeyContext>,
     IndexLeaf: Leaf + HasStaticPrefix<KeyContext = TrieType>,
     TreeHashFunctionImpl: TreeHashFunction<IndexLeaf>,
 {
+    println!("index: {:?}, hash: {:?}", current_root_index, current_root_hash);
+    if current_root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+        return;
+    }
     let db_prefix = if current_root_index.is_leaf() {
         FactsLeaf::get_static_prefix(&EmptyKeyContext)
     } else {
@@ -92,6 +99,7 @@ async fn convert_facts_to_index_layout_inner<FactsLeaf, IndexLeaf>(
                 children_indices[0],
                 binary_data.left_data,
                 trie_type,
+                current_leaves,
             )
             .await;
             convert_facts_to_index_layout_inner::<FactsLeaf, IndexLeaf>(
@@ -100,6 +108,7 @@ async fn convert_facts_to_index_layout_inner<FactsLeaf, IndexLeaf>(
                 children_indices[1],
                 binary_data.right_data,
                 trie_type,
+                current_leaves,
             )
             .await;
             IndexFilledNode(FilledNode {
@@ -116,6 +125,7 @@ async fn convert_facts_to_index_layout_inner<FactsLeaf, IndexLeaf>(
                 bottom_index,
                 edge_data.bottom_data,
                 trie_type,
+                current_leaves,
             )
             .await;
             IndexFilledNode(FilledNode {
@@ -126,10 +136,16 @@ async fn convert_facts_to_index_layout_inner<FactsLeaf, IndexLeaf>(
                 }),
             })
         }
-        NodeData::Leaf(leaf) => IndexFilledNode(FilledNode {
-            hash: current_root_hash,
-            data: NodeData::Leaf(leaf.into()),
-        }),
+        NodeData::Leaf(leaf) => {
+            if let Some(leaves) = current_leaves {
+                leaves.push((current_root_index, leaf.clone()));
+            }
+
+            IndexFilledNode(FilledNode {
+                hash: current_root_hash,
+                data: NodeData::Leaf(leaf.into()),
+            })
+        }
     };
 
     let index_db_key =
@@ -158,6 +174,7 @@ async fn test_create_tree_index_layout(
         &mut case.storage,
         case.root_hash,
         Some(TrieType::StorageTrie(ContractAddress::from(0_u128))),
+        &mut None,
     )
     .await;
 
