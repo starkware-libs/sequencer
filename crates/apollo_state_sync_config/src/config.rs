@@ -60,6 +60,7 @@ impl SerializeConfig for StateSyncConfig {
     }
 }
 
+// test
 fn validate_config(config: &StateSyncConfig) -> result::Result<(), ValidationError> {
     if config.central_sync_client_config.is_some() && config.p2p_sync_client_config.is_some()
         || config.central_sync_client_config.is_none() && config.p2p_sync_client_config.is_none()
