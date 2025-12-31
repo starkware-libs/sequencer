@@ -50,6 +50,9 @@ fn load_transaction_succeeds() {
     for file_name in [
         "reader/deploy_v0.json",
         "reader/invoke_v0.json",
+        // TODO(AvivG/ Meshi): Refactor proof_facts field with correct values, once program hash is
+        // available.
+        "reader/invoke_v3_client_side_proving.json",
         "reader/invoke_v3.json",
         "reader/declare_v0.json",
         "reader/declare_v3.json",
