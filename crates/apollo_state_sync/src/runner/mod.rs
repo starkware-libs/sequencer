@@ -146,15 +146,16 @@ impl StateSyncRunner {
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
     ) -> (Self, StorageReader) {
-        let StateSyncConfig {
+        let StateSyncConfig { dynamic_config, static_config } = config;
+        let StateSyncDynamicConfig { storage_reader_server_config } = dynamic_config;
+        let StateSyncStaticConfig {
             storage_config,
             p2p_sync_client_config,
             central_sync_client_config,
             network_config,
             revert_config,
             rpc_config,
-            storage_reader_server_config,
-        } = config;
+        } = static_config;
 
         let StateSyncResources {
             storage_reader,
