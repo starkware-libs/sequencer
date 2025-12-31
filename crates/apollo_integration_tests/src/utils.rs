@@ -51,7 +51,7 @@ use apollo_node_config::monitoring::MonitoringConfig;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
@@ -223,9 +223,9 @@ pub fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
-    state_sync_config.storage_config = storage_config.state_sync_storage_config;
-    state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+    state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
+    state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
+    let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
 
     consensus_manager_config.consensus_manager_config.static_config.storage_config =
         storage_config.consensus_storage_config.clone();
@@ -699,11 +699,14 @@ pub fn create_state_sync_configs(
     create_connected_network_configs(ports)
         .into_iter()
         .map(|network_config| StateSyncConfig {
-            storage_config: state_sync_storage_config.clone(),
-            network_config: Some(network_config),
-            rpc_config: RpcConfig {
-                ip: [127, 0, 0, 1].into(),
-                port: rpc_ports.remove(0),
+            static_config: StateSyncStaticConfig {
+                storage_config: state_sync_storage_config.clone(),
+                network_config: Some(network_config),
+                rpc_config: RpcConfig {
+                    ip: [127, 0, 0, 1].into(),
+                    port: rpc_ports.remove(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             ..Default::default()
