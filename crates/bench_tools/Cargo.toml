@@ -2,6 +2,7 @@
 name = "bench_tools"
 edition.workspace = true
 version.workspace = true
+description = "Benchmarking tools and utilities for performance testing."
 
 [lints]
 workspace = true

@@ -10,7 +10,7 @@ on:
 
 env:
   crate_triggers: "apollo_node,apollo_dashboard,apollo_integration_tests"
-  path_triggers: ".github/workflows/sequencer_docker-test.yml,scripts/*.py,scripts/system_tests/**/*.py"
+  path_triggers: ".github/workflows/sequencer_docker-test.yml,scripts/*.py,scripts/system_tests/**/*.py,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**/*"
 
 permissions:

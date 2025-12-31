@@ -1,0 +1,34 @@
+name: gateway
+
+replicas: 1
+
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json
+  sequencerConfig:
+    components_class_manager_port: 55001
+    components_class_manager_url: sequencer-core-service
+    components_mempool_port: 55006
+    components_mempool_url: sequencer-mempool-service
+    components_gateway_port: 55002
+    components_gateway_url: sequencer-gateway-service
+    components_state_sync_port: 55009
+    components_state_sync_url: sequencer-core-service
+    gateway_config_authorized_declarer_accounts: ""
+    gateway_config_authorized_declarer_accounts_is_none: true
+    gateway_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    gateway_config_stateful_tx_validator_config_max_allowed_nonce_gap: 200
+    gateway_config_stateless_tx_validator_config_min_gas_price: 3000000000
+    http_server_config_port: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: gateway
+    port: 55002
+    targetPort: 55002
+    protocol: TCP
+  - name: http-server
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

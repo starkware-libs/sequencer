@@ -440,8 +440,7 @@ fn test_bouncer_try_update_n_txs(
     assert_matches!(result, Ok(()));
 
     // Regression test to cover complicated calculations such as patricia update.
-    expect![
-        r#"
+    expect![[r#"
         BouncerWeights {
             l1_gas: 10,
             message_segment_length: 10,
@@ -452,11 +451,10 @@ fn test_bouncer_try_update_n_txs(
             ),
             n_txs: 20,
             proving_gas: GasAmount(
-                403210,
+                331210,
             ),
         }
-    "#
-    ]
+    "#]]
     .assert_debug_eq(&bouncer.accumulated_weights.bouncer_weights);
 
     // Prepare second tx resources.
@@ -777,11 +775,23 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
+<<<<<<< HEAD
             103123738
+||||||| c96dea6126
+            102622842
+=======
+            100709658
+>>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
+<<<<<<< HEAD
             267987710
+||||||| c96dea6126
+            266760980
+=======
+            243210896
+>>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

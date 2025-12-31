@@ -4,10 +4,11 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Protocol buffer definitions and serialization for P2P communication."
 
 [features]
 testing = ["apollo_test_utils", "rand", "rand_chacha"]
-bin-deps = ["prost-build", "protoc-prebuilt"]
+bin-deps = ["prost-build", "protoc-prebuilt", "tracing-subscriber"]
 
 [[bin]]
 name = "generate_protoc_output"
@@ -31,7 +32,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, optional = true, features = ["env-filter"] }
 
 # Binaries dependencies
 prost-build = { workspace = true, optional = true }

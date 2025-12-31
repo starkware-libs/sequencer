@@ -13,14 +13,11 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
@@ -155,23 +152,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn get_controller(&self) -> Controller {
-        match self {
-            Self::Batcher => Controller::StatefulSet,
-            Self::ClassManager => Controller::StatefulSet,
-            Self::Committer => Controller::StatefulSet,
-            Self::ConsensusManager => Controller::StatefulSet,
-            Self::HttpServer => Controller::Deployment,
-            Self::Gateway => Controller::Deployment,
-            Self::L1 => Controller::Deployment,
-            Self::Mempool => Controller::Deployment,
-            Self::SierraCompiler => Controller::Deployment,
-            Self::StateSync => Controller::StatefulSet,
-            // TODO(Nadin): Decide on controller for the SignatureManager.
-            Self::SignatureManager => Controller::StatefulSet,
-        }
-    }
-
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Batcher
@@ -201,48 +181,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Self::SierraCompiler => DEFAULT_RETRIES,
             Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
-    }
-
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            Self::ConsensusManager | Self::Mempool | Self::StateSync => true,
-            Self::Batcher
-            | Self::ClassManager
-            | Self::Committer
-            | Self::HttpServer
-            | Self::Gateway
-            | Self::L1
-            | Self::SierraCompiler
-            | Self::SignatureManager => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        None
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
     }
 
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
@@ -861,22 +799,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             }
         }
         components
-    }
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            Self::Batcher => UpdateStrategy::RollingUpdate,
-            Self::ClassManager => UpdateStrategy::Recreate,
-            Self::Committer => UpdateStrategy::RollingUpdate,
-            Self::ConsensusManager => UpdateStrategy::Recreate,
-            Self::HttpServer => UpdateStrategy::RollingUpdate,
-            Self::Gateway => UpdateStrategy::RollingUpdate,
-            Self::L1 => UpdateStrategy::RollingUpdate,
-            Self::Mempool => UpdateStrategy::Recreate,
-            Self::SierraCompiler => UpdateStrategy::RollingUpdate,
-            Self::SignatureManager => UpdateStrategy::Recreate,
-            Self::StateSync => UpdateStrategy::Recreate,
-        }
     }
 }
 

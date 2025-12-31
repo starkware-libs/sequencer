@@ -1,0 +1,7 @@
+{
+    "start_block_default": 0,
+    "l1_alchemy_api_key": "",
+    "feeder_x_throttling_bypass": "",
+    "blocked_senders": "",
+    "resync_error_threshold": 1
+}

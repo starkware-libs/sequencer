@@ -19,6 +19,7 @@ use apollo_config::converters::{
     serialize_slice,
 };
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -71,22 +72,22 @@ pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>
 
 #[derive(Clone, Debug)]
 pub struct CircularUrlIterator {
-    urls: Vec<Url>,
+    urls: Vec<Sensitive<Url>>,
     index: usize,
 }
 
 impl CircularUrlIterator {
-    pub fn new(urls: Vec<Url>) -> Self {
+    pub fn new(urls: Vec<Sensitive<Url>>) -> Self {
         Self { urls, index: 0 }
     }
 
-    pub fn get_current_url(&self) -> Url {
+    pub fn get_current_url(&self) -> Sensitive<Url> {
         self.urls.get(self.index).cloned().expect("No endpoint URLs provided")
     }
 }
 
 impl Iterator for CircularUrlIterator {
-    type Item = Url;
+    type Item = Sensitive<Url>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.index = (self.index + 1) % self.urls.len();
@@ -266,12 +267,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.url_iterator.get_current_url())
     }
 
     /// Rebuilds the provider on the new url.
-    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
         Ok(())
     }
@@ -320,7 +321,7 @@ impl PartialEq for EthereumBaseLayerError {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
     #[serde(deserialize_with = "deserialize_vec")]
-    pub ordered_l1_endpoint_urls: Vec<Url>,
+    pub ordered_l1_endpoint_urls: Vec<Sensitive<Url>>,
     pub starknet_contract_address: EthereumContractAddress,
     // Note: dates of fusaka-related upgrades: https://eips.ethereum.org/EIPS/eip-7607
     // Note 2: make sure to calculate the block number as activation epoch x32.
@@ -369,7 +370,13 @@ impl SerializeConfig for EthereumBaseLayerConfig {
         BTreeMap::from_iter([
             ser_param(
                 "ordered_l1_endpoint_urls",
-                &serialize_slice(&self.ordered_l1_endpoint_urls),
+                &serialize_slice(
+                    &self
+                        .ordered_l1_endpoint_urls
+                        .iter()
+                        .map(|url| url.peek_secret().clone())
+                        .collect::<Vec<_>>(),
+                ),
                 "An ordered list of URLs for communicating with Ethereum. The list is used in \
                  order, cyclically, switching if the current one is non-operational.",
                 ParamPrivacyInput::Private,
@@ -429,13 +436,13 @@ impl Default for EthereumBaseLayerConfig {
 
 fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
-    node_url: Url,
+    node_url: Sensitive<Url>,
 ) -> StarknetL1Contract {
     info!(
         "Building contract instance for Starknet contract address: {} and node URL: {}",
         starknet_contract_address, node_url
     );
-    let l1_client = ProviderBuilder::default().connect_http(node_url);
+    let l1_client = ProviderBuilder::default().connect_http(node_url.expose_secret());
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)

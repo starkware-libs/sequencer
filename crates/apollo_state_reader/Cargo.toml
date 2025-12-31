@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Provides read access to Starknet state for transaction execution and verification."
 
 [features]
 cairo_native = ["blockifier/cairo_native"]

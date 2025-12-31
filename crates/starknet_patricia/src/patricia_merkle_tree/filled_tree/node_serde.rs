@@ -6,7 +6,7 @@ use starknet_patricia_storage::db_object::{
     HasDynamicPrefix,
     HasStaticPrefix,
 };
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
 use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -21,7 +21,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 
 // Const describe the size of the serialized node.
-pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
+pub const SERIALIZE_HASH_BYTES: usize = 32;
 pub(crate) const BINARY_BYTES: usize = 2 * SERIALIZE_HASH_BYTES;
 pub(crate) const EDGE_LENGTH_BYTES: usize = 1;
 pub(crate) const EDGE_PATH_BYTES: usize = 32;
@@ -38,7 +38,7 @@ pub enum PatriciaPrefix {
 impl From<PatriciaPrefix> for DbKeyPrefix {
     fn from(value: PatriciaPrefix) -> Self {
         match value {
-            PatriciaPrefix::InnerNode => Self::new(b"patricia_node"),
+            PatriciaPrefix::InnerNode => Self::new(b"patricia_node".into()),
             PatriciaPrefix::Leaf(prefix) => prefix,
         }
     }
@@ -60,10 +60,10 @@ impl<L: Leaf> HasDynamicPrefix for FilledNode<L, HashOutput> {
     // Inherit the KeyContext from the HasStaticPrefix implementation of the leaf.
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
 
-    fn get_prefix(&self, _key_context: &Self::KeyContext) -> DbKeyPrefix {
+    fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
         match &self.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
-            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(_key_context)),
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix(key_context)),
         }
         .into()
     }
@@ -82,7 +82,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> SerializationResult<DbValue> {
         match &self.data {
             NodeData::Binary(BinaryData { left_data: left_hash, right_data: right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
@@ -91,7 +91,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
 
                 // Concatenate left and right hashes.
                 let serialized = [left, right].concat();
-                DbValue(serialized)
+                Ok(DbValue(serialized))
             }
 
             NodeData::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }) => {
@@ -103,7 +103,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
 
                 // Concatenate bottom hash, path, and path length.
                 let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
-                DbValue(serialized)
+                Ok(DbValue(serialized))
             }
 
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),

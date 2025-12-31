@@ -1,9 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::hash::StateRoots;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
@@ -118,7 +119,7 @@ impl From<ThinStateDiff> for StateDiff {
 }
 
 /// All optional configurations of the committer.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
 }
@@ -136,14 +137,19 @@ impl ReaderConfig {
     }
 }
 
+impl SerializeConfig for ReaderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "warn_on_trivial_modifications",
+            &self.warn_on_trivial_modifications,
+            "Whether to warn on trivial state update.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 /// Defines the context type for the input of the committer.
 pub trait InputContext {}
-
-/// Used for reading the roots in facts layout case.
-#[derive(Debug, PartialEq)]
-pub struct FactsDbInitialRead(pub StateRoots);
-
-impl InputContext for FactsDbInitialRead {}
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Input<I: InputContext> {

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::HashOutput;
-use starknet_patricia::generate_trie_config;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -24,21 +23,30 @@ use crate::patricia_merkle_tree::types::{
     RootHashes,
     StarknetForestProofs,
 };
-generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
 
-generate_trie_config!(OriginalSkeletonClassesTrieConfig, CompiledClassHash);
+#[derive(Default)]
+pub struct OriginalSkeletonTrieConfig {
+    compare_modified_leaves: bool,
+}
 
-pub(crate) struct OriginalSkeletonContractsTrieConfig;
+impl OriginalSkeletonTrieConfig {
+    pub fn new_for_contracts_trie() -> Self {
+        Self { compare_modified_leaves: false }
+    }
 
-impl OriginalSkeletonTreeConfig<ContractState> for OriginalSkeletonContractsTrieConfig {
-    fn compare_modified_leaves(&self) -> bool {
-        false
+    pub fn new_for_classes_or_storage_trie(warn_on_trivial_modifications: bool) -> Self {
+        Self { compare_modified_leaves: warn_on_trivial_modifications }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_for_tests(should_compare_modified_leaves: bool) -> Self {
+        Self { compare_modified_leaves: should_compare_modified_leaves }
     }
 }
 
-impl OriginalSkeletonContractsTrieConfig {
-    pub(crate) fn new() -> Self {
-        Self
+impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieConfig {
+    fn compare_modified_leaves(&self) -> bool {
+        self.compare_modified_leaves
     }
 }
 
@@ -97,10 +105,14 @@ async fn fetch_all_patricia_paths(
         HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
 
     for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
-        let storage_root_hash = leaves
-            .get(idx)
-            .expect("Contract address must exist in the contracts trie leaves data.")
-            .storage_root_hash;
+        // The contract address might not exist in the contracts trie in the following cases:
+        // 1. We are looking at the previous tree and the contract is new.
+        // 2. We are looking at the new tree and the contract is deleted (revert).
+        // In either case, the storage trie of this contract is empty, so there is nothing to
+        // prove regarding the contract storage.
+        let Some(storage_root_hash) = leaves.get(idx).map(|leaf| leaf.storage_root_hash) else {
+            continue;
+        };
         // No need to fetch the leaves.
         let leaves = None;
         let proof = fetch_patricia_paths::<StarknetStorageValue>(

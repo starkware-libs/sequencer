@@ -177,11 +177,19 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     Ok([d0, d1, Felt::from(d2)])
 }
 
+<<<<<<< HEAD
 #[allow(dead_code)]
 pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
 
+||||||| c96dea6126
+pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
+    coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
+}
+
+=======
+>>>>>>> origin/main-v0.14.1-committer
 /// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

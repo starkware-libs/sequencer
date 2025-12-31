@@ -39,7 +39,6 @@ use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -48,6 +47,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
@@ -155,7 +155,7 @@ pub(crate) async fn commit_state_diff(
     let input = Input { state_diff, initial_read_context, config };
     let filled_forest =
         commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
-    facts_db.write(&filled_forest).await;
+    facts_db.write(&filled_forest).await.expect("Failed to write filled forest to storage");
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
@@ -223,8 +223,15 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
+<<<<<<< HEAD
     class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> (StateMaps, StateCommitmentInfos) {
+||||||| c96dea6126
+) -> (CachedStateInput, CommitmentInfos) {
+=======
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
+) -> (CachedStateInput, CommitmentInfos) {
+>>>>>>> origin/main-v0.14.1-committer
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),

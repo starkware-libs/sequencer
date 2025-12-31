@@ -2,6 +2,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::vec;
 
+use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
@@ -39,7 +41,7 @@ use crate::test_utils::{
     NoOpHeightVotedStorage,
     TestProposalPart,
 };
-use crate::types::{Round, ValidatorId};
+use crate::types::{ConsensusError, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 use crate::RunConsensusArguments;
 
@@ -166,7 +168,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
@@ -220,7 +222,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     expect_validate_proposal(&mut context, Felt::TWO, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
@@ -286,7 +288,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     expect_validate_proposal(&mut context, Felt::ONE, 2);
     context
         .expect_validators()
@@ -444,7 +446,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     // Set up coordination to detect when node votes Nil for height 2 (indicating proposal was
     // dropped, so the node didn't received the proposal and votes Nil).
     let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
@@ -583,6 +585,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         .times(1)
         .return_once(|_, _| {
             round1_trigger.send(()).unwrap();
+            Ok(())
         });
     context
         .expect_set_height_and_round()
@@ -590,9 +593,10 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         .times(1)
         .return_once(|_, _| {
             round2_trigger.send(()).unwrap();
+            Ok(())
         });
     // Handle all other set_height_and_round calls normally.
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
@@ -667,7 +671,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
     // proposer.
     let mut context = MockTestContext::new();
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_validators().returning(move |h: BlockNumber| {
         if h == HEIGHT_1 { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
     });
@@ -688,7 +692,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         .returning(move |_, _| {
             let (sender, receiver) = oneshot::channel();
             sender.send(ProposalCommitment(Felt::TWO)).unwrap();
-            receiver
+            Ok(receiver)
         })
         .times(1);
     // Expect a decision at height 2.
@@ -818,7 +822,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
@@ -921,7 +925,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     context
         .expect_validators()
         .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_try_sync().returning(|_| false);
 
     // Set up storage expectation for prevote - must happen before broadcast
@@ -1046,4 +1050,104 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         .unwrap();
 
     assert_decision(decision, block_id.0, ROUND_0);
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: ConsensusConfig) {
+    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+
+    let (mut _proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let mut context = MockTestContext::new();
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+
+    // Sync should first fail, so consensus will try to run.
+    context.expect_try_sync().times(1).returning(|_| false);
+
+    // Consensus should fail when context.set_height_and_round fails.
+    context.expect_set_height_and_round().times(1).returning(move |_, _| {
+        Err(ConsensusError::BatcherError(BatcherClientError::BatcherError(
+            BatcherError::InternalError,
+        )))
+    });
+
+    // Now sync should be called and succeed.
+    context.expect_try_sync().withf(move |height| *height == HEIGHT_1).times(1).returning(|_| true);
+
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
+    let res = manager
+        .run_height(
+            &mut context,
+            HEIGHT_1,
+            &mut subscriber_channels.into(),
+            &mut proposal_receiver_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(RunHeightRes::Sync));
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusConfig) {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let mut context = MockTestContext::new();
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_try_sync().returning(|_| false);
+
+    // Send proposal with no content.
+    send_proposal(&mut proposal_receiver_sender, vec![]).await;
+
+    // Send a proposal with invalid Init.
+    send_proposal(&mut proposal_receiver_sender, vec![TestProposalPart::Invalid]).await;
+
+    // Send a valid proposal and valid votes.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+
+    // TODO(Dafna): Test also invalid votes.
+
+    // Run the manager for height 1.
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _| Ok(()));
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+    let decision = manager
+        .run_height(
+            &mut context,
+            HEIGHT_1,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE, ROUND_0);
 }

@@ -13,15 +13,15 @@ use tracing_subscriber::fmt::SubscriberBuilder;
 use crate::tracing::{CustomLogger, TraceLevel};
 use crate::{
     debug_every_n,
-    debug_every_n_sec,
+    debug_every_n_ms,
     error_every_n,
-    error_every_n_sec,
+    error_every_n_ms,
     info_every_n,
-    info_every_n_sec,
+    info_every_n_ms,
     trace_every_n,
-    trace_every_n_sec,
+    trace_every_n_ms,
     warn_every_n,
-    warn_every_n_sec,
+    warn_every_n_ms,
 };
 
 #[test]
@@ -358,10 +358,10 @@ fn test_error_every_n_logs_to_error() {
 }
 
 #[test]
-fn test_log_every_n_sec_logs_first_time() {
+fn test_log_every_n_ms_logs_first_time() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    warn_every_n_sec!(1000, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches(LOG_MESSAGE).count(),
@@ -371,15 +371,13 @@ fn test_log_every_n_sec_logs_first_time() {
     );
 }
 
-// TODO(guy.f): Refactor the code so we can inject the time and don't need to use `sleep` in the
-// tests below.
-
 #[test]
-fn test_log_every_n_sec_does_not_log_more_than_every_n() {
+fn test_log_every_n_ms_does_not_log_more_than_every_n() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
     for _ in 0..2 {
-        warn_every_n_sec!(1, LOG_MESSAGE);
+        // The following assumes the iterations take less than 100ms.
+        warn_every_n_ms!(100, LOG_MESSAGE);
     }
 
     assert_eq!(
@@ -391,13 +389,13 @@ fn test_log_every_n_sec_does_not_log_more_than_every_n() {
 }
 
 #[test]
-fn test_log_every_n_logs_every_n_sec() {
+fn test_log_every_n_logs_every_n_ms() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
     for _ in 0..5 {
-        warn_every_n_sec!(2, LOG_MESSAGE);
+        warn_every_n_ms!(100, LOG_MESSAGE);
         // Every second log should be logged due to the sleep.
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_millis(50));
     }
 
     assert_eq!(
@@ -409,11 +407,11 @@ fn test_log_every_n_logs_every_n_sec() {
 }
 
 #[test]
-fn test_log_every_n_sec_different_lines_count_separately() {
+fn test_log_every_n_ms_different_lines_count_separately() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    warn_every_n_sec!(1, LOG_MESSAGE);
-    warn_every_n_sec!(1, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches(LOG_MESSAGE).count(),
@@ -423,13 +421,13 @@ fn test_log_every_n_sec_different_lines_count_separately() {
     );
 }
 
-const ARBITRARY_TIME_SECS: u64 = 2;
+const ARBITRARY_TIME_MS: u64 = 2000;
 
 #[test]
 fn test_trace_every_n_logs_to_trace_sec() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    trace_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+    trace_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("TRACE").count(),
@@ -443,7 +441,7 @@ fn test_trace_every_n_logs_to_trace_sec() {
 fn test_debug_every_n_logs_to_debug_sec() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    debug_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+    debug_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("DEBUG").count(),
@@ -457,7 +455,7 @@ fn test_debug_every_n_logs_to_debug_sec() {
 fn test_info_every_n_logs_to_info_sec() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    info_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+    info_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("INFO").count(),
@@ -471,7 +469,7 @@ fn test_info_every_n_logs_to_info_sec() {
 fn test_warn_every_n_logs_to_warn_sec() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    warn_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+    warn_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("WARN").count(),
@@ -485,7 +483,7 @@ fn test_warn_every_n_logs_to_warn_sec() {
 fn test_error_every_n_logs_to_error_sec() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
-    error_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+    error_every_n_ms!(ARBITRARY_TIME_MS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("ERROR").count(),

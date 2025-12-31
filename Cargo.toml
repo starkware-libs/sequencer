@@ -66,8 +66,13 @@ members = [
   "crates/apollo_p2p_sync_config",
   "crates/apollo_proc_macros",
   "crates/apollo_proc_macros_tests",
+<<<<<<< HEAD
   "crates/apollo_proof_manager",
   "crates/apollo_propeller",
+||||||| c96dea6126
+=======
+  "crates/apollo_propeller",
+>>>>>>> origin/main-v0.14.1-committer
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
@@ -184,8 +189,13 @@ apollo_p2p_sync.path = "crates/apollo_p2p_sync"
 apollo_p2p_sync_config.path = "crates/apollo_p2p_sync_config"
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
+<<<<<<< HEAD
 apollo_proof_manager.path = "crates/apollo_proof_manager"
 apollo_propeller.path = "crates/apollo_propeller"
+||||||| c96dea6126
+=======
+apollo_propeller.path = "crates/apollo_propeller"
+>>>>>>> origin/main-v0.14.1-committer
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"

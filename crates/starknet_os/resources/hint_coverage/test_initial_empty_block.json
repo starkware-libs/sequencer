@@ -1,0 +1,197 @@
+[
+  {
+    "StatelessHint": "EnterScopeWithAliases"
+  },
+  {
+    "StatelessHint": "ContractAddressLeMaxForCompression"
+  },
+  {
+    "StatelessHint": "ComputeCommitmentsOnFinalizedStateWithAliases"
+  },
+  {
+    "StatelessHint": "DictionaryFromBucket"
+  },
+  {
+    "StatelessHint": "GetPrevOffset"
+  },
+  {
+    "StatelessHint": "CompressionHint"
+  },
+  {
+    "StatelessHint": "SetDecompressedDst"
+  },
+  {
+    "StatelessHint": "SegmentsAddTemp"
+  },
+  {
+    "StatelessHint": "SegmentsAdd"
+  },
+  {
+    "StatelessHint": "LogRemainingTxs"
+  },
+  {
+    "StatelessHint": "FillHolesInRc96Segment"
+  },
+  {
+    "StatelessHint": "EnterSyscallScopes"
+  },
+  {
+    "StatelessHint": "EnterScopeNode"
+  },
+  {
+    "StatelessHint": "EnterScopeDescendEdge"
+  },
+  {
+    "StatelessHint": "Log2Ceil"
+  },
+  {
+    "StatelessHint": "SetStateUpdatesStart"
+  },
+  {
+    "StatelessHint": "SetCompressedStart"
+  },
+  {
+    "StatelessHint": "SetNUpdatesSmall"
+  },
+  {
+    "StatelessHint": "SetSiblings"
+  },
+  {
+    "StatelessHint": "SetApToDescend"
+  },
+  {
+    "StatelessHint": "SplitDescend"
+  },
+  {
+    "StatelessHint": "DecodeNode2"
+  },
+  {
+    "StatelessHint": "StarknetOsInput"
+  },
+  {
+    "StatelessHint": "AllocateSegmentsForMessages"
+  },
+  {
+    "CommonHint": "SetTreeStructure"
+  },
+  {
+    "CommonHint": "GuessContractAddrStoragePtr"
+  },
+  {
+    "CommonHint": "UpdateClassesPtr"
+  },
+  {
+    "CommonHint": "GuessClassesPtr"
+  },
+  {
+    "CommonHint": "UpdateContractAddrToStoragePtr"
+  },
+  {
+    "CommonHint": "SetStateUpdatePointersToNone"
+  },
+  {
+    "OsHint": "BlockNumber"
+  },
+  {
+    "OsHint": "BlockTimestamp"
+  },
+  {
+    "OsHint": "ChainId"
+  },
+  {
+    "OsHint": "FeeTokenAddress"
+  },
+  {
+    "OsHint": "SequencerAddress"
+  },
+  {
+    "OsHint": "WriteUseKzgDaToMemory"
+  },
+  {
+    "OsHint": "ReadAliasCounter"
+  },
+  {
+    "OsHint": "InitializeAliasCounter"
+  },
+  {
+    "OsHint": "UpdateAliasCounter"
+  },
+  {
+    "OsHint": "GuessAliasesContractStoragePtr"
+  },
+  {
+    "OsHint": "UpdateAliasesContractToStoragePtr"
+  },
+  {
+    "OsHint": "GuessStatePtr"
+  },
+  {
+    "OsHint": "UpdateStatePtr"
+  },
+  {
+    "OsHint": "LoadDeprecatedClassFacts"
+  },
+  {
+    "OsHint": "OsInputTransactions"
+  },
+  {
+    "OsHint": "GetBlocksNumber"
+  },
+  {
+    "OsHint": "GetNClassHashesToMigrate"
+  },
+  {
+    "OsHint": "WriteFullOutputToMemory"
+  },
+  {
+    "OsHint": "ConfigureKzgManager"
+  },
+  {
+    "OsHint": "SetApToPrevBlockHash"
+  },
+  {
+    "OsHint": "SetApToNewBlockHash"
+  },
+  {
+    "OsHint": "BuildDescentMap"
+  },
+  {
+    "OsHint": "SetPreimageForStateCommitments"
+  },
+  {
+    "OsHint": "SetPreimageForClassCommitments"
+  },
+  {
+    "OsHint": "SetPreimageForCurrentCommitmentInfo"
+  },
+  {
+    "OsHint": "ShouldUseReadOptimizedPatriciaUpdate"
+  },
+  {
+    "OsHint": "LoadEdge"
+  },
+  {
+    "OsHint": "HeightIsZeroOrLenNodePreimageIsTwo"
+  },
+  {
+    "OsHint": "InitStateUpdatePointers"
+  },
+  {
+    "OsHint": "InitializeStateChanges"
+  },
+  {
+    "OsHint": "InitializeClassHashes"
+  },
+  {
+    "OsHint": "CreateBlockAdditionalHints"
+  },
+  {
+    "OsHint": "LogRemainingBlocks"
+  },
+  {
+    "OsHint": "GetPublicKeys"
+  },
+  {
+    "HintExtension": "LoadClassesAndBuildBytecodeSegmentStructures"
+  }
+]

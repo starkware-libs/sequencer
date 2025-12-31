@@ -78,8 +78,8 @@ impl EthToStrkOracleClient {
             .expect("url_header_list should be set in the config")
             .iter()
             .map(|uh| UrlAndHeaderMap {
-                url: uh.as_ref().url.clone(),
-                headers: btreemap_to_headermap(uh.as_ref().headers.clone()).into(),
+                url: uh.peek_secret().url.clone(),
+                headers: btreemap_to_headermap(uh.peek_secret().headers.clone()).into(),
             })
             .collect::<Vec<_>>();
         Self {
@@ -115,8 +115,11 @@ impl EthToStrkOracleClient {
                 url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
                 let result = tokio::time::timeout(Duration::from_secs(query_timeout_sec), async {
                     // TODO(victork): make sure we're allowed to expose the headers here
-                    let response =
-                        client.get(url.clone()).headers(headers.as_ref().clone()).send().await?;
+                    let response = client
+                        .get(url.clone())
+                        .headers(headers.peek_secret().clone())
+                        .send()
+                        .await?;
                     let body = response.text().await?;
                     let rate = resolve_query(body)?;
                     Ok::<_, EthToStrkOracleClientError>(rate)

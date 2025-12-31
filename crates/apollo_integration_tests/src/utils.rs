@@ -196,7 +196,7 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_gas,
     );
-    let committer_config = CommitterConfig { enable_committer: true };
+    let committer_config = CommitterConfig::default();
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
@@ -258,7 +258,7 @@ pub fn create_node_config(
     config_pointers_map.change_target_value(
         "recorder_url",
         // TODO(victork): make sure we're allowed to expose the URL here
-        to_value(recorder_url.as_ref()).expect("Failed to serialize Url"),
+        to_value(recorder_url.peek_secret()).expect("Failed to serialize Url"),
     );
     config_pointers_map.change_target_value(
         "starknet_url",
