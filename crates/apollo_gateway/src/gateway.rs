@@ -34,7 +34,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -96,7 +96,7 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
-        debug!("Processing tx: {:?}", &tx);
+        info!("Processing tx: {:?}", &tx);
         let tx_signature = tx.signature().clone();
         let is_p2p = p2p_message_metadata.is_some();
 
