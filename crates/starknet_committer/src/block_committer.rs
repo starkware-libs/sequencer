@@ -1,4 +1,6 @@
 pub mod commit;
+#[cfg(test)]
+pub mod commit_test;
 pub mod errors;
 pub mod input;
 #[cfg(any(feature = "testing", test))]
