@@ -63,31 +63,32 @@ pub(crate) struct CommitmentManager {
     pub(crate) commitment_task_offset: BlockNumber,
 }
 
-// TODO(amos): Sort methods and associated functions: public methods, private methods, public
-// associated functions, private associated functions.
-// TODO(amos): Think which methods / functions should be private.
 impl CommitmentManager {
-    /// Initializes the CommitmentManager. This includes starting the state committer task.
-    pub(crate) fn initialize(
-        config: &CommitmentManagerConfig,
-        global_root_height: BlockNumber,
+    // Public methods.
+
+    /// Creates and initializes the commitment manager, and also adds
+    /// missing commitment tasks.
+    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
+        batcher_config: &BatcherConfig,
+        commitment_manager_config: &CommitmentManagerConfig,
+        storage_reader: &R,
         committer_client: SharedCommitterClient,
     ) -> Self {
-        info!("Initializing CommitmentManager with config {config:?}");
-        let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
-        let (results_sender, results_receiver) = channel(config.results_channel_size);
-
-        let state_committer = StateCommitter { tasks_receiver, results_sender, committer_client };
-
-        let commitment_task_performer = state_committer.run();
-
-        Self {
-            tasks_sender,
-            results_receiver,
-            commitment_task_performer,
-            config: config.clone(),
-            commitment_task_offset: global_root_height,
-        }
+        let global_root_height = storage_reader
+            .global_root_height()
+            .expect("Failed to get block hash height from storage.");
+        info!("Initializing commitment manager.");
+        let mut commitment_manager = CommitmentManager::initialize(
+            commitment_manager_config,
+            global_root_height,
+            committer_client,
+        );
+        let block_height =
+            storage_reader.height().expect("Failed to get block height from storage.");
+        commitment_manager
+            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
+            .await;
+        commitment_manager
     }
 
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
@@ -145,19 +146,6 @@ impl CommitmentManager {
         }
     }
 
-    fn successfully_added_commitment_task(
-        &mut self,
-        height: BlockNumber,
-        state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> CommitmentManagerResult<()> {
-        info!(
-            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
-             state committer."
-        );
-        self.increase_commitment_task_offset();
-        Ok(())
-    }
-
     /// Fetches all ready commitment results from the state committer.
     pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
         let mut results = Vec::new();
@@ -173,8 +161,42 @@ impl CommitmentManager {
         results
     }
 
-    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
-        unimplemented!()
+    // Private methods.
+
+    fn successfully_added_commitment_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> CommitmentManagerResult<()> {
+        info!(
+            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
+             state committer."
+        );
+        self.increase_commitment_task_offset();
+        Ok(())
+    }
+
+    /// Initializes the CommitmentManager. This includes starting the state committer task.
+    fn initialize(
+        config: &CommitmentManagerConfig,
+        global_root_height: BlockNumber,
+        committer_client: SharedCommitterClient,
+    ) -> Self {
+        info!("Initializing CommitmentManager with config {config:?}");
+        let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
+        let (results_sender, results_receiver) = channel(config.results_channel_size);
+
+        let state_committer = StateCommitter { tasks_receiver, results_sender, committer_client };
+
+        let commitment_task_performer = state_committer.run();
+
+        Self {
+            tasks_sender,
+            results_receiver,
+            commitment_task_performer,
+            config: config.clone(),
+            commitment_task_offset: global_root_height,
+        }
     }
 
     fn increase_commitment_task_offset(&mut self) {
@@ -182,39 +204,7 @@ impl CommitmentManager {
             self.commitment_task_offset.next().expect("Block number overflowed.");
     }
 
-    /// Returns the final commitment output for a given commitment task output.
-    /// If `should_finalize_block_hash` is true, finalizes the commitment by calculating the block
-    /// hash using the global root, the parent block hash and the partial block hash components.
-    /// Otherwise, returns the final commitment with no block hash.
-    pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
-        storage_reader: Arc<R>,
-        CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,
-        should_finalize_block_hash: bool,
-    ) -> CommitmentManagerResult<FinalBlockCommitment> {
-        match should_finalize_block_hash {
-            false => {
-                info!("Finalized commitment for block {height} without calculating block hash.");
-                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
-            }
-            true => {
-                info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (parent_hash, partial_block_hash_components) =
-                    storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
-                let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
-                    height.prev().expect(
-                        "For the genesis block, the block hash is constant and should not be \
-                         fetched from storage.",
-                    ),
-                ))?;
-                let partial_block_hash_components = partial_block_hash_components
-                    .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
-                let block_hash =
-                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
-                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
-            }
-        }
-    }
-    pub(crate) async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
+    async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
         &mut self,
         height: BlockNumber,
         batcher_storage_reader: &R,
@@ -250,7 +240,7 @@ impl CommitmentManager {
     /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
     /// unfinished commitment tasks / results not written to storage when the sequencer is shut
     /// down.
-    pub(crate) async fn add_missing_commitment_tasks<R: BatcherStorageReader>(
+    async fn add_missing_commitment_tasks<R: BatcherStorageReader>(
         &mut self,
         current_block_height: BlockNumber,
         batcher_config: &BatcherConfig,
@@ -265,28 +255,42 @@ impl CommitmentManager {
         info!("Added missing commitment tasks for blocks [{start}, {end}) to commitment manager.");
     }
 
-    /// Creates and initializes the commitment manager, and also adds
-    /// missing commitment tasks.
-    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
-        batcher_config: &BatcherConfig,
-        commitment_manager_config: &CommitmentManagerConfig,
-        storage_reader: &R,
-        committer_client: SharedCommitterClient,
-    ) -> Self {
-        let global_root_height = storage_reader
-            .global_root_height()
-            .expect("Failed to get block hash height from storage.");
-        info!("Initializing commitment manager.");
-        let mut commitment_manager = CommitmentManager::initialize(
-            commitment_manager_config,
-            global_root_height,
-            committer_client,
-        );
-        let block_height =
-            storage_reader.height().expect("Failed to get block height from storage.");
-        commitment_manager
-            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
-            .await;
-        commitment_manager
+    // Associated functions.
+
+    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
+        unimplemented!()
+    }
+
+    /// Returns the final commitment output for a given commitment task output.
+    /// If `should_finalize_block_hash` is true, finalizes the commitment by calculating the block
+    /// hash using the global root, the parent block hash and the partial block hash components.
+    /// Otherwise, returns the final commitment with no block hash.
+    pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
+        storage_reader: Arc<R>,
+        CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,
+        should_finalize_block_hash: bool,
+    ) -> CommitmentManagerResult<FinalBlockCommitment> {
+        match should_finalize_block_hash {
+            false => {
+                info!("Finalized commitment for block {height} without calculating block hash.");
+                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
+            }
+            true => {
+                info!("Finalizing commitment for block {height} with calculating block hash.");
+                let (parent_hash, partial_block_hash_components) =
+                    storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
+                let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
+                    height.prev().expect(
+                        "For the genesis block, the block hash is constant and should not be \
+                         fetched from storage.",
+                    ),
+                ))?;
+                let partial_block_hash_components = partial_block_hash_components
+                    .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
+                let block_hash =
+                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
+                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+            }
+        }
     }
 }
