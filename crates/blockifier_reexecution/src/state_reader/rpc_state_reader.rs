@@ -106,9 +106,9 @@ impl Default for RetryConfig {
 
 #[derive(Clone)]
 pub struct RpcStateReader {
-    pub(crate) rpc_state_reader: GatewayRpcStateReader,
+    pub rpc_state_reader: GatewayRpcStateReader,
     pub(crate) retry_config: RetryConfig,
-    pub(crate) chain_id: ChainId,
+    pub chain_id: ChainId,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }

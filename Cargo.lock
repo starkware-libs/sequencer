@@ -12752,6 +12752,7 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
+ "apollo_gateway",
  "async-trait",
  "blockifier",
  "blockifier_reexecution",
@@ -12761,6 +12762,7 @@ dependencies = [
  "futures",
  "indexmap 2.12.0",
  "rstest",
+ "serde_json",
  "shared_execution_objects",
  "starknet-rust",
  "starknet-rust-core 0.16.0",

@@ -33,6 +33,7 @@ pub struct VirtualOsBlockInput {
     pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     pub block_info: BlockInfo,
     pub initial_reads: StateMaps,
+    pub base_block_hash: BlockHash,
     pub prev_base_block_hash: BlockHash,
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
@@ -64,7 +65,7 @@ impl From<VirtualOsBlockInput> for StarknetOsInput {
             block_info: virtual_os_block_input.block_info,
             initial_reads: virtual_os_block_input.initial_reads,
             declared_class_hash_to_component_hashes: HashMap::new(),
-            new_block_hash: BlockHash::default(),
+            new_block_hash: virtual_os_block_input.base_block_hash,
             old_block_number_and_hash: None,
             class_hashes_to_migrate: HashMap::new(),
         };
@@ -114,7 +115,7 @@ where
         )?;
 
         // Extract chain info from block context.
-        let chain_info = execution_data.block_context.chain_info();
+        let chain_info = execution_data.base_block_info.block_context.chain_info();
         let os_chain_info = OsChainInfo {
             chain_id: chain_info.chain_id.clone(),
             strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
@@ -148,9 +149,10 @@ where
                 .classes_trie_commitment_info,
             transactions: txs,
             tx_execution_infos,
-            block_info: execution_data.block_context.block_info().clone(),
+            block_info: execution_data.base_block_info.block_context.block_info().clone(),
             initial_reads: execution_data.initial_reads,
-            prev_base_block_hash: execution_data.prev_base_block_hash,
+            base_block_hash: execution_data.base_block_info.base_block_hash,
+            prev_base_block_hash: execution_data.base_block_info.prev_base_block_hash,
             compiled_classes: classes.compiled_classes,
         };
 

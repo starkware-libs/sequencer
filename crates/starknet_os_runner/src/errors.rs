@@ -1,3 +1,4 @@
+use apollo_gateway::errors::RPCStateReaderError;
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use starknet_api::core::ClassHash;
@@ -10,12 +11,14 @@ pub enum VirtualBlockExecutorError {
     #[error(transparent)]
     // Boxed to reduce the size of Result on the stack (ReexecutionError is >128 bytes).
     ReexecutionError(#[from] Box<ReexecutionError>),
-
     #[error("Transaction execution failed: {0}")]
     TransactionExecutionError(String),
-
     #[error("Block state unavailable after execution")]
     StateUnavailable,
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
+    #[error(transparent)]
+    Rpc(#[from] RPCStateReaderError),
 }
 
 #[derive(Debug, Error)]
