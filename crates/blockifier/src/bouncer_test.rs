@@ -775,23 +775,11 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
-<<<<<<< HEAD
-            103123738
-||||||| c96dea6126
-            102622842
-=======
-            100709658
->>>>>>> origin/main-v0.14.1-committer
+            101198906
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-<<<<<<< HEAD
-            267987710
-||||||| c96dea6126
-            266760980
-=======
-            243210896
->>>>>>> origin/main-v0.14.1-committer
+            244330278
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

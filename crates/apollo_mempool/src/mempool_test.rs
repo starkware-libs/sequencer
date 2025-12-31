@@ -1307,13 +1307,7 @@ fn metrics_correctness() {
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-<<<<<<< HEAD
-        total_size_in_bytes: 2096,
-||||||| c96dea6126
-        total_size_in_bytes: 1952,
-=======
-        total_size_in_bytes: 1552,
->>>>>>> origin/main-v0.14.1-committer
+        total_size_in_bytes: 1696,
         evictions_count: 1,
         transaction_time_spent_until_batched: HistogramValue {
             sum: 2.0,

@@ -4,6 +4,8 @@ use std::sync::{Arc, LazyLock};
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::BouncerConfig;
+use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
@@ -40,13 +42,7 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
-<<<<<<< HEAD
-||||||| c96dea6126
-    CHAIN_ID_FOR_TESTS,
-=======
     NonceManager,
-    CHAIN_ID_FOR_TESTS,
->>>>>>> origin/main-v0.14.1-committer
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -3076,7 +3072,12 @@ async fn test_initial_empty_block() {
         commitment_storage: Default::default(),
         contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-        next_block_number: BlockNumber(0),
+        block_context: BlockContext::new(
+            BlockInfo::default(),
+            ChainInfo::default(),
+            VersionedConstants::latest_constants().clone(),
+            BouncerConfig::default(),
+        ),
     };
     let empty_initial_state_data = InitialStateData {
         initial_state: empty_initial_state,

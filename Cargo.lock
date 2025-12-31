@@ -2253,7 +2253,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "apollo_proof_manager"
 version = "0.0.0"
 dependencies = [
@@ -2269,13 +2268,6 @@ name = "apollo_propeller"
 version = "0.0.0"
 
 [[package]]
-||||||| c96dea6126
-=======
-name = "apollo_propeller"
-version = "0.17.0-rc.0"
-
-[[package]]
->>>>>>> origin/main-v0.14.1-committer
 name = "apollo_protobuf"
 version = "0.0.0"
 dependencies = [
