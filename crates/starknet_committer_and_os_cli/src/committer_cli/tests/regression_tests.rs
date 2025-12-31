@@ -115,7 +115,7 @@ pub async fn test_regression_single_tree() {
             &mut storage,
             root_hash,
             OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
-            &TrieType::StorageTrie(ContractAddress::from(1_u128)),
+            TrieType::StorageTrie(ContractAddress::from(1_u128)),
         )
         .await;
     let execution_time = std::time::Instant::now() - start;
