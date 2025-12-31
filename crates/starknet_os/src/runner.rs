@@ -108,7 +108,7 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    let (runner_output, snos_hint_processor, is_onchain_kzg_da) = create_hint_processor_and_run_os(
+    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
         layout,
         os_hints_config,
         &os_block_inputs,
@@ -117,7 +117,7 @@ pub fn run_os<S: StateReader>(
         state_readers,
     )?;
 
-    generate_os_output(runner_output, snos_hint_processor, is_onchain_kzg_da)
+    generate_os_output(runner_output, snos_hint_processor)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -128,9 +128,7 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
-) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>, bool), StarknetOsError> {
-    let is_onchain_kzg_da = !os_hints_config.full_output && os_hints_config.use_kzg_da;
-
+) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -144,13 +142,12 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     // Run the OS program.
     let runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
 
-    Ok((runner_output, snos_hint_processor, is_onchain_kzg_da))
+    Ok((runner_output, snos_hint_processor))
 }
 
 fn generate_os_output(
     mut runner_output: RunnerReturnObject,
     mut snos_hint_processor: SnosHintProcessor<'_, impl StateReader>,
-    is_onchain_kzg_da: bool,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let BuiltinAdditionalData::Output(OutputBuiltinAdditionalData {
         attributes: output_attributes,
@@ -165,6 +162,8 @@ fn generate_os_output(
         panic!("Output builtin additional data should be of type OutputBuiltinAdditionalData.")
     };
 
+    let is_onchain_kzg_da = !snos_hint_processor.os_hints_config.full_output
+        && snos_hint_processor.os_hints_config.use_kzg_da;
     if is_onchain_kzg_da {
         assert!(output_attributes.is_empty(), "No attributes should be added in KZG mode.");
     } else {
@@ -196,22 +195,21 @@ pub fn run_os_for_testing<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let (mut runner_output, snos_hint_processor, is_onchain_kzg_da) =
-        create_hint_processor_and_run_os(
-            layout,
-            os_hints_config,
-            &os_block_inputs,
-            deprecated_compiled_classes,
-            compiled_classes,
-            state_readers,
-        )?;
+    let (mut runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+        layout,
+        os_hints_config,
+        &os_block_inputs,
+        deprecated_compiled_classes,
+        compiled_classes,
+        state_readers,
+    )?;
 
     crate::test_utils::validations::validate_builtins(&mut runner_output.cairo_runner);
 
     let txs_trace: Vec<OsTransactionTrace> =
         snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
 
-    Ok((generate_os_output(runner_output, snos_hint_processor, is_onchain_kzg_da)?, txs_trace))
+    Ok((generate_os_output(runner_output, snos_hint_processor)?, txs_trace))
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
