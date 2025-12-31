@@ -21,15 +21,12 @@ USER committer_benchmark
 # Run the storage benchmark command.
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
-CMD ["cached-aerospike", \
+CMD ["cached-rocksdb", \
     "--n-iterations", "1000000", \
-    "--flavor", "constant", \
-    "--n-updates", "1000", \
+    "--flavor", "overlap", \
+    "--n-updates", "4000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
-    "--aeroset", "fact_storage", \
-    "--namespace", "starkware", \
-    "--host", "aerospike", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \
