@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     Preimage,
@@ -10,43 +9,16 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
-use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+use starknet_patricia_storage::db_object::HasStaticPrefix;
+use starknet_patricia_storage::storage_trait::Storage;
 
-use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::trie_traversal::get_roots_from_storage;
 
 #[cfg(test)]
 #[path = "traversal_test.rs"]
 pub mod traversal_test;
-
-// TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
-    subtrees: &[Layout::SubTree],
-    storage: &mut impl Storage,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>>
-where
-    FilledNode<L, Layout::NodeData>: DBObject<DeserializeContext = Layout::DeserializationContext>,
-{
-    let mut subtrees_roots = vec![];
-    let db_keys: Vec<DbKey> = subtrees
-        .iter()
-        .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>(key_context), &subtree.get_root_suffix())
-        })
-        .collect();
-
-    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
-    for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
-        let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        let filled_node = FilledNode::deserialize(val, &subtree.get_root_context())?;
-        subtrees_roots.push(filled_node);
-    }
-    Ok(subtrees_roots)
-}
 
 /// Returns the Patricia inner nodes ([PreimageMap]) in the paths to the given `leaf_indices` in the
 /// given tree according to the `root_hash`.
