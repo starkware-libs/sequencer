@@ -32,7 +32,7 @@ use starknet_api::StarknetApiError;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::metrics::{
     CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
