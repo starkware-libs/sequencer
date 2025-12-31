@@ -27,7 +27,7 @@ use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, warn, Instrument, Span};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
@@ -223,14 +223,19 @@ async fn add_tx_inner(
         .and_then(|region| region.to_str().ok())
         .unwrap_or("N/A")
         .to_string();
-    let add_tx_result = tokio::spawn(async move {
-        let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-            debug!("Error while adding transaction: {}", e);
-            HttpServerError::from(Box::new(e))
-        });
-        record_added_transactions(&add_tx_result, &region);
-        add_tx_result
-    })
+    // Capture current span to propagate trace context into the spawned task
+    let current_span = Span::current();
+    let add_tx_result = tokio::spawn(
+        async move {
+            let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+                debug!("Error while adding transaction: {}", e);
+                HttpServerError::from(Box::new(e))
+            });
+            record_added_transactions(&add_tx_result, &region);
+            add_tx_result
+        }
+        .instrument(current_span),
+    )
     .await
     .expect("Should be able to get add_tx result");
 

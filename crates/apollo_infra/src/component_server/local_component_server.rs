@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::time::Instant;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, instrument, trace, warn};
 use validator::Validate;
 
 use crate::component_definitions::{
@@ -22,6 +22,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
+use crate::otel_context::set_parent_context_from_traceparent;
 use crate::requests::LabeledRequest;
 
 // TODO(Tsabary): create custom configs per service, considering the required throughput and spike
@@ -210,7 +211,7 @@ where
 
         tokio::spawn(async move {
             loop {
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, traceparent) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -222,6 +223,7 @@ where
                     &mut component,
                     request,
                     tx,
+                    traceparent,
                     metrics,
                     processing_time_warning_threshold_ms,
                 )
@@ -311,7 +313,7 @@ where
         tokio::spawn(async move {
             loop {
                 // TODO(Tsabary): add a test for the queueing time metric.
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, traceparent) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -329,6 +331,7 @@ where
                         &mut cloned_component,
                         request,
                         tx,
+                        traceparent,
                         metrics,
                         processing_time_warning_threshold_ms,
                     )
@@ -371,10 +374,12 @@ where
     }
 }
 
+#[instrument(name = "component_request", skip_all)]
 async fn process_request<Request, Response, Component>(
     component: &mut Component,
     request: Request,
     tx: Sender<Response>,
+    traceparent: Option<String>,
     metrics: &'static LocalServerMetrics,
     processing_time_warning_threshold_ms: u128,
 ) where
@@ -386,9 +391,14 @@ async fn process_request<Request, Response, Component>(
     let request_info = format!("{:?}", request);
     let request_label = request.request_label();
 
+    // Set parent trace context if we have a traceparent
+    if let Some(ref tp) = traceparent {
+        set_parent_context_from_traceparent(tp);
+    }
+
     trace!("Component {component_name} is starting to process request {request_info:?}",);
-    // Please note that the we're measuring the time of an asynchronous request processing, which
-    // might also include the awaited time of this task to execute.
+    // Please note that the we're measuring the time of an asynchronous request processing,
+    // which might also include the awaited time of this task to execute.
     let start = Instant::now();
     let response = component.handle_request(request).await;
     let elapsed = start.elapsed();
@@ -403,8 +413,8 @@ async fn process_request<Request, Response, Component>(
         );
     }
 
-    // TODO(Tsabary): make the processed and received metrics labeled based on the priority and of
-    // the request label.
+    // TODO(Tsabary): make the processed and received metrics labeled based on the priority and
+    // of the request label.
     metrics.increment_processed();
 
     trace!("Component {component_name} is sending response {response:?}");
@@ -430,7 +440,7 @@ async fn get_next_request_for_processing<Request, Response>(
     normal_rx: &mut Receiver<RequestWrapper<Request, Response>>,
     component_name: &str,
     metrics: &'static LocalServerMetrics,
-) -> (Request, Sender<Response>)
+) -> (Request, Sender<Response>, Option<String>)
 where
     Request: Send + Debug + LabeledRequest,
     Response: Send,
@@ -451,6 +461,7 @@ where
     let request = request_wrapper.request;
     let tx = request_wrapper.tx;
     let creation_time = request_wrapper.creation_time;
+    let traceparent = request_wrapper.traceparent;
 
     trace!(
         "Component {component_name} received request {request:?} that was created at \
@@ -458,5 +469,5 @@ where
     );
     metrics.record_queueing_time(creation_time.elapsed().as_secs_f64(), request.request_label());
 
-    (request, tx)
+    (request, tx, traceparent)
 }

@@ -17,7 +17,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tower::{service_fn, Service, ServiceExt};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, instrument, trace, warn, Instrument};
 use validator::Validate;
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -29,6 +29,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
+use crate::otel_context::{set_parent_context_from_traceparent, TRACEPARENT_HEADER};
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
@@ -108,11 +109,20 @@ where
         Self { local_client, config: remote_server_config, port, max_concurrency, metrics }
     }
 
+    #[instrument(name = "remote_component_request", skip_all)]
     async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
+        // Extract trace context from incoming request headers and set as parent
+        if let Some(traceparent) =
+            http_request.headers().get(TRACEPARENT_HEADER).and_then(|v| v.to_str().ok())
+        {
+            set_parent_context_from_traceparent(traceparent);
+            trace!("Extracted traceparent from request: {}", traceparent);
+        }
+
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
@@ -126,11 +136,15 @@ where
                 trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
 
-                // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
-                // Even if the current task is cancelled, the inner task will continue to run.
-                let response = tokio::spawn(async move { local_client.send(request).await })
-                    .await
-                    .expect("Should be able to extract value from the task");
+                // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe
+                // operation. Even if the current task is cancelled, the
+                // inner task will continue to run.
+                let current_span = tracing::Span::current();
+                let response = tokio::spawn(
+                    async move { local_client.send(request).await }.instrument(current_span),
+                )
+                .await
+                .expect("Should be able to extract value from the task");
 
                 metrics.increment_processed();
 
