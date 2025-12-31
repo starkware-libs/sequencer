@@ -35,7 +35,7 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
@@ -153,8 +153,9 @@ pub(crate) async fn commit_state_diff(
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
-    let filled_forest =
-        commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None)
+        .await
+        .expect("Failed to commit the given block.");
     facts_db.write(&filled_forest).await.expect("Failed to write filled forest to storage");
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
