@@ -4,15 +4,35 @@ use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
+#[cfg(test)]
 use crate::committee_provider::Staker;
 
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
 pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 
+/// Conversion from an [`Iterator`].
+///
+/// By implementing `TryFromIterator` for a type, you define how it will be
+/// created from an iterator.
+///
+/// Used in this context to parse Cairo1 types returned by a contract as a vector of Felts.
+pub trait TryFromIterator<Felt>: Sized {
+    type Error;
+
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error>;
+}
+
 // Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
 // `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
 #[derive(Debug, PartialEq, Eq)]
-struct ArrayRetdata<const N: usize, T>(Vec<T>);
+struct ArrayRetdata<T>(Vec<T>);
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ContractStaker {
+    pub(crate) contract_address: ContractAddress,
+    pub(crate) staking_power: StakingWeight,
+    pub(crate) public_key: Option<Felt>,
+}
 
 #[derive(Debug, Error)]
 pub enum RetdataDeserializationError {
@@ -20,83 +40,135 @@ pub enum RetdataDeserializationError {
     ContractAddressConversionError { address: Felt },
     #[error("Failed to convert Felt to u128: {felt}")]
     U128ConversionError { felt: Felt },
-    #[error(
-        "Invalid retdata length: expected 1 Felt followed by {num_structs} (number of structs) *
-         {struct_size} (number of Felts per struct), but received {length} Felts."
-    )]
-    InvalidArrayLength { length: usize, num_structs: usize, struct_size: usize },
+    #[error("Failed to convert Felt to usize: {felt}")]
+    USizeConversionError { felt: Felt },
+    #[error("Invalid object length: {message}.")]
+    InvalidObjectLength { message: String },
+    #[error("Unexpected enum variant: {variant}")]
+    UnexpectedEnumVariant { variant: usize },
 }
 
-impl Staker {
-    pub const CAIRO_OBJECT_NUM_FELTS: usize = 3;
-
+impl ContractStaker {
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
-        Ok(ArrayRetdata::<{ Self::CAIRO_OBJECT_NUM_FELTS }, Staker>::try_from(retdata)?.0)
+        Ok(ArrayRetdata::try_from(retdata)?.0)
     }
 }
 
-impl TryFrom<[Felt; Self::CAIRO_OBJECT_NUM_FELTS]> for Staker {
+impl TryFromIterator<Felt> for ContractStaker {
     type Error = RetdataDeserializationError;
 
-    fn try_from(felts: [Felt; Self::CAIRO_OBJECT_NUM_FELTS]) -> Result<Self, Self::Error> {
-        let [address, weight, public_key] = felts;
-        let address = ContractAddress::try_from(address)
-            .map_err(|_| RetdataDeserializationError::ContractAddressConversionError { address })?;
-        let weight = StakingWeight(
-            u128::try_from(weight)
-                .map_err(|_| RetdataDeserializationError::U128ConversionError { felt: weight })?,
-        );
-        Ok(Self { address, weight, public_key })
+    // Parses a single `ContractStaker` from a stream of Felts.
+    //
+    // The iterator is expected to yield the following values, in order:
+    // 1. Contract Address (1 Felt)
+    // 2. Staking Power (1 Felt)
+    // 3. Public Key option variant (1 Felt):
+    //    - 0 => Some
+    //    - 1 => None
+    // 4. Public Key (1 Felt), only if the option variant is `Some`
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
+        // Parse contract address.
+        let raw_address = iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+            message: "missing contract address.".to_string(),
+        })?;
+        let contract_address = ContractAddress::try_from(raw_address).map_err(|_| {
+            RetdataDeserializationError::ContractAddressConversionError { address: raw_address }
+        })?;
+
+        // Parse staking power.
+        let raw_staking_power =
+            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+                message: "missing staking power.".to_string(),
+            })?;
+        let staking_power = StakingWeight(u128::try_from(raw_staking_power).map_err(|_| {
+            RetdataDeserializationError::U128ConversionError { felt: raw_staking_power }
+        })?);
+
+        // Parse public key.
+        let raw_option_variant =
+            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+                message: "missing public key option variant.".to_string(),
+            })?;
+        let option_variant = usize::try_from(raw_option_variant).map_err(|_| {
+            RetdataDeserializationError::USizeConversionError { felt: raw_option_variant }
+        })?;
+        let public_key = match option_variant {
+            1 => None,
+            0 => {
+                let public_key =
+                    iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+                        message: "missing public key.".to_string(),
+                    })?;
+                Some(public_key)
+            }
+            _ => {
+                return Err(RetdataDeserializationError::UnexpectedEnumVariant {
+                    variant: option_variant,
+                });
+            }
+        };
+
+        Ok(Self { contract_address, staking_power, public_key })
     }
 }
 
-#[cfg(test)]
-impl From<&Staker> for Vec<Felt> {
-    fn from(staker: &Staker) -> Self {
-        vec![Felt::from(staker.address), Felt::from(staker.weight.0), staker.public_key]
-    }
-}
-
-impl<const N: usize, T> TryFrom<Retdata> for ArrayRetdata<N, T>
+impl<T> TryFrom<Retdata> for ArrayRetdata<T>
 where
-    T: TryFrom<[Felt; N], Error = RetdataDeserializationError>,
+    T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
 {
     type Error = RetdataDeserializationError;
 
     fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
-        let data = retdata.0;
+        let mut iter = retdata.0.into_iter();
 
         // The first Felt in the Retdata must be the number of structs in the array.
-        if data.is_empty() {
-            return Err(RetdataDeserializationError::InvalidArrayLength {
-                length: data.len(),
-                num_structs: 0,
-                struct_size: N,
-            });
+        let raw_num_items =
+            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+                message: "missing number of items in an array.".to_string(),
+            })?;
+
+        let num_items = usize::try_from(raw_num_items).map_err(|_| {
+            RetdataDeserializationError::USizeConversionError { felt: raw_num_items }
+        })?;
+
+        let mut result = Vec::with_capacity(num_items);
+        for _ in 0..num_items {
+            let item = T::try_from_iter(&mut iter)?;
+            result.push(item);
         }
 
-        // Split the remaining Felts into chunks of N Felts, each is a struct in the array.
-        let data_chunks = data[1..].chunks_exact(N);
-
-        // Verify that the number of structs in the array matches the number of chunks.
-        let num_structs = usize::try_from(data[0]).expect("num_structs should fit in usize.");
-        if data_chunks.len() != num_structs || !data_chunks.remainder().is_empty() {
-            return Err(RetdataDeserializationError::InvalidArrayLength {
-                length: data.len(),
-                num_structs,
-                struct_size: N,
+        if iter.next().is_some() {
+            return Err(RetdataDeserializationError::InvalidObjectLength {
+                message: "Unconsumed elements found in retdata.".to_string(),
             });
         }
-
-        // Convert each chunk to T.
-        let result = data_chunks
-            .map(|chunk| {
-                T::try_from(
-                    chunk.try_into().unwrap_or_else(|_| panic!("chunk size must be N: {N}.")),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(ArrayRetdata(result))
+    }
+}
+
+#[cfg(test)]
+impl From<&ContractStaker> for Vec<Felt> {
+    fn from(staker: &ContractStaker) -> Self {
+        let public_key = match staker.public_key {
+            Some(public_key) => vec![Felt::ZERO, public_key],
+            None => vec![Felt::ONE],
+        };
+        [
+            [Felt::from(staker.contract_address), Felt::from(staker.staking_power.0)].as_slice(),
+            public_key.as_slice(),
+        ]
+        .concat()
+    }
+}
+
+#[cfg(test)]
+impl From<&Staker> for ContractStaker {
+    fn from(staker: &Staker) -> Self {
+        Self {
+            contract_address: staker.address,
+            staking_power: staker.weight,
+            public_key: Some(staker.public_key),
+        }
     }
 }
