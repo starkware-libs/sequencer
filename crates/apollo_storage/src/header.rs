@@ -118,6 +118,13 @@ type BlockHashToNumberTable<'env> =
 pub trait HeaderStorageReader {
     /// The block marker is the first block number that doesn't exist yet.
     fn get_header_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the storage representation of the block header for the given block number.
+    fn get_storage_block_header(
+        &self,
+        block_number: &BlockNumber,
+    ) -> StorageResult<Option<StorageBlockHeader>>;
+
     /// Returns the header of the block with the given number.
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>>;
 
@@ -188,9 +195,16 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         Ok(markers_table.get(&self.txn, &MarkerKind::Header)?.unwrap_or_default())
     }
 
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
+    fn get_storage_block_header(
+        &self,
+        block_number: &BlockNumber,
+    ) -> StorageResult<Option<StorageBlockHeader>> {
         let headers_table = self.open_table(&self.tables.headers)?;
-        let Some(block_header) = headers_table.get(&self.txn, &block_number)? else {
+        Ok(headers_table.get(&self.txn, block_number)?)
+    }
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
+        let Some(block_header) = self.get_storage_block_header(&block_number)? else {
             return Ok(None);
         };
         let Some(starknet_version) = self.get_starknet_version(block_number)? else {
