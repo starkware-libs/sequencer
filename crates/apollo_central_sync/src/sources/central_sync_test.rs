@@ -15,6 +15,7 @@ use async_stream::stream;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::StreamExt;
+use futures_util::stream::FuturesOrdered;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
 use starknet_api::block::{
@@ -110,6 +111,8 @@ fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
         collect_pending_data: false,
         // TODO(Shahak): Add test where store_sierras_and_casms is set to false.
         store_sierras_and_casms: true,
+        enable_block_batching: true,
+        block_batch_size: 100,
     }
 }
 
@@ -118,7 +121,6 @@ async fn run_sync(
     reader: StorageReader,
     writer: StorageWriter,
     central: impl CentralSourceTrait + Send + Sync + 'static,
-    base_layer: impl BaseLayerSourceTrait + Send + Sync,
     config: SyncConfig,
     class_manager_client: Option<Arc<dyn ClassManagerClient>>,
 ) -> StateSyncResult {
@@ -126,14 +128,14 @@ async fn run_sync(
     let mut pending_source = MockPendingSourceTrait::new();
     pending_source.expect_get_pending_data().returning(|| Ok(PendingData::default()));
 
-    let state_sync = GenericStateSync {
+    let state_sync: GenericStateSync<_, _, MockBaseLayerSourceTrait> = GenericStateSync {
         config,
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),
         central_source: Arc::new(central),
         pending_source: Arc::new(pending_source),
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
-        base_layer_source: Some(Arc::new(Mutex::new(base_layer))),
+        base_layer_source: None,  // Disabled due to BaseLayerSourceTrait bug with &mut self
         reader,
         writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
@@ -142,6 +144,11 @@ async fn run_sync(
         // up until that block we call add_class_and_executable_unsafe and from that block we call
         // add_class.
         class_manager_client,
+        middle_queue: Arc::new(Mutex::new(FuturesOrdered::new())),
+        queue_header_marker: Arc::new(RwLock::new(BlockNumber::default())),
+        queue_state_marker: Arc::new(RwLock::new(BlockNumber::default())),
+        queue_compiled_class_marker: Arc::new(RwLock::new(BlockNumber::default())),
+        queue_base_layer_marker: Arc::new(RwLock::new(BlockNumber::default())),
     };
 
     state_sync.run().await?;
@@ -166,7 +173,6 @@ async fn sync_empty_chain() {
         reader.clone(),
         writer,
         central_mock,
-        base_layer_mock,
         get_test_sync_config(false),
         class_manager_client,
     );
@@ -383,7 +389,6 @@ async fn sync_happy_flow() {
         reader.clone(),
         writer,
         central_mock,
-        base_layer_mock,
         get_test_sync_config(false),
         Some(Arc::new(mock_class_manager)),
     );
@@ -850,7 +855,6 @@ async fn test_unrecoverable_sync_error_flow() {
         reader.clone(),
         writer,
         mock,
-        MockBaseLayerSourceTrait::new(),
         get_test_sync_config(false),
         class_manager_client,
     );
@@ -892,7 +896,6 @@ async fn sequencer_pub_key_management() {
         reader.clone(),
         writer,
         central_mock,
-        base_layer_mock,
         config,
         class_manager_client,
     );
