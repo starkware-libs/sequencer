@@ -274,7 +274,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
 ) -> Batcher {
     // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
     let committer_client = Arc::new(clients.committer_client);
-    let commitment_manager = CommitmentManager::create_commitment_manager_or_none(
+    let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
         &CommitmentManagerConfig::default(),
         storage_reader.as_ref(),

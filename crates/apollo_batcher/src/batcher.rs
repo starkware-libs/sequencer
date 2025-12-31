@@ -173,9 +173,7 @@ pub struct Batcher {
     /// Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server: Option<GenericStorageReaderServer>,
-    /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
-    /// commitment manager because commitments are reverted in a blocking call.
-    commitment_manager: Option<CommitmentManager>,
+    commitment_manager: CommitmentManager,
 }
 
 impl Batcher {
@@ -191,7 +189,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         storage_reader_server: Option<GenericStorageReaderServer>,
-        commitment_manager: Option<CommitmentManager>,
+        commitment_manager: CommitmentManager,
     ) -> Self {
         Self {
             config,
@@ -1129,13 +1127,7 @@ impl Batcher {
 
     /// Writes the ready commitment results to storage.
     async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
-        let Some(ref mut commitment_manager) = self.commitment_manager else {
-            panic!(
-                "Commitment manager is expected to be initialized as we should not get here in \
-                 revert mode."
-            );
-        };
-        let commitment_results = commitment_manager.get_commitment_results().await;
+        let commitment_results = self.commitment_manager.get_commitment_results().await;
         for commitment_task_output in commitment_results.into_iter() {
             let height = commitment_task_output.height;
 
@@ -1274,7 +1266,7 @@ pub async fn create_batcher(
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
-    let commitment_manager = CommitmentManager::create_commitment_manager_or_none(
+    let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
         &CommitmentManagerConfig::default(),
         storage_reader.as_ref(),
