@@ -12329,6 +12329,7 @@ name = "starknet_committer"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "async-trait",
  "csv",
  "derive_more 0.99.20",
