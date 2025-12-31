@@ -7,6 +7,7 @@ use tokio::time::Instant;
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, RequestWrapper};
 use crate::metrics::LocalClientMetrics;
+use crate::otel_context::get_traceparent;
 use crate::requests::LabeledRequest;
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
@@ -43,7 +44,9 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response> {
         let request_label = request.request_label();
         let (res_tx, mut res_rx) = channel::<Response>(1);
-        let request_wrapper = RequestWrapper::new(request, res_tx);
+        // Capture trace context to propagate through the channel
+        let traceparent = get_traceparent();
+        let request_wrapper = RequestWrapper::with_traceparent(request, res_tx, traceparent);
         let start = Instant::now();
         self.tx.send(request_wrapper).await.expect("Outbound connection should be open.");
         let response = res_rx.recv().await.expect("Inbound connection should be open.");

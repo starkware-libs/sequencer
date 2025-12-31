@@ -20,6 +20,7 @@ use validator::Validate;
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::metrics::RemoteClientMetrics;
+use crate::otel_context::{get_traceparent, TRACEPARENT_HEADER};
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
@@ -165,10 +166,16 @@ where
 
     fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
         trace!("Constructing remote request");
-        HyperRequest::post(self.uri.clone())
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(serialized_request))
-            .expect("Request building should succeed")
+        let mut builder =
+            HyperRequest::post(self.uri.clone()).header(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+
+        // Inject trace context for cross-component tracing
+        if let Some(traceparent) = get_traceparent() {
+            trace!("Injecting traceparent header: {}", traceparent);
+            builder = builder.header(TRACEPARENT_HEADER, traceparent);
+        }
+
+        builder.body(Body::from(serialized_request)).expect("Request building should succeed")
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {

@@ -88,6 +88,8 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
     pub creation_time: Instant,
+    /// Optional traceparent for cross-component tracing context propagation.
+    pub traceparent: Option<String>,
 }
 
 impl<Request, Response> RequestWrapper<Request, Response>
@@ -96,7 +98,15 @@ where
     Response: Send,
 {
     pub fn new(request: Request, tx: Sender<Response>) -> Self {
-        Self { request, tx, creation_time: Instant::now() }
+        Self { request, tx, creation_time: Instant::now(), traceparent: None }
+    }
+
+    pub fn with_traceparent(
+        request: Request,
+        tx: Sender<Response>,
+        traceparent: Option<String>,
+    ) -> Self {
+        Self { request, tx, creation_time: Instant::now(), traceparent }
     }
 }
 
