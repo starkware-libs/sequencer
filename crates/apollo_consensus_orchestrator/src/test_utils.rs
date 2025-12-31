@@ -285,17 +285,25 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
 
 pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
     let context_config = ContextConfig::default();
+    let l1_gas_price_wei = GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.l1_gas_tip_wei);
+    let l1_data_gas_price_wei = GasPrice(
+        TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
+    );
+    let l1_gas_price_fri =
+        l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).expect("L1 gas price must be non-zero");
+    let l1_data_gas_price_fri = l1_data_gas_price_wei
+        .wei_to_fri(ETH_TO_FRI_RATE)
+        .expect("L1 data gas price must be non-zero");
     ConsensusBlockInfo {
         height,
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
-        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.l1_gas_tip_wei),
-        l1_data_gas_price_wei: GasPrice(
-            TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
-        ),
-        eth_to_fri_rate: ETH_TO_FRI_RATE,
+        l1_gas_price_fri,
+        l1_data_gas_price_fri,
+        l1_gas_price_wei,
+        l1_data_gas_price_wei,
     }
 }
 // Structs which aren't utilized but should not be dropped.

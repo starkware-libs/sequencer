@@ -35,9 +35,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::metrics::{
-    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
@@ -46,7 +43,7 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
-    get_oracle_rate_and_prices,
+    get_l1_prices_in_fri_and_wei,
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
@@ -283,7 +280,7 @@ async fn is_block_info_valid(
             "Block info validation failed".to_string(),
         ));
     }
-    let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
+    let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         block_info_validation.previous_block_info.as_ref(),
@@ -292,15 +289,12 @@ async fn is_block_info_valid(
     .await;
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    debug!("L1 price info: {l1_gas_prices:?}");
+    debug!("L1 price info: {l1_gas_prices_fri:?}");
 
-    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate)?;
-    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate)?;
-    let l1_gas_price_fri_proposed =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
-    let l1_data_gas_price_fri_proposed = block_info_proposed
-        .l1_data_gas_price_wei
-        .wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+    let l1_gas_price_fri = l1_gas_prices_fri.l1_gas_price;
+    let l1_data_gas_price_fri = l1_gas_prices_fri.l1_data_gas_price;
+    let l1_gas_price_fri_proposed = block_info_proposed.l1_gas_price_fri;
+    let l1_data_gas_price_fri_proposed = block_info_proposed.l1_data_gas_price_fri;
 
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
@@ -319,18 +313,6 @@ async fn is_block_info_valid(
                  l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
             ),
         ));
-    }
-    // TODO(Asmaa): consider removing after 0.14 as other validators may use other sources.
-    if block_info_proposed.eth_to_fri_rate != eth_to_fri_rate {
-        CONSENSUS_ETH_TO_FRI_RATE_MISMATCH.increment(1);
-    }
-
-    // L1 gas prices should match exactly in wei.
-    if block_info_proposed.l1_gas_price_wei != l1_gas_prices.base_fee_per_gas {
-        CONSENSUS_L1_GAS_MISMATCH.increment(1);
-    }
-    if block_info_proposed.l1_data_gas_price_wei != l1_gas_prices.blob_fee {
-        CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
     Ok(())
 }

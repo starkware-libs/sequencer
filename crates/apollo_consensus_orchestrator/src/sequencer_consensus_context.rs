@@ -26,7 +26,7 @@ use apollo_consensus::types::{
     ValidatorId,
 };
 use apollo_consensus_orchestrator_config::config::ContextConfig;
-use apollo_l1_gas_price_types::{L1GasPriceProviderClient, DEFAULT_ETH_TO_FRI_RATE};
+use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -46,13 +46,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
-use starknet_api::block::{
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    WEI_PER_ETH,
-};
+use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -678,7 +672,6 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
-        let eth_to_fri_rate = get_eth_to_fri_rate(&sync_block);
         self.previous_block_info = Some(ConsensusBlockInfo {
             height,
             timestamp: timestamp.0,
@@ -690,7 +683,11 @@ impl ConsensusContext for SequencerConsensusContext {
                 .block_header_without_hash
                 .l1_data_gas_price
                 .price_in_wei,
-            eth_to_fri_rate,
+            l1_gas_price_fri: sync_block.block_header_without_hash.l1_gas_price.price_in_fri,
+            l1_data_gas_price_fri: sync_block
+                .block_header_without_hash
+                .l1_data_gas_price
+                .price_in_fri,
         });
         self.interrupt_active_proposal().await;
 
@@ -842,21 +839,4 @@ async fn validate_and_send(
         .send(proposal_commitment)
         .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
     Ok(proposal_commitment)
-}
-
-fn get_eth_to_fri_rate(sync_block: &SyncBlock) -> u128 {
-    let price_in_fri = sync_block.block_header_without_hash.l1_gas_price.price_in_fri;
-    let price_in_wei = sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0;
-    price_in_fri
-        .checked_mul_u128(WEI_PER_ETH)
-        .map(|x| x.0)
-        .unwrap_or_else(|| {
-            error!("Gas price overflow");
-            u128::MAX
-        })
-        .checked_div(price_in_wei)
-        .unwrap_or_else(|| {
-            error!("Zero gas price");
-            DEFAULT_ETH_TO_FRI_RATE
-        })
 }

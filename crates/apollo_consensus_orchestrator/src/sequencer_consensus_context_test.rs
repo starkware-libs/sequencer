@@ -12,7 +12,7 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceClientError,
     L1GasPriceProviderError,
 };
-use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
     ProposalCommitment,
     ProposalFin,
@@ -34,6 +34,7 @@ use starknet_api::block::{
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
+    WEI_PER_ETH,
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::execution_resources::GasAmount;
@@ -301,7 +302,6 @@ async fn build_proposal() {
         panic!("Expected ProposalPart::BlockInfo");
     };
     assert!(info.timestamp >= before && info.timestamp <= after);
-    assert_eq!(info.eth_to_fri_rate, ETH_TO_FRI_RATE);
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
@@ -539,7 +539,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
 }
 
 #[tokio::test]
-async fn eth_to_fri_rate_out_of_range() {
+async fn gas_price_fri_out_of_range() {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
 
@@ -551,16 +551,28 @@ async fn eth_to_fri_rate_out_of_range() {
     let mut context = deps.build_context();
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
-    // Send a block info with an eth_to_fri_rate that is outside the margin of error.
-    let mut block_info = block_info(BlockNumber(0));
-    block_info.eth_to_fri_rate *= 2;
-    content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
+    // Send a block info with l1_gas_price_fri that is outside the margin of error.
+    let mut block_info_1 = block_info(BlockNumber(0));
+    block_info_1.l1_gas_price_fri = block_info_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
+    content_sender.send(ProposalPart::BlockInfo(block_info_1).clone()).await.unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
     // not due to a timeout.
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT * 100, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
-    // TODO(guyn): How to check that the rejection is due to the eth_to_fri_rate?
+
+    // Do the same for data gas price.
+    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    let mut block_info_2 = block_info(BlockNumber(0));
+    block_info_2.l1_data_gas_price_fri =
+        block_info_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
+    content_sender.send(ProposalPart::BlockInfo(block_info_2).clone()).await.unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    // not due to a timeout.
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT * 100, content_receiver).await;
+    assert_eq!(fin_receiver.await, Err(Canceled));
+    // TODO(guyn): How to check that the rejection is due to the l1_gas_price_fri mismatch?
 }
 
 #[rstest]
@@ -576,7 +588,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
     let max_gas_price = context_config.max_l1_gas_price_wei;
     let max_data_price = context_config.max_l1_data_gas_price_wei;
 
-    let price = if maximum {
+    let measured_price = if maximum {
         // Take the higher maximum price and go much higher than that.
         // If we don't go much higher, the l1_data_gas_price_multiplier will
         // lower the data gas price below the clamp limit.
@@ -587,7 +599,10 @@ async fn gas_price_limits(#[case] maximum: bool) {
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
     l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     l1_gas_price_provider.expect_get_price_info().returning(move |_| {
-        Ok(PriceInfo { base_fee_per_gas: GasPrice(price), blob_fee: GasPrice(price) })
+        Ok(PriceInfo {
+            base_fee_per_gas: GasPrice(measured_price),
+            blob_fee: GasPrice(measured_price),
+        })
     });
 
     deps.l1_gas_price_provider = l1_gas_price_provider;
@@ -602,10 +617,18 @@ async fn gas_price_limits(#[case] maximum: bool) {
         // Set the gas price to the maximum value.
         block_info.l1_gas_price_wei = GasPrice(max_gas_price);
         block_info.l1_data_gas_price_wei = GasPrice(max_data_price);
+        block_info.l1_gas_price_fri =
+            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        block_info.l1_data_gas_price_fri =
+            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     } else {
         // Set the gas price to the minimum value.
         block_info.l1_gas_price_wei = GasPrice(min_gas_price);
         block_info.l1_data_gas_price_wei = GasPrice(min_data_price);
+        block_info.l1_gas_price_fri =
+            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        block_info.l1_data_gas_price_fri =
+            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     }
 
     // Send the block info, some transactions and then fin.
@@ -734,7 +757,6 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     };
 
     let default_context_config = ContextConfig::default();
-    assert_eq!(info.eth_to_fri_rate, DEFAULT_ETH_TO_FRI_RATE);
     // Despite the l1_gas_price_provider being set up not to fail, we still expect the default
     // values because eth_to_strk_rate_oracle_client failed.
     assert_eq!(info.l1_gas_price_wei.0, default_context_config.min_l1_gas_price_wei);
@@ -874,9 +896,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     let previous_block_info = block_info(BlockNumber(0));
 
-    assert_eq!(info.eth_to_fri_rate, previous_block_info.eth_to_fri_rate);
     assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
     assert_eq!(info.l1_data_gas_price_wei, previous_block_info.l1_data_gas_price_wei);
+    assert_eq!(info.l1_gas_price_fri, previous_block_info.l1_gas_price_fri);
+    assert_eq!(info.l1_data_gas_price_fri, previous_block_info.l1_data_gas_price_fri);
 
     assert_eq!(
         receiver.next().await.unwrap(),
@@ -956,6 +979,7 @@ async fn override_prices_behavior(
     #[case] build_success: bool,
 ) {
     // Use high gas usage to ensure the L2 gas price is high.
+
     let mock_l2_gas_used = VersionedConstants::latest_constants().max_block_size;
 
     let (mut deps, _network) = create_test_and_network_deps();
@@ -963,7 +987,6 @@ async fn override_prices_behavior(
     // Setup dependencies and mocks.
     #[allow(clippy::as_conversions)]
     deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len(), build_success as usize);
-    deps.l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     deps.batcher.expect_decision_reached().return_once(move |_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
@@ -976,6 +999,7 @@ async fn override_prices_behavior(
     deps.state_sync_client.expect_add_new_block().return_once(|_| Ok(()));
     deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
 
+    // TODO(guyn): replace these overrides with fri values
     let context_config = ContextConfig {
         override_l2_gas_price_fri,
         override_l1_gas_price_wei,
@@ -999,6 +1023,8 @@ async fn override_prices_behavior(
 
     // In cases where we expect the batcher to fail the block build.
     if !build_success {
+        // The build fails because the L2 gas price in wei we get, after using the eth/fri rate we
+        // calculated from the block info, is zero.
         assert!(fin_result.is_err());
         return;
     }
@@ -1013,7 +1039,13 @@ async fn override_prices_behavior(
     let previous_block = context.previous_block_info.clone().unwrap();
     let actual_l1_gas_price = previous_block.l1_gas_price_wei.0;
     let actual_l1_data_gas_price = previous_block.l1_data_gas_price_wei.0;
-    let actual_conversion_rate = previous_block.eth_to_fri_rate;
+    let actual_conversion_rate = previous_block
+        .l1_gas_price_fri
+        .0
+        .checked_mul(WEI_PER_ETH)
+        .unwrap()
+        .checked_div(actual_l1_gas_price)
+        .unwrap();
 
     if let Some(override_l2_gas_price) = override_l2_gas_price_fri {
         // In this case the L2 gas price must match the given override.
@@ -1060,20 +1092,29 @@ async fn override_prices_behavior(
         );
     }
 
+    // Conversion rate is recreated by comparing wei and fri prices, so it is affected by rounding
+    // errors.
     if let Some(override_eth_to_fri_rate) = override_eth_to_fri_rate {
-        assert_eq!(
-            actual_conversion_rate, override_eth_to_fri_rate,
+        assert!(
+            almost_equal(actual_conversion_rate, override_eth_to_fri_rate),
             "Expected conversion rate ({}) to match input conversion rate ({})",
-            actual_conversion_rate, override_eth_to_fri_rate
+            actual_conversion_rate,
+            override_eth_to_fri_rate
         );
     } else {
         // Note: the "default eth to fri rate" is actually just 10^18 (eth to wei).
         // This is set in the default expectations and is used by many other tests.
-        // So we'll just assume that this is the "real" conversion rate, unless overriden.
-        assert_eq!(
-            actual_conversion_rate, ETH_TO_FRI_RATE,
+        // So we'll just assume that this is the "real" conversion rate, unless overridden.
+        assert!(
+            almost_equal(actual_conversion_rate, ETH_TO_FRI_RATE),
             "Expected conversion rate ({}) to match default conversion rate ({})",
-            actual_conversion_rate, ETH_TO_FRI_RATE
+            actual_conversion_rate,
+            ETH_TO_FRI_RATE
         );
     }
+}
+
+/// Check that two numbers are within 0.1% of each other.
+fn almost_equal(a: u128, b: u128) -> bool {
+    a.abs_diff(b) < a / 1000
 }
