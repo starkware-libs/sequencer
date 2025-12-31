@@ -27,8 +27,10 @@ pub enum HintedClassHashError {
 /// the correctness of this implementation depends on the following features of serde_json:
 ///
 /// - feature `raw_value` has to be enabled for the thrown away `program.debug_info`
-/// - feature `preserve_order` has to be disabled, as we want everything sorted
 /// - feature `arbitrary_precision` has to be enabled, as there are big integers in the input
+///
+/// Note: We explicitly sort all JSON objects before serialization to ensure deterministic output,
+/// regardless of whether `preserve_order` feature is enabled in serde_json.
 // TODO(Yoav): For more efficiency, have only borrowed types of serde_json::Value.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -112,6 +114,23 @@ where
     serializer.serialize_none()
 }
 
+/// Recursively sorts all JSON objects by their keys.
+/// This ensures deterministic serialization regardless of the `preserve_order` feature in
+/// serde_json.
+fn sort_json_value(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let sorted: BTreeMap<String, serde_json::Value> =
+                map.into_iter().map(|(k, v)| (k, sort_json_value(v))).collect();
+            serde_json::Value::Object(sorted.into_iter().collect())
+        }
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(sort_json_value).collect())
+        }
+        other => other,
+    }
+}
+
 /// `std::io::Write` adapter for Keccak256; we don't need the serialized version in
 /// compute_class_hash, but we need the truncated_keccak hash.
 ///
@@ -135,9 +154,17 @@ impl std::io::Write for KeccakWriter {
 pub fn compute_cairo_hinted_class_hash(
     contract_class: &ContractClass,
 ) -> Result<Felt, HintedClassHashError> {
-    let contract_definition_vec = serde_json::to_vec(contract_class)?;
+    // Serialize to Value, sort all objects by keys for deterministic output, then to bytes.
+    // The sorting is necessary because serde_json with `preserve_order` feature enabled
+    // maintains insertion order instead of sorting keys.
+    // TODO(Meshi): Compute hinted hashes when loading serialized contracts from storage, before
+    // deserializing, to avoid back-and-forth serde.
+    let contract_value = serde_json::to_value(contract_class)?;
+    let sorted_contract_value = sort_json_value(contract_value);
+    let contract_definition_vec = serde_json::to_vec(&sorted_contract_value)?;
     let contract_definition: CairoContractDefinition<'_> =
         serde_json::from_slice(&contract_definition_vec)?;
+
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);
