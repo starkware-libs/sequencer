@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Python-compatible representation of execution objects of the Starknet sequencer."
 
 [features]
 deserialize = ["blockifier/transaction_serde"]
