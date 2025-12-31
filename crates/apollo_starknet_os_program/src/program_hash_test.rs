@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use expect_test::expect_file;
+use tokio::task::spawn_blocking;
 
 use crate::program_hash::{
     compute_aggregator_program_hash,
@@ -22,12 +23,18 @@ static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
 /// ```bash
 /// UPDATE_EXPECT=1 cargo test -p apollo_starknet_os_program test_program_hashes
 /// ```
-#[test]
-fn test_program_hashes() {
-    let AggregatorHash { with_prefix, without_prefix } = compute_aggregator_program_hash().unwrap();
+#[tokio::test]
+async fn test_program_hashes() {
+    let (os, virtual_os, aggregator) = tokio::join!(
+        spawn_blocking(compute_os_program_hash),
+        spawn_blocking(compute_virtual_os_program_hash),
+        spawn_blocking(compute_aggregator_program_hash),
+    );
+
+    let AggregatorHash { with_prefix, without_prefix } = aggregator.unwrap().unwrap();
     let computed_hashes = ProgramHashes {
-        os: compute_os_program_hash().unwrap(),
-        virtual_os: compute_virtual_os_program_hash().unwrap(),
+        os: os.unwrap().unwrap(),
+        virtual_os: virtual_os.unwrap().unwrap(),
         aggregator: without_prefix,
         aggregator_with_prefix: with_prefix,
     };

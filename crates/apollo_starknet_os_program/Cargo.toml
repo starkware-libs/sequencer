@@ -33,3 +33,4 @@ blockifier.workspace = true
 expect-test.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
