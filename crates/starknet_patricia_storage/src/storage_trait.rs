@@ -207,7 +207,7 @@ impl Serialize for DbKey {
 
 /// Returns a `DbKey` from a prefix and a suffix.
 pub fn create_db_key(prefix: DbKeyPrefix, suffix: &[u8]) -> DbKey {
-    DbKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+    DbKey([prefix.to_bytes().to_vec(), suffix.to_vec()].concat())
 }
 
 /// Extracts the suffix from a `DbKey`. If the key doesn't match the prefix, None is returned.
