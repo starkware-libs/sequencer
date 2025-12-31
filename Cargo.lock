@@ -865,6 +865,7 @@ name = "apollo_base_layer_tests"
 version = "0.17.0-rc.0"
 dependencies = [
  "alloy",
+ "apollo_config",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
@@ -940,21 +941,26 @@ name = "apollo_batcher_types"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",
  "apollo_state_sync_types",
  "apollo_storage",
  "async-trait",
+ "axum",
  "blockifier",
  "chrono",
  "derive_more 0.99.20",
  "indexmap 2.12.0",
  "mockall",
  "serde",
+ "serde_json",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
 ]
 
 [[package]]
@@ -1044,7 +1050,6 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
  "apollo_proc_macros",
- "apollo_storage",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -1264,6 +1269,7 @@ dependencies = [
 name = "apollo_consensus"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_batcher_types",
  "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra_utils",
@@ -1651,12 +1657,14 @@ dependencies = [
  "serde_json",
  "socket2 0.5.10",
  "strum 0.25.0",
+ "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -2594,6 +2602,7 @@ name = "apollo_storage"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",
  "apollo_test_utils",
@@ -9774,6 +9783,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra_utils",
  "assert_matches",
  "async-trait",
  "futures",

@@ -1,0 +1,26 @@
+imagePullSecrets: []
+
+# Common labels for all services
+metaLabels:
+  app: sequencer
+
+image:
+  repository: ghcr.io/starkware-libs/sequencer/sequencer
+  tag: "dev"
+  digest: ""
+  imagePullPolicy: IfNotPresent
+
+# Common config for all services
+config:
+  sequencerConfig: {}
+  # example:
+  # sequencerConfig:
+  #   base_layer_config_starknet_contract_address: "<STARKNET_CONTRACT_ADDRESS>"
+
+# Common ports for all services
+service:
+  ports: []
+    # - name: monitoring-endpoint
+    #   port: 8082
+    #   targetPort: 8082
+    #   protocol: TCP

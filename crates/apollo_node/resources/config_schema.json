@@ -392,7 +392,7 @@
   "batcher_config.storage_reader_server_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
-    "value": 8080
+    "value": 8091
   },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -3282,7 +3282,7 @@
   "state_sync_config.storage_reader_server_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
-    "value": 8080
+    "value": 8091
   },
   "strk_fee_token_address": {
     "description": "Address of the STRK fee token.",

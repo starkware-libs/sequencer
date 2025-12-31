@@ -18,16 +18,13 @@ use apollo_node_config::component_execution_config::{
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
-use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
     ServicePort,
     CONFIG_BASE_DIR,
@@ -35,23 +32,13 @@ use crate::deployment_definitions::{
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::k8s::{
-    Controller,
-    ExternalSecret,
-    Ingress,
-    IngressParams,
-    K8sServiceConfig,
-    K8sServiceConfigParams,
-    Resources,
-    Toleration,
-};
 use crate::replacers::insert_replacer_annotations;
 use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
-use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
+const REMOTE_SERVICE_URL_PLACEHOLDER: &str = "remote_service";
 
 // TODO(Tsabary): remove ports and mempool ttl from this list.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
@@ -114,108 +101,6 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "versioned_constants_overrides.max_n_events",
 };
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Service {
-    #[serde(rename = "name")]
-    node_service: NodeService,
-    controller: Controller,
-    #[serde(serialize_with = "serialize_vec_strip_prefix")]
-    config_paths: Vec<String>,
-    ingress: Option<Ingress>,
-    k8s_service_config: Option<K8sServiceConfig>,
-    #[serde(rename = "autoscale")]
-    scale_policy: ScalePolicy,
-    replicas: usize,
-    storage: Option<usize>,
-    toleration: Option<Toleration>,
-    resources: Resources,
-    external_secret: Option<ExternalSecret>,
-    anti_affinity: bool,
-    #[serde(rename = "update_strategy_type")]
-    update_strategy: UpdateStrategy,
-    ports: BTreeMap<ServicePort, u16>,
-}
-
-impl Service {
-    pub fn new(
-        node_service: NodeService,
-        external_secret: Option<ExternalSecret>,
-        config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-        k8s_service_config_params: Option<K8sServiceConfigParams>,
-        environment: Environment,
-    ) -> Self {
-        // Configs are loaded by order such that a config may override previous ones.
-        // We first list the base config, and then follow with the overrides, and finally, the
-        // service config file.
-
-        // TODO(Tsabary): reduce visibility of relevant functions and consts.
-
-        let components_in_service = node_service
-            .get_components_in_service()
-            .into_iter()
-            .flat_map(|c| c.get_component_config_file_paths())
-            .collect::<Vec<_>>();
-        let config_paths = components_in_service
-            .clone()
-            .into_iter()
-            .chain(config_filenames.clone())
-            .chain(once(node_service.get_service_file_path()))
-            .collect();
-
-        let controller = node_service.get_controller();
-        let scale_policy = node_service.get_scale_policy();
-        let toleration = node_service.get_toleration(&environment);
-        let ingress = node_service.get_ingress(&environment, ingress_params);
-        let k8s_service_config = node_service.get_k8s_service_config(k8s_service_config_params);
-        let storage = node_service.get_storage(&environment);
-        let resources = node_service.get_resources(&environment);
-        let replicas = node_service.get_replicas(&environment);
-        let anti_affinity = node_service.get_anti_affinity(&environment);
-        let ports = node_service.get_service_port_mapping();
-        let update_strategy = node_service.get_update_strategy();
-        Self {
-            node_service,
-            config_paths,
-            controller,
-            ingress,
-            k8s_service_config,
-            scale_policy,
-            replicas,
-            storage,
-            toleration,
-            resources,
-            external_secret,
-            anti_affinity,
-            update_strategy,
-            ports,
-        }
-    }
-
-    pub fn get_service_config_paths(&self) -> Vec<String> {
-        self.config_paths.clone()
-    }
-}
-
-fn serialize_vec_strip_prefix<S>(vec: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut seq = serializer.serialize_seq(Some(vec.len()))?;
-
-    for s in vec {
-        if let Some(stripped) = s.strip_prefix(CONFIG_BASE_DIR) {
-            seq.serialize_element(stripped)?;
-        } else {
-            return Err(serde::ser::Error::custom(format!(
-                "Expected all items to start with '{CONFIG_BASE_DIR}', got '{s}'"
-            )));
-        }
-    }
-
-    seq.end()
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(NodeType),
@@ -248,79 +133,12 @@ impl NodeService {
         format!("replacer_{}.json", self.as_inner())
     }
 
-    pub fn create_service(
-        &self,
-        environment: &Environment,
-        external_secret: &Option<ExternalSecret>,
-        config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-        k8s_service_config_params: Option<K8sServiceConfigParams>,
-    ) -> Service {
-        Service::new(
-            Into::<NodeService>::into(*self),
-            external_secret.clone(),
-            config_filenames,
-            ingress_params.clone(),
-            k8s_service_config_params,
-            environment.clone(),
-        )
-    }
-
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
             NodeService::Consolidated(inner) => inner,
             NodeService::Hybrid(inner) => inner,
             NodeService::Distributed(inner) => inner,
         }
-    }
-
-    pub fn get_controller(&self) -> Controller {
-        self.as_inner().get_controller()
-    }
-
-    pub fn get_scale_policy(&self) -> ScalePolicy {
-        self.as_inner().get_scale_policy()
-    }
-
-    pub fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
-        self.as_inner().get_toleration(environment)
-    }
-
-    pub fn get_ingress(
-        &self,
-        environment: &Environment,
-        ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        self.as_inner().get_ingress(environment, ingress_params)
-    }
-
-    pub fn get_k8s_service_config(
-        &self,
-        k8s_service_config_params: Option<K8sServiceConfigParams>,
-    ) -> Option<K8sServiceConfig> {
-        self.as_inner().get_k8s_service_config(k8s_service_config_params)
-    }
-
-    pub fn get_storage(&self, environment: &Environment) -> Option<usize> {
-        self.as_inner().get_storage(environment)
-    }
-
-    pub fn get_resources(&self, environment: &Environment) -> Resources {
-        self.as_inner().get_resources(environment)
-    }
-
-    pub fn get_replicas(&self, environment: &Environment) -> usize {
-        self.as_inner().get_replicas(environment)
-    }
-
-    pub fn get_anti_affinity(&self, environment: &Environment) -> bool {
-        // TODO(Tsabary): implement anti-affinity logic.
-        self.as_inner().get_anti_affinity(environment)
-    }
-
-    // Kubernetes service name as defined by CDK8s.
-    pub fn k8s_service_name(&self) -> String {
-        self.as_inner().k8s_service_name()
     }
 
     // TODO(Tsabary): deprecate this function after we complete the transition to the replacer
@@ -345,14 +163,6 @@ impl NodeService {
 
     pub fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         self.as_inner().get_components_in_service()
-    }
-
-    pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_service_port_mapping()
-    }
-
-    pub fn get_update_strategy(&self) -> UpdateStrategy {
-        self.as_inner().get_update_strategy()
     }
 
     fn replacer_app_config_files(&self) -> Vec<(Value, String)> {
@@ -417,63 +227,11 @@ impl NodeService {
 }
 
 pub(crate) trait ServiceNameInner: Display {
-    fn get_controller(&self) -> Controller;
-
     fn get_scale_policy(&self) -> ScalePolicy;
 
     fn get_retries(&self) -> usize;
 
-    fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
-
-    fn get_ingress(
-        &self,
-        environment: &Environment,
-        ingress_params: IngressParams,
-    ) -> Option<Ingress>;
-
-    fn get_k8s_service_config(
-        &self,
-        k8s_service_config_params: Option<K8sServiceConfigParams>,
-    ) -> Option<K8sServiceConfig> {
-        if self.has_p2p_interface() {
-            if let Some(K8sServiceConfigParams { namespace, domain, p2p_communication_type }) =
-                k8s_service_config_params
-            {
-                let service_namespace_domain = build_service_namespace_domain_address(
-                    &self.k8s_service_name(),
-                    &namespace,
-                    &domain,
-                );
-                return Some(K8sServiceConfig::new(
-                    Some(service_namespace_domain),
-                    p2p_communication_type,
-                ));
-            }
-        }
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool;
-
-    fn get_storage(&self, environment: &Environment) -> Option<usize>;
-
-    fn get_resources(&self, environment: &Environment) -> Resources;
-
-    fn get_replicas(&self, environment: &Environment) -> usize;
-
-    fn get_anti_affinity(&self, environment: &Environment) -> bool;
-
     fn get_service_ports(&self) -> BTreeSet<ServicePort>;
-
-    fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        let mut ports = BTreeMap::new();
-
-        for service_port in self.get_service_ports() {
-            let port = service_port.get_port();
-            ports.insert(service_port, port);
-        }
-        ports
-    }
 
     fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
         let mut ports = BTreeMap::new();
@@ -492,15 +250,7 @@ pub(crate) trait ServiceNameInner: Display {
         ports
     }
 
-    // Kubernetes service name as defined by CDK8s.
-    fn k8s_service_name(&self) -> String {
-        let formatted_service_name = self.to_string().replace('_', "");
-        format!("sequencer-{formatted_service_name}-service")
-    }
-
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
-
-    fn get_update_strategy(&self) -> UpdateStrategy;
 }
 
 impl NodeType {
@@ -660,7 +410,7 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     /// connections from remote components.
     fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
+            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
@@ -671,7 +421,7 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
         let idle_connections = self.get_scale_policy().idle_connections();
         let retries = self.get_retries();
         ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
+            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )

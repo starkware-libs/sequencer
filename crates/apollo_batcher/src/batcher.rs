@@ -5,9 +5,6 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
-    BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -49,7 +46,7 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::storage_reader_server::StorageReaderServer;
+use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -91,6 +88,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_PROVIDER_ERRORS,
+    L2_GAS_IN_LAST_BLOCK,
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
@@ -124,11 +122,6 @@ use crate::utils::{
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
-type BatcherStorageReaderServer = StorageReaderServer<
-    BatcherStorageReaderServerHandler,
-    BatcherStorageRequest,
-    BatcherStorageResponse,
->;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -176,10 +169,10 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    // TODO(Nadin): Remove #[allow(dead_code)].
     /// Optional storage reader server for handling remote storage reader queries.
+    /// Kept alive to maintain the server running.
     #[allow(dead_code)]
-    storage_reader_server: Option<BatcherStorageReaderServer>,
+    storage_reader_server: Option<GenericStorageReaderServer>,
     /// The Commitment manager, or None when in revert mode. In revert mode there is no need for a
     /// commitment manager because commitments are reverted in a blocking call.
     commitment_manager: Option<CommitmentManager>,
@@ -197,7 +190,7 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
-        storage_reader_server: Option<BatcherStorageReaderServer>,
+        storage_reader_server: Option<GenericStorageReaderServer>,
         commitment_manager: Option<CommitmentManager>,
     ) -> Self {
         Self {
@@ -768,6 +761,7 @@ impl Batcher {
         SIERRA_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.bouncer_weights.sierra_gas.0);
         PROVING_GAS_IN_LAST_BLOCK
             .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
+        L2_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.l2_gas_used.0);
 
         Ok(DecisionReachedResponse {
             state_diff,

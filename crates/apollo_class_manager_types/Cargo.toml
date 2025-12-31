@@ -4,6 +4,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+description = "Type definitions and interfaces for the Apollo class manager component."
 
 [features]
 testing = ["mockall"]
@@ -15,7 +16,6 @@ workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_infra.workspace = true
 apollo_proc_macros.workspace = true
-apollo_storage.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

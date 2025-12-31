@@ -258,7 +258,7 @@ pub fn create_node_config(
     config_pointers_map.change_target_value(
         "recorder_url",
         // TODO(victork): make sure we're allowed to expose the URL here
-        to_value(recorder_url.as_ref()).expect("Failed to serialize Url"),
+        to_value(recorder_url.peek_secret()).expect("Failed to serialize Url"),
     );
     config_pointers_map.change_target_value(
         "starknet_url",

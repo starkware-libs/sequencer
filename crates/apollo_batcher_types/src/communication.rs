@@ -122,7 +122,7 @@ pub enum BatcherResponse {
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum BatcherClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),

@@ -1,0 +1,43 @@
+# Core service configuration with all constructs enabled
+name: core
+
+# StatefulSet enabled (core uses StatefulSet)
+statefulSet:
+  enabled: true
+  annotations:
+    statefulset-type: "core"
+  labels:
+    service: "core"
+  podManagementPolicy: "OrderedReady"
+  updateStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      partition: null
+      maxUnavailable: null
+
+# Service with ports
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: batcher
+      port: 55000
+      targetPort: 55000
+      protocol: TCP
+    - name: class-manager
+      port: 55001
+      targetPort: 55001
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# PersistentVolume enabled for core (StatefulSet needs storage)
+persistentVolume:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  mountPath: "/data"
+  size: "10Gi"
+  storageClass: ""

@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Configuration types for Apollo mempool P2P networking."
 
 [dependencies]
 apollo_config.workspace = true
