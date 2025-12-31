@@ -635,6 +635,12 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
         Ok(nonces_table.get(&self.txn, &(contract_address, block_number))?)
     }
+
+    /// Returns the file offset for a given offset kind.
+    pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
+        let table = self.open_table(&self.tables.file_offsets)?;
+        Ok(table.get(&self.txn, &offset_kind)?)
+    }
 }
 
 /// Returns the names of the tables in the storage.

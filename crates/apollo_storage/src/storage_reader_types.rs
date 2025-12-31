@@ -373,8 +373,12 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 })?;
                 Ok(StorageReaderResponse::LastVotedMarker(marker))
             }
-            StorageReaderRequest::FileOffsets(_offset_kind) => {
-                unimplemented!()
+            StorageReaderRequest::FileOffsets(offset_kind) => {
+                let offset = txn.get_file_offset(offset_kind)?.ok_or(StorageError::NotFound {
+                    resource_type: "File offset".to_string(),
+                    resource_id: format!("{:?}", offset_kind),
+                })?;
+                Ok(StorageReaderResponse::FileOffsets(offset))
             }
             StorageReaderRequest::StarknetVersion(block_number) => {
                 let starknet_version = txn.get_starknet_version_by_key(block_number)?.ok_or(
