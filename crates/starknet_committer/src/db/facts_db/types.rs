@@ -61,4 +61,13 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FactsDbInitialRead(pub StateRoots);
 
+impl Default for FactsDbInitialRead {
+    fn default() -> Self {
+        Self(StateRoots {
+            contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+            classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        })
+    }
+}
+
 impl InputContext for FactsDbInitialRead {}
