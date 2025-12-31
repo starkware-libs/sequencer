@@ -38,7 +38,7 @@ use tracing::{debug, error, info, trace, warn};
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
-    get_oracle_rate_and_prices,
+    get_l1_prices_in_fri_and_wei,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
@@ -132,23 +132,23 @@ pub(crate) async fn build_proposal(
 
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let timestamp = args.deps.clock.unix_now();
-    let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
+    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
         &args.gas_price_params,
     )
     .await;
-
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices.base_fee_per_gas,
-        l1_data_gas_price_wei: l1_prices.blob_fee,
-        eth_to_fri_rate,
+        l1_gas_price_wei: l1_prices_wei.l1_gas_price,
+        l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
+        l1_gas_price_fri: l1_prices_fri.l1_gas_price,
+        l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
