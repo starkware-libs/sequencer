@@ -190,7 +190,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
 
     /// Hashes the block hashes of the given block inputs to get a seed for the random number
     /// generator.
-    fn rng_seed(os_block_inputs: &Vec<&'a OsBlockInput>, rng_seed_salt: &Option<Felt>) -> Felt {
+    fn rng_seed(os_block_inputs: &[&'a OsBlockInput], rng_seed_salt: &Option<Felt>) -> Felt {
         Poseidon::hash_array(
             &os_block_inputs
                 .iter()

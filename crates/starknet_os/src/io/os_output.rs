@@ -16,6 +16,8 @@ use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
+#[cfg(any(test, feature = "testing"))]
+use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hints::vars::Const;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
@@ -385,6 +387,8 @@ pub struct StarknetOsRunnerOutput {
     pub cairo_pie: CairoPie,
     pub da_segment: Option<Vec<Felt>>,
     pub metrics: OsMetrics,
+    #[cfg(any(test, feature = "testing"))]
+    pub txs_trace: Vec<OsTransactionTrace>,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }

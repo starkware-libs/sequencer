@@ -73,7 +73,7 @@ use starknet_os::io::os_output_types::{
     TryFromOutputIter,
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
-use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
+use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_types_core::felt::Felt;
 
@@ -732,7 +732,7 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
-        let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
+        let os_output = run_os_stateless(layout, os_hints).unwrap();
         let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
             Self::get_decompressed_state_diff(
                 &os_output,
