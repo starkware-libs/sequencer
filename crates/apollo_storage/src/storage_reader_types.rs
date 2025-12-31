@@ -12,6 +12,7 @@ use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
+use crate::base_layer::BaseLayerStorageReader;
 use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
@@ -233,11 +234,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                     MarkerKind::State => txn.get_state_marker()?,
                     MarkerKind::Header => txn.get_header_marker()?,
                     MarkerKind::Body => txn.get_body_marker()?,
+                    MarkerKind::Class => txn.get_class_marker()?,
+                    MarkerKind::CompiledClass => txn.get_compiled_class_marker()?,
+                    MarkerKind::BaseLayerBlock => txn.get_base_layer_block_marker()?,
                     MarkerKind::ClassManagerBlock => txn.get_class_manager_block_marker()?,
                     MarkerKind::CompilerBackwardCompatibility => {
                         txn.get_compiler_backward_compatibility_marker()?
                     }
-                    _ => unimplemented!(),
+                    MarkerKind::Event => txn.get_event_marker()?,
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }
