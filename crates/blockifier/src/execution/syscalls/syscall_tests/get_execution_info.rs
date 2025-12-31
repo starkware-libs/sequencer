@@ -360,33 +360,23 @@ fn test_get_execution_info(
 
     let tx_hash = tx_hash!(1991);
 
-    let (expected_unsupported_fields, expected_signature) = match test_contract {
-        FeatureContract::LegacyTestContract => {
-            // Read and parse file content.
-            let raw_contract: serde_json::Value =
-                serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
-            // Verify version.
-            if let Some(compiler_version) = raw_contract["compiler_version"].as_str() {
-                assert_eq!(compiler_version, "2.1.0");
-            } else {
-                panic!("'compiler_version' not found or not a valid string in JSON.");
-            };
-            (vec![], vec![])
-        }
+    // Verify legacy contract version.
+    if matches!(test_contract, FeatureContract::LegacyTestContract) {
+        let raw_contract: serde_json::Value =
+            serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
+        let compiler_version = raw_contract["compiler_version"]
+            .as_str()
+            .expect("'compiler_version' not found or not a valid string in JSON.");
+        assert_eq!(compiler_version, "2.1.0");
+    }
+
+    let expected_signature = match test_contract {
+        FeatureContract::LegacyTestContract => vec![],
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => (vec![], vec![]),
-        _ => {
-            (
-                vec![
-                    expected_tip.into(), // Tip.
-                    Felt::ZERO,          // Paymaster data.
-                    Felt::ZERO,          // Nonce DA.
-                    Felt::ZERO,          // Fee DA.
-                    Felt::ZERO,          // Account data.
-                ],
-                vec![tx_hash.0],
-            )
-        }
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => vec![],
+        FeatureContract::TestContract(_) => vec![tx_hash.0],
+        _ => panic!("Unsupported contract for this test."),
+
     };
 
     let mut expected_version = if v1_bound_account && !high_tip { 1.into() } else { version.0 };
@@ -409,26 +399,6 @@ fn test_get_execution_info(
         l2_gas: resource_bounds,
         l1_data_gas: resource_bounds,
     });
-
-    let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
-        (FeatureContract::LegacyTestContract, _) => vec![],
-        #[cfg(feature = "cairo_native")]
-        (FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native), _) => vec![],
-        (_, version) if version == TransactionVersion::ONE => vec![
-            felt!(0_u16), // Length of resource bounds array.
-        ],
-        (_, _) => {
-            vec![felt!(if exclude_l1_data_gas { 2_u8 } else { 3_u8 })] // Length of resource bounds array.
-                .into_iter()
-                .chain(
-                    valid_resource_bounds_as_felts(&all_resource_bounds, exclude_l1_data_gas)
-                        .unwrap()
-                        .into_iter()
-                        .flat_map(|bounds| bounds.flatten()),
-                )
-                .collect()
-        }
-    };
 
     // Only transaction V3 supports non-trivial proof facts.
     let proof_facts = if version == TransactionVersion::THREE {
@@ -498,21 +468,35 @@ fn test_get_execution_info(
         entry_point_selector.0,         // Entry point selector.
     ];
 
-    let expected_proof_facts = proof_facts_as_entry_point_arg(proof_facts);
-    let mut calldata = vec![
-        expected_block_info.to_vec(),
-        expected_tx_info,
-        expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-    ];
+    let mut calldata = vec![expected_block_info.to_vec(), expected_call_info, expected_tx_info];
 
-    // Only `TestContract` was updated to call the `get_execution_info_v3` that includes
-    // `proof_facts`. The other contracts continue to call `get_execution_info_v1`, so their
-    // calldata layout must remain unchanged.
+    // Only `TestContract` calls `get_execution_info_v3` which includes resource bounds,
+    // unsupported fields, and proof facts. Legacy contracts use `get_execution_info_v1`.
     if matches!(test_contract, FeatureContract::TestContract(_)) {
-        calldata.push(expected_proof_facts);
+        let expected_resource_bounds: Vec<Felt> = if version == TransactionVersion::ONE {
+            vec![felt!(0_u16)]
+        } else {
+            std::iter::once(felt!(if exclude_l1_data_gas { 2_u8 } else { 3_u8 }))
+                .chain(
+                    valid_resource_bounds_as_felts(&all_resource_bounds, exclude_l1_data_gas)
+                        .unwrap()
+                        .into_iter()
+                        .flat_map(|bounds| bounds.flatten()),
+                )
+                .collect()
+        };
+        let expected_unsupported_fields = vec![
+            expected_tip.into(), // Tip.
+            Felt::ZERO,          // Paymaster data.
+            Felt::ZERO,          // Nonce DA.
+            Felt::ZERO,          // Fee DA.
+            Felt::ZERO,          // Account data.
+        ];
+        calldata.push(
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+        );
+        calldata.push(proof_facts_as_entry_point_arg(proof_facts));
     }
-
-    calldata.push(expected_call_info);
 
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
