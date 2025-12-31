@@ -14,46 +14,12 @@ use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
-use crate::db::trie_traversal::{fetch_nodes, log_warning_for_empty_leaves};
+use crate::db::trie_traversal::fetch_nodes;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 
 #[cfg(test)]
 #[path = "create_facts_tree_test.rs"]
 pub mod create_facts_tree_test;
-
-pub async fn create_original_skeleton_tree<'a, L: Leaf>(
-    storage: &mut impl Storage,
-    root_hash: HashOutput,
-    sorted_leaf_indices: SortedLeafIndices<'a>,
-    config: &impl OriginalSkeletonTreeConfig,
-    leaf_modifications: &LeafModifications<L>,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
-    if sorted_leaf_indices.is_empty() {
-        return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
-    }
-    if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-        log_warning_for_empty_leaves(
-            sorted_leaf_indices.get_indices(),
-            leaf_modifications,
-            config,
-        )?;
-        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
-    }
-    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
-    let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
-    fetch_nodes::<L, FactsNodeLayout>(
-        &mut skeleton_tree,
-        vec![main_subtree],
-        storage,
-        leaf_modifications,
-        config,
-        None,
-        key_context,
-    )
-    .await?;
-    Ok(skeleton_tree)
-}
 
 pub async fn create_original_skeleton_tree_and_get_previous_leaves<'a, L: Leaf>(
     storage: &mut impl Storage,
