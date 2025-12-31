@@ -46,7 +46,6 @@ impl FsProofStorage {
     /// a1/
     /// └── b2/
     ///     └── a1b2c3d4.../
-    #[allow(dead_code)]
     fn get_proof_dir(&self, facts_hash: Felt) -> PathBuf {
         let facts_hash = hex::encode(facts_hash.to_bytes_be());
         let (first_msb_byte, second_msb_byte, _rest_of_bytes) =
@@ -54,12 +53,10 @@ impl FsProofStorage {
         PathBuf::from(first_msb_byte).join(second_msb_byte).join(facts_hash)
     }
 
-    #[allow(dead_code)]
     fn get_persistent_dir(&self, facts_hash: Felt) -> PathBuf {
         self.persistent_root.join(self.get_proof_dir(facts_hash))
     }
 
-    #[allow(dead_code)]
     fn get_persistent_dir_with_create(&self, facts_hash: Felt) -> FsProofStorageResult<PathBuf> {
         let path = self.get_persistent_dir(facts_hash);
         if let Some(parent) = path.parent() {
@@ -69,7 +66,6 @@ impl FsProofStorage {
         Ok(path)
     }
 
-    #[allow(dead_code)]
     fn create_tmp_dir(
         &self,
         facts_hash: Felt,
