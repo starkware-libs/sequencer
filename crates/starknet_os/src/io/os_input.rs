@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use blockifier::context::ChainInfo;
 use blockifier::state::cached_state::StateMaps;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
@@ -98,6 +99,15 @@ impl Default for OsChainInfo {
         OsChainInfo {
             chain_id: ChainId::Other("0x0".to_string()),
             strk_fee_token_address: ContractAddress::default(),
+        }
+    }
+}
+
+impl From<&ChainInfo> for OsChainInfo {
+    fn from(chain_info: &ChainInfo) -> Self {
+        OsChainInfo {
+            chain_id: chain_info.chain_id.clone(),
+            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
         }
     }
 }
