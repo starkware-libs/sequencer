@@ -17,7 +17,7 @@ use crate::contract_types::RetdataDeserializationError;
 pub type Committee = Vec<Staker>;
 
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Staker {
     // A contract address of the staker, to which rewards are sent.
     pub address: ContractAddress,
