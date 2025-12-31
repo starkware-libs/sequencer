@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Type definitions and interfaces for the Apollo committer component."
 
 [features]
 testing = ["mockall"]
