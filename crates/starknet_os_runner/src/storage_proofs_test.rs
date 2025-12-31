@@ -4,6 +4,7 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
@@ -11,7 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
 use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
-use crate::virtual_block_executor::VirtualBlockExecutionData;
+use crate::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
 #[rstest::fixture]
@@ -44,10 +45,14 @@ fn test_get_storage_proofs_from_rpc(
 
     let execution_data = VirtualBlockExecutionData {
         execution_outputs: vec![],
-        block_context: BlockContext::create_for_account_testing(),
+        base_block_info: BaseBlockInfo {
+            block_context: BlockContext::create_for_account_testing(),
+            base_block_hash: BlockHash::default(),
+            prev_base_block_hash: BlockHash::default(),
+            base_block_header_commitments: BlockHeaderCommitments::default(),
+        },
         initial_reads: state_maps,
         executed_class_hashes: HashSet::new(),
-        prev_base_block_hash: BlockHash::default(),
     };
 
     let result = runtime.block_on(async {

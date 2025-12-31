@@ -12752,6 +12752,7 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
+ "apollo_gateway",
  "async-trait",
  "blockifier",
  "blockifier_reexecution",
