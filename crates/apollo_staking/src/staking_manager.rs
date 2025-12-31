@@ -19,7 +19,7 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
-use crate::contract_types::{EPOCH_LENGTH, GET_STAKERS_ENTRY_POINT};
+use crate::contract_types::{ContractStaker, EPOCH_LENGTH, GET_STAKERS_ENTRY_POINT};
 use crate::utils::BlockRandomGenerator;
 
 pub type StakerSet = Vec<Staker>;
@@ -132,7 +132,17 @@ impl StakingManager {
             Calldata(vec![Felt::from(epoch)].into()),
         )?;
 
-        let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
+        let stakers: Vec<Staker> = ContractStaker::from_retdata_many(call_info.execution.retdata)?
+            .into_iter()
+            .filter_map(|staker| {
+                // Filter out stakers that don't have a public key.
+                staker.public_key.map(|public_key| Staker {
+                    address: staker.contract_address,
+                    weight: staker.staking_power,
+                    public_key,
+                })
+            })
+            .collect();
         let committee_members = self.select_committee(stakers);
 
         // Prepare the data needed for proposer selection.

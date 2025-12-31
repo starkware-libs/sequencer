@@ -4,6 +4,7 @@ use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
+#[cfg(test)]
 use crate::committee_provider::Staker;
 
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
@@ -14,46 +15,89 @@ pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 #[derive(Debug, PartialEq, Eq)]
 struct ArrayRetdata<const N: usize, T>(Vec<T>);
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ContractStaker {
+    pub(crate) contract_address: ContractAddress,
+    pub(crate) staking_power: StakingWeight,
+    pub(crate) public_key: Option<Felt>,
+}
+
 #[derive(Debug, Error)]
 pub enum RetdataDeserializationError {
     #[error("Failed to convert Felt to ContractAddress: {address}")]
     ContractAddressConversionError { address: Felt },
     #[error("Failed to convert Felt to u128: {felt}")]
     U128ConversionError { felt: Felt },
+    #[error("Failed to convert Felt to usize: {felt}")]
+    USizeConversionError { felt: Felt },
     #[error(
         "Invalid retdata length: expected 1 Felt followed by {num_structs} (number of structs) *
          {struct_size} (number of Felts per struct), but received {length} Felts."
     )]
     InvalidArrayLength { length: usize, num_structs: usize, struct_size: usize },
+    #[error("Invalid retdata length: expected {expected} Felts, but received {received} Felts.")]
+    InvalidObjectLength { expected: usize, received: usize },
+    #[error("Unexpected enum variant: {variant}")]
+    UnexpectedEnumVariant { variant: usize },
 }
 
-impl Staker {
-    pub const CAIRO_OBJECT_NUM_FELTS: usize = 3;
+impl ContractStaker {
+    pub const CAIRO_OBJECT_NUM_FELTS: usize = 4;
 
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
-        Ok(ArrayRetdata::<{ Self::CAIRO_OBJECT_NUM_FELTS }, Staker>::try_from(retdata)?.0)
+        Ok(ArrayRetdata::<{ Self::CAIRO_OBJECT_NUM_FELTS }, ContractStaker>::try_from(retdata)?.0)
     }
 }
 
-impl TryFrom<[Felt; Self::CAIRO_OBJECT_NUM_FELTS]> for Staker {
+impl TryFrom<[Felt; Self::CAIRO_OBJECT_NUM_FELTS]> for ContractStaker {
     type Error = RetdataDeserializationError;
 
     fn try_from(felts: [Felt; Self::CAIRO_OBJECT_NUM_FELTS]) -> Result<Self, Self::Error> {
-        let [address, weight, public_key] = felts;
-        let address = ContractAddress::try_from(address)
-            .map_err(|_| RetdataDeserializationError::ContractAddressConversionError { address })?;
-        let weight = StakingWeight(
-            u128::try_from(weight)
-                .map_err(|_| RetdataDeserializationError::U128ConversionError { felt: weight })?,
-        );
-        Ok(Self { address, weight, public_key })
+        let [contract_address, staking_power, option_variant, public_key] = felts;
+        let contract_address = ContractAddress::try_from(contract_address).map_err(|_| {
+            RetdataDeserializationError::ContractAddressConversionError {
+                address: contract_address,
+            }
+        })?;
+        let staking_power = StakingWeight(u128::try_from(staking_power).map_err(|_| {
+            RetdataDeserializationError::U128ConversionError { felt: staking_power }
+        })?);
+        let option_variant = usize::try_from(option_variant).map_err(|_| {
+            RetdataDeserializationError::USizeConversionError { felt: option_variant }
+        })?;
+        let public_key = match option_variant {
+            0 => Some(public_key),
+            1 => None,
+            _ => {
+                return Err(RetdataDeserializationError::UnexpectedEnumVariant {
+                    variant: option_variant,
+                });
+            }
+        };
+        Ok(Self { contract_address, staking_power, public_key })
     }
 }
 
 #[cfg(test)]
-impl From<&Staker> for Vec<Felt> {
+impl From<&ContractStaker> for Vec<Felt> {
+    fn from(staker: &ContractStaker) -> Self {
+        vec![
+            Felt::from(staker.contract_address),
+            Felt::from(staker.staking_power.0),
+            Felt::from(if staker.public_key.is_some() { 0 } else { 1 }),
+            staker.public_key.unwrap_or_default(),
+        ]
+    }
+}
+
+#[cfg(test)]
+impl From<&Staker> for ContractStaker {
     fn from(staker: &Staker) -> Self {
-        vec![Felt::from(staker.address), Felt::from(staker.weight.0), staker.public_key]
+        Self {
+            contract_address: staker.address,
+            staking_power: staker.weight,
+            public_key: Some(staker.public_key),
+        }
     }
 }
 

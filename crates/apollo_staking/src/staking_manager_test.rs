@@ -32,8 +32,8 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
-use crate::contract_types::RetdataDeserializationError;
-use crate::staking_manager::{StakerSet, StakingManager, StakingManagerConfig};
+use crate::contract_types::{ContractStaker, RetdataDeserializationError};
+use crate::staking_manager::{StakingManager, StakingManagerConfig};
 use crate::utils::MockBlockRandomGenerator;
 
 const STAKING_CONTRACT: FeatureContract =
@@ -93,7 +93,10 @@ fn default_config() -> StakingManagerConfig {
 }
 
 fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
-    let mut stakers_as_felts: Vec<Felt> = stakers.iter().flat_map(<Vec<Felt>>::from).collect();
+    let mut stakers_as_felts: Vec<Felt> = stakers
+        .iter()
+        .flat_map(|staker| <Vec<Felt>>::from(&ContractStaker::from(staker)))
+        .collect();
     stakers_as_felts.insert(0, Felt::from(stakers.len()));
 
     // Invoke the set_stakers function on the mock staking contract.
@@ -123,7 +126,7 @@ fn get_committee_success(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
-    #[case] stakers: StakerSet,
+    #[case] stakers: Vec<Staker>,
     #[case] expected_committee: Committee,
 ) {
     set_stakers(&mut state, &block_context, &stakers);
@@ -276,25 +279,39 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let _ = committee_manager.get_proposer(BlockNumber(1), 0, context).await;
 }
 
-// --- TryFrom tests for Staker and ArrayRetdata ---
+// --- TryFrom tests for ContractStaker and ArrayRetdata ---
 
 #[rstest]
 fn staker_try_from_valid() {
-    let staker = Staker::try_from([Felt::ONE, Felt::TWO, Felt::THREE]).unwrap();
-    assert_eq!(staker.address, contract_address!("0x1"));
-    assert_eq!(staker.weight, StakingWeight(2));
-    assert_eq!(staker.public_key, Felt::THREE);
+    let staker = ContractStaker::try_from([Felt::ONE, Felt::TWO, Felt::ZERO, Felt::THREE]).unwrap();
+    assert_eq!(staker.contract_address, contract_address!("0x1"));
+    assert_eq!(staker.staking_power, StakingWeight(2));
+    assert_eq!(staker.public_key, Some(Felt::THREE));
+
+    // A valid staker with no public key.
+    let staker = ContractStaker::try_from([Felt::ONE, Felt::TWO, Felt::ONE, Felt::THREE]).unwrap();
+    assert_eq!(staker.contract_address, contract_address!("0x1"));
+    assert_eq!(staker.staking_power, StakingWeight(2));
+    assert_eq!(staker.public_key, None);
 }
 
 #[rstest]
 fn staker_try_from_invalid_address() {
-    let err = Staker::try_from([CONTRACT_ADDRESS_DOMAIN_SIZE, Felt::ONE, Felt::ONE]).unwrap_err();
+    let err =
+        ContractStaker::try_from([CONTRACT_ADDRESS_DOMAIN_SIZE, Felt::ONE, Felt::ZERO, Felt::ONE])
+            .unwrap_err();
     assert_matches!(err, RetdataDeserializationError::ContractAddressConversionError { .. });
 }
 
 #[rstest]
+fn staker_try_from_invalid_public_key() {
+    let err = ContractStaker::try_from([Felt::ONE, Felt::TWO, Felt::TWO, Felt::THREE]).unwrap_err();
+    assert_matches!(err, RetdataDeserializationError::UnexpectedEnumVariant { .. });
+}
+
+#[rstest]
 fn staker_try_from_invalid_staked_amount() {
-    let err = Staker::try_from([Felt::ONE, Felt::MAX, Felt::ONE]).unwrap_err(); // Felt::MAX is too big for u128
+    let err = ContractStaker::try_from([Felt::ONE, Felt::MAX, Felt::ZERO, Felt::ONE]).unwrap_err(); // Felt::MAX is too big for u128
     assert_matches!(err, RetdataDeserializationError::U128ConversionError { .. });
 }
 
@@ -304,19 +321,19 @@ fn staker_try_from_invalid_staked_amount() {
 fn staker_array_retdata_try_from_valid(#[case] num_structs: usize) {
     let valid_retdata = [
         [Felt::from(num_structs)].as_slice(),
-        vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS * num_structs].as_slice(),
+        vec![Felt::ONE; ContractStaker::CAIRO_OBJECT_NUM_FELTS * num_structs].as_slice(),
     ]
     .concat();
 
-    let result = Staker::from_retdata_many(Retdata(valid_retdata)).unwrap();
+    let result = ContractStaker::from_retdata_many(Retdata(valid_retdata)).unwrap();
     assert_eq!(result.len(), num_structs);
 }
 
 #[rstest]
 #[case::empty_retdata(vec![])]
-#[case::missing_num_structs(vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS * 2])]
-#[case::invalid_staker_length(vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS - 1])]
+#[case::missing_num_structs(vec![Felt::ONE; ContractStaker::CAIRO_OBJECT_NUM_FELTS * 2])]
+#[case::invalid_staker_length(vec![Felt::ONE; ContractStaker::CAIRO_OBJECT_NUM_FELTS - 1])]
 fn staker_array_retdata_try_from_invalid_length(#[case] retdata: Vec<Felt>) {
-    let err = Staker::from_retdata_many(Retdata(retdata)).unwrap_err();
+    let err = ContractStaker::from_retdata_many(Retdata(retdata)).unwrap_err();
     assert_matches!(err, RetdataDeserializationError::InvalidArrayLength { .. });
 }
