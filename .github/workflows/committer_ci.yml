@@ -15,7 +15,6 @@ on:
       - "crates/starknet_api/**"
       - "crates/starknet_committer/**"
       - "crates/starknet_patricia/**"
-      - "scripts/dependencies.sh"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"

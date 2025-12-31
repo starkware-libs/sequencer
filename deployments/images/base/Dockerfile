@@ -8,6 +8,7 @@ FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
+COPY scripts/apt_utils.sh .
 COPY scripts/requirements.txt .
 COPY rust-toolchain.toml .
 
@@ -32,4 +33,4 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f install_build_tools.sh dependencies.sh requirements.txt
+RUN rm -f install_build_tools.sh dependencies.sh apt_utils.sh requirements.txt
