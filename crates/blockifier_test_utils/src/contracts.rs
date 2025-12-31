@@ -161,9 +161,9 @@ const META_TX_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x1a77ef263064158aee941bd8fed2eeead5092968729070137f37184d0a2c664"];
 
 const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x49a8fc93d796516a98d5517d6440ed71f479319f5b0aa786c9cb03440e84982"];
+    expect!["0x1f8d156cdfd170a2294c097b2500b3a33c7563339dc8e8666ad47efe015705a"];
 const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x3effc9574d4d25956524a806d0582a64a62fa8ec66f335366462ec670527724"];
+    expect!["0x3a7c8bf8d2b53cd7ec33246a1579777e91f281ec595bc2a715323644e075f54"];
 
 pub type CairoVersionString = String;
 
