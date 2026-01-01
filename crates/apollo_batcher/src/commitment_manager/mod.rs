@@ -13,12 +13,11 @@ use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::batcher::BatcherStorageReader;
 use crate::commitment_manager::errors::CommitmentManagerError;
-use crate::commitment_manager::state_committer::StateCommitter;
+use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterTrait};
 use crate::commitment_manager::types::{
     CommitmentTaskInput,
     CommitmentTaskOutput,
@@ -33,6 +32,7 @@ pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
+pub(crate) type ConcreteCommitmentManager = CommitmentManager<StateCommitter>;
 
 // TODO(amos): Add to Batcher config.
 #[derive(Debug, Clone)]
@@ -55,15 +55,15 @@ impl Default for CommitmentManagerConfig {
 
 #[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
-pub(crate) struct CommitmentManager {
+pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) tasks_sender: Sender<CommitmentTaskInput>,
     pub(crate) results_receiver: Receiver<CommitmentTaskOutput>,
-    pub(crate) commitment_task_performer: JoinHandle<()>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
+    state_committer: S,
 }
 
-impl CommitmentManager {
+impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
     /// Creates and initializes the commitment manager, and also adds
@@ -186,16 +186,14 @@ impl CommitmentManager {
         let (tasks_sender, tasks_receiver) = channel(config.tasks_channel_size);
         let (results_sender, results_receiver) = channel(config.results_channel_size);
 
-        let state_committer = StateCommitter { tasks_receiver, results_sender, committer_client };
-
-        let commitment_task_performer = state_committer.run();
+        let state_committer = S::create(tasks_receiver, results_sender, committer_client);
 
         Self {
             tasks_sender,
             results_receiver,
-            commitment_task_performer,
             config: config.clone(),
             commitment_task_offset: global_root_height,
+            state_committer,
         }
     }
 
