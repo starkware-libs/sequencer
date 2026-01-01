@@ -39,6 +39,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -183,6 +184,8 @@ struct CentralInvokeTransactionV3 {
     fee_data_availability_mode: u32,
     paymaster_data: PaymasterData,
     account_deployment_data: AccountDeploymentData,
+    #[serde(default, skip_serializing_if = "ProofFacts::is_empty")]
+    proof_facts: ProofFacts,
     hash_value: TransactionHash,
 }
 
@@ -202,6 +205,7 @@ impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV
             account_deployment_data: tx.account_deployment_data,
             nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
             fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+            proof_facts: tx.proof_facts,
             hash_value,
         }
     }
