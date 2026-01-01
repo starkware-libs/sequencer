@@ -214,7 +214,7 @@ impl NodeSetup {
         get_executable_by_component(
             self.node_type,
             &self.executables,
-            ComponentConfigInService::Consensus,
+            ComponentConfigInService::ConsensusManager,
         )
     }
 

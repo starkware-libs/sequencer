@@ -512,7 +512,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -539,7 +539,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -566,7 +566,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -584,7 +584,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::ConsensusManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Consensus
+                        ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
@@ -621,7 +621,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -648,7 +648,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -678,7 +678,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::Mempool
@@ -703,7 +703,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -729,7 +729,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -756,7 +756,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -783,7 +783,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider

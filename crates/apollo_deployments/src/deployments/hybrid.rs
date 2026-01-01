@@ -338,7 +338,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -358,7 +358,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
@@ -394,7 +394,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
@@ -423,7 +423,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::Mempool
@@ -448,7 +448,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -474,7 +474,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
