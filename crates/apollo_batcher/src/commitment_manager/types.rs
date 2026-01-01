@@ -12,6 +12,7 @@ pub(crate) struct CommitmentTaskInput {
 }
 
 /// Output of commitment tasks.
+#[derive(Default)]
 pub(crate) struct CommitmentTaskOutput {
     pub(crate) global_root: GlobalRoot,
     pub(crate) height: BlockNumber,
