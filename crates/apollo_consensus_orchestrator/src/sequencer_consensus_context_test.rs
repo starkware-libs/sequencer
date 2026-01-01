@@ -1060,8 +1060,8 @@ async fn override_prices_behavior(
     if let Some(override_eth_to_fri_rate) = override_eth_to_fri_rate {
         assert_eq!(
             actual_conversion_rate, override_eth_to_fri_rate,
-            "Expected conversion rate ({}) to match input conversion rate ({})",
-            actual_conversion_rate, override_eth_to_fri_rate
+            "Expected conversion rate ({actual_conversion_rate}) to match input conversion rate \
+             ({override_eth_to_fri_rate})"
         );
     } else {
         // Note: the "default eth to fri rate" is actually just 10^18 (eth to wei).
@@ -1069,8 +1069,8 @@ async fn override_prices_behavior(
         // So we'll just assume that this is the "real" conversion rate, unless overriden.
         assert_eq!(
             actual_conversion_rate, ETH_TO_FRI_RATE,
-            "Expected conversion rate ({}) to match default conversion rate ({})",
-            actual_conversion_rate, ETH_TO_FRI_RATE
+            "Expected conversion rate ({actual_conversion_rate}) to match default conversion rate \
+             ({ETH_TO_FRI_RATE})"
         );
     }
 }

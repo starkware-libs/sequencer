@@ -23,8 +23,8 @@ fn test_custom_redaction_with_args() {
 #[test]
 fn test_debug_display_serialize() {
     let sensitive = Sensitive::new("secret");
-    assert_eq!(format!("{:?}", sensitive), DEFAULT_REDACTION_OUTPUT);
-    assert_eq!(format!("{}", sensitive), DEFAULT_REDACTION_OUTPUT);
+    assert_eq!(format!("{sensitive:?}"), DEFAULT_REDACTION_OUTPUT);
+    assert_eq!(format!("{sensitive}"), DEFAULT_REDACTION_OUTPUT);
     assert_eq!(
         serde_json::to_string(&sensitive).unwrap(),
         serde_json::to_string(&DEFAULT_REDACTION_OUTPUT).unwrap()

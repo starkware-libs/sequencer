@@ -45,7 +45,7 @@ pub(crate) fn copy_dir_contents(src: &Path, dst: &Path) {
         .unwrap_or_else(|e| panic!("Failed to read directory {}: {}", src.display(), e));
 
     for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("Failed to read directory entry: {}", e));
+        let entry = entry.unwrap_or_else(|e| panic!("Failed to read directory entry: {e}"));
         let from = entry.path();
         let to = dst.join(entry.file_name());
 

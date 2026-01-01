@@ -453,26 +453,23 @@ async fn all_metrics_for_concurrent_server() {
         assert_eq!(
             received_msgs,
             usize_to_u64(expected_received_msgs),
-            "unexpected value for receives_msgs_started counter, expected {} got {:?}",
-            expected_received_msgs,
-            received_msgs,
+            "unexpected value for receives_msgs_started counter, expected \
+             {expected_received_msgs} got {received_msgs:?}",
         );
         assert_eq!(
             processed_msgs,
             usize_to_u64(i),
-            "unexpected value for processed_msgs counter, expected {} got {:?}",
-            i,
-            processed_msgs,
+            "unexpected value for processed_msgs counter, expected {i} got {processed_msgs:?}",
         );
         assert_eq!(
             high_priority_queue_depth, expected_high_priority_queue_depth,
-            "unexpected value for high_priority_queue_depth, expected {} got {:?}",
-            expected_high_priority_queue_depth, high_priority_queue_depth,
+            "unexpected value for high_priority_queue_depth, expected \
+             {expected_high_priority_queue_depth} got {high_priority_queue_depth:?}",
         );
         assert_eq!(
             normal_priority_queue_depth, expected_normal_priority_queue_depth,
-            "unexpected value for normal_priority_queue_depth, expected {} got {:?}",
-            expected_normal_priority_queue_depth, normal_priority_queue_depth,
+            "unexpected value for normal_priority_queue_depth, expected \
+             {expected_normal_priority_queue_depth} got {normal_priority_queue_depth:?}",
         );
         test_sem.add_permits(1);
         task::yield_now().await;

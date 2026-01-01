@@ -113,7 +113,7 @@ pub fn check_regressions(
     }
 
     if exceeded_count > 0 {
-        let error_msg = format!("{} benchmark(s) exceeded threshold(s)!", exceeded_count);
+        let error_msg = format!("{exceeded_count} benchmark(s) exceeded threshold(s)!");
         Err((error_msg, results))
     } else {
         Ok(results)

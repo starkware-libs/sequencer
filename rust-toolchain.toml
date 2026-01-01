@@ -1,5 +1,12 @@
 [toolchain]
-channel = "1.91.1"
+# nightly is needed for stwo. In particular, stwo requires the following unstable features:
+# - exact_size_is_empty
+# - raw_slice_split
+# - portable_simd
+# - array_chunks
+# - iter_array_chunks
+# - slice_ptr_get
+channel = "nightly-2025-07-14"
 components = ["rustc-dev"]
 profile = "default"
 targets = ["x86_64-unknown-linux-gnu"]

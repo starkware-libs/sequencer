@@ -208,7 +208,7 @@ impl Panel {
     }
 
     fn quote_if_missing(s: &str) -> String {
-        if s.contains('"') { s.to_string() } else { format!("\"{}\"", s) }
+        if s.contains('"') { s.to_string() } else { format!("\"{s}\"") }
     }
 
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
@@ -219,7 +219,7 @@ impl Panel {
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_log_comment(mut self, log_comment: impl Into<String>) -> Self {
         let comment = Self::quote_if_missing(&log_comment.into());
-        self.extra.log_comment = Some(format!("-- {}", comment));
+        self.extra.log_comment = Some(format!("-- {comment}"));
         self
     }
 
@@ -250,9 +250,7 @@ impl Panel {
             let next = w[1].1.unwrap();
             assert!(
                 next > prev,
-                "threshold values must be strictly increasing: {} then {}",
-                prev,
-                next
+                "threshold values must be strictly increasing: {prev} then {next}"
             );
         }
         let steps = steps
@@ -351,7 +349,7 @@ impl Panel {
             metric.get_name_with_filter(),
             name,
             description,
-            format!("le, {}", group_label),
+            format!("le, {group_label}"),
         )
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }

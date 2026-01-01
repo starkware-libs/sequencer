@@ -68,11 +68,11 @@ fn get_panel_time_to_complete_sync() -> Panel {
     Panel::new(
         "Time to Complete Sync",
         format!(
-            "Estimated time to complete syncing to the latest block (based on a {} window \
-             rate).\nThe value is computed from the sync rate of the `class manager marker` \
-             (which is the last component to finish downloading among all state sync parts), \
-             compared against the `central block marker` (the latest block known to central).",
-            DEFAULT_DURATION
+            "Estimated time to complete syncing to the latest block (based on a \
+             {DEFAULT_DURATION} window rate).\nThe value is computed from the sync rate of the \
+             `class manager marker` (which is the last component to finish downloading among all \
+             state sync parts), compared against the `central block marker` (the latest block \
+             known to central)."
         ),
         format!(
             "({target_total} - {sync_state}) / clamp_min(rate({sync_state}[{d}]) - \

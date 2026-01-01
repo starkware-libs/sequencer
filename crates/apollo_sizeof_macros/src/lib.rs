@@ -168,7 +168,7 @@ fn derive_macro_for_enum(data_enum: DataEnum) -> TokenStream2 {
             }
             Fields::Unnamed(ref fields) => {
                 let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
-                    .map(|i| syn::Ident::new(&format!("f{}", i), vname.span()))
+                    .map(|i| syn::Ident::new(&format!("f{i}"), vname.span()))
                     .collect();
                 let sizes: Vec<_> = bindings
                     .iter()

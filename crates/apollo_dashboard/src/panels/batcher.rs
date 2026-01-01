@@ -103,7 +103,7 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
-        format!("Number of blocks closed by reason ({} window)", DEFAULT_DURATION),
+        format!("Number of blocks closed by reason ({DEFAULT_DURATION} window)"),
         sum_by_label(
             &BLOCK_CLOSE_REASON,
             LABEL_NAME_BLOCK_CLOSE_REASON,

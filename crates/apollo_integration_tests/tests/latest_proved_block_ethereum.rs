@@ -29,24 +29,15 @@ async fn latest_proved_block_ethereum() {
     };
     let first_sn_state_update = BlockHashAndNumber {
         number: BlockNumber(FIRST_STARKNET_BLOCK_NUMBER),
-        hash: BlockHash(StarkHash::from_hex_unchecked(&format!(
-            "{:#x}",
-            FIRST_STARKNET_BLOCK_HASH
-        ))),
+        hash: BlockHash(StarkHash::from_hex_unchecked(&format!("{FIRST_STARKNET_BLOCK_HASH:#x}"))),
     };
     let second_sn_state_update = BlockHashAndNumber {
         number: BlockNumber(SECOND_STARKNET_BLOCK_NUMBER),
-        hash: BlockHash(StarkHash::from_hex_unchecked(&format!(
-            "{:#x}",
-            SECOND_STARKNET_BLOCK_HASH
-        ))),
+        hash: BlockHash(StarkHash::from_hex_unchecked(&format!("{SECOND_STARKNET_BLOCK_HASH:#x}"))),
     };
     let third_sn_state_update = BlockHashAndNumber {
         number: BlockNumber(THIRD_STARKNET_BLOCK_NUMBER),
-        hash: BlockHash(StarkHash::from_hex_unchecked(&format!(
-            "{:#x}",
-            THIRD_STARKNET_BLOCK_HASH
-        ))),
+        hash: BlockHash(StarkHash::from_hex_unchecked(&format!("{THIRD_STARKNET_BLOCK_HASH:#x}"))),
     };
 
     let mut base_layer = AnvilBaseLayer::new(None).await;

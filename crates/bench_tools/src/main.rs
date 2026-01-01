@@ -75,7 +75,7 @@ fn main() {
             let benchmarks = find_benchmarks_by_package(&package);
 
             if benchmarks.is_empty() {
-                panic!("No benchmarks found for package: {}", package);
+                panic!("No benchmarks found for package: {package}");
             }
 
             bench_tools::runner::run_benchmarks(&benchmarks, input_dir.as_deref(), &out);
@@ -90,7 +90,7 @@ fn main() {
             let benchmarks = find_benchmarks_by_package(&package);
 
             if benchmarks.is_empty() {
-                panic!("No benchmarks found for package: {}", package);
+                panic!("No benchmarks found for package: {package}");
             }
 
             let absolute_time_ns_limits = parse_absolute_time_limits(set_absolute_time_ns_limit);
@@ -108,11 +108,11 @@ fn main() {
                 let benchmarks = find_benchmarks_by_package(&package_name);
 
                 if benchmarks.is_empty() {
-                    println!("No benchmarks found for package: {}", package_name);
+                    println!("No benchmarks found for package: {package_name}");
                     return;
                 }
 
-                println!("Available benchmarks for package '{}':", package_name);
+                println!("Available benchmarks for package '{package_name}':");
                 for bench in &benchmarks {
                     println!("  - {} (runs: {})", bench.name, bench.cmd_args.join(" "));
                 }
@@ -132,7 +132,7 @@ fn main() {
         Commands::UploadInputs { benchmark, input_dir } => {
             // Validate benchmark exists.
             if find_benchmark_by_name(&benchmark).is_none() {
-                panic!("Unknown benchmark: {}", benchmark);
+                panic!("Unknown benchmark: {benchmark}");
             }
 
             let input_path = PathBuf::from(&input_dir);

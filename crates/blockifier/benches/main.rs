@@ -109,7 +109,7 @@ pub fn transfers_benchmark_sequential(c: &mut Criterion) {
     // Benchmark only the execution phase (run_block_of_transfers call).
     // Transaction generation and state setup happen for each iteration but are not timed.
     c.bench_function(
-        &format!("{}{}", SEQUENTIAL_TRANSFERS_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX),
+        &format!("{SEQUENTIAL_TRANSFERS_BENCHMARK_NAME}{BENCHMARK_NAME_SUFFIX}"),
         |benchmark| {
             benchmark.iter_batched(
                 || {
@@ -145,7 +145,7 @@ pub fn transfers_benchmark_concurrent(c: &mut Criterion) {
     // Benchmark only the execution phase (run_block_of_transfers call).
     // Transaction generation and state setup happen for each iteration but are not timed.
     c.bench_function(
-        &format!("{}{}", CONCURRENT_TRANSFERS_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX),
+        &format!("{CONCURRENT_TRANSFERS_BENCHMARK_NAME}{BENCHMARK_NAME_SUFFIX}"),
         |benchmark| {
             benchmark.iter_batched(
                 || {
@@ -180,7 +180,7 @@ pub fn heavy_tx_benchmark_concurrent(c: &mut Criterion) {
     let executor_config = TransactionExecutorConfig::create_for_testing(true);
     let worker_pool = Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
 
-    let bench_name = format!("{}{}", HEAVY_TX_CONCURRENT_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX);
+    let bench_name = format!("{HEAVY_TX_CONCURRENT_BENCHMARK_NAME}{BENCHMARK_NAME_SUFFIX}");
     c.bench_function(&bench_name, |benchmark| {
         benchmark.iter_batched(
             || {
@@ -221,7 +221,7 @@ pub fn heavy_tx_benchmark_concurrent(c: &mut Criterion) {
 pub fn heavy_tx_benchmark_sequential(c: &mut Criterion) {
     let block_context = BlockContext::create_for_account_testing();
 
-    let bench_name = format!("{}{}", HEAVY_TX_SEQUENTIAL_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX);
+    let bench_name = format!("{HEAVY_TX_SEQUENTIAL_BENCHMARK_NAME}{BENCHMARK_NAME_SUFFIX}");
     c.bench_function(&bench_name, |benchmark| {
         benchmark.iter_batched(
             || {

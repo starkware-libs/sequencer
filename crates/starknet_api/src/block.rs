@@ -336,7 +336,7 @@ pub struct PreviousBlockNumber(pub Option<BlockNumber>);
 impl std::fmt::Display for PreviousBlockNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
-            Some(block_number) => write!(f, "{}", block_number),
+            Some(block_number) => write!(f, "{block_number}"),
             None => write!(f, "None"),
         }
     }

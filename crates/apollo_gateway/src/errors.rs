@@ -275,7 +275,7 @@ pub fn mempool_client_err_to_deprecated_gw_err(
             }
         }
     };
-    StarknetError { code, message: format!("{:?}", err) }
+    StarknetError { code, message: format!("{err:?}") }
 }
 
 /// Converts a mempool client result to a gateway result. Some errors variants are unreachable in

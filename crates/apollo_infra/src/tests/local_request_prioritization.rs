@@ -135,7 +135,7 @@ async fn request_prioritization() {
     // Obtain added values from the server.
     let values = match client.send(PriorityTestRequest::Get).await.unwrap() {
         PriorityTestResponse::Get(values) => values,
-        other => panic!("Unexpected response: {:?}", other),
+        other => panic!("Unexpected response: {other:?}"),
     };
 
     let expected_values: Vec<usize> = (2..=NUMBER_OF_MESSAGES)

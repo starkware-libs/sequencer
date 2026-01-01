@@ -367,7 +367,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
-        if (block_number + 1) % checkpoint_interval == 0 {
+        if (block_number + 1).is_multiple_of(checkpoint_interval) {
             let storage_stats = facts_db.storage.get_stats();
             facts_db.storage.reset_stats().unwrap();
             time_measurement.to_csv(

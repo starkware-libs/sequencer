@@ -671,8 +671,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
 
         let block_number = BlockNumber((*block_number_felt).try_into().map_err(|_| {
             StarknetApiError::InvalidProofFacts(format!(
-                "Block number field is not a valid u64: {}",
-                block_number_felt
+                "Block number field is not a valid u64: {block_number_felt}"
             ))
         })?);
 

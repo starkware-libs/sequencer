@@ -78,7 +78,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
     const EXPECTED_RATE: u128 = 123456;
     let expected_rate_hex = format!("0x{EXPECTED_RATE:x}");
     let different_rate = EXPECTED_RATE * 2;
-    let different_rate_hex = format!("0x{:x}", different_rate);
+    let different_rate_hex = format!("0x{different_rate:x}");
     const LAG_INTERVAL_SECONDS: u64 = 60;
 
     const TIMESTAMP1: u64 = 1234567890;
