@@ -1,0 +1,45 @@
+{
+  "version": "0x3",
+  "signature": [],
+  "nonce": "0x1",
+  "nonce_data_availability_mode": 0,
+  "fee_data_availability_mode": 0,
+  "resource_bounds": {
+    "L1_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L1_DATA_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L2_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    }
+  },
+  "tip": "0x0",
+  "paymaster_data": [],
+  "sender_address": "0x6",
+  "calldata": [
+    "0x5",
+    "0x6"
+  ],
+  "account_deployment_data": [],
+  "proof_facts": [
+    "0x5649525455414c5f534e4f53",
+    "0x4",
+    "0x3",
+    "0x2",
+    "0x1"
+  ],
+  "proof": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "type": "INVOKE_FUNCTION"
+}

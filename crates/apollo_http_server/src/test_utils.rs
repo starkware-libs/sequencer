@@ -6,10 +6,16 @@ use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{HttpServerConfig, DEFAULT_MAX_SIERRA_PROGRAM_SIZE};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::{
+    declare_tx,
+    deploy_account_tx,
+    invoke_tx,
+    invoke_tx_client_side_proving,
+};
 use reqwest::{Body, Client, Response, StatusCode};
 use serde::Serialize;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::TransactionHash;
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -167,8 +173,20 @@ pub fn rpc_invoke_tx() -> RpcTransaction {
     invoke_tx(CairoVersion::default())
 }
 
+pub fn rpc_invoke_tx_client_side_proving() -> RpcTransaction {
+    invoke_tx_client_side_proving(
+        CairoVersion::default(),
+        ProofFacts::snos_proof_facts_for_testing(),
+        Proof::proof_for_testing(),
+    )
+}
+
 pub fn deprecated_gateway_invoke_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(rpc_invoke_tx())
+}
+
+pub fn deprecated_gateway_invoke_tx_client_side_proving() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(rpc_invoke_tx_client_side_proving())
 }
 
 pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 {

@@ -30,7 +30,9 @@ use crate::test_utils::{
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
+    deprecated_gateway_invoke_tx_client_side_proving,
     rpc_invoke_tx,
+    rpc_invoke_tx_client_side_proving,
     GatewayTransaction,
     TransactionSerialization,
 };
@@ -168,9 +170,14 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
 
 #[rstest]
 #[case::add_deprecated_gateway_invoke(0, deprecated_gateway_invoke_tx())]
-#[case::add_deprecated_gateway_deploy_account(1, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(2, deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(3, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_invoke_client_side_proving(
+    1,
+    deprecated_gateway_invoke_tx_client_side_proving()
+)]
+#[case::add_deprecated_gateway_deploy_account(2, deprecated_gateway_deploy_account_tx())]
+#[case::add_deprecated_gateway_declare(3, deprecated_gateway_declare_tx())]
+#[case::add_rpc_invoke(4, rpc_invoke_tx())]
+#[case::add_rpc_invoke_client_side_proving(5, rpc_invoke_tx_client_side_proving())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();

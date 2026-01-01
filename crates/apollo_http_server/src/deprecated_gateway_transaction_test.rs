@@ -16,6 +16,8 @@ use crate::deprecated_gateway_transaction::{
 // Utils.
 
 const DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH: &str = "deprecated_gateway/invoke_tx.json";
+const DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH: &str =
+    "deprecated_gateway/invoke_tx_client_side_proving.json";
 const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH: &str =
     "deprecated_gateway/deploy_account_tx.json";
 const DEPRECATED_GATEWAY_DECLARE_TX_JSON_PATH: &str = "deprecated_gateway/declare_tx.json";
@@ -26,17 +28,33 @@ fn deprecated_gateway_declare_tx() -> DeprecatedGatewayDeclareTransaction {
 
 // Tests.
 
-#[test]
-fn deprecated_gateway_invoke_tx_deserialization() {
-    // TODO(AvivG): Consider adding JSON with proof facts and proof.
-    let _: DeprecatedGatewayInvokeTransaction =
-        read_json_file(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH);
+#[rstest]
+#[case::invoke_tx(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH)]
+#[case::invoke_tx_client_side_proving(DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH)]
+fn deprecated_gateway_invoke_tx_deserialization(#[case] json_path: &str) {
+    let _: DeprecatedGatewayInvokeTransaction = read_json_file(json_path);
 }
 
 #[test]
 fn deprecated_gateway_deploy_account_tx_deserialization() {
     let _: DeprecatedGatewayDeployAccountTransaction =
         read_json_file(DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH);
+}
+
+// TODO(AvivG): Add proper validation tests for proof_facts and proof once validation logic is
+// implemented. Current test only verifies deserialization works.
+#[test]
+fn deprecated_gateway_invoke_tx_client_side_proving_validation() {
+    let invoke_tx: DeprecatedGatewayInvokeTransaction =
+        read_json_file(DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH);
+    let invoke_tx_v3 = assert_matches!(
+        invoke_tx,
+        DeprecatedGatewayInvokeTransaction::V3(tx) => tx
+    );
+
+    // Basic check that proof_facts and proof were deserialized.
+    assert!(!invoke_tx_v3.proof_facts.is_empty());
+    assert!(!invoke_tx_v3.proof.is_empty());
 }
 
 #[test]
