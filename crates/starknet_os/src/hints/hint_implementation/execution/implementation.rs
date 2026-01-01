@@ -49,7 +49,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
-    let tx = execution_helper.tx_tracker.load_next_tx()?;
+    let tx = execution_helper.load_next_tx()?;
     insert_value_from_var_name(
         Ids::TxType.into(),
         tx.tx_type().tx_type_as_felt(),
@@ -80,11 +80,8 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     // Guess the resource bounds.
-    let resource_bounds = hint_processor
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?
-        .resource_bounds();
+    let resource_bounds =
+        hint_processor.get_current_execution_helper()?.get_curr_account_tx()?.resource_bounds();
     if let ValidResourceBounds::L1Gas(_) = resource_bounds {
         return Err(OsHintError::AssertionFailed {
             message: "Only transactions with 3 resource bounds are supported. Got 1 resource \
@@ -133,8 +130,7 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_mut_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let AccountTransaction::DeployAccount(deploy_account_tx) = account_tx else {
         return Err(OsHintError::UnexpectedTxType(account_tx.tx_type()));
     };
@@ -186,7 +182,7 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
     let stored_transaction_hash =
         get_integer_from_var_name(Ids::TransactionHash.into(), vm, ids_data, ap_tracking)?;
     let calculated_tx_hash =
-        hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_hash().0;
+        hint_processor.get_current_execution_helper()?.get_curr_tx()?.tx_hash().0;
 
     if calculated_tx_hash == stored_transaction_hash {
         Ok(())
@@ -351,7 +347,7 @@ pub(crate) fn contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let tx = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?;
+    let tx = hint_processor.get_current_execution_helper()?.get_curr_tx()?;
     let contract_address = match tx {
         Transaction::Account(account_tx) => account_tx.sender_address(),
         Transaction::L1Handler(l1_handler) => l1_handler.tx.contract_address,
@@ -395,11 +391,8 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let tx = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .tx_tracker
-        .get_tx()?;
+    let tx =
+        hint_processor.execution_helpers_manager.get_current_execution_helper()?.get_curr_tx()?;
     let entry_point_selector = match tx {
         Transaction::L1Handler(l1_handler) => l1_handler.tx.entry_point_selector,
         _ => {
@@ -414,7 +407,7 @@ pub(crate) fn tx_version<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
+    let version = hint_processor.get_current_execution_helper()?.get_curr_tx()?.version();
     insert_value_into_ap(vm, version.0)?;
     Ok(())
 }
@@ -426,8 +419,7 @@ pub(crate) fn tx_tip<S: StateReader>(
     let tip = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?
+        .get_curr_account_tx()?
         .tip();
     insert_value_into_ap(vm, Felt::from(tip))?;
     Ok(())
@@ -440,8 +432,7 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let paymaster_data_len = account_tx.paymaster_data().0.len();
     insert_value_into_ap(vm, paymaster_data_len)?;
     Ok(())
@@ -454,8 +445,7 @@ pub(crate) fn tx_paymaster_data<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let paymaster_data: Vec<_> =
         account_tx.paymaster_data().0.into_iter().map(MaybeRelocatable::from).collect();
     let paymaster_data_base = vm.gen_arg(&paymaster_data)?;
@@ -470,8 +460,7 @@ pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let da_mode_as_felt = Felt::from(account_tx.nonce_data_availability_mode());
     insert_value_into_ap(vm, da_mode_as_felt)?;
     Ok(())
@@ -484,8 +473,7 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let da_mode_as_felt = Felt::from(account_tx.fee_data_availability_mode());
     insert_value_into_ap(vm, da_mode_as_felt)?;
     Ok(())
@@ -554,8 +542,7 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
     let signature: Vec<_> = account_tx.signature().0.iter().map(MaybeRelocatable::from).collect();
     let signature_start = vm.gen_arg(&signature)?;
     insert_value_from_var_name(
@@ -742,8 +729,7 @@ pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
     let nonce = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?
+        .get_curr_account_tx()?
         .nonce();
     insert_value_into_ap(vm, nonce.0)?;
     Ok(())
@@ -756,8 +742,7 @@ pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
     let nonce = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?
-        .tx_tracker
-        .get_tx()?
+        .get_curr_tx()?
         .nonce();
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), nonce.0)?;
     Ok(())
@@ -844,8 +829,7 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
     let account_tx = hint_processor
         .execution_helpers_manager
         .get_mut_current_execution_helper()?
-        .tx_tracker
-        .get_account_tx()?;
+        .get_curr_account_tx()?;
 
     // A declare transaction is expected.
     let AccountTransaction::Declare(declare_tx) = account_tx else {

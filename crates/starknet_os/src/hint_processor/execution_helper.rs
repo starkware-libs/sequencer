@@ -32,7 +32,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
         Box<dyn Iterator<Item = (ClassHash, CompiledClassHash)> + 'a>,
     pub(crate) os_logger: OsLogger,
     pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
-    pub(crate) tx_tracker: TransactionTracker<'a>,
+    pub(crate) curr_tx_index: Option<usize>,
     pub(crate) syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
@@ -52,7 +52,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             ),
             os_logger: OsLogger::new(debug_mode),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
-            tx_tracker: TransactionTracker::new(&os_block_input.transactions),
+            curr_tx_index: None,
             syscall_hint_processor: SyscallHintProcessor::default(),
             deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor::default(),
         })
@@ -70,6 +70,29 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
 
         Ok(empty_cached_state)
     }
+
+    pub fn load_next_tx(&mut self) -> Result<&'a Transaction, ExecutionHelperError> {
+        let next_index = self.curr_tx_index.map_or(0, |i| i + 1);
+        let next_tx =
+            self.os_block_input.transactions.get(next_index).ok_or(
+                ExecutionHelperError::EndOfIterator { item_type: "transaction".to_string() },
+            )?;
+        self.curr_tx_index = Some(next_index);
+        Ok(next_tx)
+    }
+
+    pub fn get_curr_tx(&self) -> Result<&'a Transaction, ExecutionHelperError> {
+        let index = self.curr_tx_index.ok_or(ExecutionHelperError::MissingTx)?;
+        Ok(self.os_block_input.transactions.get(index).expect("transaction index is out of bounds"))
+    }
+
+    pub fn get_curr_account_tx(&self) -> Result<&'a AccountTransaction, ExecutionHelperError> {
+        let tx = self.get_curr_tx()?;
+        match tx {
+            Transaction::Account(account_transaction) => Ok(account_transaction),
+            Transaction::L1Handler(_) => Err(ExecutionHelperError::UnexpectedTxType(tx.tx_type())),
+        }
+    }
 }
 
 #[cfg(any(feature = "testing", test))]
@@ -86,7 +109,7 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             ),
             os_logger: OsLogger::new(true),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
-            tx_tracker: TransactionTracker::new(&os_block_input.transactions),
+            curr_tx_index: None,
             syscall_hint_processor: SyscallHintProcessor::default(),
             deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor::default(),
         }
@@ -315,38 +338,6 @@ where
 {
     if iterator.next().is_some() {
         unexhausteds.push(name.to_string());
-    }
-}
-
-pub struct TransactionTracker<'a> {
-    txs_iter: Iter<'a, Transaction>,
-    pub tx_ref: Option<&'a Transaction>,
-}
-
-impl<'a> TransactionTracker<'a> {
-    pub fn new(txs: &'a [Transaction]) -> Self {
-        Self { txs_iter: txs.iter(), tx_ref: None }
-    }
-
-    pub fn load_next_tx(&mut self) -> Result<&'a Transaction, ExecutionHelperError> {
-        let next_tx = self
-            .txs_iter
-            .next()
-            .ok_or(ExecutionHelperError::EndOfIterator { item_type: "transaction".to_string() })?;
-        self.tx_ref = Some(next_tx);
-        Ok(next_tx)
-    }
-
-    pub fn get_tx(&self) -> Result<&'a Transaction, ExecutionHelperError> {
-        self.tx_ref.ok_or(ExecutionHelperError::MissingTx)
-    }
-
-    pub fn get_account_tx(&self) -> Result<&'a AccountTransaction, ExecutionHelperError> {
-        let tx = self.get_tx()?;
-        match tx {
-            Transaction::Account(account_transaction) => Ok(account_transaction),
-            Transaction::L1Handler(_) => Err(ExecutionHelperError::UnexpectedTxType(tx.tx_type())),
-        }
     }
 }
 
