@@ -2,7 +2,7 @@ use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
-use strum_macros::Display;
+use strum_macros::{AsRefStr, Display};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -143,7 +143,10 @@ impl ServicePort {
     }
 }
 
-#[derive(Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+#[derive(
+    Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter, AsRefStr,
+)]
+#[strum(serialize_all = "snake_case")]
 pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
@@ -170,35 +173,15 @@ pub enum ComponentConfigInService {
 impl ComponentConfigInService {
     pub fn get_component_config_names(&self) -> Vec<String> {
         match self {
-            ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
-            ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
-            ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
-            ComponentConfigInService::Committer => vec!["committer_config".to_string()],
-            ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
-            ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
-            ComponentConfigInService::General => vec!["general_config".to_string()],
-            ComponentConfigInService::Gateway => vec!["gateway_config".to_string()],
-            ComponentConfigInService::HttpServer => vec!["http_server_config".to_string()],
-            ComponentConfigInService::L1GasPriceProvider => {
-                vec!["l1_gas_price_provider_config".to_string()]
-            }
-            ComponentConfigInService::L1GasPriceScraper => {
-                vec!["l1_gas_price_scraper_config".to_string()]
-            }
-            ComponentConfigInService::L1Provider => vec!["l1_provider_config".to_string()],
-            ComponentConfigInService::L1Scraper => vec!["l1_scraper_config".to_string()],
-            ComponentConfigInService::Mempool => vec!["mempool_config".to_string()],
-            ComponentConfigInService::MempoolP2p => vec!["mempool_p2p_config".to_string()],
-            ComponentConfigInService::MonitoringEndpoint => {
-                vec!["monitoring_endpoint_config".to_string()]
-            }
-            ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
             // Signature manager does not have a separate config sub-struct in
             // `SequencerNodeConfig`. Keep this empty to avoid generating
             // `signature_manager_config.#is_none` flags.
             // TODO(Nadin): TAL add refactor this temp fix.
             ComponentConfigInService::SignatureManager => vec![],
-            ComponentConfigInService::StateSync => vec!["state_sync_config".to_string()],
+            _ => {
+                let base = self.as_ref();
+                vec![format!("{base}_config")]
+            }
         }
     }
 
