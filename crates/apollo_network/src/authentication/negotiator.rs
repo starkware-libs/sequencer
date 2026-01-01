@@ -1,7 +1,6 @@
 use std::io::Error as IoError;
 
 use async_trait::async_trait;
-use futures::{Sink, Stream};
 use libp2p::PeerId;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -18,8 +17,15 @@ pub enum NegotiatorOutput {
     DuplicatePeer(PeerId),
 }
 
-pub type ConnectionSender = dyn Sink<Vec<u8>, Error = IoError> + Unpin + Send;
-pub type ConnectionReceiver = dyn Stream<Item = Result<Vec<u8>, IoError>> + Unpin + Send;
+#[async_trait]
+pub trait ConnectionSender: Unpin + Send {
+    async fn send(&mut self, data: Vec<u8>) -> Result<(), IoError>;
+}
+
+#[async_trait]
+pub trait ConnectionReceiver: Unpin + Send {
+    async fn receive(&mut self) -> Result<Vec<u8>, IoError>;
+}
 
 #[async_trait]
 #[cfg_attr(any(feature = "testing", test), automock(type Error = std::io::Error;))]
@@ -33,8 +39,8 @@ pub trait Negotiator: Send + Clone {
         &mut self,
         my_peer_id: PeerId,
         other_peer_id: PeerId,
-        connection_sender: &mut ConnectionSender,
-        connection_receiver: &mut ConnectionReceiver,
+        connection_sender: &mut dyn ConnectionSender,
+        connection_receiver: &mut dyn ConnectionReceiver,
         side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error>;
 
@@ -73,8 +79,8 @@ impl Negotiator for DummyNegotiatorType {
         &mut self,
         _my_peer_id: PeerId,
         _other_peer_id: PeerId,
-        _connection_sender: &mut ConnectionSender,
-        _connection_receiver: &mut ConnectionReceiver,
+        _connection_sender: &mut dyn ConnectionSender,
+        _connection_receiver: &mut dyn ConnectionReceiver,
         _side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
         unreachable!("Methods of DummyNegotiatorType should never be invoked");
