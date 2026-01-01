@@ -5,6 +5,8 @@ use starknet_os::errors::StarknetOsError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
+use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
+
 #[derive(Debug, Error)]
 pub enum VirtualBlockExecutorError {
     #[error(transparent)]
@@ -49,4 +51,29 @@ pub enum ClassesProviderError {
     DeprecatedContractError(ClassHash),
     #[error(transparent)]
     StateError(#[from] StateError),
+}
+
+/// Errors that can occur during proving.
+#[derive(Debug, Error)]
+pub enum ProvingError {
+    #[error("Failed to create temporary file: {0}")]
+    CreateTempFile(#[source] std::io::Error),
+
+    #[error("Failed to write Cairo PIE to zip file: {0}")]
+    WriteCairoPie(#[source] std::io::Error),
+
+    #[error("Failed to write program input: {0}")]
+    WriteProgramInput(#[source] std::io::Error),
+
+    #[error("Prover execution failed: {0}")]
+    ProverExecution(#[from] StwoRunAndProveError),
+
+    #[error("Failed to read proof file: {0}")]
+    ReadProof(#[source] std::io::Error),
+
+    #[error("Failed to read proof facts file: {0}")]
+    ReadProofFacts(#[source] std::io::Error),
+
+    #[error("Failed to parse proof facts: {0}")]
+    ParseProofFacts(#[source] serde_json::Error),
 }
