@@ -78,7 +78,7 @@ async fn commit_height_hole() {
     // The input height is greater than the committer's offset.
     assert_matches!(
         response,
-        Err(CommitterError::HeightHole {
+        Err(CommitterError::CommitHeightHole {
             input_height: BlockNumber(input_height),
             committer_offset: BlockNumber(committer_offset),
         })

@@ -73,7 +73,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         if height > self.offset {
             // Request to commit a future height.
             // Returns an error, indicating the committer has a hole in the state diff series.
-            return Err(CommitterError::HeightHole {
+            return Err(CommitterError::CommitHeightHole {
                 input_height: height,
                 committer_offset: self.offset,
             });
