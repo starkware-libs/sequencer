@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, TrieType};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
     LeafModifications,
     LeafWithEmptyKeyContext,
@@ -45,6 +46,17 @@ impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
 
     fn generate_key_context(_trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
         EmptyKeyContext
+    }
+
+    fn get_db_object(
+        hash: HashOutput,
+        filled_node_data: NodeData<L, HashOutput>,
+    ) -> Self::NodeDbObject {
+        FilledNode { hash, data: filled_node_data }
+    }
+
+    fn get_node_suffix(_index: NodeIndex, node_db_object: &Self::NodeDbObject) -> Vec<u8> {
+        node_db_object.hash.0.to_bytes_be().to_vec()
     }
 }
 
