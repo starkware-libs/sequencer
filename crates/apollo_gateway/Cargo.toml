@@ -38,6 +38,7 @@ blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 clap.workspace = true
 mempool_test_utils.workspace = true
+mockall.workspace = true
 num-rational.workspace = true
 reqwest.workspace = true
 serde.workspace = true
