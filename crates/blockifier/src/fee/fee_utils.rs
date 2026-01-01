@@ -129,6 +129,13 @@ pub fn get_balance_and_if_covers_fee(
     let tx_info = &tx_context.tx_info;
     let (balance_low, balance_high) =
         state.get_fee_token_balance(tx_info.sender_address(), tx_context.fee_token_address())?;
+    log::trace!(
+        "Fee token balance check: sender_address={}, tx_hash={}, balance={}, expected fee={}",
+        tx_info.sender_address(),
+        tx_info.transaction_hash(),
+        balance_low,
+        fee.0
+    );
     Ok((
         balance_low,
         balance_high,
