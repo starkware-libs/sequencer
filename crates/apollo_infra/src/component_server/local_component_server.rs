@@ -383,7 +383,7 @@ async fn process_request<Request, Response, Component>(
     Response: Send + Debug,
 {
     let component_name = short_type_name::<Component>();
-    let request_info = format!("{:?}", request);
+    let request_info = format!("{request:?}");
     let request_label = request.request_label();
 
     trace!("Component {component_name} is starting to process request {request_info:?}",);

@@ -43,9 +43,9 @@ ARG BUILD_MODE=release
 ENV BUILD_MODE=${BUILD_MODE}
 
 # Required for https requests
-RUN apt-get update && apt-get install -y ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
 # Required for starknet-native-compile
-RUN apt-get install -y binutils libc6-dev
+# RUN apt-get install -y binutils libc6-dev
 
 ENV ID=1001
 WORKDIR /app

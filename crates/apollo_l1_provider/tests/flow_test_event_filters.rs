@@ -127,10 +127,11 @@ async fn all_event_types_must_be_filtered_and_parsed() {
     // Check that each event type has a corresponding log.
     for filter in filters {
         // Only filter for one event at a time, to make sure we trigger on all events.
-        let events = base_layer.events(0..=block_number, &[filter]).await.unwrap_or_else(|_| {
-            panic!("should succeed in getting events for filter: {:?}", filter)
-        });
-        assert!(events.len() == 1, "Expected 1 event for filter: {:?}", filter);
+        let events = base_layer
+            .events(0..=block_number, &[filter])
+            .await
+            .unwrap_or_else(|_| panic!("should succeed in getting events for filter: {filter:?}"));
+        assert!(events.len() == 1, "Expected 1 event for filter: {filter:?}");
     }
 }
 
@@ -251,7 +252,7 @@ fn encode_message_into_log(
 ) -> Log {
     // Add zero padding to the address to make it 32 bytes
     let starknet_address = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS.to_bigint().to_str_radix(16);
-    let starknet_address = format!("{:0>64}", starknet_address);
+    let starknet_address = format!("{starknet_address:0>64}");
 
     let encoded_data = match fee {
         Some(fee) => encode_log_message_to_l2_data(payload, nonce, fee),
@@ -285,7 +286,7 @@ fn encode_log_message_to_l1_log(payload: &[U256]) -> Log {
     let selector = "LogMessageToL1(address,uint256[],uint256,uint256)";
     let block_number = 1;
     let starknet_address = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS.to_bigint().to_str_radix(16);
-    let starknet_address = format!("{:0>64}", starknet_address);
+    let starknet_address = format!("{starknet_address:0>64}");
 
     let offset = U256::from(32u64);
 

@@ -207,8 +207,7 @@ impl<'de> Deserialize<'de> for NativeClassesWhitelist {
             Ok(vec) => Ok(NativeClassesWhitelist::Limited(vec)),
             Err(_) => Err(de::Error::custom(format!(
                 "invalid native_classes_whitelist string: expected \"All\" or stringified JSON \
-                 array, (i.e., \"[\\\"0x..\\\", \\\"0x..\\\"]\") got: {}",
-                raw
+                 array, (i.e., \"[\\\"0x..\\\", \\\"0x..\\\"]\") got: {raw}"
             ))),
         }
     }

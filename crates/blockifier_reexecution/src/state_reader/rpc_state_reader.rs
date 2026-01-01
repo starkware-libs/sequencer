@@ -544,9 +544,8 @@ impl ConsecutiveRpcStateReaders {
             }
             TransactionInput::FromFile { tx_path } => {
                 // Load the transaction from a local JSON file.
-                let json_content = read_to_string(&tx_path).unwrap_or_else(|_| {
-                    panic!("Failed to read transaction JSON file: {}.", tx_path)
-                });
+                let json_content = read_to_string(&tx_path)
+                    .unwrap_or_else(|_| panic!("Failed to read transaction JSON file: {tx_path}."));
                 let chain_id = self.next_block_state_reader.chain_id.clone();
 
                 let json_value: Value = serde_json::from_str(&json_content)?;
@@ -559,7 +558,7 @@ impl ConsecutiveRpcStateReaders {
 
         let (res, _, _) = self.execute_single_api_tx(transaction)?;
 
-        println!("Execution result: {:?}", res);
+        println!("Execution result: {res:?}");
 
         Ok(())
     }

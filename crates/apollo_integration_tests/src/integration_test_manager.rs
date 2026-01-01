@@ -119,7 +119,7 @@ fn get_executable_by_component(
                 .into_iter()
                 .next()
                 .unwrap_or_else(|| {
-                    panic!("Expected at least one executable with component {:?}", component)
+                    panic!("Expected at least one executable with component {component:?}")
                 }),
         )
         .unwrap()

@@ -29,7 +29,7 @@ fn dummy_bench_names() -> &'static [&'static str] {
 /// Helper function to deserialize dummy bench estimates JSON files in a directory.
 fn assert_deserialize_dummy_bench_estimates(results_dir: &Path, bench_names: &[&str]) {
     for bench_name in bench_names {
-        let path = results_dir.join(format!("{}_estimates.json", bench_name));
+        let path = results_dir.join(format!("{bench_name}_estimates.json"));
         let data = fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e));
 
@@ -60,7 +60,7 @@ fn run_dummy_bench_and_deserialize_estimates(
     for bench_name in dummy_bench_names {
         let source_path =
             workspace_root.join("target/criterion").join(bench_name).join("new/estimates.json");
-        let dest_path = dummy_bench_results_dir.join(format!("{}_estimates.json", bench_name));
+        let dest_path = dummy_bench_results_dir.join(format!("{bench_name}_estimates.json"));
 
         // Read, parse, and write the result to the results directory.
         let data = fs::read_to_string(&source_path)

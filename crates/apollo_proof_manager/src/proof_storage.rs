@@ -128,7 +128,7 @@ impl FsProofStorage {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
 
-        if buffer.len() % 4 != 0 {
+        if !buffer.len().is_multiple_of(4) {
             return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Corrupt file").into());
         }
 

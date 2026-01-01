@@ -19,7 +19,7 @@ pub fn upload_inputs(benchmark_name: &str, input_dir: &Path) {
     );
 
     let source = format!("{}/*", input_dir.display());
-    let dest = format!("gs://{}/{}/input/", BENCHMARKS_BUCKET, benchmark_name);
+    let dest = format!("gs://{BENCHMARKS_BUCKET}/{benchmark_name}/input/");
 
     // Use gcloud storage cp command to upload files.
     let output = Command::new("gcloud")
@@ -29,7 +29,7 @@ pub fn upload_inputs(benchmark_name: &str, input_dir: &Path) {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        panic!("Failed to upload inputs to GCS: {}", stderr);
+        panic!("Failed to upload inputs to GCS: {stderr}");
     }
 
     println!("{}", String::from_utf8_lossy(&output.stdout).trim());
@@ -50,18 +50,18 @@ pub fn download_inputs(benchmark_name: &str, local_input_dir: &Path) {
         local_input_dir.display()
     );
 
-    let source = format!("gs://{}/{}/input/*", BENCHMARKS_BUCKET, benchmark_name);
+    let source = format!("gs://{BENCHMARKS_BUCKET}/{benchmark_name}/input/*");
     let dest = local_input_dir.display().to_string();
 
     // Use gcloud storage cp command to download files.
     let output = Command::new("gcloud")
         .args(["storage", "cp", "-r", &source, &dest])
         .output()
-        .unwrap_or_else(|e| panic!("Failed to cp inputs from GCS: {}", e));
+        .unwrap_or_else(|e| panic!("Failed to cp inputs from GCS: {e}"));
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        panic!("Failed to download inputs from GCS: {}", stderr);
+        panic!("Failed to download inputs from GCS: {stderr}");
     }
 
     println!("{}", String::from_utf8_lossy(&output.stdout).trim());
