@@ -70,9 +70,6 @@ pub async fn create_node_components(
     prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
-    // TODO(tsabary): consider moving ownership of component configs to the components themselves
-    // instead of cloning them and retaining ownership. Alternatively, consider passing references
-    // to the components instead.
     info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -105,10 +102,7 @@ pub async fn create_node_components(
                 .await,
             )
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let class_manager = match config.components.class_manager.execution_mode {
@@ -121,10 +115,7 @@ pub async fn create_node_components(
                 .expect("Sierra Compiler client should be available");
             Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     // TODO(tsabary): Alphabetize node components.
@@ -176,10 +167,7 @@ pub async fn create_node_components(
                      component"
                 );
             }
-            ReactiveComponentExecutionMode::Disabled => {
-                // TODO(tsabary): assert config is not set.
-                (None, None)
-            }
+            ReactiveComponentExecutionMode::Disabled => (None, None),
         };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
@@ -215,10 +203,7 @@ pub async fn create_node_components(
                 l1_gas_price_provider: l1_gas_price_client,
             }))
         }
-        ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let gateway = match config.components.gateway.execution_mode {
@@ -254,10 +239,7 @@ pub async fn create_node_components(
 
             Some(create_http_server(http_server_config.clone(), gateway_client))
         }
-        ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let (mempool_p2p_propagator, mempool_p2p_runner) =
@@ -284,7 +266,6 @@ pub async fn create_node_components(
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
             }
             ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-                // TODO(tsabary): assert config is not set.
                 (None, None)
             }
         };
@@ -307,10 +288,7 @@ pub async fn create_node_components(
             );
             Some(mempool)
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
@@ -350,10 +328,7 @@ pub async fn create_node_components(
                 l1_provider_client,
             ))
         }
-        ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
@@ -369,7 +344,6 @@ pub async fn create_node_components(
             (Some(state_sync), Some(state_sync_runner))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
             (None, None)
         }
     };
@@ -399,10 +373,7 @@ pub async fn create_node_components(
                 .unwrap(),
             )
         }
-        ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     // Must be initialized after the l1 scraper, since the provider's (L2) startup height is derived
@@ -443,10 +414,7 @@ pub async fn create_node_components(
                 Some(l1_provider)
             }
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
@@ -458,10 +426,7 @@ pub async fn create_node_components(
                 .expect("L1 Gas Price Provider config should be set");
             Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
@@ -484,10 +449,7 @@ pub async fn create_node_components(
                 cyclic_base_layer_wrapper,
             ))
         }
-        ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {
@@ -499,10 +461,7 @@ pub async fn create_node_components(
                 .expect("Sierra Compiler config should be set");
             Some(create_sierra_compiler(sierra_compiler_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
-            None
-        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     SequencerNodeComponents {
