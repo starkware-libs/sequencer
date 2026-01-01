@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_committer_types::communication::SharedCommitterClient;
-use apollo_reverts::RevertConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -36,7 +35,7 @@ pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 
 // TODO(amos): Add to Batcher config.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct CommitmentManagerConfig {
     pub(crate) tasks_channel_size: usize,
     pub(crate) results_channel_size: usize,
@@ -68,29 +67,9 @@ pub(crate) struct CommitmentManager {
 // associated functions, private associated functions.
 // TODO(amos): Think which methods / functions should be private.
 impl CommitmentManager {
-    /// Initializes and returns the Commitment manager, or None when in revert mode.
-    pub(crate) fn new_or_none(
-        config: &CommitmentManagerConfig,
-        revert_config: &RevertConfig,
-        global_root_height: BlockNumber,
-        committer_client: SharedCommitterClient,
-    ) -> Option<Self> {
-        if revert_config.should_revert {
-            info!("Revert mode is enabled, not initializing commitment manager.");
-            None
-        } else {
-            info!("Initializing commitment manager.");
-            Some(CommitmentManager::initialize(
-                CommitmentManagerConfig::default(),
-                global_root_height,
-                committer_client,
-            ))
-        }
-    }
-
     /// Initializes the CommitmentManager. This includes starting the state committer task.
     pub(crate) fn initialize(
-        config: CommitmentManagerConfig,
+        config: &CommitmentManagerConfig,
         global_root_height: BlockNumber,
         committer_client: SharedCommitterClient,
     ) -> Self {
@@ -106,7 +85,7 @@ impl CommitmentManager {
             tasks_sender,
             results_receiver,
             commitment_task_performer,
-            config,
+            config: config.clone(),
             commitment_task_offset: global_root_height,
         }
     }
@@ -286,29 +265,28 @@ impl CommitmentManager {
         info!("Added missing commitment tasks for blocks [{start}, {end}) to commitment manager.");
     }
 
-    /// If not in revert mode - creates and initializes the commitment manager, and also adds
-    /// missing commitment tasks. Otherwise, returns None.
-    pub(crate) async fn create_commitment_manager_or_none<R: BatcherStorageReader>(
+    /// Creates and initializes the commitment manager, and also adds
+    /// missing commitment tasks.
+    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
         batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
         storage_reader: &R,
         committer_client: SharedCommitterClient,
-    ) -> Option<Self> {
+    ) -> Self {
         let global_root_height = storage_reader
             .global_root_height()
             .expect("Failed to get block hash height from storage.");
-        let mut commitment_manager = Self::new_or_none(
+        info!("Initializing commitment manager.");
+        let mut commitment_manager = CommitmentManager::initialize(
             commitment_manager_config,
-            // TODO(Amos): Always return commitment manager.
-            &RevertConfig::default(),
             global_root_height,
             committer_client,
         );
-        if let Some(ref mut cm) = commitment_manager {
-            let block_height =
-                storage_reader.height().expect("Failed to get block height from storage.");
-            cm.add_missing_commitment_tasks(block_height, batcher_config, storage_reader).await;
-        };
+        let block_height =
+            storage_reader.height().expect("Failed to get block height from storage.");
+        commitment_manager
+            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
+            .await;
         commitment_manager
     }
 }
