@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHeader, L1BlockNumber};
 use starknet_api::block::GasPrice;
 use thiserror::Error;
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 
 use crate::metrics::{
     register_scraper_metrics,
@@ -61,6 +61,32 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         base_layer: B,
     ) -> Self {
         Self { config, l1_gas_price_provider, base_layer, last_l1_header: None }
+    }
+
+    pub async fn get_first_block_then_run(&mut self) -> L1GasPriceScraperResult<(), B> {
+        let start_from = loop {
+            match self.config.starting_block {
+                Some(block) => break block,
+                None => {
+                    let latest = self.latest_l1_block_number().await;
+                    let Ok(latest) = latest else {
+                        warn!("Failed to get the latest L1 block number at startup: {latest:?}");
+                        tokio::time::sleep(self.config.polling_interval).await;
+                        continue;
+                    };
+                    // If no starting block is provided, the default is to start from
+                    // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of
+                    // L1. Note that for new chains this subtraction may be
+                    // negative, hence the use of saturating_sub.
+                    let latest = latest.saturating_sub(
+                        self.config.number_of_blocks_for_mean
+                            * self.config.startup_num_blocks_multiplier,
+                    );
+                    break latest;
+                }
+            }
+        };
+        self.run(start_from).await
     }
 
     /// Run the scraper, starting from the given L1 `block_number`, indefinitely.
@@ -174,24 +200,8 @@ where
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         register_scraper_metrics();
-        let start_from = match self.config.starting_block {
-            Some(block) => block,
-            None => {
-                let latest = self
-                    .latest_l1_block_number()
-                    .await
-                    .expect("Failed to get the latest L1 block number at startup");
-
-                // If no starting block is provided, the default is to start from
-                // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of L1.
-                // Note that for new chains this subtraction may be negative,
-                // hence the use of saturating_sub.
-                latest.saturating_sub(
-                    self.config.number_of_blocks_for_mean
-                        * self.config.startup_num_blocks_multiplier,
-                )
-            }
-        };
-        self.run(start_from).await.unwrap_or_else(|e| panic!("L1 gas price scraper failed: {e}"))
+        self.get_first_block_then_run()
+            .await
+            .unwrap_or_else(|e| panic!("L1 gas price scraper failed: {e}"))
     }
 }
