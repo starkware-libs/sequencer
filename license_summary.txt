@@ -1,0 +1,205 @@
+================================================================================
+LICENSE DETAILS
+================================================================================
+enum-iterator                0BSD
+aerospike                    Apache-2.0
+c-kzg                        Apache-2.0
+cairo-native                 Apache-2.0
+cairo-vm                     Apache-2.0
+google-cloud-storage         Apache-2.0
+insta                        Apache-2.0
+parity-scale-codec           Apache-2.0
+parity-scale-codec-derive    Apache-2.0
+prometheus-parse             Apache-2.0
+prost                        Apache-2.0
+prost-build                  Apache-2.0
+prost-types                  Apache-2.0
+rust-rocksdb                 Apache-2.0
+criterion                    Apache-2.0 OR MIT
+indexmap                     Apache-2.0 OR MIT
+keccak                       Apache-2.0 OR MIT
+pyo3-log                     Apache-2.0 OR MIT
+test-log                     Apache-2.0 OR MIT
+waker-fn                     Apache-2.0 OR MIT
+human_bytes                  BSD-2-Clause
+num_enum                     BSD-3-Clause OR MIT OR Apache-2.0
+notify                       CC0-1.0
+assert-json-diff             MIT
+async-stream                 MIT
+axum                         MIT
+bitvec                       MIT
+bytes                        MIT
+cached                       MIT
+dashmap                      MIT
+defaultmap                   MIT
+derive_more                  MIT
+http-body                    MIT
+hyper                        MIT
+integer-encoding             MIT
+jsonrpsee                    MIT
+jsonschema                   MIT
+libp2p                       MIT
+libp2p-swarm-test            MIT
+lru                          MIT
+metrics                      MIT
+metrics-exporter-prometheus  MIT
+mockito                      MIT
+nix                          MIT
+os_info                      MIT
+phf                          MIT
+protoc-prebuilt              MIT
+retry                        MIT
+rlimit                       MIT
+schemars                     MIT
+simple_logger                MIT
+starknet-types-core          MIT
+strum                        MIT
+strum_macros                 MIT
+test-case                    MIT
+tokio                        MIT
+tokio-metrics                MIT
+tokio-retry                  MIT
+tokio-stream                 MIT
+tokio-test                   MIT
+tokio-util                   MIT
+tower                        MIT
+tracing                      MIT
+tracing-subscriber           MIT
+tracing-test                 MIT
+unsigned-varint              MIT
+validator                    MIT
+void                         MIT
+zstd                         MIT
+reed-solomon-simd            MIT AND BSD-3-Clause
+alloy                        MIT OR Apache-2.0
+alloy-primitives             MIT OR Apache-2.0
+anyhow                       MIT OR Apache-2.0
+ark-bls12-381                MIT OR Apache-2.0
+ark-ec                       MIT OR Apache-2.0
+ark-ff                       MIT OR Apache-2.0
+ark-poly                     MIT OR Apache-2.0
+ark-secp256k1                MIT OR Apache-2.0
+ark-secp256r1                MIT OR Apache-2.0
+async-recursion              MIT OR Apache-2.0
+async-trait                  MIT OR Apache-2.0
+base64                       MIT OR Apache-2.0
+blake2                       MIT OR Apache-2.0
+camelpaste                   MIT OR Apache-2.0
+chrono                       MIT OR Apache-2.0
+clap                         MIT OR Apache-2.0
+digest                       MIT OR Apache-2.0
+enum-assoc                   MIT OR Apache-2.0
+ethnum                       MIT OR Apache-2.0
+expect-test                  MIT OR Apache-2.0
+flate2                       MIT OR Apache-2.0
+futures                      MIT OR Apache-2.0
+futures-channel              MIT OR Apache-2.0
+futures-util                 MIT OR Apache-2.0
+glob                         MIT OR Apache-2.0
+hex                          MIT OR Apache-2.0
+http                         MIT OR Apache-2.0
+indoc                        MIT OR Apache-2.0
+itertools                    MIT OR Apache-2.0
+lazy_static                  MIT OR Apache-2.0
+log                          MIT OR Apache-2.0
+memmap2                      MIT OR Apache-2.0
+mockall                      MIT OR Apache-2.0
+num-integer                  MIT OR Apache-2.0
+num-traits                   MIT OR Apache-2.0
+once_cell                    MIT OR Apache-2.0
+paste                        MIT OR Apache-2.0
+pretty_assertions            MIT OR Apache-2.0
+primitive-types              MIT OR Apache-2.0
+proc-macro2                  MIT OR Apache-2.0
+pyo3                         MIT OR Apache-2.0
+quote                        MIT OR Apache-2.0
+rand                         MIT OR Apache-2.0
+rand_chacha                  MIT OR Apache-2.0
+rand_distr                   MIT OR Apache-2.0
+regex                        MIT OR Apache-2.0
+replace_with                 MIT OR Apache-2.0
+reqwest                      MIT OR Apache-2.0
+reqwest-middleware           MIT OR Apache-2.0
+reqwest-retry                MIT OR Apache-2.0
+rstest                       MIT OR Apache-2.0
+rstest_reuse                 MIT OR Apache-2.0
+semver                       MIT OR Apache-2.0
+serde                        MIT OR Apache-2.0
+serde_json                   MIT OR Apache-2.0
+serde_repr                   MIT OR Apache-2.0
+serde_with                   MIT OR Apache-2.0
+sha2                         MIT OR Apache-2.0
+sha3                         MIT OR Apache-2.0
+socket2                      MIT OR Apache-2.0
+starknet-core                MIT OR Apache-2.0
+starknet-crypto              MIT OR Apache-2.0
+static_assertions            MIT OR Apache-2.0
+syn                          MIT OR Apache-2.0
+tempfile                     MIT OR Apache-2.0
+thiserror                    MIT OR Apache-2.0
+time                         MIT OR Apache-2.0
+toml                         MIT OR Apache-2.0
+trybuild                     MIT OR Apache-2.0
+url                          MIT OR Apache-2.0
+assert_matches               MIT/Apache-2.0
+deadqueue                    MIT/Apache-2.0
+enum-as-inner                MIT/Apache-2.0
+fs2                          MIT/Apache-2.0
+json-patch                   MIT/Apache-2.0
+num-bigint                   MIT/Apache-2.0
+num-rational                 MIT/Apache-2.0
+page_size                    MIT/Apache-2.0
+rustc-hex                    MIT/Apache-2.0
+tikv-jemallocator            MIT/Apache-2.0
+colored                      MPL-2.0
+libmdbx                      MPL-2.0
+byteorder                    Unlicense OR MIT
+csv                          Unlicense/MIT
+const_format                 Zlib
+blockifier                   non-standard
+blockifier_test_utils        non-standard
+cairo-lang-casm              non-standard
+cairo-lang-runner            non-standard
+cairo-lang-sierra            non-standard
+cairo-lang-sierra-to-casm    non-standard
+cairo-lang-starknet-classes  non-standard
+cairo-lang-utils             non-standard
+native_blockifier            non-standard
+papyrus_common               non-standard
+
+================================================================================
+UNPUBLISHED CRATES (Not on crates.io)
+================================================================================
+  - bench_tools
+  - blockifier_reexecution
+  - mempool_test_utils
+  - papyrus_base_layer
+  - shared_execution_objects
+  - toml_test_utils
+  - workspace_tests
+
+================================================================================
+LICENSE SUMMARY
+================================================================================
+Total dependencies found: 172
+Published crates: 165
+Unpublished crates: 7
+
+Unique licenses: 15
+
+License breakdown:
+  MIT OR Apache-2.0               70 crate(s) (42.4%)
+  MIT                             46 crate(s) (27.9%)
+  Apache-2.0                      13 crate(s) (7.9%)
+  MIT/Apache-2.0                  10 crate(s) (6.1%)
+  non-standard                    10 crate(s) (6.1%)
+  Apache-2.0 OR MIT                6 crate(s) (3.6%)
+  MPL-2.0                          2 crate(s) (1.2%)
+  0BSD                             1 crate(s) (0.6%)
+  BSD-2-Clause                     1 crate(s) (0.6%)
+  BSD-3-Clause OR MIT OR Apache-2.0   1 crate(s) (0.6%)
+  CC0-1.0                          1 crate(s) (0.6%)
+  MIT AND BSD-3-Clause             1 crate(s) (0.6%)
+  Unlicense OR MIT                 1 crate(s) (0.6%)
+  Unlicense/MIT                    1 crate(s) (0.6%)
+  Zlib                             1 crate(s) (0.6%)
