@@ -55,7 +55,7 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
-    let account_tx = current_execution_helper.tx_tracker.get_account_tx()?;
+    let account_tx = current_execution_helper.get_curr_account_tx()?;
     let class_hash = if let AccountTransaction::Declare(declare_tx) = account_tx {
         declare_tx.class_hash()
     } else {
@@ -146,7 +146,7 @@ pub(crate) fn start_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let tx_type = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_type();
+    let tx_type = hint_processor.get_current_execution_helper()?.get_curr_tx()?.tx_type();
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx(tx_type)?;
     Ok(())
 }

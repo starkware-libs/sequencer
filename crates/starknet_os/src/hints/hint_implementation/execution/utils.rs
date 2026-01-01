@@ -86,7 +86,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
 pub(crate) fn get_account_deployment_data<S: StateReader>(
     execution_helper: &OsExecutionHelper<'_, S>,
 ) -> Result<AccountDeploymentData, OsHintError> {
-    let tx = execution_helper.tx_tracker.get_account_tx()?;
+    let tx = execution_helper.get_curr_account_tx()?;
     match tx {
         AccountTransaction::Declare(declare) => Ok(declare.account_deployment_data()),
         AccountTransaction::Invoke(invoke) => Ok(invoke.account_deployment_data()),
@@ -97,7 +97,7 @@ pub(crate) fn get_account_deployment_data<S: StateReader>(
 pub(crate) fn get_proof_facts<S: StateReader>(
     execution_helper: &OsExecutionHelper<'_, S>,
 ) -> Result<ProofFacts, OsHintError> {
-    let tx = execution_helper.tx_tracker.get_account_tx()?;
+    let tx = execution_helper.get_curr_account_tx()?;
     match tx {
         AccountTransaction::Invoke(invoke) => Ok(invoke.proof_facts()),
         AccountTransaction::DeployAccount(_) | AccountTransaction::Declare(_) => {
@@ -109,7 +109,7 @@ pub(crate) fn get_proof_facts<S: StateReader>(
 pub(crate) fn get_calldata<'a, S: StateReader>(
     execution_helper: &OsExecutionHelper<'a, S>,
 ) -> Result<&'a Calldata, OsHintError> {
-    let tx = execution_helper.tx_tracker.get_tx()?;
+    let tx = execution_helper.get_curr_tx()?;
     match tx {
         Transaction::L1Handler(l1_handler) => Ok(&l1_handler.tx.calldata),
         Transaction::Account(AccountTransaction::Invoke(invoke)) => Ok(match &invoke.tx {
