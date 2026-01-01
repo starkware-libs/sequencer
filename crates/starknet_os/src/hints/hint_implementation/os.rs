@@ -11,10 +11,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
-use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::output::load_public_keys_into_memory;
-use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
@@ -124,10 +122,10 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
 
 pub(crate) fn get_n_blocks<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_blocks = hint_processor.n_blocks();
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
+    Ok(insert_value_from_var_name(Ids::NBlocks.into(), n_blocks, vm, ids_data, ap_tracking)?)
 }
 
 pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
