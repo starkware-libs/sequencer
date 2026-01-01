@@ -362,7 +362,8 @@ pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
-    pub(crate) config: TestManagerConfig,
+    pub(crate) os_hints_config: OsHintsConfig,
+    pub(crate) private_keys: Option<Vec<Felt>>,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 
@@ -375,11 +376,24 @@ impl<S: FlowTestState> TestManager<S> {
         initial_state_data: InitialStateData<S>,
         config: TestManagerConfig,
     ) -> Self {
+        let public_keys =
+            config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
+        let chain_info =
+            OsChainInfo::from(initial_state_data.initial_state.block_context.chain_info());
+        let os_hints_config = OsHintsConfig {
+            chain_info,
+            use_kzg_da: config.use_kzg_da,
+            full_output: config.full_output,
+            public_keys,
+            debug_mode: false,
+            rng_seed_salt: None,
+        };
         Self {
             initial_state: initial_state_data.initial_state,
             nonce_manager: initial_state_data.nonce_manager,
             execution_contracts: initial_state_data.execution_contracts,
-            config,
+            os_hints_config,
+            private_keys: config.private_keys,
             messages_to_l1: Vec::new(),
             messages_to_l2: Vec::new(),
             per_block_txs: vec![vec![]],
@@ -645,7 +659,7 @@ impl<S: FlowTestState> TestManager<S> {
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
         let mut entire_state_diff = StateDiff::default();
-        let use_kzg_da = self.config.use_kzg_da;
+        let use_kzg_da = self.os_hints_config.use_kzg_da;
 
         let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
@@ -755,18 +769,8 @@ impl<S: FlowTestState> TestManager<S> {
                 .into_iter()
                 .collect(),
         };
-        let public_keys =
-            self.config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
-        let chain_info = OsChainInfo::from(base_block_context.chain_info());
-        let os_hints_config = OsHintsConfig {
-            chain_info,
-            use_kzg_da,
-            full_output: self.config.full_output,
-            public_keys,
-            debug_mode: false,
-            rng_seed_salt: None,
-        };
-        let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
+        let os_hints =
+            OsHints { os_input: starknet_os_input, os_hints_config: self.os_hints_config };
 
         // Create expected values before running OS (os_hints is consumed by run_os_stateless).
         let expected_values = OsTestExpectedValues::new(
@@ -775,7 +779,6 @@ impl<S: FlowTestState> TestManager<S> {
             self.messages_to_l2,
             initial_state.nontrivial_diff(entire_state_diff),
         );
-
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
         let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
@@ -783,13 +786,13 @@ impl<S: FlowTestState> TestManager<S> {
                 &os_output,
                 &state,
                 alias_keys,
-                self.config.private_keys.as_ref(),
+                self.private_keys.as_ref(),
             ),
         ));
 
         OsTestOutput {
             runner_output: os_output,
-            private_keys: self.config.private_keys.clone(),
+            private_keys: self.private_keys,
             decompressed_state_diff,
             final_state: state,
             expected_values,
