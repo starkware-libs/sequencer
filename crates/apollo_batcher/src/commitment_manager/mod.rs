@@ -28,6 +28,9 @@ pub(crate) mod errors;
 pub(crate) mod state_committer;
 pub(crate) mod types;
 
+#[cfg(test)]
+pub(crate) mod commitment_manager_test;
+
 pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
@@ -263,6 +266,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// If `should_finalize_block_hash` is true, finalizes the commitment by calculating the block
     /// hash using the global root, the parent block hash and the partial block hash components.
     /// Otherwise, returns the final commitment with no block hash.
+    // TODO(Rotem): Test this function.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
         CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,

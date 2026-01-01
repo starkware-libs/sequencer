@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::communication::MockCommitterClient;
+use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -19,7 +19,7 @@ use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
@@ -27,7 +27,8 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
+use tokio::task::JoinHandle;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
@@ -39,6 +40,8 @@ use crate::block_builder::{
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
+use crate::commitment_manager::state_committer::StateCommitterTrait;
+use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
 use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterFactoryTrait,
     MockPreconfirmedBlockWriterTrait,
@@ -301,5 +304,49 @@ impl Default for MockDependencies {
             clients: MockClients::default(),
             batcher_config,
         }
+    }
+}
+
+/// A mock state committer that allows controlling when tasks are processed.
+pub(crate) struct MockStateCommitter {
+    _task_performer_handle: JoinHandle<()>,
+    mock_task_sender: Sender<()>,
+}
+
+impl StateCommitterTrait for MockStateCommitter {
+    fn create(
+        tasks_receiver: Receiver<CommitmentTaskInput>,
+        results_sender: Sender<CommitmentTaskOutput>,
+        _committer_client: SharedCommitterClient,
+    ) -> Self {
+        let (mock_task_sender, mock_task_receiver) = channel(10);
+        let handle = tokio::spawn(async move {
+            Self::wait_for_mock_tasks(tasks_receiver, results_sender, mock_task_receiver).await;
+        });
+        Self { _task_performer_handle: handle, mock_task_sender }
+    }
+    fn get_handle(&self) -> &JoinHandle<()> {
+        &self._task_performer_handle
+    }
+}
+
+impl MockStateCommitter {
+    /// Does nothing until a message is received on the mock task receiver, then pops one task
+    /// from the task receiver and sends a result to the results sender.
+    pub(crate) async fn wait_for_mock_tasks(
+        mut tasks_receiver: Receiver<CommitmentTaskInput>,
+        mut _results_sender: Sender<CommitmentTaskOutput>,
+        mut mock_task_receiver: Receiver<()>,
+    ) {
+        while let Some(_) = mock_task_receiver.recv().await {
+            let task = tasks_receiver.try_recv().unwrap();
+            let result =
+                CommitmentTaskOutput { global_root: GlobalRoot::default(), height: task.height };
+            _results_sender.try_send(result).unwrap();
+        }
+    }
+
+    pub(crate) async fn pop_task_and_insert_result(&self) {
+        self.mock_task_sender.send(()).await.unwrap();
     }
 }
