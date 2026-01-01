@@ -31,6 +31,8 @@ use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
+    Proof,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -82,10 +84,29 @@ pub fn declare_tx() -> RpcTransaction {
     )
 }
 
-/// Convenience method for generating a single invoke transaction with trivial fields.
-/// For multiple, nonce-incrementing transactions under a single account address, use the
-/// transaction generator..
+/// Generates a single invoke transaction with trivial fields.
+/// For generating multiple invoke transactions with nonce-incrementing under a single account
+/// address, use the transaction generator.
 pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
+    invoke_tx_inner(cairo_version, ProofFacts::default(), Proof::default())
+}
+
+/// Generates a single invoke transaction with explicit client-side proving fields.
+pub fn invoke_tx_client_side_proving(
+    cairo_version: CairoVersion,
+    proof_facts: ProofFacts,
+    proof: Proof,
+) -> RpcTransaction {
+    invoke_tx_inner(cairo_version, proof_facts, proof)
+}
+
+/// General method for generating a single invoke transaction with trivial fields while allowing
+/// callers to configure the proof-related fields.
+fn invoke_tx_inner(
+    cairo_version: CairoVersion,
+    proof_facts: ProofFacts,
+    proof: Proof,
+) -> RpcTransaction {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let sender_address = account_contract.get_instance_address(0);
@@ -97,6 +118,8 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
         nonce : nonce_manager.next(sender_address),
         sender_address,
         calldata,
+        proof_facts,
+        proof,
     ))
 }
 
