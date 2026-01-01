@@ -17,7 +17,7 @@ use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
-use starknet_os::runner::{run_aggregator, run_os_stateless, run_os_stateless_for_testing};
+use starknet_os::runner::{run_aggregator, run_os_stateless};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -96,18 +96,16 @@ pub(crate) fn parse_and_run_os(
     validate_os_input(&os_hints.os_input);
 
     info!("Running OS...");
-    let (runner_output, txs_trace) = if include_txs_trace {
-        let (output, traces) = run_os_stateless_for_testing(layout, os_hints)
-            .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
-        (output, Some(traces))
-    } else {
-        let output = run_os_stateless(layout, os_hints)
-            .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
-        (output, None)
-    };
+    let runner_output = run_os_stateless(layout, os_hints)
+        .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
 
     let StarknetOsRunnerOutput {
-        raw_os_output, cairo_pie, da_segment, metrics, unused_hints, ..
+        raw_os_output,
+        cairo_pie,
+        da_segment,
+        metrics,
+        txs_trace,
+        unused_hints,
     } = runner_output;
 
     info!("Finished running OS. Serializing OS output...");
@@ -117,7 +115,7 @@ pub(crate) fn parse_and_run_os(
             da_segment,
             metrics: metrics.into(),
             unused_hints,
-            txs_trace,
+            txs_trace: if include_txs_trace { Some(txs_trace) } else { None },
         },
         output_path,
         &cairo_pie,

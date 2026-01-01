@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
-
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -14,19 +11,15 @@ use cairo_vm::vm::runners::cairo_pie::{
     OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-use starknet_api::core::{ClassHash, CompiledClassHash};
-use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
-#[cfg(any(test, feature = "testing"))]
-use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
+use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::{AggregatorMetrics, OsMetrics};
 use crate::vm_utils::vm_error_with_code_snippet;
@@ -95,6 +88,9 @@ pub(crate) fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
         .relocate(cairo_run_config.relocate_mem, false)
         .map_err(|e| StarknetOsError::VirtualMachineError(e.into()))?;
 
+    #[cfg(any(test, feature = "testing"))]
+    crate::test_utils::validations::validate_builtins(&mut cairo_runner);
+
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
     Ok(RunnerReturnObject { raw_output, cairo_pie, cairo_runner })
@@ -108,31 +104,10 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
-        layout,
-        os_hints_config,
-        &os_block_inputs,
-        deprecated_compiled_classes,
-        compiled_classes,
-        state_readers,
-    )?;
-
-    generate_os_output(runner_output, snos_hint_processor)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn create_hint_processor_and_run_os<'a, S: StateReader>(
-    layout: LayoutName,
-    os_hints_config: OsHintsConfig,
-    os_block_inputs: &'a [OsBlockInput],
-    deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
-    compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
-    state_readers: Vec<S>,
-) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
-        os_hints_config, // moved here
+        os_hints_config,
         os_block_inputs.iter().collect(),
         deprecated_compiled_classes,
         compiled_classes,
@@ -141,8 +116,7 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
 
     // Run the OS program.
     let runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
-
-    Ok((runner_output, snos_hint_processor))
+    generate_os_output(runner_output, snos_hint_processor)
 }
 
 fn generate_os_output(
@@ -173,43 +147,21 @@ fn generate_os_output(
         );
     }
 
-    // Existing HEAD return body stays as-is
     Ok(StarknetOsRunnerOutput {
         raw_os_output: runner_output.raw_output,
         cairo_pie: runner_output.cairo_pie,
         da_segment: snos_hint_processor.get_da_segment().take(),
         metrics: OsMetrics::new(&mut runner_output.cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
+        txs_trace: snos_hint_processor
+            .get_current_execution_helper()
+            .unwrap()
+            .os_logger
+            .get_txs()
+            .clone(),
+        #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.get_unused_hints(),
     })
-}
-
-/// Runs the OS the same way as `run_os`. Returns also the transactions trace which are needed
-/// for some tests.
-#[cfg(any(test, feature = "testing"))]
-pub fn run_os_for_testing<S: StateReader>(
-    layout: LayoutName,
-    OsHints {
-        os_hints_config,
-        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
-    }: OsHints,
-    state_readers: Vec<S>,
-) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let (mut runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
-        layout,
-        os_hints_config,
-        &os_block_inputs,
-        deprecated_compiled_classes,
-        compiled_classes,
-        state_readers,
-    )?;
-
-    crate::test_utils::validations::validate_builtins(&mut runner_output.cairo_runner);
-
-    let txs_trace: Vec<OsTransactionTrace> =
-        snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
-
-    Ok((generate_os_output(runner_output, snos_hint_processor)?, txs_trace))
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
@@ -220,15 +172,6 @@ pub fn run_os_stateless(
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let n_blocks = os_hints.os_input.os_block_inputs.len();
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
-}
-
-#[cfg(any(test, feature = "testing"))]
-pub fn run_os_stateless_for_testing(
-    layout: LayoutName,
-    os_hints: OsHints,
-) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let n_blocks = os_hints.os_input.os_block_inputs.len();
-    run_os_for_testing(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
 
 /// Run the Aggregator.
