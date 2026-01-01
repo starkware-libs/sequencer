@@ -14,6 +14,8 @@ apollo_config.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
+apollo_signature_manager.workspace = true
+apollo_signature_manager_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 asynchronous-codec.workspace = true
@@ -36,8 +38,11 @@ libp2p = { workspace = true, features = [
   "yamux",
 ] }
 mockall = { workspace = true, optional = true }
+prost.workspace = true
+rand.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
