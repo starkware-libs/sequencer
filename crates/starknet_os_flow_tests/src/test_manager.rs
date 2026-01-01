@@ -145,6 +145,50 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) committed_state_diff: StateDiff,
 }
 
+impl OsTestExpectedValues {
+    pub(crate) fn new(
+        os_hints: &OsHints,
+        messages_to_l1: Vec<MessageToL1>,
+        messages_to_l2: Vec<MessageToL2>,
+        committed_state_diff: StateDiff,
+    ) -> Self {
+        let first_block = os_hints.os_input.os_block_inputs.first().unwrap();
+        let last_block = os_hints.os_input.os_block_inputs.last().unwrap();
+
+        // Compute global roots from commitment infos.
+        let previous_global_root = StateRoots {
+            contracts_trie_root_hash: first_block.contract_state_commitment_info.previous_root,
+            classes_trie_root_hash: first_block.contract_class_commitment_info.previous_root,
+        }
+        .global_root();
+        let new_global_root = StateRoots {
+            contracts_trie_root_hash: last_block.contract_state_commitment_info.updated_root,
+            classes_trie_root_hash: last_block.contract_class_commitment_info.updated_root,
+        }
+        .global_root();
+
+        // Config hash and flags.
+        let config = &os_hints.os_hints_config;
+        let config_hash =
+            config.chain_info.compute_os_config_hash(config.public_keys.as_ref()).unwrap();
+        Self {
+            previous_global_root,
+            new_global_root,
+            previous_block_number: PreviousBlockNumber(first_block.block_info.block_number.prev()),
+            new_block_number: last_block.block_info.block_number,
+            previous_block_hash: first_block.prev_block_hash,
+            new_block_hash: last_block.new_block_hash,
+            config_hash,
+            // The OS will not compute a KZG commitment in full output mode.
+            use_kzg_da: config.use_kzg_da && !config.full_output,
+            full_output: config.full_output,
+            messages_to_l1,
+            messages_to_l2,
+            committed_state_diff,
+        }
+    }
+}
+
 pub(crate) struct OsTestOutput<S: FlowTestState> {
     pub(crate) runner_output: StarknetOsRunnerOutput,
     pub(crate) private_keys: Option<Vec<Felt>>,
@@ -601,12 +645,10 @@ impl<S: FlowTestState> TestManager<S> {
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
         let mut entire_state_diff = StateDiff::default();
-        let expected_previous_global_root = previous_state_roots.global_root();
         let use_kzg_da = self.config.use_kzg_da;
 
         let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
-        let expected_previous_block_hash = current_block_hash;
         for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
             let block_context =
                 BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
@@ -698,11 +740,6 @@ impl<S: FlowTestState> TestManager<S> {
             os_block_inputs.push(os_block_input);
             previous_state_roots = new_state_roots;
         }
-        let previous_block_number =
-            PreviousBlockNumber(os_block_inputs.first().unwrap().block_info.block_number.prev());
-        let new_block_number = os_block_inputs.last().unwrap().block_info.block_number;
-        let expected_new_global_root = previous_state_roots.global_root();
-        let expected_new_block_hash = current_block_hash;
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             deprecated_compiled_classes: self
@@ -721,7 +758,6 @@ impl<S: FlowTestState> TestManager<S> {
         let public_keys =
             self.config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
         let chain_info = OsChainInfo::from(base_block_context.chain_info());
-        let expected_config_hash = chain_info.compute_os_config_hash(public_keys.as_ref()).unwrap();
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da,
@@ -731,6 +767,15 @@ impl<S: FlowTestState> TestManager<S> {
             rng_seed_salt: None,
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
+
+        // Create expected values before running OS (os_hints is consumed by run_os_stateless).
+        let expected_values = OsTestExpectedValues::new(
+            &os_hints,
+            self.messages_to_l1,
+            self.messages_to_l2,
+            initial_state.nontrivial_diff(entire_state_diff),
+        );
+
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
         let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
@@ -747,21 +792,7 @@ impl<S: FlowTestState> TestManager<S> {
             private_keys: self.config.private_keys.clone(),
             decompressed_state_diff,
             final_state: state,
-            expected_values: OsTestExpectedValues {
-                previous_global_root: expected_previous_global_root,
-                new_global_root: expected_new_global_root,
-                previous_block_number,
-                new_block_number,
-                previous_block_hash: expected_previous_block_hash,
-                new_block_hash: expected_new_block_hash,
-                config_hash: expected_config_hash,
-                full_output: self.config.full_output,
-                // The OS will not compute a KZG commitment in full output mode.
-                use_kzg_da: use_kzg_da && !self.config.full_output,
-                messages_to_l1: self.messages_to_l1,
-                messages_to_l2: self.messages_to_l2,
-                committed_state_diff: initial_state.nontrivial_diff(entire_state_diff),
-            },
+            expected_values,
         }
     }
 }
