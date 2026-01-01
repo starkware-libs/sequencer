@@ -18,10 +18,10 @@ mod TestContract {
         expected_block_number: u64,
         expected_block_timestamp: u64,
         expected_sequencer_address: ContractAddress,
-        expected_tx_info: TxInfo,
         expected_caller_address: felt252,
         expected_contract_address: felt252,
         expected_entry_point_selector: felt252,
+        expected_tx_info: TxInfo,
     ) {
         let execution_info = get_execution_info_syscall().unwrap_syscall().unbox();
         let block_info = execution_info.block_info.unbox();

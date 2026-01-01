@@ -501,6 +501,7 @@ fn test_get_execution_info(
     let expected_proof_facts = proof_facts_as_entry_point_arg(proof_facts);
     let mut calldata = vec![
         expected_block_info.to_vec(),
+        expected_call_info,
         expected_tx_info,
         expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
     ];
@@ -511,8 +512,6 @@ fn test_get_execution_info(
     if matches!(test_contract, FeatureContract::TestContract(_)) {
         calldata.push(expected_proof_facts);
     }
-
-    calldata.push(expected_call_info);
 
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
