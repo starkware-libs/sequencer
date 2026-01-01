@@ -28,15 +28,8 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
-use serde_json::{json, to_value, Value};
-use starknet_api::block::{
-    BlockHash,
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    GasPricePerToken,
-    StarknetVersion,
-};
+use serde_json::{json, Value};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -231,32 +224,21 @@ impl RpcStateReader {
         RpcStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
     }
 
-    /// Get the block info of the current block.
-    /// If l2_gas_price is not present in the block header, it will be set to 1.
-    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
-        let mut json = retry_request!(self.retry_config, || {
+    /// Get the block header of the current block.
+    pub fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        let json = retry_request!(self.retry_config, || {
             self.rpc_state_reader.send_rpc_request(
                 "starknet_getBlockWithTxHashes",
                 GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
             )
         })?;
 
-        let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
-            "starknet_getBlockWithTxHashes should return JSON value of type Object".to_string(),
-        ))?;
+        Ok(serde_json::from_value::<BlockHeader>(json)?)
+    }
 
-        if block_header_map.get("l2_gas_price").is_none() {
-            // In old blocks, the l2_gas_price field is not present.
-            block_header_map.insert(
-                "l2_gas_price".to_string(),
-                to_value(GasPricePerToken {
-                    price_in_wei: 1_u8.into(),
-                    price_in_fri: 1_u8.into(),
-                })?,
-            );
-        }
-
-        Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
+    /// Get the block info of the current block.
+    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
+        Ok(self.get_block_header()?.try_into()?)
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
