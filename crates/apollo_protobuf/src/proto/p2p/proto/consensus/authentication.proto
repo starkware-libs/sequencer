@@ -1,0 +1,22 @@
+// Protocol messages for the security authentication for the consensus network.
+syntax = "proto3";
+import "p2p/proto/common.proto";
+
+option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/consensus/authentication";
+
+message StarkAuthentication {
+    oneof message {
+        ChallengeAndIdentity challenge_and_identity = 1;
+        Signature signature = 2;
+    }
+}
+
+message ChallengeAndIdentity {
+    Address staker_address = 1;
+    Felt252 public_key = 2;
+    bytes challenge = 3;  // Exactly 16 bytes.
+}
+
+message Signature {
+    repeated Felt252 signature = 1;
+}
