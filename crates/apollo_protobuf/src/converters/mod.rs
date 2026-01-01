@@ -76,3 +76,27 @@ macro_rules! auto_impl_try_from_vec_u8 {
         }
     };
 }
+
+/// Unlike the version above, works with proto only types and not with a regular non proto type.
+#[macro_export]
+macro_rules! impl_proto_into_and_try_from_vec_u8 {
+    ($t:ty) => {
+        /// Proto -> Vec<u8>
+        impl From<$t> for Vec<u8> {
+            fn from(msg: $t) -> Self {
+                let mut buf = Vec::with_capacity(msg.encoded_len());
+                msg.encode(&mut buf).expect("Conversion to Vec<u8> cannot fail");
+                buf
+            }
+        }
+
+        /// Vec<u8> -> Proto
+        impl TryFrom<Vec<u8>> for $t {
+            type Error = prost::DecodeError;
+
+            fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+                <$t>::decode(&*bytes)
+            }
+        }
+    };
+}
