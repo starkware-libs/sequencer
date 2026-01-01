@@ -83,7 +83,9 @@ impl<S: Storage> ForestWriter for MockForestStorage<S> {
         Ok(HashMap::new())
     }
 
-    async fn write_updates(&mut self, _updates: DbHashMap) -> usize {
-        0
+    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+        let n_updates = updates.len();
+        self.storage.mset(updates).await.expect("Write of updates to storage failed");
+        n_updates
     }
 }
