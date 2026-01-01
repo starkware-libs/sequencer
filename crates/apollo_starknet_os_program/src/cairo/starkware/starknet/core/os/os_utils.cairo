@@ -86,7 +86,6 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
 // will be executed by the block.
 // Hint arguments:
 // block_input - The block input containing the class hashes to migrate.
-// class_hashes_to_migrate_iterator - An iterator over the class hashes to migrate.
 func migrate_classes_to_v2_casm_hash{
     poseidon_ptr: PoseidonBuiltin*, range_check_ptr, contract_class_changes: DictAccess*
 }(n_classes: felt, block_context: BlockContext*) {

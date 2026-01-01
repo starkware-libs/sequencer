@@ -1,0 +1,21 @@
+[package]
+name = "apollo_proof_manager_config"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+description = "Configuration for Apollo proof manager"
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+validator.workspace = true
+
+
+[dev-dependencies]

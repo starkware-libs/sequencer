@@ -7,6 +7,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -24,7 +25,15 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
+use starknet_api::core::{
+    ChainId,
+    ClassHash,
+    ContractAddress,
+    EthAddress,
+    GlobalRoot,
+    Nonce,
+    PatriciaKey,
+};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -39,7 +48,7 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
-use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -110,13 +119,10 @@ pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
 #[derive(Default)]
-pub(crate) struct TestParameters {
+pub(crate) struct TestManagerConfig {
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
-    pub(crate) messages_to_l1: Vec<MessageToL1>,
-    pub(crate) messages_to_l2: Vec<MessageToL2>,
     pub(crate) private_keys: Option<Vec<Felt>>,
-    pub(crate) rng_seed_salt: Option<Felt>,
 }
 
 pub(crate) struct FlowTestTx {
@@ -312,18 +318,27 @@ pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
+    pub(crate) config: TestManagerConfig,
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
+    pub(crate) messages_to_l2: Vec<MessageToL2>,
 
-    per_block_transactions: Vec<Vec<FlowTestTx>>,
+    per_block_txs: Vec<Vec<FlowTestTx>>,
 }
 
 impl<S: FlowTestState> TestManager<S> {
     /// Creates a new `TestManager` with the provided initial state data.
-    pub(crate) fn new_with_initial_state_data(initial_state_data: InitialStateData<S>) -> Self {
+    pub(crate) fn new_with_initial_state_data(
+        initial_state_data: InitialStateData<S>,
+        config: TestManagerConfig,
+    ) -> Self {
         Self {
             initial_state: initial_state_data.initial_state,
             nonce_manager: initial_state_data.nonce_manager,
             execution_contracts: initial_state_data.execution_contracts,
-            per_block_transactions: vec![vec![]],
+            config,
+            messages_to_l1: Vec::new(),
+            messages_to_l2: Vec::new(),
+            per_block_txs: vec![vec![]],
         }
     }
 
@@ -333,10 +348,11 @@ impl<S: FlowTestState> TestManager<S> {
     /// these contracts will be returned as an array of the same length.
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
+        config: TestManagerConfig,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
             create_default_initial_state_data::<S, N>(extra_contracts).await;
-        (Self::new_with_initial_state_data(default_initial_state_data), extra_addresses)
+        (Self::new_with_initial_state_data(default_initial_state_data, config), extra_addresses)
     }
 
     pub(crate) fn next_nonce(&mut self, account_address: ContractAddress) -> Nonce {
@@ -359,15 +375,16 @@ impl<S: FlowTestState> TestManager<S> {
 
     /// Advances the manager to the next block when adding new transactions.
     pub(crate) fn move_to_next_block(&mut self) {
-        self.per_block_transactions.push(vec![]);
+        // TODO(Yoni): add here useful block info fields like timestamp.
+        self.per_block_txs.push(vec![]);
     }
 
     pub(crate) fn total_txs(&self) -> usize {
-        self.per_block_transactions.iter().map(|block| block.len()).sum()
+        self.per_block_txs.iter().map(|block| block.len()).sum()
     }
 
     fn last_block_txs_mut(&mut self) -> &mut Vec<FlowTestTx> {
-        self.per_block_transactions
+        self.per_block_txs
             .last_mut()
             .expect("Always initialized with at least one tx list (at least one block).")
     }
@@ -466,6 +483,17 @@ impl<S: FlowTestState> TestManager<S> {
         tx: L1HandlerTransaction,
         expected_revert_reason: Option<String>,
     ) {
+        // If the transaction is not expected to revert, add the corresponding message-to-L2.
+        if expected_revert_reason.is_none() {
+            let calldata = &tx.tx.calldata.0;
+            self.messages_to_l2.push(MessageToL2 {
+                from_address: EthAddress::try_from(calldata[0]).unwrap(),
+                to_address: tx.tx.contract_address,
+                nonce: tx.tx.nonce,
+                selector: tx.tx.entry_point_selector,
+                payload: L1ToL2Payload(calldata[1..].to_vec()),
+            });
+        }
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
             expected_revert_reason,
@@ -486,62 +514,15 @@ impl<S: FlowTestState> TestManager<S> {
         self.add_funded_account_invoke(invoke_tx_args! { calldata });
     }
 
-    /// Executes the test using default block contexts, starting from the given block number.
-    pub(crate) async fn execute_test_with_default_block_contexts(
-        self,
-        test_params: &TestParameters,
-    ) -> OsTestOutput<S> {
-        let n_blocks = self.per_block_transactions.len();
-        let next_block_number = self.first_block_number();
-        let block_contexts: Vec<BlockContext> = (0..n_blocks)
-            .map(|i| {
-                block_context_for_flow_tests(
-                    BlockNumber(next_block_number.0 + u64::try_from(i).unwrap()),
-                    test_params.use_kzg_da,
-                )
-            })
-            .collect();
-        self.execute_flow_test(block_contexts, test_params).await
-    }
-
     /// Divides the current transactions into the specified number of blocks.
     /// Panics if there is not exactly one block to divide.
     pub(crate) fn divide_transactions_into_n_blocks(&mut self, n_blocks: usize) {
         assert_eq!(
-            self.per_block_transactions.len(),
+            self.per_block_txs.len(),
             1,
             "There should be only one block of transactions to divide."
         );
-        self.per_block_transactions =
-            divide_vec_into_n_parts(self.per_block_transactions.pop().unwrap(), n_blocks);
-    }
-
-    /// Verifies all [ChainInfo]s are identical in the given block contexts, and returns an
-    /// [OsChainInfo].
-    fn verify_chain_infos_and_get_one(block_contexts: &[BlockContext]) -> OsChainInfo {
-        let mut chain_info_iter = block_contexts.iter().map(|ctx| ctx.chain_info());
-        let first_chain_info =
-            chain_info_iter.next().expect("At least one block context is required.");
-        assert!(
-            chain_info_iter.all(|chain_info| first_chain_info == chain_info),
-            "All block contexts must have the same chain info."
-        );
-        OsChainInfo {
-            chain_id: first_chain_info.chain_id.clone(),
-            strk_fee_token_address: first_chain_info.fee_token_addresses.strk_fee_token_address,
-        }
-    }
-
-    /// Verifies all [BlockContext]s have the same `use_kzg_da` flag, and returns it.
-    fn verify_kzg_da_flag_and_get(block_contexts: &[BlockContext]) -> bool {
-        let mut use_kzg_da_iter = block_contexts.iter().map(|ctx| ctx.block_info().use_kzg_da);
-        let first_use_kzg_da =
-            use_kzg_da_iter.next().expect("At least one block context is required.");
-        assert!(
-            use_kzg_da_iter.all(|use_kzg_da| first_use_kzg_da == use_kzg_da),
-            "All block contexts must have the same use_kzg_da flag."
-        );
-        first_use_kzg_da
+        self.per_block_txs = divide_vec_into_n_parts(self.per_block_txs.pop().unwrap(), n_blocks);
     }
 
     /// Verifies all the execution outputs are as expected w.r.t. revert reasons.
@@ -606,24 +587,14 @@ impl<S: FlowTestState> TestManager<S> {
         decompress(&os_state_diff_maps, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
     }
 
-    // Private method which executes the flow test.
-    async fn execute_flow_test(
-        self,
-        block_contexts: Vec<BlockContext>,
-        test_params: &TestParameters,
-    ) -> OsTestOutput<S> {
-        assert_eq!(
-            block_contexts.len(),
-            self.per_block_transactions.len(),
-            "Number of block contexts must match number of transaction blocks."
-        );
-
-        let per_block_txs = self.per_block_transactions;
+    // Executes the flow test.
+    pub(crate) async fn execute_flow_test(self) -> OsTestOutput<S> {
         let mut os_block_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
-        assert_eq!(per_block_txs.len(), block_contexts.len());
+        let base_block_context = self.initial_state.block_context;
+
         // The state roots updated after each block.
         let mut previous_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
@@ -631,21 +602,14 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let mut entire_state_diff = StateDiff::default();
         let expected_previous_global_root = previous_state_roots.global_root();
-        let previous_block_number =
-            PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
-        let new_block_number = block_contexts.last().unwrap().block_info().block_number;
-        let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
-        let use_kzg_da = Self::verify_kzg_da_flag_and_get(&block_contexts);
-        assert_eq!(
-            use_kzg_da, test_params.use_kzg_da,
-            "use_kzg_da flag in block contexts must match the test parameter."
-        );
+        let use_kzg_da = self.config.use_kzg_da;
+
         let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
         let expected_previous_block_hash = current_block_hash;
-        for ((block_index, block_txs_with_reason), block_context) in
-            per_block_txs.into_iter().enumerate().zip(block_contexts.into_iter())
-        {
+        for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
+            let block_context =
+                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
                 .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
@@ -713,7 +677,6 @@ impl<S: FlowTestState> TestManager<S> {
             .unwrap();
             current_block_hash = new_block_hash;
 
-            let class_hashes_to_migrate = HashMap::new();
             let os_block_input = OsBlockInput {
                 contract_state_commitment_info: commitment_infos.contracts_trie_commitment_info,
                 contract_class_commitment_info: commitment_infos.classes_trie_commitment_info,
@@ -729,12 +692,15 @@ impl<S: FlowTestState> TestManager<S> {
                 block_info,
                 block_hash_commitments,
                 old_block_number_and_hash,
-                class_hashes_to_migrate,
+                class_hashes_to_migrate: Vec::new(),
                 initial_reads: cached_state_input,
             };
             os_block_inputs.push(os_block_input);
             previous_state_roots = new_state_roots;
         }
+        let previous_block_number =
+            PreviousBlockNumber(os_block_inputs.first().unwrap().block_info.block_number.prev());
+        let new_block_number = os_block_inputs.last().unwrap().block_info.block_number;
         let expected_new_global_root = previous_state_roots.global_root();
         let expected_new_block_hash = current_block_hash;
         let starknet_os_input = StarknetOsInput {
@@ -753,15 +719,16 @@ impl<S: FlowTestState> TestManager<S> {
                 .collect(),
         };
         let public_keys =
-            test_params.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
+            self.config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
+        let chain_info = OsChainInfo::from(base_block_context.chain_info());
         let expected_config_hash = chain_info.compute_os_config_hash(public_keys.as_ref()).unwrap();
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da,
-            full_output: test_params.full_output,
+            full_output: self.config.full_output,
             public_keys,
             debug_mode: false,
-            rng_seed_salt: test_params.rng_seed_salt,
+            rng_seed_salt: None,
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
@@ -771,13 +738,13 @@ impl<S: FlowTestState> TestManager<S> {
                 &os_output,
                 &state,
                 alias_keys,
-                test_params.private_keys.as_ref(),
+                self.config.private_keys.as_ref(),
             ),
         ));
 
         OsTestOutput {
             runner_output: os_output,
-            private_keys: test_params.private_keys.clone(),
+            private_keys: self.config.private_keys.clone(),
             decompressed_state_diff,
             final_state: state,
             expected_values: OsTestExpectedValues {
@@ -788,14 +755,32 @@ impl<S: FlowTestState> TestManager<S> {
                 previous_block_hash: expected_previous_block_hash,
                 new_block_hash: expected_new_block_hash,
                 config_hash: expected_config_hash,
-                full_output: test_params.full_output,
+                full_output: self.config.full_output,
                 // The OS will not compute a KZG commitment in full output mode.
-                use_kzg_da: use_kzg_da && !test_params.full_output,
-                messages_to_l1: test_params.messages_to_l1.clone(),
-                messages_to_l2: test_params.messages_to_l2.clone(),
+                use_kzg_da: use_kzg_da && !self.config.full_output,
+                messages_to_l1: self.messages_to_l1,
+                messages_to_l2: self.messages_to_l2,
                 committed_state_diff: initial_state.nontrivial_diff(entire_state_diff),
             },
         }
+    }
+}
+
+impl TestManager<DictStateReader> {
+    pub(crate) async fn create_standard<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, [ContractAddress; N]) {
+        Self::create_standard_with_config(extra_contracts, TestManagerConfig::default()).await
+    }
+
+    /// Creates a new `TestManager` with the default initial state and the provided config.
+    /// Uses `DictStateReader` as the state type.
+    /// Returns the manager and an array of addresses for any extra contracts deployed.
+    pub(crate) async fn create_standard_with_config<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+        config: TestManagerConfig,
+    ) -> (Self, [ContractAddress; N]) {
+        Self::new_with_default_initial_state(extra_contracts, config).await
     }
 }
 

@@ -2256,11 +2256,21 @@ dependencies = [
 name = "apollo_proof_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_proof_manager_config",
  "hex",
  "starknet-types-core",
  "starknet_api",
  "tempfile",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_proof_manager_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "validator",
 ]
 
 [[package]]
@@ -12763,11 +12773,13 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "blockifier",
  "blockifier_reexecution",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
+ "futures",
  "indexmap 2.12.0",
  "rstest",
  "shared_execution_objects",
