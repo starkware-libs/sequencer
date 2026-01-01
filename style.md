@@ -344,14 +344,6 @@ Avoid allocations when a stack-based type will do, in particular: prefer arrays/
 
 Use `Vec::with_capacity()` when size is known to avoid reallocations.
 
-### Laziness
-
-Prefer returning lazy types from inner functions and delay the actual evaluation when possible, in practice this mostly mean holding off on `collect`ing until the actual usage.
-
-**Motivation**: helps the compiler optimize better, usually means less allocations, and in some cases avoid allocation entirely if somewhere up the stack it short-circuits.
-
-**Exception**: Early evaluation is still OK if the allocation is small and/or performed in a non-critical location, but only if it makes the code clearer.
-
 ### Lazy Gotchas - `foo_or` vs `foo_or_else`
 
 Methods that end with `_or`, like `unwrap_or`, are typically eagerly evaluated, meaning `foo.unwrap_or(expensive_calculation_of_foo())` will always be evaluated, even if the original value is unwrapped --- use `_or_else` methods for lazy evaluations, which is typically what you want.
