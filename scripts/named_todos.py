@@ -56,10 +56,11 @@ def enforce_named_todos(commit_id: Optional[str]):
 
     local_changes = get_local_changes(".", commit_id=commit_id)
     print(f"Enforcing TODO format on modified files: {local_changes}.")
+    binary_extensions = (".bin", ".bz2", ".zip", ".png", ".jpg", ".jpeg", ".gif", ".ico")
     successful_validation = all(
         validate_todo_format(file_path)
         for file_path in local_changes
-        if os.path.isfile(file_path) and not file_path.endswith(".bin")
+        if os.path.isfile(file_path) and not file_path.endswith(binary_extensions)
     )
     assert successful_validation, "Found invalid TODOs"
 
