@@ -96,6 +96,7 @@ curl -L \
                 _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
             });
 
+        info!("Deploying Starknet contract to Anvil with port: {}", port);
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config(Self::url_static(port));
