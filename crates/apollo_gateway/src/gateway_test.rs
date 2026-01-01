@@ -101,6 +101,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
+use crate::large_storage_writer::MockLargeStorageWriterTrait;
 
 #[fixture]
 fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
@@ -135,6 +136,7 @@ fn mock_dependencies() -> MockDependencies {
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     let mock_proof_manager_client = MockProofManagerClient::new();
+    let mock_large_storage_writer = MockLargeStorageWriterTrait::new();
     MockDependencies {
         config,
         state_reader_factory,
@@ -142,6 +144,7 @@ fn mock_dependencies() -> MockDependencies {
         mock_transaction_converter,
         mock_stateless_transaction_validator,
         mock_proof_manager_client,
+        mock_large_storage_writer,
     }
 }
 
@@ -152,6 +155,7 @@ struct MockDependencies {
     mock_transaction_converter: MockTransactionConverterTrait,
     mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
     mock_proof_manager_client: MockProofManagerClient,
+    mock_large_storage_writer: MockLargeStorageWriterTrait,
 }
 
 impl MockDependencies {
@@ -164,6 +168,7 @@ impl MockDependencies {
             Arc::new(self.mock_transaction_converter),
             Arc::new(self.mock_stateless_transaction_validator),
             Arc::new(self.mock_proof_manager_client),
+            Arc::new(self.mock_large_storage_writer),
         )
     }
 
@@ -601,6 +606,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
+        large_storage_writer: Arc::new(mock_dependencies.mock_large_storage_writer),
     };
 
     let result = gateway.add_tx(input_tx, None).await;
@@ -667,6 +673,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
+        large_storage_writer: Arc::new(mock_dependencies.mock_large_storage_writer),
     };
 
     let result = gateway.add_tx(input_tx, None).await;
