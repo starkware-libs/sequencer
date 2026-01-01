@@ -46,7 +46,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Tip};
+use starknet_api::transaction::fields::{Calldata, ProofFactsVariant, Tip};
 use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -116,6 +116,14 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
+
+/// The block hash contract address, cached to avoid repeated VersionedConstants creation.
+static BLOCK_HASH_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    VersionedConstants::create_for_testing()
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address()
+});
 
 #[derive(Default)]
 pub(crate) struct TestManagerConfig {
@@ -664,7 +672,23 @@ impl<S: FlowTestState> TestManager<S> {
                 BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
-                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
+                .map(|flow_test_tx| {
+                    // Store block hash for invoke transactions with proof facts.
+                    if let BlockifierTransaction::Account(account_tx) = &flow_test_tx.tx {
+                        if let AccountTransaction::Invoke(invoke_tx) = &account_tx.tx {
+                            if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) =
+                                ProofFactsVariant::try_from(&invoke_tx.proof_facts())
+                            {
+                                state.set_storage(
+                                    *BLOCK_HASH_CONTRACT_ADDRESS,
+                                    StorageKey::from(snos_proof_facts.block_number.0),
+                                    snos_proof_facts.block_hash.0,
+                                );
+                            }
+                        }
+                    }
+                    (flow_test_tx.tx, flow_test_tx.expected_revert_reason)
+                })
                 .unzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();

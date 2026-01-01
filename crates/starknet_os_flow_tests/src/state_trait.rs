@@ -1,10 +1,16 @@
 #![allow(dead_code)]
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use starknet_api::core::ContractAddress;
+use starknet_api::state::StorageKey;
 use starknet_committer::block_committer::input::StateDiff;
+use starknet_types_core::felt::Felt;
 
 pub(crate) trait FlowTestState: Clone + UpdatableState + Sync + Send + 'static {
     fn create_empty_state() -> Self;
+
+    /// Stores a value in the storage of a contract.
+    fn set_storage(&mut self, contract_address: ContractAddress, key: StorageKey, value: Felt);
 
     /// Given a state diff with possible trivial entries (e.g., storage updates that set a value to
     /// it's previous value), return a state diff with only non-trivial entries.
@@ -43,5 +49,9 @@ pub(crate) trait FlowTestState: Clone + UpdatableState + Sync + Send + 'static {
 impl FlowTestState for DictStateReader {
     fn create_empty_state() -> Self {
         DictStateReader::default()
+    }
+
+    fn set_storage(&mut self, contract_address: ContractAddress, key: StorageKey, value: Felt) {
+        self.storage_view.insert((contract_address, key), value);
     }
 }
