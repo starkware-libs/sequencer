@@ -142,7 +142,6 @@ async fn commit_different_state_diff() {
 #[tokio::test]
 /// The committer's offset starts at 0 and is incremented.
 async fn committer_offset() {
-    // TODO(Yoav): Test offset at initialization of the committer.
     let mut committer = new_test_committer().await;
     assert_eq!(committer.offset, BlockNumber(0));
 
@@ -161,6 +160,9 @@ async fn committer_offset() {
 
     committer.commit_block(commit_block_request(2, Some(4), 1)).await.unwrap_err();
     assert_eq!(committer.offset, BlockNumber(2));
+
+    let offset = ApolloTestCommitter::load_offset_or_panic(&mut committer.forest_storage).await;
+    assert_eq!(offset, BlockNumber(2));
 }
 
 #[tokio::test]
