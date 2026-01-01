@@ -129,12 +129,21 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
 
         // Storage tries.
         for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+            serialized_forest
+                .extend(tree.serialize::<StarknetStorageValue, FactsNodeLayout>(&EmptyKeyContext)?);
         }
 
         // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
+        serialized_forest.extend(
+            filled_forest
+                .contracts_trie
+                .serialize::<ContractState, FactsNodeLayout>(&EmptyKeyContext)?,
+        );
+        serialized_forest.extend(
+            filled_forest
+                .classes_trie
+                .serialize::<CompiledClassHash, FactsNodeLayout>(&EmptyKeyContext)?,
+        );
 
         Ok(serialized_forest)
     }
