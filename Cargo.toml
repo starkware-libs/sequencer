@@ -236,6 +236,7 @@ blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
 byteorder = "1.4.3"
 bytes = "1"
+bzip2 = { version = "0.5.0", default-features = false, features = ["libbz2-rs-sys"] }
 c-kzg = "2.1.5"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
