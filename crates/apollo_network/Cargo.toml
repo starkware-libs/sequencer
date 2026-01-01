@@ -51,7 +51,6 @@ tracing-subscriber.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
 
-
 [dev-dependencies]
 apollo_network_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
