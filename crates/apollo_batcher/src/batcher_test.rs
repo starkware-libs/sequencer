@@ -1,11 +1,6 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{
-    BatcherConfig,
-    BlockBuilderConfig,
-    FirstBlockWithPartialBlockHash,
-};
+use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -16,7 +11,6 @@ use apollo_batcher_types::batcher_types::{
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
-    ProposeBlockInput,
     RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
@@ -26,8 +20,6 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
-use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::communication::MockCommitterClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -39,7 +31,7 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use indexmap::{indexmap, IndexSet};
+use indexmap::IndexSet;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -53,11 +45,10 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, nonce, tx_hash};
+use starknet_api::tx_hash;
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use validator::Validate;
@@ -75,7 +66,6 @@ use crate::block_builder::{
     BlockBuilderError,
     BlockBuilderResult,
     BlockExecutionArtifacts,
-    FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
@@ -92,28 +82,27 @@ use crate::metrics::{
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
-use crate::pre_confirmed_block_writer::{
-    MockPreconfirmedBlockWriterFactoryTrait,
-    MockPreconfirmedBlockWriterTrait,
-};
 use crate::test_utils::{
+    propose_block_input,
+    test_contract_nonces,
     test_l1_handler_txs,
+    test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
     FakeProposeBlockBuilder,
     FakeValidateBlockBuilder,
+    MockClients,
+    MockDependencies,
+    BLOCK_GENERATION_TIMEOUT,
+    BUILD_BLOCK_FAIL_ON_ERROR,
+    DUMMY_BLOCK_HASH,
     DUMMY_FINAL_N_EXECUTED_TXS,
+    FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+    INITIAL_HEIGHT,
+    LATEST_BLOCK_IN_STORAGE,
+    PROPOSAL_ID,
+    STREAMING_CHUNK_SIZE,
 };
-
-const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
-const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber = INITIAL_HEIGHT.prev().unwrap();
-const DUMMY_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0xdeadbeef"));
-const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
-const STREAMING_CHUNK_SIZE: usize = 3;
-const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
-const PROPOSAL_ID: ProposalId = ProposalId(0);
-const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
-    BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 async fn proposal_commitment() -> ProposalCommitment {
     BlockExecutionArtifacts::create_for_testing().await.commitment()
@@ -123,99 +112,12 @@ fn parent_proposal_commitment() -> ProposalCommitment {
     ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&test_state_diff()) }
 }
 
-fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
-    ProposeBlockInput {
-        proposal_id,
-        proposal_round: 0,
-        retrospective_block_hash: None,
-        deadline: chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT,
-        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() },
-    }
-}
-
 fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
     ValidateBlockInput {
         proposal_id,
         retrospective_block_hash: None,
         deadline: chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT,
         block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() },
-    }
-}
-
-struct MockDependencies {
-    storage_reader: MockBatcherStorageReader,
-    storage_writer: MockBatcherStorageWriter,
-    batcher_config: BatcherConfig,
-    clients: MockClients,
-}
-
-struct MockClients {
-    committer_client: MockCommitterClient,
-    mempool_client: MockMempoolClient,
-    l1_provider_client: MockL1ProviderClient,
-    block_builder_factory: MockBlockBuilderFactoryTrait,
-    pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
-    class_manager_client: SharedClassManagerClient,
-}
-
-impl Default for MockClients {
-    fn default() -> Self {
-        let mut mempool_client = MockMempoolClient::new();
-        let expected_gas_price = propose_block_input(PROPOSAL_ID)
-            .block_info
-            .gas_prices
-            .strk_gas_prices
-            .l2_gas_price
-            .get();
-        mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
-        mempool_client
-            .expect_commit_block()
-            .with(eq(CommitBlockArgs::default()))
-            .returning(|_| Ok(()));
-        let block_builder_factory = MockBlockBuilderFactoryTrait::new();
-        let mut pre_confirmed_block_writer_factory = MockPreconfirmedBlockWriterFactoryTrait::new();
-        pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
-            let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
-            let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
-            let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
-            mock_writer.expect_run().return_once(|| Ok(()));
-            (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
-        });
-
-        Self {
-            committer_client: MockCommitterClient::new(),
-            l1_provider_client: MockL1ProviderClient::new(),
-            mempool_client,
-            block_builder_factory,
-            pre_confirmed_block_writer_factory,
-            // TODO(noamsp): use MockClassManagerClient
-            class_manager_client: Arc::new(EmptyClassManagerClient),
-        }
-    }
-}
-
-impl Default for MockDependencies {
-    fn default() -> Self {
-        let mut storage_reader = MockBatcherStorageReader::new();
-        storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-        storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
-        storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
-
-        let batcher_config = BatcherConfig {
-            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
-            first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
-                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-                parent_block_hash: DUMMY_BLOCK_HASH,
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-        Self {
-            storage_reader,
-            storage_writer: MockBatcherStorageWriter::new(),
-            clients: MockClients::default(),
-            batcher_config,
-        }
     }
 }
 
@@ -376,26 +278,6 @@ async fn start_batcher_with_active_validate(
 
 fn test_tx_hashes() -> IndexSet<TransactionHash> {
     (0..5u8).map(|i| tx_hash!(i + 12)).collect()
-}
-
-fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
-    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
-}
-
-pub fn test_state_diff() -> ThinStateDiff {
-    ThinStateDiff {
-        storage_diffs: indexmap! {
-            4u64.into() => indexmap! {
-                5u64.into() => 6u64.into(),
-                7u64.into() => 8u64.into(),
-            },
-            9u64.into() => indexmap! {
-                10u64.into() => 11u64.into(),
-            },
-        },
-        nonces: test_contract_nonces().into_iter().collect(),
-        ..Default::default()
-    }
 }
 
 fn verify_decision_reached_response(
