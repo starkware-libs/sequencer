@@ -1,9 +1,10 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_l1_gas_price_types::{GasPriceData, MockL1GasPriceProviderClient};
 use assert_matches::assert_matches;
-use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract};
+use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract, MockError};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 
@@ -321,6 +322,41 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
         scraper.update_prices(&mut block_number).await,
         Err(L1GasPriceScraperError::LatestBlockNumberTooLow { .. })
     );
+}
+
+#[tokio::test]
+async fn get_first_block_fails_then_succeeds() {
+    const NUM_BLOCKS_FOR_MEAN: u64 = 2;
+    const STARTUP_NUM_BLOCKS_MULTIPLIER: u64 = 3;
+    const LATEST_BLOCK_NUMBER: u64 = 10;
+    let expected_start_block_number =
+        LATEST_BLOCK_NUMBER - NUM_BLOCKS_FOR_MEAN * STARTUP_NUM_BLOCKS_MULTIPLIER;
+
+    let mut mock_contract = MockBaseLayerContract::new();
+    // First fail.
+    mock_contract
+        .expect_latest_l1_block_number()
+        .times(1)
+        .returning(move || Err(MockError::MockError));
+
+    // Then succeed.
+    mock_contract
+        .expect_latest_l1_block_number()
+        .times(1)
+        .returning(move || Ok(LATEST_BLOCK_NUMBER));
+
+    let mut scraper = L1GasPriceScraper::new(
+        L1GasPriceScraperConfig {
+            polling_interval: Duration::from_secs(0),
+            number_of_blocks_for_mean: NUM_BLOCKS_FOR_MEAN,
+            startup_num_blocks_multiplier: STARTUP_NUM_BLOCKS_MULTIPLIER,
+            ..Default::default()
+        },
+        Arc::new(MockL1GasPriceProviderClient::new()),
+        mock_contract,
+    );
+    let first_block_number = scraper.get_first_block_number().await;
+    assert_eq!(first_block_number, expected_start_block_number);
 }
 
 // TODO(guyn): test scraper with a provider timeout
