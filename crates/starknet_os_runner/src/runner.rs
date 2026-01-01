@@ -66,7 +66,7 @@ impl From<VirtualOsBlockInput> for StarknetOsInput {
             declared_class_hash_to_component_hashes: HashMap::new(),
             new_block_hash: BlockHash::default(),
             old_block_number_and_hash: None,
-            class_hashes_to_migrate: HashMap::new(),
+            class_hashes_to_migrate: Vec::new(),
         };
 
         StarknetOsInput {

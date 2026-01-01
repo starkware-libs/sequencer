@@ -157,8 +157,8 @@ pub struct OsBlockInput {
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
     pub old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
-    // A map from Class hashes to Compiled class hashes v2 for all classes that require migration.
-    pub class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHash>,
+    // A list of (class hash, compiled class hash v2) for all classes that require migration.
+    pub class_hashes_to_migrate: Vec<(ClassHash, CompiledClassHash)>,
     // The initial reads of the block.
     pub initial_reads: StateMaps,
 }

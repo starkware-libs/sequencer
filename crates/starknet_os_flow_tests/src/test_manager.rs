@@ -692,7 +692,7 @@ impl<S: FlowTestState> TestManager<S> {
                 block_info,
                 block_hash_commitments,
                 old_block_number_and_hash,
-                class_hashes_to_migrate: HashMap::new(),
+                class_hashes_to_migrate: Vec::new(),
                 initial_reads: cached_state_input,
             };
             os_block_inputs.push(os_block_input);
