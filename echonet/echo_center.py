@@ -7,6 +7,7 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
+from echonet.constants import IGNORED_REVERT_PATTERNS
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
@@ -369,13 +370,23 @@ class BlobTransformer:
         Return {tx_hash: revert_error} from the blob, pairing entries by index:
         - execution_infos[i].revert_error
         - transactions[i].tx.hash_value
+
+        Filters out reverts that match known ignored patterns.
         """
         tx_entries = blob["transactions"]
         revert_error_mappings: JsonObject = {}
+
+        def should_ignore_error(err: str) -> bool:
+            return any(pattern in err.lower() for pattern in IGNORED_REVERT_PATTERNS)
+
         for idx, item in enumerate(blob["execution_infos"]):
             err = item["revert_error"]
             if err is None:
                 continue
+
+            if should_ignore_error(err):
+                continue
+
             tx_hash = tx_entries[idx]["tx"]["hash_value"]
             revert_error_mappings[tx_hash] = err
         return revert_error_mappings

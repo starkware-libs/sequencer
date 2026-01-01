@@ -277,13 +277,6 @@ class RevertClassifier:
             RevertRule("NEGATIVE", lambda m: "negative:" in m),
             RevertRule("Not player", lambda m: "not player" in m),
             RevertRule("Player not won last round", lambda m: "player not won last round" in lc(m)),
-            RevertRule(
-                "Attestation out of window", lambda m: "attestation is out of window" in lc(m)
-            ),
-            RevertRule(
-                "Attestation wrong block hash",
-                lambda m: "attestation with wrong block hash" in lc(m),
-            ),
             RevertRule("Invalid request ID", lambda m: "invalid request id" in lc(m)),
             RevertRule("argent/multicall-failed", lambda m: "argent/multicall-failed" in lc(m)),
             RevertRule("MIN_LIQUIDITY", lambda m: "min_liquidity" in lc(m)),
