@@ -38,7 +38,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::initial_test_state::fund_account;
+use blockifier::test_utils::initial_test_state::{fund_account, store_block_hash_from_proof_facts};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -52,6 +52,7 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
@@ -283,6 +284,13 @@ async fn setup_mock_state(
         VALID_ACCOUNT_BALANCE,
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
     );
+
+    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) = input_tx.clone() {
+        store_block_hash_from_proof_facts(
+            &invoke_tx.proof_facts,
+            &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
+        );
+    }
 
     let mempool_add_tx_args = AddTransactionArgs {
         tx: expected_internal_tx.clone(),

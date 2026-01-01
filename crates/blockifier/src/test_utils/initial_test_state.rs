@@ -5,10 +5,12 @@ use starknet_api::block::FeeType;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::{Fee, ProofFacts, ProofFactsVariant};
 use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
@@ -32,6 +34,26 @@ pub fn fund_account(
         storage_view.insert(
             (chain_info.fee_token_address(&fee_type), balance_key),
             felt!(initial_balance.0),
+        );
+    }
+}
+
+/// Stores block hash in the block hash contract from SNOS proof facts.
+/// This is a generic helper that can be used in any test that needs to set up block hashes
+/// for proof facts validation.
+pub fn store_block_hash_from_proof_facts(
+    proof_facts: &ProofFacts,
+    state_reader: &mut DictStateReader,
+) {
+    if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) = ProofFactsVariant::try_from(proof_facts)
+    {
+        let block_hash_contract_address = VersionedConstants::create_for_testing()
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address();
+        state_reader.storage_view.insert(
+            (block_hash_contract_address, StorageKey::from(snos_proof_facts.block_number.0)),
+            snos_proof_facts.block_hash.0,
         );
     }
 }
@@ -83,6 +105,7 @@ pub fn setup_test_state(
     }
 }
 
+// TODO(Meshi): create a client-side test state.
 pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
