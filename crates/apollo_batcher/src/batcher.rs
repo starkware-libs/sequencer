@@ -82,7 +82,11 @@ use crate::block_builder::{
 };
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::types::FinalBlockCommitment;
-use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
+use crate::commitment_manager::{
+    ApolloCommitmentManager,
+    CommitmentManager,
+    CommitmentManagerConfig,
+};
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -173,7 +177,7 @@ pub struct Batcher {
     /// Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server: Option<GenericStorageReaderServer>,
-    commitment_manager: CommitmentManager,
+    commitment_manager: ApolloCommitmentManager,
 }
 
 impl Batcher {
@@ -189,7 +193,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         storage_reader_server: Option<GenericStorageReaderServer>,
-        commitment_manager: CommitmentManager,
+        commitment_manager: ApolloCommitmentManager,
     ) -> Self {
         Self {
             config,
@@ -1142,7 +1146,7 @@ impl Batcher {
 
             // Get the final commitment.
             let FinalBlockCommitment { height, block_hash, global_root } =
-                CommitmentManager::final_commitment_output(
+                ApolloCommitmentManager::final_commitment_output(
                     self.storage_reader.clone(),
                     commitment_task_output,
                     should_finalize_block_hash,
