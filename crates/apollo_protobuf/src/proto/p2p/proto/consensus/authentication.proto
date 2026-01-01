@@ -1,0 +1,22 @@
+// Protocol messages for the security authentication for the consensus network.
+syntax = "proto3";
+import "p2p/proto/common.proto";
+
+// TODO(noam.s): Add this back when we have a go package.
+// option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/consensus/authentication";
+
+message StarkAuthentication {
+    oneof message {
+        ChallengeAndIdentity challenge_and_identity = 1;
+        Signature signature = 2;
+    }
+}
+
+message ChallengeAndIdentity {
+    Felt252 operational_public_key = 1;
+    bytes challenge = 2;  // Exactly 16 bytes.
+}
+
+message Signature {
+    repeated Felt252 signature = 1;
+}
