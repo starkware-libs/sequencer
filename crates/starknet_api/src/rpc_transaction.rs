@@ -341,20 +341,6 @@ impl RpcInvokeTransaction {
     }
 }
 
-impl TransactionHasher for RpcInvokeTransaction {
-    fn calculate_transaction_hash(
-        &self,
-        chain_id: &ChainId,
-        transaction_version: &TransactionVersion,
-    ) -> Result<TransactionHash, StarknetApiError> {
-        match self {
-            RpcInvokeTransaction::V3(tx) => {
-                tx.calculate_transaction_hash(chain_id, transaction_version)
-            }
-        }
-    }
-}
-
 impl From<RpcInvokeTransaction> for InvokeTransaction {
     fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
         match rpc_invoke_tx {
@@ -580,49 +566,6 @@ pub struct RpcInvokeTransactionV3 {
     pub proof_facts: ProofFacts,
     #[serde(default, skip_serializing_if = "Proof::is_empty")]
     pub proof: Proof,
-}
-
-impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
-    fn resource_bounds(&self) -> ValidResourceBounds {
-        ValidResourceBounds::AllResources(self.resource_bounds)
-    }
-    fn tip(&self) -> &Tip {
-        &self.tip
-    }
-    fn paymaster_data(&self) -> &PaymasterData {
-        &self.paymaster_data
-    }
-    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
-        &self.nonce_data_availability_mode
-    }
-    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
-        &self.fee_data_availability_mode
-    }
-    fn account_deployment_data(&self) -> &AccountDeploymentData {
-        &self.account_deployment_data
-    }
-    fn sender_address(&self) -> &ContractAddress {
-        &self.sender_address
-    }
-    fn nonce(&self) -> &Nonce {
-        &self.nonce
-    }
-    fn calldata(&self) -> &Calldata {
-        &self.calldata
-    }
-    fn proof_facts(&self) -> &ProofFacts {
-        &self.proof_facts
-    }
-}
-
-impl TransactionHasher for RpcInvokeTransactionV3 {
-    fn calculate_transaction_hash(
-        &self,
-        chain_id: &ChainId,
-        transaction_version: &TransactionVersion,
-    ) -> Result<TransactionHash, StarknetApiError> {
-        get_invoke_transaction_v3_hash(self, chain_id, transaction_version)
-    }
 }
 
 impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
