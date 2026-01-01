@@ -517,6 +517,22 @@ pub mod proposal_part {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ChallengeAndIdentity {
+    #[prost(message, optional, tag = "1")]
+    pub staker_address: ::core::option::Option<Address>,
+    #[prost(message, optional, tag = "2")]
+    pub public_key: ::core::option::Option<Felt252>,
+    #[prost(bytes = "vec", tag = "3")]
+    pub challenge: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignedChallengeAndIdentity {
+    #[prost(message, repeated, tag = "1")]
+    pub signature: ::prost::alloc::vec::Vec<Felt252>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StateDiffCommitment {
     #[prost(uint64, tag = "1")]
     pub state_diff_length: u64,
