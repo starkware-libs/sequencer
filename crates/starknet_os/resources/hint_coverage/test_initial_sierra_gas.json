@@ -72,9 +72,6 @@
     "StatelessHint": "GetContractAddressStateEntry"
   },
   {
-    "StatelessHint": "IsDeprecated"
-  },
-  {
     "StatelessHint": "EnterScopeExecuteTransactionsInner"
   },
   {
