@@ -10,12 +10,14 @@ use papyrus_base_layer::test_utils::{
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::BaseLayerContract;
+use tracing::info;
 
 #[tokio::test]
 async fn anvil_starts_with_no_contract() {
     const NUM_L1_TRANSACTIONS: usize = 10;
     // TODO(GuyNir/Shahak): avoid this hard-coded port number, and align port usages throughout the
     // anvil instances.
+    info!("Starting Anvil with port: 9999");
     let anvil = Anvil::new()
         .port(9999_u16)
         .try_spawn()

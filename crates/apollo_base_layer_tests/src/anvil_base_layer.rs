@@ -28,6 +28,7 @@ use papyrus_base_layer::{
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::L1HandlerTransaction;
+use tracing::info;
 use url::Url;
 
 /// Initialize an anvil instance under the default port and deploy the Starknet contract.
@@ -96,6 +97,7 @@ curl -L \
                 _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
             });
 
+        info!("Deploying Starknet contract to Anvil with port: {}", port);
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config(Self::url_static(port));
