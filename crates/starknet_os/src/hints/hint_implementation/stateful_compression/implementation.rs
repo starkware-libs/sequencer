@@ -39,12 +39,24 @@ pub(crate) fn get_class_hash_and_compiled_class_fact<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, constants, vm, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // Fetch class hash and compiled class hash v2 from the classes to be migrate
-    let (class_hash, casm_hash_v2) = hint_processor
-        .get_mut_current_execution_helper()?
-        .class_hashes_to_migrate_iterator
-        .next()
-        .expect("Class hashes iterator should not be empty");
+    // Read n_classes from cairo memory (number of remaining classes to process).
+    let n_classes: usize =
+        get_integer_from_var_name(Ids::NClasses.into(), vm, ids_data, ap_tracking)?
+            .try_into()
+            .expect("n_classes should fit into usize");
+
+    // Get the class at the appropriate index from block input.
+    // Classes are processed from index 0 onwards, and n_classes counts down from total.
+    let class_hashes_to_migrate =
+        &hint_processor.get_current_execution_helper()?.os_block_input.class_hashes_to_migrate;
+    let total_classes = class_hashes_to_migrate.len();
+    let index = total_classes - n_classes;
+
+    let (class_hash, casm_hash_v2) = class_hashes_to_migrate
+        .get(index)
+        .copied()
+        .expect("Index should be valid for class_hashes_to_migrate");
+
     insert_value_from_var_name(Ids::ClassHash.into(), class_hash.0, vm, ids_data, ap_tracking)?;
 
     // Use compiled class hash v2 to fetch the casm contract.

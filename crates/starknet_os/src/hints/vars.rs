@@ -210,6 +210,7 @@ define_string_enum! {
         (NBlobs),
         (NBlocks),
         (NBuiltins),
+        (NClasses),
         (NClassesToMigrate),
         (NCompiledClassFacts),
         (NElms),
