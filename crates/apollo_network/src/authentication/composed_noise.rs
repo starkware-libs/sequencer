@@ -1,22 +1,55 @@
 use core::future::Future;
+use std::io::Error as IoError;
 use std::pin::Pin;
 
 use apollo_protobuf::codec::ProtoCodec;
+use async_trait::async_trait;
 use asynchronous_codec::Framed;
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::FutureExt;
+use futures::stream::{SplitSink, SplitStream};
+use futures::{FutureExt, SinkExt, StreamExt};
 use libp2p::core::upgrade::{InboundConnectionUpgrade, OutboundConnectionUpgrade};
 use libp2p::core::UpgradeInfo;
 use libp2p::noise::{self, Error as NoiseError, Output};
 use libp2p::{identity, PeerId};
 use tracing::debug;
 
-use crate::authentication::negotiator::{NegotiationSide, Negotiator, NegotiatorOutput};
+use crate::authentication::negotiator::{
+    ConnectionReceiver,
+    ConnectionSender,
+    NegotiationSide,
+    Negotiator,
+    NegotiatorOutput,
+};
 
 // TODO(noam.s): Consider this value again, maybe it should be configurable.
 const MAX_WIRE_MESSAGE_SIZE: usize = 10000;
 
 pub type NegotiatorCodec = ProtoCodec<Vec<u8>>;
+
+#[async_trait]
+impl<T> ConnectionSender for SplitSink<Framed<T, NegotiatorCodec>, Vec<u8>>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    async fn send(&mut self, data: Vec<u8>) -> Result<(), IoError> {
+        SinkExt::send(self, data).await
+    }
+}
+
+#[async_trait]
+impl<T> ConnectionReceiver for SplitStream<Framed<T, NegotiatorCodec>>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    async fn receive(&mut self) -> Result<Vec<u8>, IoError> {
+        match self.next().await {
+            Some(Ok(data)) => Ok(data),
+            Some(Err(e)) => Err(e),
+            None => Err(IoError::new(std::io::ErrorKind::UnexpectedEof, "Stream ended")),
+        }
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
