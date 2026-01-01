@@ -16,6 +16,10 @@ mod TestContract {
         block_number: felt252,
         block_timestamp: felt252,
         sequencer_address: felt252,
+        // Expected call info.
+        caller_address: felt252,
+        contract_address: felt252,
+        entry_point_selector: felt252,
         // Expected transaction info.
         version: felt252,
         account_address: felt252,
@@ -24,10 +28,6 @@ mod TestContract {
         transaction_hash: felt252,
         chain_id: felt252,
         nonce: felt252,
-        // Expected call info.
-        caller_address: felt252,
-        contract_address: felt252,
-        entry_point_selector: felt252,
     ) {
         let execution_info = starknet::get_execution_info().unbox();
         let block_info = execution_info.block_info.unbox();
