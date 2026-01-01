@@ -8,6 +8,7 @@ pub const PROTO_DIR: &str = "src/protobuf";
 pub const PROTO_FILES: &[&str] = &[
     "src/proto/p2p/proto/class.proto",
     "src/proto/p2p/proto/consensus/consensus.proto",
+    "src/proto/p2p/proto/consensus/authentication.proto",
     "src/proto/p2p/proto/mempool/transaction.proto",
     "src/proto/p2p/proto/sync/class.proto",
     "src/proto/p2p/proto/sync/event.proto",
