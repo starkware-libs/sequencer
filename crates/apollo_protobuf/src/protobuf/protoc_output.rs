@@ -537,6 +537,39 @@ pub mod proposal_part {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StarkAuthentication {
+    #[prost(oneof = "stark_authentication::Message", tags = "1, 2")]
+    pub message: ::core::option::Option<stark_authentication::Message>,
+}
+/// Nested message and enum types in `StarkAuthentication`.
+pub mod stark_authentication {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Message {
+        #[prost(message, tag = "1")]
+        ChallengeAndIdentity(super::ChallengeAndIdentity),
+        #[prost(message, tag = "2")]
+        SignedChallengeAndIdentity(super::SignedChallengeAndIdentity),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ChallengeAndIdentity {
+    #[prost(message, optional, tag = "1")]
+    pub staker_address: ::core::option::Option<Address>,
+    #[prost(message, optional, tag = "2")]
+    pub public_key: ::core::option::Option<Felt252>,
+    #[prost(message, optional, tag = "3")]
+    pub challenge: ::core::option::Option<Felt252>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignedChallengeAndIdentity {
+    #[prost(message, repeated, tag = "1")]
+    pub signature: ::prost::alloc::vec::Vec<Felt252>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StateDiffCommitment {
     #[prost(uint64, tag = "1")]
     pub state_diff_length: u64,
