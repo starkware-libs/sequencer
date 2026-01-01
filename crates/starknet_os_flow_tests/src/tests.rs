@@ -2940,10 +2940,12 @@ async fn test_initial_empty_block() {
         nonce_manager: NonceManager::default(),
         execution_contracts: OsExecutionContracts::default(),
     };
-    let test_manager = TestManager::new_with_initial_state_data(empty_initial_state_data);
+    let test_manager = TestManager::new_with_initial_state_data(
+        empty_initial_state_data,
+        TestManagerConfig::default(),
+    );
 
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_manager.execute_flow_test().await;
 
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(
