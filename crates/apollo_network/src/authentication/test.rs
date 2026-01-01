@@ -3,7 +3,7 @@ use std::io::Error as IoError;
 use apollo_network_types::test_utils::{get_keypair, DUMMY_KEYPAIR};
 use async_trait::async_trait;
 use futures::future::{ready, try_join};
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::FutureExt;
 use libp2p::core::upgrade::{InboundConnectionUpgrade, OutboundConnectionUpgrade};
 use libp2p::core::UpgradeInfo;
 use libp2p::{identity, PeerId};
@@ -219,30 +219,46 @@ async fn test_composed_noise_config_transfers_messages_between_peers() {
             &mut self,
             _my_peer_id: PeerId,
             _other_peer_id: PeerId,
-            connection_sender: &mut negotiator::ConnectionSender,
-            connection_receiver: &mut negotiator::ConnectionReceiver,
+            connection_sender: &mut dyn negotiator::ConnectionSender,
+            connection_receiver: &mut dyn negotiator::ConnectionReceiver,
             side: NegotiationSide,
         ) -> Result<NegotiatorOutput, Self::Error> {
             match side {
                 NegotiationSide::Inbound => {
                     // a. Send '1'
-                    connection_sender.send(vec![1]).await?;
+                    let (_, res) = tokio::try_join!(
+                        connection_sender.send(vec![1]),
+                        connection_receiver.receive()
+                    )
+                    .expect("failure");
                     // b. Expect '2'
-                    assert_eq!(connection_receiver.next().await.unwrap().unwrap(), vec![2]);
+                    assert_eq!(res, vec![2]);
                     // c. Send '3'
-                    connection_sender.send(vec![3]).await?;
+                    let (_, res) = tokio::try_join!(
+                        connection_sender.send(vec![3]),
+                        connection_receiver.receive()
+                    )
+                    .expect("failure");
                     // d. Expect '4'
-                    assert_eq!(connection_receiver.next().await.unwrap().unwrap(), vec![4]);
+                    assert_eq!(res, vec![4]);
                 }
                 NegotiationSide::Outbound => {
-                    // a. Expect '1'
-                    assert_eq!(connection_receiver.next().await.unwrap().unwrap(), vec![1]);
-                    // b. Send '2'
-                    connection_sender.send(vec![2]).await?;
-                    // c. Expect '3'
-                    assert_eq!(connection_receiver.next().await.unwrap().unwrap(), vec![3]);
-                    // d. Send '4'
-                    connection_sender.send(vec![4]).await?;
+                    // a. Send '2'
+                    let (_, res) = tokio::try_join!(
+                        connection_sender.send(vec![2]),
+                        connection_receiver.receive()
+                    )
+                    .expect("failure");
+                    // b. Expect '1'
+                    assert_eq!(res, vec![1]);
+                    // c. Send '4'
+                    let (_, res) = tokio::try_join!(
+                        connection_sender.send(vec![4]),
+                        connection_receiver.receive()
+                    )
+                    .expect("failure");
+                    // d. Expect '3'
+                    assert_eq!(res, vec![3]);
                 }
             }
 

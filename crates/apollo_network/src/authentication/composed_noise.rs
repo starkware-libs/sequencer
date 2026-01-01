@@ -1,9 +1,12 @@
 use core::future::Future;
+use std::io::Error as IoError;
 use std::pin::Pin;
 
+use async_trait::async_trait;
 use asynchronous_codec::Framed;
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::{FutureExt, StreamExt};
+use futures::stream::{SplitSink, SplitStream};
+use futures::{FutureExt, SinkExt, StreamExt};
 use libp2p::core::upgrade::{InboundConnectionUpgrade, OutboundConnectionUpgrade};
 use libp2p::core::UpgradeInfo;
 use libp2p::noise::{self, Error as NoiseError, Output};
@@ -11,7 +14,37 @@ use libp2p::{identity, PeerId};
 use tracing::debug;
 
 use crate::authentication::codec::NegotiatorChannelCodec;
-use crate::authentication::negotiator::{NegotiationSide, Negotiator, NegotiatorOutput};
+use crate::authentication::negotiator::{
+    ConnectionReceiver,
+    ConnectionSender,
+    NegotiationSide,
+    Negotiator,
+    NegotiatorOutput,
+};
+
+#[async_trait]
+impl<T> ConnectionSender for SplitSink<Framed<T, NegotiatorChannelCodec>, Vec<u8>>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    async fn send(&mut self, data: Vec<u8>) -> Result<(), IoError> {
+        SinkExt::send(self, data).await
+    }
+}
+
+#[async_trait]
+impl<T> ConnectionReceiver for SplitStream<Framed<T, NegotiatorChannelCodec>>
+where
+    T: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    async fn receive(&mut self) -> Result<Vec<u8>, IoError> {
+        match self.next().await {
+            Some(Ok(data)) => Ok(data),
+            Some(Err(e)) => Err(e),
+            None => Err(IoError::new(std::io::ErrorKind::UnexpectedEof, "Stream ended")),
+        }
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
