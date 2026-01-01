@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
@@ -49,7 +48,6 @@ use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
-use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -410,10 +408,7 @@ impl<S: FlowTestState> TestManager<S> {
             .declared_class_hash_to_component_hashes
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
         let compiled_class_hash = casm.hash(&HashVersion::V2);
-        self.execution_contracts
-            .executed_contracts
-            .contracts
-            .insert(compiled_class_hash, casm.clone());
+        self.execution_contracts.executed.contracts.insert(compiled_class_hash, casm.clone());
     }
 
     pub(crate) fn add_invoke_tx(
@@ -466,7 +461,7 @@ impl<S: FlowTestState> TestManager<S> {
             )),
             expected_revert_reason: None,
         });
-        self.execution_contracts.executed_contracts.deprecated_contracts.insert(class_hash, class);
+        self.execution_contracts.executed.deprecated_contracts.insert(class_hash, class);
     }
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
@@ -639,16 +634,6 @@ impl<S: FlowTestState> TestManager<S> {
             .await;
             map_storage = db.consume_storage();
 
-            // TODO(Nimrod): Remove the `class_hashes_from_execution_infos` patch.
-            let class_hashes_from_execution_infos: HashSet<ClassHash> = execution_outputs
-                .iter()
-                .flat_map(|(execution_info, _)| {
-                    execution_info
-                        .summarize(VersionedConstants::latest_constants())
-                        .executed_class_hashes
-                })
-                .collect();
-
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
                 create_cached_state_input_and_commitment_infos(
@@ -656,7 +641,6 @@ impl<S: FlowTestState> TestManager<S> {
                     &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
-                    &class_hashes_from_execution_infos,
                 )
                 .await;
             let tx_execution_infos = execution_outputs
@@ -705,18 +689,8 @@ impl<S: FlowTestState> TestManager<S> {
         let expected_new_block_hash = current_block_hash;
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
-            deprecated_compiled_classes: self
-                .execution_contracts
-                .executed_contracts
-                .deprecated_contracts
-                .into_iter()
-                .collect(),
-            compiled_classes: self
-                .execution_contracts
-                .executed_contracts
-                .contracts
-                .into_iter()
-                .collect(),
+            deprecated_compiled_classes: self.execution_contracts.executed.deprecated_contracts,
+            compiled_classes: self.execution_contracts.executed.contracts,
         };
         let public_keys =
             self.config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
