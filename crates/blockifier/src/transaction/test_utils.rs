@@ -537,6 +537,15 @@ impl ExpectedExecutionInfo {
     }
 
     pub fn to_syscall_result(self) -> Vec<Felt> {
+        let expected_block_info = vec![
+            felt!(self.block_number.0),
+            felt!(self.block_timestamp.0),
+            **self.sequencer_address,
+        ];
+
+        let expected_call_info =
+            vec![**self.caller_address, **self.contract_address, self.entry_point_selector.0];
+
         let expected_tx_info = vec![
             self.version.0,
             **self.account_address,
@@ -577,22 +586,14 @@ impl ExpectedExecutionInfo {
         // Tip, Paymaster data, Nonce DA, Fee DA, Account data.
         let expected_unsupported_fields = vec![Felt::ZERO; 5];
 
-        let expected_call_info =
-            vec![**self.caller_address, **self.contract_address, self.entry_point_selector.0];
-        let expected_block_info = vec![
-            felt!(self.block_number.0),
-            felt!(self.block_timestamp.0),
-            **self.sequencer_address,
-        ];
-
         let expected_proof_facts = proof_facts_as_entry_point_arg(self.proof_facts);
         [
             expected_block_info,
+            expected_call_info,
             expected_tx_info,
             expected_resource_bounds,
             expected_unsupported_fields,
             expected_proof_facts,
-            expected_call_info,
         ]
         .concat()
     }

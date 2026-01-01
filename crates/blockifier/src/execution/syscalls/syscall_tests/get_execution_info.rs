@@ -303,6 +303,13 @@ use crate::transaction::test_utils::proof_facts_as_entry_point_arg;
     false,
     true;
     "Exclude l1 data gas: query")]
+/// Tests the `get_execution_info` syscall by invoking the `test_get_execution_info` entry point
+/// on various contract types.
+///
+/// Contract types tested:
+/// - `TestContract`: Modern contract using `get_execution_info_v3` syscall.
+/// - `LegacyTestContract`: Legacy contract (compiler v2.1.0) using `get_execution_info_v1`.
+/// - `SierraExecutionInfoV1Contract`: Contract using the V1 execution info struct.
 fn test_get_execution_info(
     test_contract: FeatureContract,
     execution_mode: ExecutionMode,
@@ -314,20 +321,23 @@ fn test_get_execution_info(
     exclude_l1_data_gas: bool,
 ) {
     let mut test_contract_data: FeatureContractData = test_contract.into();
+
+    // Override class hash for special account types that affect execution info behavior.
     if v1_bound_account {
         assert!(
             !exclude_l1_data_gas,
             "Unable to set both exclude_l1_data_gas and v1_bound_account."
         );
-        let optional_class_hash =
-            VersionedConstants::latest_constants().os_constants.v1_bound_accounts_cairo1.first();
-        test_contract_data.class_hash =
-            *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
+        test_contract_data.class_hash = *VersionedConstants::latest_constants()
+            .os_constants
+            .v1_bound_accounts_cairo1
+            .first()
+            .expect("No v1 bound accounts found in versioned constants.");
     } else if exclude_l1_data_gas {
         test_contract_data.class_hash =
             *VersionedConstants::latest_constants().os_constants.data_gas_accounts.first().unwrap();
     }
-    // Set the erc20 version to be the same as the test contract version.
+
     let erc20_version = test_contract.cairo_version();
     let state = &mut test_state_inner(
         &ChainInfo::create_for_testing(),
@@ -336,6 +346,8 @@ fn test_get_execution_info(
         &HashVersion::V2,
         erc20_version,
     );
+
+    // Build expected block info.
     let expected_block_info = match execution_mode {
         ExecutionMode::Validate => [
             // Rounded block number.
@@ -351,57 +363,45 @@ fn test_get_execution_info(
         ],
     };
 
+    // Build transaction fields.
     let test_contract_address = test_contract.get_instance_address(0);
+    let tx_hash = tx_hash!(1991);
+    let max_fee = Fee(42);
+    let nonce = nonce!(3_u16);
+    let sender_address = test_contract_address;
 
     // Transaction tip.
     let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
         + if high_tip { 1 } else { 0 });
     let expected_tip = if version == TransactionVersion::THREE { tip } else { Tip(0) };
 
-    let tx_hash = tx_hash!(1991);
+    // Sanity check: verify legacy contract has expected compiler version.
+    if matches!(test_contract, FeatureContract::LegacyTestContract) {
+        let raw_contract: serde_json::Value =
+            serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
+        let compiler_version = raw_contract["compiler_version"]
+            .as_str()
+            .expect("'compiler_version' not found or not a valid string in JSON.");
+        assert_eq!(compiler_version, "2.1.0");
+    }
 
-    let (expected_unsupported_fields, expected_signature) = match test_contract {
-        FeatureContract::LegacyTestContract => {
-            // Read and parse file content.
-            let raw_contract: serde_json::Value =
-                serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
-            // Verify version.
-            if let Some(compiler_version) = raw_contract["compiler_version"].as_str() {
-                assert_eq!(compiler_version, "2.1.0");
-            } else {
-                panic!("'compiler_version' not found or not a valid string in JSON.");
-            };
-            (vec![], vec![])
-        }
+    let expected_signature = match test_contract {
+        FeatureContract::LegacyTestContract => vec![],
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => (vec![], vec![]),
-        _ => {
-            (
-                vec![
-                    expected_tip.into(), // Tip.
-                    Felt::ZERO,          // Paymaster data.
-                    Felt::ZERO,          // Nonce DA.
-                    Felt::ZERO,          // Fee DA.
-                    Felt::ZERO,          // Account data.
-                ],
-                vec![tx_hash.0],
-            )
-        }
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => vec![],
+        FeatureContract::TestContract(_) => vec![tx_hash.0],
+        _ => panic!("Unsupported contract for this test."),
     };
+    let signature = TransactionSignature(Arc::new(expected_signature));
 
     let mut expected_version = if v1_bound_account && !high_tip { 1.into() } else { version.0 };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
-        let query_version = simulate_version_base + version.0;
-        version = TransactionVersion(query_version);
+        version = TransactionVersion(simulate_version_base + version.0);
         expected_version += simulate_version_base;
     }
 
-    let max_fee = Fee(42);
-    let nonce = nonce!(3_u16);
-    let sender_address = test_contract_address;
-    let signature = TransactionSignature(Arc::new(expected_signature));
-
+    // Build transaction info object.
     let resource_bounds =
         ResourceBounds { max_amount: GasAmount(13), max_price_per_unit: GasPrice(61) };
     let all_resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
@@ -410,16 +410,78 @@ fn test_get_execution_info(
         l1_data_gas: resource_bounds,
     });
 
-    let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
-        (FeatureContract::LegacyTestContract, _) => vec![],
-        #[cfg(feature = "cairo_native")]
-        (FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native), _) => vec![],
-        (_, version) if version == TransactionVersion::ONE => vec![
-            felt!(0_u16), // Length of resource bounds array.
-        ],
-        (_, _) => {
-            vec![felt!(if exclude_l1_data_gas { 2_u8 } else { 3_u8 })] // Length of resource bounds array.
-                .into_iter()
+    // Only V3 transactions support non-trivial proof facts.
+    let proof_facts = if version == TransactionVersion::THREE {
+        ProofFacts::snos_proof_facts_for_testing()
+    } else {
+        ProofFacts::default()
+    };
+
+    let mut common_fields = CommonAccountFields {
+        transaction_hash: tx_hash,
+        version: TransactionVersion::ONE,
+        signature,
+        nonce,
+        sender_address,
+        only_query,
+    };
+
+    let (tx_info, max_fee_felt) = if version == TransactionVersion::ONE {
+        common_fields.version = TransactionVersion::ONE;
+        (
+            TransactionInfo::Deprecated(DeprecatedTransactionInfo { common_fields, max_fee }),
+            felt!(max_fee.0),
+        )
+    } else {
+        common_fields.version = TransactionVersion::THREE;
+        (
+            TransactionInfo::Current(CurrentTransactionInfo {
+                common_fields,
+                resource_bounds: all_resource_bounds,
+                tip,
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L1,
+                paymaster_data: PaymasterData::default(),
+                account_deployment_data: AccountDeploymentData::default(),
+                proof_facts: proof_facts.clone(),
+            }),
+            Felt::ZERO,
+        )
+    };
+
+    // Build expected calldata to pass to the contract's test_get_execution_info entry point.
+    // The contract will compare the syscall results with the expected values.
+    let entry_point_selector = selector_from_name("test_get_execution_info");
+
+    // CallInfo: caller_address, contract_address, entry_point_selector.
+    let expected_call_info = vec![
+        felt!(0_u16), // Caller address.
+        *test_contract_address.0.key(),
+        entry_point_selector.0,
+    ];
+
+    // TxInfo fields (shared between V1 and V3).
+    let expected_tx_info = vec![
+        expected_version,
+        *sender_address.0.key(),
+        max_fee_felt,
+        Felt::ZERO, // Signature
+        tx_hash.0,
+        felt!(&*CHAIN_ID_FOR_TESTS.as_hex()),
+        nonce.0,
+    ];
+
+    // Calldata layout: [block_info, call_info, tx_info].
+    let mut calldata = vec![expected_block_info.to_vec(), expected_call_info, expected_tx_info];
+
+    // TestContract uses get_execution_info_v3 which includes additional V3 fields.
+    // Legacy contracts use get_execution_info_v1 and don't expect these fields.
+    if matches!(test_contract, FeatureContract::TestContract(_)) {
+        let expected_resource_bounds: Vec<Felt> = if version == TransactionVersion::ONE {
+            vec![felt!(0_u16)] // Empty resource bounds for V1.
+        } else {
+            let num_resources = if exclude_l1_data_gas { 2_u8 } else { 3_u8 };
+            std::iter::once(felt!(num_resources))
                 .chain(
                     valid_resource_bounds_as_felts(&all_resource_bounds, exclude_l1_data_gas)
                         .unwrap()
@@ -427,99 +489,31 @@ fn test_get_execution_info(
                         .flat_map(|bounds| bounds.flatten()),
                 )
                 .collect()
-        }
-    };
+        };
 
-    // Only transaction V3 supports non-trivial proof facts.
-    let proof_facts = if version == TransactionVersion::THREE {
-        ProofFacts::snos_proof_facts_for_testing()
-    } else {
-        ProofFacts::default()
-    };
-
-    let expected_tx_info: Vec<Felt>;
-    let tx_info: TransactionInfo;
-    if version == TransactionVersion::ONE {
-        expected_tx_info = vec![
-            expected_version,                     // Transaction version.
-            *sender_address.0.key(),              // Account address.
-            felt!(max_fee.0),                     // Max fee.
-            Felt::ZERO,                           // Signature.
-            tx_hash.0,                            // Transaction hash.
-            felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
-            nonce.0,                              // Nonce.
+        // Additional V3 fields (tip, paymaster_data, nonce_da, fee_da, account_data).
+        let expected_unsupported_fields = vec![
+            expected_tip.into(),
+            Felt::ZERO, // Paymaster data.
+            Felt::ZERO, // Nonce DA mode.
+            Felt::ZERO, // Fee DA mode.
+            Felt::ZERO, // Account deployment data.
         ];
 
-        tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
-            common_fields: CommonAccountFields {
-                transaction_hash: tx_hash,
-                version: TransactionVersion::ONE,
-                signature,
-                nonce,
-                sender_address,
-                only_query,
-            },
-            max_fee,
-        });
-    } else {
-        expected_tx_info = vec![
-            expected_version,                     // Transaction version.
-            *sender_address.0.key(),              // Account address.
-            Felt::ZERO,                           // Max fee.
-            Felt::ZERO,                           // Signature.
-            tx_hash.0,                            // Transaction hash.
-            felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
-            nonce.0,                              // Nonce.
-        ];
-
-        tx_info = TransactionInfo::Current(CurrentTransactionInfo {
-            common_fields: CommonAccountFields {
-                transaction_hash: tx_hash,
-                version: TransactionVersion::THREE,
-                signature,
-                nonce,
-                sender_address,
-                only_query,
-            },
-            resource_bounds: all_resource_bounds,
-            tip,
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData::default(),
-            account_deployment_data: AccountDeploymentData::default(),
-            proof_facts: proof_facts.clone(),
-        });
+        calldata.push(
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+        );
+        calldata.push(proof_facts_as_entry_point_arg(proof_facts));
     }
 
-    let entry_point_selector = selector_from_name("test_get_execution_info");
-    let expected_call_info = vec![
-        felt!(0_u16),                   // Caller address.
-        *test_contract_address.0.key(), // Storage address.
-        entry_point_selector.0,         // Entry point selector.
-    ];
-
-    let expected_proof_facts = proof_facts_as_entry_point_arg(proof_facts);
-    let mut calldata = vec![
-        expected_block_info.to_vec(),
-        expected_tx_info,
-        expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-    ];
-
-    // Only `TestContract` was updated to call the `get_execution_info_v3` that includes
-    // `proof_facts`. The other contracts continue to call `get_execution_info_v1`, so their
-    // calldata layout must remain unchanged.
-    if matches!(test_contract, FeatureContract::TestContract(_)) {
-        calldata.push(expected_proof_facts);
-    }
-
-    calldata.push(expected_call_info);
-
+    // Execute and verify.
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
         code_address: None,
         calldata: Calldata(calldata.concat().into()),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
+
     let result = entry_point_call.execute_directly_given_tx_info(
         state,
         tx_info,

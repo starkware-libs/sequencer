@@ -277,11 +277,11 @@ mod TestContract {
     fn test_get_execution_info(
         self: @ContractState,
         expected_block_info: BlockInfo,
-        expected_tx_info: TxInfo,
         // Expected call info.
         expected_caller_address: felt252,
         expected_contract_address: felt252,
         expected_entry_point_selector: felt252,
+        expected_tx_info: TxInfo,
     ) {
         let execution_info = starknet::syscalls::get_execution_info_v3_syscall().unwrap_syscall().unbox();
         let block_info = execution_info.block_info.unbox();
