@@ -18,12 +18,21 @@ jobs:
         run: echo 'branches=["main", "main-v0.14.1-committer"]' >> "$GITHUB_OUTPUT"
 
   codecov:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
@@ -58,12 +67,21 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=2
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
@@ -90,12 +108,21 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
