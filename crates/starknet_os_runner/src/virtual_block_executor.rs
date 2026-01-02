@@ -1,10 +1,13 @@
 use std::collections::HashSet;
 
+use apollo_gateway::rpc_objects::BlockHeader;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutionOutput,
     TransactionExecutor,
 };
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -14,29 +17,88 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier_reexecution::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
-use starknet_api::block::{BlockHash, BlockNumber};
+use blockifier_reexecution::utils::get_chain_info;
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::errors::VirtualBlockExecutorError;
 
 /// Captures execution data for a virtual block (multiple transactions).
 ///
 /// This struct contains all the execution data needed for proof generation.
+pub struct BaseBlockInfo {
+    pub(crate) block_context: BlockContext,
+    /// The block hash of the base block,
+    /// in which the virtual block is executed.
+    pub(crate) base_block_hash: BlockHash,
+    /// The commitment used for computing the block hash of the base block.
+    pub(crate) base_block_header_commitments: BlockHeaderCommitments,
+    /// The block hash of the previous base block.
+    /// Used to compute the base block hash in the os.
+    pub(crate) prev_base_block_hash: BlockHash,
+}
+
+impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
+    type Error = VirtualBlockExecutorError;
+
+    fn try_from((header, chain_id): (BlockHeader, ChainId)) -> Result<Self, Self::Error> {
+        let base_block_hash = header.block_hash;
+        let prev_base_block_hash = header.parent_hash;
+        let base_block_header_commitments = BlockHeaderCommitments {
+            transaction_commitment: header.transaction_commitment,
+            event_commitment: header.event_commitment,
+            receipt_commitment: header.receipt_commitment,
+            state_diff_commitment: header.state_diff_commitment,
+            concatenated_counts: concat_counts(
+                header.transaction_count,
+                header.event_count,
+                header.state_diff_length,
+                header.l1_da_mode,
+            ),
+        };
+
+        let block_info: BlockInfo = header.try_into().map_err(|e| {
+            VirtualBlockExecutorError::TransactionExecutionError(format!(
+                "Failed to convert block header to block info: {e}"
+            ))
+        })?;
+        let chain_info = get_chain_info(&chain_id);
+        let versioned_constants =
+            VersionedConstants::get(&block_info.starknet_version).map_err(|e| {
+                VirtualBlockExecutorError::TransactionExecutionError(format!(
+                    "Failed to get versioned constants: {e}"
+                ))
+            })?;
+        let block_context = BlockContext::new(
+            block_info,
+            chain_info,
+            versioned_constants.clone(),
+            BouncerConfig::default(),
+        );
+
+        Ok(BaseBlockInfo {
+            block_context,
+            base_block_hash,
+            base_block_header_commitments,
+            prev_base_block_hash,
+        })
+    }
+}
+
 pub struct VirtualBlockExecutionData {
     /// Execution outputs for all transactions in the virtual block.
     pub execution_outputs: Vec<TransactionExecutionOutput>,
-    /// The block context in which the transactions were executed.
-    pub block_context: BlockContext,
     /// The initial state reads (accessed state) during execution.
     pub initial_reads: StateMaps,
     /// The class hashes of all contracts executed in the virtual block.
     pub executed_class_hashes: HashSet<ClassHash>,
-    /// The block hash of the state at the start of the virtual block.
-    pub prev_base_block_hash: BlockHash,
+    /// The base block info for the virtual block.
+    pub base_block_info: BaseBlockInfo,
 }
 
 /// Executes a virtual block of transactions.
@@ -85,9 +147,8 @@ pub trait VirtualBlockExecutor {
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let blockifier_txs = self.convert_invoke_txs(txs)?;
-        let block_context = self.block_context(block_number)?;
+        let base_block_info = self.base_block_info(block_number)?;
         let state_reader = self.state_reader(block_number)?;
-        let prev_base_block_hash = self.prev_base_block_hash(block_number)?;
 
         // Create state reader with contract manager.
         let state_reader_and_contract_manager =
@@ -98,7 +159,7 @@ pub trait VirtualBlockExecutor {
         // Create executor WITHOUT preprocessing (no pre_process_block call).
         let mut transaction_executor = TransactionExecutor::new(
             block_state,
-            block_context.clone(),
+            base_block_info.block_context.clone(),
             TransactionExecutorConfig::default(),
         );
 
@@ -131,10 +192,9 @@ pub trait VirtualBlockExecutor {
 
         Ok(VirtualBlockExecutionData {
             execution_outputs,
-            block_context,
+            base_block_info,
             initial_reads,
             executed_class_hashes,
-            prev_base_block_hash,
         })
     }
 
@@ -169,17 +229,12 @@ pub trait VirtualBlockExecutor {
             })
             .collect()
     }
-    /// Returns the block context for the given block number.
-    fn block_context(
-        &self,
-        block_number: BlockNumber,
-    ) -> Result<BlockContext, VirtualBlockExecutorError>;
 
-    /// Returns the block hash of the state at the start of the virtual block.
-    fn prev_base_block_hash(
+    /// Returns the base block info for the given block number.
+    fn base_block_info(
         &self,
         block_number: BlockNumber,
-    ) -> Result<BlockHash, VirtualBlockExecutorError>;
+    ) -> Result<BaseBlockInfo, VirtualBlockExecutorError>;
 
     /// Returns a state reader that implements `FetchCompiledClasses` for the given block number.
     /// Must be `Send + Sync + 'static` to be used in the transaction executor.
@@ -194,6 +249,7 @@ pub trait VirtualBlockExecutor {
 
 #[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
+    /// The state reader for the virtual block executor.
     pub rpc_state_reader: RpcStateReader,
     /// Whether transaction validation is enabled during execution.
     pub validate_txs: bool,
@@ -219,22 +275,15 @@ impl RpcVirtualBlockExecutor {
 /// without block preprocessing. Validation and fee charging are always skipped,
 /// making it suitable for simulation and OS input generation.
 impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
-    fn block_context(
+    fn base_block_info(
         &self,
         _block_number: BlockNumber,
-    ) -> Result<BlockContext, VirtualBlockExecutorError> {
-        self.rpc_state_reader
-            .get_block_context()
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
-    }
-
-    fn prev_base_block_hash(
-        &self,
-        block_number: BlockNumber,
-    ) -> Result<BlockHash, VirtualBlockExecutorError> {
-        self.rpc_state_reader
-            .get_old_block_hash(block_number)
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))
+    ) -> Result<BaseBlockInfo, VirtualBlockExecutorError> {
+        let block_header = self
+            .rpc_state_reader
+            .get_block_header()
+            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+        BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_id.clone()))
     }
 
     fn state_reader(
