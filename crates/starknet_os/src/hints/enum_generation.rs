@@ -5,14 +5,14 @@ macro_rules! deduce_hint_str {
     ($hint_name:ident) => {
         stringify!($hint_name)
     };
-    ($hint_name:ident, $hint_str:expr) => {
+    ($hint_name:ident, $hint_str:ident) => {
         $hint_str
     };
 }
 
 #[macro_export]
 macro_rules! define_hint_enum_base {
-    ($enum_name:ident, $(($hint_name:ident $(, $hint_str:expr)?)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident $(, $hint_str:ident)?)),+ $(,)?) => {
         #[cfg_attr(
             any(test, feature = "testing"),
             derive(Default, Deserialize, Serialize, Ord, PartialOrd, strum_macros::EnumIter)
@@ -60,7 +60,7 @@ macro_rules! define_hint_enum_helper {
             (
                 $hint_name:ident,
                 $implementation:ident $(::<$generic_type:ty>)?
-                $(, [$hint_str:expr])?
+                $(, [$hint_str:ident])?
                 $(, ($passed_arg:ident))?
             )
         ),+ $(,)?
@@ -94,7 +94,7 @@ macro_rules! define_hint_enum_helper {
 macro_rules! define_stateless_hint_enum {
     (
         $enum_name:ident,
-        $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)? $(, $hint_str:expr)?)),+
+        $(($hint_name:ident, $implementation:ident $(::<$generic_type:ty>)? $(, $hint_str:ident)?)),+
         $(,)?
     ) => {
         $crate::define_hint_enum_helper!(
@@ -109,7 +109,7 @@ macro_rules! define_stateless_hint_enum {
 macro_rules! define_common_hint_enum {
     (
         $enum_name:ident,
-        $(($hint_name:ident, $implementation:ident $(, $hint_str:expr)?)),+
+        $(($hint_name:ident, $implementation:ident $(, $hint_str:ident)?)),+
         $(,)?
     ) => {
         $crate::define_hint_enum_helper!(
@@ -126,7 +126,7 @@ macro_rules! define_hint_enum {
         $enum_name:ident,
         $hp: ty
         $(, $generic_var:ident, $generic:ident)?,
-        $(($hint_name:ident, $implementation:ident $(, $hint_str:expr)?)),+ $(,)?
+        $(($hint_name:ident, $implementation:ident $(, $hint_str:ident)?)),+ $(,)?
     ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name $(, $hint_str)?)),+);
@@ -159,7 +159,7 @@ macro_rules! define_hint_enum {
 macro_rules! define_hint_extension_enum {
     (
         $enum_name:ident,
-        $(($hint_name:ident, $implementation:ident $(, $hint_str:expr)?)),+
+        $(($hint_name:ident, $implementation:ident $(, $hint_str:ident)?)),+
         $(,)?
     ) => {
 
