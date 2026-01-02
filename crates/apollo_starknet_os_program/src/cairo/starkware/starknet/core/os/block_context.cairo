@@ -68,22 +68,20 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
     block_context: BlockContext*
 ) {
     alloc_locals;
-    tempvar block_number = nondet %{ syscall_handler.block_info.block_number %};
-    tempvar block_timestamp = nondet %{ syscall_handler.block_info.block_timestamp %};
-    let (divided_block_number, _) = unsigned_div_rem(block_number, VALIDATE_BLOCK_NUMBER_ROUNDING);
+    local block_info: BlockInfo*;
+    %{ GuessBlockInfo %}
+    let (divided_block_number, _) = unsigned_div_rem(
+        block_info.block_number, VALIDATE_BLOCK_NUMBER_ROUNDING
+    );
     tempvar block_number_for_validate = divided_block_number * VALIDATE_BLOCK_NUMBER_ROUNDING;
     let (divided_block_timestamp, _) = unsigned_div_rem(
-        block_timestamp, VALIDATE_TIMESTAMP_ROUNDING
+        block_info.block_timestamp, VALIDATE_TIMESTAMP_ROUNDING
     );
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
     let compiled_class_facts_bundle = os_global_context.compiled_class_facts_bundle;
     local block_context: BlockContext = BlockContext(
         os_global_context=[os_global_context],
-        block_info_for_execute=new BlockInfo(
-            block_number=block_number,
-            block_timestamp=block_timestamp,
-            sequencer_address=nondet %{ syscall_handler.block_info.sequencer_address %},
-        ),
+        block_info_for_execute=block_info,
         block_info_for_validate=new BlockInfo(
             block_number=block_number_for_validate,
             block_timestamp=block_timestamp_for_validate,
