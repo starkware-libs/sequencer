@@ -109,6 +109,9 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_contract_class_object_size: usize,
     pub min_sierra_version: VersionId,
     pub max_sierra_version: VersionId,
+
+    // If true, allows transactions with non-empty proof_facts or proof fields.
+    pub allow_client_side_proving: bool,
 }
 
 impl Default for StatelessTransactionValidatorConfig {
@@ -123,6 +126,7 @@ impl Default for StatelessTransactionValidatorConfig {
             max_contract_class_object_size: 4089446,
             min_sierra_version: VersionId::new(1, 1, 0),
             max_sierra_version: VersionId::new(1, 7, usize::MAX),
+            allow_client_side_proving: false,
         }
     }
 }
@@ -171,6 +175,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "max_l2_gas_amount",
                 &self.max_l2_gas_amount,
                 "Maximum allowed L2 gas amount for transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "allow_client_side_proving",
+                &self.allow_client_side_proving,
+                "If true, allows transactions with non-empty proof_facts or proof fields.",
                 ParamPrivacyInput::Public,
             ),
         ]);
