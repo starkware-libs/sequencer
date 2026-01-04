@@ -89,8 +89,19 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             });
         }
 
-        let state_diff_commitment =
-            state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
+        let state_diff_commitment = match state_diff_commitment {
+            Some(commitment) => {
+                if self.config.verify_state_diff_hash {
+                    let calculated_commitment = calculate_state_diff_hash(&state_diff);
+                    assert_eq!(
+                        commitment, calculated_commitment,
+                        "State diff hash mismatch for block number {height}."
+                    );
+                }
+                commitment
+            }
+            None => calculate_state_diff_hash(&state_diff),
+        };
         if height < self.offset {
             // Request to commit an old height.
             // Might be ok if the caller didn't get the results properly.
