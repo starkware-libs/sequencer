@@ -1,6 +1,5 @@
 use apollo_proof_manager_config::config::ProofManagerConfig;
-use starknet_api::transaction::fields::Proof;
-use starknet_types_core::felt::Felt;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::proof_storage::{FsProofStorage, FsProofStorageError, ProofStorage};
 /// Proof manager that wraps filesystem-based proof storage.
@@ -20,15 +19,15 @@ impl ProofManager {
 impl ProofStorage for ProofManager {
     type Error = FsProofStorageError;
 
-    fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error> {
-        self.proof_storage.set_proof(facts_hash, proof)
+    fn set_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), Self::Error> {
+        self.proof_storage.set_proof(proof_facts, proof)
     }
 
-    fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error> {
-        self.proof_storage.get_proof(facts_hash)
+    fn get_proof(&self, proof_facts: ProofFacts) -> Result<Option<Proof>, Self::Error> {
+        self.proof_storage.get_proof(proof_facts)
     }
 
-    fn contains_proof(&self, facts_hash: Felt) -> Result<bool, Self::Error> {
-        self.proof_storage.contains_proof(facts_hash)
+    fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, Self::Error> {
+        self.proof_storage.contains_proof(proof_facts)
     }
 }
