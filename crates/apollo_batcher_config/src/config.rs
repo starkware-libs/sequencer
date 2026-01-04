@@ -140,7 +140,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
             // TODO(victork): make sure we're allowed to expose the recorder URL here
             &self.recorder_url,
             "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Private,
+            ParamPrivacyInput::Public,
         )])
     }
 }

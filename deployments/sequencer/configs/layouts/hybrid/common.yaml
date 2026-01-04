@@ -12,7 +12,8 @@ image:
 
 # Common config for all services
 config:
-  sequencerConfig: {}
+  sequencerConfig:
+    recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
   # example:
   # sequencerConfig:
   #   base_layer_config_starknet_contract_address: "<STARKNET_CONTRACT_ADDRESS>"
