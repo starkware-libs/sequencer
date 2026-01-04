@@ -73,7 +73,7 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
     // Bump by 1 and preserve width
     let hex = &current_validator_id[2..]; // drop "0x"
     let n = u128::from_str_radix(hex, 16).unwrap() + 1;
-    let new_validator_id = format!("0x{:0x}", n);
+    let new_validator_id = format!("0x{n:0x}");
 
     // Update JSON and write back
     obj.insert(VALIDATOR_ID_CONFIG_ENTRY.to_string(), Value::String(new_validator_id.clone()));

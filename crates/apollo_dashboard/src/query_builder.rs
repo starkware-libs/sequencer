@@ -46,5 +46,5 @@ pub(crate) fn sum_by_label(
     };
     let filter = if filter_zeros { " > 0" } else { "" };
 
-    format!("sum by ({}) ({}){}", label, inner, filter)
+    format!("sum by ({label}) ({inner}){filter}")
 }

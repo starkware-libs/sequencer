@@ -482,7 +482,7 @@ fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: 
         format!("{storage_type}_storage_open_read_transactions"),
         format!("{storage_type} - High number of open read transactions"),
         AlertGroup::StateSync,
-        format!("max_over_time({}[1m])", metric_name),
+        format!("max_over_time({metric_name}[1m])"),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: MAX_OPEN_READ_TRANSACTIONS,

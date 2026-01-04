@@ -34,8 +34,8 @@ async fn config_manager_update_config() {
         ConsensusDynamicConfig { validator_id: ValidatorId::from(1_u8), ..Default::default() };
     assert_ne!(
         consensus_dynamic_config, new_consensus_dynamic_config,
-        "Consensus dynamic config should be different: {consensus_dynamic_config:#?} != {:#?}",
-        new_consensus_dynamic_config
+        "Consensus dynamic config should be different: {consensus_dynamic_config:#?} != \
+         {new_consensus_dynamic_config:#?}"
     );
     config_manager
         .set_node_dynamic_config(NodeDynamicConfig {
@@ -50,7 +50,7 @@ async fn config_manager_update_config() {
         .expect("Failed to get consensus dynamic config");
     assert_eq!(
         consensus_dynamic_config, new_consensus_dynamic_config,
-        "Consensus dynamic config mismatch: {consensus_dynamic_config:#?} != {:#?}",
-        new_consensus_dynamic_config
+        "Consensus dynamic config mismatch: {consensus_dynamic_config:#?} != \
+         {new_consensus_dynamic_config:#?}"
     );
 }

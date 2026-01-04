@@ -679,7 +679,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
                 .builtin_weights
                 .gas_costs
                 .get_builtin_gas_cost(name)
-                .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
+                .unwrap_or_else(|_| panic!("Builtin name {name:?} is not supported in the bouncer weights."));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants

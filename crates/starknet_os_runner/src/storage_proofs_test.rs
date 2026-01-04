@@ -73,21 +73,18 @@ fn test_get_storage_proofs_from_rpc(
     // Verify the queried contract is in proof_state.
     assert!(
         storage_proofs.proof_state.class_hashes.contains_key(&contract_address),
-        "Expected contract address {:?} in class_hashes",
-        contract_address
+        "Expected contract address {contract_address:?} in class_hashes"
     );
     assert!(
         storage_proofs.proof_state.nonces.contains_key(&contract_address),
-        "Expected contract address {:?} in nonces",
-        contract_address
+        "Expected contract address {contract_address:?} in nonces"
     );
 
     // Verify the queried storage is in the original execution_data (not proof_state, which only has
     // nonces/hashes)
     assert!(
         execution_data.initial_reads.storage.contains_key(&(contract_address, storage_key)),
-        "Expected storage key {:?} in contract's storage",
-        storage_key
+        "Expected storage key {storage_key:?} in contract's storage"
     );
 
     // Verify the contract has a storage trie commitment info.
@@ -96,8 +93,7 @@ fn test_get_storage_proofs_from_rpc(
             .commitment_infos
             .storage_tries_commitment_infos
             .contains_key(&contract_address),
-        "Expected contract address {:?} in storage_tries_commitment_infos",
-        contract_address
+        "Expected contract address {contract_address:?} in storage_tries_commitment_infos"
     );
 
     // Verify the storage trie commitment facts are not empty.
@@ -105,14 +101,12 @@ fn test_get_storage_proofs_from_rpc(
         &storage_proofs.commitment_infos.storage_tries_commitment_infos[&contract_address];
     assert!(
         !storage_commitment.commitment_facts.is_empty(),
-        "Expected non-empty storage trie commitment facts for contract {:?}",
-        contract_address
+        "Expected non-empty storage trie commitment facts for contract {contract_address:?}"
     );
 
     // Verify the storage root is non-zero.
     assert!(
         storage_commitment.previous_root.0 != Felt::ZERO,
-        "Expected non-zero storage root for contract {:?}",
-        contract_address
+        "Expected non-zero storage root for contract {contract_address:?}"
     );
 }

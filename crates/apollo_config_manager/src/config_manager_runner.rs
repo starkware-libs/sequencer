@@ -145,7 +145,7 @@ impl ConfigManagerRunner {
                 }
                 Err(e) => {
                     error!("Failed to update dynamic config: {:?}", e);
-                    Err(format!("Failed to update dynamic config: {:?}", e).into())
+                    Err(format!("Failed to update dynamic config: {e:?}").into())
                 }
             }
         }
@@ -178,7 +178,7 @@ impl ConfigManagerRunner {
         let mut i = 0;
 
         while i < args.len() {
-            if args[i] == CONFIG_FILE_ARG || args[i] == format!("-{}", CONFIG_FILE_SHORT_ARG_NAME) {
+            if args[i] == CONFIG_FILE_ARG || args[i] == format!("-{CONFIG_FILE_SHORT_ARG_NAME}") {
                 // Next arg is the path
                 i += 1;
                 if i < args.len() {

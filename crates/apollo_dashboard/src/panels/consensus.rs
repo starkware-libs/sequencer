@@ -309,7 +309,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
-        format!("The number of failed blob writes to Cende ({} window)", DEFAULT_DURATION),
+        format!("The number of failed blob writes to Cende ({DEFAULT_DURATION} window)"),
         sum_by_label(
             &CENDE_WRITE_BLOB_FAILURE,
             LABEL_CENDE_FAILURE_REASON,

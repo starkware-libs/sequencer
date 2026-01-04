@@ -237,8 +237,7 @@ async fn declare_deploy_scenario(
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
     test_output.expect_hint_coverage(&format!(
-        "declare_deploy_scenario_n_blocks_{}_use_kzg_da_{}_full_output_{}",
-        n_blocks, use_kzg_da, full_output
+        "declare_deploy_scenario_n_blocks_{n_blocks}_use_kzg_da_{use_kzg_da}_full_output_{full_output}"
     ));
 }
 
@@ -287,8 +286,7 @@ async fn trivial_diff_scenario(
     let contract_type =
         if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
     test_output.expect_hint_coverage(&format!(
-        "trivial_diff_scenario_use_kzg_da_{}_full_output_{}_contract_{}",
-        use_kzg_da, full_output, contract_type
+        "trivial_diff_scenario_use_kzg_da_{use_kzg_da}_full_output_{full_output}_contract_{contract_type}"
     ));
 }
 
@@ -337,7 +335,7 @@ async fn test_reverted_invoke_tx(
     test_output.perform_default_validations();
     let contract_type =
         if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
-    test_output.expect_hint_coverage(&format!("test_reverted_invoke_tx_{}", contract_type));
+    test_output.expect_hint_coverage(&format!("test_reverted_invoke_tx_{contract_type}"));
 }
 
 #[rstest]
@@ -437,7 +435,7 @@ async fn test_reverted_l1_handler_tx(
     test_output.perform_default_validations();
     let contract_type =
         if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
-    test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
+    test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{contract_type}"));
 }
 
 #[rstest]
@@ -1188,7 +1186,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 
     // Hint coverage.
     test_output
-        .expect_hint_coverage(&format!("test_new_class_execution_info_use_kzg_da_{}", use_kzg_da));
+        .expect_hint_coverage(&format!("test_new_class_execution_info_use_kzg_da_{use_kzg_da}"));
 }
 
 #[rstest]
@@ -1258,8 +1256,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
 
     // Hint coverage.
     test_output.expect_hint_coverage(&format!(
-        "test_experimental_libfuncs_contract_use_kzg_da_{}",
-        use_kzg_da
+        "test_experimental_libfuncs_contract_use_kzg_da_{use_kzg_da}"
     ));
 }
 
@@ -1391,7 +1388,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
 
     // Hint coverage.
-    test_output.expect_hint_coverage(&format!("test_new_account_flow_use_kzg_da_{}", use_kzg_da));
+    test_output.expect_hint_coverage(&format!("test_new_account_flow_use_kzg_da_{use_kzg_da}"));
 }
 
 #[rstest]
@@ -1669,8 +1666,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
 
     test_output.expect_hint_coverage(&format!(
-        "test_new_syscalls_flow_use_kzg_da_{}_n_blocks_{}",
-        use_kzg_da, n_blocks_in_multi_block
+        "test_new_syscalls_flow_use_kzg_da_{use_kzg_da}_n_blocks_{n_blocks_in_multi_block}"
     ));
 }
 
@@ -2121,7 +2117,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let test_output = test_manager.execute_flow_test().await;
     test_output.perform_default_validations();
     let cairo_type = if is_cairo0 { "cairo0" } else { "cairo1" };
-    test_output.expect_hint_coverage(&format!("test_block_info_{}", cairo_type));
+    test_output.expect_hint_coverage(&format!("test_block_info_{cairo_type}"));
 }
 
 #[rstest]
