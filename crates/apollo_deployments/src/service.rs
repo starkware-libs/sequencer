@@ -14,6 +14,7 @@ use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
+    DEFAULT_INVALID_PORT,
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
@@ -231,8 +232,10 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_retries(&self) -> usize;
 
+    #[allow(dead_code)]
     fn get_service_ports(&self) -> BTreeSet<ServicePort>;
 
+    #[allow(dead_code)]
     fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
         let mut ports = BTreeMap::new();
 
@@ -393,8 +396,11 @@ fn replace_pred(key: &str, value: &Value) -> bool {
         return true;
     }
 
+    let invalid_port: u64 = DEFAULT_INVALID_PORT.into();
+
     // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
-    let port_cond = key.ends_with(".port") && value.as_u64().map(|n| n != 0).unwrap_or(false);
+    let port_cond =
+        key.ends_with(".port") && value.as_u64().map(|n| n != invalid_port).unwrap_or(false);
 
     // Condition 2: service urls: ".url" suffix and a non-localhost string value
     let url_cond =

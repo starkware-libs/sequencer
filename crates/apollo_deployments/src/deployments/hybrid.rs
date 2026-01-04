@@ -15,6 +15,7 @@ use crate::deployment_definitions::{
     ComponentConfigInService,
     InfraServicePort,
     ServicePort,
+    INFRA_PORT_PLACEHOLDER,
 };
 use crate::deployments::distributed::RETRIES_FOR_L1_SERVICES;
 use crate::scale_policy::ScalePolicy;
@@ -43,8 +44,6 @@ impl From<HybridNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
-        let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
-
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
@@ -57,9 +56,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
             None => {
                 // Extract the infra service ports for all inner services of the hybrid node.
-                for inner_service_name in Self::iter() {
-                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
-                    service_ports.extend(inner_service_port);
+                for service_port in InfraServicePort::iter() {
+                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
                 }
             }
         };
@@ -84,6 +82,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let state_sync =
             Self::Core.component_config_pair(service_ports[&InfraServicePort::StateSync]);
 
+        let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in Self::iter() {
             let component_config = match inner_service_name {
                 Self::Committer => {
