@@ -463,7 +463,7 @@ class Config(StrictBaseModel):
     readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
     sequencerConfig: Optional[
         AnyDict
-    ] = None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
+    ] = None  # Override values for sequencer config. Keys use hierarchical structure with dots (e.g., 'components.batcher.port'), values are the replacement. Automatically converted to placeholder format (dots -> hyphens) for matching.
 
 
 class ServiceConfig(StrictBaseModel):
