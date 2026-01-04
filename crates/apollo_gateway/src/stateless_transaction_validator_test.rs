@@ -53,6 +53,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         max_contract_class_object_size: 100_000,
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
+        allow_client_side_proving: true,
     });
 
 #[rstest]
@@ -138,6 +139,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs { proof_facts: ProofFacts::snos_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
 )]
+// TODO(AvivG): Add case for client-side proving disabled.
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), RpcTransactionArgs::default())]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
@@ -584,3 +586,5 @@ fn test_declare_entry_points_not_sorted_by_selector(
 
     assert_eq!(tx_validator.validate(&tx), expected);
 }
+
+// TODO(AvivG): Test allow_client_side_proving config.

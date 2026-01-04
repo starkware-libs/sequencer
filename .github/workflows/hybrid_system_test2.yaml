@@ -158,19 +158,19 @@ jobs:
         run: |
           echo "🔧 Installing local-path-provisioner..."
           kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-      
+
           echo "⏳ Waiting for local-path-provisioner pod to be ready..."
           kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
-      
+
           echo "✅ local-path-provisioner is ready."
-      
+
           echo "📦 Setting default StorageClass and volumeBindingMode..."
           # First, set as default StorageClass
           kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-          
+
           # Then, patch the volumeBindingMode in spec
           kubectl patch storageclass local-path --type='merge' -p '{"volumeBindingMode":"WaitForFirstConsumer"}'
-      
+
           echo "📦 Verifying StorageClass configuration..."
           kubectl get storageclass local-path -o yaml
       
