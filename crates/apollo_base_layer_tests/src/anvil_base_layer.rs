@@ -47,7 +47,7 @@ pub struct AnvilBaseLayer {
 impl AnvilBaseLayer {
     pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
         StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-    pub const DEFAULT_ANVIL_PORT: u16 = 8545;
+    const DEFAULT_ANVIL_PORT: u16 = 8545;
     const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
     /// Note: if you have port conflicts, you might have a zombie anvil instance
