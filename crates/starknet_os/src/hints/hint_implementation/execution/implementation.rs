@@ -384,7 +384,7 @@ pub(crate) fn tx_calldata<S: StateReader>(
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let tx = hint_processor
         .execution_helpers_manager
@@ -397,7 +397,13 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
             return Err(OsHintError::UnexpectedTxType(tx.tx_type()));
         }
     };
-    insert_value_into_ap(vm, entry_point_selector.0)?;
+    insert_value_from_var_name(
+        Ids::EntryPointSelector.into(),
+        entry_point_selector.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
@@ -752,7 +758,7 @@ pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
+pub(crate) fn set_fp_to_tx_nonce<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -762,7 +768,7 @@ pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
         .tx_tracker
         .get_tx()?
         .nonce();
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), nonce.0)?;
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SetFpToTxNonce), nonce.0)?;
     Ok(())
 }
 
