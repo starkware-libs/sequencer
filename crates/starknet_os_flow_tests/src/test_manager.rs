@@ -4,7 +4,8 @@ use std::sync::LazyLock;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::state_api::{StateReader, UpdatableState};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
@@ -188,7 +189,7 @@ impl OsTestExpectedValues {
     }
 }
 
-pub(crate) struct OsTestOutput<S: FlowTestState> {
+pub(crate) struct OsTestOutput<S: StateReader> {
     pub(crate) runner_output: StarknetOsRunnerOutput,
     pub(crate) private_keys: Option<Vec<Felt>>,
     pub(crate) decompressed_state_diff: StateDiff,
@@ -644,8 +645,7 @@ impl<S: FlowTestState> TestManager<S> {
     // Executes the flow test.
     pub(crate) async fn execute_flow_test(self) -> OsTestOutput<S> {
         let mut os_block_inputs = vec![];
-        let initial_state = self.initial_state.updatable_state.clone();
-        let mut state = self.initial_state.updatable_state;
+        let mut state = CachedState::new(self.initial_state.updatable_state);
         let mut map_storage = self.initial_state.commitment_storage;
         let base_block_context = self.initial_state.block_context;
 
@@ -654,10 +654,7 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
-        let mut entire_state_diff = StateDiff::default();
         let use_kzg_da = self.os_hints_config.use_kzg_da;
-
-        let mut alias_keys = HashSet::new();
         let mut current_block_hash = BlockHash::default();
         for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
             let block_context =
@@ -670,17 +667,15 @@ impl<S: FlowTestState> TestManager<S> {
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, mut final_state } =
-                execute_transactions(state, &block_txs, block_context);
+                execute_transactions::<CachedState<S>>(state, &block_txs, block_context);
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             state = final_state.state;
-            alias_keys.extend(state_diff.alias_keys());
             state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(state_diff);
-            entire_state_diff.extend(committer_state_diff.clone());
             let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
                 &mut db,
@@ -746,20 +741,28 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints =
             OsHints { os_input: starknet_os_input, os_hints_config: self.os_hints_config };
 
+        // This cached state holds the diff of the entire execution.
+        let entire_state_diff = state.to_state_diff().unwrap().state_maps;
+        let entire_initial_reads = state.get_initial_reads().unwrap();
+
+        state.state.apply_writes(&entire_state_diff, &state.class_hash_to_class.borrow());
+        let final_state = state.state;
+
         // Create expected values before running OS (os_hints is consumed by run_os_stateless).
         let expected_values = OsTestExpectedValues::new(
             &os_hints,
             self.messages_to_l1,
             self.messages_to_l2,
-            initial_state.nontrivial_diff(entire_state_diff),
+            create_committer_state_diff(entire_state_diff),
         );
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
+
         let decompressed_state_diff =
             create_committer_state_diff(Self::get_decompressed_state_diff(
                 &os_output,
-                &state,
-                alias_keys,
+                &final_state,
+                entire_initial_reads.alias_keys(),
                 self.private_keys.as_ref(),
             ));
 
@@ -767,7 +770,7 @@ impl<S: FlowTestState> TestManager<S> {
             runner_output: os_output,
             private_keys: self.private_keys,
             decompressed_state_diff,
-            final_state: state,
+            final_state,
             expected_values,
         }
     }
