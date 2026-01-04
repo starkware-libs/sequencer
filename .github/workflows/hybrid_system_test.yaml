@@ -18,7 +18,7 @@ env:
   overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
-  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**,deployments/images/**"
+  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**/*"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"

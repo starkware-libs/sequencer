@@ -17,3 +17,6 @@ configMapGenerator:
   - name: echonet-src
     files:
       - echonet-src.tgz.b64=generated/echonet-src.tgz.b64
+  - name: echonet-keys
+    files:
+      - echonet_keys.json=generated/echonet_keys.json

@@ -92,6 +92,24 @@ pub trait EventsReader<'txn, 'env> {
         event_index: EventIndex,
         to_block_number: BlockNumber,
     ) -> StorageResult<EventIter<'txn, 'env>>;
+
+    /// Checks if a contract address emitted any event in a specific transaction.
+    ///
+    /// # Arguments
+    /// * `address` - The contract address to check.
+    /// * `tx_index` - The transaction index to check.
+    ///
+    /// # Returns
+    /// * `Ok(Some(()))` if the contract emitted at least one event in this transaction.
+    /// * `Ok(None)` if no events were emitted by this contract in this transaction.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`](crate::StorageError) if there was a database error.
+    fn has_event(
+        &self,
+        address: ContractAddress,
+        tx_index: TransactionIndex,
+    ) -> StorageResult<Option<()>>;
 }
 
 // TODO(DanB): support all read transactions (including RW).
@@ -109,6 +127,15 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         }
 
         Ok(EventIter::ByEventIndex(self.iter_events_by_event_index(event_index, to_block_number)?))
+    }
+
+    fn has_event(
+        &self,
+        address: ContractAddress,
+        tx_index: TransactionIndex,
+    ) -> StorageResult<Option<()>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        Ok(events_table.get(&self.txn, &(address, tx_index))?.map(|_| ()))
     }
 }
 
