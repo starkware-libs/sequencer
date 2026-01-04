@@ -64,7 +64,7 @@ impl SerializeConfig for CendeConfig {
                 "recorder_url",
                 &self.recorder_url,
                 "The URL of the Pythonic cende_recorder",
-                ParamPrivacyInput::Private,
+                ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_retry_duration_secs",

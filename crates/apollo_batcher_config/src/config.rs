@@ -139,7 +139,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
             "recorder_url",
             &self.recorder_url,
             "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Private,
+            ParamPrivacyInput::Public,
         )])
     }
 }

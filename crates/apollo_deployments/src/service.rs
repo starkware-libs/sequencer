@@ -85,6 +85,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "mempool_p2p_config.network_config.bootstrap_peer_multiaddr",
     "mempool_p2p_config.network_config.port",
     "monitoring_endpoint_config.port",
+    "recorder_url",
     "sierra_compiler_config.audited_libfuncs_only",
     "sierra_compiler_config.max_bytecode_size",
     "starknet_url",

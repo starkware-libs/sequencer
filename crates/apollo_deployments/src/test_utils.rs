@@ -32,7 +32,6 @@ pub struct SecretsConfigOverride {
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
     mempool_p2p_config_network_config_secret_key: Option<Vec<u8>>,
-    recorder_url: Url,
     #[serde(
         rename = "state_sync_config.central_sync_client_config.central_source_config.http_headers"
     )]
@@ -59,7 +58,6 @@ impl Default for SecretsConfigOverride {
                 }],
             ),
             mempool_p2p_config_network_config_secret_key: None,
-            recorder_url: Url::parse("https://arbitrary.recorder.url").unwrap(),
             state_sync_config_central_sync_client_config_central_source_config_http_headers: ""
                 .to_string(),
             state_sync_config_network_config_secret_key: None,
