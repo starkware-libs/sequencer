@@ -10,12 +10,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{
-    BusinessLogicServicePort,
-    ComponentConfigInService,
-    InfraServicePort,
-    ServicePort,
-};
+use crate::deployment_definitions::ComponentConfigInService;
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 
@@ -51,36 +46,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match self {
             Self::Node => DEFAULT_RETRIES,
         }
-    }
-
-    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
-        let mut service_ports = BTreeSet::new();
-        for service_port in ServicePort::iter() {
-            match service_port {
-                ServicePort::BusinessLogic(bl_port) => match bl_port {
-                    BusinessLogicServicePort::MonitoringEndpoint
-                    | BusinessLogicServicePort::HttpServer
-                    | BusinessLogicServicePort::ConsensusP2p
-                    | BusinessLogicServicePort::MempoolP2p => {
-                        service_ports.insert(service_port);
-                    }
-                },
-                ServicePort::Infra(infra_port) => match infra_port {
-                    InfraServicePort::Batcher
-                    | InfraServicePort::Mempool
-                    | InfraServicePort::ClassManager
-                    | InfraServicePort::Committer
-                    | InfraServicePort::Gateway
-                    | InfraServicePort::L1GasPriceProvider
-                    | InfraServicePort::L1Provider
-                    | InfraServicePort::SierraCompiler
-                    | InfraServicePort::StateSync
-                    | InfraServicePort::SignatureManager => {}
-                },
-            }
-        }
-
-        service_ports
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {

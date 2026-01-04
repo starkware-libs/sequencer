@@ -14,6 +14,7 @@ use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
+    DEFAULT_INVALID_PORT,
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
@@ -23,12 +24,7 @@ use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment_definitions::{
-    ComponentConfigInService,
-    InfraServicePort,
-    ServicePort,
-    CONFIG_BASE_DIR,
-};
+use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -114,6 +110,8 @@ pub enum NodeService {
 }
 
 // TODO(Tsabary): move p2p ports from the application configs to the replacer format.
+// TODO(Tsabary): avoid creating the service application config file, and just create the replacer
+// one.
 
 impl NodeService {
     pub fn replacer_deployment_file_path(&self) -> String {
@@ -230,25 +228,6 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_scale_policy(&self) -> ScalePolicy;
 
     fn get_retries(&self) -> usize;
-
-    fn get_service_ports(&self) -> BTreeSet<ServicePort>;
-
-    fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
-        let mut ports = BTreeMap::new();
-
-        for service_port in self.get_service_ports() {
-            match service_port {
-                ServicePort::Infra(service) => {
-                    let port = service.get_port();
-                    ports.insert(service, port);
-                }
-                ServicePort::BusinessLogic(_) => {
-                    continue;
-                }
-            }
-        }
-        ports
-    }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
 }
@@ -393,8 +372,11 @@ fn replace_pred(key: &str, value: &Value) -> bool {
         return true;
     }
 
+    let invalid_port: u64 = DEFAULT_INVALID_PORT.into();
+
     // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
-    let port_cond = key.ends_with(".port") && value.as_u64().map(|n| n != 0).unwrap_or(false);
+    let port_cond =
+        key.ends_with(".port") && value.as_u64().map(|n| n != invalid_port).unwrap_or(false);
 
     // Condition 2: service urls: ".url" suffix and a non-localhost string value
     let url_cond =

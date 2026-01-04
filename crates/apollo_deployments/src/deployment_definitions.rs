@@ -1,6 +1,8 @@
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
+use apollo_node_config::component_execution_config::DEFAULT_INVALID_PORT;
 use serde::{Deserialize, Serialize};
+use static_assertions::const_assert_ne;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{AsRefStr, Display};
 
@@ -8,22 +10,16 @@ use strum_macros::{AsRefStr, Display};
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
-const BATCHER_PORT: u16 = 55000;
-const CLASS_MANAGER_PORT: u16 = 55001;
-const COMMITTER_PORT: u16 = 55013;
+// TODO(Tsabary): check if these ports are required.
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
-const GATEWAY_PORT: u16 = 55002;
-const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
-const L1_PROVIDER_PORT: u16 = 55004;
-const MEMPOOL_PORT: u16 = 55006;
 pub(crate) const MEMPOOL_P2P_PORT: u16 = 53200;
-const SIERRA_COMPILER_PORT: u16 = 55007;
-const SIGNATURE_MANAGER_PORT: u16 = 55008;
-const STATE_SYNC_PORT: u16 = 55009;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
+
+pub(crate) const INFRA_PORT_PLACEHOLDER: u16 = 1;
+const_assert_ne!(INFRA_PORT_PLACEHOLDER, DEFAULT_INVALID_PORT);
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct StateSyncConfig {
@@ -77,6 +73,8 @@ impl BusinessLogicServicePort {
     }
 }
 
+// TODO(Tsabary): check if the InfraServicePort and BusinessLogicServicePort enums are needed.
+
 // TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
 // is complete.
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
@@ -95,18 +93,7 @@ pub enum InfraServicePort {
 
 impl InfraServicePort {
     pub fn get_port(&self) -> u16 {
-        match self {
-            InfraServicePort::Batcher => BATCHER_PORT,
-            InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
-            InfraServicePort::Committer => COMMITTER_PORT,
-            InfraServicePort::Gateway => GATEWAY_PORT,
-            InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
-            InfraServicePort::L1Provider => L1_PROVIDER_PORT,
-            InfraServicePort::Mempool => MEMPOOL_PORT,
-            InfraServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
-            InfraServicePort::SignatureManager => SIGNATURE_MANAGER_PORT,
-            InfraServicePort::StateSync => STATE_SYNC_PORT,
-        }
+        INFRA_PORT_PLACEHOLDER
     }
 }
 
