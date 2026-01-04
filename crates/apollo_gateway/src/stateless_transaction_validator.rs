@@ -41,6 +41,7 @@ impl StatelessTransactionValidator {
         self.validate_tx_size(tx)?;
         self.validate_nonce_data_availability_mode(tx)?;
         self.validate_fee_data_availability_mode(tx)?;
+        self.validate_client_side_proving_allowed(tx)?;
         self.validate_proof(tx)?;
 
         if let RpcTransaction::Declare(declare_tx) = tx {
@@ -215,6 +216,24 @@ impl StatelessTransactionValidator {
                 field_name: "fee".to_string(),
             });
         };
+
+        Ok(())
+    }
+
+    fn validate_client_side_proving_allowed(
+        &self,
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        if self.config.allow_client_side_proving {
+            return Ok(());
+        }
+
+        // Only invoke transactions have proof_facts and proof fields.
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) = tx {
+            if !tx.proof_facts.is_empty() || !tx.proof.is_empty() {
+                return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
+            }
+        }
 
         Ok(())
     }
