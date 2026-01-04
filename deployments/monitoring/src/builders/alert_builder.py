@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import sys
 from typing import Optional
 
 from common import const
@@ -302,7 +303,8 @@ def alert_builder(args: argparse.Namespace):
     config_file_path = args.config_file if hasattr(args, "config_file") and args.config_file else ""
 
     # Validate all placeholders from all alerts first (before processing any)
-    if config:
+    # Always validate, even if config is empty, to catch missing placeholders
+    try:
         validate_config_overrides(
             dev_alerts["alerts"],
             config,
@@ -311,6 +313,10 @@ def alert_builder(args: argparse.Namespace):
             logger_instance=logger,
             item_type_name="alert",
         )
+    except ValueError:
+        # Error message already printed by validate_config_overrides with Rich formatting
+        # Exit cleanly without traceback
+        sys.exit(1)
 
     alerts = []
 

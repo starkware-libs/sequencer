@@ -17,6 +17,7 @@ import re
 from typing import Any, Callable, Optional
 
 import yaml
+from rich.console import Console
 
 
 def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
@@ -286,7 +287,6 @@ def validate_config_overrides(
     Raises:
         ValueError: If any placeholder is missing from config or any config key is unused
     """
-    log = logger_instance
 
     # Default extractors
     if item_name_extractor is None:
@@ -326,139 +326,121 @@ def validate_config_overrides(
         # No issues, validation passed
         return
 
-    # Build comprehensive error message
+    # Build comprehensive error message using Rich
+    console = Console()
     total_issues = len(all_missing_placeholders) + len(unused_config_keys)
     error_title = "CONFIGURATION ERRORS DETECTED"
     if all_missing_placeholders and unused_config_keys:
-        error_title = f"CONFIGURATION ERRORS DETECTED (Missing Placeholders & Unused Config Keys)"
+        error_title = "CONFIGURATION ERRORS DETECTED (Missing Placeholders & Unused Config Keys)"
     elif all_missing_placeholders:
         error_title = "UNHANDLED PLACEHOLDER(S) DETECTED"
     elif unused_config_keys:
         error_title = "UNUSED CONFIG KEY(S) DETECTED"
 
-    error_lines = [
-        "=" * 80,
-        f"ERROR: {error_title}",
-        "=" * 80,
+    # Build error message with Rich markup
+    error_parts = [
+        "[bold red]" + "=" * 80 + "[/bold red]",
+        f"[bold red]ERROR:[/bold red] [bold]{error_title}[/bold]",
+        "[bold red]" + "=" * 80 + "[/bold red]",
         "",
-        f"Found {total_issues} issue(s):",
-        f"  - {len(all_missing_placeholders)} unhandled placeholder(s) across {len(set(p[0] for p in all_missing_placeholders)) if all_missing_placeholders else 0} {item_type_name}(s)",
-        f"  - {len(unused_config_keys)} unused config key(s)",
+        f"Found [yellow]{total_issues}[/yellow] issue(s):",
+        f"  - [cyan]{len(all_missing_placeholders)}[/cyan] unhandled placeholder(s) across [cyan]{len(set(p[0] for p in all_missing_placeholders)) if all_missing_placeholders else 0}[/cyan] {item_type_name}(s)",
+        f"  - [cyan]{len(unused_config_keys)}[/cyan] unused config key(s)",
         "",
-        "File Paths:",
+        "[bold]File Paths:[/bold]",
     ]
 
     if source_json_path:
-        error_lines.append(f"  source_json_path: {source_json_path}")
+        error_parts.append(f"  source_json_path: [cyan]{source_json_path}[/cyan]")
     else:
-        error_lines.append("  source_json_path: <not provided>")
+        error_parts.append("  source_json_path: [dim]<not provided>[/dim]")
 
     if config_override_path:
-        error_lines.append(f"  config_override_path: {config_override_path}")
+        error_parts.append(f"  config_override_path: [cyan]{config_override_path}[/cyan]")
     else:
-        error_lines.append("  config_override_path: <not provided>")
+        error_parts.append("  config_override_path: [dim]<not provided>[/dim]")
 
-    error_lines.append("")
+    error_parts.append("")
 
-    # Display missing placeholders grouped by item
+    # Display missing placeholders in simple list format
     if all_missing_placeholders:
-        # Group placeholders by item for better organization
-        placeholders_by_item = {}
+        error_parts.append("[bold]" + "-" * 80 + "[/bold]")
+        error_parts.append("[bold]Missing Placeholders (in JSON but not in YAML):[/bold]")
+        error_parts.append("[bold]" + "-" * 80 + "[/bold]")
+
+        # Simple list: placeholder on one line, config key on next line
         for item_name, item_title, placeholder, config_key, field_path in all_missing_placeholders:
-            if item_name not in placeholders_by_item:
-                placeholders_by_item[item_name] = {"title": item_title, "placeholders": []}
-            placeholders_by_item[item_name]["placeholders"].append(
-                (placeholder, config_key, field_path)
-            )
+            error_parts.append(f"[red]{placeholder}[/red]")
+            error_parts.append(f"[green]{config_key}[/green]")
+            error_parts.append("")  # Empty line between pairs
 
-        error_lines.append("-" * 80)
-        error_lines.append("Missing Placeholders:")
-        error_lines.append("-" * 80)
+        # Remove trailing empty line
+        if error_parts[-1] == "":
+            error_parts.pop()
 
-        placeholder_counter = 1
-        for item_name, item_info in placeholders_by_item.items():
-            item_title = item_info["title"]
-            placeholders = item_info["placeholders"]
-
-            error_lines.append(f"  {item_type_name.capitalize()}: {item_name}")
-            error_lines.append(f"    Title: {item_title}")
-            error_lines.append(f"    Missing {len(placeholders)} placeholder(s):")
-            error_lines.append("")
-
-            for placeholder, config_key, field_path in placeholders:
-                error_lines.append(f"    Missing Placeholder #{placeholder_counter}:")
-                error_lines.append("")
-                error_lines.append(f"      Placeholder:")
-                error_lines.append(f"        {placeholder}")
-                error_lines.append("")
-                error_lines.append(f"      Location in JSON:")
-                error_lines.append(f"        key path: {field_path}")
-                error_lines.append("")
-                error_lines.append(f"      Expected config key:")
-                error_lines.append(f"        {config_key}")
-                error_lines.append("")
-
-                # Example config entry
-                config_file_name = (
-                    os.path.basename(config_override_path)
-                    if config_override_path
-                    else "<config_file>"
-                )
-                error_lines.append(f"      Add to your config file ({config_file_name}) as:")
-                error_lines.append(f"        {config_key}: <value>")
-                error_lines.append("")
-                placeholder_counter += 1
-
-    # Display unused config keys
+    # Display unused config keys in simple list format
     if unused_config_keys:
-        error_lines.append("-" * 80)
-        error_lines.append("Unused Config Keys:")
-        error_lines.append("-" * 80)
-        error_lines.append(
-            f"  Found {len(unused_config_keys)} config key(s) in your YAML file that don't have"
-        )
-        error_lines.append(f"  corresponding placeholders in the source JSON file:")
-        error_lines.append("")
+        error_parts.append("[bold]" + "-" * 80 + "[/bold]")
+        error_parts.append("[bold]Unused Config Keys (in YAML but not in JSON):[/bold]")
+        error_parts.append("[bold]" + "-" * 80 + "[/bold]")
 
-        for i, config_key in enumerate(sorted(unused_config_keys), 1):
-            error_lines.append(f"  Unused Config Key #{i}:")
-            error_lines.append(f"    {config_key}")
-            error_lines.append("")
-            error_lines.append(
-                f"    This key exists in your config file but no placeholder matches it."
-            )
-            error_lines.append(
-                f"    Either remove this key from your config file, or add a corresponding"
-            )
-            error_lines.append(f"    placeholder to the source JSON file.")
-            if i < len(unused_config_keys):
-                error_lines.append("")
+        # Convert config keys to placeholder format for display
+        for config_key in sorted(unused_config_keys):
+            # Convert config key back to placeholder format
+            # item.field -> $$$_ITEM_FIELD_$$$
+            placeholder = f"$$$_{config_key.upper().replace('.', '_')}_$$$"
+            error_parts.append(f"[yellow]{config_key}[/yellow]")
+            error_parts.append(f"[dim]{placeholder}[/dim]")
+            error_parts.append("")  # Empty line between pairs
 
-    error_lines.append("-" * 80)
+        # Remove trailing empty line
+        if error_parts[-1] == "":
+            error_parts.pop()
+
+    # Single unified "To fix" section at the bottom
+    error_parts.append("")
+    error_parts.append("[bold]To fix:[/bold]")
     if all_missing_placeholders and unused_config_keys:
-        error_lines.append("To fix:")
-        error_lines.append(
-            "  1. Add the missing placeholder entries to your config YAML file, or remove"
+        error_parts.append(
+            "  For missing placeholders: Add the corresponding config keys to your YAML config file,\n"
+            "  or remove the placeholders from the source JSON file."
         )
-        error_lines.append("     the placeholders from the source JSON file.")
-        error_lines.append("  2. Remove the unused config keys from your config YAML file, or add")
-        error_lines.append("     corresponding placeholders to the source JSON file.")
+        error_parts.append(
+            "  For unused config keys: Remove the unused keys from your YAML config file, or add\n"
+            "  corresponding placeholders to the source JSON file."
+        )
     elif all_missing_placeholders:
-        error_lines.append(
-            "To fix: Add the missing entries above to your config YAML file, or remove"
+        error_parts.append(
+            "  Add the corresponding config keys to your YAML config file, or remove the\n"
+            "  placeholders from the source JSON file."
         )
-        error_lines.append("the placeholders from the source JSON file.")
     elif unused_config_keys:
-        error_lines.append(
-            "To fix: Remove the unused config keys above from your config YAML file, or add"
+        error_parts.append(
+            "  Remove the unused config keys from your YAML config file, or add corresponding\n"
+            "  placeholders to the source JSON file."
         )
-        error_lines.append("corresponding placeholders to the source JSON file.")
-    error_lines.append("=" * 80)
 
-    error_message = "\n".join(error_lines)
-    if log:
-        log.error(error_message)
-    raise ValueError(error_message)
+    error_parts.append("")
+    error_parts.append("[bold red]" + "=" * 80 + "[/bold red]")
+
+    # Build the error message string with Rich formatting
+    rich_error_message = "\n".join(error_parts)
+
+    # Print with Rich formatting
+    console.print(rich_error_message)
+
+    # Build plain text version for ValueError (strip Rich markup)
+    plain_error_parts = []
+    for part in error_parts:
+        # Remove Rich markup tags like [bold], [red], etc.
+        plain_part = re.sub(r"\[/?[^\]]+\]", "", part)
+        plain_error_parts.append(plain_part)
+
+    plain_error_message = "\n".join(plain_error_parts)
+
+    # Don't log the error here - it's already printed with Rich formatting above
+    # The ValueError will be caught by the caller and handled appropriately
+    raise ValueError(plain_error_message)
 
 
 def apply_config_overrides(
