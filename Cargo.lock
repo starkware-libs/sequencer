@@ -871,6 +871,7 @@ dependencies = [
  "papyrus_base_layer",
  "starknet_api",
  "tokio",
+ "tracing",
  "url",
 ]
 
