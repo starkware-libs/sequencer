@@ -80,3 +80,54 @@ fn test_merkle_tampered_data_proof_invalidity(#[case] n: u8) {
         );
     }
 }
+
+/// Helper to convert a hash to a hex string for readable snapshots
+fn hash_to_hex(hash: &MerkleHash) -> String {
+    hex::encode(hash)
+}
+
+/// Helper to convert a vector of hashes to hex strings
+fn hashes_to_hex(hashes: &[MerkleHash]) -> Vec<String> {
+    hashes.iter().map(hash_to_hex).collect()
+}
+
+/// Regression test to ensure merkle tree structure and hashing remain stable.
+///
+/// This test snapshots the root hash and proof structure for a known set of data.
+/// If this test fails, it means the merkle tree implementation has changed in a way
+/// that affects its output. This could be:
+/// - A change to the hash function (leaf or node hashing)
+/// - A change to the tree construction algorithm
+/// - A change to the proof generation logic
+///
+/// If the change is intentional, review the diff and update the snapshot with:
+/// `cargo insta review` or by setting INSTA_UPDATE=1
+#[test]
+fn test_merkle_regression() {
+    // Use a fixed, non-trivial dataset
+    let data: Vec<Vec<u8>> = vec![
+        b"first".to_vec(),
+        b"second".to_vec(),
+        b"third".to_vec(),
+        b"fourth".to_vec(),
+        b"fifth".to_vec(),
+    ];
+
+    let tree = MerkleTree::new(&data);
+
+    // Snapshot the root hash
+    let root = tree.root().expect("Tree should have a root");
+    insta::assert_snapshot!("merkle_root", hash_to_hex(&root));
+
+    // Snapshot all leaf hashes
+    let leaves = tree.leaves().expect("Tree should have leaves");
+    let leaves_snapshot = hashes_to_hex(leaves).join("\n");
+    insta::assert_snapshot!("merkle_leaves", leaves_snapshot);
+
+    // Snapshot proofs for each leaf
+    for (i, _) in data.iter().enumerate() {
+        let proof = tree.prove(i).unwrap();
+        let proof_hex = hashes_to_hex(&proof.siblings).join("\n");
+        insta::assert_snapshot!(format!("merkle_proof_{}", i), proof_hex);
+    }
+}
