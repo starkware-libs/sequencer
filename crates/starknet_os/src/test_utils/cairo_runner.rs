@@ -644,6 +644,20 @@ pub fn initialize_cairo_runner(
     Ok((cairo_runner, program, entrypoint))
 }
 
+/// Validates that the final offset of each builtin is a multiple of the builtin's size.
+fn finalize_and_validate_builtins(
+    runner_config: &EntryPointRunnerConfig,
+    runner: &mut CairoRunner,
+) -> Cairo0EntryPointRunnerResult<()> {
+    if runner_config.proof_mode {
+        runner.finalize_segments()?;
+    }
+    runner.vm.verify_auto_deductions()?;
+    let allow_missing_builtins = false;
+    // This will fail if the builtin offsets are not a multiple of the builtin's size.
+    Ok(runner.read_return_values(allow_missing_builtins)?)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run_cairo_0_entrypoint(
     entrypoint: String,
@@ -692,6 +706,7 @@ pub fn run_cairo_0_entrypoint(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    finalize_and_validate_builtins(runner_config, cairo_runner)?;
     let execution_resources_after = cairo_runner.get_execution_resources().unwrap();
     info!(
         "execution resources after running entrypoint {entrypoint}: is \
