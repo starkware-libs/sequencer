@@ -242,6 +242,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                         txn.get_compiler_backward_compatibility_marker()?
                     }
                     MarkerKind::Event => txn.get_event_marker()?,
+                    MarkerKind::GlobalRoot => unimplemented!(), // TODO(Nadin): Implement this
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }

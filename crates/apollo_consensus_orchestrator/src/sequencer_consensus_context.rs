@@ -72,13 +72,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-<<<<<<< HEAD
 use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
-||||||| ee7eff7e4
-use crate::cende::{BlobParameters, CendeContext};
-=======
-use crate::cende::{BlobParameters, CendeAmbassadorError, CendeContext};
->>>>>>> origin/main-v0.14.1
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{
     record_build_proposal_failure,
@@ -692,20 +686,8 @@ impl ConsensusContext for SequencerConsensusContext {
             proposals.remove_proposals_below_or_at_height(&height);
         }
 
-<<<<<<< HEAD
-        let DecisionReachedResponse {
-            state_diff,
-            l2_gas_used,
-            central_objects,
-            block_header_commitments,
-        } = self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
-||||||| ee7eff7e4
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
-=======
         let decision_reached_response =
             self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
->>>>>>> origin/main-v0.14.1
 
 <<<<<<< HEAD
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
