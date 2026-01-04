@@ -8,7 +8,14 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
 };
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, StateMaps, StorageDiff, StorageView};
+use blockifier::state::cached_state::{
+    CachedState,
+    StateChangesKeys,
+    StateMaps,
+    StorageDiff,
+    StorageView,
+};
+use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::CairoVersion;
@@ -16,13 +23,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash as StarknetAPICompiledClassHash,
-    ContractAddress,
-    Nonce,
-    PatriciaKey,
-};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::declare_tx_args;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
@@ -212,70 +213,62 @@ pub(crate) fn create_declare_tx(
     AccountTransaction::Declare(tx)
 }
 
-/// Creates the commitment infos and the cached state input for the OS.
-pub(crate) async fn create_cached_state_input_and_commitment_infos(
+/// Gets the extended initial reads for the OS run.
+/// The extended initial reads are the initial reads with the class hash and nonce of each accessed
+/// contract.
+pub(crate) fn get_extended_initial_reads<S: FlowTestState>(state: &CachedState<S>) -> StateMaps {
+    let raw_initial_reads = state.get_initial_reads().unwrap();
+    // Populate the state initial reads with the class hash and nonce of each accessed contract.
+    for contract_address in raw_initial_reads.get_contract_addresses() {
+        state.get_class_hash_at(contract_address).unwrap();
+        state.get_nonce_at(contract_address).unwrap();
+    }
+
+    for class_hash in raw_initial_reads.declared_contracts.keys() {
+        state.get_compiled_class_hash(*class_hash).unwrap();
+    }
+
+    // Take the initial reads again to get the updated initial reads.
+    let mut extended_initial_reads = state.get_initial_reads().unwrap();
+    // This field is not used by the OS, so we clear it.
+    extended_initial_reads.declared_contracts.clear();
+    extended_initial_reads
+}
+
+/// Creates the commitment infos for the OS.
+pub(crate) async fn create_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
-    extended_state_diff: &StateMaps,
-) -> (StateMaps, StateCommitmentInfos) {
-    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
+    initial_reads_keys: &StateChangesKeys,
+) -> StateCommitmentInfos {
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
-        extended_state_diff.get_contract_addresses().into_iter(),
+        initial_reads_keys.modified_contracts.iter().copied(),
         previous_state_roots.contracts_trie_root_hash,
         new_state_roots.contracts_trie_root_hash,
         commitments,
     )
     .await;
-    let mut address_to_previous_class_hash = HashMap::new();
-    let mut address_to_previous_nonce = HashMap::new();
     let mut address_to_previous_storage_root_hash = HashMap::new();
     for (address, contract_state) in previous_contract_states.into_iter() {
         let address = try_node_index_into_contract_address(&address).unwrap();
-        address_to_previous_class_hash.insert(address, contract_state.class_hash);
-        address_to_previous_nonce.insert(address, contract_state.nonce);
         address_to_previous_storage_root_hash.insert(address, contract_state.storage_root_hash);
     }
 
-    // Get previous class leaves.
-    let mut class_leaf_indices: Vec<NodeIndex> = extended_state_diff
-        .declared_contracts
-        .keys()
-        .map(|address| NodeIndex::from_leaf_felt(&address.0))
-        .collect();
-
-    let sorted_class_leaf_indices = SortedLeafIndices::new(&mut class_leaf_indices);
-    let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> = get_leaves(
-        commitments,
-        previous_state_roots.classes_trie_root_hash,
-        sorted_class_leaf_indices,
-        &EmptyKeyContext,
-    )
-    .await
-    .unwrap();
-    let class_hash_to_compiled_class_hash = previous_class_leaves
-        .into_iter()
-        .map(|(idx, v)| {
-            (
-                ClassHash(*try_node_index_into_patricia_key(&idx).unwrap().key()),
-                StarknetAPICompiledClassHash(v.0),
-            )
-        })
-        .collect();
-
     let mut storage = HashMap::new();
-    for address in extended_state_diff.get_contract_addresses() {
-        let mut storage_keys_indices: Vec<NodeIndex> = extended_state_diff
-            .storage
-            .keys()
-            .filter_map(|(add, key)| {
-                if add == &address { Some(NodeIndex::from_leaf_felt(&key.0)) } else { None }
-            })
-            .collect();
+    for address in &initial_reads_keys.modified_contracts {
+        let mut storage_keys_indices: Vec<NodeIndex> =
+            initial_reads_keys
+                .storage_keys
+                .iter()
+                .filter_map(|(add, key)| {
+                    if add == address { Some(NodeIndex::from_leaf_felt(&key.0)) } else { None }
+                })
+                .collect();
         let sorted_leaf_indices = SortedLeafIndices::new(&mut storage_keys_indices);
         let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> = get_leaves(
             commitments,
-            address_to_previous_storage_root_hash[&address],
+            address_to_previous_storage_root_hash[address],
             sorted_leaf_indices,
             &EmptyKeyContext,
         )
@@ -283,20 +276,12 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         .unwrap();
         for (idx, v) in previous_storage_leaves {
             let key = StorageKey(try_node_index_into_patricia_key(&idx).unwrap());
-            storage.insert((address, key), v.0);
+            storage.insert((*address, key), v.0);
         }
     }
 
-    let state_maps = StateMaps {
-        nonces: address_to_previous_nonce,
-        class_hashes: address_to_previous_class_hash,
-        compiled_class_hashes: class_hash_to_compiled_class_hash,
-        storage,
-        declared_contracts: HashMap::new(),
-    };
-
-    let storage_proofs = fetch_storage_proofs_from_state_maps(
-        extended_state_diff,
+    let storage_proofs = fetch_storage_proofs_from_state_changes_keys(
+        initial_reads_keys,
         commitments,
         RootHashes {
             previous_root_hash: previous_state_roots.classes_trie_root_hash,
@@ -344,14 +329,11 @@ pub(crate) async fn create_cached_state_input_and_commitment_infos(
         })
         .collect();
 
-    (
-        state_maps,
-        StateCommitmentInfos {
-            contracts_trie_commitment_info,
-            classes_trie_commitment_info,
-            storage_tries_commitment_infos,
-        },
-    )
+    StateCommitmentInfos {
+        contracts_trie_commitment_info,
+        classes_trie_commitment_info,
+        storage_tries_commitment_infos,
+    }
 }
 
 pub(crate) async fn get_previous_states_and_new_storage_roots<
@@ -452,16 +434,17 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
     }
 }
 
-async fn fetch_storage_proofs_from_state_maps(
-    state_maps: &StateMaps,
+async fn fetch_storage_proofs_from_state_changes_keys(
+    initial_reads_keys: &StateChangesKeys,
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
 ) -> StarknetForestProofs {
-    let class_hashes: Vec<ClassHash> = state_maps.declared_contracts.keys().cloned().collect();
+    let class_hashes: Vec<ClassHash> =
+        initial_reads_keys.compiled_class_hash_keys.iter().cloned().collect();
     let contract_addresses =
-        &state_maps.get_contract_addresses().iter().cloned().collect::<Vec<_>>();
-    let contract_storage_keys = state_maps.storage.keys().fold(
+        &initial_reads_keys.modified_contracts.iter().cloned().collect::<Vec<_>>();
+    let contract_storage_keys = initial_reads_keys.storage_keys.iter().fold(
         HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
         |mut acc, (address, key)| {
             acc.entry(*address).or_default().push(StarknetStorageKey(*key));
