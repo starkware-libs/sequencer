@@ -160,6 +160,22 @@ where
             StorageError::IOError(io::Error::other(e))
         })
     }
+
+    /// Spawns the storage reader server in a background task if it's enabled.
+    pub fn spawn_if_enabled(server: Option<Self>) -> Option<tokio::task::JoinHandle<()>>
+    where
+        RequestHandler: Send + Sync + 'static,
+        Request: Send + Sync + 'static,
+        Response: Send + Sync + 'static,
+    {
+        server.map(|server| {
+            tokio::spawn(async move {
+                if let Err(e) = server.run().await {
+                    tracing::error!("Storage reader server error: {:?}", e);
+                }
+            })
+        })
+    }
 }
 
 /// Axum handler for storage query requests.
