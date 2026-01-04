@@ -9,10 +9,16 @@
 # Example placeholders in JSON:
 #   "for": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.FOR_$$$"
 #   "severity": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.LABELS.OG_PRIORITY_$$$"
+#   "conditions": [{"evaluator": {"params": ["$$$_ALERT_NAME.CONDITIONS.0.EVALUATOR.PARAMS.0_$$$"]}}]
 #
 # Config keys (lowercase):
 #   consensus_proposal_fin_mismatch_once.for: "5m"
 #   consensus_proposal_fin_mismatch_once.labels.og_priority: "p4"
+#   l1_message_scraper_baselayer_error_count.conditions.0.evaluator.params.0: 5.0
+#
+# Note: For numeric values in nested structures (like conditions.params), convert the number
+# to a string placeholder in JSON, then provide the numeric value in YAML. The system will
+# automatically convert it back to a number during processing.
 
 # Add more overrides as needed
 # cende_write_blob_failure_once.for: "1m"
