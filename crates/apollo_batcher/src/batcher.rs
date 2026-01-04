@@ -169,10 +169,6 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    /// Optional storage reader server for handling remote storage reader queries.
-    /// Kept alive to maintain the server running.
-    #[allow(dead_code)]
-    storage_reader_server: Option<GenericStorageReaderServer>,
     commitment_manager: CommitmentManager,
 }
 
@@ -188,7 +184,6 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
-        storage_reader_server: Option<GenericStorageReaderServer>,
         commitment_manager: CommitmentManager,
     ) -> Self {
         Self {
@@ -210,7 +205,6 @@ impl Batcher {
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
             prev_proposal_commitment: None,
-            storage_reader_server,
             commitment_manager,
         }
     }
@@ -1245,6 +1239,8 @@ pub async fn create_batcher(
         )
         .expect("Failed to open batcher's storage");
 
+    GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
@@ -1284,7 +1280,6 @@ pub async fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
-        storage_reader_server,
         commitment_manager,
     )
 }
