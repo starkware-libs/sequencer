@@ -363,6 +363,125 @@ class NodeConfigLoader(Config):
         return yaml_key
 
     @staticmethod
+    def _build_file_paths_section(
+        config_list_path: Optional[str], overlay_source: Optional[str]
+    ) -> str:
+        """Build the file paths section of the error message.
+
+        Args:
+            config_list_path: Optional path to the config list JSON file
+            overlay_source: Optional source identifier for the overlay file
+
+        Returns:
+            The file paths section as a string
+        """
+        section = "File Paths:\n"
+        if config_list_path:
+            full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
+            section += f"  application_config_json_path: {full_config_path}\n"
+        else:
+            section += "  application_config_json_path: <unknown>\n"
+        if overlay_source:
+            section += f"  config_override_path: {overlay_source}\n"
+        else:
+            section += "  config_override_path: <unknown>\n"
+        return section
+
+    @staticmethod
+    def _build_unused_config_keys_section(unmatched_keys: List[tuple[str, str]]) -> str:
+        """Build the unused config keys section of the error message.
+
+        Args:
+            unmatched_keys: List of (yaml_key, placeholder) tuples
+
+        Returns:
+            The unused config keys section as a string
+        """
+        if not unmatched_keys:
+            return ""
+
+        section = "\n" + "-" * 80 + "\n"
+        section += "Unused Config Keys:\n"
+        section += "-" * 80 + "\n"
+        section += (
+            f"  Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
+            f"  corresponding placeholders in the application config JSON file:\n\n"
+        )
+
+        for idx, (yaml_key, placeholder) in enumerate(unmatched_keys, 1):
+            section += f"  Unused Config Key #{idx}:\n"
+            section += f"    YAML key: {yaml_key}\n"
+            section += f"    Maps to placeholder: {placeholder}\n"
+            section += (
+                f"\n    This key exists in your config file but no placeholder matches it.\n"
+                f"    Either remove this key from your config file, or add a corresponding\n"
+                f"    placeholder to the application config JSON file.\n"
+            )
+            if idx < len(unmatched_keys):
+                section += "\n"
+
+        section += "\n"
+        section += "  To fix:\n"
+        section += (
+            "    Remove the unused config keys from your YAML overlay file, or add\n"
+            "    corresponding placeholders to the application config JSON file.\n"
+        )
+        return section
+
+    @staticmethod
+    def _build_missing_placeholders_section(remaining_placeholders: set[str], config: dict) -> str:
+        """Build the missing placeholders section of the error message.
+
+        Args:
+            remaining_placeholders: Set of placeholder strings that weren't overridden
+            config: The config dictionary to find placeholder locations in
+
+        Returns:
+            The missing placeholders section as a string
+        """
+        if not remaining_placeholders:
+            return ""
+
+        sorted_placeholders = sorted(remaining_placeholders)
+        section = "\n" + "-" * 80 + "\n"
+        section += "Missing Placeholders:\n"
+        section += "-" * 80 + "\n"
+        section += (
+            f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
+            f"  application config but were not overridden in your YAML overlay:\n\n"
+        )
+
+        for idx, placeholder in enumerate(sorted_placeholders, 1):
+            # Find where this placeholder appears in the config
+            locations = NodeConfigLoader._find_placeholder_locations(config, placeholder)
+            # Convert placeholder back to YAML key format for suggestion
+            yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
+
+            section += f"  Missing Placeholder #{idx}:\n\n"
+            section += f"    Placeholder:\n"
+            section += f"      {placeholder}\n\n"
+            if locations:
+                section += f"    Location(s) in JSON:\n"
+                for loc in locations[:3]:  # Show up to 3 locations
+                    section += f"      key path: {loc}\n"
+                if len(locations) > 3:
+                    section += f"      ... and {len(locations) - 3} more location(s)\n"
+            section += f"\n    Expected config key:\n"
+            section += f"      {yaml_key_suggestion}\n\n"
+            section += f"    Add to your config file as:\n"
+            section += f"      {yaml_key_suggestion}: <value>\n"
+            if idx < len(sorted_placeholders):
+                section += "\n"
+
+        section += "\n"
+        section += "  To fix:\n"
+        section += (
+            "    Add the missing placeholder entries to your YAML overlay file, or\n"
+            "    remove the placeholders from the application config JSON file.\n"
+        )
+        return section
+
+    @staticmethod
     def apply_sequencer_overrides(
         merged_json_config: dict,
         sequencer_config: Dict[str, Any],
@@ -443,86 +562,13 @@ class NodeConfigLoader(Config):
                 error_message += f"  - {len(remaining_placeholders)} unhandled placeholder(s)\n"
             error_message += "\n"
 
-            # File paths section
-            error_message += "File Paths:\n"
-            if config_list_path:
-                full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
-                error_message += f"  application_config_json_path: {full_config_path}\n"
-            else:
-                error_message += "  application_config_json_path: <unknown>\n"
-            if overlay_source:
-                error_message += f"  config_override_path: {overlay_source}\n"
-            else:
-                error_message += "  config_override_path: <unknown>\n"
-
-            # Unused Config Keys section
-            if unmatched_keys:
-                error_message += "\n" + "-" * 80 + "\n"
-                error_message += "Unused Config Keys:\n"
-                error_message += "-" * 80 + "\n"
-                error_message += (
-                    f"  Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
-                    f"  corresponding placeholders in the application config JSON file:\n\n"
-                )
-
-                for idx, (yaml_key, placeholder) in enumerate(unmatched_keys, 1):
-                    error_message += f"  Unused Config Key #{idx}:\n"
-                    error_message += f"    YAML key: {yaml_key}\n"
-                    error_message += f"    Maps to placeholder: {placeholder}\n"
-                    error_message += (
-                        f"\n    This key exists in your config file but no placeholder matches it.\n"
-                        f"    Either remove this key from your config file, or add a corresponding\n"
-                        f"    placeholder to the application config JSON file.\n"
-                    )
-                    if idx < len(unmatched_keys):
-                        error_message += "\n"
-
-                error_message += "\n"
-                error_message += "  To fix:\n"
-                error_message += (
-                    "    Remove the unused config keys from your YAML overlay file, or add\n"
-                    "    corresponding placeholders to the application config JSON file.\n"
-                )
-
-            # Unhandled Placeholders section
-            if remaining_placeholders:
-                sorted_placeholders = sorted(remaining_placeholders)
-                error_message += "\n" + "-" * 80 + "\n"
-                error_message += "Missing Placeholders:\n"
-                error_message += "-" * 80 + "\n"
-                error_message += (
-                    f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
-                    f"  application config but were not overridden in your YAML overlay:\n\n"
-                )
-
-                for idx, placeholder in enumerate(sorted_placeholders, 1):
-                    # Find where this placeholder appears in the config
-                    locations = NodeConfigLoader._find_placeholder_locations(result, placeholder)
-                    # Convert placeholder back to YAML key format for suggestion
-                    yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
-
-                    error_message += f"  Missing Placeholder #{idx}:\n\n"
-                    error_message += f"    Placeholder:\n"
-                    error_message += f"      {placeholder}\n\n"
-                    if locations:
-                        error_message += f"    Location(s) in JSON:\n"
-                        for loc in locations[:3]:  # Show up to 3 locations
-                            error_message += f"      key path: {loc}\n"
-                        if len(locations) > 3:
-                            error_message += f"      ... and {len(locations) - 3} more location(s)\n"
-                    error_message += f"\n    Expected config key:\n"
-                    error_message += f"      {yaml_key_suggestion}\n\n"
-                    error_message += f"    Add to your config file as:\n"
-                    error_message += f"      {yaml_key_suggestion}: <value>\n"
-                    if idx < len(sorted_placeholders):
-                        error_message += "\n"
-
-                error_message += "\n"
-                error_message += "  To fix:\n"
-                error_message += (
-                    "    Add the missing placeholder entries to your YAML overlay file, or\n"
-                    "    remove the placeholders from the application config JSON file.\n"
-                )
+            error_message += NodeConfigLoader._build_file_paths_section(
+                config_list_path, overlay_source
+            )
+            error_message += NodeConfigLoader._build_unused_config_keys_section(unmatched_keys)
+            error_message += NodeConfigLoader._build_missing_placeholders_section(
+                remaining_placeholders, result
+            )
 
             error_message += "\n" + "=" * 80
 
@@ -615,59 +661,16 @@ class NodeConfigLoader(Config):
             error_message = "=" * 80 + "\n"
             error_message += "ERROR: UNHANDLED PLACEHOLDERS DETECTED\n"
             error_message += "=" * 80 + "\n\n"
-            error_message += (
-                f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+            error_message += f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+
+            error_message += NodeConfigLoader._build_file_paths_section(
+                config_list_path, overlay_source
+            )
+            error_message += NodeConfigLoader._build_missing_placeholders_section(
+                remaining_placeholders, config
             )
 
-            # File paths section
-            error_message += "File Paths:\n"
-            if config_list_path:
-                full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
-                error_message += f"  application_config_json_path: {full_config_path}\n"
-            else:
-                error_message += "  application_config_json_path: <unknown>\n"
-            if overlay_source:
-                error_message += f"  config_override_path: {overlay_source}\n"
-            else:
-                error_message += "  config_override_path: <unknown>\n"
-
-            error_message += "\n" + "-" * 80 + "\n"
-            error_message += "Missing Placeholders:\n"
-            error_message += "-" * 80 + "\n"
-            error_message += (
-                f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
-                f"  application config but were not overridden in your YAML overlay:\n\n"
-            )
-
-            for idx, placeholder in enumerate(sorted_placeholders, 1):
-                # Find where this placeholder appears in the config
-                locations = NodeConfigLoader._find_placeholder_locations(config, placeholder)
-                # Convert placeholder back to YAML key format for suggestion
-                yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
-
-                error_message += f"  Missing Placeholder #{idx}:\n\n"
-                error_message += f"    Placeholder:\n"
-                error_message += f"      {placeholder}\n\n"
-                if locations:
-                    error_message += f"    Location(s) in JSON:\n"
-                    for loc in locations[:3]:  # Show up to 3 locations
-                        error_message += f"      key path: {loc}\n"
-                    if len(locations) > 3:
-                        error_message += f"      ... and {len(locations) - 3} more location(s)\n"
-                error_message += f"\n    Expected config key:\n"
-                error_message += f"      {yaml_key_suggestion}\n\n"
-                error_message += f"    Add to your config file as:\n"
-                error_message += f"      {yaml_key_suggestion}: <value>\n"
-                if idx < len(sorted_placeholders):
-                    error_message += "\n"
-
-            error_message += "\n" + "-" * 80 + "\n"
-            error_message += "To fix:\n"
-            error_message += (
-                "  1. Add the missing placeholder entries to your YAML overlay file, or\n"
-                "  2. Remove the placeholders from the application config JSON file.\n"
-            )
-            error_message += "=" * 80
+            error_message += "\n" + "=" * 80
 
             raise ValueError(error_message)
 
