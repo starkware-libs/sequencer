@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
@@ -668,17 +668,17 @@ impl<S: FlowTestState> TestManager<S> {
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
-            let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
+            let ExecutionOutput { execution_outputs, mut final_state } =
                 execute_transactions(state, &block_txs, block_context);
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let extended_state_diff = final_state.cache.borrow().extended_state_diff();
             // Update the wrapped state.
-            let state_diff = final_state.to_state_diff().unwrap();
+            let state_diff = final_state.to_state_diff().unwrap().state_maps;
             state = final_state.state;
-            alias_keys.extend(state_diff.state_maps.alias_keys());
-            state.apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
+            alias_keys.extend(state_diff.alias_keys());
+            state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
-            let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+            let committer_state_diff = create_committer_state_diff(state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
             let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
@@ -755,14 +755,13 @@ impl<S: FlowTestState> TestManager<S> {
         );
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
-        let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
-            Self::get_decompressed_state_diff(
+        let decompressed_state_diff =
+            create_committer_state_diff(Self::get_decompressed_state_diff(
                 &os_output,
                 &state,
                 alias_keys,
                 self.private_keys.as_ref(),
-            ),
-        ));
+            ));
 
         OsTestOutput {
             runner_output: os_output,
