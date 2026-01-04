@@ -8,6 +8,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -24,6 +25,7 @@ use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use super::errors::ResourceBoundsError;
+use crate::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -246,15 +248,49 @@ impl AccountTransaction {
         }
     }
 
-    fn validate_proof_facts(&self) -> TransactionPreValidationResult<()> {
+    fn validate_proof_facts(
+        &self,
+        tx_context: &TransactionContext,
+        state: &mut dyn State,
+    ) -> TransactionPreValidationResult<()> {
         if let Transaction::Invoke(tx) = &self.tx {
             if tx.tx.version() == TransactionVersion::THREE {
                 let proof_facts_variant = ProofFactsVariant::try_from(&tx.tx.proof_facts())
                     .map_err(|e| TransactionPreValidationError::InvalidProofFacts(e.to_string()))?;
                 match proof_facts_variant {
                     ProofFactsVariant::Empty => {}
-                    ProofFactsVariant::Snos(_snos_proof_facts) => {
-                        // TODO(Meshi/ AvivG): add proof facts validations.
+                    ProofFactsVariant::Snos(snos_proof_facts) => {
+                        // TODO(Meshi/AvivG): Add more proof facts validations.
+                        let proof_block_number = snos_proof_facts.block_number;
+                        let proof_block_hash = snos_proof_facts.block_hash.0;
+
+                        // Validate block number is not too recent.
+                        let current_block_number = tx_context.block_context.block_info.block_number;
+                        if current_block_number.0 - proof_block_number.0 < STORED_BLOCK_HASH_BUFFER
+                        {
+                            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                                "Proof block number is too recent. Proof block number: \
+                                 {proof_block_number}, current block number: \
+                                 {current_block_number}."
+                            )));
+                        }
+
+                        // Validate that the proof block hash matches the stored hash.
+                        let os_addresses = &tx_context
+                            .block_context
+                            .versioned_constants
+                            .os_constants
+                            .os_contract_addresses;
+                        let stored_block_hash = state.get_storage_at(
+                            os_addresses.block_hash_contract_address(),
+                            StorageKey::from(proof_block_number.0),
+                        )?;
+                        if stored_block_hash != proof_block_hash {
+                            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                                "Block hash mismatch for block {proof_block_number}. Proof block \
+                                 hash: {proof_block_hash}, stored block hash: {stored_block_hash}."
+                            )));
+                        }
                     }
                 }
             }
@@ -278,7 +314,7 @@ impl AccountTransaction {
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
-        self.validate_proof_facts()?;
+        self.validate_proof_facts(tx_context, state)?;
 
         Ok(())
     }
