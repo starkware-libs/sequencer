@@ -64,18 +64,17 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::OsExecutionContracts;
-use crate::state_trait::FlowTestState;
 use crate::test_manager::FUNDED_ACCOUNT_ADDRESS;
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
-pub(crate) struct ExecutionOutput<S: FlowTestState> {
+pub(crate) struct ExecutionOutput<S: StateReader + Send> {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     pub(crate) final_state: CachedState<S>,
 }
 
 /// Executes the given transactions on the given state and block context with default execution
 /// configuration.
-pub(crate) fn execute_transactions<S: FlowTestState>(
+pub(crate) fn execute_transactions<S: StateReader + Send>(
     initial_state: S,
     txs: &[Transaction],
     block_context: BlockContext,
@@ -95,8 +94,10 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
 
     // Execute the transactions and make sure none of them failed.
     let execution_deadline = None;
-    let execution_results =
-        executor.execute_txs(txs, execution_deadline).into_iter().collect::<Vec<Result<_, _>>>();
+    let execution_results = executor
+        .execute_txs_sequentially(txs, execution_deadline)
+        .into_iter()
+        .collect::<Vec<Result<_, _>>>();
     let mut execution_outputs = Vec::new();
     for (tx_index, result) in execution_results.into_iter().enumerate() {
         match result {
@@ -216,7 +217,7 @@ pub(crate) fn create_declare_tx(
 /// Gets the extended initial reads for the OS run.
 /// The extended initial reads are the initial reads with the class hash and nonce of each accessed
 /// contract.
-pub(crate) fn get_extended_initial_reads<S: FlowTestState>(state: &CachedState<S>) -> StateMaps {
+pub(crate) fn get_extended_initial_reads<S: StateReader>(state: &CachedState<S>) -> StateMaps {
     let raw_initial_reads = state.get_initial_reads().unwrap();
     // Populate the state initial reads with the class hash and nonce of each accessed contract.
     for contract_address in raw_initial_reads.get_contract_addresses() {
