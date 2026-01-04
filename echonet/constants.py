@@ -17,15 +17,12 @@ STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
 
 # Value to use as the end block number if none is given, large enough to not stop in the middle.
 MAX_BLOCK_NUMBER: int = 1 << 200
-<<<<<<< HEAD
 
 # Revert error patterns to ignore when extracting revert mappings.
 IGNORED_REVERT_PATTERNS = [
     "attestation is out of window",
     "attestation with wrong block hash",
 ]
-||||||| ee7eff7e4
-=======
 
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
@@ -38,4 +35,3 @@ ECHONET_SECRETS_FILENAME = "echonet_secrets.json"
 # Env overrides for paths (define once).
 ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
 ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"
->>>>>>> origin/main-v0.14.1

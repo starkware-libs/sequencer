@@ -21,14 +21,8 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
-<<<<<<< HEAD
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-||||||| ee7eff7e4
-use starknet_api::block::{BlockHash, BlockNumber};
-=======
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
->>>>>>> origin/main-v0.14.1
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
