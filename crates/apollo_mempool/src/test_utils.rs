@@ -294,7 +294,7 @@ pub fn get_txs_and_assert_expected(
     assert_eq!(txs, expected_txs);
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct MempoolMetrics {
     pub txs_received_invoke: u64,
     pub txs_received_declare: u64,
@@ -309,54 +309,73 @@ pub struct MempoolMetrics {
     pub get_txs_size: u64,
     pub delayed_declares_size: u64,
     pub total_size_in_bytes: u64,
-    pub evictions_count: u64,
     pub transaction_time_spent_until_batched: HistogramValue,
     pub transaction_time_spent_until_committed: HistogramValue,
 }
 
 impl MempoolMetrics {
-    pub fn verify_metrics(&self, recorder: &PrometheusRecorder) {
+    pub fn from_recorder(recorder: &PrometheusRecorder) -> Self {
         let metrics = &recorder.handle().render();
-        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
-            metrics,
-            self.txs_received_invoke,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())],
-        );
-        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
-            metrics,
-            self.txs_received_declare,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Declare.into())],
-        );
-        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
-            metrics,
-            self.txs_received_deploy_account,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::DeployAccount.into())],
-        );
-        MEMPOOL_TRANSACTIONS_COMMITTED.assert_eq(metrics, self.txs_committed);
-        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
-            metrics,
-            self.txs_dropped_expired,
-            &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())],
-        );
-        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
-            metrics,
-            self.txs_dropped_rejected,
-            &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
-        );
-        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
-            metrics,
-            self.txs_dropped_evicted,
-            &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
-        );
-        MEMPOOL_POOL_SIZE.assert_eq(metrics, self.pool_size);
-        MEMPOOL_PRIORITY_QUEUE_SIZE.assert_eq(metrics, self.priority_queue_size);
-        MEMPOOL_PENDING_QUEUE_SIZE.assert_eq(metrics, self.pending_queue_size);
-        MEMPOOL_GET_TXS_SIZE.assert_eq(metrics, self.get_txs_size);
-        MEMPOOL_DELAYED_DECLARES_SIZE.assert_eq(metrics, self.delayed_declares_size);
-        MEMPOOL_TOTAL_SIZE_BYTES.assert_eq(metrics, self.total_size_in_bytes);
-        TRANSACTION_TIME_SPENT_UNTIL_BATCHED
-            .assert_eq(metrics, &self.transaction_time_spent_until_batched);
-        TRANSACTION_TIME_SPENT_UNTIL_COMMITTED
-            .assert_eq(metrics, &self.transaction_time_spent_until_committed);
+        Self {
+            txs_received_invoke: MEMPOOL_TRANSACTIONS_RECEIVED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())],
+                )
+                .unwrap(),
+            txs_received_declare: MEMPOOL_TRANSACTIONS_RECEIVED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Declare.into())],
+                )
+                .unwrap(),
+            txs_received_deploy_account: MEMPOOL_TRANSACTIONS_RECEIVED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::DeployAccount.into())],
+                )
+                .unwrap(),
+            txs_committed: MEMPOOL_TRANSACTIONS_COMMITTED
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            txs_dropped_expired: MEMPOOL_TRANSACTIONS_DROPPED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())],
+                )
+                .unwrap(),
+            txs_dropped_rejected: MEMPOOL_TRANSACTIONS_DROPPED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
+                )
+                .unwrap(),
+            txs_dropped_evicted: MEMPOOL_TRANSACTIONS_DROPPED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
+                )
+                .unwrap(),
+            pool_size: MEMPOOL_POOL_SIZE.parse_numeric_metric::<u64>(metrics).unwrap(),
+            priority_queue_size: MEMPOOL_PRIORITY_QUEUE_SIZE
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            pending_queue_size: MEMPOOL_PENDING_QUEUE_SIZE
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            get_txs_size: MEMPOOL_GET_TXS_SIZE.parse_numeric_metric::<u64>(metrics).unwrap(),
+            delayed_declares_size: MEMPOOL_DELAYED_DECLARES_SIZE
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            total_size_in_bytes: MEMPOOL_TOTAL_SIZE_BYTES
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            transaction_time_spent_until_batched: TRANSACTION_TIME_SPENT_UNTIL_BATCHED
+                .parse_histogram_metric(metrics)
+                .unwrap(),
+            transaction_time_spent_until_committed: TRANSACTION_TIME_SPENT_UNTIL_COMMITTED
+                .parse_histogram_metric(metrics)
+                .unwrap(),
+        }
     }
 }
