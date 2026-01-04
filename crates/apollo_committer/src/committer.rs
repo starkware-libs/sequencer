@@ -9,6 +9,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
+use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::db::forest_trait::{
@@ -22,6 +23,7 @@ use starknet_committer::db::serde_db_utils::{
     serialize_felt_no_packing,
     DbBlockNumber,
 };
+use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
@@ -97,17 +99,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
-        let input = Input {
-            state_diff: state_diff.into(),
-            initial_read_context: MockIndexInitialRead {},
-            config: self.config.reader_config.clone(),
-        };
-        let time_measurement = None;
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
-        let global_root = filled_forest.state_roots().global_root();
-
+        let (filled_forest, global_root) = self.commit_state_diff(state_diff).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
             (
@@ -171,6 +163,23 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .await
             .map_err(|err| self.map_internal_error(err))?
             .ok_or(CommitterError::MissingMetadata(metadata))
+    }
+
+    async fn commit_state_diff(
+        &mut self,
+        state_diff: ThinStateDiff,
+    ) -> CommitterResult<(FilledForest, GlobalRoot)> {
+        let input = Input {
+            state_diff: state_diff.into(),
+            initial_read_context: MockIndexInitialRead {},
+            config: self.config.reader_config.clone(),
+        };
+        let time_measurement = None;
+        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
+        let global_root = filled_forest.state_roots().global_root();
+        Ok((filled_forest, global_root))
     }
 
     fn map_internal_error<E: Error>(&self, err: E) -> CommitterError {
