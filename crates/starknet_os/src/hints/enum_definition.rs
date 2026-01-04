@@ -651,11 +651,7 @@ define_hint_enum!(
     (ReadAliasFromKey, read_alias_from_key),
     (GetClassHashAndCompiledClassFact, get_class_hash_and_compiled_class_fact),
     (WriteNextAliasFromKey, write_next_alias_from_key),
-    (
-        ReadAliasCounter,
-        read_alias_counter,
-        "memory[ap] = to_felt_or_relocatable(aliases.read(key=ids.ALIAS_COUNTER_STORAGE_KEY))"
-    ),
+    (ReadAliasCounter, read_alias_counter),
     (InitializeAliasCounter, initialize_alias_counter),
     (UpdateAliasCounter, update_alias_counter),
     (GuessAliasesContractStoragePtr, guess_aliases_contract_storage_ptr),

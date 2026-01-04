@@ -6,7 +6,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
@@ -143,7 +142,7 @@ pub(crate) fn write_next_alias_from_key<S: StateReader>(
 
 pub(crate) fn read_alias_counter<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, constants, .. }: HintArgs<'_>,
+    HintArgs { vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -151,7 +150,13 @@ pub(crate) fn read_alias_counter<S: StateReader>(
         .get_current_execution_helper()?
         .cached_state
         .get_storage_at(aliases_contract_address, alias_counter_storage_key)?;
-    Ok(insert_value_into_ap(vm, alias_counter)?)
+    Ok(insert_value_from_var_name(
+        Ids::NextAvailableAlias.into(),
+        alias_counter,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn initialize_alias_counter<S: StateReader>(
