@@ -6,6 +6,11 @@ import os
 from typing import Optional
 
 from common import const
+from common.config_overrides import apply_config_overrides as apply_config_overrides_generic
+from common.config_overrides import (
+    load_config_file,
+    validate_config_overrides,
+)
 from common.grafana10_objects import (
     alert_expression_model_object,
     alert_query_model_object,
@@ -21,6 +26,9 @@ from grafana_client.client import (
     GrafanaServerError,
 )
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
+
+# Global logger (initialized in alert_builder function)
+logger = None
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):
@@ -174,6 +182,29 @@ def remove_expr_placeholder(expr: str) -> str:
     return expr.replace(const.ALERT_RULE_EXPRESSION_PLACEHOLDER, "")
 
 
+def post_process_alert(alert: dict[str, any]) -> dict[str, any]:
+    """
+    Post-process alert after placeholder replacement.
+    Handles alert-specific field conversions (e.g., intervalSec string to int).
+
+    Args:
+        alert: The alert dictionary
+
+    Returns:
+        The alert dictionary with post-processing applied
+    """
+    # Special handling for intervalSec: if it was a placeholder string that got replaced,
+    # try to convert it to int if it's now numeric
+    if "intervalSec" in alert and isinstance(alert["intervalSec"], str):
+        try:
+            # Try to convert to int if it's a numeric string
+            alert["intervalSec"] = int(alert["intervalSec"])
+        except ValueError:
+            # Keep as string if conversion fails
+            pass
+    return alert
+
+
 # TODO(Tsabary): remove the vanilla path option once we transition to per-env file.
 def resolve_dev_alerts_file_path(path: str, suffix: str) -> str:
     """
@@ -207,15 +238,48 @@ def alert_builder(args: argparse.Namespace):
     with open(alert_file_path, "r") as f:
         dev_alerts = json.load(f)
 
+    # Load config overrides if provided
+    config = (
+        load_config_file(args.config_file, logger_instance=logger)
+        if hasattr(args, "config_file") and args.config_file
+        else {}
+    )
+    if config:
+        logger.info(f"Loaded {len(config)} override(s) from config file")
+
     if not args.dry_run:
         client = GrafanaApi.from_url(args.grafana_url)
         folder_uid = create_folder_return_uid(client=client, title="Sequencer")
     else:
         folder_uid = args.folder_uid
 
+    # Get config file path for error messages
+    config_file_path = args.config_file if hasattr(args, "config_file") and args.config_file else ""
+
+    # Validate all placeholders from all alerts first (before processing any)
+    if config:
+        validate_config_overrides(
+            dev_alerts["alerts"],
+            config,
+            source_json_path=alert_file_path,
+            config_override_path=config_file_path,
+            logger_instance=logger,
+            item_type_name="alert",
+        )
+
     alerts = []
 
     for dev_alert in dev_alerts["alerts"]:
+        # Apply config overrides to replace placeholders
+        if config:
+            dev_alert = apply_config_overrides_generic(
+                dev_alert,
+                config,
+                logger_instance=logger,
+                item_name=dev_alert["name"],
+                post_process=post_process_alert,
+            )
+
         if args.namespace and args.cluster:
             expr = inject_expr_placeholders(
                 expr=dev_alert["expr"], namespace=args.namespace, cluster=args.cluster

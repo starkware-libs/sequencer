@@ -138,6 +138,11 @@ def arg_parser() -> argparse.ArgumentParser:
         choices=[e.value for e in EnvironmentName],
         required=True,
     )
+    parser.add_argument(
+        "--config-file",
+        type=str,
+        help="Path to YAML config file with alert field overrides (e.g., alert_name.field: value).",
+    )
 
     args = parser.parse_args()
 

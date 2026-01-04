@@ -8,6 +8,7 @@ name = "pypi"
 [packages]
 grafanalib = "~=0.7.1"
 requests = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3.10"
