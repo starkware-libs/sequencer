@@ -725,9 +725,7 @@ impl NetworkManager {
 
         let key_pair = match secret_key {
             Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.expose_secret())
-                .expect("Error while parsing secret key"), // TODO(victork): make sure we're
-            // allowed to expose the secret key
-            // here
+                .expect("Error while parsing secret key"),
             None => Keypair::generate_ed25519(),
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)

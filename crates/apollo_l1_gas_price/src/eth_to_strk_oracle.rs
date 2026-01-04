@@ -114,7 +114,6 @@ impl EthToStrkOracleClient {
                 let UrlAndHeaderMap { mut url, headers } = url_and_headers.clone();
                 url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
                 let result = tokio::time::timeout(Duration::from_secs(query_timeout_sec), async {
-                    // TODO(victork): make sure we're allowed to expose the headers here
                     let response = client
                         .get(url.clone())
                         .headers(headers.peek_secret().clone())
