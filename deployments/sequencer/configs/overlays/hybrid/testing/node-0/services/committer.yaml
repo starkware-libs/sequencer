@@ -5,6 +5,7 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_committer.json
   sequencerConfig:
+    committer_config_verify_state_diff_hash: false
     components_batcher_port: 55000
     components_batcher_url: sequencer-core-service
     components_committer_port: 55013
