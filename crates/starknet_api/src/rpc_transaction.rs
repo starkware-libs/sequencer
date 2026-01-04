@@ -736,6 +736,57 @@ impl TransactionHasher for InternalRpcInvokeTransactionV3 {
     }
 }
 
+impl From<InternalRpcInvokeTransactionV3> for InvokeTransactionV3 {
+    fn from(tx: InternalRpcInvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+            proof_facts: tx.proof_facts,
+        }
+    }
+}
+
+impl From<RpcInvokeTransactionV3> for InternalRpcInvokeTransactionV3 {
+    fn from(tx: RpcInvokeTransactionV3) -> Self {
+        Self {
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            resource_bounds: tx.resource_bounds,
+            tip: tx.tip,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            proof_facts: tx.proof_facts,
+            // Note: proof field is dropped
+        }
+    }
+}
+
+impl From<RpcInvokeTransaction> for InternalRpcInvokeTransactionV3 {
+    fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
+        match rpc_invoke_tx {
+            RpcInvokeTransaction::V3(tx) => tx.into(),
+        }
+    }
+}
+
+impl From<InternalRpcInvokeTransactionV3> for InvokeTransaction {
+    fn from(tx: InternalRpcInvokeTransactionV3) -> Self {
+        InvokeTransaction::V3(tx.into())
+    }
+}
+
 // TODO(Aviv): remove duplication with sequencer/crates/apollo_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
