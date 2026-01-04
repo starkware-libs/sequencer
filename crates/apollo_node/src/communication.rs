@@ -11,6 +11,7 @@ use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
 use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_proof_manager_types::ProofManagerRequestWrapper;
 use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -26,6 +27,7 @@ pub struct SequencerNodeCommunication {
     l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestWrapper>,
     mempool_channel: ComponentCommunication<MempoolRequestWrapper>,
     mempool_p2p_propagator_channel: ComponentCommunication<MempoolP2pPropagatorRequestWrapper>,
+    proof_manager_channel: ComponentCommunication<ProofManagerRequestWrapper>,
     sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestWrapper>,
     signature_manager_channel: ComponentCommunication<SignatureManagerRequestWrapper>,
     state_sync_channel: ComponentCommunication<StateSyncRequestWrapper>,
@@ -102,6 +104,14 @@ impl SequencerNodeCommunication {
 
     pub fn take_mempool_rx(&mut self) -> Receiver<MempoolRequestWrapper> {
         self.mempool_channel.take_rx()
+    }
+
+    pub fn take_proof_manager_tx(&mut self) -> Sender<ProofManagerRequestWrapper> {
+        self.proof_manager_channel.take_tx()
+    }
+
+    pub fn take_proof_manager_rx(&mut self) -> Receiver<ProofManagerRequestWrapper> {
+        self.proof_manager_channel.take_rx()
     }
 
     pub fn take_sierra_compiler_tx(&mut self) -> Sender<SierraCompilerRequestWrapper> {
@@ -285,6 +295,23 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
+    let (tx_proof_manager, rx_proof_manager) =
+        match config.components.proof_manager.execution_mode.is_running_locally() {
+            true => {
+                let (tx_proof_manager, rx_proof_manager) = channel::<ProofManagerRequestWrapper>(
+                    config
+                        .components
+                        .proof_manager
+                        .local_server_config
+                        .as_ref()
+                        .expect("Proof manager local server config should be available.")
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_proof_manager), Some(rx_proof_manager))
+            }
+            false => (None, None),
+        };
+
     let (tx_sierra_compiler, rx_sierra_compiler) =
         match config.components.sierra_compiler.execution_mode.is_running_locally() {
             true => {
@@ -351,6 +378,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             tx_mempool_p2p_propagator,
             rx_mempool_p2p_propagator,
         ),
+        proof_manager_channel: ComponentCommunication::new(tx_proof_manager, rx_proof_manager),
         sierra_compiler_channel: ComponentCommunication::new(
             tx_sierra_compiler,
             rx_sierra_compiler,

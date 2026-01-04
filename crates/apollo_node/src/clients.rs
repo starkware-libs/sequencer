@@ -73,6 +73,14 @@ use apollo_mempool_types::communication::{
 };
 use apollo_node_config::component_execution_config::ReactiveComponentExecutionMode;
 use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_proof_manager::metrics::PROOF_MANAGER_INFRA_METRICS;
+use apollo_proof_manager_types::{
+    LocalProofManagerClient,
+    ProofManagerRequest,
+    ProofManagerResponse,
+    RemoteProofManagerClient,
+    SharedProofManagerClient,
+};
 use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_signature_manager_types::{
     LocalSignatureManagerClient,
@@ -104,6 +112,7 @@ pub struct SequencerNodeClients {
     mempool_client: Client<MempoolRequest, MempoolResponse>,
     mempool_p2p_propagator_client:
         Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
+    proof_manager_client: Client<ProofManagerRequest, ProofManagerResponse>,
     sierra_compiler_client: Client<SierraCompilerRequest, SierraCompilerResponse>,
     signature_manager_client: Client<SignatureManagerRequest, SignatureManagerResponse>,
     state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
@@ -237,6 +246,16 @@ impl SequencerNodeClients {
         &self,
     ) -> Option<SharedMempoolP2pPropagatorClient> {
         get_shared_client!(self, mempool_p2p_propagator_client)
+    }
+
+    pub fn get_proof_manager_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<ProofManagerRequest, ProofManagerResponse>> {
+        self.proof_manager_client.get_local_client()
+    }
+
+    pub fn get_proof_manager_shared_client(&self) -> Option<SharedProofManagerClient> {
+        get_shared_client!(self, proof_manager_client)
     }
 
     pub fn get_sierra_compiler_local_client(
@@ -460,6 +479,17 @@ pub fn create_node_clients(
         &MEMPOOL_P2P_INFRA_METRICS.get_remote_client_metrics()
     );
 
+    let proof_manager_client = create_client!(
+        &config.components.proof_manager.execution_mode,
+        LocalProofManagerClient,
+        RemoteProofManagerClient,
+        channels.take_proof_manager_tx(),
+        &config.components.proof_manager.remote_client_config,
+        &config.components.proof_manager.url,
+        config.components.proof_manager.port,
+        &PROOF_MANAGER_INFRA_METRICS.get_local_client_metrics(),
+        &PROOF_MANAGER_INFRA_METRICS.get_remote_client_metrics()
+    );
     let sierra_compiler_client = create_client!(
         &config.components.sierra_compiler.execution_mode,
         LocalSierraCompilerClient,
@@ -507,6 +537,7 @@ pub fn create_node_clients(
         mempool_client,
         mempool_p2p_propagator_client,
         sierra_compiler_client,
+        proof_manager_client,
         signature_manager_client,
         state_sync_client,
     }
