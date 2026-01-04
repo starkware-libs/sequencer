@@ -15,6 +15,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::ProposeBlock(input) => {
                 BatcherResponse::ProposeBlock(self.propose_block(input).await)
             }
+            BatcherRequest::GetStoredBlockHash(block_number) => {
+                BatcherResponse::GetStoredBlockHash(self.get_stored_block_hash(block_number))
+            }
             BatcherRequest::GetCurrentHeight => {
                 BatcherResponse::GetCurrentHeight(self.get_height().await)
             }
