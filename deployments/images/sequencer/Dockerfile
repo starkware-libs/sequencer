@@ -36,7 +36,6 @@ RUN BUILD_FLAGS=""; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
-
 FROM ubuntu:24.04 AS final_stage
 
 ARG BUILD_MODE=release
