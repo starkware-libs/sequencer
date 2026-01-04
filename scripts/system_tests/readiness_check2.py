@@ -203,6 +203,10 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
         timeout_seconds = 180
         poll_interval = 5
         elapsed = 0
+        ready = 0
+        desired = 0
+        available = 0
+        updated = 0
 
         while elapsed < timeout_seconds:
             try:
@@ -218,6 +222,8 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
                     ).status
                     ready = status.ready_replicas or 0
                     desired = status.replicas or 0
+                    available = status.available_replicas or 0
+                    updated = status.updated_replicas or 0
                 else:
                     print(f"❌ Unknown controller: {controller}.")
                     sys.exit(1)
@@ -225,6 +231,15 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
                 if ready == desired and ready > 0:
                     print(f"✅ {controller} {resource_name} is ready.")
                     break
+
+                # Print status every 30 seconds for debugging
+                if elapsed % 30 == 0:
+                    if controller_lower == "deployment":
+                        print(
+                            f"⏳ Status: ready={ready}/{desired}, available={available}, updated={updated}"
+                        )
+                    else:
+                        print(f"⏳ Status: ready={ready}/{desired}")
             except ApiException as e:
                 print(f"❌ Error while checking status: {e}")
 
@@ -232,6 +247,44 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
             elapsed += poll_interval
         else:
             print(f"❌ Timeout waiting for {controller} {resource_name} to become ready.")
+            print(f"   Final status: ready={ready}/{desired}")
+            if controller_lower == "deployment":
+                print(f"   Available: {available}, Updated: {updated}")
+
+            # Try to get pod information for debugging
+            try:
+                core_v1 = client.CoreV1Api()
+                pods = core_v1.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=f"app=sequencer-{service_name_lower}",
+                )
+                if pods.items:
+                    print(f"\n🔍 Found {len(pods.items)} pod(s) for {resource_name}:")
+                    for pod in pods.items:
+                        print(f"   Pod: {pod.metadata.name}")
+                        print(f"   Status: {pod.status.phase}")
+                        if pod.status.container_statuses:
+                            for container in pod.status.container_statuses:
+                                if container.state.waiting:
+                                    print(
+                                        f"   Container {container.name} waiting: {container.state.waiting.reason}"
+                                    )
+                                    if container.state.waiting.message:
+                                        print(
+                                            f"     Message: {container.state.waiting.message}"
+                                        )
+                                elif container.state.terminated:
+                                    print(
+                                        f"   Container {container.name} terminated: {container.state.terminated.reason}"
+                                    )
+                                    if container.state.terminated.message:
+                                        print(
+                                            f"     Message: {container.state.terminated.message}"
+                                        )
+                        print("")
+            except Exception as e:
+                print(f"⚠️ Could not get pod information: {e}")
+
             sys.exit(1)
 
 
