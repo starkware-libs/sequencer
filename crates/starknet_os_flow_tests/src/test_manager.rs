@@ -86,10 +86,11 @@ use crate::state_trait::FlowTestState;
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
-    create_cached_state_input_and_commitment_infos,
+    create_commitment_infos,
     create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
+    get_extended_initial_reads,
     maybe_dummy_block_hash_and_number,
     ExecutionOutput,
 };
@@ -671,7 +672,7 @@ impl<S: FlowTestState> TestManager<S> {
             let ExecutionOutput { execution_outputs, mut final_state } =
                 execute_transactions(state, &block_txs, block_context);
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
-            let extended_state_diff = final_state.cache.borrow().extended_state_diff();
+            let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             state = final_state.state;
@@ -691,14 +692,13 @@ impl<S: FlowTestState> TestManager<S> {
             map_storage = db.consume_storage();
 
             // Prepare the OS input.
-            let (cached_state_input, commitment_infos) =
-                create_cached_state_input_and_commitment_infos(
-                    &previous_state_roots,
-                    &new_state_roots,
-                    &mut map_storage,
-                    &extended_state_diff,
-                )
-                .await;
+            let commitment_infos = create_commitment_infos(
+                &previous_state_roots,
+                &new_state_roots,
+                &mut map_storage,
+                &initial_reads.keys(),
+            )
+            .await;
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
@@ -733,7 +733,7 @@ impl<S: FlowTestState> TestManager<S> {
                 block_hash_commitments,
                 old_block_number_and_hash,
                 class_hashes_to_migrate: Vec::new(),
-                initial_reads: cached_state_input,
+                initial_reads,
             };
             os_block_inputs.push(os_block_input);
             previous_state_roots = new_state_roots;
