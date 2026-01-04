@@ -15,6 +15,7 @@ use crate::deployment_definitions::{
     ComponentConfigInService,
     InfraServicePort,
     ServicePort,
+    INFRA_PORT_PLACEHOLDER,
 };
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
@@ -63,10 +64,11 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             }
             None => {
                 // Extract the service ports for all inner services of the distributed node.
-                for inner_service_name in Self::iter() {
-                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
-                    service_ports.extend(inner_service_port);
+                // for inner_service_name in Self::iter() {
+                for service_port in InfraServicePort::iter() {
+                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
                 }
+                // }
             }
         };
 
