@@ -235,6 +235,7 @@ use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
+use libp2p::identity::Keypair;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
@@ -248,6 +249,7 @@ pub(crate) type Bytes = Vec<u8>;
 
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_config"))]
 pub struct NetworkConfig {
     pub port: u16,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -401,6 +403,37 @@ fn validate_bootstrap_peer_multiaddr_list(
             error.message = Some(std::borrow::Cow::from(format!("Repeated PeerId: {peer_id}")));
             return Err(error);
         }
+    }
+    Ok(())
+}
+
+fn validate_config(config: &NetworkConfig) -> Result<(), validator::ValidationError> {
+    if config.secret_key.is_none() && config.advertised_multiaddr.is_none() {
+        return Ok(());
+    }
+
+    let Some(advertised_multiaddr) = &config.advertised_multiaddr else {
+        return Err(ValidationError::new("Advertised multiaddr is missing."));
+    };
+
+    let Some(peer_id) = DialOpts::from(advertised_multiaddr.clone()).get_peer_id() else {
+        return Err(ValidationError::new("Advertised multiaddr does not contain a PeerId."));
+    };
+
+    let Some(secret_key) = &config.secret_key else {
+        return Err(ValidationError::new("Secret key is missing."));
+    };
+
+    let Ok(keypair) = Keypair::ed25519_from_bytes(secret_key.peek_secret().clone()) else {
+        return Err(ValidationError::new("Invalid secret key."));
+    };
+
+    let derived_peer_id = keypair.public().to_peer_id();
+
+    if peer_id != derived_peer_id {
+        return Err(ValidationError::new(
+            "Advertised multiaddr's peer ID does not match the peer ID derived from secret key.",
+        ));
     }
     Ok(())
 }
