@@ -23,12 +23,7 @@ use serde_json::{from_str, json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment_definitions::{
-    ComponentConfigInService,
-    InfraServicePort,
-    ServicePort,
-    CONFIG_BASE_DIR,
-};
+use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -230,25 +225,6 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_scale_policy(&self) -> ScalePolicy;
 
     fn get_retries(&self) -> usize;
-
-    fn get_service_ports(&self) -> BTreeSet<ServicePort>;
-
-    fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
-        let mut ports = BTreeMap::new();
-
-        for service_port in self.get_service_ports() {
-            match service_port {
-                ServicePort::Infra(service) => {
-                    let port = service.get_port();
-                    ports.insert(service, port);
-                }
-                ServicePort::BusinessLogic(_) => {
-                    continue;
-                }
-            }
-        }
-        ports
-    }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
 }
