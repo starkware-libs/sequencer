@@ -203,7 +203,7 @@ impl BlockExecutionArtifacts {
     }
 
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
-    pub async fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
+    pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
         self.partial_block_hash_components.clone()
     }
 }
