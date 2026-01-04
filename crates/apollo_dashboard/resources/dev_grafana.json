@@ -444,6 +444,15 @@
           "extra_params": {}
         },
         {
+          "title": "Sync Diff From Central",
+          "description": "The number of blocks that were not fully synced yet",
+          "type": "timeseries",
+          "exprs": [
+            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Time to Complete Sync",
           "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `class manager marker` (which is the last component to finish downloading among all state sync parts), compared against the `central block marker` (the latest block known to central).",
           "type": "timeseries",
@@ -453,15 +462,6 @@
           "extra_params": {
             "unit": "s"
           }
-        },
-        {
-          "title": "Sync Diff From Central",
-          "description": "The number of blocks that were not fully synced yet",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
         },
         {
           "title": "Sync Block Age",
