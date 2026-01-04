@@ -474,34 +474,51 @@ fn write_transactions<'env>(
     events_table: &'env EventsTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
-    for (index, ((tx, tx_output), tx_hash)) in block_body
-        .transactions
+    if block_body.transactions.is_empty() {
+        return Ok(());
+    }
+
+    // Batch append all transactions and transaction outputs at once.
+    let transactions_refs: Vec<&Transaction> = block_body.transactions.iter().collect();
+    let tx_outputs_refs: Vec<&TransactionOutput> = block_body.transaction_outputs.iter().collect();
+
+    let tx_locations = file_handlers.append_transactions_batch(&transactions_refs);
+    let tx_output_locations = file_handlers.append_transaction_outputs_batch(&tx_outputs_refs);
+
+    // Write metadata and events to MDBX tables.
+    for (index, ((tx_output, tx_hash), (tx_location, tx_output_location))) in block_body
+        .transaction_outputs
         .iter()
-        .zip(block_body.transaction_outputs.iter())
         .zip(block_body.transaction_hashes.iter())
+        .zip(tx_locations.iter().zip(tx_output_locations.iter()))
         .enumerate()
     {
         let tx_offset_in_block = TransactionOffsetInBlock(index);
         let transaction_index = TransactionIndex(block_number, tx_offset_in_block);
-        let tx_location = file_handlers.append_transaction(tx);
-        let tx_output_location = file_handlers.append_transaction_output(tx_output);
+
         write_events(tx_output, txn, events_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
         transaction_metadata_table.append(
             txn,
             &transaction_index,
-            &TransactionMetadata { tx_location, tx_output_location, tx_hash: *tx_hash },
+            &TransactionMetadata {
+                tx_location: *tx_location,
+                tx_output_location: *tx_output_location,
+                tx_hash: *tx_hash,
+            },
         )?;
+    }
 
-        // If this is the last iteration, update the file offset table.
-        if index == block_body.transactions.len() - 1 {
-            file_offset_table.upsert(txn, &OffsetKind::Transaction, &tx_location.next_offset())?;
-            file_offset_table.upsert(
-                txn,
-                &OffsetKind::TransactionOutput,
-                &tx_output_location.next_offset(),
-            )?;
-        }
+    // Update file offsets with the last locations.
+    if let (Some(last_tx_location), Some(last_tx_output_location)) =
+        (tx_locations.last(), tx_output_locations.last())
+    {
+        file_offset_table.upsert(txn, &OffsetKind::Transaction, &last_tx_location.next_offset())?;
+        file_offset_table.upsert(
+            txn,
+            &OffsetKind::TransactionOutput,
+            &last_tx_output_location.next_offset(),
+        )?;
     }
 
     Ok(())
