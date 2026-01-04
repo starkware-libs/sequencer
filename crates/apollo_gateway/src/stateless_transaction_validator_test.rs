@@ -139,7 +139,13 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs { proof_facts: ProofFacts::snos_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
 )]
-// TODO(AvivG): Add case for client-side proving disabled.
+#[case::client_side_proving_disabled(
+    StatelessTransactionValidatorConfig {
+        allow_client_side_proving: false,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs::default()
+)]
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), RpcTransactionArgs::default())]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
@@ -334,7 +340,6 @@ fn test_invalid_max_l2_gas_amount(
     }),
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
-// TODO(AvivG): Add test for invalid proof fields.
 fn test_invalid_tx(
     #[case] rpc_tx_args: RpcTransactionArgs,
     #[case] expected_error: StatelessTransactionValidatorError,
@@ -587,4 +592,50 @@ fn test_declare_entry_points_not_sorted_by_selector(
     assert_eq!(tx_validator.validate(&tx), expected);
 }
 
-// TODO(AvivG): Test allow_client_side_proving config.
+#[rstest]
+#[case::no_proof_data_allowed_when_disabled(false, None, None)]
+#[case::proof_facts_only(false, Some(ProofFacts::snos_proof_facts_for_testing()), None)]
+#[case::proof_only(false, None, Some(Proof::proof_for_testing()))]
+#[case::both_proof_and_facts(
+    false,
+    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(Proof::proof_for_testing())
+)]
+#[case::enabled_accepts_both(
+    true,
+    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(Proof::proof_for_testing())
+)]
+fn test_client_side_proving_flag(
+    #[case] allow_client_side_proving: bool,
+    #[case] proof_facts: Option<ProofFacts>,
+    #[case] proof: Option<Proof>,
+) {
+    let config = StatelessTransactionValidatorConfig {
+        allow_client_side_proving,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    };
+    let tx_validator = StatelessTransactionValidator { config };
+
+    // Check for proof data before moving values.
+    let has_proof_data = proof_facts.is_some() || proof.is_some();
+
+    let rpc_tx_args = RpcTransactionArgs {
+        proof_facts: proof_facts.unwrap_or_default(),
+        proof: proof.unwrap_or_default(),
+        ..Default::default()
+    };
+
+    let tx = rpc_tx_for_testing(TransactionType::Invoke, rpc_tx_args);
+
+    // Disabled ⇒ reject txs with proof data.
+    // Enabled  ⇒ always accept.
+    if !allow_client_side_proving && has_proof_data {
+        assert_eq!(
+            tx_validator.validate(&tx).unwrap_err(),
+            StatelessTransactionValidatorError::ClientSideProvingNotAllowed
+        );
+    } else {
+        assert_matches!(tx_validator.validate(&tx), Ok(()));
+    }
+}
