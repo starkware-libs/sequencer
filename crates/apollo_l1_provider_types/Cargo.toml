@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Type definitions for Apollo L1 provider communication."
 
 [features]
 testing = ["mockall"]

@@ -140,7 +140,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
         BTreeMap::from([ser_param(
             "recorder_url",
             // TODO(victork): make sure we're allowed to expose the recorder URL here
-            self.recorder_url.as_ref(),
+            self.recorder_url.peek_secret(),
             "The URL of the Pythonic cende_recorder",
             ParamPrivacyInput::Private,
         )])
@@ -193,7 +193,7 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
-    pub first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash,
+    pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_config: ServerConfig,
 }
 
@@ -248,8 +248,8 @@ impl SerializeConfig for BatcherConfig {
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
-        dump.append(&mut prepend_sub_config_name(
-            self.first_block_with_partial_block_hash.dump(),
+        dump.extend(ser_optional_sub_config(
+            &self.first_block_with_partial_block_hash,
             "first_block_with_partial_block_hash",
         ));
         dump
@@ -277,8 +277,7 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
-            // TODO(Rotem): set a more reasonable default value.
-            first_block_with_partial_block_hash: FirstBlockWithPartialBlockHash::default(),
+            first_block_with_partial_block_hash: None,
             storage_reader_server_config: ServerConfig::default(),
         }
     }

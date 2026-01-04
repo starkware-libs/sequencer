@@ -6,7 +6,7 @@ use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, trace, warn};
 use url::Url;
 
 use crate::cende_client_types::CendePreconfirmedBlock;
@@ -85,7 +85,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
 
         let request_builder = self
             .client
-            .post(self.write_pre_confirmed_block_url.clone().into())
+            .post(self.write_pre_confirmed_block_url.clone().expose_secret())
             .json(&pre_confirmed_block);
 
         trace!(

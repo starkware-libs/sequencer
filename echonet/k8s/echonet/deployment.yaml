@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echonet
+  labels:
+    app.kubernetes.io/name: echonet
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      # NOTE: Deployment selectors are immutable once created.
+      # Keep these stable so `kubectl apply` works across updates.
+      app: echonet
+      role: flask
+  template:
+    metadata:
+      labels:
+        app: echonet
+        role: flask
+        app.kubernetes.io/name: echonet
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: echonet
+
+      initContainers:
+        - name: extract-echonet-src
+          image: alpine:3.20
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              mkdir -p /app
+              base64 -d /bundle/echonet-src.tgz.b64 > /tmp/echonet-src.tgz
+              tar -xzf /tmp/echonet-src.tgz -C /app
+              test -f /app/echonet/__init__.py
+              # Convenience for interactive debugging: allow `python reports.py` from /app.
+              ln -sf /app/echonet/reports.py /app/reports.py
+          volumeMounts:
+            - name: echonet-src-bundle
+              mountPath: /bundle
+              readOnly: true
+            - name: app-src
+              mountPath: /app
+
+      containers:
+        - name: echonet
+          image: python:3.11-slim
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: "/app"
+            - name: BLOCKS_DIR
+              value: "/data/blocks"
+            - name: ECHONET_LOG_DIR
+              value: "/data/echonet"
+          command: ["bash","-lc"]
+          args:
+            - >
+              export PYTHONPATH=/app:${PYTHONPATH:-} &&
+              python -m pip install --no-cache-dir --disable-pip-version-check
+              flask gunicorn requests aiohttp kubernetes eth_abi &&
+              echo "[echonet] starting gunicorn on :80 (1 worker, 4 threads)" &&
+              gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile -
+          workingDir: /app
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - { name: app-src, mountPath: /app }
+            - { name: data-dir, mountPath: /data }
+
+      volumes:
+        - name: echonet-src-bundle
+          configMap:
+            name: echonet-src
+            items:
+              - { key: echonet-src.tgz.b64, path: echonet-src.tgz.b64 }
+        - name: app-src
+          emptyDir: {}
+        - name: data-dir
+          persistentVolumeClaim:
+            claimName: echonet-data

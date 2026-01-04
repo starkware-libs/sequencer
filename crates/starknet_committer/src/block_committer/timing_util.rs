@@ -7,7 +7,8 @@ use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::block_committer::input::{FactsDbInitialRead, Input};
+use crate::block_committer::input::Input;
+use crate::db::facts_db::types::FactsDbInitialRead;
 
 pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 

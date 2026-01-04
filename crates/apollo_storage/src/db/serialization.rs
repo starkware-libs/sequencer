@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::marker::PhantomData;
 
+#[cfg(test)]
 use tracing::error;
 
 use crate::db::DbError;

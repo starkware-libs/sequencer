@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
+use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
@@ -97,7 +97,7 @@ impl L1GasPriceProvider {
             }
         }
         trace!("Received price sample for L1 block: {:?}", new_data);
-        info_every_n_sec!(1, "Received price sample for L1 block: {:?}", new_data);
+        info_every_n_ms!(1_000, "Received price sample for L1 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
@@ -171,8 +171,8 @@ impl L1GasPriceProvider {
         let price_info_out = price_info_summed
             .checked_div(actual_number_of_blocks)
             .expect("Actual number of blocks should be non-zero");
-        info_every_n_sec!(
-            1,
+        info_every_n_ms!(
+            1_000,
             "Calculated L1 gas price for timestamp {}: {:?} (based on blocks {}-{}, inclusive)",
             timestamp.0,
             price_info_out,

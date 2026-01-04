@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serviceaccount.yaml
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - pvc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: echonet
+    includeSelectors: false
+
+configMapGenerator:
+  - name: echonet-src
+    files:
+      - echonet-src.tgz.b64=generated/echonet-src.tgz.b64

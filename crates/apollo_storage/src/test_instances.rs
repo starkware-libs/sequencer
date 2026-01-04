@@ -70,7 +70,7 @@ auto_impl_get_test_instance! {
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
-        BlockHash = 9,
+        GlobalRoot = 9,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,

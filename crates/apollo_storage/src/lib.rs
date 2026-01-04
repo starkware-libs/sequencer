@@ -78,7 +78,6 @@
 
 pub mod base_layer;
 pub mod block_hash;
-pub mod block_hash_marker;
 pub mod body;
 pub mod class;
 pub mod class_hash;
@@ -86,6 +85,7 @@ pub mod class_manager;
 pub mod compiled_class;
 pub mod consensus;
 pub mod global_root;
+pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
@@ -100,6 +100,8 @@ mod serialization;
 pub mod state;
 /// Storage reader server framework for handling remote storage queries.
 pub mod storage_reader_server;
+/// Storage reader request and response types.
+pub mod storage_reader_types;
 mod version;
 
 mod deprecated;
@@ -193,15 +195,8 @@ pub fn open_storage(
     open_storage_internal(storage_config, None)
 }
 
-/// Same as [`open_storage`], but also updates the given metric for the number of open readers.
-pub fn open_storage_with_metric(
-    storage_config: StorageConfig,
-    open_readers_metric: &'static MetricGauge,
-) -> StorageResult<(StorageReader, StorageWriter)> {
-    open_storage_internal(storage_config, Some(open_readers_metric))
-}
-
-/// Same as [`open_storage_with_metric`], but also creates a storage reader server.
+/// Same as [`open_storage`], but also updates the given metric for the number of open readers and
+/// creates a storage reader server.
 pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
@@ -631,6 +626,14 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
         Ok(state_diffs_table.get(&self.txn, &block_number)?)
     }
+
+    /// Returns the thin state diff stored in the mmap file at the given location.
+    pub fn get_state_diff_from_location(
+        &self,
+        state_diff_location: LocationInFile,
+    ) -> StorageResult<ThinStateDiff> {
+        self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
+    }
 }
 
 /// Returns the names of the tables in the storage.
@@ -694,8 +697,9 @@ macro_rules! struct_field_names {
 }
 use struct_field_names;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct TransactionMetadata {
+/// Metadata about a transaction stored in the database.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransactionMetadata {
     tx_hash: TransactionHash,
     tx_location: LocationInFile,
     tx_output_location: LocationInFile,
@@ -800,19 +804,30 @@ pub struct DbStats {
 // - Body <= Header
 // - BaseLayerBlock <= Header
 // Event is currently unsupported.
-pub(crate) enum MarkerKind {
+/// Represents different types of markers that track progress in the storage.
+pub enum MarkerKind {
+    /// Marks the last written block header.
     Header,
+    /// Marks the last written block body.
     Body,
+    /// Marks the last written event.
     Event,
+    /// Marks the last written state diff.
     State,
+    /// Marks the last written class.
     Class,
+    /// Marks the last written compiled class.
     CompiledClass,
+    /// Marks the last written base layer block.
     BaseLayerBlock,
+    /// Marks the last written class manager block.
     ClassManagerBlock,
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
-    BlockHash,
+    // TODO(Dori): fill in the missing doc.
+    #[allow(missing_docs)]
+    GlobalRoot,
 }
 
 pub(crate) type MarkersTable<'env> =

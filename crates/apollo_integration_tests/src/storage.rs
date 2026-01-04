@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
-use crate::executable_setup::NodeExecutionId;
+use crate::executable_setup::NodeExecutableId;
 use crate::state_reader::{
     StorageTestConfig,
     StorageTestSetup,
@@ -23,7 +23,9 @@ pub struct StorageExecutablePaths {
 
 impl StorageExecutablePaths {
     pub fn new(db_base: &Path, node_index: usize) -> Self {
-        let node_index = NodeExecutionId::new(node_index);
+        // We use a single storage handler per node, regardless of how it is split into various
+        // services and which of these actually requires the storage.
+        let node_index = NodeExecutableId::new(node_index, "".to_string());
 
         let path = node_index.build_path(db_base);
 
@@ -83,8 +85,8 @@ impl CustomPaths {
         self.db_base.as_ref()
     }
 
-    pub fn get_config_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
-        self.config_base.as_ref().map(|p| node_execution_id.build_path(p))
+    pub fn get_config_path(&self, node_executable_id: &NodeExecutableId) -> Option<PathBuf> {
+        self.config_base.as_ref().map(|p| node_executable_id.build_path(p))
     }
 
     pub fn get_data_prefix_path(&self) -> Option<&PathBuf> {

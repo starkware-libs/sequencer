@@ -252,6 +252,11 @@ impl TryFromOutputIter for OutputIterParsedData {
             messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
             messages_to_l2.push(message);
         }
+        assert_eq!(
+            messages_to_l2_segment_size, 0,
+            "Expected messages to L2 segment to be consumed, but {messages_to_l2_segment_size} \
+             felts were left.",
+        );
         Ok(Self {
             common_os_output: CommonOsOutput {
                 initial_root,

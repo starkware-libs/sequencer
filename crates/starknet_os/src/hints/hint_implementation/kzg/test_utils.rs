@@ -7,7 +7,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::{CairoRunner, ExecutionResources};
-use num_bigint::RandBigInt;
+use num_bigint::{BigUint, RandBigInt};
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use starknet_types_core::felt::Felt;
@@ -108,4 +108,8 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<
     .unwrap();
 
     (runner, hint_processor.get_da_segment().clone())
+}
+
+pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
+    coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }

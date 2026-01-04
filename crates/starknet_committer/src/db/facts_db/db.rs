@@ -3,41 +3,49 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{
-    create_db_key,
-    DbHashMap,
-    DbKey,
-    DbKeyPrefix,
-    Storage,
-};
+use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    FactsDbInitialRead,
     ReaderConfig,
     StarknetStorageValue,
 };
+use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::create_facts_tree::{
     create_original_skeleton_tree,
     create_original_skeleton_tree_and_get_previous_leaves,
 };
-use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
+use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
+use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::tree::{
-    OriginalSkeletonClassesTrieConfig,
-    OriginalSkeletonContractsTrieConfig,
-    OriginalSkeletonStorageTrieConfig,
-};
+use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+/// Facts DB node layout.
+///
+/// In a facts DB, the storage keys are node hashes and the values are preimages. In particular,
+/// each nodes holds its child node hashes. In this layout, only once the  parent is traversed we
+/// have the db keys of its children.
+pub struct FactsNodeLayout {}
+
+impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
+    type NodeData = HashOutput;
+
+    type DeserializationContext = FactNodeDeserializationContext;
+
+    type SubTree = FactsSubTree<'a>;
+}
 
 pub struct FactsDb<S: Storage> {
     // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
@@ -46,9 +54,6 @@ pub struct FactsDb<S: Storage> {
 }
 
 impl<S: Storage> FactsDb<S> {
-    pub const COMMITMENT_OFFSET_KEY: &[u8; 17] = b"commitment_offset";
-    pub const STATE_DIFF_HASH_PREFIX: &[u8; 15] = b"state_diff_hash";
-
     pub fn new(storage: S) -> Self {
         Self { storage }
     }
@@ -65,7 +70,7 @@ impl<S: Storage> FactsDb<S> {
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
             &HashMap::new(),
-            &OriginalSkeletonContractsTrieConfig::new(),
+            &OriginalSkeletonTrieConfig::new_for_contracts_trie(),
             &EmptyKeyContext,
         )
         .await?)
@@ -86,8 +91,9 @@ impl<S: Storage> FactsDb<S> {
             let contract_state = original_contracts_trie_leaves
                 .get(&contract_address_into_node_index(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
-            let config =
-                OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());
+            let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+                config.warn_on_trivial_modifications(),
+            );
 
             let original_skeleton = create_original_skeleton_tree(
                 &mut self.storage,
@@ -110,7 +116,9 @@ impl<S: Storage> FactsDb<S> {
         config: &ReaderConfig,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
-        let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
+        let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+            config.warn_on_trivial_modifications(),
+        );
 
         Ok(create_original_skeleton_tree(
             &mut self.storage,
@@ -175,14 +183,19 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
 
 #[async_trait]
 impl<S: Storage> ForestWriter for FactsDb<S> {
-    fn serialize_forest(filled_forest: &FilledForest) -> DbHashMap {
-        filled_forest
-            .storage_tries
-            .values()
-            .flat_map(|tree| tree.serialize(&EmptyKeyContext).into_iter())
-            .chain(filled_forest.contracts_trie.serialize(&EmptyKeyContext))
-            .chain(filled_forest.classes_trie.serialize(&EmptyKeyContext))
-            .collect()
+    fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
+        let mut serialized_forest = DbHashMap::new();
+
+        // Storage tries.
+        for tree in filled_forest.storage_tries.values() {
+            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        }
+
+        // Contracts and classes tries.
+        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
+        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
+
+        Ok(serialized_forest)
     }
 
     async fn write_updates(&mut self, updates: DbHashMap) -> usize {
@@ -192,20 +205,5 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
-    }
-}
-
-impl<S: Storage> ForestMetadata for FactsDb<S> {
-    /// Returns the db key for the metadata type.
-    /// The data keys in a facts DB are the result of a hash function; therefore, they are not
-    /// expected to collide with these metadata keys.
-    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
-        match metadata_type {
-            ForestMetadataType::CommitmentOffset => DbKey(Self::COMMITMENT_OFFSET_KEY.to_vec()),
-            ForestMetadataType::StateDiffHash(block_number) => {
-                let state_diff_hash_key_prefix = DbKeyPrefix::new(Self::STATE_DIFF_HASH_PREFIX);
-                create_db_key(state_diff_hash_key_prefix, &block_number.0.to_be_bytes())
-            }
-        }
     }
 }

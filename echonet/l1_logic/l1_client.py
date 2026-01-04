@@ -1,8 +1,8 @@
 import functools
 import inspect
-import logging
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import eth_abi
 import requests
@@ -11,16 +11,46 @@ from echonet.constants import (
     LOG_MESSAGE_TO_L2_EVENT_SIGNATURE,
     STARKNET_L1_CONTRACT_ADDRESS,
 )
-from echonet.helpers import (
-    timestamp_to_iso,
-)
+from echonet.echonet_types import JsonObject
+from echonet.helpers import rpc_response
+from echonet.logger import get_logger
+
+
+class L1ClientCache:
+    def __init__(self):
+        self.block_response_cache: dict[int, Dict] = {}
+        self.logs_result_cache: defaultdict[int, list[dict]] = defaultdict(list)
+
+    def get_block_response(self, block_number: int) -> Optional[Dict]:
+        return self.block_response_cache.get(block_number)
+
+    def set_block_response(self, block_number: int, response: Optional[Dict]) -> None:
+        if response is None:
+            return
+
+        self.block_response_cache[block_number] = response
+
+    def get_logs_result(self, from_block: int, to_block: int) -> tuple[list[dict], Optional[int]]:
+        cached_logs = []
+        first_missing_block = None
+
+        for block_num in range(from_block, to_block + 1):
+            logs = self.logs_result_cache.get(block_num)
+            if logs is None:
+                first_missing_block = block_num
+                break
+            cached_logs.extend(logs)
+
+        return cached_logs, first_missing_block
+
+    def set_logs_result(self, logs_result: list[dict]) -> None:
+        for log in logs_result:
+            block_number = int(log.get("blockNumber"), 16)
+            self.logs_result_cache[block_number].append(log)
 
 
 class L1Client:
     L1_MAINNET_URL = "https://eth-mainnet.g.alchemy.com/v2/{api_key}"
-    DATA_BLOCKS_BY_TIMESTAMP_URL_FMT = (
-        "https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
-    )
 
     @dataclass(frozen=True)
     class L1Event:
@@ -40,16 +70,16 @@ class L1Client:
         retries_count: int = 2,
     ):
         self.api_key = api_key
-        self.logger = logging.Logger("L1Client")
+        self.logger = get_logger("l1_client")
         self.timeout = timeout
         self.retries_count = retries_count
         self.rpc_url = self.L1_MAINNET_URL.format(api_key=api_key)
-        self.data_api_url = self.DATA_BLOCKS_BY_TIMESTAMP_URL_FMT.format(api_key=api_key)
+        self.cache = L1ClientCache()
 
     def _run_request_with_retry(
         self,
         request_func: Callable,
-        additional_log_context: Dict[str, Any],
+        additional_log_context: JsonObject,
     ) -> Optional[Dict]:
         caller_name = inspect.currentframe().f_back.f_code.co_name
 
@@ -80,17 +110,24 @@ class L1Client:
     def get_logs(self, from_block: int, to_block: int) -> Optional[Dict]:
         """
         Get logs from Ethereum using eth_getLogs RPC method.
+        Caches results to avoid redundant API calls.
+        INVARIANT: missing blocks are always newer.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
         if from_block > to_block:
             raise ValueError("from_block must be less than or equal to to_block")
+
+        cached_logs, first_missing_block = self.cache.get_logs_result(from_block, to_block)
+        if first_missing_block is None:
+            # All blocks cached, return cached response.
+            return rpc_response(cached_logs)
 
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getLogs",
             "params": [
                 {
-                    "fromBlock": hex(from_block),
+                    "fromBlock": hex(first_missing_block),
                     "toBlock": hex(to_block),
                     "address": STARKNET_L1_CONTRACT_ADDRESS,
                     "topics": [LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
@@ -100,14 +137,34 @@ class L1Client:
         }
 
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        return self._run_request_with_retry(
+        response = self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={
                 "url": self.rpc_url,
-                "from_block": from_block,
+                "from_block": first_missing_block,
                 "to_block": to_block,
             },
         )
+
+        if response is None:
+            if cached_logs:
+                self.logger.warning(
+                    "get_logs: returning partial cached logs due to eth_getLogs request failure",
+                    extra={
+                        "url": self.rpc_url,
+                        "requested_from_block": from_block,
+                        "requested_to_block": to_block,
+                        "missing_from_block": first_missing_block,
+                    },
+                )
+                return rpc_response(cached_logs)
+            return None
+
+        fetched_logs = response.get("result", [])
+        self.cache.set_logs_result(fetched_logs)
+        all_logs = cached_logs + fetched_logs
+
+        return rpc_response(all_logs)
 
     def get_block_number(self) -> Optional[Dict]:
         """
@@ -127,30 +184,36 @@ class L1Client:
             additional_log_context={"url": self.rpc_url},
         )
 
-    def get_block_by_number(self, block_number: str) -> Optional[Dict]:
+    def get_block_by_number(self, block_number: int) -> Optional[Dict]:
         """
         Get block details by block number using eth_getBlockByNumber RPC method.
+        Caches results to avoid redundant API calls.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
+        cached_block_response = self.cache.get_block_response(block_number)
+        if cached_block_response:
+            return cached_block_response
+
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
-            "params": [block_number, False],
+            "params": [hex(block_number), False],
             "id": 1,
         }
-
         request_func = functools.partial(requests.post, self.rpc_url, json=payload)
-        return self._run_request_with_retry(
+        response = self._run_request_with_retry(
             request_func=request_func,
             additional_log_context={"url": self.rpc_url, "block_number": block_number},
         )
+        self.cache.set_block_response(block_number, response)
+        return response
 
     def get_timestamp_of_block(self, block_number: int) -> Optional[int]:
         """
         Get block timestamp by block number using eth_getBlockByNumber RPC method.
         Tries up to retries_count times. On failure, logs an error and returns None.
         """
-        response = self.get_block_by_number(hex(block_number))
+        response = self.get_block_by_number(block_number)
         if response is None:
             return None
 
@@ -161,35 +224,6 @@ class L1Client:
 
         # Timestamp is hex string, convert to int.
         return int(block["timestamp"], 16)
-
-    def get_block_number_by_timestamp(self, timestamp: int) -> Optional[int]:
-        """
-        Get the block number at/after a given timestamp using blocks-by-timestamp API.
-        Tries up to retries_count times. On failure, logs an error and returns None.
-        """
-        timestamp_iso = timestamp_to_iso(timestamp)
-
-        params = {
-            "networks": "eth-mainnet",
-            "timestamp": timestamp_iso,
-            "direction": "AFTER",
-        }
-
-        request_func = functools.partial(requests.get, self.data_api_url, params=params)
-        data = self._run_request_with_retry(
-            request_func=request_func,
-            additional_log_context={"url": self.data_api_url, "timestamp": timestamp},
-        )
-
-        if data is None:
-            return None
-
-        items = data.get("data", [])
-        if not items:
-            return None
-
-        block = items[0].get("block", {})
-        return block.get("number")
 
     @staticmethod
     def decode_log_response(log: dict) -> "L1Client.L1Event":

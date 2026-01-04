@@ -31,6 +31,21 @@ fn mk_vote(
     Vote { vote_type, height: HEIGHT, round, proposal_commitment: proposal_id, voter }
 }
 
+#[track_caller]
+fn assert_decision_reached<LeaderFn: Fn(Round) -> ValidatorId>(
+    wrapper: &mut TestWrapper<LeaderFn>,
+    expected_block: Option<ProposalCommitment>,
+) {
+    match wrapper.next_request().unwrap() {
+        SMRequest::DecisionReached(dec) => {
+            assert_eq!(dec.block, expected_block.unwrap());
+            assert!(!dec.precommits.is_empty(), "Decision should have precommits");
+        }
+        req => panic!("Expected DecisionReached, got {:?}", req),
+    }
+    assert!(wrapper.next_request().is_none());
+}
+
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
     state_machine: StateMachine,
     leader_fn: LeaderFn,
@@ -173,11 +188,7 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     // The Node got a Precommit quorum.
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::DecisionReached(PROPOSAL_ID.unwrap(), ROUND)
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
 #[test]
@@ -213,11 +224,7 @@ fn validator_receives_votes_first() {
         wrapper.next_request().unwrap(),
         SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
     );
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::DecisionReached(PROPOSAL_ID.unwrap(), ROUND)
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
 #[test_case(PROPOSAL_ID ; "valid_proposal")]
@@ -309,11 +316,7 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
         SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
     );
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::DecisionReached(PROPOSAL_ID.unwrap(), ROUND)
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
 #[test]
@@ -558,11 +561,7 @@ fn observer_node_reaches_decision() {
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
     // Once a quorum of precommits is observed, the node should generate a decision event.
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::DecisionReached(PROPOSAL_ID.unwrap(), ROUND)
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
 #[test_case(QuorumType::Byzantine; "byzantine")]
@@ -622,11 +621,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
 
     // The Node got a Precommit quorum.
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::DecisionReached(PROPOSAL_ID.unwrap(), ROUND)
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
 #[test]

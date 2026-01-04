@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "JSON-RPC server implementation for Starknet API."
 
 [dependencies]
 anyhow.workspace = true

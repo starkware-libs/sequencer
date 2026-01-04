@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: echonet
+  labels:
+    app.kubernetes.io/name: echonet
+    app.kubernetes.io/component: api
+spec:
+  selector:
+    # Must match the Deployment pod-template labels.
+    app: echonet
+    role: flask
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP

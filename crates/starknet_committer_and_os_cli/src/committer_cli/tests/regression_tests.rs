@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
-use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;
@@ -110,7 +110,7 @@ pub async fn test_regression_single_tree() {
         leaf_modifications,
         &mut storage,
         root_hash,
-        OriginalSkeletonStorageTrieConfig::new(false),
+        OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
     )
     .await;
     let execution_time = std::time::Instant::now() - start;

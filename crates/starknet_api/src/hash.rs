@@ -10,7 +10,18 @@ use crate::core::{GlobalRoot, GLOBAL_STATE_VERSION};
 pub type StarkHash = Felt;
 
 #[derive(
-    Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
+    derive_more::Display,
 )]
 pub struct PoseidonHash(pub Felt);
 

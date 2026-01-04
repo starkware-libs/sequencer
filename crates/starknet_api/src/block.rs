@@ -316,7 +316,7 @@ impl BlockNumber {
     }
 
     /// Returns the previous block number, or None if the previous block number is out of range.
-    pub fn prev(&self) -> Option<BlockNumber> {
+    pub const fn prev(&self) -> Option<BlockNumber> {
         match self.0 {
             0 => None,
             i => Some(BlockNumber(i - 1)),

@@ -4,11 +4,10 @@ use apollo_infra_utils::cairo0_compiler::cairo0_format;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
+use expect_test::expect_file;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
-
-const CONSTANTS_CONTENTS: &str = include_str!("cairo/starkware/starknet/core/os/constants.cairo");
 
 fn selector_to_hex(selector: &EntryPointSelector) -> String {
     format!("{:#?}", selector.0)
@@ -210,26 +209,12 @@ fn generate_constants_file() -> String {
 }
 
 /// Test that `constants.cairo` generated from the values in the versioned constants matches the
-/// existing file. To fix this test, run:
-/// ```bash
-/// FIX_OS_CONSTANTS=1 cargo test -p apollo_starknet_os_program test_os_constants
-/// ```
+/// existing file.
 #[test]
 fn test_os_constants() {
     // Generate `constants.cairo` from the current OS constants.
     let generated = generate_constants_file();
-    let fix = std::env::var("FIX_OS_CONSTANTS").is_ok();
-    if fix {
-        // Write the generated contents to the file.
-        let path = PathBuf::from(compile_time_cargo_manifest_dir!())
-            .join("src/cairo/starkware/starknet/core/os/constants.cairo");
-        std::fs::write(path, &generated).expect("Failed to write generated constants file.");
-    } else {
-        assert_eq!(
-            CONSTANTS_CONTENTS, generated,
-            "Generated constants file does not match the expected contents. Please run \
-             `FIX_OS_CONSTANTS=1 cargo test -p apollo_starknet_os_program test_os_constants` to \
-             fix the test."
-        );
-    }
+    let path = PathBuf::from(compile_time_cargo_manifest_dir!())
+        .join("src/cairo/starkware/starknet/core/os/constants.cairo");
+    expect_file![path].assert_eq(&generated);
 }

@@ -216,7 +216,7 @@ impl SequencerConsensusContext {
             .outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
-            .expect("Failed to send proposal receiver");
+            .expect("Failed to send proposal receiver. Receiver channel closed.");
         StreamSender { proposal_sender }
     }
 
@@ -253,7 +253,7 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
-    ) -> oneshot::Receiver<ProposalCommitment> {
+    ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
         let cende_write_success =
             if self.can_skip_write_prev_height_blob(proposal_init.height).await {
                 // cende_write_success is a AbortOnDropHandle. To get the actual handle we need to
@@ -269,7 +269,7 @@ impl ConsensusContext for SequencerConsensusContext {
             };
 
         // Handles interrupting an active proposal from a previous height/round
-        self.set_height_and_round(proposal_init.height, proposal_init.round).await;
+        self.set_height_and_round(proposal_init.height, proposal_init.round).await?;
         assert!(
             self.active_proposal.is_none(),
             "We should not have an existing active proposal for the (height, round) when \
@@ -346,7 +346,7 @@ impl ConsensusContext for SequencerConsensusContext {
         assert!(self.active_proposal.is_none());
         self.active_proposal = Some((cancel_token_clone, handle));
 
-        fin_receiver
+        Ok(fin_receiver)
     }
 
     #[instrument(skip_all)]
@@ -476,8 +476,12 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         trace!("Broadcasting message: {message:?}");
-        self.deps.vote_broadcast_client.broadcast_message(message).await?;
-        Ok(())
+        // Can fail only if the channel is disconnected, which should never happen.
+        self.deps
+            .vote_broadcast_client
+            .broadcast_message(message)
+            .await
+            .map_err(|e| ConsensusError::InternalNetworkError(e.to_string()))
     }
 
     async fn decision_reached(
@@ -499,14 +503,12 @@ impl ConsensusContext for SequencerConsensusContext {
             proposals.remove_proposals_below_or_at_height(&height);
         }
 
-        // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
-        // build a blob.
         let DecisionReachedResponse {
             state_diff,
             l2_gas_used,
             central_objects,
             block_header_commitments,
-        } = self.batcher_decision_reached(proposal_id).await;
+        } = self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -607,9 +609,6 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         self.sync_add_new_block(sync_block).await;
 
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
         let _ = self
             .deps
             .cende_ambassador
@@ -694,11 +693,24 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
-        self.batcher_add_sync_block(sync_block).await;
+
+        info!(
+            "Adding sync block to Batcher for height {}",
+            sync_block.block_header_without_hash.block_number,
+        );
+        if let Err(e) = self.deps.batcher.add_sync_block(sync_block).await {
+            error!("Failed to add sync block to Batcher: {e:?}");
+            return false;
+        }
+
         true
     }
 
-    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
+    async fn set_height_and_round(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+    ) -> Result<(), ConsensusError> {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.current_height = Some(height);
             assert_eq!(round, 0);
@@ -708,12 +720,11 @@ impl ConsensusContext for SequencerConsensusContext {
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
             // return to the old height.
-            self.batcher_start_height(height).await;
-            return;
+            return Ok(self.deps.batcher.start_height(StartHeightInput { height }).await?);
         }
         assert_eq!(Some(height), self.current_height);
         if round == self.current_round {
-            return;
+            return Ok(());
         }
         assert!(round > self.current_round);
         self.interrupt_active_proposal().await;
@@ -728,12 +739,12 @@ impl ConsensusContext for SequencerConsensusContext {
                     to_process = Some(entry.remove());
                     break;
                 }
-                std::cmp::Ordering::Greater => return,
+                std::cmp::Ordering::Greater => return Ok(()),
             }
         }
         // Validate the proposal for the current round if exists.
         let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
-            return;
+            return Ok(());
         };
         let block_info_validation = BlockInfoValidation {
             height,
@@ -751,6 +762,7 @@ impl ConsensusContext for SequencerConsensusContext {
             fin_sender,
         )
         .await;
+        Ok(())
     }
 }
 
@@ -809,33 +821,6 @@ impl SequencerConsensusContext {
         }
     }
 
-    async fn batcher_decision_reached(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> DecisionReachedResponse {
-        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
-        // should have a way to report an error and continue to the next height.
-        self.deps
-            .batcher
-            .decision_reached(DecisionReachedInput { proposal_id })
-            .await
-            .expect("Failed to add decision due to batcher error: {e:?}")
-    }
-
-    async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
-        info!(
-            "Adding sync block to Batcher for height {}",
-            sync_block.block_header_without_hash.block_number,
-        );
-        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
-        // should have a way to report an error and continue to the next height.
-        self.deps
-            .batcher
-            .add_sync_block(sync_block.clone())
-            .await
-            .expect("Failed to add sync block due to batcher error: {e:?}");
-    }
-
     // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
     async fn sync_add_new_block(&mut self, sync_block: SyncBlock) {
         // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
@@ -845,16 +830,6 @@ impl SequencerConsensusContext {
             .add_new_block(sync_block.clone())
             .await
             .expect("Failed to add new block due to sync error: {e:?}");
-    }
-
-    async fn batcher_start_height(&mut self, height: BlockNumber) {
-        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
-        // should have a way to report an error and continue to the next height.
-        self.deps
-            .batcher
-            .start_height(StartHeightInput { height })
-            .await
-            .expect("Failed to start height due to batcher error: {e:?}");
     }
 }
 

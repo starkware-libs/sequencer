@@ -2,6 +2,7 @@
 use std::fmt::Debug;
 use std::time::Duration;
 
+use apollo_batcher_types::communication::BatcherClientError;
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
@@ -57,7 +58,7 @@ pub trait ConsensusContext {
         &mut self,
         init: ProposalInit,
         timeout: Duration,
-    ) -> oneshot::Receiver<ProposalCommitment>;
+    ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
     /// This function is called by consensus to validate a block. It expects that this call will
     /// return immediately and that context can then stream in the block's content in parallel to
@@ -115,7 +116,11 @@ pub trait ConsensusContext {
 
     /// Update the context with the current height and round.
     /// Must be called at the beginning of each height.
-    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+    async fn set_height_and_round(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+    ) -> Result<(), ConsensusError>;
 }
 
 #[derive(PartialEq, Debug)]
@@ -144,20 +149,11 @@ impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
 #[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ConsensusError {
     #[error(transparent)]
-    Canceled(#[from] oneshot::Canceled),
-    #[error(transparent)]
-    ProtobufConversionError(#[from] ProtobufConversionError),
-    #[error(transparent)]
-    SendError(#[from] mpsc::SendError),
+    BatcherError(#[from] BatcherClientError),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
-    #[error("{0}")]
-    SyncError(String),
-    // For example the state machine and SHC are out of sync.
-    #[error("{0}")]
-    InternalInconsistency(String),
     #[error("Block info conversion error: {0}")]
     BlockInfoConversion(#[from] starknet_api::StarknetApiError),
     #[error("{0}")]

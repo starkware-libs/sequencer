@@ -8,6 +8,7 @@
 //! - Deserialize: transparent, and deserializes exactly like `T`, ignoring the `redactor` field.
 
 use core::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -46,8 +47,13 @@ impl<T> Sensitive<T> {
     }
 
     /// Consumes the wrapper and returns the inner sensitive value.
-    pub fn into(self) -> T {
+    pub fn expose_secret(self) -> T {
         self.inner
+    }
+
+    /// Returns a reference to the inner sensitive value.
+    pub fn peek_secret(&self) -> &T {
+        &self.inner
     }
 
     // Returns the redacted string representation.
@@ -67,22 +73,21 @@ impl<T> Sensitive<T> {
     }
 }
 
+impl<T> FromStr for Sensitive<T>
+where
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    type Err = T::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = T::from_str(s)?;
+        Ok(Sensitive::new(value))
+    }
+}
+
 impl<T> From<T> for Sensitive<T> {
     fn from(value: T) -> Self {
         Sensitive::new(value)
-    }
-}
-
-// TODO(Tsabary): consider if AsRef and AsMut are needed.
-impl<T> AsRef<T> for Sensitive<T> {
-    fn as_ref(&self) -> &T {
-        &self.inner
-    }
-}
-
-impl<T> AsMut<T> for Sensitive<T> {
-    fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
     }
 }
 

@@ -18,7 +18,7 @@ use apollo_consensus_config::config::{
     ConsensusDynamicConfig,
     FutureMsgLimitsConfig,
 };
-use apollo_infra_utils::debug_every_n_sec;
+use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
@@ -42,7 +42,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_REPROPOSALS,
 };
-use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::single_height_consensus::{Requests, SingleHeightConsensus};
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
@@ -411,13 +411,37 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         info!("Running consensus for height {}.", height);
-        let res =
-            self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await?;
 
-        // Commit in case of decision.
-        if let RunHeightRes::Decision(decision) = &res {
-            context.decision_reached(height, decision.block).await?;
-        }
+        let consensus_result =
+            self.run_height_inner(context, height, broadcast_channels, proposals_receiver).await;
+
+        let res = match consensus_result {
+            Ok(ok) => match ok {
+                RunHeightRes::Decision(decision) => {
+                    // Commit decision to context.
+                    context.decision_reached(height, decision.block).await?;
+                    RunHeightRes::Decision(decision)
+                }
+                RunHeightRes::Sync => RunHeightRes::Sync,
+            },
+
+            Err(err) => match err {
+                e @ ConsensusError::BatcherError(_) => {
+                    error!(
+                        "Error while running consensus for height {height}, fallback to sync: {e}"
+                    );
+                    self.wait_until_sync_reaches_height(height, context).await;
+                    RunHeightRes::Sync
+                }
+                e @ ConsensusError::BlockInfoConversion(_)
+                | e @ ConsensusError::InternalNetworkError(_)
+                | e @ ConsensusError::Other(_) => {
+                    // The node is missing required components/data and cannot continue
+                    // participating in the consensus. A fix and node restart are required.
+                    return Err(e);
+                }
+            },
+        };
 
         // Cleanup after height completion.
         self.cleanup_post_height(context, height, broadcast_channels, proposals_receiver).await?;
@@ -437,7 +461,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 break;
             }
             tokio::time::sleep(self.consensus_config.dynamic_config.sync_retry_interval).await;
-            debug_every_n_sec!(1, "Retrying sync to {height}");
+            debug_every_n_ms!(1000, "Retrying sync to {height}");
             trace!("Retrying sync to {height}");
         }
     }
@@ -547,49 +571,29 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
-            match shc.start(&leader_fn) {
-                ShcReturn::Decision(decision) => {
-                    // Start should generate either StartValidateProposal (validator) or
-                    // StartBuildProposal (proposer). We do not enforce this
-                    // since the Manager is intentionally not meant to
-                    // understand consensus in detail.
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(requests) => requests,
-            }
+            shc.start(&leader_fn)
         };
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (init, content_receiver) in cached_proposals {
-            match self
-                .handle_proposal_known_init(context, height, shc, init, content_receiver)
-                .await
-            {
-                ShcReturn::Decision(decision) => {
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
-            }
+            let new_requests =
+                self.handle_proposal_known_init(context, height, shc, init, content_receiver).await;
+            pending_requests.extend(new_requests);
         }
 
         let cached_votes = self.cache.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
-            match shc.handle_vote(&leader_fn, msg) {
-                ShcReturn::Decision(decision) => {
-                    return Ok(Some(decision));
-                }
-                ShcReturn::Requests(new_requests) => pending_requests.extend(new_requests),
-            }
+            let new_requests = shc.handle_vote(&leader_fn, msg);
+            pending_requests.extend(new_requests);
         }
 
         // Reflect initial height/round to context before executing requests.
-        context.set_height_and_round(height, shc.current_round()).await;
+        context.set_height_and_round(height, shc.current_round()).await?;
         self.execute_requests(context, height, pending_requests, shc_events, broadcast_channels)
-            .await?;
-        Ok(None)
+            .await
     }
 
     /// Main consensus loop: handles incoming proposals, votes, events, and sync checks.
@@ -607,11 +611,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let mut sync_poll_deadline = clock.now() + sync_retry_interval;
         loop {
             self.cache.report_max_cached_block_number_metric(height);
-            let shc_return = tokio::select! {
+            let requests = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
+                    let message = message.ok_or_else(|| ConsensusError::InternalNetworkError("Votes channel should never be closed".to_string()))?;
                     self.handle_vote(context, height, Some(shc), message, broadcast_channels).await?
                 },
                 content_receiver = proposals_receiver.next() => {
+                    let content_receiver = content_receiver.ok_or_else(|| ConsensusError::InternalNetworkError("Proposals channel should never be closed".to_string()))?;
                     self.handle_proposal(
                         context,
                         height,
@@ -635,19 +641,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             };
             // Reflect current height/round to context.
-            context.set_height_and_round(height, shc.current_round()).await;
-            match shc_return {
-                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
-                ShcReturn::Requests(requests) => {
-                    self.execute_requests(
-                        context,
-                        height,
-                        requests,
-                        shc_events,
-                        broadcast_channels,
-                    )
-                    .await?;
-                }
+            context.set_height_and_round(height, shc.current_round()).await?;
+            if let Some(decision) = self
+                .execute_requests(context, height, requests, shc_events, broadcast_channels)
+                .await?
+            {
+                return Ok(RunHeightRes::Decision(decision));
             }
         }
     }
@@ -665,13 +664,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Clear any votes/proposals that might have arrived *during* the final await/cleanup,
         // which still belong to the completed height or lower.
-        while let Some(message) =
+        while let Some(Some(message)) =
             broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
         {
             // Discard any votes for this height or lower by sending a None SHC.
             self.handle_vote(context, height, None, message, broadcast_channels).await?;
         }
-        while let Ok(content_receiver) = proposals_receiver.try_next() {
+        while let Ok(Some(content_receiver)) = proposals_receiver.try_next() {
             self.handle_proposal(context, height, None, content_receiver).await?;
         }
 
@@ -688,26 +687,25 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
-        content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
-    ) -> Result<ShcReturn, ConsensusError> {
+        mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+    ) -> Result<Requests, ConsensusError> {
         CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
-        let Some(mut content_receiver) = content_receiver else {
-            return Err(ConsensusError::InternalNetworkError(
-                "proposal receiver should never be closed".to_string(),
-            ));
+        let Some(first_part) = content_receiver.try_next().ok().flatten() else {
+            error!(
+                "Couldn't get the first part of the proposal. Channel is unexpectedly empty. \
+                 Dropping proposal."
+            );
+            return Ok(VecDeque::new());
         };
-        let Some(first_part) = content_receiver.try_next().map_err(|_| {
-            ConsensusError::InternalNetworkError(
-                "Stream handler must fill the first message before sending the stream".to_string(),
-            )
-        })?
-        else {
-            return Err(ConsensusError::InternalNetworkError(
-                "Content receiver closed".to_string(),
-            ));
+
+        let proposal_init: ProposalInit = match first_part.try_into() {
+            Ok(proposal_init) => proposal_init,
+            Err(e) => {
+                warn!("Failed to parse incoming proposal init. Dropping proposal: {e}");
+                return Ok(VecDeque::new());
+            }
         };
-        let proposal_init: ProposalInit = first_part.try_into()?;
 
         match proposal_init.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
@@ -723,11 +721,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     // When moving to version 1.0 make sure this is addressed.
                     self.cache.cache_future_proposal(proposal_init, content_receiver);
                 }
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop proposal from past height. {:?}", proposal_init);
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
@@ -746,12 +744,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                             )
                             .await)
                     } else {
-                        Ok(ShcReturn::Requests(VecDeque::new()))
+                        Ok(VecDeque::new())
                     }
                 }
                 None => {
                     trace!("Drop proposal from just completed height. {:?}", proposal_init);
-                    Ok(ShcReturn::Requests(VecDeque::new()))
+                    Ok(VecDeque::new())
                 }
             },
         }
@@ -764,7 +762,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         proposal_init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
-    ) -> ShcReturn {
+    ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams
             .insert((height, proposal_init.round), content_receiver);
@@ -779,14 +777,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
-        vote: Option<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
+        vote: (Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata),
         broadcast_channels: &mut BroadcastVoteChannel,
-    ) -> Result<ShcReturn, ConsensusError> {
+    ) -> Result<Requests, ConsensusError> {
         let message = match vote {
-            None => Err(ConsensusError::InternalNetworkError(
-                "NetworkReceiver should never be closed".to_string(),
-            )),
-            Some((Ok(msg), metadata)) => {
+            (Ok(message), metadata) => {
                 // TODO(matan): Hold onto report_sender for use in later errors by SHC.
                 if broadcast_channels
                     .broadcast_topic_client
@@ -796,10 +791,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 {
                     error!("Unable to send continue_propagation. {:?}", metadata);
                 }
-                Ok(msg)
+                message
             }
-            Some((Err(e), metadata)) => {
-                // Failed to parse consensus message
+            (Err(e), metadata) => {
+                // Failed to parse consensus message. Report the peer and drop the vote.
                 if broadcast_channels
                     .broadcast_topic_client
                     .report_peer(metadata.clone())
@@ -808,9 +803,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 {
                     error!("Unable to send report_peer. {:?}", metadata)
                 }
-                Err(e.into())
+                warn!(
+                    "Failed to parse incoming consensus vote, dropping vote. Error: {e}. Vote \
+                     metadata: {metadata:?}"
+                );
+                return Ok(VecDeque::new());
             }
-        }?;
+        };
 
         // TODO(matan): We need to figure out an actual caching strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
@@ -821,11 +820,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     trace!("Cache message for a future height. {:?}", message);
                     self.cache.cache_future_vote(message);
                 }
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Less => {
                 trace!("Drop message from past height. {:?}", message);
-                Ok(ShcReturn::Requests(VecDeque::new()))
+                Ok(VecDeque::new())
             }
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
@@ -833,12 +832,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         let leader_fn = make_leader_fn(context, height);
                         Ok(shc.handle_vote(&leader_fn, message))
                     } else {
-                        Ok(ShcReturn::Requests(VecDeque::new()))
+                        Ok(VecDeque::new())
                     }
                 }
                 None => {
                     trace!("Drop message from just completed height. {:?}", message);
-                    Ok(ShcReturn::Requests(VecDeque::new()))
+                    Ok(VecDeque::new())
                 }
             },
         }
@@ -851,15 +850,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         mut requests: VecDeque<SMRequest>,
         shc_events: &mut FuturesUnordered<BoxFuture<'static, StateMachineEvent>>,
         broadcast_channels: &mut BroadcastVoteChannel,
-    ) -> Result<(), ConsensusError> {
+    ) -> Result<Option<Decision>, ConsensusError> {
         while let Some(request) = requests.pop_front() {
-            if let Some(fut) =
-                self.run_request(context, height, request, broadcast_channels).await?
-            {
-                shc_events.push(fut);
+            match request {
+                SMRequest::DecisionReached(decision) => {
+                    return Ok(Some(decision));
+                }
+                _ => {
+                    if let Some(fut) =
+                        self.run_request(context, height, request, broadcast_channels).await?
+                    {
+                        shc_events.push(fut);
+                    }
+                }
             }
         }
-        Ok(())
+
+        Ok(None)
     }
 
     async fn run_request(
@@ -883,7 +890,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 // (round 0) proposal timeout for building to avoid giving the Batcher more time
                 // when proposal time is extended for consensus.
                 let timeout = timeouts.get_proposal_timeout(0);
-                let receiver = context.build_proposal(init, timeout).await;
+                let receiver = context.build_proposal(init, timeout).await?;
                 let fut = async move {
                     let proposal_id = receiver.await.ok();
                     StateMachineEvent::FinishedBuilding(proposal_id, round)
@@ -961,11 +968,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 CONSENSUS_REPROPOSALS.increment(1);
                 Ok(None)
             }
-            SMRequest::DecisionReached(_, _) => {
-                // Should be handled by SHC, not manager.
-                Err(ConsensusError::InternalInconsistency(
-                    "Manager received DecisionReached request".to_string(),
-                ))
+            SMRequest::DecisionReached(_) => {
+                unreachable!("DecisionReached request should be handled in execute_requests");
             }
         }
     }

@@ -36,7 +36,10 @@ pub async fn commit(input: FactsDbInputImpl, output_path: String, storage: MapSt
     let serialized_filled_forest = SerializedForest(
         commit_block(input, &mut facts_db, None).await.expect("Failed to commit the given block."),
     );
-    let output = serialized_filled_forest.forest_to_output().await;
+    let output = serialized_filled_forest
+        .forest_to_output()
+        .await
+        .expect("Failed to serialize filled forest");
     write_to_file(&output_path, &output);
     info!(
         "Successfully committed given block. Updated Contracts Trie Root Hash: {:?},

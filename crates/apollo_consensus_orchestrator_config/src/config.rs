@@ -49,7 +49,7 @@ impl SerializeConfig for CendeConfig {
             ser_param(
                 "recorder_url",
                 // TODO(victork): make sure we're allowed to expose the recorder URL here
-                self.recorder_url.as_ref(),
+                self.recorder_url.peek_secret(),
                 "The URL of the Pythonic cende_recorder",
                 ParamPrivacyInput::Private,
             ),

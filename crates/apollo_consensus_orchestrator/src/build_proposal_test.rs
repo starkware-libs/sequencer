@@ -91,8 +91,8 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     deps.setup_default_expectations();
     let time_now = deps.clock.now();
     let batcher_deadline = time_now + TIMEOUT;
-    let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.7);
-    let retrospective_block_hash_retry_interval_millis = Duration::from_millis(100);
+    let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.1);
+    let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
     let proposal_init = ProposalInit::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);

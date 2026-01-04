@@ -1,0 +1,27 @@
+# Mempool service configuration with all constructs enabled
+name: mempool
+
+# StatefulSet disabled (mempool uses Deployment by default)
+statefulSet:
+  enabled: false
+
+# Service with ports
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: mempool
+      port: 55006
+      targetPort: 55006
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# HPA enabled for mempool (stateless, can scale)
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
