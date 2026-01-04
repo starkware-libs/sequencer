@@ -54,6 +54,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "chain_id",
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "committer_config.verify_state_diff_hash",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
     "consensus_manager_config.context_config.build_proposal_margin_millis",
