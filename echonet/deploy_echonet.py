@@ -15,17 +15,6 @@ Use argument `-x` to delete existing resources first (kubectl delete -k).
 from __future__ import annotations
 
 import argparse
-<<<<<<< HEAD
-||||||| ee7eff7e4
-import json
-import subprocess
-from pathlib import Path
-
-=======
-import subprocess
-from pathlib import Path
-
->>>>>>> origin/main-v0.14.1
 import base64
 import json
 import logging
@@ -33,13 +22,9 @@ import shlex
 import shutil
 import subprocess
 import tarfile
-<<<<<<< HEAD
 from pathlib import Path
-||||||| ee7eff7e4
-=======
 from constants import ECHONET_KEYS_FILENAME
 from helpers import read_json_object
->>>>>>> origin/main-v0.14.1
 
 logger = logging.getLogger("deploy_echonet")
 
