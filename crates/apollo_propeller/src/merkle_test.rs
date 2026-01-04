@@ -3,18 +3,39 @@ use rstest::rstest;
 use crate::merkle::*;
 
 #[rstest]
-#[case(1, 0)]
-#[case(2, 1)]
-#[case(3, 2)]
-#[case(4, 2)]
-#[case(5, 3)]
-fn test_merkle_proof_length(#[case] n: u8, #[case] proof_length: usize) {
+#[case(1, 0, 0)]
+#[case(2, 0, 1)]
+#[case(2, 1, 1)]
+#[case(3, 0, 2)]
+#[case(3, 1, 2)]
+#[case(3, 2, 1)]
+#[case(4, 0, 2)]
+#[case(4, 1, 2)]
+#[case(4, 2, 2)]
+#[case(4, 3, 2)]
+#[case(5, 0, 3)]
+#[case(5, 1, 3)]
+#[case(5, 2, 3)]
+#[case(5, 3, 3)]
+#[case(5, 4, 1)]
+#[case(6, 0, 3)]
+#[case(6, 1, 3)]
+#[case(6, 2, 3)]
+#[case(6, 3, 3)]
+#[case(6, 4, 2)]
+#[case(6, 5, 2)]
+#[case(7, 0, 3)]
+#[case(7, 1, 3)]
+#[case(7, 2, 3)]
+#[case(7, 3, 3)]
+#[case(7, 4, 3)]
+#[case(7, 5, 3)]
+#[case(7, 6, 2)]
+fn test_merkle_proof_length(#[case] n: u8, #[case] leaf_index: usize, #[case] proof_length: usize) {
     let data: Vec<_> = (0..n).map(|i| vec![i]).collect();
     let tree = MerkleTree::new(&data);
-    for proof_index in 0..n.into() {
-        let proof = tree.prove(proof_index).unwrap();
-        assert_eq!(proof.siblings.len(), proof_length);
-    }
+    let proof = tree.prove(leaf_index).unwrap();
+    assert_eq!(proof.siblings.len(), proof_length);
 }
 
 #[rstest]
