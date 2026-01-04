@@ -182,10 +182,50 @@ def remove_expr_placeholder(expr: str) -> str:
     return expr.replace(const.ALERT_RULE_EXPRESSION_PLACEHOLDER, "")
 
 
+def _convert_numeric_strings_in_conditions(conditions: list[dict[str, any]]) -> None:
+    """
+    Recursively convert numeric strings back to numbers in conditions structure.
+    This handles placeholders that were replaced in numeric fields like evaluator.params.
+    """
+    for condition in conditions:
+        if isinstance(condition, dict):
+            # Handle evaluator.params
+            if "evaluator" in condition and "params" in condition["evaluator"]:
+                params = condition["evaluator"]["params"]
+                for i, param in enumerate(params):
+                    if isinstance(param, str):
+                        # Try to convert to float first (handles decimals), then int if whole number
+                        try:
+                            float_val = float(param)
+                            # If it's a whole number, convert to int, otherwise keep as float
+                            if float_val.is_integer():
+                                params[i] = int(float_val)
+                            else:
+                                params[i] = float_val
+                        except ValueError:
+                            # Keep as string if conversion fails
+                            pass
+
+            # Handle reducer.params
+            if "reducer" in condition and "params" in condition["reducer"]:
+                params = condition["reducer"]["params"]
+                for i, param in enumerate(params):
+                    if isinstance(param, str):
+                        try:
+                            float_val = float(param)
+                            if float_val.is_integer():
+                                params[i] = int(float_val)
+                            else:
+                                params[i] = float_val
+                        except ValueError:
+                            pass
+
+
 def post_process_alert(alert: dict[str, any]) -> dict[str, any]:
     """
     Post-process alert after placeholder replacement.
-    Handles alert-specific field conversions (e.g., intervalSec string to int).
+    Handles alert-specific field conversions (e.g., intervalSec string to int,
+    conditions.params numeric strings to numbers).
 
     Args:
         alert: The alert dictionary
@@ -202,6 +242,11 @@ def post_process_alert(alert: dict[str, any]) -> dict[str, any]:
         except ValueError:
             # Keep as string if conversion fails
             pass
+
+    # Convert numeric strings in conditions.params back to numbers
+    if "conditions" in alert and isinstance(alert["conditions"], list):
+        _convert_numeric_strings_in_conditions(alert["conditions"])
+
     return alert
 
 
