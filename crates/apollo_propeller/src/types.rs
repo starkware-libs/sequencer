@@ -1,0 +1,42 @@
+//! Core types for the Propeller protocol.
+
+use std::fmt::Display;
+
+use crate::MerkleHash;
+
+// ****************************************************************************
+
+#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
+pub struct Channel(pub u32);
+
+impl Display for Channel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Channel({})", self.0)
+    }
+}
+
+// ****************************************************************************
+
+#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
+pub struct ShardIndex(pub u32);
+
+impl Display for ShardIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ShardIndex({})", self.0)
+    }
+}
+
+// ****************************************************************************
+
+#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
+pub struct MessageRoot(pub MerkleHash);
+
+impl Display for MessageRoot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MessageRoot(0x",)?;
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        write!(f, ")")
+    }
+}
