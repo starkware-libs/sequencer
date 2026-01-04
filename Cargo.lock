@@ -866,11 +866,13 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra_utils",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
  "starknet_api",
  "tokio",
+ "tracing",
  "url",
 ]
 
