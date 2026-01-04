@@ -71,7 +71,11 @@ impl MerkleTree {
                 let left = chunk.first().expect("Vec's chunks never returns empty chunks");
                 let right = chunk.last().expect("Vec's chunks never returns empty chunks");
 
-                next_level.push(hash_pair(left, right));
+                if chunk.len() == 1 {
+                    next_level.push(*left);
+                } else {
+                    next_level.push(hash_pair(left, right));
+                }
             }
 
             current_level = next_level;
@@ -96,8 +100,6 @@ impl MerkleTree {
     pub fn leaves(&self) -> Option<&[MerkleHash]> {
         self.nodes_by_level.first().map(|level| level.as_slice())
     }
-
-    // TODO(AndrewL): CRITICAL: make leaves have different depths instead of this hack.
 
     /// Generate a Merkle proof for a specific leaf index.
     ///
@@ -126,9 +128,11 @@ impl MerkleTree {
 
             // Add sibling hash
             debug_assert!(index < level_size);
-            let sibling_index = if sibling_index == level_size { index } else { sibling_index };
-            // TODO(AndrewL): consider skipping the sibling if it is the same as the current node.
-            siblings.push(level[sibling_index]);
+            debug_assert!(sibling_index <= level_size);
+            // this sibling is over the edge of the tree so we don't take anything on this level
+            if sibling_index != level_size {
+                siblings.push(level[sibling_index]);
+            }
 
             // Move to parent level
             index /= 2;
@@ -144,7 +148,7 @@ impl MerkleTree {
         proof: &MerkleProof,
         leaf_index: usize,
     ) -> Option<bool> {
-        self.root().map(|root| proof.verify(&root, leaf_hash, leaf_index))
+        self.root().map(|root| proof.verify(&root, leaf_hash, leaf_index, self.leaf_count()))
     }
 }
 
@@ -165,17 +169,39 @@ fn hash_pair(left: &MerkleHash, right: &MerkleHash) -> MerkleHash {
 
 impl MerkleProof {
     /// Verify a Merkle proof against a known root hash.
-    pub fn verify(&self, root: &MerkleHash, leaf_hash: &MerkleHash, leaf_index: usize) -> bool {
+    pub fn verify(
+        &self,
+        root: &MerkleHash,
+        leaf_hash: &MerkleHash,
+        leaf_index: usize,
+        leaf_count: usize,
+    ) -> bool {
         let mut current_hash = *leaf_hash;
         let mut index = leaf_index;
+        let mut level_size = leaf_count;
 
         for sibling in &self.siblings {
+            // Skip levels where this node has no sibling (promoted directly)
+            while level_size > 1 {
+                let sibling_index = index ^ 1;
+                if sibling_index >= level_size {
+                    // No sibling at this level, node is promoted
+                    index /= 2;
+                    level_size = level_size.div_ceil(2);
+                } else {
+                    // Has a sibling at this level
+                    break;
+                }
+            }
+
             current_hash = if index.is_multiple_of(2) {
                 hash_pair(&current_hash, sibling)
             } else {
                 hash_pair(sibling, &current_hash)
             };
+
             index /= 2;
+            level_size = level_size.div_ceil(2);
         }
 
         current_hash == *root
