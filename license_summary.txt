@@ -1,0 +1,213 @@
+================================================================================
+LICENSE DETAILS
+================================================================================
+enum-iterator                0BSD
+aerospike                    Apache-2.0
+c-kzg                        Apache-2.0
+cairo-felt                   Apache-2.0
+cairo-native                 Apache-2.0
+cairo-vm                     Apache-2.0
+google-cloud-storage         Apache-2.0
+goose                        Apache-2.0
+insta                        Apache-2.0
+lambdaworks-math             Apache-2.0
+parity-scale-codec           Apache-2.0
+parity-scale-codec-derive    Apache-2.0
+prometheus-parse             Apache-2.0
+prost                        Apache-2.0
+prost-build                  Apache-2.0
+prost-types                  Apache-2.0
+rust-rocksdb                 Apache-2.0
+criterion                    Apache-2.0 OR MIT
+indexmap                     Apache-2.0 OR MIT
+keccak                       Apache-2.0 OR MIT
+pyo3-log                     Apache-2.0 OR MIT
+test-log                     Apache-2.0 OR MIT
+waker-fn                     Apache-2.0 OR MIT
+atomic_refcell               Apache-2.0/MIT
+human_bytes                  BSD-2-Clause
+num_enum                     BSD-3-Clause OR MIT OR Apache-2.0
+notify                       CC0-1.0
+bench_tools                  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/bench_tools
+blockifier_reexecution       Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/blockifier_reexecution
+mempool_test_utils           Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/mempool_test_utils
+papyrus_base_layer           Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/papyrus_base_layer
+shared_execution_objects     Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/shared_execution_objects
+toml_test_utils              Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/toml_test_utils
+workspace_tests              Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/workspace_tests
+assert-json-diff             MIT
+async-stream                 MIT
+axum                         MIT
+bincode                      MIT
+bisection                    MIT
+bitvec                       MIT
+bytes                        MIT
+cached                       MIT
+dashmap                      MIT
+defaultmap                   MIT
+derive_more                  MIT
+http-body                    MIT
+hyper                        MIT
+integer-encoding             MIT
+jsonrpsee                    MIT
+jsonschema                   MIT
+libp2p                       MIT
+libp2p-swarm-test            MIT
+lru                          MIT
+metrics                      MIT
+metrics-exporter-prometheus  MIT
+metrics-process              MIT
+mockito                      MIT
+nix                          MIT
+os_info                      MIT
+phf                          MIT
+protoc-prebuilt              MIT
+retry                        MIT
+rlimit                       MIT
+schemars                     MIT
+simple_logger                MIT
+starknet-types-core          MIT
+statistical                  MIT
+strum                        MIT
+strum_macros                 MIT
+test-case                    MIT
+tokio                        MIT
+tokio-metrics                MIT
+tokio-retry                  MIT
+tokio-stream                 MIT
+tokio-test                   MIT
+tokio-util                   MIT
+tower                        MIT
+tracing                      MIT
+tracing-subscriber           MIT
+tracing-test                 MIT
+unsigned-varint              MIT
+validator                    MIT
+void                         MIT
+zstd                         MIT
+alloy                        MIT OR Apache-2.0
+anyhow                       MIT OR Apache-2.0
+ark-bls12-381                MIT OR Apache-2.0
+ark-ec                       MIT OR Apache-2.0
+ark-ff                       MIT OR Apache-2.0
+ark-poly                     MIT OR Apache-2.0
+ark-secp256k1                MIT OR Apache-2.0
+ark-secp256r1                MIT OR Apache-2.0
+async-recursion              MIT OR Apache-2.0
+async-trait                  MIT OR Apache-2.0
+base64                       MIT OR Apache-2.0
+blake2                       MIT OR Apache-2.0
+camelpaste                   MIT OR Apache-2.0
+chrono                       MIT OR Apache-2.0
+clap                         MIT OR Apache-2.0
+digest                       MIT OR Apache-2.0
+enum-assoc                   MIT OR Apache-2.0
+ethers                       MIT OR Apache-2.0
+ethnum                       MIT OR Apache-2.0
+expect-test                  MIT OR Apache-2.0
+flate2                       MIT OR Apache-2.0
+futures                      MIT OR Apache-2.0
+futures-channel              MIT OR Apache-2.0
+futures-util                 MIT OR Apache-2.0
+glob                         MIT OR Apache-2.0
+hex                          MIT OR Apache-2.0
+http                         MIT OR Apache-2.0
+indoc                        MIT OR Apache-2.0
+itertools                    MIT OR Apache-2.0
+lazy_static                  MIT OR Apache-2.0
+log                          MIT OR Apache-2.0
+memmap2                      MIT OR Apache-2.0
+mockall                      MIT OR Apache-2.0
+num-integer                  MIT OR Apache-2.0
+num-traits                   MIT OR Apache-2.0
+once_cell                    MIT OR Apache-2.0
+paste                        MIT OR Apache-2.0
+pretty_assertions            MIT OR Apache-2.0
+primitive-types              MIT OR Apache-2.0
+proc-macro2                  MIT OR Apache-2.0
+pyo3                         MIT OR Apache-2.0
+quote                        MIT OR Apache-2.0
+rand                         MIT OR Apache-2.0
+rand_chacha                  MIT OR Apache-2.0
+rand_distr                   MIT OR Apache-2.0
+regex                        MIT OR Apache-2.0
+replace_with                 MIT OR Apache-2.0
+reqwest                      MIT OR Apache-2.0
+reqwest-middleware           MIT OR Apache-2.0
+reqwest-retry                MIT OR Apache-2.0
+rstest                       MIT OR Apache-2.0
+rstest_reuse                 MIT OR Apache-2.0
+semver                       MIT OR Apache-2.0
+serde                        MIT OR Apache-2.0
+serde_json                   MIT OR Apache-2.0
+serde_repr                   MIT OR Apache-2.0
+serde_with                   MIT OR Apache-2.0
+serde_yaml                   MIT OR Apache-2.0
+sha2                         MIT OR Apache-2.0
+sha3                         MIT OR Apache-2.0
+socket2                      MIT OR Apache-2.0
+starknet-core                MIT OR Apache-2.0
+starknet-crypto              MIT OR Apache-2.0
+static_assertions            MIT OR Apache-2.0
+syn                          MIT OR Apache-2.0
+tempfile                     MIT OR Apache-2.0
+thiserror                    MIT OR Apache-2.0
+time                         MIT OR Apache-2.0
+toml                         MIT OR Apache-2.0
+trybuild                     MIT OR Apache-2.0
+url                          MIT OR Apache-2.0
+assert_matches               MIT/Apache-2.0
+deadqueue                    MIT/Apache-2.0
+enum-as-inner                MIT/Apache-2.0
+fs2                          MIT/Apache-2.0
+json-patch                   MIT/Apache-2.0
+num-bigint                   MIT/Apache-2.0
+num-rational                 MIT/Apache-2.0
+page_size                    MIT/Apache-2.0
+rustc-hex                    MIT/Apache-2.0
+tikv-jemallocator            MIT/Apache-2.0
+colored                      MPL-2.0
+libmdbx                      MPL-2.0
+byteorder                    Unlicense OR MIT
+csv                          Unlicense/MIT
+const_format                 Zlib
+blockifier                   non-standard
+blockifier_test_utils        non-standard
+cairo-lang-casm              non-standard
+cairo-lang-runner            non-standard
+cairo-lang-sierra            non-standard
+cairo-lang-sierra-to-casm    non-standard
+cairo-lang-starknet-classes  non-standard
+cairo-lang-utils             non-standard
+native_blockifier            non-standard
+papyrus_common               non-standard
+
+================================================================================
+LICENSE SUMMARY
+================================================================================
+Total crates analyzed: 180
+Unique licenses: 22
+
+License breakdown:
+  MIT OR Apache-2.0               71 crate(s) (39.4%)
+  MIT                             50 crate(s) (27.8%)
+  Apache-2.0                      16 crate(s) (8.9%)
+  MIT/Apache-2.0                  10 crate(s) (5.6%)
+  non-standard                    10 crate(s) (5.6%)
+  Apache-2.0 OR MIT                6 crate(s) (3.3%)
+  MPL-2.0                          2 crate(s) (1.1%)
+  0BSD                             1 crate(s) (0.6%)
+  Apache-2.0/MIT                   1 crate(s) (0.6%)
+  BSD-2-Clause                     1 crate(s) (0.6%)
+  BSD-3-Clause OR MIT OR Apache-2.0   1 crate(s) (0.6%)
+  CC0-1.0                          1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/bench_tools   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/blockifier_reexecution   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/mempool_test_utils   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/papyrus_base_layer   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/shared_execution_objects   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/toml_test_utils   1 crate(s) (0.6%)
+  Error: 404 Client Error: Not Found for url: https://crates.io/api/v1/crates/workspace_tests   1 crate(s) (0.6%)
+  Unlicense OR MIT                 1 crate(s) (0.6%)
+  Unlicense/MIT                    1 crate(s) (0.6%)
+  Zlib                             1 crate(s) (0.6%)
