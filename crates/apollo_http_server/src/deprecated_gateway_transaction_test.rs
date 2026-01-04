@@ -16,6 +16,8 @@ use crate::deprecated_gateway_transaction::{
 // Utils.
 
 const DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH: &str = "deprecated_gateway/invoke_tx.json";
+const DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH: &str =
+    "deprecated_gateway/invoke_tx_client_side_proving.json";
 const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH: &str =
     "deprecated_gateway/deploy_account_tx.json";
 const DEPRECATED_GATEWAY_DECLARE_TX_JSON_PATH: &str = "deprecated_gateway/declare_tx.json";
@@ -26,11 +28,11 @@ fn deprecated_gateway_declare_tx() -> DeprecatedGatewayDeclareTransaction {
 
 // Tests.
 
-#[test]
-fn deprecated_gateway_invoke_tx_deserialization() {
-    // TODO(AvivG): Add a JSON with proof facts and proof.
-    let _: DeprecatedGatewayInvokeTransaction =
-        read_json_file(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH);
+#[rstest]
+#[case::invoke_tx(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH)]
+#[case::invoke_tx_client_side_proving(DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH)]
+fn deprecated_gateway_invoke_tx_deserialization(#[case] json_path: &str) {
+    let _: DeprecatedGatewayInvokeTransaction = read_json_file(json_path);
 }
 
 #[test]
