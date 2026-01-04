@@ -109,6 +109,10 @@ pub struct DeprecatedGatewayInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+    #[serde(default, skip_serializing_if = "ProofFacts::is_empty")]
+    pub proof_facts: ProofFacts,
+    #[serde(default, skip_serializing_if = "Proof::is_empty")]
+    pub proof: Proof,
 }
 
 impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
@@ -124,8 +128,8 @@ impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
             account_deployment_data: deprecated_invoke_tx.account_deployment_data,
             nonce_data_availability_mode: deprecated_invoke_tx.nonce_data_availability_mode,
             fee_data_availability_mode: deprecated_invoke_tx.fee_data_availability_mode,
-            proof_facts: ProofFacts::default(),
-            proof: Proof::default(),
+            proof_facts: deprecated_invoke_tx.proof_facts,
+            proof: deprecated_invoke_tx.proof,
         }
     }
 }
@@ -144,6 +148,8 @@ impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
             account_deployment_data: value.account_deployment_data,
             nonce_data_availability_mode: value.nonce_data_availability_mode,
             fee_data_availability_mode: value.fee_data_availability_mode,
+            proof_facts: value.proof_facts,
+            proof: value.proof,
         }
     }
 }
