@@ -508,7 +508,6 @@ async fn sync_with_revert() {
         reader.clone(),
         writer,
         mock,
-        base_layer_mock,
         get_test_sync_config(false),
         class_manager_client,
     );

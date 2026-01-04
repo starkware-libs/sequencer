@@ -7,6 +7,9 @@ pub mod sources;
 #[cfg(test)]
 mod sync_test;
 
+#[cfg(test)]
+mod async_compilation_test;
+
 use std::cmp::min;
 use std::collections::BTreeMap;
 use std::pin::Pin;
