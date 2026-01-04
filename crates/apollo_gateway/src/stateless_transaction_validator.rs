@@ -219,8 +219,19 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_proof(&self, _: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
-        // TODO(Einat): Implement proof validation.
+    fn validate_proof(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+        if self.config.allow_client_side_proving {
+            // TODO(Einat): Implement proof validation.
+            return Ok(());
+        }
+
+        // Only invoke transactions have proof_facts and proof fields.
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) = tx {
+            if !tx.proof_facts.is_empty() || !tx.proof.is_empty() {
+                return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
+            }
+        }
+
         Ok(())
     }
 
