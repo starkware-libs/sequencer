@@ -144,12 +144,11 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
     let use_kzg_da = false;
     let block_context = block_context_for_flow_tests(initial_block_number, use_kzg_da);
-    let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
-        execute_transactions(
-            initial_state_reader,
-            &default_initial_state_txs,
-            block_context.clone(),
-        );
+    let ExecutionOutput { execution_outputs, mut final_state } = execute_transactions(
+        initial_state_reader,
+        &default_initial_state_txs,
+        block_context.clone(),
+    );
     assert_eq!(
         execution_outputs.len(),
         default_initial_state_txs.len(),
@@ -159,20 +158,18 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     // Make sure none of them is reverted.
     assert!(execution_outputs.iter().all(|output| output.0.revert_error.is_none()));
     // Update the state reader with the state diff.
-    let state_diff = final_state.to_state_diff().unwrap();
+    let state_diff = final_state.to_state_diff().unwrap().state_maps;
     // Sanity check to verify the STRK_FEE_TOKEN_ADDRESS constant.
     assert_eq!(
-        state_diff.state_maps.class_hashes[&STRK_FEE_TOKEN_ADDRESS],
+        state_diff.class_hashes[&STRK_FEE_TOKEN_ADDRESS],
         FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
             .get_sierra()
             .calculate_class_hash()
     );
-    final_state
-        .state
-        .apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
+    final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
     // Commit the state diff.
-    let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+    let committer_state_diff = create_committer_state_diff(state_diff);
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 
