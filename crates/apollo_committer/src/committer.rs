@@ -20,7 +20,11 @@ use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
-use starknet_committer::block_committer::timing_util::{NoTimeMeasurement, TimeMeasurementTrait};
+use starknet_committer::block_committer::timing_util::{
+    Action,
+    SingleBlockTimeMeasurement,
+    TimeMeasurementTrait,
+};
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
@@ -39,7 +43,17 @@ use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage}
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
-use crate::metrics::register_metrics;
+use crate::metrics::{
+    register_metrics,
+    COMPUTE_DURATION_PER_BLOCK,
+    COMPUTE_DURATION_PER_BLOCK_HIST,
+    READ_DB_ENTRIES_PER_BLOCK,
+    READ_DURATION_PER_BLOCK,
+    READ_DURATION_PER_BLOCK_HIST,
+    WRITE_DB_ENTRIES_PER_BLOCK,
+    WRITE_DURATION_PER_BLOCK,
+    WRITE_DURATION_PER_BLOCK_HIST,
+};
 
 #[cfg(test)]
 #[path = "committer_test.rs"]
@@ -159,8 +173,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 
         // Happy flow. Commits the state diff and returns the computed global root.
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
+        let mut time_measurement = SingleBlockTimeMeasurement::default();
+        time_measurement.start_measurement(Action::EndToEnd);
         let (filled_forest, global_root) =
-            self.commit_state_diff(state_diff, &mut NoTimeMeasurement).await?;
+            self.commit_state_diff(state_diff, &mut time_measurement).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
             (
@@ -180,10 +196,15 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             "For block number {height}, writing filled forest to storage with metadata: \
              {metadata:?}"
         );
-        self.forest_storage
+        time_measurement.start_measurement(Action::Write);
+        let n_new_facts = self
+            .forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
             .map_err(|err| self.map_internal_error(err))?;
+        time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts).ok();
+        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&time_measurement);
         self.offset = next_offset;
         Ok(CommitBlockResponse { state_root: global_root })
     }
@@ -231,8 +252,12 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         // Sanity.
         assert_eq!(height, last_committed_block);
         // Happy flow. Reverts the state diff and returns the computed global root.
+        let mut time_measurement = SingleBlockTimeMeasurement::default();
+        time_measurement.start_measurement(Action::EndToEnd);
         let (filled_forest, revert_global_root) =
-            self.commit_state_diff(reversed_state_diff, &mut NoTimeMeasurement).await?;
+            self.commit_state_diff(reversed_state_diff, &mut time_measurement).await?;
+        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&time_measurement);
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
         // offset-2 (if exists).
@@ -341,4 +366,16 @@ impl ComponentStarter for ApolloCommitter {
         default_component_start_fn::<Self>().await;
         register_metrics();
     }
+}
+
+fn update_metrics(time_measurement: &SingleBlockTimeMeasurement) {
+    READ_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.read_duration);
+    READ_DURATION_PER_BLOCK_HIST.record_lossy(time_measurement.block_measurement.read_duration);
+    READ_DB_ENTRIES_PER_BLOCK.set_lossy(time_measurement.block_measurement.n_reads);
+    COMPUTE_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.compute_duration);
+    COMPUTE_DURATION_PER_BLOCK_HIST
+        .record_lossy(time_measurement.block_measurement.compute_duration);
+    WRITE_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.write_duration);
+    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(time_measurement.block_measurement.write_duration);
+    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(time_measurement.block_measurement.n_writes);
 }
