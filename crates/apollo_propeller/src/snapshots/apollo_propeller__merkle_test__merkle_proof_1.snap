@@ -1,0 +1,7 @@
+---
+source: crates/apollo_propeller/src/merkle_test.rs
+expression: proof_hex
+---
+b143a6db6229d7232ee411508972c871bc72776b11ab6773b02a5ca845416395
+77a2bbbfab93753d698c1a9f25a661eff5ce1e3040975887b4f4fc9b86662cff
+32680e77526e6b00f00414c1b186bd2babcbb6124ed47374a4b5975d73b14d44
