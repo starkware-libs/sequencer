@@ -736,6 +736,36 @@ impl TransactionHasher for InternalRpcInvokeTransactionV3 {
     }
 }
 
+/// An internal RPC invoke transaction (without proof field).
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
+#[serde(tag = "version")]
+pub enum InternalRpcInvokeTransaction {
+    #[serde(rename = "0x3")]
+    V3(InternalRpcInvokeTransactionV3),
+}
+
+impl InternalRpcInvokeTransaction {
+    pub fn version(&self) -> TransactionVersion {
+        match self {
+            InternalRpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+}
+
+impl TransactionHasher for InternalRpcInvokeTransaction {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        match self {
+            InternalRpcInvokeTransaction::V3(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+        }
+    }
+}
+
 // TODO(Aviv): remove duplication with sequencer/crates/apollo_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
