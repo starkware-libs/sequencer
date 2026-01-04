@@ -286,12 +286,21 @@ impl Mempool {
         let mut account_nonce_updates = AddressToNonce::new();
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
+            debug!(
+                "Popped transactions from queue: {:?}",
+                chunk.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+            );
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
             self.enqueue_next_eligible_txs(&valid_txs)?;
             n_remaining_txs -= valid_txs.len();
             eligible_tx_references.extend(valid_txs);
+        }
+
+        if self.tx_queue.pending_queue_len() > 0 {
+            let pending_txs = self.tx_queue.queue_snapshot().pending_queue;
+            debug!("Transactions stuck in pending queue (gas price too low): {:?}", pending_txs);
         }
 
         // Update the mempool state with the given transactions' nonces.
@@ -457,6 +466,17 @@ impl Mempool {
             // already have been removed in `handle_fee_escalation`.
             self.tx_queue.remove(address);
             self.insert_to_tx_queue(tx_reference);
+            debug!(
+                "Transaction added to pool and queued: tx_hash={}, address={}, tx_nonce={}, \
+                 account_nonce={}, incoming_account_nonce={}, staged={:?}, committed={:?}",
+                tx_reference.tx_hash,
+                address,
+                tx_reference.nonce,
+                account_nonce,
+                incoming_account_nonce,
+                self.state.staged.get(&address),
+                self.state.committed.get(&address)
+            );
         }
     }
 

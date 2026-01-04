@@ -440,6 +440,10 @@ impl BlockBuilder {
 
         let n_txs = next_txs.len();
         debug!(
+            "Adding transactions to executor: {:?}",
+            next_txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<_>>()
+        );
+        debug!(
             "Got {} transactions from the transaction provider (aggregated: {}).",
             n_txs,
             self.block_txs.len() + n_txs
@@ -601,7 +605,7 @@ async fn collect_execution_results_and_stream_txs(
                 if let Some(ref revert_error) = tx_execution_info.revert_error {
                     warn!(
                         "Transaction {} is reverted during execution while still accepted. Revert \
-                         Error: {:?}",
+                         Error: {}",
                         input_tx.tx_hash(),
                         revert_error,
                     );

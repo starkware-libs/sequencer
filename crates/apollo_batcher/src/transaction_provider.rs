@@ -15,6 +15,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tracing::debug;
 
 use crate::metrics::BATCHER_L1_PROVIDER_ERRORS;
 
@@ -111,13 +112,12 @@ impl ProposeTransactionProvider {
         &mut self,
         n_txs: usize,
     ) -> TransactionProviderResult<Vec<InternalConsensusTransaction>> {
-        Ok(self
-            .mempool_client
-            .get_txs(n_txs)
-            .await?
-            .into_iter()
-            .map(InternalConsensusTransaction::RpcTransaction)
-            .collect())
+        let txs = self.mempool_client.get_txs(n_txs).await?;
+        debug!(
+            "Received transactions from mempool: {:?}",
+            txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<_>>()
+        );
+        Ok(txs.into_iter().map(InternalConsensusTransaction::RpcTransaction).collect())
     }
 }
 
