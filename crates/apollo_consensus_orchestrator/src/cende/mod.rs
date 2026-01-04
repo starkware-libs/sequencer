@@ -5,7 +5,6 @@ mod central_objects;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
-use apollo_config::secrets::Sensitive;
 use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -109,7 +108,7 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Sensitive<Url>,
+    url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -128,7 +127,8 @@ impl CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: {
                 let mut recorder_url = cende_config.recorder_url;
-                recorder_url.append_route(RECORDER_WRITE_BLOB_PATH);
+                recorder_url =
+                    recorder_url.join(RECORDER_WRITE_BLOB_PATH).expect("Failed to construct URL");
                 recorder_url
             },
             client: ClientBuilder::new(reqwest::Client::new())
@@ -145,7 +145,7 @@ impl CendeContext for CendeAmbassador {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone().expose_secret()); // TODO(victork): make sure we're allowed to expose the URL here
+        let request_builder = self.client.post(self.url.clone()); // TODO(victork): make sure we're allowed to expose the URL here
 
         task::spawn(
             async move {

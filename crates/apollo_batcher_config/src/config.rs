@@ -8,7 +8,6 @@ use apollo_config::dumping::{
     ser_param,
     SerializeConfig,
 };
-use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::ServerConfig;
@@ -121,7 +120,7 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 /// Configuration for the preconfirmed Cende client component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PreconfirmedCendeConfig {
-    pub recorder_url: Sensitive<Url>,
+    pub recorder_url: Url,
 }
 
 impl Default for PreconfirmedCendeConfig {
@@ -129,8 +128,7 @@ impl Default for PreconfirmedCendeConfig {
         Self {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
-                .expect("recorder_url must be a valid Recorder URL")
-                .into(),
+                .expect("recorder_url must be a valid Recorder URL"),
         }
     }
 }
@@ -140,7 +138,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
         BTreeMap::from([ser_param(
             "recorder_url",
             // TODO(victork): make sure we're allowed to expose the recorder URL here
-            self.recorder_url.peek_secret(),
+            &self.recorder_url,
             "The URL of the Pythonic cende_recorder",
             ParamPrivacyInput::Private,
         )])

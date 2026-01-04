@@ -9,7 +9,6 @@ use apollo_config::converters::{
     serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
@@ -18,7 +17,7 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
-    pub recorder_url: Sensitive<Url>,
+    pub recorder_url: Url,
 
     // Retry policy.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -34,8 +33,7 @@ impl Default for CendeConfig {
         CendeConfig {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
-                .expect("recorder_url must be a valid Recorder URL")
-                .into(),
+                .expect("recorder_url must be a valid Recorder URL"),
             max_retry_duration_secs: Duration::from_secs(3),
             min_retry_interval_ms: Duration::from_millis(50),
             max_retry_interval_ms: Duration::from_secs(1),
@@ -49,7 +47,7 @@ impl SerializeConfig for CendeConfig {
             ser_param(
                 "recorder_url",
                 // TODO(victork): make sure we're allowed to expose the recorder URL here
-                self.recorder_url.peek_secret(),
+                &self.recorder_url,
                 "The URL of the Pythonic cende_recorder",
                 ParamPrivacyInput::Private,
             ),
