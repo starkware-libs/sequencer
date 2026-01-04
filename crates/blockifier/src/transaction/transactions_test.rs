@@ -56,6 +56,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
     Resource,
     ResourceBounds,
     Tip,
@@ -2647,6 +2648,7 @@ fn test_only_query_flag(
         ContractAddress(felt!(TEST_SEQUENCER_ADDRESS).try_into().unwrap()),
         default_all_resource_bounds,
         Nonce::default(),
+        ProofFacts::default(),
     )
     .to_syscall_result();
     let execute_calldata = vec![
