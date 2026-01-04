@@ -194,7 +194,6 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
-        None,
         commitment_manager,
     );
     // Call post-creation functionality (e.g., metrics registration).
