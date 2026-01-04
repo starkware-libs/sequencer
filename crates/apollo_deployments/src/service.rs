@@ -111,8 +111,6 @@ pub enum NodeService {
 }
 
 // TODO(Tsabary): move p2p ports from the application configs to the replacer format.
-// TODO(Tsabary): avoid creating the service application config file, and just create the replacer
-// one.
 
 impl NodeService {
     pub fn replacer_deployment_file_path(&self) -> String {
@@ -122,10 +120,6 @@ impl NodeService {
             .join(format!("replacer_deployment_{}.json", self.as_inner()))
             .to_string_lossy()
             .to_string()
-    }
-
-    fn get_config_file_path(&self) -> String {
-        format!("{}.json", self.as_inner())
     }
 
     fn get_replacer_config_file_path(&self) -> String {
@@ -138,17 +132,6 @@ impl NodeService {
             NodeService::Hybrid(inner) => inner,
             NodeService::Distributed(inner) => inner,
         }
-    }
-
-    // TODO(Tsabary): deprecate this function after we complete the transition to the replacer
-    // format.
-    fn get_service_file_path(&self) -> String {
-        PathBuf::from(CONFIG_BASE_DIR)
-            .join(SERVICES_DIR_NAME)
-            .join(NodeType::from(self).get_folder_name())
-            .join(self.get_config_file_path())
-            .to_string_lossy()
-            .to_string()
     }
 
     fn get_replacer_service_file_path(&self) -> String {
@@ -295,13 +278,8 @@ impl NodeType {
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
             let pruned = prune_by_is_none(flattened);
-            // TODO(Tsabary): deprecate this section after we complete the transition to the
-            // replacer format. Dumping in the original format.
-            let file_path = node_service.get_service_file_path();
-            writer(&pruned, &file_path);
 
             // Dumping in the replacer format.
-
             let pruned_with_replacer_annotations =
                 insert_replacer_annotations(pruned, replace_pred);
             let file_path = node_service.get_replacer_service_file_path();
