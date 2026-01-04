@@ -277,6 +277,7 @@ class RevertClassifier:
             RevertRule("NEGATIVE", lambda m: "negative:" in m),
             RevertRule("Not player", lambda m: "not player" in m),
             RevertRule("Player not won last round", lambda m: "player not won last round" in lc(m)),
+            # Attestation-related revert types, currently excluded from report records.
             RevertRule(
                 "Attestation out of window", lambda m: "attestation is out of window" in lc(m)
             ),

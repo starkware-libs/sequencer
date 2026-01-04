@@ -372,10 +372,12 @@ class BlobTransformer:
         """
         tx_entries = blob["transactions"]
         revert_error_mappings: JsonObject = {}
+
         for idx, item in enumerate(blob["execution_infos"]):
             err = item["revert_error"]
             if err is None:
                 continue
+
             tx_hash = tx_entries[idx]["tx"]["hash_value"]
             revert_error_mappings[tx_hash] = err
         return revert_error_mappings
