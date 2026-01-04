@@ -30,6 +30,8 @@ config:
     components_sierra_compiler_url: sequencer-sierracompiler-service
     components_signature_manager_port: 55008
     components_signature_manager_url: sequencer-core-service
+    components_proof_manager_port: 55012
+    components_proof_manager_url: sequencer-core-service
     components_state_sync_port: 55009
     components_state_sync_url: sequencer-core-service
     consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_base: 9.1
