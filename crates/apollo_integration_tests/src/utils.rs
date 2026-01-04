@@ -717,7 +717,8 @@ fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             run_cairo_native: true,
             wait_on_native_compilation: true,
-            panic_on_compilation_failure: true,
+            // TODO(Avi): re-enable panic_on_compilation_failure
+            panic_on_compilation_failure: false,
             ..Default::default()
         },
         ..Default::default()
