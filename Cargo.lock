@@ -1191,6 +1191,7 @@ dependencies = [
  "lru 0.12.5",
  "mockall",
  "prost",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "starknet-types-core",
