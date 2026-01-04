@@ -35,7 +35,6 @@ use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::{
     InternalRpcDeployAccountTransaction,
-    InternalRpcInvokeTransaction,
     InternalRpcTransaction,
     RpcDeployAccountTransaction,
 };
@@ -570,7 +569,7 @@ impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
                 invoke_transaction,
             ) => {
                 let version = invoke_transaction.version();
-                let InternalRpcInvokeTransaction::V3(tx) = invoke_transaction;
+                let tx = invoke_transaction;
                 CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),

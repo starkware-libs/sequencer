@@ -110,7 +110,7 @@ pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DEPLOY_ACCOUNT")]
     DeployAccount(InternalRpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
-    Invoke(InternalRpcInvokeTransaction),
+    Invoke(InternalRpcInvokeTransactionV3),
 }
 
 impl InternalRpcTransactionWithoutTxHash {
@@ -208,7 +208,7 @@ macro_rules! implement_internal_getters_for_internal_rpc {
                         let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
                         tx.$field_name.clone()
                     },
-                    InternalRpcTransactionWithoutTxHash::Invoke(InternalRpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.$field_name.clone(),
                 }
             }
         )*
@@ -227,9 +227,7 @@ impl InternalRpcTransaction {
         match &self.tx {
             InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.sender_address,
             InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
-            InternalRpcTransactionWithoutTxHash::Invoke(InternalRpcInvokeTransaction::V3(tx)) => {
-                tx.sender_address
-            }
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.sender_address,
         }
     }
 
@@ -743,49 +741,17 @@ impl From<RpcInvokeTransactionV3> for InternalRpcInvokeTransactionV3 {
     }
 }
 
-/// An internal RPC invoke transaction (without proof field).
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
-#[serde(tag = "version")]
-pub enum InternalRpcInvokeTransaction {
-    #[serde(rename = "0x3")]
-    V3(InternalRpcInvokeTransactionV3),
-}
-
-impl InternalRpcInvokeTransaction {
-    pub fn version(&self) -> TransactionVersion {
-        match self {
-            InternalRpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
-        }
-    }
-}
-
-impl TransactionHasher for InternalRpcInvokeTransaction {
-    fn calculate_transaction_hash(
-        &self,
-        chain_id: &ChainId,
-        transaction_version: &TransactionVersion,
-    ) -> Result<TransactionHash, StarknetApiError> {
-        match self {
-            InternalRpcInvokeTransaction::V3(tx) => {
-                tx.calculate_transaction_hash(chain_id, transaction_version)
-            }
-        }
-    }
-}
-
-impl From<RpcInvokeTransaction> for InternalRpcInvokeTransaction {
+impl From<RpcInvokeTransaction> for InternalRpcInvokeTransactionV3 {
     fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
         match rpc_invoke_tx {
-            RpcInvokeTransaction::V3(tx) => InternalRpcInvokeTransaction::V3(tx.into()),
+            RpcInvokeTransaction::V3(tx) => tx.into(),
         }
     }
 }
 
-impl From<InternalRpcInvokeTransaction> for InvokeTransaction {
-    fn from(internal_invoke_tx: InternalRpcInvokeTransaction) -> Self {
-        match internal_invoke_tx {
-            InternalRpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
-        }
+impl From<InternalRpcInvokeTransactionV3> for InvokeTransaction {
+    fn from(tx: InternalRpcInvokeTransactionV3) -> Self {
+        InvokeTransaction::V3(tx.into())
     }
 }
 

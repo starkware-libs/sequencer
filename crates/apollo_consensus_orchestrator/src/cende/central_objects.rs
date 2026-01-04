@@ -26,7 +26,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
-    InternalRpcInvokeTransaction,
+    InternalRpcInvokeTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
@@ -186,11 +186,10 @@ struct CentralInvokeTransactionV3 {
     hash_value: TransactionHash,
 }
 
-impl From<(InternalRpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV3 {
+impl From<(InternalRpcInvokeTransactionV3, TransactionHash)> for CentralInvokeTransactionV3 {
     fn from(
-        (tx, hash_value): (InternalRpcInvokeTransaction, TransactionHash),
+        (tx, hash_value): (InternalRpcInvokeTransactionV3, TransactionHash),
     ) -> CentralInvokeTransactionV3 {
-        let InternalRpcInvokeTransaction::V3(tx) = tx;
         CentralInvokeTransactionV3 {
             sender_address: tx.sender_address,
             calldata: tx.calldata,

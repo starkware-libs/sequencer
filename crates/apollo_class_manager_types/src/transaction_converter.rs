@@ -12,7 +12,6 @@ use starknet_api::executable_transaction::{
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
-    InternalRpcInvokeTransaction,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
@@ -151,7 +150,7 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: InternalRpcTransaction,
     ) -> TransactionConverterResult<RpcTransaction> {
         match tx.tx {
-            InternalRpcTransactionWithoutTxHash::Invoke(InternalRpcInvokeTransaction::V3(tx)) => {
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
                     resource_bounds: tx.resource_bounds,
                     signature: tx.signature,
