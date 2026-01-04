@@ -41,7 +41,11 @@ impl StatelessTransactionValidator {
         self.validate_tx_size(tx)?;
         self.validate_nonce_data_availability_mode(tx)?;
         self.validate_fee_data_availability_mode(tx)?;
-        self.validate_proof(tx)?;
+
+        if let RpcTransaction::Invoke(invoke_tx) = tx {
+            self.validate_client_side_proving_allowed(invoke_tx)?;
+            self.validate_proof(invoke_tx)?;
+        }
 
         if let RpcTransaction::Declare(declare_tx) = tx {
             self.validate_declare_tx(declare_tx)?;
@@ -219,7 +223,25 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_proof(&self, _: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+    fn validate_client_side_proving_allowed(
+        &self,
+        tx: &RpcInvokeTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        if self.config.allow_client_side_proving {
+            return Ok(());
+        }
+
+        // Reject V3 transactions with proofs when client-side proving is disabled.
+        let RpcInvokeTransaction::V3(tx) = tx;
+        let has_proof_data = !tx.proof_facts.is_empty() || !tx.proof.is_empty();
+        if has_proof_data {
+            return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
+        }
+
+        Ok(())
+    }
+
+    fn validate_proof(&self, _: &RpcInvokeTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Einat): Implement proof validation.
         Ok(())
     }
