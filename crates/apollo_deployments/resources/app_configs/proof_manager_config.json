@@ -1,4 +1,3 @@
 {
-  "proof_manager_config.persistent_root": "/data/proofs"
+    "proof_manager_config.persistent_root": "/data/proofs"
 }
-
