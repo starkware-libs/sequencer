@@ -182,7 +182,6 @@ pub struct Batcher {
     storage_reader_server: Option<BatcherStorageReaderServer>,
     // TODO(Einat): consider embedding into the TransactionConverter.
     /// The proof manager client for proof retrieval.
-    #[allow(dead_code)]
     proof_manager_client: SharedProofManagerClient,
 }
 
@@ -405,7 +404,7 @@ impl Batcher {
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
         let (final_n_executed_txs_sender, final_n_executed_txs_receiver) =
             tokio::sync::oneshot::channel();
-        let proof_validator = ProofValidator::new();
+        let proof_validator = ProofValidator::new(self.proof_manager_client.clone());
 
         let tx_provider = ValidateTransactionProvider::new(
             input_tx_receiver,

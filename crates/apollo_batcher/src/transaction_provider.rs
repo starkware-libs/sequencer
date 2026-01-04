@@ -8,6 +8,7 @@ use apollo_l1_provider_types::{
     ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
+use apollo_proof_manager_types::SharedProofManagerClient;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
@@ -164,11 +165,14 @@ impl TransactionProvider for ProposeTransactionProvider {
     }
 }
 
-pub struct ProofValidator;
+pub struct ProofValidator {
+    #[allow(dead_code)]
+    proof_manager_client: SharedProofManagerClient,
+}
 
 impl ProofValidator {
-    pub fn new() -> Self {
-        Self
+    pub fn new(proof_manager_client: SharedProofManagerClient) -> Self {
+        Self { proof_manager_client }
     }
 
     /// Validates the proof embedded in the transaction.
