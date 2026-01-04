@@ -313,22 +313,29 @@ class NodeConfigLoader(Config):
     def _yaml_key_to_placeholder(yaml_key: str) -> str:
         """Convert a YAML key to the full placeholder format.
 
-        Assumes all placeholders in the application config use snake_case (e.g., COMPONENTS_SIERRA_COMPILER_URL).
-        The YAML key should match this format (e.g., components_sierra_compiler_url).
+        YAML keys use hierarchical structure with dots (e.g., 'components.batcher.port'),
+        which map to placeholders with hyphens (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$').
+
+        The transformation:
+        - Dots (.) in YAML → Hyphens (-) in placeholder
+        - Lowercase → Uppercase
+        - Special keys with '.#is_none' → '.#is_none' becomes '-IS_NONE' (hash removed)
 
         Args:
-            yaml_key: The YAML key in snake_case (e.g., 'chain_id', 'components_sierra_compiler_url')
+            yaml_key: The YAML key with dots (e.g., 'components.batcher.port', 'chain_id')
 
         Returns:
-            The full placeholder format (e.g., '$$$_CHAIN_ID_$$$', '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$')
+            The full placeholder format (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$', '$$$_CHAIN_ID_$$$')
 
         Examples:
-            'chain_id' -> '$$$_CHAIN_ID_$$$'
-            'components_sierra_compiler_url' -> '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$'
-            'consensus_manager_config_network_config_advertised_multiaddr' -> '$$$_CONSENSUS_MANAGER_CONFIG_NETWORK_CONFIG_ADVERTISED_MULTIADDR_$$$'
+            'components.batcher.port' -> '$$$_COMPONENTS-BATCHER-PORT_$$$'
+            'components.sierra_compiler.url' -> '$$$_COMPONENTS-SIERRA_COMPILER-URL_$$$'
+            'consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none' -> '$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-OVERRIDE_ETH_TO_FRI_RATE-IS_NONE_$$$'
+            'chain_id' -> '$$$_CHAIN_ID_$$$' (single-level keys still work)
         """
-        # Simple: just uppercase the key and wrap with placeholder markers
-        placeholder = yaml_key.upper()
+        # Convert dots to hyphens, then uppercase
+        # Special handling: '.#is_none' becomes '-IS_NONE' (remove the #)
+        placeholder = yaml_key.replace(".#is_none", "-is_none").replace(".", "-").upper()
         return f"$$$_{placeholder}_$$$"
 
     @staticmethod
@@ -340,15 +347,17 @@ class NodeConfigLoader(Config):
         Overrides are applied by placeholder value, not by JSON key. This makes the
         deployment resilient to JSON key changes as long as the placeholder values remain the same.
 
-        YAML keys are simplified (e.g., 'chain_id') and automatically converted to
-        placeholder format (e.g., '$$$_CHAIN_ID_$$$') for matching.
+        YAML keys use hierarchical structure with dots (e.g., 'components.batcher.port'),
+        which are automatically converted to placeholder format (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$')
+        for matching against placeholders in the JSON config.
 
         Args:
             merged_json_config: The merged JSON config dictionary from all config files
-            sequencer_config: Dictionary from YAML with simplified keys:
+            sequencer_config: Dictionary from YAML with hierarchical keys:
                 {
-                    'chain_id': '$$$_CHAIN_ID_$$$',
-                    'starknet_url': '$$$_STARKNET_URL_$$$'
+                    'components.batcher.port': 55000,
+                    'components.sierra_compiler.url': 'sequencer-sierracompiler-service',
+                    'chain_id': '123'
                 }
                 These are converted to placeholder format for matching.
 
@@ -359,20 +368,19 @@ class NodeConfigLoader(Config):
             ValueError: If any YAML key doesn't match any placeholder in the config
 
         Examples:
-            JSON: {'chain_id': '$$$_CHAIN_ID_$$$', 'some_other_key': '$$$_CHAIN_ID_$$$'}
-            YAML: {'chain_id': '123'}
-            Result: {'chain_id': '123', 'some_other_key': '123'}
+            JSON: {'components.batcher.port': '$$$_COMPONENTS-BATCHER-PORT_$$$'}
+            YAML: {'components.batcher.port': 55000}
+            Result: {'components.batcher.port': 55000}
         """
-        # Step 1: Normalize all placeholders in the merged config (replace - with _)
-        result = NodeConfigLoader._normalize_placeholders_in_config(merged_json_config)
+        # Use config as-is (no normalization needed - placeholders already use hyphens)
+        result = merged_json_config
 
-        # Step 2: Validate that all YAML keys match existing placeholders
+        # Step 1: Validate that all YAML keys match existing placeholders
         unmatched_keys = []
         for yaml_key, replacement_value in sequencer_config.items():
-            # Convert YAML key to placeholder format and normalize it
+            # Convert YAML key to placeholder format (dots -> hyphens, uppercase)
             placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
-            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
-            # Check if placeholder exists in the normalized config
+            # Check if placeholder exists in the config
             exists = NodeConfigLoader._placeholder_exists(result, placeholder)
             if not exists:
                 unmatched_keys.append((yaml_key, placeholder))
@@ -391,11 +399,10 @@ class NodeConfigLoader(Config):
                 + "\n".join(error_messages)
             )
 
-        # Step 3: Apply overrides
+        # Step 2: Apply overrides
         for yaml_key, replacement_value in sequencer_config.items():
-            # Convert YAML key to placeholder format and normalize it
+            # Convert YAML key to placeholder format (dots -> hyphens, uppercase)
             placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
-            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
             # Replace the placeholder value wherever it appears in the config
             result = NodeConfigLoader._replace_placeholder_value(
                 result, placeholder, replacement_value
