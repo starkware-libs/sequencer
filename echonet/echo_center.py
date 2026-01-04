@@ -180,6 +180,104 @@ class BlobTransformer:
         """By shifting the integer value right by 1, the gas prices are halved."""
         return hex(int(v, 16) >> 1)
 
+    @staticmethod
+    def _flatten_call_info(
+        call_info: Optional[JsonObject],
+    ) -> Tuple[List[Tuple[Optional[int], JsonObject]], List[JsonObject]]:
+        """
+        Flatten a call-info tree (validate/execute/fee_transfer call info) into:
+        - events: list[(order, {from_address, keys, data})]
+        - l2_to_l1_messages: list[message]
+        """
+        if call_info is None:
+            return [], []
+
+        events_out: List[Tuple[Optional[int], JsonObject]] = []
+        messages_out: List[JsonObject] = []
+
+        for exec in call_info["execution"]["events"]:
+            events_out.append(
+                (
+                    exec["order"],
+                    {
+                        "from_address": call_info["call"]["storage_address"],
+                        "keys": exec["event"]["keys"],
+                        "data": exec["event"]["data"],
+                    },
+                )
+            )
+
+        for msg in call_info["execution"]["l2_to_l1_messages"]:
+            messages_out.append(msg)
+
+        for inner_call in call_info["inner_calls"]:
+            inner_events, inner_messages = BlobTransformer._flatten_call_info(inner_call)
+            events_out.extend(inner_events)
+            messages_out.extend(inner_messages)
+
+        return events_out, messages_out
+
+    @staticmethod
+    def _transform_receipt_from_execution_info(
+        tx_index: int, tx_hash: str, execution_info: JsonObject
+    ) -> JsonObject:
+        """
+        Transform a blob execution_infos[i] entry into a feeder gateway type transaction receipt.
+        """
+        event_pairs: List[Tuple[Optional[int], JsonObject]] = []
+        l2_to_l1_messages: List[JsonObject] = []
+
+        for key in ("validate_call_info", "execute_call_info", "fee_transfer_call_info"):
+            pairs, msgs = BlobTransformer._flatten_call_info(execution_info[key])
+            event_pairs.extend(pairs)
+            l2_to_l1_messages.extend(msgs)
+
+        # The "order" field is globally assigned per-tx in the blob (when present).
+        event_pairs.sort(key=lambda p: (p[0] is None, p[0] if p[0] is not None else 0))
+        events = [ev for _order, ev in event_pairs]
+
+        revert_error = execution_info["revert_error"]
+        execution_status = "SUCCEEDED" if revert_error is None else "REVERTED"
+
+        actual_resources = execution_info["actual_resources"]
+        da_gas = execution_info["da_gas"]
+        total_gas = execution_info["total_gas"]
+
+        builtin_instance_counter = {
+            k: v
+            for k, v in actual_resources.items()
+            if k.endswith("_builtin")
+        }
+
+        receipt: JsonObject = {
+            "execution_status": execution_status,
+            "transaction_index": tx_index,
+            "transaction_hash": tx_hash,
+            "l2_to_l1_messages": l2_to_l1_messages,
+            "events": events,
+            "execution_resources": {
+                "n_steps": actual_resources["n_steps"],
+                "builtin_instance_counter": builtin_instance_counter,
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": da_gas["l1_gas"],
+                    "l1_data_gas": da_gas["l1_data_gas"],
+                    "l2_gas": da_gas["l2_gas"],
+                },
+                "total_gas_consumed": {
+                    "l1_gas": total_gas["l1_gas"],
+                    "l1_data_gas": total_gas["l1_data_gas"],
+                    "l2_gas": total_gas["l2_gas"],
+                },
+            },
+            "actual_fee": execution_info["actual_fee"],
+        }
+
+        if revert_error:
+            receipt["revert_error"] = revert_error
+
+        return receipt
+
     def _fetch_upstream_block_meta(self, block_number: int) -> JsonObject:
         """
         Fetch mainnet timestamp and gas prices for `block_number`.
@@ -266,15 +364,17 @@ class BlobTransformer:
         transformed_txs = self._transform_transactions(tx_entries)
 
         receipts: List[JsonObject] = []
+        execution_infos = blob["execution_infos"]
+        assert len(execution_infos) == len(
+            transformed_txs
+        ), f"len(execution_infos) != len(transformed_txs)"
         for idx, tx in enumerate(transformed_txs):
             receipts.append(
-                {
-                    "transaction_index": idx,
-                    "transaction_hash": tx["transaction_hash"],
-                    "l2_to_l1_messages": [],
-                    "events": [],
-                    "actual_fee": "0x0",
-                }
+                self._transform_receipt_from_execution_info(
+                    tx_index=idx,
+                    tx_hash=tx["transaction_hash"],
+                    execution_info=execution_infos[idx],
+                )
             )
 
         block_document: JsonObject = {
