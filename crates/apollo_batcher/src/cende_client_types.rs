@@ -37,7 +37,6 @@ use starknet_api::rpc_transaction::{
     InternalRpcDeployAccountTransaction,
     InternalRpcTransaction,
     RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
 };
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -570,7 +569,7 @@ impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
                 invoke_transaction,
             ) => {
                 let version = invoke_transaction.version();
-                let RpcInvokeTransaction::V3(tx) = invoke_transaction;
+                let tx = invoke_transaction;
                 CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),

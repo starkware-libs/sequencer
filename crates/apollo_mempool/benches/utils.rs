@@ -153,7 +153,7 @@ impl TransactionGenerator {
 
         AddTransactionArgs {
             tx: InternalRpcTransaction {
-                tx: InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx),
+                tx: InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx.into()),
                 tx_hash: tx_hash!(index + 100), // Use index to create a unique hash
             },
             // Since generate_invoke_with_tip() creates first transaction with nonce 1 (first
