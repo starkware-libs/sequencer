@@ -12,6 +12,7 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
+use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
@@ -35,6 +36,9 @@ mod committer_test;
 pub type ApolloStorage = MapStorage;
 pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockImpl>;
 
+// TODO(Rotem): maybe make this configurable.
+const MAX_BLOCKS_TO_MEASURE: usize = 1000;
+
 pub trait StorageConstructor: Storage {
     fn create_storage() -> Self;
 }
@@ -55,13 +59,16 @@ pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
     offset: BlockNumber,
     // Allow define the generic type CB and not use it.
     phantom: PhantomData<CB>,
+    /// Time measurement for the committer, used to collect metrics.
+    time_measurement: TimeMeasurement,
 }
 
 impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
-        Self { forest_storage, config, offset, phantom: PhantomData }
+        let time_measurement = TimeMeasurement::new(MAX_BLOCKS_TO_MEASURE, vec![]);
+        Self { forest_storage, config, offset, phantom: PhantomData, time_measurement }
     }
 
     /// Commits a block to the forest.
@@ -174,10 +181,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             initial_read_context: MockIndexInitialRead {},
             config: self.config.reader_config.clone(),
         };
-        let time_measurement = None;
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let filled_forest =
+            CB::commit_block(input, &mut self.forest_storage, Some(&mut self.time_measurement))
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
         Ok((filled_forest, global_root))
     }
