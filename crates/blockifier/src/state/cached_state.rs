@@ -661,7 +661,7 @@ impl<U: UpdatableState> TransactionalState<'_, U> {
     }
 }
 
-type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
+pub type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
