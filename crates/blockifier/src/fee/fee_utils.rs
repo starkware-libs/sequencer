@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use log::debug;
 use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
@@ -129,13 +130,18 @@ pub fn get_balance_and_if_covers_fee(
     let tx_info = &tx_context.tx_info;
     let (balance_low, balance_high) =
         state.get_fee_token_balance(tx_info.sender_address(), tx_context.fee_token_address())?;
-    Ok((
-        balance_low,
-        balance_high,
-        // TODO(Dori,1/10/2023): If/when fees can be more than 128 bit integers, this should be
-        //   updated.
-        balance_high > Felt::ZERO || balance_low >= Felt::from(fee.0),
-    ))
+    // TODO(Dori,1/10/2023): If/when fees can be more than 128 bit integers, this should be updated.
+    let has_sufficient_balance = balance_high > Felt::ZERO || balance_low >= Felt::from(fee.0);
+    if !has_sufficient_balance {
+        debug!(
+            "Fee token balance check: sender_address={}, tx_hash={}, balance={}, expected fee={}",
+            tx_info.sender_address(),
+            tx_info.transaction_hash(),
+            balance_low,
+            fee.0
+        );
+    }
+    Ok((balance_low, balance_high, has_sufficient_balance))
 }
 
 /// Verifies that, given the current state, the account can cover the resource upper bounds.
