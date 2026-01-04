@@ -247,7 +247,7 @@ impl FlowSequencerSetup {
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
-        consensus_manager_config.cende_config.recorder_url = recorder_url.into();
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());

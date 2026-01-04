@@ -1,6 +1,5 @@
 pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
-use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
@@ -42,7 +41,7 @@ pub trait PreconfirmedCendeClientTrait: Send + Sync {
 }
 
 pub struct PreconfirmedCendeClient {
-    write_pre_confirmed_block_url: Sensitive<Url>,
+    write_pre_confirmed_block_url: Url,
     client: Client,
 }
 
@@ -53,7 +52,9 @@ pub const RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH: &str =
 impl PreconfirmedCendeClient {
     pub fn new(config: PreconfirmedCendeConfig) -> Self {
         let mut recorder_url = config.recorder_url;
-        recorder_url.append_route(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH);
+        recorder_url = recorder_url
+            .join(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
+            .expect("Failed to construct URL");
         Self { write_pre_confirmed_block_url: recorder_url, client: Client::new() }
     }
 }
@@ -83,10 +84,8 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             .filter(|opt| opt.is_some())
             .count();
 
-        let request_builder = self
-            .client
-            .post(self.write_pre_confirmed_block_url.clone().expose_secret())
-            .json(&pre_confirmed_block);
+        let request_builder =
+            self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
 
         trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. \
