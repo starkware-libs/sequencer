@@ -77,7 +77,7 @@ impl MetricHistogram {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub(crate) fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
+    pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
     }
 
