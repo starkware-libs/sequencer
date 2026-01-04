@@ -1,0 +1,19 @@
+# Alert Override Configuration
+# This file contains environment-specific overrides for alert rule fields.
+# 
+# Format: alert_name.field: value
+# 
+# The alert_name should match the alert name in dev_grafana_alerts_*.json (lowercase).
+# The field should match the field name in the placeholder (lowercase).
+#
+# Example placeholders in JSON:
+#   "for": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.FOR_$$$"
+#   "severity": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.LABELS.OG_PRIORITY_$$$"
+#
+# Config keys (lowercase):
+#   consensus_proposal_fin_mismatch_once.for: "5m"
+#   consensus_proposal_fin_mismatch_once.labels.og_priority: "p4"
+
+# Add more overrides as needed
+# cende_write_blob_failure_once.for: "1m"
+# cende_write_prev_height_blob_latency_too_high.for: "2m"
