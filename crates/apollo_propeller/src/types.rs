@@ -2,7 +2,11 @@
 
 use std::fmt::Display;
 
+use libp2p::identity::PeerId;
+
 use crate::MerkleHash;
+
+// TODO(AndrewL): Use thiserror for error types.
 
 // ****************************************************************************
 
@@ -40,3 +44,31 @@ impl Display for MessageRoot {
         write!(f, ")")
     }
 }
+
+// ****************************************************************************
+
+/// Errors that can occur when verifying a shard signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShardSignatureVerificationError {
+    NoPublicKeyAvailable(PeerId),
+    EmptySignature,
+    VerificationFailed,
+}
+
+impl std::fmt::Display for ShardSignatureVerificationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShardSignatureVerificationError::NoPublicKeyAvailable(publisher) => {
+                write!(f, "No public key available for signer {}", publisher)
+            }
+            ShardSignatureVerificationError::EmptySignature => {
+                write!(f, "Shard has empty signature")
+            }
+            ShardSignatureVerificationError::VerificationFailed => {
+                write!(f, "Shard signature is invalid")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ShardSignatureVerificationError {}
