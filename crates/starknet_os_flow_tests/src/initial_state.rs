@@ -1,5 +1,4 @@
-#![allow(dead_code)]
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
 use blockifier::transaction::transaction_execution::Transaction;
@@ -69,7 +68,7 @@ pub(crate) struct InitialStateData<S: FlowTestState> {
 #[derive(Default)]
 pub(crate) struct OsExecutionContracts {
     // Cairo contracts that are executed during the OS execution.
-    pub(crate) executed_contracts: ExecutedContracts,
+    pub(crate) executed: ExecutedContracts,
     // Cairo 1 contracts that are declared during the OS execution.
     pub(crate) declared_class_hash_to_component_hashes:
         HashMap<ClassHash, ContractClassComponentHashes>,
@@ -81,7 +80,7 @@ impl OsExecutionContracts {
         casm_contract_class: CasmContractClass,
         sierra: &SierraContractClass,
     ) {
-        self.executed_contracts.add_cairo1_contract(casm_contract_class);
+        self.executed.add_cairo1_contract(casm_contract_class);
         self.declared_class_hash_to_component_hashes
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
     }
@@ -91,14 +90,14 @@ impl OsExecutionContracts {
         class_hash: ClassHash,
         deprecated_contract_class: DeprecatedContractClass,
     ) {
-        self.executed_contracts.add_deprecated_contract(class_hash, deprecated_contract_class);
+        self.executed.add_deprecated_contract(class_hash, deprecated_contract_class);
     }
 }
 
 #[derive(Default)]
 pub(crate) struct ExecutedContracts {
-    pub(crate) contracts: HashMap<CompiledClassHash, CasmContractClass>,
-    pub(crate) deprecated_contracts: HashMap<ClassHash, DeprecatedContractClass>,
+    pub(crate) contracts: BTreeMap<CompiledClassHash, CasmContractClass>,
+    pub(crate) deprecated_contracts: BTreeMap<ClassHash, DeprecatedContractClass>,
 }
 
 impl ExecutedContracts {
