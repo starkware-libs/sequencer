@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
@@ -32,7 +34,7 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use indexmap::IndexSet;
+use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -46,6 +48,7 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
@@ -104,6 +107,48 @@ use crate::test_utils::{
     PROPOSAL_ID,
     STREAMING_CHUNK_SIZE,
 };
+
+fn get_test_state_diff(mut stream: impl Iterator<Item = u64>) -> ThinStateDiff {
+    ThinStateDiff {
+        deployed_contracts: indexmap! {
+            (stream.next().unwrap()).into() => ClassHash(stream.next().unwrap().into()),
+            (stream.next().unwrap()).into() => ClassHash(stream.next().unwrap().into()),
+        },
+        storage_diffs: indexmap! {
+            (stream.next().unwrap()).into() => indexmap! {
+                (stream.next().unwrap()).into() => (stream.next().unwrap()).into(),
+                (stream.next().unwrap()).into() => stream.next().unwrap().into(),
+            },
+        },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(stream.next().unwrap().into()) =>
+                CompiledClassHash(stream.next().unwrap().into()),
+            ClassHash(stream.next().unwrap().into()) =>
+                CompiledClassHash(stream.next().unwrap().into()),
+        },
+        nonces: indexmap! {
+            (stream.next().unwrap()).into() => Nonce(stream.next().unwrap().into()),
+        },
+        deprecated_declared_classes: vec![],
+    }
+}
+
+fn write_state_diff(
+    batcher: &mut Batcher,
+    height: BlockNumber,
+    stream: impl Iterator<Item = u64>,
+) -> ThinStateDiff {
+    let state_diff: ThinStateDiff = get_test_state_diff(stream);
+    batcher
+        .storage_writer
+        .commit_proposal(
+            height,
+            state_diff.clone(),
+            StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
+        )
+        .expect("set_state_diff failed");
+    state_diff
+}
 
 async fn proposal_commitment() -> ProposalCommitment {
     BlockExecutionArtifacts::create_for_testing().await.commitment()
@@ -1554,4 +1599,57 @@ async fn get_block_hash_error() {
     let batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::InternalError));
+}
+
+/// For every key in the original map, validates that the reversed map values are identical to the
+/// base map, or zero if the key is missing in the base map.
+fn validate_is_reversed<K: Eq + Hash + Debug, V: Debug + Default + Eq + Hash>(
+    base: IndexMap<K, V>,
+    original: IndexMap<K, V>,
+    reversed: IndexMap<K, V>,
+) {
+    assert_eq!(original.len(), reversed.len());
+    for key in original.keys() {
+        assert_eq!(reversed.get(key).unwrap(), base.get(key).unwrap_or(&V::default()));
+    }
+}
+
+#[tokio::test]
+async fn test_reversed_state_diff() {
+    let mut batcher =
+        create_batcher_with_real_storage(MockDependenciesWithRealStorage::default()).await;
+
+    let mut height = BlockNumber(0);
+    let base_state_diff = write_state_diff(&mut batcher, height, 0..);
+    height = height.unchecked_next();
+    // Write another state diff with some shared keys.
+    let state_diff = write_state_diff(&mut batcher, height, 2..);
+    let reversed_state_diff = batcher.storage_reader.reversed_state_diff(height).unwrap();
+
+    validate_is_reversed(
+        base_state_diff.deployed_contracts,
+        state_diff.deployed_contracts,
+        reversed_state_diff.deployed_contracts,
+    );
+    for (contract_address, storage_diffs) in state_diff.storage_diffs {
+        validate_is_reversed(
+            base_state_diff
+                .storage_diffs
+                .get(&contract_address)
+                .unwrap_or(&IndexMap::new())
+                .clone(),
+            storage_diffs,
+            reversed_state_diff.storage_diffs.get(&contract_address).unwrap().clone(),
+        );
+    }
+    validate_is_reversed(
+        base_state_diff.class_hash_to_compiled_class_hash,
+        state_diff.class_hash_to_compiled_class_hash.clone(),
+        reversed_state_diff.class_hash_to_compiled_class_hash,
+    );
+    validate_is_reversed(
+        base_state_diff.nonces,
+        state_diff.nonces.clone(),
+        reversed_state_diff.nonces,
+    );
 }
