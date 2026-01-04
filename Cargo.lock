@@ -2329,6 +2329,8 @@ dependencies = [
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
+ "hex",
+ "insta",
  "libp2p",
  "reed-solomon-simd",
  "rstest",
