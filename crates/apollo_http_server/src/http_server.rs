@@ -69,7 +69,7 @@ impl HttpServer {
         init_metrics();
 
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
-        let HttpServerConfig { ip, port, max_sierra_program_size: _ } = self.config;
+        let (ip, port) = self.config.ip_and_port();
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
@@ -86,7 +86,7 @@ impl HttpServer {
             .with_state(self.app_state.clone())
             // Rest api endpoint
             .route("/gateway/add_transaction", post({
-                let max_sierra_program_size = self.config.max_sierra_program_size;
+                let max_sierra_program_size = self.config.dynamic_config.max_sierra_program_size;
                 move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx, max_sierra_program_size)
             }))
             .with_state(self.app_state.clone())
