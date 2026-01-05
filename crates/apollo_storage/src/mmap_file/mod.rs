@@ -146,12 +146,22 @@ struct MMapFile<V: ValueSerde> {
 }
 
 impl<V: ValueSerde> MMapFile<V> {
-    /// Grows the file by the growth step.
-    fn grow(&mut self) {
+    /// Grows the file to accommodate at least the target size.
+    /// Grows in multiples of growth_step for efficiency.
+    fn grow_to_target(&mut self, target_size: usize) {
+        if self.size >= target_size {
+            return;
+        }
         self.flush();
-        let new_size = self.size + self.config.growth_step;
+        // Calculate how many growth steps needed, rounding up.
+        let growth_needed = target_size.saturating_sub(self.size);
+        let growth_steps = growth_needed.div_ceil(self.config.growth_step);
+        let new_size = self.size + (growth_steps * self.config.growth_step);
         let new_size_u64 = u64::try_from(new_size).expect("usize should fit in u64");
-        debug!("Growing file to size: {}", new_size);
+        debug!(
+            "Growing file to size: {} (target: {}, steps: {})",
+            new_size, target_size, growth_steps
+        );
         self.file.set_len(new_size_u64).expect("Failed to set the file size");
         self.size = new_size;
     }
@@ -161,6 +171,35 @@ impl<V: ValueSerde> MMapFile<V> {
         trace!("Flushing mmap to file");
         self.mmap.flush().expect("Failed to flush the mmap");
         self.should_flush = false;
+    }
+
+    /// Writes serialized data to the mmap at the current offset.
+    /// Returns the location where data was written and updates the offset.
+    fn write_at_current_offset(&mut self, serialized: &[u8]) -> LocationInFile {
+        let len = serialized.len();
+        let offset = self.offset;
+
+        trace!("Inserting object at offset: {}", offset);
+
+        // Ensure we have enough space before writing.
+        let final_offset = offset + len;
+        self.grow_to_target(final_offset);
+
+        // Copy data to mmap
+        let mmap_slice = &mut self.mmap[offset..final_offset];
+        assert!(
+            mmap_slice.len() >= len,
+            "Not enough space in mmap slice: available={}, needed={}",
+            mmap_slice.len(),
+            len
+        );
+        mmap_slice.copy_from_slice(serialized);
+
+        // Update offset
+        self.offset += len;
+        self.should_flush = true;
+
+        LocationInFile { offset, len }
     }
 }
 
@@ -214,11 +253,12 @@ impl<V: ValueSerde> FileHandler<V, RW> {
     fn grow_file_if_needed(&mut self, offset: usize) {
         let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
         if mmap_file.size < offset + mmap_file.config.max_object_size {
+            let target_size = offset + mmap_file.config.max_object_size;
             debug!(
-                "Attempting to grow file. File size: {}, offset: {}, max_object_size: {}",
-                mmap_file.size, offset, mmap_file.config.max_object_size
+                "Attempting to grow file. File size: {}, offset: {}, max_object_size: {}, target: {}",
+                mmap_file.size, offset, mmap_file.config.max_object_size, target_size
             );
-            mmap_file.grow();
+            mmap_file.grow_to_target(target_size);
         }
     }
 }
