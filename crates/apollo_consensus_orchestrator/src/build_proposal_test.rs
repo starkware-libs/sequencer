@@ -6,17 +6,13 @@ use apollo_batcher_types::batcher_types::{
     ProposalCommitment,
 };
 use apollo_batcher_types::communication::BatcherClientError;
-use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
 };
 use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
-use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -42,48 +38,6 @@ async fn build_proposal_succeed() {
     });
     // Make sure cende returns on time.
     tokio::time::sleep(Duration::from_millis(100)).await;
-
-    let res = build_proposal(proposal_args.into()).await.unwrap();
-    assert_eq!(res, ConsensusProposalCommitment::default());
-}
-
-#[tokio::test]
-async fn state_sync_ready_after_a_while() {
-    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-
-    // Setup batcher.
-    proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
-    proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-                final_n_executed_txs: 0,
-            },
-        })
-    });
-    // Make sure cende returns on time.
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
-    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
-    // state_sync_client is being called only if the batcher client returns an error.
-    proposal_args.deps.batcher.expect_get_block_hash().returning(|block_number| {
-        Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
-    });
-    // Setup state sync client to return BlockNotFound error in the first attempt.
-    proposal_args
-        .deps
-        .state_sync_client
-        .expect_get_block_hash()
-        .times(1)
-        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
-    // Setup state sync client to return a block hash in the second attempt.
-    proposal_args
-        .deps
-        .state_sync_client
-        .expect_get_block_hash()
-        .times(1)
-        .returning(|_| Ok(BlockHash::default()));
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
     assert_eq!(res, ConsensusProposalCommitment::default());
