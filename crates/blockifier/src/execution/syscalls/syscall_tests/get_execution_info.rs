@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
@@ -33,13 +34,15 @@ use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
-use test_case::test_case;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::state::cached_state::CachedState;
+use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractData;
+use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state_inner;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
 use crate::transaction::objects::{
@@ -50,303 +53,141 @@ use crate::transaction::objects::{
 };
 use crate::transaction::test_utils::proof_facts_as_cairo_array;
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
-        ExecutionMode::Validate,
-        TransactionVersion::ONE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
-        ExecutionMode::Execute,
-        TransactionVersion::ONE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Validate,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
-    V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
-    V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        true,
-        false,
-        false;
-        "Native: V1 bound account: execute"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        true,
-        false,
-        false;
-        "Native: V1 bound account: query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        false,
-        false,
-        true;
-        "Native: data gas account: query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        true;
-        "Native: data gas account"
-    )
-)]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Validate,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Validate,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V3.")]
-#[test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V3. Query.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    true,
-    false,
-    false;
-    "V1 bound account: execute")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    true,
-    true,
-    false;
-    "V1 bound account: execute, high tip")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    true,
-    false,
-    false;
-    "V1 bound account: query")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    true;
-    "Exclude l1 data gas: execute")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    false,
-    false,
-    true;
-    "Exclude l1 data gas: query")]
-/// Tests the `get_execution_info` syscall by invoking `test_get_execution_info` across multiple
-/// contract implementations and transaction variants.
-///
-/// Contracts covered:
-/// - `TestContract` (Cairo 1): uses `get_execution_info_v3_syscall()`, expects V3 `TxInfo`.
-/// - `SierraExecutionInfoV1Contract` (Cairo 1): uses `get_execution_info_syscall()`, expects V1
-///   `TxInfo`.
-/// - `LegacyTestContract` (Cairo 0, compiler v2.1.0): uses `get_execution_info()`, expects V1
-///   `TxInfo`.
-///
-/// The test matrix varies execution mode (`Validate` vs `Execute`), tx version (V1 vs V3),
-/// query mode, and special account behaviors (v1-bound / data-gas / high-tip).
-/// In `Validate`, block info fields are rounded/zeroed; in `Execute`, they are populated normally.
+/// Flags controlling `get_execution_info` syscall test behavior.
+#[derive(Clone, Copy, Default)]
+struct ExecutionInfoTestFlags {
+    /// Whether the transaction is a query (dry-run) rather than an actual execution.
+    only_query: bool,
+    /// Whether the sender is a "v1-bound account" - an account with hardcoded version
+    /// assertions that cannot handle V3 transactions. The gateway only accepts V3 transactions,
+    /// but for these accounts, execution info reports V1.
+    is_v1_bound_account: bool,
+    /// Only meaningful when `is_v1_bound_account` is true.
+    tip_exceeds_v1_bound_threshold: bool,
+    /// Whether the sender is in the "data gas accounts" list, causing L1 data gas to be
+    /// excluded from reported resource bounds.
+    exclude_l1_data_gas: bool,
+}
 
-fn test_get_execution_info(
+/// Contains all data needed to execute and verify a `get_execution_info` test.
+struct TestSetup<S: StateReader> {
+    state: CachedState<S>,
+    tx_info: TransactionInfo,
+    execution_mode: ExecutionMode,
+    entry_point_selector: starknet_api::core::EntryPointSelector,
+    test_contract_address: starknet_api::core::ContractAddress,
+    /// Calldata segments (block info, call info, tx info). Extended for contracts using
+    /// `get_execution_info_v3_syscall`, which returns V3 `TxInfo` with additional fields.
+    calldata: Vec<Vec<Felt>>,
+    // Fields used when extending calldata for post-V1 execution info syscall.
+    exclude_l1_data_gas: bool,
+    expected_tip: Tip,
+}
+
+impl<S: StateReader> TestSetup<S> {
+    /// Builds the final calldata and returns the configured entry point.
+    fn build_entry_point(&self) -> CallEntryPoint {
+        CallEntryPoint {
+            entry_point_selector: self.entry_point_selector,
+            code_address: None,
+            calldata: Calldata(self.calldata.concat().into()),
+            ..trivial_external_entry_point_with_address(self.test_contract_address)
+        }
+    }
+
+    /// Executes the entry point and asserts the execution succeeded.
+    fn execute_and_assert(&mut self) {
+        let entry_point = self.build_entry_point();
+        let result = entry_point.execute_directly_given_tx_info(
+            &mut self.state,
+            self.tx_info.clone(),
+            None,
+            false,
+            self.execution_mode,
+        );
+        assert!(!result.unwrap().execution.failed);
+    }
+
+    /// Extends calldata with post-V1 TxInfo fields: resource bounds, unsupported fields,
+    /// and proof facts.
+    fn extend_calldata_for_post_v1_execution_info_syscall(&mut self) {
+        let (expected_resource_bounds, proof_facts) = match &self.tx_info {
+            TransactionInfo::Deprecated(_) => (vec![felt!(0_u16)], ProofFacts::default()),
+            TransactionInfo::Current(info) => {
+                let num_resources = if self.exclude_l1_data_gas { 2_u8 } else { 3_u8 };
+                let bounds = std::iter::once(felt!(num_resources))
+                    .chain(
+                        valid_resource_bounds_as_felts(
+                            &info.resource_bounds,
+                            self.exclude_l1_data_gas,
+                        )
+                        .unwrap()
+                        .into_iter()
+                        .flat_map(|bounds| bounds.flatten()),
+                    )
+                    .collect();
+                (bounds, info.proof_facts.clone())
+            }
+        };
+
+        let expected_unsupported_fields = vec![
+            self.expected_tip.into(),
+            Felt::ZERO, // Paymaster data.
+            Felt::ZERO, // Nonce DA mode.
+            Felt::ZERO, // Fee DA mode.
+            Felt::ZERO, // Account deployment data.
+        ];
+
+        self.calldata.push(
+            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+        );
+        self.calldata.push(proof_facts_as_cairo_array(proof_facts));
+    }
+}
+
+/// Computes the transaction version reported to the contract via execution info.
+///
+/// V1-bound accounts report V1 version (they would fail on V3), unless the tip exceeds the
+/// threshold - in which case V3 is reported to prevent fee manipulation (V1 TxInfo excludes tips).
+/// Query transactions have the query version base added.
+fn compute_expected_tx_version(
+    tx_version: TransactionVersion,
+    flags: &ExecutionInfoTestFlags,
+) -> Felt {
+    let is_v1_bound_without_high_tip =
+        flags.is_v1_bound_account && !flags.tip_exceeds_v1_bound_threshold;
+    let mut version = if is_v1_bound_without_high_tip { 1.into() } else { tx_version.0 };
+    if flags.only_query {
+        version += *QUERY_VERSION_BASE;
+    }
+    version
+}
+
+/// Creates a test setup with all shared configuration.
+fn create_test_setup(
     test_contract: FeatureContract,
     execution_mode: ExecutionMode,
-    version: TransactionVersion,
-    only_query: bool,
-    v1_bound_account: bool,
-    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
-    high_tip: bool,
-    exclude_l1_data_gas: bool,
-) {
+    tx_version: TransactionVersion,
+    flags: &ExecutionInfoTestFlags,
+    class_hash_override: Option<starknet_api::core::ClassHash>,
+) -> TestSetup<DictStateReader> {
+    let ExecutionInfoTestFlags {
+        only_query,
+        is_v1_bound_account: _,
+        tip_exceeds_v1_bound_threshold,
+        exclude_l1_data_gas,
+        ..
+    } = *flags;
+
     let mut test_contract_data: FeatureContractData = test_contract.into();
 
-    // Override class hash for special account types that affect execution info behavior.
-    if v1_bound_account {
-        assert!(
-            !exclude_l1_data_gas,
-            "Unable to set both exclude_l1_data_gas and v1_bound_account."
-        );
-        test_contract_data.class_hash = *VersionedConstants::latest_constants()
-            .os_constants
-            .v1_bound_accounts_cairo1
-            .first()
-            .expect("No v1 bound accounts found in versioned constants.");
-    } else if exclude_l1_data_gas {
-        test_contract_data.class_hash =
-            *VersionedConstants::latest_constants().os_constants.data_gas_accounts.first().unwrap();
+    // Apply class hash override if provided (used for v1-bound and data-gas account tests).
+    if let Some(class_hash) = class_hash_override {
+        test_contract_data.class_hash = class_hash;
     }
 
     let erc20_version = test_contract.cairo_version();
-    let state = &mut test_state_inner(
+    let state = test_state_inner(
         &ChainInfo::create_for_testing(),
         BALANCE,
         &[(test_contract_data, 1)],
@@ -357,15 +198,13 @@ fn test_get_execution_info(
     // Build expected block info.
     let expected_block_info = match execution_mode {
         ExecutionMode::Validate => [
-            // Rounded block number.
             felt!(CURRENT_BLOCK_NUMBER_FOR_VALIDATE),
-            // Rounded timestamp.
             felt!(CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE),
             Felt::ZERO,
         ],
         ExecutionMode::Execute => [
-            felt!(CURRENT_BLOCK_NUMBER),    // Block number.
-            felt!(CURRENT_BLOCK_TIMESTAMP), // Block timestamp.
+            felt!(CURRENT_BLOCK_NUMBER),
+            felt!(CURRENT_BLOCK_TIMESTAMP),
             Felt::from_hex(TEST_SEQUENCER_ADDRESS).unwrap(),
         ],
     };
@@ -373,12 +212,12 @@ fn test_get_execution_info(
     // Build transaction fields.
     let test_contract_address = test_contract.get_instance_address(0);
     let tx_hash = tx_hash!(1991);
-    let max_fee = if version == TransactionVersion::ONE { Fee(42) } else { Fee(0) };
+    let max_fee = if tx_version == TransactionVersion::ONE { Fee(42) } else { Fee(0) };
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
     let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
-        + if high_tip { 1 } else { 0 });
-    let expected_tip = if version == TransactionVersion::THREE { tip } else { Tip(0) };
+        + if tip_exceeds_v1_bound_threshold { 1 } else { 0 });
+    let expected_tip = if tx_version == TransactionVersion::THREE { tip } else { Tip(0) };
 
     let resource_bounds =
         ResourceBounds { max_amount: GasAmount(13), max_price_per_unit: GasPrice(61) };
@@ -388,16 +227,6 @@ fn test_get_execution_info(
         l1_data_gas: resource_bounds,
     });
 
-    // Sanity check: verify legacy contract has expected compiler version.
-    if matches!(test_contract, FeatureContract::LegacyTestContract) {
-        let raw_contract: serde_json::Value =
-            serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
-        let compiler_version = raw_contract["compiler_version"]
-            .as_str()
-            .expect("'compiler_version' not found or not a valid string in JSON.");
-        assert_eq!(compiler_version, "2.1.0");
-    }
-
     let expected_signature = match test_contract {
         FeatureContract::LegacyTestContract => vec![],
         #[cfg(feature = "cairo_native")]
@@ -406,14 +235,10 @@ fn test_get_execution_info(
         _ => panic!("Unsupported contract for this test."),
     };
     let signature = TransactionSignature(Arc::new(expected_signature));
-
-    let mut expected_version = if v1_bound_account && !high_tip { 1.into() } else { version.0 };
-    if only_query {
-        expected_version += *QUERY_VERSION_BASE;
-    }
+    let expected_version = compute_expected_tx_version(tx_version, flags);
 
     // Only V3 transactions support non-trivial proof facts.
-    let proof_facts = if version == TransactionVersion::THREE {
+    let proof_facts = if tx_version == TransactionVersion::THREE {
         ProofFacts::snos_proof_facts_for_testing()
     } else {
         ProofFacts::default()
@@ -422,14 +247,14 @@ fn test_get_execution_info(
     // Build transaction info object.
     let common_fields = CommonAccountFields {
         transaction_hash: tx_hash,
-        version,
+        version: tx_version,
         signature,
         nonce,
         sender_address,
         only_query,
     };
 
-    let tx_info = if version == TransactionVersion::ONE {
+    let tx_info = if tx_version == TransactionVersion::ONE {
         TransactionInfo::Deprecated(DeprecatedTransactionInfo { common_fields, max_fee })
     } else {
         TransactionInfo::Current(CurrentTransactionInfo {
@@ -440,12 +265,11 @@ fn test_get_execution_info(
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
-            proof_facts: proof_facts.clone(),
+            proof_facts,
         })
     };
 
-    // Build expected calldata to pass to the contract's test_get_execution_info entry point.
-    // The contract will compare the syscall results with the expected values.
+    // Build expected calldata (what the contract expects to receive via execution info).
     let entry_point_selector = selector_from_name("test_get_execution_info");
 
     let expected_call_info = vec![
@@ -454,68 +278,186 @@ fn test_get_execution_info(
         entry_point_selector.0,
     ];
 
-    // TxInfo fields (shared between V1 and V3).
     let expected_tx_info = vec![
         expected_version,
         *sender_address.0.key(),
         felt!(max_fee.0),
-        Felt::ZERO, // Signature
+        Felt::ZERO, // Signature length (empty in this test).
         tx_hash.0,
         felt!(&*CHAIN_ID_FOR_TESTS.as_hex()),
         nonce.0,
     ];
 
-    let mut calldata = vec![expected_block_info.to_vec(), expected_call_info, expected_tx_info];
+    let calldata = vec![expected_block_info.to_vec(), expected_call_info, expected_tx_info];
 
-    // TestContract uses get_execution_info_v3 which includes additional V3 fields.
-    // The LegacyTestContract and SierraExecutionInfoV1Contract use get_execution_info_v1 and don't
-    // expect these fields.
-    if matches!(test_contract, FeatureContract::TestContract(_)) {
-        let expected_resource_bounds: Vec<Felt> = if version == TransactionVersion::ONE {
-            vec![felt!(0_u16)] // Empty resource bounds for V1.
-        } else {
-            let num_resources = if exclude_l1_data_gas { 2_u8 } else { 3_u8 };
-            std::iter::once(felt!(num_resources))
-                .chain(
-                    valid_resource_bounds_as_felts(&all_resource_bounds, exclude_l1_data_gas)
-                        .unwrap()
-                        .into_iter()
-                        .flat_map(|bounds| bounds.flatten()),
-                )
-                .collect()
-        };
-
-        let expected_unsupported_fields = vec![
-            expected_tip.into(),
-            Felt::ZERO, // Paymaster data.
-            Felt::ZERO, // Nonce DA mode.
-            Felt::ZERO, // Fee DA mode.
-            Felt::ZERO, // Account deployment data.
-        ];
-
-        calldata.push(
-            expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
-        );
-        calldata.push(proof_facts_as_cairo_array(proof_facts));
-    }
-
-    // Execute and verify.
-    let entry_point_call = CallEntryPoint {
-        entry_point_selector,
-        code_address: None,
-        calldata: Calldata(calldata.concat().into()),
-        ..trivial_external_entry_point_with_address(test_contract_address)
-    };
-
-    let result = entry_point_call.execute_directly_given_tx_info(
+    TestSetup {
         state,
         tx_info,
-        None,
-        false,
         execution_mode,
-    );
+        entry_point_selector,
+        test_contract_address,
+        calldata,
+        exclude_l1_data_gas,
+        expected_tip,
+    }
+}
 
-    assert!(!result.unwrap().execution.failed);
+/// Tests `get_execution_info` for `TestContract` (Cairo 1), which uses
+/// `get_execution_info_v3_syscall` and expects V3 `TxInfo`.
+///
+/// Covers execution modes (Validate vs Execute), transaction versions (V1 vs V3), and query mode.
+/// In Validate mode, block info fields are rounded/zeroed; in Execute mode, they are fully
+/// populated.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, TransactionVersion::ONE, false))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(RunnableCairo1::Native, TransactionVersion::THREE, false)
+)]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, TransactionVersion::THREE, true))]
+#[case(RunnableCairo1::Casm, TransactionVersion::ONE, false)]
+#[case(RunnableCairo1::Casm, TransactionVersion::THREE, false)]
+#[case(RunnableCairo1::Casm, TransactionVersion::THREE, true)]
+fn test_get_execution_info(
+    #[case] runnable: RunnableCairo1,
+    #[case] tx_version: TransactionVersion,
+    #[case] only_query: bool,
+    #[values(ExecutionMode::Validate, ExecutionMode::Execute)] execution_mode: ExecutionMode,
+) {
+    let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let flags = ExecutionInfoTestFlags { only_query, ..Default::default() };
+    let mut setup = create_test_setup(contract, execution_mode, tx_version, &flags, None);
+    setup.extend_calldata_for_post_v1_execution_info_syscall();
+    setup.execute_and_assert();
+}
+
+/// Tests `get_execution_info` for legacy contracts that use the V1 syscall (returning V1 TxInfo):
+/// - `SierraExecutionInfoV1Contract` (Cairo 1): uses `get_execution_info_syscall` (V1 syscall).
+/// - `LegacyTestContract` (Cairo 0, compiler v2.1.0): uses the `get_execution_info` library
+///   function.
+///
+/// These contracts only support default flags (all false) since they do not receive V3 TxInfo
+/// fields.
+#[rstest]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::ONE
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::ONE
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::ONE)
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::THREE)
+)]
+#[case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::ONE)]
+#[case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::THREE)]
+fn test_execution_info_v1_syscall(
+    #[case] contract: FeatureContract,
+    #[case] execution_mode: ExecutionMode,
+    #[case] tx_version: TransactionVersion,
+) {
+    // Sanity check: verify legacy contract has expected compiler version.
+    if matches!(contract, FeatureContract::LegacyTestContract) {
+        let raw_contract: serde_json::Value =
+            serde_json::from_str(&contract.get_raw_class()).expect("Error parsing JSON");
+        let compiler_version = raw_contract["compiler_version"]
+            .as_str()
+            .expect("'compiler_version' not found or not a valid string in JSON.");
+        assert_eq!(compiler_version, "2.1.0");
+    }
+
+    let mut setup = create_test_setup(
+        contract,
+        execution_mode,
+        tx_version,
+        &ExecutionInfoTestFlags::default(),
+        None,
+    );
+    setup.execute_and_assert();
+}
+
+/// Tests `get_execution_info` for V1-bound accounts - accounts with hardcoded version assertions
+/// that cannot handle V3 transactions. Although the gateway only accepts V3 transactions,
+/// execution info reports V1 for these accounts.
+///
+/// Exception: if the tip exceeds the threshold, V3 is reported to prevent fee manipulation
+/// (V1 TxInfo excludes tips from fee calculations).
+///
+/// Only tests Execute mode; the main test covers both modes. This test focuses on V1-bound
+/// behavior.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+#[case(RunnableCairo1::Casm)]
+#[case(RunnableCairo1::Casm)]
+fn test_v1_bound_account_get_execution_info(
+    #[case] runnable: RunnableCairo1,
+    #[values(true, false)] only_query: bool,
+    #[values(true, false)] tip_exceeds_v1_bound_threshold: bool,
+) {
+    let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let flags = ExecutionInfoTestFlags {
+        only_query,
+        is_v1_bound_account: true,
+        tip_exceeds_v1_bound_threshold,
+        ..Default::default()
+    };
+    let class_hash = *VersionedConstants::latest_constants()
+        .os_constants
+        .v1_bound_accounts_cairo1
+        .first()
+        .expect("No v1 bound accounts found in versioned constants.");
+    let mut setup = create_test_setup(
+        contract,
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        &flags,
+        Some(class_hash),
+    );
+    setup.extend_calldata_for_post_v1_execution_info_syscall();
+    setup.execute_and_assert();
+}
+
+/// Tests `get_execution_info` for data-gas accounts (listed in `data_gas_accounts` in versioned
+/// constants). These accounts receive only 2 resource types (L1 gas, L2 gas) instead of 3.
+///
+/// Only tests Execute mode; the main test covers both modes. This test focuses on data-gas
+/// behavior.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+#[case(RunnableCairo1::Casm)]
+fn test_exclude_l1_data_gas_get_execution_info(
+    #[case] runnable: RunnableCairo1,
+    #[values(true, false)] only_query: bool,
+) {
+    let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let flags =
+        ExecutionInfoTestFlags { only_query, exclude_l1_data_gas: true, ..Default::default() };
+    let class_hash =
+        *VersionedConstants::latest_constants().os_constants.data_gas_accounts.first().unwrap();
+    let mut setup = create_test_setup(
+        contract,
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        &flags,
+        Some(class_hash),
+    );
+    setup.extend_calldata_for_post_v1_execution_info_syscall();
+    setup.execute_and_assert();
 }
 
 #[test]
