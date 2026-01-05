@@ -1,5 +1,46 @@
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use starknet_api::block::BlockNumber;
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::MessageToL1;
 use starknet_types_core::felt::Felt;
+
+use crate::io::os_output::{parse_messages_to_l1, wrap_missing, wrap_missing_as, OsOutputError};
+
+/// The parsed output of the virtual OS.
+#[derive(Debug)]
+pub struct VirtualOsOutput {
+    /// The output version (currently always 0).
+    pub version: Felt,
+    /// The base block number.
+    pub base_block_number: BlockNumber,
+    /// The base block hash.
+    pub base_block_hash: StarkHash,
+    /// The hash of the Starknet OS config.
+    pub starknet_os_config_hash: StarkHash,
+    /// Messages from L2 to L1.
+    pub messages_to_l1: Vec<MessageToL1>,
+}
+
+impl VirtualOsOutput {
+    /// Parses the virtual OS output from a raw output iterator.
+    pub fn from_raw_output(raw_output: &[Felt]) -> Result<Self, OsOutputError> {
+        let mut iter = raw_output.iter().copied();
+
+        let version = wrap_missing(iter.next(), "version")?;
+        let base_block_number = BlockNumber(wrap_missing_as(iter.next(), "base_block_number")?);
+        let base_block_hash = wrap_missing(iter.next(), "base_block_hash")?;
+        let starknet_os_config_hash = wrap_missing(iter.next(), "starknet_os_config_hash")?;
+        let messages_to_l1 = parse_messages_to_l1(&mut iter)?;
+
+        Ok(Self {
+            version,
+            base_block_number,
+            base_block_hash,
+            starknet_os_config_hash,
+            messages_to_l1,
+        })
+    }
+}
 
 /// The output of the virtual OS runner.
 #[derive(Debug)]
