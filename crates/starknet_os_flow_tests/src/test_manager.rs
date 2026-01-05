@@ -79,11 +79,11 @@ use starknet_types_core::felt::Felt;
 use crate::initial_state::{
     create_default_initial_state_data,
     get_initial_deploy_account_tx,
+    FlowTestState,
     InitialState,
     InitialStateData,
     OsExecutionContracts,
 };
-use crate::state_trait::FlowTestState;
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
