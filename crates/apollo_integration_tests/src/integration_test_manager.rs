@@ -31,6 +31,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -260,6 +261,18 @@ impl NodeSetup {
         .clone()
         .expect("No executable with a set l1 gas price scraper config.")
     }
+
+    pub fn get_base_layer_config(&self) -> EthereumBaseLayerConfig {
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::BaseLayer,
+        )
+        .get_config()
+        .base_layer_config
+        .clone()
+        .expect("No executable with a set base layer config.")
+    }
 }
 
 pub struct RunningNode {
@@ -345,8 +358,26 @@ impl IntegrationTestManager {
 
         let l1_gas_price_scraper_config =
             sequencers_setup.first().unwrap().get_l1_gas_price_scraper_config();
+        let anvil_base_layer_config = sequencers_setup.first().unwrap().get_base_layer_config();
 
-        let anvil_base_layer = AnvilBaseLayer::new(Some(1), None).await;
+        // TODO(guyn): consider saving the port as a part of the base layer config, not just (or
+        // instead of) in the url.
+        let mut anvil_base_layer = AnvilBaseLayer::new(
+            Some(1),
+            Some(
+                anvil_base_layer_config
+                    .ordered_l1_endpoint_urls
+                    .first()
+                    .unwrap()
+                    .peek_secret()
+                    .port()
+                    .unwrap(),
+            ),
+        )
+        .await;
+        // Make sure to update the rest of the config to match what comes from the sequencer setup.
+        anvil_base_layer.ethereum_base_layer.config = anvil_base_layer_config;
+
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
@@ -1101,12 +1132,7 @@ async fn get_sequencer_setup_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
     let base_layer_config =
-        // TODO(guyn): Need to start using the ports generator for anvil, but we need to make sure 
-        // we pass it from "setup configs" into IntegrationTestManager::new() where we setup an actual Anvil instance. 
-        // Use this commented line:
-        // AnvilBaseLayer::config(AnvilBaseLayer::url_static(base_layer_ports.get_next_port()));
-        // TODO(guyn): Also check if DEFAULT_ANVIL_PORT should be pub in AnvilBaseLayer.
-        AnvilBaseLayer::config(AnvilBaseLayer::url_static(AnvilBaseLayer::DEFAULT_ANVIL_PORT));
+        AnvilBaseLayer::config(AnvilBaseLayer::url_static(base_layer_ports.get_next_port()));
 
     let mut nodes = Vec::new();
 
