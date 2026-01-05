@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use apollo_committer_config::config::CommitterConfig;
-use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    RevertBlockRequest,
+    RevertBlockResponse,
+};
 use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;
 use async_trait::async_trait;
@@ -53,20 +57,33 @@ async fn new_test_committer() -> ApolloTestCommitter {
     Committer::new(CommitterConfig::default()).await
 }
 
+fn get_state_diff(state_diff_info: u64) -> ThinStateDiff {
+    ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(state_diff_info.into()) => CompiledClassHash(state_diff_info.into()),
+        },
+        ..Default::default()
+    }
+}
+
 fn commit_block_request(
     state_diff_info: u64,
     state_diff_commitment: Option<u64>,
     height: u64,
 ) -> CommitBlockRequest {
     CommitBlockRequest {
-        state_diff: ThinStateDiff {
-            class_hash_to_compiled_class_hash: indexmap! {
-                ClassHash(state_diff_info.into()) => CompiledClassHash(state_diff_info.into()),
-            },
-            ..Default::default()
-        },
+        state_diff: get_state_diff(state_diff_info),
         state_diff_commitment: state_diff_commitment
             .map(|commitment| StateDiffCommitment(PoseidonHash(commitment.into()))),
+        height: BlockNumber(height),
+    }
+}
+
+fn revert_block_request(reversed_state_diff_info: u64, height: u64) -> RevertBlockRequest {
+    // Note: for CommitBlockMock, the reversed state diff of "height" is the state diff of
+    // "height-1".
+    RevertBlockRequest {
+        reversed_state_diff: get_state_diff(reversed_state_diff_info),
         height: BlockNumber(height),
     }
 }
@@ -178,4 +195,102 @@ async fn commit_idempotent_test() {
     assert_eq!(state_root_3, state_root_4);
 
     assert_ne!(state_root_1, state_root_3);
+}
+
+#[tokio::test]
+/// Commits blocks 0, 1. Reverts block 1.
+async fn revert_happy_flow() {
+    let mut committer = new_test_committer().await;
+    let mut height = 0;
+    let state_diff_1 = 1;
+    let state_diff_2 = 2;
+    let state_root = committer
+        .commit_block(commit_block_request(state_diff_1, Some(1), height))
+        .await
+        .unwrap()
+        .state_root;
+
+    height = 1;
+    committer.commit_block(commit_block_request(state_diff_2, Some(2), height)).await.unwrap();
+    assert_eq!(committer.offset, BlockNumber(height + 1));
+
+    let response =
+        committer.revert_block(revert_block_request(state_diff_1, height)).await.unwrap();
+
+    assert_matches!(
+        response,
+        RevertBlockResponse::RevertedTo(reverted_state_root)
+        if reverted_state_root == state_root
+    );
+    assert_eq!(committer.offset, BlockNumber(height));
+}
+
+#[tokio::test]
+/// Commits blocks 0, 1. Reverts block 1 with a state diff that is not the reversed one.
+async fn revert_to_invalid_global_root() {
+    let mut committer = new_test_committer().await;
+    let height_0 = 0;
+    let state_root_0 = committer
+        .commit_block(commit_block_request(1, Some(1), height_0))
+        .await
+        .unwrap()
+        .state_root;
+
+    let height_1 = 1;
+    committer.commit_block(commit_block_request(2, Some(2), height_1)).await.unwrap();
+    let response = committer.revert_block(revert_block_request(3, height_1)).await;
+
+    assert_matches!(response, Err(CommitterError::InvalidRevertedGlobalRoot {
+        stored_global_root: state_root,
+        height: BlockNumber(height),
+        ..
+    })
+    if height == height_0 && state_root == state_root_0
+    );
+    assert_eq!(committer.offset, BlockNumber(height_1 + 1));
+}
+
+#[tokio::test]
+async fn revert_invalid_height() {
+    let mut committer = new_test_committer().await;
+    let mut height = 0;
+    let state_diff_0 = 1;
+    let state_diff_1 = 2;
+
+    // Revert before any blocks are committed.
+    let response = committer.revert_block(revert_block_request(5, height)).await.unwrap();
+    assert_matches!(response, RevertBlockResponse::Uncommitted);
+
+    committer.commit_block(commit_block_request(state_diff_0, Some(1), 0)).await.unwrap();
+    height += 1;
+    let state_root_1 = committer
+        .commit_block(commit_block_request(state_diff_1, Some(2), 1))
+        .await
+        .unwrap()
+        .state_root;
+    let offset = height + 1;
+
+    // Revert a future height.
+    let response =
+        committer.revert_block(revert_block_request(state_diff_0, offset + 1)).await.unwrap();
+    assert_matches!(response, RevertBlockResponse::Uncommitted);
+
+    // Revert the next height.
+    let response =
+        committer.revert_block(revert_block_request(state_diff_0, offset)).await.unwrap();
+    assert_matches!(response, RevertBlockResponse::AlreadyReverted(reverted_state_root)
+        if reverted_state_root == state_root_1
+    );
+
+    // Revert an old height.
+    let response =
+        committer.revert_block(revert_block_request(state_diff_0, offset - 2)).await.unwrap_err();
+    assert_matches!(response, CommitterError::RevertHeightHole {
+        input_height: BlockNumber(input_height),
+        last_committed_block: BlockNumber(last_committed_block),
+    }
+    if input_height == offset - 2 && last_committed_block == offset - 1
+    );
+
+    assert_eq!(committer.offset, BlockNumber(offset));
 }
