@@ -28,10 +28,13 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
+    RequestId,
+    RequestIdGenerator,
     RequestWrapper,
     ServerError,
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
+    REQUEST_ID_HEADER,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -444,6 +447,7 @@ async fn faulty_client_setup() {
                 format!("http://[{}]:{}/", self.socket.ip(), self.socket.port()).parse().unwrap();
             let http_request = Request::post(uri)
                 .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                .header(REQUEST_ID_HEADER, RequestId::generate().to_string())
                 .body(Body::from(SerdeWrapper::new(component_request).wrapper_serialize().unwrap()))
                 .unwrap();
             let http_response = Client::new().request(http_request).await.unwrap();

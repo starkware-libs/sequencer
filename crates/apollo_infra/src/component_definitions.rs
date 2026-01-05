@@ -88,15 +88,31 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
     pub creation_time: Instant,
+    pub request_id: RequestId,
 }
+
+pub type RequestId = u64;
+
+pub trait RequestIdGenerator {
+    fn generate() -> RequestId;
+}
+
+impl RequestIdGenerator for RequestId {
+    fn generate() -> RequestId {
+        rand::random::<u64>()
+    }
+}
+
+/// Header name for Request ID header.
+pub const REQUEST_ID_HEADER: &str = "request-id";
 
 impl<Request, Response> RequestWrapper<Request, Response>
 where
     Request: Send,
     Response: Send,
 {
-    pub fn new(request: Request, tx: Sender<Response>) -> Self {
-        Self { request, tx, creation_time: Instant::now() }
+    pub fn new(request: Request, tx: Sender<Response>, request_id: RequestId) -> Self {
+        Self { request, tx, creation_time: Instant::now(), request_id }
     }
 }
 

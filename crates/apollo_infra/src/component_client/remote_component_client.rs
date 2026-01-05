@@ -14,11 +14,18 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tracing::{debug, trace, warn};
+use tracing::{debug, info, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    RequestId,
+    RequestIdGenerator,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+    REQUEST_ID_HEADER,
+};
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
@@ -163,10 +170,15 @@ where
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
-    fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
+    fn construct_http_request(
+        &self,
+        serialized_request: Bytes,
+        request_id: RequestId,
+    ) -> HyperRequest<Body> {
         trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+            .header(REQUEST_ID_HEADER, request_id.to_string())
             .body(Body::from(serialized_request))
             .expect("Request building should succeed")
     }
@@ -238,8 +250,16 @@ where
         trace!("Starting retry loop: max_attempts = {max_attempts}");
         let mut retry_interval_ms = self.config.initial_retry_delay_ms;
         for attempt in 1..max_attempts + 1 {
-            trace!("Request {log_message} attempt {attempt} of {max_attempts}");
-            let http_request = self.construct_http_request(serialized_request_bytes.clone());
+            let request_id = RequestId::generate();
+            info!(
+                request_id = %request_id,
+                request = %log_message,
+                attempt = attempt,
+                max_attempts = max_attempts,
+                "Sending remote request"
+            );
+            let http_request =
+                self.construct_http_request(serialized_request_bytes.clone(), request_id);
             let start = Instant::now();
             let res = self.try_send(http_request).await;
             let elapsed = start.elapsed();
