@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "utils_test.rs"]
+mod utils_test;
+
 use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,6 +35,7 @@ use tracing::{error, info, warn};
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
 
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(any(feature = "testing", test), derive(PartialEq))]
 pub(crate) enum RetrospectiveBlockHashError {
     #[error(
         "Failed retrieving block hash for block {block_number:?}, because both Batcher & 
