@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "utils_test.rs"]
+mod utils_test;
+
 use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
