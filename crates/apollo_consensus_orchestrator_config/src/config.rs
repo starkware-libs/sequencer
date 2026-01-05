@@ -48,7 +48,6 @@ impl SerializeConfig for CendeConfig {
         BTreeMap::from_iter([
             ser_param(
                 "recorder_url",
-                // TODO(victork): make sure we're allowed to expose the recorder URL here
                 self.recorder_url.peek_secret(),
                 "The URL of the Pythonic cende_recorder",
                 ParamPrivacyInput::Private,
