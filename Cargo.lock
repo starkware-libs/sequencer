@@ -1576,6 +1576,7 @@ dependencies = [
 name = "apollo_http_server"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_config_manager_types",
  "apollo_gateway_types",
  "apollo_http_server_config",
  "apollo_infra",

@@ -1,3 +1,4 @@
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -126,8 +127,11 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
-    let http_client = add_tx_http_client(mock_gateway_client, 1 + index).await;
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
 
     // Send a transaction to the server, without a region.
     http_client.add_tx(tx.clone()).await;
@@ -159,7 +163,10 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let http_client = add_tx_http_client(mock_gateway_client, 3 + index).await;
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 3 + index).await;
 
     // Send a transaction to the server.
     http_client.add_tx(tx).await;
@@ -207,7 +214,10 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         expected_internal_err,
     ));
 
-    let http_client = add_tx_http_client(mock_gateway_client, 5 + index).await;
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 5 + index).await;
 
     // Test a successful response.
     let tx_hash = http_client.assert_add_tx_success(tx.clone()).await;
@@ -264,6 +274,8 @@ async fn test_unsupported_tx_version(
     #[case] expected_err: StarknetError,
 ) {
     // Set the tx version to the given version.
+
+    use apollo_config_manager_types::communication::MockConfigManagerClient;
     let mut tx_json =
         TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
     let as_object = tx_json.0.as_object_mut().unwrap();
@@ -274,7 +286,10 @@ async fn test_unsupported_tx_version(
     }
 
     let mock_gateway_client = MockGatewayClient::new();
-    let http_client = add_tx_http_client(mock_gateway_client, 9 + index).await;
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
@@ -293,7 +308,9 @@ async fn sanitizing_error_message() {
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
-    let http_client = add_tx_http_client(mock_gateway_client, 13).await;
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
+    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
