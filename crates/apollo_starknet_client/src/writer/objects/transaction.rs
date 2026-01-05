@@ -34,7 +34,6 @@ use starknet_api::transaction::fields::{
     DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
-    Proof,
     ProofFacts,
     Tip,
     TransactionSignature,
@@ -184,7 +183,6 @@ pub struct InvokeV3Transaction {
     pub proof_facts: ProofFacts,
     pub version: TransactionVersion,
     pub r#type: InvokeType,
-    pub proof: Proof,
 }
 
 /// An invoke transaction that can be added to Starknet through the Starknet gateway.
