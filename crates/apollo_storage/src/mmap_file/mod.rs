@@ -134,6 +134,10 @@ impl LocationInFile {
 }
 
 /// Represents a memory mapped append only file.
+/// This struct is not thread-safe on its own. All methods take `&mut self` and assume
+/// exclusive access. This struct should only be accessed through [`FileHandler`], which
+/// wraps it in `Arc<Mutex<>>` to provide synchronized access. Direct usage of `MMapFile`
+/// without external synchronization will lead to data races.
 #[derive(Debug)]
 struct MMapFile<V: ValueSerde> {
     config: MmapFileConfig,
@@ -146,12 +150,23 @@ struct MMapFile<V: ValueSerde> {
 }
 
 impl<V: ValueSerde> MMapFile<V> {
-    /// Grows the file by the growth step.
-    fn grow(&mut self) {
+    /// Grows the file to accommodate at least the target size.
+    /// Grows in multiples of growth_step for efficiency.
+    fn grow_to_target(&mut self, target_size: usize) {
+        if self.size >= target_size {
+            return;
+        }
         self.flush();
-        let new_size = self.size + self.config.growth_step;
+        // Calculate how many growth steps needed, rounding up.
+        let growth_needed = target_size - self.size;
+        let growth_steps = growth_needed.div_ceil(self.config.growth_step);
+        let growth_size = growth_steps * self.config.growth_step;
+        let new_size = self.size + growth_size;
         let new_size_u64 = u64::try_from(new_size).expect("usize should fit in u64");
-        debug!("Growing file to size: {}", new_size);
+        debug!(
+            "Growing file to size: {} (target: {}, growth: {})",
+            new_size, target_size, growth_size
+        );
         self.file.set_len(new_size_u64).expect("Failed to set the file size");
         self.size = new_size;
     }
@@ -161,6 +176,40 @@ impl<V: ValueSerde> MMapFile<V> {
         trace!("Flushing mmap to file");
         self.mmap.flush().expect("Failed to flush the mmap");
         self.should_flush = false;
+    }
+
+    /// Writes serialized data to the mmap at the current offset.
+    /// Returns the location where data was written and updates the offset.
+    fn write_at_current_offset(&mut self, serialized: &[u8]) -> LocationInFile {
+        let len = serialized.len();
+        let offset = self.offset;
+
+        trace!("Inserting object at offset: {}", offset);
+
+        // Ensure we have enough space before writing.
+        let final_offset = offset + len;
+        self.grow_to_target(final_offset);
+
+        // Copy data to mmap
+        let mmap_slice = &mut self.mmap[offset..final_offset];
+        assert!(
+            mmap_slice.len() == len,
+            "Mmap slice length mismatch: expected={}, actual={}",
+            len,
+            mmap_slice.len()
+        );
+        mmap_slice.copy_from_slice(serialized);
+
+        // Start async flush of the written range (non-blocking, improves durability)
+        self.mmap
+            .flush_async_range(offset, len)
+            .expect("Failed to asynchronously flush the mmap after inserting");
+
+        // Update offset
+        self.offset += len;
+        self.should_flush = true;
+
+        LocationInFile { offset, len }
     }
 }
 
@@ -214,11 +263,13 @@ impl<V: ValueSerde> FileHandler<V, RW> {
     fn grow_file_if_needed(&mut self, offset: usize) {
         let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
         if mmap_file.size < offset + mmap_file.config.max_object_size {
+            let target_size = offset + mmap_file.config.max_object_size;
             debug!(
-                "Attempting to grow file. File size: {}, offset: {}, max_object_size: {}",
-                mmap_file.size, offset, mmap_file.config.max_object_size
+                "Attempting to grow file. File size: {}, offset: {}, max_object_size: {}, target: \
+                 {}",
+                mmap_file.size, offset, mmap_file.config.max_object_size, target_size
             );
-            mmap_file.grow();
+            mmap_file.grow_to_target(target_size);
         }
     }
 }
@@ -227,22 +278,10 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
     fn append(&mut self, val: &V::Value) -> LocationInFile {
         trace!("Inserting object: {:?}", val);
         let serialized = V::serialize(val).expect("Should be able to serialize");
-        let len = serialized.len();
-        let offset;
-        {
+        let location = {
             let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
-            offset = mmap_file.offset;
-            trace!("Inserting object at offset: {}", offset);
-            let mmap_slice = &mut mmap_file.mmap[offset..];
-            mmap_slice[..len].copy_from_slice(&serialized);
-            mmap_file
-                .mmap
-                .flush_async_range(offset, len)
-                .expect("Failed to asynchronously flush the mmap after inserting");
-            mmap_file.offset += len;
-            mmap_file.should_flush = true;
-        }
-        let location = LocationInFile { offset, len };
+            mmap_file.write_at_current_offset(&serialized)
+        };
         self.grow_file_if_needed(location.next_offset());
         location
     }
