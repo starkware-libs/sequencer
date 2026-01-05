@@ -331,6 +331,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<StorageReadResponse, Self::Error> {
+        tracing::warning!("StorageReadRequest: {_request:?}");
         assert_eq!(request.address_domain, Felt::ZERO);
         let value = *syscall_handler
             .get_mut_current_execution_helper()?
@@ -338,6 +339,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
             .get_mut_tx_execution_info_ref()?
             .get_mut_call_info_tracker()?
             .next_execute_code_read()?;
+        tracing::warning!("StorageReadRequest value: {value:?}");
 
         Ok(StorageReadResponse { value })
     }

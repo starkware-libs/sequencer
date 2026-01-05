@@ -364,6 +364,8 @@ func execute_storage_read{contract_state_changes: DictAccess*}(
         ]
     %}
 
+    %{ # TEST HINT 1 %}
+
     tempvar value = syscall_ptr.response.value;
     %{
         # Make sure the value is cached (by reading it), to be used later on for the
