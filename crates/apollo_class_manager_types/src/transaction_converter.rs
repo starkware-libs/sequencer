@@ -23,7 +23,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{Fee, Proof};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
@@ -308,5 +308,14 @@ impl TransactionConverter {
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
             Fee(1),
         )?)
+    }
+
+    fn _verify_proof(
+        &self,
+        _proof_facts: ProofFacts,
+        _proof: Proof,
+    ) -> TransactionConverterResult<()> {
+        // TODO(Avi): Implement actual proof validation.
+        Ok(())
     }
 }
