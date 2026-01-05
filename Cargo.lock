@@ -1469,10 +1469,8 @@ name = "apollo_deployments"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
- "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_monitoring_endpoint_config",
  "apollo_node_config",
  "phf",
  "serde",
