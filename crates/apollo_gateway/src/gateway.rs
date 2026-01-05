@@ -58,14 +58,14 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 pub mod gateway_test;
 
 #[derive(Clone)]
-pub struct Gateway(GenericGateway<StatelessTransactionValidator>);
+pub struct Gateway(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
 
 impl Gateway {
     pub(crate) fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
-        transaction_converter: Arc<dyn TransactionConverterTrait>,
+        transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
     ) -> Self {
         Self(GenericGateway::new(
@@ -87,20 +87,27 @@ impl Gateway {
 }
 
 #[derive(Clone)]
-struct GenericGateway<TStatelessValidator: StatelessTransactionValidatorTrait> {
+struct GenericGateway<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+> {
     config: Arc<GatewayConfig>,
     stateless_tx_validator: Arc<TStatelessValidator>,
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     mempool_client: SharedMempoolClient,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
+    transaction_converter: Arc<TTransactionConverter>,
 }
 
-impl<TStatelessValidator: StatelessTransactionValidatorTrait> GenericGateway<TStatelessValidator> {
+impl<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+> GenericGateway<TStatelessValidator, TTransactionConverter>
+{
     fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
-        transaction_converter: Arc<dyn TransactionConverterTrait>,
+        transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
     ) -> Self {
         Self {
