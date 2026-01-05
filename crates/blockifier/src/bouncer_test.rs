@@ -775,11 +775,19 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
+<<<<<<< HEAD
             100709658
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
             243210896
+=======
+            82920000
+        "#]]
+        .assert_debug_eq(&migration_sierra_gas.0);
+        expect![[r#"
+            214917100
+>>>>>>> 7b3cdbe971 (blockifier: improve revert handling)
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {
