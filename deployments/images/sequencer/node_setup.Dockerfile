@@ -14,7 +14,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS builder
 WORKDIR /app
-RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz | tar -xz --wildcards 'anvil'
+RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz | tar -xz --wildcards 'anvil'
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json --bin sequencer_node_setup
 COPY . .
