@@ -148,10 +148,12 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
     let use_kzg_da = false;
     let block_context = block_context_for_flow_tests(initial_block_number, use_kzg_da);
+    let virtual_os = false;
     let ExecutionOutput { execution_outputs, mut final_state } = execute_transactions(
         initial_state_reader,
         &default_initial_state_txs,
         block_context.clone(),
+        virtual_os,
     );
     assert_eq!(
         execution_outputs.len(),
