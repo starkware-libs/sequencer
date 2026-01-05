@@ -194,7 +194,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
         )
     };
 
-    let selector = selector_from_name("test_get_execution_info");
+    let selector = selector_from_name("test_get_execution_info_v3");
     let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let expected_execution_info = ExpectedExecutionInfo {
         version: TransactionVersion::THREE,
@@ -214,7 +214,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     .to_syscall_result();
 
     let calldata =
-        create_calldata(contract_address, "test_get_execution_info", &expected_execution_info);
+        create_calldata(contract_address, "test_get_execution_info_v3", &expected_execution_info);
     let mut tx =
         test_builder.create_funded_account_invoke(invoke_tx_args! { calldata, proof_facts });
     let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
