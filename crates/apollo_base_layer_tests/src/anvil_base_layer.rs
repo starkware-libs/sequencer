@@ -10,19 +10,11 @@ use alloy::sol_types::SolValue;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    CircularUrlIterator,
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumBaseLayerError,
-    Starknet,
-    StarknetL1Contract,
+    CircularUrlIterator, EthereumBaseLayerConfig, EthereumBaseLayerContract,
+    EthereumBaseLayerError, Starknet, StarknetL1Contract,
 };
 use papyrus_base_layer::{
-    BaseLayerContract,
-    L1BlockHeader,
-    L1BlockNumber,
-    L1BlockReference,
-    L1Event,
+    BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event,
 };
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::hash::StarkHash;
@@ -62,13 +54,14 @@ impl AnvilBaseLayer {
         }
 
         let error_message = format!(
-"\n{}\n{}\n",
-"Anvil binary not found!".bold().red(),
-"Install instructions (for local development):\n
+            "\n{}\n{}\n",
+            "Anvil binary not found!".bold().red(),
+            "Install instructions (for local development):\n
 Execute from within a directory that's included in PATH, like ~/.local/bin:\n
 curl -L \
  https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz \
- | tar -xz --wildcards 'anvil'".yellow()
+ | tar -xz --wildcards 'anvil'"
+                .yellow()
         );
 
         // We don't further inspect the output as it is irrelevant to the spawn check.
@@ -195,25 +188,25 @@ impl BaseLayerContract for AnvilBaseLayer {
     type Error = EthereumBaseLayerError;
 
     async fn get_proved_block_at(
-        &mut self,
+        &self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error> {
         self.ethereum_base_layer.get_proved_block_at(l1_block).await
     }
 
-    async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error> {
+    async fn latest_l1_block_number(&self) -> Result<L1BlockNumber, Self::Error> {
         self.ethereum_base_layer.latest_l1_block_number().await
     }
 
     async fn l1_block_at(
-        &mut self,
+        &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error> {
         self.ethereum_base_layer.l1_block_at(block_number).await
     }
 
     async fn events<'a>(
-        &'a mut self,
+        &'a self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error> {
@@ -221,7 +214,7 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     async fn get_block_header(
-        &mut self,
+        &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
         self.ethereum_base_layer.get_block_header(block_number).await
