@@ -355,7 +355,12 @@ async fn test_encrypted_state_diff(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
             calldata![Felt::ONE, Felt::TWO],
         )],
-        TestBuilderConfig { use_kzg_da, full_output, private_keys: private_keys.clone() },
+        TestBuilderConfig {
+            use_kzg_da,
+            full_output,
+            private_keys: private_keys.clone(),
+            ..Default::default()
+        },
     )
     .await;
 

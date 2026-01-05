@@ -152,6 +152,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
         initial_state_reader,
         &default_initial_state_txs,
         block_context.clone(),
+        false,
     );
     assert_eq!(
         execution_outputs.len(),

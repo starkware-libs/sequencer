@@ -123,6 +123,7 @@ pub(crate) struct TestBuilderConfig {
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
     pub(crate) private_keys: Option<Vec<Felt>>,
+    pub(crate) virtual_os: bool,
 }
 
 pub(crate) struct FlowTestTx {
@@ -415,6 +416,7 @@ pub(crate) struct TestBuilder<S: FlowTestState> {
     pub(crate) execution_contracts: OsExecutionContracts,
     pub(crate) os_hints_config: OsHintsConfig,
     pub(crate) private_keys: Option<Vec<Felt>>,
+    pub(crate) virtual_os: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 
@@ -445,6 +447,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             execution_contracts: initial_state_data.execution_contracts,
             os_hints_config,
             private_keys: config.private_keys,
+            virtual_os: config.virtual_os,
             messages_to_l1: Vec::new(),
             messages_to_l2: Vec::new(),
             per_block_txs: vec![vec![]],
@@ -709,8 +712,13 @@ impl<S: FlowTestState> TestBuilder<S> {
         let use_kzg_da = self.os_hints_config.use_kzg_da;
         let mut current_block_hash = BlockHash::default();
         for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
-            let block_context =
-                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
+            let block_context = if self.virtual_os {
+                // In virtual OS mode, the block context is the same as the base block context.
+                base_block_context.clone()
+            } else {
+                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da)
+            };
+
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
                 .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
@@ -719,7 +727,12 @@ impl<S: FlowTestState> TestBuilder<S> {
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, mut final_state } =
-                execute_transactions::<CachedState<S>>(state, &block_txs, block_context);
+                execute_transactions::<CachedState<S>>(
+                    state,
+                    &block_txs,
+                    block_context,
+                    self.virtual_os,
+                );
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
