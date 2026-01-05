@@ -11,6 +11,7 @@ mod sync_test;
 
 use std::cmp::min;
 use std::collections::BTreeMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -47,7 +48,8 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures::future::pending;
 use futures::stream;
-use futures_util::{pin_mut, select, Stream, StreamExt};
+use futures_util::stream::FuturesOrdered;
+use futures_util::{Future, Stream, StreamExt, pin_mut, select};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use sources::base_layer::BaseLayerSourceError;
@@ -60,10 +62,10 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{StateDiff, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateDiff, ThinStateDiff};
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn_blocking, JoinError};
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -87,7 +89,45 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 
 // The first starknet version where we can send sierras to the class manager without casms and it
 // will compile them, in a backward-compatible manner.
+#[allow(dead_code)]
 const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
+
+// Unified data type for all items from all streams
+// Each item goes into middle_queue as a separate future.
+#[derive(Debug)]
+enum ProcessedBlockData {
+    // From BlockAvailable stream- header, body, and signature.
+    Block {
+        block_number: BlockNumber,
+        block: Block,
+        signature: BlockSignature,
+    },
+    // From StateDiffAvailable stream - state diff (after compilation if needed)
+    StateDiff {
+        block_number: BlockNumber,
+        _block_hash: BlockHash,
+        thin_state_diff: ThinStateDiff,
+        classes: IndexMap<ClassHash, SierraContractClass>,
+        deprecated_classes: IndexMap<ClassHash, DeprecatedContractClass>,
+        _deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
+        _block_contains_old_classes: bool,
+    },
+    // From CompiledClassAvailable stream - no compilation needed.
+    CompiledClass {
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        compiled_class: CasmContractClass,
+        is_compiler_backward_compatible: bool,
+    },
+    // From NewBaseLayerBlock stream - no compilation needed.
+    BaseLayerBlock {
+        block_number: BlockNumber,
+        _block_hash: BlockHash,
+    },
+}
+// Type alias for processing tasks - each task processes one block from any stream.
+type ProcessingTask =
+    Pin<Box<dyn Future<Output = Result<ProcessedBlockData, StateSyncError>> + Send>>;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {

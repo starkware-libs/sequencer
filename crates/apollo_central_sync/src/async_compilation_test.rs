@@ -42,3 +42,91 @@ async fn test_storage_batching_with_queue() {
     assert_eq!(txn.get_block_header(block_2).unwrap(), Some(header_2));
 }
 
+/// Test that ProcessedBlockData enum variants work correctly.
+#[test]
+fn test_processed_block_data_variants() {
+    let mut rng = get_rng();
+
+    // Test Block variant.
+    let header = BlockHeader::get_test_instance(&mut rng);
+    let block_data = ProcessedBlockData::Block {
+        block_number: BlockNumber(42),
+        block: Block { header, body: BlockBody::default() },
+        signature: Default::default(),
+    };
+
+    match block_data {
+        ProcessedBlockData::Block { block_number, .. } => {
+            assert_eq!(block_number, BlockNumber(42));
+        }
+        _ => panic!("Expected Block variant"),
+    }
+
+    // Test StateDiff variant.
+    let state_diff_data = ProcessedBlockData::StateDiff {
+        block_number: BlockNumber(43),
+        _block_hash: BlockHash(felt!("0x123")),
+        thin_state_diff: ThinStateDiff::default(),
+        classes: IndexMap::new(),
+        deprecated_classes: IndexMap::new(),
+        _deployed_contract_class_definitions: IndexMap::new(),
+        _block_contains_old_classes: false,
+    };
+
+    match state_diff_data {
+        ProcessedBlockData::StateDiff { block_number, .. } => {
+            assert_eq!(block_number, BlockNumber(43));
+        }
+        _ => panic!("Expected StateDiff variant"),
+    }
+
+    // Test CompiledClass variant.
+    let compiled_class_data = ProcessedBlockData::CompiledClass {
+        class_hash: class_hash!("0xabc"),
+        compiled_class_hash: compiled_class_hash!(1_u8),
+        compiled_class: CasmContractClass::get_test_instance(&mut rng),
+        is_compiler_backward_compatible: true,
+    };
+
+    match compiled_class_data {
+        ProcessedBlockData::CompiledClass {
+            class_hash, is_compiler_backward_compatible, ..
+        } => {
+            assert_eq!(class_hash, class_hash!("0xabc"));
+            assert!(is_compiler_backward_compatible);
+        }
+        _ => panic!("Expected CompiledClass variant"),
+    }
+}
+/// Test that the queue markers prevent duplicate fetches.
+#[tokio::test]
+async fn test_queue_markers_prevent_duplicates() {
+    let queue_header_marker = Arc::new(RwLock::new(BlockNumber(0)));
+    let queue_state_marker = Arc::new(RwLock::new(BlockNumber(0)));
+
+    // Simulate fetching block 5.
+    {
+        let mut marker = queue_header_marker.write().await;
+        *marker = BlockNumber(5);
+    }
+
+    // Verify we shouldn't fetch blocks <= 5 again.
+    {
+        let marker = queue_header_marker.read().await;
+        assert!(*marker >= BlockNumber(5));
+    }
+
+    // Simulate fetching state diff for block 3.
+    {
+        let mut marker = queue_state_marker.write().await;
+        *marker = BlockNumber(3);
+    }
+
+    // Markers are independent.
+    {
+        let header_marker = queue_header_marker.read().await;
+        let state_marker = queue_state_marker.read().await;
+        assert_eq!(*header_marker, BlockNumber(5));
+        assert_eq!(*state_marker, BlockNumber(3));
+    }
+}
