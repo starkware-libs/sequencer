@@ -11,7 +11,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
     ProposalId,
@@ -59,6 +58,7 @@ use starknet_api::block::{
     GasPrice,
     WEI_PER_ETH,
 };
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -259,43 +259,36 @@ impl SequencerConsensusContext {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_state_sync_with_new_block(
         &self,
         height: BlockNumber,
         state_diff: &ThinStateDiff,
-        transactions: &[InternalConsensusTransaction],
+        transactions: &[InternalTransactionWithReceipt],
         block_info: &ConsensusBlockInfo,
         cende_block_info: &BlockInfo,
         l2_gas_used: GasAmount,
+        block_header_commitments: BlockHeaderCommitments,
     ) -> Result<(), StateSyncClientError> {
         // Divide transactions hashes to L1Handler and RpcTransaction hashes.
         let account_transaction_hashes = transactions
             .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.tx_hash()),
+            .filter_map(|tx| match tx.transaction {
+                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.transaction.tx_hash()),
                 _ => None,
             })
             .collect::<Vec<TransactionHash>>();
         let l1_transaction_hashes = transactions
             .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::L1Handler(_) => Some(tx.tx_hash()),
+            .filter_map(|tx| match tx.transaction {
+                InternalConsensusTransaction::L1Handler(_) => Some(tx.transaction.tx_hash()),
                 _ => None,
             })
             .collect::<Vec<TransactionHash>>();
 
-        let l1_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
-        };
-        let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_data_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_data_gas_price.get(),
-        };
-        let l2_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l2_gas_price.get(),
-        };
+        let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
+        let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
+        let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
         let sequencer = SequencerContractAddress(block_info.builder);
 
         let block_header_without_hash = BlockHeaderWithoutHash {
@@ -317,50 +310,10 @@ impl SequencerConsensusContext {
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash,
+            block_header_commitments: Some(block_header_commitments),
         };
 
         self.deps.state_sync_client.add_new_block(sync_block).await
-    }
-
-    async fn prepare_blob_for_next_height(
-        &self,
-        cende_block_info: BlockInfo,
-        state_diff: ThinStateDiff,
-        central_objects: CentralObjects,
-        transactions: Vec<InternalConsensusTransaction>,
-        l2_gas_used: GasAmount,
-        commitment: ProposalCommitment,
-    ) -> Result<(), CendeAmbassadorError> {
-        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
-        // version of `execution_infos`.
-        let stripped_execution_infos =
-            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
-
-        self.deps
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
-                block_info: cende_block_info,
-                state_diff,
-                compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
-                execution_infos: stripped_execution_infos,
-                bouncer_weights: central_objects.bouncer_weights,
-                casm_hash_computation_data_sierra_gas: central_objects
-                    .casm_hash_computation_data_sierra_gas,
-                casm_hash_computation_data_proving_gas: central_objects
-                    .casm_hash_computation_data_proving_gas,
-                fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used,
-                    next_l2_gas_price: self.l2_gas_price,
-                },
-                compiled_class_hashes_for_migration: central_objects
-                    .compiled_class_hashes_for_migration,
-                proposal_commitment: commitment,
-                parent_proposal_commitment: central_objects
-                    .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
-            })
-            .await
     }
 
     fn update_l2_gas_price(&mut self, l2_gas_used: GasAmount) {
@@ -390,19 +343,45 @@ impl SequencerConsensusContext {
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         decision_reached_response: DecisionReachedResponse,
     ) {
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            decision_reached_response;
+        let DecisionReachedResponse {
+            state_diff,
+            l2_gas_used,
+            central_objects,
+            block_header_commitments,
+        } = decision_reached_response;
 
         self.update_l2_gas_price(l2_gas_used);
 
-        // Remove transactions that were not accepted by the Batcher, so `transactions` and
-        // `central_objects.execution_infos` correspond to the same list of (only accepted)
-        // transactions.
-        let transactions: Vec<InternalConsensusTransaction> = transactions
-            .concat()
+        // A hash map of (possibly failed) transactions, where the key is the transaction hash
+        // and the value is the transaction itself.
+        let mut transactions_hash_map = HashMap::new();
+        for tx in transactions.into_iter().flatten() {
+            let key = tx.tx_hash();
+            if transactions_hash_map.insert(key, tx).is_some() {
+                // TODO(Dafna): Handle this error gracefully.
+                panic!("Duplicate transactions found with the same tx_hash: {key:?}");
+            }
+        }
+
+        // Convert the execution infos to `InternalTransactionWithReceipt` format.
+        // This is done by matching the transaction hashes in IndexMap<tx hash,execution info> with
+        // the transactions returned by the batcher.
+        //
+        // Only successfully executed transactions will have execution infos.
+        //
+        // This data structure preserves the order of transactions as they were listed in
+        // execution_infos.
+        let transactions_with_execution_infos = central_objects
+            .execution_infos
             .into_iter()
-            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
-            .collect();
+            .map(|(tx_hash, execution_info)| match transactions_hash_map.remove(&tx_hash) {
+                Some(tx) => InternalTransactionWithReceipt { transaction: tx, execution_info },
+                None => {
+                    // TODO(Dafna): Handle this error gracefully.
+                    panic!("Failed to find transaction for execution info with hash {tx_hash:?}.")
+                }
+            })
+            .collect::<Vec<_>>();
 
         // The conversion should never fail, if we already managed to get a decision.
         let Ok(cende_block_info) = convert_to_sn_api_block_info(block_info) else {
@@ -417,10 +396,11 @@ impl SequencerConsensusContext {
             .update_state_sync_with_new_block(
                 height,
                 &state_diff,
-                &transactions,
+                &transactions_with_execution_infos,
                 block_info,
                 &cende_block_info,
                 l2_gas_used,
+                block_header_commitments,
             )
             .await
         {
@@ -431,14 +411,29 @@ impl SequencerConsensusContext {
         }
 
         if let Err(e) = self
-            .prepare_blob_for_next_height(
-                cende_block_info,
+            .deps
+            .cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters {
+                block_info: cende_block_info,
                 state_diff,
-                central_objects,
-                transactions,
-                l2_gas_used,
-                commitment,
-            )
+                compressed_state_diff: central_objects.compressed_state_diff,
+                transactions_with_execution_infos,
+                bouncer_weights: central_objects.bouncer_weights,
+                casm_hash_computation_data_sierra_gas: central_objects
+                    .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: central_objects
+                    .casm_hash_computation_data_proving_gas,
+                fee_market_info: FeeMarketInfo {
+                    l2_gas_consumed: l2_gas_used,
+                    next_l2_gas_price: self.l2_gas_price,
+                },
+                compiled_class_hashes_for_migration: central_objects
+                    .compiled_class_hashes_for_migration,
+                proposal_commitment: commitment,
+                parent_proposal_commitment: central_objects
+                    .parent_proposal_commitment
+                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
+            })
             .await
         {
             error!("Failed to prepare blob for next height at height {height}: {e:?}");
@@ -689,53 +684,9 @@ impl ConsensusContext for SequencerConsensusContext {
         let decision_reached_response =
             self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
 
-<<<<<<< HEAD
-        // A hash map of (possibly failed) transactions, where the key is the transaction hash
-        // and the value is the transaction itself.
-        let mut transactions_hash_map = HashMap::new();
-        for tx in transactions.into_iter().flatten() {
-            let key = tx.tx_hash();
-            if transactions_hash_map.insert(key, tx).is_some() {
-                let err = format!("Duplicate transactions found with the same tx_hash: {key:?}");
-                error!(err);
-                return Err(ConsensusError::Other(err));
-            }
-        }
-
-        // Convert the execution infos to `InternalTransactionWithReceipt` format.
-        // This is done by matching the transaction hashes in IndexMap<tx hash,execution info> with
-        // the transactions returned by the batcher.
-        //
-        // Only successfully executed transactions will have execution infos.
-        //
-        // This data structure preserves the order of transactions as they were listed in
-        // execution_infos.
-        let transactions_with_execution_infos = central_objects
-            .execution_infos
-            .into_iter()
-            .map(|(tx_hash, execution_info)| match transactions_hash_map.remove(&tx_hash) {
-                Some(tx) => Ok(InternalTransactionWithReceipt { transaction: tx, execution_info }),
-                None => Err("Failed to find transaction for execution info with hash {tx_hash:?}."),
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| {
-                error!("{e}");
-                ConsensusError::Other(e.to_string())
-            })?;
-||||||| ee7eff7e4
-        // Remove transactions that were not accepted by the Batcher, so `transactions` and
-        // `central_objects.execution_infos` correspond to the same list of (only accepted)
-        // transactions.
-        let transactions: Vec<InternalConsensusTransaction> = transactions
-            .concat()
-            .into_iter()
-            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
-            .collect();
-=======
         // CRITICAL: The block is now committed. This function must not fail beyond this point
         // unless the state is fully reverted, otherwise the node will be left in an
         // inconsistent state.
->>>>>>> origin/main-v0.14.1
 
         self.finalize_decision(
             height,
@@ -746,182 +697,6 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
 
-<<<<<<< HEAD
-        let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
-        CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
-
-        // The conversion should never fail, if we already managed to get a decision.
-        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
-        let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
-        let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
-        let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
-        let sequencer = SequencerContractAddress(block_info.builder);
-
-        let block_header_without_hash = BlockHeaderWithoutHash {
-            block_number: height,
-            l1_gas_price,
-            l1_data_gas_price,
-            l2_gas_price,
-            l2_gas_consumed: l2_gas_used,
-            next_l2_gas_price: self.l2_gas_price,
-            sequencer,
-            timestamp: BlockTimestamp(block_info.timestamp),
-            l1_da_mode: block_info.l1_da_mode,
-            // TODO(guy.f): Figure out where/if to get the values below from and fill them.
-            ..Default::default()
-        };
-
-        // Divide transactions hashes to L1Handler and RpcTransaction hashes.
-        let account_transaction_hashes = transactions_with_execution_infos
-            .iter()
-            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
-                InternalConsensusTransaction::RpcTransaction(_) => {
-                    Some(tx_with_receipt.transaction.tx_hash())
-                }
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-        let l1_transaction_hashes = transactions_with_execution_infos
-            .iter()
-            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
-                InternalConsensusTransaction::L1Handler(_) => {
-                    Some(tx_with_receipt.transaction.tx_hash())
-                }
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-
-        let sync_block = SyncBlock {
-            state_diff: state_diff.clone(),
-            account_transaction_hashes,
-            l1_transaction_hashes,
-            block_header_without_hash,
-            block_header_commitments: Some(block_header_commitments),
-        };
-        self.sync_add_new_block(sync_block).await;
-
-        let _ = self
-            .deps
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
-                block_info: cende_block_info,
-                state_diff,
-                compressed_state_diff: central_objects.compressed_state_diff,
-                transactions_with_execution_infos,
-                bouncer_weights: central_objects.bouncer_weights,
-                casm_hash_computation_data_sierra_gas: central_objects
-                    .casm_hash_computation_data_sierra_gas,
-                casm_hash_computation_data_proving_gas: central_objects
-                    .casm_hash_computation_data_proving_gas,
-                fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used,
-                    next_l2_gas_price: self.l2_gas_price,
-                },
-                compiled_class_hashes_for_migration: central_objects
-                    .compiled_class_hashes_for_migration,
-                proposal_commitment: commitment,
-                parent_proposal_commitment: central_objects
-                    .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
-            })
-            .await
-            .inspect_err(|e| {
-                error!("Failed to prepare blob for next height: {e:?}");
-            });
-||||||| ee7eff7e4
-        let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
-        CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
-
-        // The conversion should never fail, if we already managed to get a decision.
-        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
-        let l1_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
-        };
-        let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_data_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_data_gas_price.get(),
-        };
-        let l2_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l2_gas_price.get(),
-        };
-        let sequencer = SequencerContractAddress(block_info.builder);
-
-        let block_header_without_hash = BlockHeaderWithoutHash {
-            block_number: height,
-            l1_gas_price,
-            l1_data_gas_price,
-            l2_gas_price,
-            l2_gas_consumed: l2_gas_used,
-            next_l2_gas_price: self.l2_gas_price,
-            sequencer,
-            timestamp: BlockTimestamp(block_info.timestamp),
-            l1_da_mode: block_info.l1_da_mode,
-            // TODO(guy.f): Figure out where/if to get the values below from and fill them.
-            ..Default::default()
-        };
-
-        // Divide transactions hashes to L1Handler and RpcTransaction hashes.
-        let account_transaction_hashes = transactions
-            .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.tx_hash()),
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-        let l1_transaction_hashes = transactions
-            .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::L1Handler(_) => Some(tx.tx_hash()),
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-
-        let sync_block = SyncBlock {
-            state_diff: state_diff.clone(),
-            account_transaction_hashes,
-            l1_transaction_hashes,
-            block_header_without_hash,
-        };
-        self.sync_add_new_block(sync_block).await;
-
-        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
-        // version of `execution_infos`.
-        let stripped_execution_infos =
-            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
-
-        let _ = self
-            .deps
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
-                block_info: cende_block_info,
-                state_diff,
-                compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
-                execution_infos: stripped_execution_infos,
-                bouncer_weights: central_objects.bouncer_weights,
-                casm_hash_computation_data_sierra_gas: central_objects
-                    .casm_hash_computation_data_sierra_gas,
-                casm_hash_computation_data_proving_gas: central_objects
-                    .casm_hash_computation_data_proving_gas,
-                fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used,
-                    next_l2_gas_price: self.l2_gas_price,
-                },
-                compiled_class_hashes_for_migration: central_objects
-                    .compiled_class_hashes_for_migration,
-                proposal_commitment: commitment,
-                parent_proposal_commitment: central_objects
-                    .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
-            })
-            .await
-            .inspect_err(|e| {
-                error!("Failed to prepare blob for next height: {e:?}");
-            });
-=======
->>>>>>> origin/main-v0.14.1
         self.previous_block_info = Some(block_info);
 
         Ok(())
