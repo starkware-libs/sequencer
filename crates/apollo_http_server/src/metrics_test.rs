@@ -1,3 +1,4 @@
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_infra::component_client::ClientError;
@@ -54,12 +55,15 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
         )))
     });
 
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 14 + index).await;
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 14 + index).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat_n((), SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -85,12 +89,14 @@ async fn add_tx_serde_failure_metrics_test() {
         .times(1)
         .return_once(move |_| Ok(success_gateway_client_output()));
 
+    let mock_config_manager_client = MockConfigManagerClient::new();
+
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 16).await;
+    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 16).await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";
