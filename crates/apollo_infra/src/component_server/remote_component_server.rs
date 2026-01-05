@@ -23,9 +23,11 @@ use validator::Validate;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
     ComponentClient,
+    RequestId,
     ServerError,
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
+    REQUEST_ID_HEADER,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
@@ -110,6 +112,7 @@ where
 
     async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
+        request_id: RequestId,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
@@ -123,11 +126,19 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
+                let request_label = request.request_label();
+                trace!(
+                    request_id = %request_id,
+                    request = request_label,
+                    "Receiving remote request"
+                );
                 trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
 
                 // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
                 // Even if the current task is cancelled, the inner task will continue to run.
+                //
+                // Note: this creates a new request ID for the local client.
                 let response = tokio::spawn(async move { local_client.send(request).await })
                     .await
                     .expect("Should be able to extract value from the task");
@@ -194,10 +205,17 @@ where
                     Ok(permit) => {
                         metrics.increment_number_of_connections();
                         trace!("Acquired semaphore permit for connection");
-                        let handle_request_service = service_fn(move |req| {
+                        let handle_request_service = service_fn(move |req: HyperRequest<Body>| {
                             trace!("Received request: {:?}", req);
+                            let request_id = req
+                                .headers()
+                                .get(REQUEST_ID_HEADER)
+                                .and_then(|header| header.to_str().ok())
+                                .and_then(|s| s.parse::<RequestId>().ok())
+                                .expect("Request ID should be present in the request headers");
                             Self::remote_component_server_handler(
                                 req,
+                                request_id,
                                 local_client.clone(),
                                 metrics,
                             )
