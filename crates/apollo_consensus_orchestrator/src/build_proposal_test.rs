@@ -1,11 +1,9 @@
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
-    ProposalId,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
@@ -13,127 +11,21 @@ use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
 };
-use apollo_consensus::types::{ProposalCommitment as ConsensusProposalCommitment, Round};
-use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::errors::StateSyncError;
-use apollo_time::time::DateTime;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use futures::channel::mpsc;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
-use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use tokio_util::sync::CancellationToken;
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
-use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::BuiltProposals;
+use crate::build_proposal::{build_proposal, BuildProposalError};
 use crate::test_utils::{
-    create_test_and_network_deps,
-    TestDeps,
-    CHANNEL_SIZE,
+    create_proposal_build_arguments,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
-    TIMEOUT,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
-
-// TODO(Dafna): Remove this struct and use ProposalBuildArguments directly.
-struct TestProposalBuildArguments {
-    pub deps: TestDeps,
-    pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
-    pub l1_da_mode: L1DataAvailabilityMode,
-    pub stream_sender: StreamSender,
-    pub gas_price_params: GasPriceParams,
-    pub valid_proposals: Arc<Mutex<BuiltProposals>>,
-    pub proposal_id: ProposalId,
-    pub cende_write_success: AbortOnDropHandle<bool>,
-    pub l2_gas_price: GasPrice,
-    pub builder_address: ContractAddress,
-    pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
-    pub proposal_round: Round,
-    pub retrospective_block_hash_deadline: DateTime,
-    pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub use_state_sync_block_timestamp: bool,
-}
-
-impl From<TestProposalBuildArguments> for ProposalBuildArguments {
-    fn from(args: TestProposalBuildArguments) -> Self {
-        ProposalBuildArguments {
-            deps: args.deps.into(),
-            batcher_deadline: args.batcher_deadline,
-            proposal_init: args.proposal_init,
-            l1_da_mode: args.l1_da_mode,
-            stream_sender: args.stream_sender,
-            gas_price_params: args.gas_price_params,
-            valid_proposals: args.valid_proposals,
-            proposal_id: args.proposal_id,
-            cende_write_success: args.cende_write_success,
-            l2_gas_price: args.l2_gas_price,
-            builder_address: args.builder_address,
-            cancel_token: args.cancel_token,
-            previous_block_info: args.previous_block_info,
-            proposal_round: args.proposal_round,
-            retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
-            retrospective_block_hash_retry_interval_millis: args
-                .retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
-        }
-    }
-}
-
-fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Receiver<ProposalPart>) {
-    let (mut deps, _) = create_test_and_network_deps();
-    deps.setup_default_expectations();
-    let time_now = deps.clock.now();
-    let batcher_deadline = time_now + TIMEOUT;
-    let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.1);
-    let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
-    let proposal_init = ProposalInit::default();
-    let l1_da_mode = L1DataAvailabilityMode::Calldata;
-    let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
-    let stream_sender = StreamSender { proposal_sender };
-    let context_config = ContextConfig::default();
-
-    let gas_price_params = make_gas_price_params(&context_config);
-    let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
-    let proposal_id = ProposalId(1);
-    let cende_write_success = AbortOnDropHandle::new(tokio::spawn(async { true }));
-    let l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
-    let builder_address = ContractAddress::default();
-    let cancel_token = CancellationToken::new();
-    let previous_block_info = None;
-    let proposal_round = 0;
-    let use_state_sync_block_timestamp = false;
-    (
-        TestProposalBuildArguments {
-            deps,
-            batcher_deadline,
-            proposal_init,
-            l1_da_mode,
-            stream_sender,
-            gas_price_params,
-            valid_proposals,
-            proposal_id,
-            cende_write_success,
-            l2_gas_price,
-            builder_address,
-            cancel_token,
-            previous_block_info,
-            proposal_round,
-            retrospective_block_hash_deadline,
-            retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp,
-        },
-        proposal_receiver,
-    )
-}
 
 #[tokio::test]
 async fn build_proposal_succeed() {
