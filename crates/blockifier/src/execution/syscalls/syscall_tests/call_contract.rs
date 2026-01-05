@@ -10,6 +10,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::{calldata as calldata_macro, felt};
 use test_case::test_case;
@@ -18,6 +19,7 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
+use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
@@ -483,4 +485,55 @@ fn test_empty_function_flow(#[case] runnable: RunnableCairo1) {
 
     // Contract should not fail.
     assert!(!call_info.execution.failed);
+}
+
+/// Test that storage is correctly reverted when nested calls write to the same key.
+///
+/// Scenario:
+/// - foo0 calls foo1 and catches/ignores the revert
+/// - foo1 calls foo2, then writes storage = 2, then panics
+/// - foo2 writes storage = 1
+///
+/// After foo1's revert, storage should be 0 (original), not 1 (foo2's write).
+/// This tests the fix for a bug where foo1 would capture foo2's written value (1) as the
+/// "original" instead of the true original (0), causing incorrect state after revert.
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_nested_call_storage_revert(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let contract_address = test_contract.get_instance_address(0);
+    let storage_key = StorageKey::try_from(felt!(123_u64)).unwrap();
+
+    // Call foo0 which:
+    // 1. Calls foo1
+    // 2. foo1 calls foo2
+    // 3. foo2 writes storage = 1
+    // 4. foo1 writes storage = 2
+    // 5. foo1 panics (gets reverted)
+    // 6. foo0 catches the revert and reads storage (should be 0)
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("foo0"),
+        calldata: calldata_macro![*contract_address.0.key(), *storage_key.0.key()],
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+
+    // foo0 should succeed (it catches foo1's revert).
+    assert!(!call_info.execution.failed, "foo0 should not fail");
+
+    // foo0 returns the storage value it read after foo1's revert.
+    // This should be 0 (the original value), not 1 (foo2's write).
+    assert_eq!(
+        call_info.execution.retdata.0,
+        vec![felt!(0_u8)],
+        "Storage should be reverted to 0, not foo2's value (1)"
+    );
+
+    // Double-check by reading storage directly.
+    let final_value = state.get_storage_at(contract_address, storage_key).unwrap();
+    assert_eq!(final_value, felt!(0_u8), "Storage should be 0 after revert");
 }

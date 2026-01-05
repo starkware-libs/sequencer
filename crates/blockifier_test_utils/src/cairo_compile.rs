@@ -77,6 +77,7 @@ pub async fn verify_cairo1_package(version: &String) {
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
 /// stderr output.
 fn run_and_verify_output(command: &mut Command) -> Output {
+    println!("Running command: {:?}", command);
     let output = command.output().unwrap();
     if !output.status.success() {
         let stderr_output = String::from_utf8(output.stderr).unwrap();
