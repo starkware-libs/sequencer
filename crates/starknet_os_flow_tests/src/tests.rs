@@ -544,11 +544,15 @@ async fn test_os_logic(
         }
     }
 
-    // Call set_value(address=85, value=47) on the first contract.
-    // Used to test normal value update and make sure it is written to on-chain data.
+    // Call set_value(address=85, value=47) on the first contract with non-empty proof_facts
+    // (client-side proving). Used to test normal value update and make sure it is written to
+    // on-chain data.
     let (key, value) = (Felt::from(85), Felt::from(47));
     let calldata = create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata,
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+    });
     update_expected_storage(&mut expected_storage_updates, contract_addresses[0], key, value);
 
     // Call set_value(address=81, value=0) on the first contract.
@@ -1368,13 +1372,14 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         payload: L2ToL1Payload::default(),
     });
 
-    // Invoke a function on the new account.
+    // Invoke a function on the new account with non-empty proof_facts (client-side proving).
     let invoke_tx_args = invoke_tx_args! {
         sender_address: faulty_account_address,
         nonce: test_builder.next_nonce(faulty_account_address),
         calldata: create_calldata(faulty_account_address, "foo", &[]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         signature: TransactionSignature(Arc::new(vec![valid])),
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
     };
     test_builder.add_invoke_tx_from_args(invoke_tx_args, None);
     // The faulty account's __execute__ sends a message to L1.
@@ -1425,15 +1430,25 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     // Prepare expected storage updates.
     let mut expected_storage_updates = HashMap::new();
 
-    // Call test_increment twice.
+    // Call test_increment twice: once with non-empty proof_facts (client-side proving), once
+    // without.
     let n_calls: u8 = 2;
-    for _ in 0..n_calls {
+    for i in 0..n_calls {
         let calldata = create_calldata(
             main_contract_address,
             "test_increment",
             &[felt!(5u8), felt!(6u8), felt!(7u8)],
         );
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        if i == 0 {
+            // First call with non-empty proof_facts (client-side proving).
+            test_builder.add_funded_account_invoke(invoke_tx_args! {
+                calldata,
+                proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+            });
+        } else {
+            // Second call without proof_facts (no client-side proving).
+            test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        }
     }
     update_expected_storage(
         &mut expected_storage_updates,
