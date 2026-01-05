@@ -69,7 +69,10 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     MockBlockBuilderFactoryTrait,
 };
-use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
+use crate::commitment_manager::commitment_manager_impl::{
+    CommitmentManager,
+    CommitmentManagerConfig,
+};
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK_HEIGHT,
