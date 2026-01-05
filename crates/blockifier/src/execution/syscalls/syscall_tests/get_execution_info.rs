@@ -137,7 +137,10 @@ impl<S: StateReader> TestSetup<S> {
         self.calldata.push(
             expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
         );
-        self.calldata.push(proof_facts_as_cairo_array(proof_facts));
+
+        if self.entry_point_selector == selector_from_name("test_get_execution_info_v3") {
+            self.calldata.push(proof_facts_as_cairo_array(proof_facts));
+        }
     }
 }
 
@@ -148,6 +151,7 @@ fn create_test_setup(
     version: TransactionVersion,
     variant: &Variant,
     class_hash_override: Option<starknet_api::core::ClassHash>,
+    entry_point_name: &str,
 ) -> TestSetup<DictStateReader> {
     let Variant { only_query, v1_bound_account, high_tip, exclude_l1_data_gas, .. } = *variant;
 
@@ -248,7 +252,7 @@ fn create_test_setup(
     };
 
     // Build expected calldata.
-    let entry_point_selector = selector_from_name("test_get_execution_info");
+    let entry_point_selector = selector_from_name(entry_point_name);
 
     let expected_call_info = vec![
         felt!(0_u16), // Caller address.
@@ -300,10 +304,12 @@ fn test_supported_get_execution_info(
     #[case] version: TransactionVersion,
     #[case] only_query: bool,
     #[values(ExecutionMode::Validate, ExecutionMode::Execute)] execution_mode: ExecutionMode,
+    #[values("test_get_execution_info_v3", "test_get_execution_info_v2")] entry_point_name: &str,
 ) {
     let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
     let variant = Variant { only_query, ..Default::default() };
-    let mut setup = create_test_setup(contract, execution_mode, version, &variant, None);
+    let mut setup =
+        create_test_setup(contract, execution_mode, version, &variant, None, entry_point_name);
     setup.extend_calldata_for_v3();
     setup.execute_and_assert();
 }
@@ -358,7 +364,14 @@ fn test_legacy_get_execution_info(
         assert_eq!(compiler_version, "2.1.0");
     }
 
-    let mut setup = create_test_setup(contract, execution_mode, version, &Variant::default(), None);
+    let mut setup = create_test_setup(
+        contract,
+        execution_mode,
+        version,
+        &Variant::default(),
+        None,
+        "test_get_execution_info",
+    );
     setup.execute_and_assert();
 }
 
@@ -389,6 +402,7 @@ fn test_v1_bound_account_get_execution_info(
         TransactionVersion::THREE,
         &variant,
         Some(class_hash),
+        "test_get_execution_info_v3",
     );
     setup.extend_calldata_for_v3();
     setup.execute_and_assert();
@@ -412,6 +426,7 @@ fn test_exclude_l1_data_gas_get_execution_info(#[case] runnable: RunnableCairo1)
         TransactionVersion::THREE,
         &variant,
         Some(class_hash),
+        "test_get_execution_info_v3",
     );
     setup.extend_calldata_for_v3();
     setup.execute_and_assert();

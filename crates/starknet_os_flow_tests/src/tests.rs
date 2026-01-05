@@ -1105,7 +1105,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 
     // Test calling test_get_execution_info.
     let test_call_contract_selector_name = "test_call_contract";
-    let test_execution_info_selector = selector_from_name("test_get_execution_info");
+    let test_execution_info_selector = selector_from_name("test_get_execution_info_v3");
     let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(

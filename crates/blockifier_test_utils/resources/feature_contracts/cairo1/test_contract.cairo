@@ -19,7 +19,8 @@ mod TestContract {
     use starknet::class_hash::ClassHashZero;
     use starknet::eth_address::U256IntoEthAddress;
     use starknet::eth_signature::verify_eth_signature;
-    use starknet::info::v3::{ExecutionInfo, ResourceBounds, TxInfo};
+    use starknet::info::v3::TxInfo as TxInfoV3;
+    use starknet::info::v2::{ExecutionInfo, ResourceBounds, TxInfo as TxInfoV2};
     use starknet::info::{BlockInfo, SyscallResultTrait, get_contract_address};
     use starknet::secp256_trait::{Signature, is_valid_signature};
     use starknet::secp256r1::{Secp256r1Impl, Secp256r1Point};
@@ -274,14 +275,14 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_get_execution_info(
+    fn test_get_execution_info_v3(
         self: @ContractState,
         expected_block_info: BlockInfo,
         // Expected call info.
         expected_caller_address: felt252,
         expected_contract_address: felt252,
         expected_entry_point_selector: felt252,
-        expected_tx_info: TxInfo,
+        expected_tx_info: TxInfoV3,
     ) {
         let execution_info = starknet::syscalls::get_execution_info_v3_syscall().unwrap_syscall().unbox();
         let block_info = execution_info.block_info.unbox();
@@ -324,6 +325,69 @@ mod TestContract {
         );
 
         assert(tx_info.proof_facts == expected_tx_info.proof_facts, 'PROOF_FACTS_MISMATCH');
+
+        assert(execution_info.caller_address.into() == expected_caller_address, 'CALLER_MISMATCH');
+        assert(
+            execution_info.contract_address.into() == expected_contract_address,
+            'CONTRACT_MISMATCH',
+        );
+        assert(
+            execution_info.entry_point_selector == expected_entry_point_selector,
+            'SELECTOR_MISMATCH',
+        );
+    }
+
+
+
+        #[external(v0)]
+    fn test_get_execution_info_v2(
+        self: @ContractState,
+        expected_block_info: BlockInfo,
+        // Expected call info.
+        expected_caller_address: felt252,
+        expected_contract_address: felt252,
+        expected_entry_point_selector: felt252,
+        expected_tx_info: TxInfoV2,
+    ) {
+        let execution_info = starknet::get_execution_info().unbox();
+        let block_info = execution_info.block_info.unbox();
+        assert(block_info == expected_block_info, 'BLOCK_INFO_MISMATCH');
+
+        let tx_info = execution_info.tx_info.unbox();
+
+        // Signature is expected to contain the tx hash.
+        assert(tx_info.signature.len() == 1_u32, 'SIGNATURE_MISMATCH');
+        let transaction_hash = *tx_info.signature.at(0_u32);
+        assert(tx_info.transaction_hash == transaction_hash, 'TRANSACTION_HASH_MISMATCH');
+
+        // Compare the rest of the fields explicitly.
+        assert(tx_info.version == expected_tx_info.version, 'VERSION_MISMATCH');
+        assert(
+            tx_info.account_contract_address == expected_tx_info.account_contract_address,
+            'ACCOUNT_MISMATCH',
+        );
+        assert(tx_info.max_fee == expected_tx_info.max_fee, 'MAX_FEE_MISMATCH');
+        assert(tx_info.chain_id == expected_tx_info.chain_id, 'CHAIN_ID_MISMATCH');
+        assert(tx_info.nonce == expected_tx_info.nonce, 'NONCE_MISMATCH');
+        assert(
+            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH'
+        );
+        assert(tx_info.tip == expected_tx_info.tip, 'TIP_MISMATCH');
+        assert(
+            tx_info.paymaster_data == expected_tx_info.paymaster_data, 'PAYMASTER_DATA_MISMATCH',
+        );
+        assert(
+            tx_info.nonce_data_availability_mode == expected_tx_info.nonce_data_availability_mode,
+            'NONCE_DA_MODE_MISMATCH',
+        );
+        assert(
+            tx_info.fee_data_availability_mode == expected_tx_info.fee_data_availability_mode,
+            'FEE_DA_MODE_MISMATCH',
+        );
+        assert(
+            tx_info.account_deployment_data == expected_tx_info.account_deployment_data,
+            'DEPLOYMENT_DATA_MISMATCH',
+        );
 
         assert(execution_info.caller_address.into() == expected_caller_address, 'CALLER_MISMATCH');
         assert(
@@ -903,9 +967,9 @@ mod TestContract {
         }
     }
 
-    impl TxInfoPartialEq of PartialEq<TxInfo> {
+    impl TxInfoPartialEq of PartialEq<TxInfoV3> {
         #[inline(always)]
-        fn eq(lhs: @TxInfo, rhs: @TxInfo) -> bool {
+        fn eq(lhs: @TxInfoV3, rhs: @TxInfoV3) -> bool {
             (*lhs.version == *rhs.version)
                 && (*lhs.account_contract_address == *rhs.account_contract_address)
                 && (*lhs.max_fee == *rhs.max_fee)
@@ -922,7 +986,7 @@ mod TestContract {
                 && (*lhs.proof_facts == *rhs.proof_facts)
         }
         #[inline(always)]
-        fn ne(lhs: @TxInfo, rhs: @TxInfo) -> bool {
+        fn ne(lhs: @TxInfoV3, rhs: @TxInfoV3) -> bool {
             !(*lhs == *rhs)
         }
     }
