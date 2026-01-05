@@ -81,12 +81,12 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
-use crate::commitment_manager::types::FinalBlockCommitment;
-use crate::commitment_manager::{
+use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
     CommitmentManagerConfig,
 };
+use crate::commitment_manager::types::FinalBlockCommitment;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,

@@ -15,8 +15,11 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::batcher::MockBatcherStorageReader;
+use crate::commitment_manager::commitment_manager_impl::{
+    CommitmentManager,
+    CommitmentManagerConfig,
+};
 use crate::commitment_manager::errors::CommitmentManagerError;
-use crate::commitment_manager::{CommitmentManager, CommitmentManagerConfig};
 use crate::test_utils::{test_state_diff, MockStateCommitter, INITIAL_HEIGHT};
 
 type MockCommitmentManager = CommitmentManager<MockStateCommitter>;
