@@ -1077,7 +1077,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 
     // Test get_execution_info; invoke a function that gets the expected execution info and compares
     // it to the actual.
-    let test_execution_info_selector_name = "test_get_execution_info";
+    let test_execution_info_selector_name = "test_get_execution_info_v3";
     let test_execution_info_selector = selector_from_name(test_execution_info_selector_name);
     let only_query = false;
     let proof_facts = ProofFacts::snos_proof_facts_for_testing();

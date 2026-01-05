@@ -59,7 +59,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         false,
         false,
-        false;
+        false,
+        "test_get_execution_info";
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
     )
 )]
@@ -72,7 +73,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         false,
         false,
-        false;
+        false,
+        "test_get_execution_info";
         "Native: Execute execution mode: block info should be as usual. Transaction V1."
     )
 )]
@@ -85,7 +87,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         false,
         false,
-        false;
+        false,
+        "test_get_execution_info_v3";
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
     )
 )]
@@ -98,7 +101,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         false,
         false,
-        false;
+        false,
+        "test_get_execution_info_v3";
         "Native: Execute execution mode: block info should be as usual. Transaction V3."
     )
 )]
@@ -111,7 +115,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info";
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V1."
     )
@@ -125,7 +130,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info";
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
     )
@@ -139,7 +145,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         true,
         false,
         false,
-        false;
+        false,
+        "test_get_execution_info_v3";
         "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
     )
 )]
@@ -152,7 +159,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         true,
         false,
-        false;
+        false,
+        "test_get_execution_info_v3";
         "Native: V1 bound account: execute"
     )
 )]
@@ -165,7 +173,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         true,
         true,
         false,
-        false;
+        false,
+        "test_get_execution_info_v3";
         "Native: V1 bound account: query"
     )
 )]
@@ -178,7 +187,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         true,
         false,
         false,
-        true;
+        true,
+        "test_get_execution_info_v3";
         "Native: data gas account: query"
     )
 )]
@@ -191,7 +201,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
         false,
         false,
         false,
-        true;
+        true,
+        "test_get_execution_info_v3";
         "Native: data gas account"
     )
 )]
@@ -202,7 +213,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -211,7 +223,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -220,7 +233,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -229,7 +243,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
     FeatureContract::LegacyTestContract,
@@ -238,7 +253,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info";
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
     FeatureContract::LegacyTestContract,
@@ -247,7 +263,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info";
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -256,7 +273,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     true,
     false,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "Execute execution mode: block info should be as usual. Transaction V3. Query.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -265,7 +283,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     true,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "V1 bound account: execute")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -274,7 +293,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     true,
     true,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "V1 bound account: execute, high tip")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -283,7 +303,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     true,
     true,
     false,
-    false;
+    false,
+    "test_get_execution_info_v3";
     "V1 bound account: query")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -292,7 +313,8 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     false,
     false,
     false,
-    true;
+    true,
+    "test_get_execution_info_v3";
     "Exclude l1 data gas: execute")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -301,8 +323,208 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
     true,
     false,
     false,
-    true;
+    true,
+    "test_get_execution_info_v3";
     "Exclude l1 data gas: query")]
+// V2 entry point test cases (using test_get_execution_info_v2).
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Validate,
+        TransactionVersion::THREE,
+        false,
+        false,
+        false,
+        false,
+        "test_get_execution_info_v2";
+        "Native V2: Validate execution mode: block info fields should be zeroed. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false,
+        false,
+        false,
+        false,
+        "test_get_execution_info_v2";
+        "Native V2: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        false,
+        false,
+        false,
+        "test_get_execution_info_v2";
+        "Native V2: Execute execution mode: block info should be as usual. Transaction V3. Query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false,
+        true,
+        false,
+        false,
+        "test_get_execution_info_v2";
+        "Native V2: V1 bound account: execute"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        true,
+        false,
+        false,
+        "test_get_execution_info_v2";
+        "Native V2: V1 bound account: query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        false,
+        false,
+        true,
+        "test_get_execution_info_v2";
+        "Native V2: data gas account: query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false,
+        false,
+        false,
+        true,
+        "test_get_execution_info_v2";
+        "Native V2: data gas account"
+    )
+)]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Validate,
+    TransactionVersion::ONE,
+    false,
+    false,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: Validate execution mode: block info fields should be zeroed. Transaction V1.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::ONE,
+    false,
+    false,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: Execute execution mode: block info should be as usual. Transaction V1.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Validate,
+    TransactionVersion::THREE,
+    false,
+    false,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: Validate execution mode: block info fields should be zeroed. Transaction V3.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    false,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: Execute execution mode: block info should be as usual. Transaction V3.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    true,
+    false,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: Execute execution mode: block info should be as usual. Transaction V3. Query.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    true,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: V1 bound account: execute")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    true,
+    true,
+    false,
+    "test_get_execution_info_v2";
+    "V2: V1 bound account: execute, high tip")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    true,
+    true,
+    false,
+    false,
+    "test_get_execution_info_v2";
+    "V2: V1 bound account: query")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    false,
+    false,
+    true,
+    "test_get_execution_info_v2";
+    "V2: Exclude l1 data gas: execute")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    true,
+    false,
+    false,
+    true,
+    "test_get_execution_info_v2";
+    "V2: Exclude l1 data gas: query")]
 /// Tests the `get_execution_info` syscall by invoking `test_get_execution_info` across multiple
 /// contract implementations and transaction variants.
 ///
@@ -316,7 +538,7 @@ use crate::transaction::test_utils::proof_facts_as_cairo_array;
 /// The test matrix varies execution mode (`Validate` vs `Execute`), tx version (V1 vs V3),
 /// query mode, and special account behaviors (v1-bound / data-gas / high-tip).
 /// In `Validate`, block info fields are rounded/zeroed; in `Execute`, they are populated normally.
-
+#[allow(clippy::too_many_arguments)]
 fn test_get_execution_info(
     test_contract: FeatureContract,
     execution_mode: ExecutionMode,
@@ -326,6 +548,7 @@ fn test_get_execution_info(
     // Whether the tip is larger than `v1_bound_accounts_max_tip`.
     high_tip: bool,
     exclude_l1_data_gas: bool,
+    entry_point_name: &str,
 ) {
     let mut test_contract_data: FeatureContractData = test_contract.into();
 
@@ -444,9 +667,9 @@ fn test_get_execution_info(
         })
     };
 
-    // Build expected calldata to pass to the contract's test_get_execution_info entry point.
+    // Build expected calldata to pass to the contract's entry point.
     // The contract will compare the syscall results with the expected values.
-    let entry_point_selector = selector_from_name("test_get_execution_info");
+    let entry_point_selector = selector_from_name(entry_point_name);
 
     let expected_call_info = vec![
         felt!(0_u16), // Caller address.
@@ -496,7 +719,9 @@ fn test_get_execution_info(
         calldata.push(
             expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
         );
-        calldata.push(proof_facts_as_cairo_array(proof_facts));
+        if entry_point_name == "test_get_execution_info_v3" {
+            calldata.push(proof_facts_as_cairo_array(proof_facts));
+        }
     }
 
     // Execute and verify.

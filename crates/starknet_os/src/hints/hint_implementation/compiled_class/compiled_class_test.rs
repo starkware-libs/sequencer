@@ -51,30 +51,30 @@ use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoO
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_V1_HASH: expect_test::Expect =
-    expect!["1272023049757684903206934286475515215095951112194190694624694198350014208156"];
+    expect!["1244474690067112233625438826424559850200148809618403114219540358376094682321"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 14538"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["173407"];
+    expect!["poseidon_builtin: 15281"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["181751"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 435, range_check_builtin: 219"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13005"];
+    expect!["poseidon_builtin: 440, range_check_builtin: 222"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13175"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
 const EXPECTED_V2_HASH: expect_test::Expect =
-    expect!["2081573783000591205604629460054750818222576304994547008242870242613442970120"];
+    expect!["3519972229874620075205769199960315427047363733075905241665252061934028063896"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 29591"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["563126"];
+    expect!["range_check_builtin: 31083"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["587605"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 1234"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["52485"];
+    expect!["range_check_builtin: 1250"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["53138"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
