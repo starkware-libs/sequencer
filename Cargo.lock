@@ -1228,6 +1228,7 @@ dependencies = [
  "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_consensus_config",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_metrics",
@@ -1256,6 +1257,7 @@ name = "apollo_config_manager_types"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_consensus_config",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_metrics",
