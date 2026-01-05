@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import argparse
 import base64
-import json
 import logging
 import shlex
 import shutil
 import subprocess
 import tarfile
 from pathlib import Path
+
 from constants import ECHONET_KEYS_FILENAME
 from helpers import read_json_object
 
