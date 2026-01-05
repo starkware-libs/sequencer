@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
+use blockifier::state::state_api::UpdatableState;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -35,7 +36,6 @@ use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
-use crate::state_trait::FlowTestState;
 use crate::test_manager::{
     block_context_for_flow_tests,
     EXPECTED_STRK_FEE_TOKEN_ADDRESS,
@@ -57,6 +57,10 @@ const INITIAL_TOKEN_SUPPLY: u128 = 10_000_000_000_000_000_000_000_000_000_000_00
 const STRK_TOKEN_NAME: &[u8] = b"StarkNet Token";
 const STRK_SYMBOL: &[u8] = b"STRK";
 const STRK_DECIMALS: u8 = 18;
+
+/// Trait alias for state readers used in flow tests.
+pub(crate) trait FlowTestState: Default + UpdatableState + Send {}
+impl<S: Default + UpdatableState + Send> FlowTestState for S {}
 
 /// Gathers the information needed to execute a flow test.
 pub(crate) struct InitialStateData<S: FlowTestState> {
@@ -140,7 +144,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
         extra_contracts_addresses,
     ) = create_default_initial_state_txs_and_contracts(extra_contracts);
     // Execute these 4 txs.
-    let initial_state_reader = S::create_empty_state();
+    let initial_state_reader = S::default();
     let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
     let use_kzg_da = false;
     let block_context = block_context_for_flow_tests(initial_block_number, use_kzg_da);
