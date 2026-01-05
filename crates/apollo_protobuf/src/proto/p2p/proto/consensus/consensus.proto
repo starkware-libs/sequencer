@@ -55,9 +55,10 @@ message BlockInfo {
     Address builder                   = 3;
     L1DataAvailabilityMode l1_da_mode = 4;
     Uint128 l2_gas_price_fri          = 5;
-    Uint128 l1_gas_price_wei          = 6;
-    Uint128 l1_data_gas_price_wei     = 7;
-    Uint128 eth_to_fri_rate           = 8;
+    Uint128 l1_gas_price_fri          = 6;
+    Uint128 l1_data_gas_price_fri     = 7;
+    Uint128 l1_gas_price_wei          = 8;
+    Uint128 l1_data_gas_price_wei     = 9;
 }
 
 message TransactionBatch {
