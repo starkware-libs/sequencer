@@ -77,7 +77,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.stateless_tx_validator_config.min_gas_price",
-    "http_server_config.port",
+    "http_server_config.static_config.port",
     "mempool_config.dynamic_config.transaction_ttl",
     "mempool_p2p_config.network_config.advertised_multiaddr.#is_none",
     "mempool_p2p_config.network_config.advertised_multiaddr",

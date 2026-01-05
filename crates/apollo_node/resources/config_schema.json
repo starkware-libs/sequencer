@@ -2504,17 +2504,17 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "http_server_config.ip": {
-    "description": "The http server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "http_server_config.max_sierra_program_size": {
+  "http_server_config.dynamic_config.max_sierra_program_size": {
     "description": "The maximum size of a sierra program in bytes.",
     "privacy": "Public",
     "value": 4194304
   },
-  "http_server_config.port": {
+  "http_server_config.static_config.ip": {
+    "description": "The http server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "http_server_config.static_config.port": {
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
