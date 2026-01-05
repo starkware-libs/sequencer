@@ -6,7 +6,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-pub const HTTP_SERVER_PORT: u16 = 8080;
+const HTTP_SERVER_PORT: u16 = 8080;
 pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
 
 /// The http server connection related configuration.
