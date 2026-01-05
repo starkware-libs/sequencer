@@ -55,6 +55,7 @@ def _fetch_bootstrap_constants(
         "next_l2_gas_price",
         "sequencer_address",
         "starknet_version",
+        "state_diff_commitment",
     ]
     custom_fields: JsonObject = {k: block[k] for k in custom_keys}
 
@@ -322,25 +323,19 @@ class BlobTransformer:
 
         storage_updates = state_diff["storage_updates"]["L1"]
 
-        storage_diffs_out = {
-            address: [{"key": k, "value": v} for k, v in updates.items()]
-            for address, updates in storage_updates.items()
-        }
+        storage_diffs_out = {}
+        for address, updates in storage_updates.items():
+            # sort by numeric value for stable output.
+            sorted_updates = sorted(updates.items(), key=lambda kv: int(kv[0], 16))
+            storage_diffs_out[address] = [{"key": k, "value": v} for k, v in sorted_updates]
 
         new_root, old_root = self._chain.compute_current_and_previous_root(block_number)
         block_hash, _parent = self._chain.compute_current_and_previous_hash(block_number)
 
-        # Deployed contracts can come either from state_diff mapping or inferred from txs.
         deployed_contracts_map: JsonObject = {
             str(addr): class_hash
             for addr, class_hash in state_diff.get("address_to_class_hash", {}).items()
         }
-
-        tx_entries = blob["transactions"]
-        for entry in tx_entries:
-            tx = entry["tx"]
-            if tx["type"] == TxType.DEPLOY_ACCOUNT:
-                deployed_contracts_map[tx["sender_address"]] = tx["class_hash"]
 
         deployed_contracts_out = [
             {"address": a, "class_hash": c} for a, c in deployed_contracts_map.items()
@@ -360,6 +355,7 @@ class BlobTransformer:
                 "old_declared_contracts": [],
                 "declared_classes": declared_classes,
                 "replaced_classes": [],
+                "migrated_compiled_classes": [],
             },
         }
 

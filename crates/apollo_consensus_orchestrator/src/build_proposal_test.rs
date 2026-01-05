@@ -60,6 +60,7 @@ struct TestProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    pub use_state_sync_block_timestamp: bool,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -82,6 +83,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
         }
     }
 }
@@ -108,7 +110,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     let cancel_token = CancellationToken::new();
     let previous_block_info = None;
     let proposal_round = 0;
-
+    let use_state_sync_block_timestamp = false;
     (
         TestProposalBuildArguments {
             deps,
@@ -127,6 +129,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp,
         },
         proposal_receiver,
     )

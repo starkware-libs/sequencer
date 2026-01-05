@@ -12,8 +12,14 @@ use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
-use crate::body::TransactionIndex;
-use crate::consensus::LastVotedMarker;
+use crate::base_layer::BaseLayerStorageReader;
+use crate::body::events::EventsReader;
+use crate::body::{BodyStorageReader, TransactionIndex};
+use crate::class::ClassStorageReader;
+use crate::class_hash::ClassHashStorageReader;
+use crate::class_manager::ClassManagerStorageReader;
+use crate::compiled_class::CasmStorageReader;
+use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
@@ -176,6 +182,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
         match request {
             // ============ State-Related Requests ============
             StorageReaderRequest::StateDiffsLocation(block_number) => {
@@ -190,61 +197,138 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 let state_diff = txn.get_state_diff_from_location(location)?;
                 Ok(StorageReaderResponse::StateDiffsFromLocation(state_diff))
             }
-            StorageReaderRequest::ContractStorage(_key, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::ContractStorage((address, key), block_number) => {
+                let value = state_reader
+                    .get_storage_by_key(address, key, block_number)?
+                    .unwrap_or_default();
+                Ok(StorageReaderResponse::ContractStorage(value))
             }
-            StorageReaderRequest::Nonces(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::Nonces(address, block_number) => {
+                let nonce = state_reader.get_nonce_by_key(&address, block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Nonce".to_string(),
+                        resource_id: format!("address: {address:?}, block: {block_number}"),
+                    },
+                )?;
+                Ok(StorageReaderResponse::Nonces(nonce))
             }
-            StorageReaderRequest::DeployedContracts(_address, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::DeployedContracts(address, block_number) => {
+                let state_reader = txn.get_state_reader()?;
+                let class_hash = state_reader
+                    .get_class_hash_by_key(&address, block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Deployed contract".to_string(),
+                        resource_id: format!("address: {address}, block_number: {block_number:?}"),
+                    })?;
+                Ok(StorageReaderResponse::DeployedContracts(class_hash))
             }
-            StorageReaderRequest::Events(_address, _tx_index) => {
-                unimplemented!()
-            }
+            StorageReaderRequest::Events(address, tx_index) => txn
+                .has_event(address, tx_index)?
+                .map(|_| StorageReaderResponse::Events)
+                .ok_or_else(|| StorageError::NotFound {
+                    resource_type: "Event".to_string(),
+                    resource_id: format!("({}, {:?})", address, tx_index),
+                }),
             StorageReaderRequest::Markers(marker_kind) => {
                 let block_number = match marker_kind {
                     MarkerKind::State => txn.get_state_marker()?,
-                    _ => unimplemented!(),
+                    MarkerKind::Header => txn.get_header_marker()?,
+                    MarkerKind::Body => txn.get_body_marker()?,
+                    MarkerKind::Class => txn.get_class_marker()?,
+                    MarkerKind::CompiledClass => txn.get_compiled_class_marker()?,
+                    MarkerKind::BaseLayerBlock => txn.get_base_layer_block_marker()?,
+                    MarkerKind::ClassManagerBlock => txn.get_class_manager_block_marker()?,
+                    MarkerKind::CompilerBackwardCompatibility => {
+                        txn.get_compiler_backward_compatibility_marker()?
+                    }
+                    MarkerKind::Event => txn.get_event_marker()?,
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }
 
             // ============ Class-Related Requests ============
-            StorageReaderRequest::DeclaredClassesLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesLocation(class_hash) => {
+                let class_location =
+                    txn.get_class_location(&class_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "Declared class".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeclaredClassesLocation(class_location))
             }
-            StorageReaderRequest::DeclaredClassesFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesFromLocation(location) => {
+                let class = txn.get_class_from_location(location)?;
+                Ok(StorageReaderResponse::DeclaredClassesFromLocation(class))
             }
-            StorageReaderRequest::DeclaredClassesBlock(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeclaredClassesBlock(class_hash) => {
+                let block_number = state_reader
+                    .get_class_definition_block_number(&class_hash)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Declared class block".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeclaredClassesBlock(block_number))
             }
-            StorageReaderRequest::DeprecatedDeclaredClassesLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeprecatedDeclaredClassesLocation(class_hash) => {
+                let location = txn.get_deprecated_class_location(&class_hash)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Deprecated declared class location".to_string(),
+                        resource_id: class_hash.to_string(),
+                    },
+                )?;
+                Ok(StorageReaderResponse::DeprecatedDeclaredClassesLocation(location))
             }
-            StorageReaderRequest::DeprecatedDeclaredClassesFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::DeprecatedDeclaredClassesFromLocation(location) => {
+                let deprecated_class = txn.get_deprecated_class_from_location(location)?;
+                Ok(StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(deprecated_class))
             }
-            StorageReaderRequest::DeprecatedDeclaredClassesBlock(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::DeprecatedDeclaredClassesBlock(class_hash) => {
+                let block_number = state_reader
+                    .get_deprecated_class_definition_block_number(&class_hash)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Deprecated declared class block".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::DeprecatedDeclaredClassesBlock(block_number))
             }
-            StorageReaderRequest::CasmsLocation(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::CasmsLocation(class_hash) => {
+                let location =
+                    txn.get_casm_location(&class_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "CASM location".to_string(),
+                        resource_id: class_hash.to_string(),
+                    })?;
+                Ok(StorageReaderResponse::CasmsLocation(location))
             }
-            StorageReaderRequest::CasmsFromLocation(_location) => {
-                unimplemented!()
+            StorageReaderRequest::CasmsFromLocation(location) => {
+                let casm = txn.get_casm_from_location(location)?;
+                Ok(StorageReaderResponse::CasmsFromLocation(casm))
             }
-            StorageReaderRequest::CompiledClassHash(_class_hash, _block_number) => {
-                unimplemented!()
+            StorageReaderRequest::CompiledClassHash(class_hash, block_number) => {
+                let compiled_class_hash = txn
+                    .get_compiled_class_hash(class_hash, block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Compiled class hash".to_string(),
+                        resource_id: format!("class: {class_hash}, block: {block_number}"),
+                    })?;
+                Ok(StorageReaderResponse::CompiledClassHash(compiled_class_hash))
             }
-            StorageReaderRequest::StatelessCompiledClassHashV2(_class_hash) => {
-                unimplemented!()
+            StorageReaderRequest::StatelessCompiledClassHashV2(class_hash) => {
+                let compiled_class_hash = txn.get_executable_class_hash_v2(&class_hash)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Stateless compiled class hash v2".to_string(),
+                        resource_id: class_hash.to_string(),
+                    },
+                )?;
+                Ok(StorageReaderResponse::StatelessCompiledClassHashV2(compiled_class_hash))
             }
 
             // ============ Block-Related Requests ============
-            StorageReaderRequest::Headers(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::Headers(block_number) => {
+                let storage_block_header =
+                    txn.get_storage_block_header(&block_number)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block header".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::Headers(storage_block_header))
             }
             StorageReaderRequest::BlockHashToNumber(block_hash) => {
                 let block_number =
@@ -264,22 +348,46 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
             }
 
             // ============ Transaction-Related Requests ============
-            StorageReaderRequest::TransactionMetadata(_tx_index) => {
-                unimplemented!()
+            StorageReaderRequest::TransactionMetadata(tx_index) => {
+                let metadata =
+                    txn.get_transaction_metadata(&tx_index)?.ok_or(StorageError::NotFound {
+                        resource_type: "Transaction metadata".to_string(),
+                        resource_id: format!("tx_index: {:?}", tx_index),
+                    })?;
+                Ok(StorageReaderResponse::TransactionMetadata(metadata))
             }
-            StorageReaderRequest::TransactionHashToIdx(_tx_hash) => {
-                unimplemented!()
+            StorageReaderRequest::TransactionHashToIdx(tx_hash) => {
+                let tx_index =
+                    txn.get_transaction_idx_by_hash(&tx_hash)?.ok_or(StorageError::NotFound {
+                        resource_type: "Transaction index".to_string(),
+                        resource_id: format!("tx_hash: {}", tx_hash),
+                    })?;
+                Ok(StorageReaderResponse::TransactionHashToIdx(tx_index))
             }
 
             // ============ Other Requests ============
             StorageReaderRequest::LastVotedMarker => {
-                unimplemented!()
+                let marker = txn.get_last_voted_marker()?.ok_or(StorageError::NotFound {
+                    resource_type: "Last voted marker".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::LastVotedMarker(marker))
             }
-            StorageReaderRequest::FileOffsets(_offset_kind) => {
-                unimplemented!()
+            StorageReaderRequest::FileOffsets(offset_kind) => {
+                let offset = txn.get_file_offset(offset_kind)?.ok_or(StorageError::NotFound {
+                    resource_type: "File offset".to_string(),
+                    resource_id: format!("{:?}", offset_kind),
+                })?;
+                Ok(StorageReaderResponse::FileOffsets(offset))
             }
-            StorageReaderRequest::StarknetVersion(_block_number) => {
-                unimplemented!()
+            StorageReaderRequest::StarknetVersion(block_number) => {
+                let starknet_version = txn.get_starknet_version_by_key(block_number)?.ok_or(
+                    StorageError::NotFound {
+                        resource_type: "Starknet version".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    },
+                )?;
+                Ok(StorageReaderResponse::StarknetVersion(starknet_version))
             }
             StorageReaderRequest::StateStorageVersion => {
                 let version = txn.get_state_version()?.ok_or(StorageError::NotFound {
@@ -289,7 +397,11 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                 Ok(StorageReaderResponse::StateStorageVersion(version))
             }
             StorageReaderRequest::BlocksStorageVersion => {
-                unimplemented!()
+                let version = txn.get_blocks_version()?.ok_or(StorageError::NotFound {
+                    resource_type: "Blocks storage version".to_string(),
+                    resource_id: "".to_string(),
+                })?;
+                Ok(StorageReaderResponse::BlocksStorageVersion(version))
             }
         }
     }

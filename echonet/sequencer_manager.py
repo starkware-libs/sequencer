@@ -124,8 +124,6 @@ class SequencerManager:
         def _mutate(config: JsonObject) -> None:
             config["revert_config.should_revert"] = True
             config["revert_config.revert_up_to_and_including"] = block_number
-            config["consensus_manager_config.immediate_active_height"] = block_number
-            config["consensus_manager_config.cende_config.skip_write_height"] = block_number
             config["starknet_url"] = "http://echonet:80"
             config["validator_id"] = "0x64"
 

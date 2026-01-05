@@ -178,13 +178,15 @@ pub(crate) async fn validate_proposal(
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                // Ignoring batcher errors, to better reflect the proposal interruption.
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ProposalInterrupted(
                     "validating proposal parts".to_string(),
                 ));
             }
             _ = args.deps.clock.sleep_until(deadline) => {
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                // Ignoring batcher errors, to better reflect the proposal deadline timeout.
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ValidationTimeout(
                     "validating proposal parts".to_string(),
                 ));
@@ -207,7 +209,7 @@ pub(crate) async fn validate_proposal(
                         return Err(ValidateProposalError::InvalidProposal(err));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
-                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await?;
                         return Err(ValidateProposalError::ProposalPartFailed(fail_reason,proposal_part));
                     }
                 }
@@ -546,38 +548,24 @@ async fn handle_proposal_part(
     }
 }
 
-// TODO(alonl, matan): consider making the retry logic part of the client interface.
-async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
+async fn batcher_abort_proposal(
+    batcher: &dyn BatcherClient,
+    proposal_id: ProposalId,
+) -> Result<(), ValidateProposalError> {
     let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
 
-    const MAX_CLIENT_RETRIES: usize = 10;
-    let mut client_attempts = 0;
-
-    loop {
-        match batcher.send_proposal_content(input.clone()).await {
-            Ok(_) => return, // Success - abort sent successfully
-
-            Err(BatcherClientError::BatcherError(BatcherError::ProposalAborted)) => {
-                warn!("Proposal {proposal_id:?} was already aborted by batcher");
-                return;
-            }
-
-            // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics.
-            // We should have a way to report an error and continue to the next height.
-            Err(BatcherClientError::BatcherError(e)) => {
-                panic!("Batcher failed to abort proposal {proposal_id:?}: {e:?}");
-            }
-
-            Err(BatcherClientError::ClientError(e)) => {
-                client_attempts += 1;
-                if client_attempts >= MAX_CLIENT_RETRIES {
-                    panic!(
-                        "Failed to send abort to batcher after {MAX_CLIENT_RETRIES} attempts: \
-                         {e:?}"
-                    );
-                }
-                // Continue loop for retry
-            }
+    match batcher.send_proposal_content(input.clone()).await {
+        Ok(_) => Ok(()),
+        Err(BatcherClientError::BatcherError(BatcherError::ProposalAborted)) => {
+            warn!("Proposal {proposal_id:?} was already aborted by batcher");
+            Ok(())
+        }
+        Err(e) => {
+            warn!("Batcher failed to abort proposal {proposal_id:?}: {e:?}");
+            Err(ValidateProposalError::Batcher(
+                format!("Failed to abort proposal {proposal_id:?}."),
+                e,
+            ))
         }
     }
 }

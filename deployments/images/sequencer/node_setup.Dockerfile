@@ -16,6 +16,8 @@ FROM base AS builder
 WORKDIR /app
 RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz | tar -xz --wildcards 'anvil'
 COPY --from=planner /app/recipe.json recipe.json
+# Copy .cargo/config.toml before cargo chef cook so llvm-sys can find LLVM
+COPY .cargo .cargo
 RUN cargo chef cook --recipe-path recipe.json --bin sequencer_node_setup
 COPY . .
 RUN cargo build --bin sequencer_node_setup
