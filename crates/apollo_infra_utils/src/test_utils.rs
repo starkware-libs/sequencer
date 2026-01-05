@@ -44,6 +44,12 @@ pub enum TestIdentifier {
     SyncFlowIntegrationTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
+    L1EventsScraperEndToEndTest,
+    MockedStarknetStateUpdateTest,
+    LatestProvedBlockEthereumTest,
+    EventsFromOtherContractsTest,
+    L1ProviderUnitTests,
+    AnvilStartsWithNoContractTest,
 }
 
 #[derive(Debug)]
