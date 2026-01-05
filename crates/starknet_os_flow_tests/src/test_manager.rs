@@ -357,6 +357,56 @@ impl<S: FlowTestState> OsTestOutput<S> {
     }
 }
 
+/// Holds the data needed to run the OS and create the test output.
+pub(crate) struct TestRunner<S: FlowTestState> {
+    pub(crate) os_hints: OsHints,
+    // Carries the writes of the entire execution in its cache.
+    pub(crate) entire_cached_state: CachedState<S>,
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
+    pub(crate) messages_to_l2: Vec<MessageToL2>,
+    pub(crate) private_keys: Option<Vec<Felt>>,
+}
+
+impl<S: FlowTestState> TestRunner<S> {
+    /// Runs the OS and creates the test output.
+    pub(crate) fn run(mut self) -> OsTestOutput<S> {
+        // This cached state holds the diff of the entire execution.
+        let entire_state_diff = self.entire_cached_state.to_state_diff().unwrap().state_maps;
+        let entire_initial_reads = get_extended_initial_reads(&self.entire_cached_state);
+        self.entire_cached_state.state.apply_writes(
+            &entire_state_diff,
+            &self.entire_cached_state.class_hash_to_class.borrow(),
+        );
+        let final_state = self.entire_cached_state.state;
+
+        // Create expected values before running OS (os_hints is consumed by run_os_stateless).
+        let expected_values = OsTestExpectedValues::new(
+            &self.os_hints,
+            self.messages_to_l1,
+            self.messages_to_l2,
+            create_committer_state_diff(entire_state_diff.clone()),
+        );
+        let layout = DEFAULT_OS_LAYOUT;
+        let os_output = run_os_stateless(layout, self.os_hints).unwrap();
+
+        let decompressed_state_diff =
+            create_committer_state_diff(TestManager::<S>::get_decompressed_state_diff(
+                &os_output,
+                &final_state,
+                entire_initial_reads.alias_keys(),
+                self.private_keys.as_ref(),
+            ));
+
+        OsTestOutput {
+            runner_output: os_output,
+            private_keys: self.private_keys,
+            decompressed_state_diff,
+            final_state,
+            expected_values,
+        }
+    }
+}
+
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
 pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
@@ -741,38 +791,14 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints =
             OsHints { os_input: starknet_os_input, os_hints_config: self.os_hints_config };
 
-        // This cached state holds the diff of the entire execution.
-        let entire_state_diff = state.to_state_diff().unwrap().state_maps;
-        let entire_initial_reads = state.get_initial_reads().unwrap();
-
-        state.state.apply_writes(&entire_state_diff, &state.class_hash_to_class.borrow());
-        let final_state = state.state;
-
-        // Create expected values before running OS (os_hints is consumed by run_os_stateless).
-        let expected_values = OsTestExpectedValues::new(
-            &os_hints,
-            self.messages_to_l1,
-            self.messages_to_l2,
-            create_committer_state_diff(entire_state_diff),
-        );
-        let layout = DEFAULT_OS_LAYOUT;
-        let os_output = run_os_stateless(layout, os_hints).unwrap();
-
-        let decompressed_state_diff =
-            create_committer_state_diff(Self::get_decompressed_state_diff(
-                &os_output,
-                &final_state,
-                entire_initial_reads.alias_keys(),
-                self.private_keys.as_ref(),
-            ));
-
-        OsTestOutput {
-            runner_output: os_output,
+        let test_runner = TestRunner {
+            os_hints,
+            entire_cached_state: state,
+            messages_to_l1: self.messages_to_l1,
+            messages_to_l2: self.messages_to_l2,
             private_keys: self.private_keys,
-            decompressed_state_diff,
-            final_state,
-            expected_values,
-        }
+        };
+        test_runner.run()
     }
 }
 
