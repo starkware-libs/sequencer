@@ -41,38 +41,45 @@ use crate::vm_utils::get_address_of_nested_fields;
 pub(crate) fn test_hint<S: StateReader>(
     _hint_str: &str,
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking).unwrap();
-    let syscall_ptr =
-        get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking).unwrap();
-    let response_value = vm
-        .get_integer(
-            get_address_of_nested_fields(
-                ids_data,
-                Ids::SyscallPtr,
-                CairoStruct::StorageReadPtr,
-                vm,
-                ap_tracking,
-                &["response", "value"],
-                hint_processor.program,
-            )
-            .unwrap(),
-        )
-        .unwrap();
+    let response_value =
+        get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking).unwrap();
+    // let response_value = vm
+    //     .get_integer(
+    //         get_address_of_nested_fields(
+    //             ids_data,
+    //             Ids::SyscallPtr,
+    //             CairoStruct::StorageReadPtr,
+    //             vm,
+    //             ap_tracking,
+    //             &["response", "value"],
+    //             hint_processor.program,
+    //         )
+    //         .unwrap(),
+    //     )
+    //     .unwrap();
+    // let request_key = vm
+    //     .get_integer(
+    //         get_address_of_nested_fields(
+    //             ids_data,
+    //             Ids::Request,
+    //             CairoStruct::StorageReadRequestPtr,
+    //             vm,
+    //             ap_tracking,
+    //             &["key"],
+    //             hint_processor.program,
+    //         )
+    //         .unwrap(),
+    //     )
+    //     .unwrap();
     let request_key = vm
         .get_integer(
-            get_address_of_nested_fields(
-                ids_data,
-                Ids::SyscallPtr,
-                CairoStruct::StorageReadPtr,
-                vm,
-                ap_tracking,
-                &["response", "address"],
-                hint_processor.program,
-            )
-            .unwrap(),
+            (get_ptr_from_var_name(Ids::Request.into(), vm, ids_data, ap_tracking).unwrap()
+                + 1usize)
+                .unwrap(),
         )
         .unwrap();
     let request_value = hint_processor

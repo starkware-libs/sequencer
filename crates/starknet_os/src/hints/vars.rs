@@ -424,6 +424,7 @@ define_string_enum! {
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
         (StorageReadRequest, "starkware.starknet.common.new_syscalls.StorageReadRequest"),
+        (StorageReadRequestPtr, "starkware.starknet.common.new_syscalls.StorageReadRequest*"),
         (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWrite*"),
         (StorageWriteRequest, "starkware.starknet.common.new_syscalls.StorageWriteRequest"),
         (TxInfo, "starkware.starknet.common.new_syscalls.TxInfo"),

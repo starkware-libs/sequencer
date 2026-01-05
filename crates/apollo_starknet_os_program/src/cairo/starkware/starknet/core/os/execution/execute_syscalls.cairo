@@ -976,6 +976,7 @@ func execute_storage_read{range_check_ptr, syscall_ptr: felt*, contract_state_ch
     static_assert StorageReadRequest.SIZE == 2;
     assert request.reserved = 0;
     tempvar value = response.value;
+    %{ # TEST HINT 1 %}
     %{
         # Make sure the value is cached (by reading it), to be used later on for the
         # commitment computation.
