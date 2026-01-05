@@ -998,4 +998,42 @@ mod TestContract {
         // Test add_mod, mul_mod and range_check96.
         test_circuit(ref self);
     }
+
+    // Test functions for storage revert behavior with nested calls.
+    // foo2: writes storage cell to 1
+    #[external(v0)]
+    fn foo2(ref self: ContractState, key: StorageAddress) {
+        let address_domain = 0;
+        syscalls::storage_write_syscall(address_domain, key, 1).unwrap_syscall();
+    }
+
+    // foo1: calls foo2, then writes storage cell to 2, then panics
+    #[external(v0)]
+    fn foo1(ref self: ContractState, contract_address: ContractAddress, key: StorageAddress) {
+        // Call foo2 which writes 1 to the storage cell
+        let calldata = array![key.into()];
+        syscalls::call_contract_syscall(contract_address, selector!("foo2"), calldata.span())
+            .unwrap_syscall();
+        // Now write 2 to the same storage cell
+        let address_domain = 0;
+        syscalls::storage_write_syscall(address_domain, key, 2).unwrap_syscall();
+        // Panic to trigger revert
+        core::panic_with_felt252('foo1');
+    }
+
+    // foo0: calls foo1 and catches/ignores the revert, then reads storage to verify
+    #[external(v0)]
+    fn foo0(ref self: ContractState, contract_address: ContractAddress, key: StorageAddress) -> felt252 {
+        // Call foo1 which will revert
+        let calldata = array![contract_address.into(), key.into()];
+        match syscalls::call_contract_syscall(
+            contract_address, selector!("foo1"), calldata.span(),
+        ) {
+            Result::Ok(_) => core::panic_with_felt252('expected_fail'),
+            Result::Err(_) => {}, // Ignore the revert
+        }
+        // Read the storage value - should be 0 (original) not 1 (foo2's write)
+        let address_domain = 0;
+        syscalls::storage_read_syscall(address_domain, key).unwrap_syscall()
+    }
 }
