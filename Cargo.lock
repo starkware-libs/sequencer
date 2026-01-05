@@ -1694,7 +1694,6 @@ dependencies = [
  "apollo_deployments",
  "apollo_gateway_config",
  "apollo_http_server",
- "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price",

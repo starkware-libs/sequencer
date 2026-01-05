@@ -14,7 +14,7 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     SUPPORTED_TRANSACTION_VERSIONS,
 };
-use apollo_http_server_config::config::HttpServerConfig;
+use apollo_http_server_config::config::{HttpServerConfig, HttpServerStaticConfig};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -69,7 +69,7 @@ impl HttpServer {
         init_metrics();
 
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
-        let HttpServerConfig { ip, port, max_sierra_program_size: _ } = self.config;
+        let HttpServerStaticConfig { ip, port } = self.config.static_config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
@@ -86,7 +86,7 @@ impl HttpServer {
             .with_state(self.app_state.clone())
             // Rest api endpoint
             .route("/gateway/add_transaction", post({
-                let max_sierra_program_size = self.config.max_sierra_program_size;
+                let max_sierra_program_size = self.config.dynamic_config.max_sierra_program_size;
                 move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx, max_sierra_program_size)
             }))
             .with_state(self.app_state.clone())
