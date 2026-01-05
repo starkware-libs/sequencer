@@ -18,7 +18,13 @@ use tracing::{debug, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    RequestId,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+    REQUEST_ID_HEADER,
+};
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
@@ -163,10 +169,15 @@ where
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
-    fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
+    fn construct_http_request(
+        &self,
+        serialized_request: Bytes,
+        request_id: RequestId,
+    ) -> HyperRequest<Body> {
         trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+            .header(REQUEST_ID_HEADER, request_id.to_string())
             .body(Body::from(serialized_request))
             .expect("Request building should succeed")
     }
@@ -237,9 +248,17 @@ where
         let max_attempts = self.config.retries + 1;
         trace!("Starting retry loop: max_attempts = {max_attempts}");
         let mut retry_interval_ms = self.config.initial_retry_delay_ms;
+        let request_id = RequestId::generate();
         for attempt in 1..max_attempts + 1 {
-            trace!("Request {log_message} attempt {attempt} of {max_attempts}");
-            let http_request = self.construct_http_request(serialized_request_bytes.clone());
+            trace!(
+                request_id = %request_id,
+                request = request_label,
+                attempt = attempt,
+                max_attempts = max_attempts,
+                "Sending remote request"
+            );
+            let http_request =
+                self.construct_http_request(serialized_request_bytes.clone(), request_id.clone());
             let start = Instant::now();
             let res = self.try_send(http_request).await;
             let elapsed = start.elapsed();

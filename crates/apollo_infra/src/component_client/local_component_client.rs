@@ -3,9 +3,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::time::Instant;
+use tracing::trace;
 
 use crate::component_client::ClientResult;
-use crate::component_definitions::{ComponentClient, RequestWrapper};
+use crate::component_definitions::{ComponentClient, RequestId, RequestWrapper};
 use crate::metrics::LocalClientMetrics;
 use crate::requests::LabeledRequest;
 
@@ -43,7 +44,13 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response> {
         let request_label = request.request_label();
         let (res_tx, mut res_rx) = channel::<Response>(1);
-        let request_wrapper = RequestWrapper::new(request, res_tx);
+        let request_id = RequestId::generate();
+        trace!(
+            request_id = %request_id,
+            request = request_label,
+            "Sending local request"
+        );
+        let request_wrapper = RequestWrapper::new(request, res_tx, request_id);
         let start = Instant::now();
         self.tx.send(request_wrapper).await.expect("Outbound connection should be open.");
         let response = res_rx.recv().await.expect("Inbound connection should be open.");

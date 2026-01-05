@@ -17,6 +17,7 @@ use crate::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
     PrioritizedRequest,
+    RequestId,
     RequestPriority,
     RequestWrapper,
 };
@@ -210,7 +211,7 @@ where
 
         tokio::spawn(async move {
             loop {
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, request_id) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -221,6 +222,7 @@ where
                 process_request(
                     &mut component,
                     request,
+                    request_id,
                     tx,
                     metrics,
                     processing_time_warning_threshold_ms,
@@ -311,7 +313,7 @@ where
         tokio::spawn(async move {
             loop {
                 // TODO(Tsabary): add a test for the queueing time metric.
-                let (request, tx) = get_next_request_for_processing(
+                let (request, tx, request_id) = get_next_request_for_processing(
                     &mut high_rx,
                     &mut normal_rx,
                     &component_name,
@@ -328,6 +330,7 @@ where
                     process_request(
                         &mut cloned_component,
                         request,
+                        request_id,
                         tx,
                         metrics,
                         processing_time_warning_threshold_ms,
@@ -374,6 +377,7 @@ where
 async fn process_request<Request, Response, Component>(
     component: &mut Component,
     request: Request,
+    request_id: RequestId,
     tx: Sender<Response>,
     metrics: &'static LocalServerMetrics,
     processing_time_warning_threshold_ms: u128,
@@ -386,6 +390,12 @@ async fn process_request<Request, Response, Component>(
     let request_info = format!("{:?}", request);
     let request_label = request.request_label();
 
+    trace!(
+        request_id = %request_id,
+        request = request_label,
+        component = component_name,
+        "Receiving local request"
+    );
     trace!("Component {component_name} is starting to process request {request_info:?}",);
     // Please note that the we're measuring the time of an asynchronous request processing, which
     // might also include the awaited time of this task to execute.
@@ -430,7 +440,7 @@ async fn get_next_request_for_processing<Request, Response>(
     normal_rx: &mut Receiver<RequestWrapper<Request, Response>>,
     component_name: &str,
     metrics: &'static LocalServerMetrics,
-) -> (Request, Sender<Response>)
+) -> (Request, Sender<Response>, RequestId)
 where
     Request: Send + Debug + LabeledRequest,
     Response: Send,
@@ -451,6 +461,7 @@ where
     let request = request_wrapper.request;
     let tx = request_wrapper.tx;
     let creation_time = request_wrapper.creation_time;
+    let request_id = request_wrapper.request_id;
 
     trace!(
         "Component {component_name} received request {request:?} that was created at \
@@ -458,5 +469,5 @@ where
     );
     metrics.record_queueing_time(creation_time.elapsed().as_secs_f64(), request.request_label());
 
-    (request, tx)
+    (request, tx, request_id)
 }
