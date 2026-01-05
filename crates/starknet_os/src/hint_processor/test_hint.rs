@@ -1,11 +1,14 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_integer_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    get_ptr_from_var_name,
+};
 
 use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
 /// Test hint for debugging. Implement this hint however you like, but should not be merged with
@@ -76,9 +79,9 @@ pub(crate) fn test_hint<S: StateReader>(
         .get_current_execution_helper()
         .unwrap()
         .cached_state
-        .get_storage_at(contract_address, request_key)
+        .get_storage_at(contract_address.try_into().unwrap(), (*request_key).try_into().unwrap())
         .unwrap();
-    tracing::warning!(
+    tracing::warn!(
         "In execute_storage_read: contract address: {contract_address:?}, request key: \
          {request_key:?}, request value: {request_value:?}, response value: {response_value:?}"
     );

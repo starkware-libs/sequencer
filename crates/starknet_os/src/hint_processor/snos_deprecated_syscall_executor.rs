@@ -1,8 +1,8 @@
+use ::tracing;
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::{
     DeprecatedSyscallExecutor,
     DeprecatedSyscallExecutorBaseError,
 };
-use::tracing;
 use blockifier::execution::deprecated_syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -384,9 +384,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<StorageReadResponse, Self::Error> {
-        tracing::warning!("deprecated StorageReadRequest: {_request:?}");
+        tracing::warn!("deprecated StorageReadRequest: {_request:?}");
         let value = *syscall_handler.get_mut_call_info_tracker()?.next_execute_code_read()?;
-        tracing::warning!("deprecated StorageReadRequest value: {value:?}");
+        tracing::warn!("deprecated StorageReadRequest value: {value:?}");
         Ok(StorageReadResponse { value })
     }
 
@@ -395,7 +395,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         _vm: &mut VirtualMachine,
         _syscall_handler: &mut Self,
     ) -> Result<StorageWriteResponse, Self::Error> {
-        tracing::warning!("deprecated StorageWriteRequest: {_request:?}");
+        tracing::warn!("deprecated StorageWriteRequest: {_request:?}");
         Ok(StorageWriteResponse {})
     }
 }
