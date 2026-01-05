@@ -306,6 +306,42 @@ pub(crate) fn finalize_block<S: StateReader>(
     })
 }
 
+impl<S: StateReader + Send> TransactionExecutor<S> {
+    pub fn execute_txs_sequentially(
+        &mut self,
+        txs: &[Transaction],
+        execution_deadline: Option<Instant>,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        #[cfg(not(feature = "cairo_native"))]
+        return self.execute_txs_sequentially_inner(txs, execution_deadline);
+        #[cfg(feature = "cairo_native")]
+        {
+            // TODO(meshi): find a way to access the contract class manager config from transaction
+            // executor.
+            let txs = txs.to_vec();
+            std::thread::scope(|s| {
+                std::thread::Builder::new()
+                    // when running Cairo natively, the real stack is used and could get overflowed
+                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
+                    //
+                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
+                    // needs to be big enough ahead.
+                    // However, making it very big is wasteful (especially with multi-threading).
+                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
+                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
+                    //
+                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
+                    // adjusting the stack size.
+                    .stack_size(self.config.stack_size)
+                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs, execution_deadline))
+                    .expect("Failed to spawn thread")
+                    .join()
+                    .expect("Failed to join thread.")
+            })
+        }
+    }
+}
+
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
     ///
@@ -354,40 +390,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                     }
                 })
                 .into_inner()
-        }
-    }
-
-    fn execute_txs_sequentially(
-        &mut self,
-        txs: &[Transaction],
-        execution_deadline: Option<Instant>,
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        #[cfg(not(feature = "cairo_native"))]
-        return self.execute_txs_sequentially_inner(txs, execution_deadline);
-        #[cfg(feature = "cairo_native")]
-        {
-            // TODO(meshi): find a way to access the contract class manager config from transaction
-            // executor.
-            let txs = txs.to_vec();
-            std::thread::scope(|s| {
-                std::thread::Builder::new()
-                    // when running Cairo natively, the real stack is used and could get overflowed
-                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
-                    //
-                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
-                    // needs to be big enough ahead.
-                    // However, making it very big is wasteful (especially with multi-threading).
-                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
-                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
-                    //
-                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
-                    // adjusting the stack size.
-                    .stack_size(self.config.stack_size)
-                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs, execution_deadline))
-                    .expect("Failed to spawn thread")
-                    .join()
-                    .expect("Failed to join thread.")
-            })
         }
     }
 
