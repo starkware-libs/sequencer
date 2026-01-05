@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
@@ -33,7 +34,6 @@ use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
-use test_case::test_case;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
@@ -50,283 +50,44 @@ use crate::transaction::objects::{
 };
 use crate::transaction::test_utils::proof_facts_as_cairo_array;
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
-        ExecutionMode::Validate,
-        TransactionVersion::ONE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
-        ExecutionMode::Execute,
-        TransactionVersion::ONE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Validate,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
-    V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
-    V3."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        false,
-        false,
-        false;
-        "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        true,
-        false,
-        false;
-        "Native: V1 bound account: execute"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        true,
-        false,
-        false;
-        "Native: V1 bound account: query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        true,
-        false,
-        false,
-        true;
-        "Native: data gas account: query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::THREE,
-        false,
-        false,
-        false,
-        true;
-        "Native: data gas account"
-    )
-)]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Validate,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Validate,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V3.")]
-#[test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false,
-    false,
-    false,
-    false;
-    "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::LegacyTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    false;
-    "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    false,
-    false,
-    false;
-    "Execute execution mode: block info should be as usual. Transaction V3. Query.")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    true,
-    false,
-    false;
-    "V1 bound account: execute")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    true,
-    true,
-    false;
-    "V1 bound account: execute, high tip")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    true,
-    false,
-    false;
-    "V1 bound account: query")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false,
-    false,
-    false,
-    true;
-    "Exclude l1 data gas: execute")]
-#[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    true,
-    false,
-    false,
-    true;
-    "Exclude l1 data gas: query")]
-/// Tests the `get_execution_info` syscall by invoking `test_get_execution_info` across multiple
-/// contract implementations and transaction variants.
-///
-/// Contracts covered:
-/// - `TestContract` (Cairo 1): uses `get_execution_info_v3_syscall()`, expects V3 `TxInfo`.
-/// - `SierraExecutionInfoV1Contract` (Cairo 1): uses `get_execution_info_syscall()`, expects V1
-///   `TxInfo`.
-/// - `LegacyTestContract` (Cairo 0, compiler v2.1.0): uses `get_execution_info()`, expects V1
-///   `TxInfo`.
-///
-/// The test matrix varies execution mode (`Validate` vs `Execute`), tx version (V1 vs V3),
-/// query mode, and special account behaviors (v1-bound / data-gas / high-tip).
-/// In `Validate`, block info fields are rounded/zeroed; in `Execute`, they are populated normally.
+/// Test variant flags for `get_execution_info` syscall tests.
+#[derive(Clone, Copy, Default)]
+struct Variant {
+    /// If true, the transaction is a query (dry-run) rather than an actual execution.
+    only_query: bool,
+    /// If true, the sender account is a "v1-bound" account that gets its version forced to V1
+    v1_bound_account: bool,
+    /// If true, the tip exceeds `v1_bound_accounts_max_tip`, which overrides the v1-bound behavior
+    /// and allows V3 execution. Only valid when `v1_bound_account` is true.
+    high_tip: bool,
+    /// If true, the sender account excludes L1 data gas from resource bounds.
+    exclude_l1_data_gas: bool,
+}
+
+impl Variant {
+    const fn new(
+        only_query: bool,
+        v1_bound_account: bool,
+        high_tip: bool,
+        exclude_l1_data_gas: bool,
+    ) -> Self {
+        assert!(!high_tip || v1_bound_account, "high_tip requires v1_bound_account");
+        assert!(
+            !(v1_bound_account && exclude_l1_data_gas),
+            "v1_bound_account and exclude_l1_data_gas are mutually exclusive"
+        );
+        Self { only_query, v1_bound_account, high_tip, exclude_l1_data_gas }
+    }
+}
 
 fn test_get_execution_info(
     test_contract: FeatureContract,
     execution_mode: ExecutionMode,
     version: TransactionVersion,
-    only_query: bool,
-    v1_bound_account: bool,
-    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
-    high_tip: bool,
-    exclude_l1_data_gas: bool,
+    variant: &Variant,
 ) {
+    let Variant { only_query, v1_bound_account, high_tip, exclude_l1_data_gas, .. } = *variant;
+
     let mut test_contract_data: FeatureContractData = test_contract.into();
 
     // Override class hash for special account types that affect execution info behavior.
@@ -387,16 +148,6 @@ fn test_get_execution_info(
         l2_gas: resource_bounds,
         l1_data_gas: resource_bounds,
     });
-
-    // Sanity check: verify legacy contract has expected compiler version.
-    if matches!(test_contract, FeatureContract::LegacyTestContract) {
-        let raw_contract: serde_json::Value =
-            serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
-        let compiler_version = raw_contract["compiler_version"]
-            .as_str()
-            .expect("'compiler_version' not found or not a valid string in JSON.");
-        assert_eq!(compiler_version, "2.1.0");
-    }
 
     let expected_signature = match test_contract {
         FeatureContract::LegacyTestContract => vec![],
@@ -516,6 +267,126 @@ fn test_get_execution_info(
     );
 
     assert!(!result.unwrap().execution.failed);
+}
+
+/// Tests `get_execution_info` for `TestContract` (Cairo 1), which uses
+/// `get_execution_info_v3_syscall()` and expects V3 `TxInfo`.
+///
+/// Covers execution modes (`Validate` vs `Execute`), tx versions (V1 vs V3), and query mode.
+/// In `Validate`, block info fields are rounded/zeroed; in `Execute`, they are populated normally.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, TransactionVersion::ONE, false))]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, TransactionVersion::THREE, false))]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, TransactionVersion::THREE, true))]
+#[case(RunnableCairo1::Casm, TransactionVersion::ONE, false)]
+#[case(RunnableCairo1::Casm, TransactionVersion::THREE, false)]
+#[case(RunnableCairo1::Casm, TransactionVersion::THREE, true)]
+fn test_supported_get_execution_info(
+    #[case] runnable: RunnableCairo1,
+    #[case] version: TransactionVersion,
+    #[case] only_query: bool,
+    #[values(ExecutionMode::Validate, ExecutionMode::Execute)] execution_mode: ExecutionMode,
+) {
+    let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    test_get_execution_info(
+        contract,
+        execution_mode,
+        version,
+        &Variant::new(only_query, false, false, false),
+    )
+}
+
+/// Tests `get_execution_info` for legacy contracts that use V1 `TxInfo`:
+/// - `SierraExecutionInfoV1Contract` (Cairo 1): uses `get_execution_info_syscall()`.
+/// - `LegacyTestContract` (Cairo 0, compiler v2.1.0): uses `get_execution_info()`.
+///
+/// These contracts only support the base variant (all flags false).
+/// In `Validate`, block info fields are rounded/zeroed; in `Execute`, they are populated normally.
+#[rstest]
+// SierraExecutionInfoV1Contract (native only).
+#[cfg_attr(
+    feature = "cairo_native",
+    case(
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::ONE
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::ONE
+    )
+)]
+// LegacyTestContract.
+#[cfg_attr(
+    feature = "cairo_native",
+    case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::ONE)
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::THREE)
+)]
+#[case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::ONE)]
+#[case(FeatureContract::LegacyTestContract, ExecutionMode::Execute, TransactionVersion::THREE)]
+fn test_legacy_get_execution_info(
+    #[case] contract: FeatureContract,
+    #[case] execution_mode: ExecutionMode,
+    #[case] version: TransactionVersion,
+) {
+    // Sanity check: verify legacy contract has expected compiler version.
+    if matches!(contract, FeatureContract::LegacyTestContract) {
+        let raw_contract: serde_json::Value =
+            serde_json::from_str(&contract.get_raw_class()).expect("Error parsing JSON");
+        let compiler_version = raw_contract["compiler_version"]
+            .as_str()
+            .expect("'compiler_version' not found or not a valid string in JSON.");
+        assert_eq!(compiler_version, "2.1.0");
+    }
+
+    test_get_execution_info(contract, execution_mode, version, &Variant::default());
+}
+
+/// Tests `get_execution_info` for v1-bound accounts.
+///
+/// V1-bound accounts have their version forced to V1 unless `high_tip` is set.
+/// Only tests `Execute` mode with V3 transactions.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, true, false))]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, false, true))]
+#[case(RunnableCairo1::Casm, true, false)]
+#[case(RunnableCairo1::Casm, false, true)]
+fn test_v1_bound_account_get_execution_info(
+    #[case] runnable: RunnableCairo1,
+    #[case] only_query: bool,
+    #[case] high_tip: bool,
+) {
+    let contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    test_get_execution_info(
+        contract,
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        &Variant::new(only_query, true, high_tip, false),
+    );
+}
+
+/// Tests `get_execution_info` for accounts that exclude L1 data gas from resource bounds.
+///
+/// These accounts only report 2 resource types instead of 3.
+/// Only tests `Execute` mode with V3 transactions.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+#[case(RunnableCairo1::Casm)]
+fn test_exclude_l1_data_gas_get_execution_info(#[case] runnable: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    test_get_execution_info(
+        test_contract,
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        &Variant::new(false, false, false, true),
+    );
 }
 
 #[test]
