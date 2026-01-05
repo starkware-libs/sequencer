@@ -24,7 +24,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_gateway_config::config::GatewayConfig;
-use apollo_http_server_config::config::HttpServerConfig;
+use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
@@ -294,6 +294,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
+    pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
+    #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 
@@ -301,6 +303,7 @@ impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
         ];
         sub_configs.into_iter().flatten().collect()
@@ -315,11 +318,15 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
+        let http_server_dynamic_config = sequencer_node_config
+            .http_server_config
+            .as_ref()
+            .map(|http_server_config| http_server_config.dynamic_config.clone());
         let mempool_dynamic_config = sequencer_node_config
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, mempool_dynamic_config }
+        Self { consensus_dynamic_config, http_server_dynamic_config, mempool_dynamic_config }
     }
 }
 
