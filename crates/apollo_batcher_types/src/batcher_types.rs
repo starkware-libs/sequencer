@@ -1,9 +1,5 @@
 use std::fmt::Debug;
 
-use apollo_storage::mmap_file::LocationInFile;
-use apollo_storage::storage_reader_server::StorageReaderServerHandler;
-use apollo_storage::{StorageError, StorageReader};
-use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -152,44 +148,6 @@ pub struct DecisionReachedInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RevertBlockInput {
     pub height: BlockNumber,
-}
-
-// TODO(Dean): Fill in with actual storage table names and operations.
-/// Storage-related requests for the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum BatcherStorageRequest {
-    StateDiffLocation(BlockNumber),
-}
-
-// TODO(Dean): Fill in with actual response types matching the request variants.
-/// Response for batcher storage requests.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum BatcherStorageResponse {
-    StateDiffLocation(LocationInFile),
-}
-
-pub struct BatcherStorageReaderServerHandler;
-
-#[async_trait]
-impl StorageReaderServerHandler<BatcherStorageRequest, BatcherStorageResponse>
-    for BatcherStorageReaderServerHandler
-{
-    async fn handle_request(
-        storage_reader: &StorageReader,
-        request: BatcherStorageRequest,
-    ) -> Result<BatcherStorageResponse, StorageError> {
-        let txn = storage_reader.begin_ro_txn()?;
-        match request {
-            BatcherStorageRequest::StateDiffLocation(block_number) => {
-                let state_diff_location =
-                    txn.get_state_diff_location(block_number)?.ok_or(StorageError::NotFound {
-                        resource_type: "State diff".to_string(),
-                        resource_id: block_number.to_string(),
-                    })?;
-                Ok(BatcherStorageResponse::StateDiffLocation(state_diff_location))
-            }
-        }
-    }
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;

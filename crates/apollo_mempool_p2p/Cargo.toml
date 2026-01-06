@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Peer-to-peer transaction propagation for the Apollo mempool."
 
 [features]
 testing = []

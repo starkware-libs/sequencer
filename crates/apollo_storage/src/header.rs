@@ -68,26 +68,46 @@ use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
 
+/// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub(crate) struct StorageBlockHeader {
+pub struct StorageBlockHeader {
+    /// The hash of this block.
     pub block_hash: BlockHash,
+    /// The hash of this block's parent.
     pub parent_hash: BlockHash,
+    /// The number of this block.
     pub block_number: BlockNumber,
+    /// The L1 gas price per token.
     pub l1_gas_price: GasPricePerToken,
+    /// The L1 data gas price per token.
     pub l1_data_gas_price: GasPricePerToken,
+    /// The L2 gas price per token.
     pub l2_gas_price: GasPricePerToken,
+    /// The amount of L2 gas consumed.
     pub l2_gas_consumed: GasAmount,
+    /// The next L2 gas price.
     pub next_l2_gas_price: GasPrice,
+    /// The state root after this block.
     pub state_root: GlobalRoot,
+    /// The sequencer address that created this block.
     pub sequencer: SequencerContractAddress,
+    /// The timestamp of this block.
     pub timestamp: BlockTimestamp,
+    /// The L1 data availability mode.
     pub l1_da_mode: L1DataAvailabilityMode,
+    /// The state diff commitment, if available.
     pub state_diff_commitment: Option<StateDiffCommitment>,
+    /// The transaction commitment, if available.
     pub transaction_commitment: Option<TransactionCommitment>,
+    /// The event commitment, if available.
     pub event_commitment: Option<EventCommitment>,
+    /// The receipt commitment, if available.
     pub receipt_commitment: Option<ReceiptCommitment>,
+    /// The length of the state diff, if available.
     pub state_diff_length: Option<usize>,
+    /// The number of transactions in this block.
     pub n_transactions: usize,
+    /// The number of events in this block.
     pub n_events: usize,
 }
 
@@ -98,6 +118,13 @@ type BlockHashToNumberTable<'env> =
 pub trait HeaderStorageReader {
     /// The block marker is the first block number that doesn't exist yet.
     fn get_header_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the storage representation of the block header for the given block number.
+    fn get_storage_block_header(
+        &self,
+        block_number: &BlockNumber,
+    ) -> StorageResult<Option<StorageBlockHeader>>;
+
     /// Returns the header of the block with the given number.
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>>;
 
@@ -109,6 +136,12 @@ pub trait HeaderStorageReader {
 
     /// Returns the Starknet version at the given block number.
     fn get_starknet_version(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>>;
+
+    /// Returns the Starknet version for a given block number using direct key-value lookup.
+    fn get_starknet_version_by_key(
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<StarknetVersion>>;
@@ -162,9 +195,16 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         Ok(markers_table.get(&self.txn, &MarkerKind::Header)?.unwrap_or_default())
     }
 
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
+    fn get_storage_block_header(
+        &self,
+        block_number: &BlockNumber,
+    ) -> StorageResult<Option<StorageBlockHeader>> {
         let headers_table = self.open_table(&self.tables.headers)?;
-        let Some(block_header) = headers_table.get(&self.txn, &block_number)? else {
+        Ok(headers_table.get(&self.txn, block_number)?)
+    }
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
+        let Some(block_header) = self.get_storage_block_header(&block_number)? else {
             return Ok(None);
         };
         let Some(starknet_version) = self.get_starknet_version(block_number)? else {
@@ -229,6 +269,15 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
                  have at least a single mapping."
             ),
         }
+    }
+
+    fn get_starknet_version_by_key(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>> {
+        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
+        let starknet_version = starknet_version_table.get(&self.txn, &block_number)?;
+        Ok(starknet_version)
     }
 
     fn get_block_signature(

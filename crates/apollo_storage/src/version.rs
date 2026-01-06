@@ -2,6 +2,8 @@
 #[path = "version_test.rs"]
 mod version_test;
 
+use serde::{Deserialize, Serialize};
+
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::{StorageError, StorageResult, StorageTxn};
@@ -9,7 +11,7 @@ use crate::{StorageError, StorageResult, StorageTxn};
 const VERSION_STATE_KEY: &str = "storage_version_state";
 const VERSION_BLOCKS_KEY: &str = "storage_version_blocks";
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,

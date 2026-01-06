@@ -23,6 +23,12 @@ pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CompiledClassHash(pub Felt);
 
+impl AsRef<CompiledClassHash> for CompiledClassHash {
+    fn as_ref(&self) -> &CompiledClassHash {
+        self
+    }
+}
+
 impl_from_hex_for_felt_wrapper!(CompiledClassHash);
 
 pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;

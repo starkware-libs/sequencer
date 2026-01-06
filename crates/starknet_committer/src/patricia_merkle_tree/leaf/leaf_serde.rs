@@ -5,11 +5,12 @@ use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
-use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_packing};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
 
@@ -23,9 +24,9 @@ pub enum CommitterLeafPrefix {
 impl From<CommitterLeafPrefix> for DbKeyPrefix {
     fn from(value: CommitterLeafPrefix) -> Self {
         match value {
-            CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf"),
-            CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state"),
-            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf"),
+            CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf".into()),
+            CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state".into()),
+            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf".into()),
         }
     }
 }
@@ -34,15 +35,15 @@ impl DBObject for StarknetStorageValue {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Serializes the value into a 32-byte vector.
-    fn serialize(&self) -> DbValue {
-        DbValue(self.0.to_bytes_be().to_vec())
+    fn serialize(&self) -> SerializationResult<DbValue> {
+        Ok(serialize_felt_no_packing(self.0))
     }
 
     fn deserialize(
         value: &DbValue,
         _deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
-        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+        Ok(Self(deserialize_felt_no_packing(value)))
     }
 }
 
@@ -50,9 +51,9 @@ impl DBObject for CompiledClassHash {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> SerializationResult<DbValue> {
         let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
-        DbValue(json_string.into_bytes())
+        Ok(DbValue(json_string.into_bytes()))
     }
 
     fn deserialize(
@@ -72,7 +73,7 @@ impl DBObject for ContractState {
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> DbValue {
+    fn serialize(&self) -> SerializationResult<DbValue> {
         let json_string = format!(
             r#"{{"contract_hash": "{}", "storage_commitment_tree": {{"root": "{}", "height": {}}}, "nonce": "{}"}}"#,
             fixed_hex_string_no_prefix(&self.class_hash.0),
@@ -80,7 +81,7 @@ impl DBObject for ContractState {
             SubTreeHeight::ACTUAL_HEIGHT,
             self.nonce.0.to_hex_string(),
         );
-        DbValue(json_string.into_bytes())
+        Ok(DbValue(json_string.into_bytes()))
     }
 
     fn deserialize(

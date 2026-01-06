@@ -21,6 +21,12 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
+impl AsRef<ContractState> for ContractState {
+    fn as_ref(&self) -> &ContractState {
+        self
+    }
+}
+
 impl HasStaticPrefix for StarknetStorageValue {
     type KeyContext = EmptyKeyContext;
     fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {

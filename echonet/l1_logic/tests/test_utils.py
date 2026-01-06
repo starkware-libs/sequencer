@@ -2,6 +2,8 @@ import copy
 
 from l1_client import L1Client
 
+from echonet.l1_logic.l1_client import L1Client
+
 
 class L1TestUtils:
     """Samples of the same transaction in different representations used throughout the flow."""
@@ -10,7 +12,6 @@ class L1TestUtils:
     BLOCK_NUMBER_HEX = hex(BLOCK_NUMBER)
     BLOCK_TIMESTAMP = 1764500447
     BLOCK_TIMESTAMP_HEX = hex(BLOCK_TIMESTAMP)
-    BLOCK_RANGE = [BLOCK_NUMBER - 10, BLOCK_NUMBER + 10]
     NONCE = 0x19B255
 
     # Log entry (the "result" content)

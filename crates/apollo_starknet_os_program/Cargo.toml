@@ -31,6 +31,12 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 blockifier.workspace = true
 expect-test.workspace = true
+rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+<<<<<<< HEAD
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+||||||| c96dea6126
+=======
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+>>>>>>> origin/main-v0.14.1-committer

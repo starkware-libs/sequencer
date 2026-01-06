@@ -11,16 +11,12 @@ use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{
-    BusinessLogicServicePort,
     ComponentConfigInService,
-    Environment,
     InfraServicePort,
-    ServicePort,
+    INFRA_PORT_PLACEHOLDER,
 };
-use crate::k8s::{Controller, Ingress, IngressParams, Resource, Resources, Toleration};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
@@ -54,6 +50,8 @@ impl From<DistributedNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
+        // TODO(Tsabary): style this code, i.e., no need to use a mutable map nor the for loop, and
+        // can simply collect the required values.
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
@@ -65,10 +63,8 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 }
             }
             None => {
-                // Extract the service ports for all inner services of the distributed node.
-                for inner_service_name in Self::iter() {
-                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
-                    service_ports.extend(inner_service_port);
+                for service_port in InfraServicePort::iter() {
+                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
                 }
             }
         };
@@ -155,23 +151,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn get_controller(&self) -> Controller {
-        match self {
-            Self::Batcher => Controller::StatefulSet,
-            Self::ClassManager => Controller::StatefulSet,
-            Self::Committer => Controller::StatefulSet,
-            Self::ConsensusManager => Controller::StatefulSet,
-            Self::HttpServer => Controller::Deployment,
-            Self::Gateway => Controller::Deployment,
-            Self::L1 => Controller::Deployment,
-            Self::Mempool => Controller::Deployment,
-            Self::SierraCompiler => Controller::Deployment,
-            Self::StateSync => Controller::StatefulSet,
-            // TODO(Nadin): Decide on controller for the SignatureManager.
-            Self::SignatureManager => Controller::StatefulSet,
-        }
-    }
-
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             Self::Batcher
@@ -203,361 +182,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
-    fn get_toleration(&self, _environment: &Environment) -> Option<Toleration> {
-        None
-    }
-
-    fn get_ingress(
-        &self,
-        _environment: &Environment,
-        _ingress_params: IngressParams,
-    ) -> Option<Ingress> {
-        None
-    }
-
-    fn has_p2p_interface(&self) -> bool {
-        match self {
-            Self::ConsensusManager | Self::Mempool | Self::StateSync => true,
-            Self::Batcher
-            | Self::ClassManager
-            | Self::Committer
-            | Self::HttpServer
-            | Self::Gateway
-            | Self::L1
-            | Self::SierraCompiler
-            | Self::SignatureManager => false,
-        }
-    }
-
-    fn get_storage(&self, _environment: &Environment) -> Option<usize> {
-        None
-    }
-
-    fn get_resources(&self, _environment: &Environment) -> Resources {
-        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-    }
-
-    fn get_replicas(&self, _environment: &Environment) -> usize {
-        1
-    }
-
-    fn get_anti_affinity(&self, _environment: &Environment) -> bool {
-        false
-    }
-
-    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
-        let mut service_ports = BTreeSet::new();
-
-        match self {
-            Self::Batcher => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::Committer => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Committer => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::ClassManager => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::ClassManager => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::ConsensusManager => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::ConsensusP2p => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::HttpServer => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::HttpServer => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-
-            Self::Gateway => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Gateway => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::L1 => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::L1GasPriceProvider | InfraServicePort::L1Provider => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::Mempool => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Mempool => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::SierraCompiler => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::SierraCompiler => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::StateSync => {}
-                        },
-                    }
-                }
-            }
-            Self::SignatureManager => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::SignatureManager => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            Self::StateSync => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2p
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::StateSync => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::Committer
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-        }
-
-        service_ports
-    }
-
     // TODO(Tsabary): verify that each service runs the components it should.
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         let mut components = BTreeSet::new();
@@ -574,7 +198,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -601,7 +225,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -628,7 +252,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -646,7 +270,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Self::ConsensusManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Consensus
+                        ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
@@ -683,7 +307,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -710,7 +334,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -740,7 +364,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::Mempool
@@ -765,7 +389,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -791,7 +415,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -818,7 +442,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -845,7 +469,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Committer
-                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
@@ -861,22 +485,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             }
         }
         components
-    }
-
-    fn get_update_strategy(&self) -> UpdateStrategy {
-        match self {
-            Self::Batcher => UpdateStrategy::RollingUpdate,
-            Self::ClassManager => UpdateStrategy::Recreate,
-            Self::Committer => UpdateStrategy::RollingUpdate,
-            Self::ConsensusManager => UpdateStrategy::Recreate,
-            Self::HttpServer => UpdateStrategy::RollingUpdate,
-            Self::Gateway => UpdateStrategy::RollingUpdate,
-            Self::L1 => UpdateStrategy::RollingUpdate,
-            Self::Mempool => UpdateStrategy::Recreate,
-            Self::SierraCompiler => UpdateStrategy::RollingUpdate,
-            Self::SignatureManager => UpdateStrategy::Recreate,
-            Self::StateSync => UpdateStrategy::Recreate,
-        }
     }
 }
 

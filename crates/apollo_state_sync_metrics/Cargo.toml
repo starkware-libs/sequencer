@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Metrics collection for Apollo state synchronization."
 
 [lints]
 workspace = true

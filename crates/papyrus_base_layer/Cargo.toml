@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Base layer (L1) interaction and Ethereum contract interface for Starknet."
 
 [lints]
 workspace = true
@@ -14,6 +15,7 @@ testing = ["alloy/node-bindings"]
 [dependencies]
 alloy = { workspace = true, features = ["contract", "json-rpc", "node-bindings", "rpc-types"] }
 apollo_config.workspace = true
+apollo_infra_utils.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 hex.workspace = true
@@ -28,6 +30,7 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
+apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

@@ -6,7 +6,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
-use crate::{MarkerKind, StorageResult, StorageTxn};
+use crate::{StorageResult, StorageTxn};
 
 /// Interface for reading block hashes.
 pub trait BlockHashStorageReader {
@@ -53,8 +53,6 @@ impl BlockHashStorageWriter for StorageTxn<'_, RW> {
     fn revert_block_hash(self, target_block_number: &BlockNumber) -> StorageResult<Self> {
         let block_hash_table = self.open_table(&self.tables.block_hashes)?;
         block_hash_table.delete(&self.txn, target_block_number)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
-        markers_table.upsert(&self.txn, &MarkerKind::BlockHash, target_block_number)?;
         Ok(self)
     }
 }

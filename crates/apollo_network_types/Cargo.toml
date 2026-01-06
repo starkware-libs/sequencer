@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Type definitions for Apollo P2P networking."
 
 [features]
 testing = ["apollo_test_utils", "rand_chacha"]

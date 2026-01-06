@@ -42,6 +42,7 @@ validator = { workspace = true, features = ["derive"] }
 zstd.workspace = true
 
 [dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }

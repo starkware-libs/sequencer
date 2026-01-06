@@ -19,7 +19,6 @@ const UNCOVERED_HINTS: expect_test::Expect = expect_test::expect![[r#"
     [
         "DeprecatedSyscallHint(Deploy)",
         "OsHint(GetClassHashAndCompiledClassFact)",
-        "OsHint(InitializeAliasCounter)",
         "StatelessHint(SetApToSegmentHashPoseidon)",
     ]
 "#]];

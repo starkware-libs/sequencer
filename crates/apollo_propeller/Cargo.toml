@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [package]
 name = "apollo_propeller"
 version.workspace = true
@@ -16,3 +17,25 @@ testing = []
 
 [lints]
 workspace = true
+||||||| c96dea6126
+=======
+[package]
+name = "apollo_propeller"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Implementation of the Propeller algorithm for the Starknet sequencer."
+
+[features]
+testing = []
+
+[dependencies]
+
+
+[dev-dependencies]
+
+
+[lints]
+workspace = true
+>>>>>>> origin/main-v0.14.1-committer

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
+use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_provider_config::config::L1GasPriceScraperConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
@@ -97,8 +97,8 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         let last_block_number = self.latest_l1_block_number().await?;
 
         trace!("Scraping gas prices starting from block {} to {last_block_number}.", *block_number,);
-        info_every_n_sec!(
-            1,
+        info_every_n_ms!(
+            1_000,
             "Scraping gas prices starting from block {} to {last_block_number}.",
             *block_number,
         );

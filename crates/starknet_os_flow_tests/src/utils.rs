@@ -1,4 +1,14 @@
+<<<<<<< HEAD
 use std::collections::HashMap;
+||||||| c96dea6126
+#![allow(dead_code)]
+
+use std::collections::HashMap;
+=======
+#![allow(dead_code)]
+
+use std::collections::{HashMap, HashSet};
+>>>>>>> origin/main-v0.14.1-committer
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -33,11 +43,10 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -46,6 +55,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
@@ -150,9 +160,10 @@ pub(crate) async fn commit_state_diff(
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
-    let filled_forest =
-        commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
-    facts_db.write(&filled_forest).await;
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None)
+        .await
+        .expect("Failed to commit the given block.");
+    facts_db.write(&filled_forest).await.expect("Failed to write filled forest to storage");
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
@@ -241,8 +252,19 @@ pub(crate) async fn create_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
+<<<<<<< HEAD
     initial_reads_keys: &StateChangesKeys,
 ) -> StateCommitmentInfos {
+||||||| c96dea6126
+    extended_state_diff: &StateMaps,
+) -> (CachedStateInput, CommitmentInfos) {
+    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
+=======
+    extended_state_diff: &StateMaps,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
+) -> (CachedStateInput, CommitmentInfos) {
+    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
+>>>>>>> origin/main-v0.14.1-committer
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         initial_reads_keys.modified_contracts.iter().copied(),
         previous_state_roots.contracts_trie_root_hash,
@@ -292,6 +314,7 @@ pub(crate) async fn create_commitment_infos(
             previous_root_hash: previous_state_roots.contracts_trie_root_hash,
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
+        class_hashes_from_execution_infos,
     )
     .await;
     let contracts_trie_commitment_info = CommitmentInfo {
@@ -440,9 +463,27 @@ async fn fetch_storage_proofs_from_state_changes_keys(
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
+    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> StarknetForestProofs {
+<<<<<<< HEAD
     let class_hashes: Vec<ClassHash> =
         initial_reads_keys.compiled_class_hash_keys.iter().cloned().collect();
+||||||| c96dea6126
+    let class_hashes: Vec<ClassHash> = state_maps
+        .compiled_class_hashes
+        .keys()
+        .cloned()
+        .chain(state_maps.class_hashes.values().cloned())
+        .collect();
+=======
+    let class_hashes: Vec<ClassHash> = state_maps
+        .compiled_class_hashes
+        .keys()
+        .cloned()
+        .chain(state_maps.class_hashes.values().cloned())
+        .chain(class_hashes_from_execution_infos.iter().cloned())
+        .collect();
+>>>>>>> origin/main-v0.14.1-committer
     let contract_addresses =
         &initial_reads_keys.modified_contracts.iter().cloned().collect::<Vec<_>>();
     let contract_storage_keys = initial_reads_keys.storage_keys.iter().fold(

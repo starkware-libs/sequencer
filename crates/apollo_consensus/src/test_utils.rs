@@ -25,6 +25,7 @@ pub struct TestBlock {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TestProposalPart {
     Init(ProposalInit),
+    Invalid,
 }
 
 impl From<ProposalInit> for TestProposalPart {
@@ -36,15 +37,19 @@ impl From<ProposalInit> for TestProposalPart {
 impl TryFrom<TestProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
     fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
-        let TestProposalPart::Init(init) = part;
-        Ok(init)
+        if let TestProposalPart::Init(init) = part {
+            return Ok(init);
+        }
+        Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
     }
 }
 
 impl From<TestProposalPart> for Vec<u8> {
     fn from(part: TestProposalPart) -> Vec<u8> {
-        let TestProposalPart::Init(init) = part;
-        init.into()
+        if let TestProposalPart::Init(init) = part {
+            return init.into();
+        }
+        vec![]
     }
 }
 
@@ -68,7 +73,7 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
-        ) -> oneshot::Receiver<ProposalCommitment>;
+        ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
         async fn validate_proposal(
             &mut self,
@@ -97,7 +102,7 @@ mock! {
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;
 
-        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) -> Result<(), ConsensusError>;
     }
 }
 

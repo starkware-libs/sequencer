@@ -1,4 +1,3 @@
-pub mod class_manager_types;
 pub mod transaction_converter;
 
 use std::error::Error;

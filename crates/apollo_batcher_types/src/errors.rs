@@ -13,6 +13,8 @@ pub enum BatcherError {
         new_proposal_id
     )]
     AnotherProposalInProgress { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
+    #[error("Block hash not found for block number {0}.")]
+    BlockHashNotFound(BlockNumber),
     #[error(
         "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
          being executed)."

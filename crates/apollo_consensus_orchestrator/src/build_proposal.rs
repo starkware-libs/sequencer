@@ -23,7 +23,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_time::time::DateTime;
+use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time::{Clock, DateTime};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -33,7 +34,7 @@ use starknet_api::StarknetApiError;
 use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
@@ -64,6 +65,7 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    pub use_state_sync_block_timestamp: bool,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -81,9 +83,8 @@ pub(crate) enum BuildProposalError {
     StateSyncClientError(String),
     #[error("State sync is not ready: block number {0} not found")]
     StateSyncNotReady(BlockNumber),
-    // Consensus may exit early (e.g. sync).
-    #[error("Failed to send commitment to consensus: {0}")]
-    SendError(ProposalCommitment),
+    #[error("Failed to send proposal part: {0}")]
+    SendError(String),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
@@ -106,14 +107,13 @@ pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
     let block_info = initiate_build(&args).await?;
-    args.stream_sender
-        .send(ProposalPart::Init(args.proposal_init))
-        .await
-        .expect("Failed to send proposal init");
+    args.stream_sender.send(ProposalPart::Init(args.proposal_init)).await.map_err(|e| {
+        BuildProposalError::SendError(format!("Failed to send proposal init: {e:?}"))
+    })?;
     args.stream_sender
         .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
-        .expect("Failed to send block info");
+        .map_err(|e| BuildProposalError::SendError(format!("Failed to send block info: {e:?}")))?;
 
     let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
 
@@ -130,8 +130,27 @@ pub(crate) async fn build_proposal(
     Ok(proposal_commitment)
 }
 
+async fn get_proposal_timestamp(
+    use_state_sync_block_timestamp: bool,
+    state_sync_client: &SharedStateSyncClient,
+    clock: &dyn Clock,
+) -> u64 {
+    if use_state_sync_block_timestamp {
+        if let Ok(Some(block_header)) = state_sync_client.get_latest_block_header().await {
+            return block_header.block_header_without_hash.timestamp.0;
+        }
+        warn!("No latest block header available from state sync, falling back to clock time");
+    }
+    clock.unix_now()
+}
+
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
-    let timestamp = args.deps.clock.unix_now();
+    let timestamp = get_proposal_timestamp(
+        args.use_state_sync_block_timestamp,
+        &args.deps.state_sync_client,
+        args.deps.clock.as_ref(),
+    )
+    .await;
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
@@ -225,7 +244,11 @@ async fn get_proposal_content(
                 args.stream_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                     .await
-                    .expect("Failed to broadcast proposal content");
+                    .map_err(|e| {
+                        BuildProposalError::SendError(format!(
+                            "Failed to send transaction batch: {e:?}"
+                        ))
+                    })?;
             }
             GetProposalContent::Finished { id, final_n_executed_txs } => {
                 let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
@@ -272,13 +295,16 @@ async fn get_proposal_content(
                 args.stream_sender
                     .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
                     .await
-                    .expect("Failed to broadcast executed transaction count");
+                    .map_err(|e| {
+                        BuildProposalError::SendError(format!(
+                            "Failed to send executed transaction count: {e:?}"
+                        ))
+                    })?;
                 let fin = ProposalFin { proposal_commitment };
                 info!("Sending fin={fin:?}");
-                args.stream_sender
-                    .send(ProposalPart::Fin(fin))
-                    .await
-                    .expect("Failed to broadcast proposal fin");
+                args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
+                    BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
+                })?;
                 return Ok((proposal_commitment, content));
             }
         }

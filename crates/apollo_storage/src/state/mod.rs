@@ -182,11 +182,7 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
         let state_diff_location = self.get_state_diff_location(block_number)?;
         match state_diff_location {
             None => Ok(None),
-            Some(state_diff_location) => {
-                let state_diff =
-                    self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)?;
-                Ok(Some(state_diff))
-            }
+            Some(location) => Ok(Some(self.get_state_diff_from_location(location)?)),
         }
     }
 
@@ -275,6 +271,25 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         }
     }
 
+    /// Returns the class hash for a given contract address and block number using direct key-value
+    /// lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_class_hash_by_key(
+        &self,
+        address: &ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<ClassHash>> {
+        let db_key = (*address, block_number);
+        let class_hash = self.deployed_contracts_table.get(self.txn, &db_key)?;
+        Ok(class_hash)
+    }
+
     /// Returns the nonce at a given state number.
     /// If there is no nonce at the given state number, returns `None`.
     ///
@@ -292,6 +307,25 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
         get_nonce_at(block_number, address, self.txn, &self.nonces_table)
+    }
+
+    /// Returns the nonce for a given contract address and block number using direct key-value
+    /// lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_nonce_by_key(
+        &self,
+        address: &ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Nonce>> {
+        let db_key = (*address, block_number);
+        let nonce = self.nonces_table.get(self.txn, &db_key)?;
+        Ok(nonce)
     }
 
     /// Returns the compiled class hash at a given state number.
@@ -354,6 +388,27 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
                 Ok(value)
             }
         }
+    }
+
+    /// Returns the storage value for a given contract address, storage key, and block number using
+    /// direct key-value lookup.
+    ///
+    /// # Arguments
+    /// * address - contract address to search for.
+    /// * key - storage key to search for.
+    /// * block_number - block number to search at.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_storage_by_key(
+        &self,
+        address: ContractAddress,
+        key: StorageKey,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Felt>> {
+        let db_key = ((address, key), block_number);
+        let value = self.storage_table.get(self.txn, &db_key)?;
+        Ok(value)
     }
 
     /// Returns the class definition at a given state number.

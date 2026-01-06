@@ -12,10 +12,10 @@ use apollo_mempool_p2p_types::communication::{
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
-use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use apollo_time::test_utils::FakeClock;
+use expect_test::expect;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
@@ -1201,7 +1201,7 @@ fn test_register_metrics() {
     register_metrics();
 
     let expected_metrics = MempoolMetrics::default();
-    expected_metrics.verify_metrics(&recorder);
+    assert_eq!(MempoolMetrics::from_recorder(&recorder), expected_metrics);
 }
 
 #[test]
@@ -1223,7 +1223,7 @@ fn metrics_correctness() {
     //    invoke_2  |    2    | Committed
     //    invoke_4  |    3    | Rejected
     //    invoke_4  |    3    | Duplicate hash
-    //    invoke_5  |    4    | Staged
+    //    invoke_5  |    4    | Taken + Committed
     //    invoke_6  |    5    | Pending queue
     //    declare_1 |    6    | Priority queue
     //    declare_2 |    7    | Delayed declare
@@ -1292,8 +1292,9 @@ fn metrics_correctness() {
         mempool.size_in_bytes() + invoke_9.tx.total_bytes();
     add_tx(&mut mempool, &invoke_9);
     fake_clock.advance(Duration::from_secs(20));
-    commit_block(&mut mempool, [("0x9", 1)], []);
+    commit_block(&mut mempool, [("0x9", 1), ("0x3", 1)], []);
 
+<<<<<<< HEAD
     let expected_metrics = MempoolMetrics {
         txs_received_invoke: 8,
         txs_received_declare: 2,
@@ -1321,6 +1322,67 @@ fn metrics_correctness() {
         },
     };
     expected_metrics.verify_metrics(&recorder);
+||||||| c96dea6126
+    let expected_metrics = MempoolMetrics {
+        txs_received_invoke: 8,
+        txs_received_declare: 2,
+        txs_received_deploy_account: 0,
+        txs_committed: 2,
+        txs_dropped_expired: 1,
+        txs_dropped_rejected: 1,
+        txs_dropped_evicted: 1,
+        pool_size: 4,
+        priority_queue_size: 3,
+        pending_queue_size: 1,
+        get_txs_size: 1,
+        delayed_declares_size: 1,
+        total_size_in_bytes: 1952,
+        evictions_count: 1,
+        transaction_time_spent_until_batched: HistogramValue {
+            sum: 2.0,
+            count: 1,
+            ..Default::default()
+        },
+        transaction_time_spent_until_committed: HistogramValue {
+            sum: 20.0,
+            count: 2,
+            ..Default::default()
+        },
+    };
+    expected_metrics.verify_metrics(&recorder);
+=======
+    let mut metrics = MempoolMetrics::from_recorder(&recorder);
+    metrics.transaction_time_spent_until_batched.histogram = Default::default();
+    metrics.transaction_time_spent_until_committed.histogram = Default::default();
+    expect![[r#"
+        MempoolMetrics {
+            txs_received_invoke: 8,
+            txs_received_declare: 2,
+            txs_received_deploy_account: 0,
+            txs_committed: 3,
+            txs_dropped_expired: 1,
+            txs_dropped_rejected: 1,
+            txs_dropped_evicted: 1,
+            pool_size: 3,
+            priority_queue_size: 2,
+            pending_queue_size: 1,
+            get_txs_size: 1,
+            delayed_declares_size: 1,
+            total_size_in_bytes: 1552,
+            transaction_time_spent_until_batched: HistogramValue {
+                sum: 2.0,
+                count: 1,
+                histogram: {},
+            },
+            transaction_time_spent_until_committed: HistogramValue {
+                sum: 42.0,
+                count: 3,
+                histogram: {},
+            },
+        }
+    "#]]
+    .assert_debug_eq(&metrics);
+>>>>>>> origin/main-v0.14.1-committer
 }
 
 #[rstest]

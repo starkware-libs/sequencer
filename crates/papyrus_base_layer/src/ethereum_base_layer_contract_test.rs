@@ -24,7 +24,7 @@ async fn fusaka_blob_fee_sanity_check() {
         .expect("expected infura api key to be set in INFURA_API_KEY environment variable");
     let url = Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
         .expect("expected infura url to be valid");
-    config.ordered_l1_endpoint_urls = vec![url];
+    config.ordered_l1_endpoint_urls = vec![url.into()];
     let mut base_layer = EthereumBaseLayerContract::new(config.clone());
 
     // This is a known time when the data gas price was relatively high:
@@ -57,7 +57,7 @@ async fn fusaka_blob_fee_sanity_check() {
     // The blob fee here is 31.042082881 Gwei.
     let url = Url::parse(&format!("https://mainnet.infura.io/v3/{}", infura_api_key))
         .expect("expected infura url to be valid");
-    config.ordered_l1_endpoint_urls = vec![url];
+    config.ordered_l1_endpoint_urls = vec![url.into()];
     let mut base_layer = EthereumBaseLayerContract::new(config);
     base_layer.config.fusaka_no_bpo_start_block_number = 100000000;
     base_layer.config.bpo1_start_block_number = 1000000000;

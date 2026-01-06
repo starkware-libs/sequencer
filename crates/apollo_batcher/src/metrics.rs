@@ -51,8 +51,10 @@ define_metrics!(
         // Block close reason
         LabeledMetricCounter { BLOCK_CLOSE_REASON, "batcher_block_close_reason", "Number of blocks closed by reason", init = 0 , labels = BLOCK_CLOSE_REASON_LABELS},
         // Block weights
+        // TODO(MatanL): Consider using histogram for these metrics.
         MetricGauge { SIERRA_GAS_IN_LAST_BLOCK, "batcher_sierra_gas_in_last_block", "The sierra gas in the last block"},
         MetricGauge { PROVING_GAS_IN_LAST_BLOCK, "batcher_proving_gas_in_last_block", "The proving gas in the last block"},
+        MetricGauge { L2_GAS_IN_LAST_BLOCK, "batcher_l2_gas_in_last_block", "The L2 gas used in the last block"},
     },
 );
 
@@ -107,6 +109,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
 
     SIERRA_GAS_IN_LAST_BLOCK.register();
     PROVING_GAS_IN_LAST_BLOCK.register();
+    L2_GAS_IN_LAST_BLOCK.register();
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();

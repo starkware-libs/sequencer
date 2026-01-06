@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use std::collections::{BTreeMap, HashMap};
 
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
@@ -109,3 +110,11 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<
 
     (runner, hint_processor.get_da_segment().clone())
 }
+||||||| c96dea6126
+=======
+use num_bigint::BigUint;
+
+pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
+    coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
+}
+>>>>>>> origin/main-v0.14.1-committer

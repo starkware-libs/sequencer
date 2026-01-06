@@ -73,6 +73,25 @@ fn test_package_names_match_directory() {
     );
 }
 
+#[test]
+fn test_packages_have_description() {
+    let mut packages_without_description: Vec<_> = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(package_name, toml)| {
+            if !toml.package.contains_key("description") {
+                Some(package_name.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    packages_without_description.sort();
+    assert!(
+        packages_without_description.is_empty(),
+        "The following crates do not have a description field: {packages_without_description:#?}."
+    );
+}
+
 /// Tests that no dependency activates the "testing" feature (dev-dependencies may).
 #[test]
 fn test_no_testing_feature_in_business_logic() {

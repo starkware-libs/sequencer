@@ -14,7 +14,7 @@ use crate::definitions::ConfigExpectation::{self, Redundant, Required};
 use crate::definitions::ConfigPresence::{self, Absent, Present};
 
 pub const DEFAULT_URL: &str = "localhost";
-const DEFAULT_INVALID_PORT: u16 = 0;
+pub const DEFAULT_INVALID_PORT: u16 = 0;
 
 // TODO(Tsabary): create custom configs per service, considering the required throughput and spike
 // tolerance.
@@ -174,7 +174,7 @@ impl ReactiveComponentExecutionConfig {
     }
 
     fn is_valid_socket(&self) -> bool {
-        self.port != 0
+        self.port != DEFAULT_INVALID_PORT
     }
 
     pub fn with_idle_connections(mut self, idle_connections: usize) -> Self {
