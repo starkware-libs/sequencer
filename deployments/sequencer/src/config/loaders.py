@@ -339,8 +339,155 @@ class NodeConfigLoader(Config):
         return f"$$$_{placeholder}_$$$"
 
     @staticmethod
+    def _placeholder_to_yaml_key(placeholder: str) -> str:
+        """Convert a placeholder back to YAML key format.
+
+        This is the inverse of _yaml_key_to_placeholder.
+
+        Args:
+            placeholder: The placeholder string (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$')
+
+        Returns:
+            The YAML key format (e.g., 'components.batcher.port')
+
+        Examples:
+            '$$$_COMPONENTS-BATCHER-PORT_$$$' -> 'components.batcher.port'
+            '$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-OVERRIDE_ETH_TO_FRI_RATE-IS_NONE_$$$' -> 'consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none'
+        """
+        # Remove $$$_ prefix and _$$$ suffix
+        middle = placeholder[4:-4]
+        # Convert hyphens to dots and lowercase
+        yaml_key = middle.replace("-", ".").lower()
+        # Special handling: convert '-is_none' back to '.#is_none'
+        yaml_key = yaml_key.replace(".is_none", ".#is_none")
+        return yaml_key
+
+    @staticmethod
+    def _build_file_paths_section(
+        config_list_path: Optional[str], overlay_source: Optional[str]
+    ) -> str:
+        """Build the file paths section of the error message.
+
+        Args:
+            config_list_path: Optional path to the config list JSON file
+            overlay_source: Optional source identifier for the overlay file
+
+        Returns:
+            The file paths section as a string
+        """
+        section = "File Paths:\n"
+        if config_list_path:
+            full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
+            section += f"  application_config_json_path: {full_config_path}\n"
+        else:
+            section += "  application_config_json_path: <unknown>\n"
+        if overlay_source:
+            section += f"  config_override_path: {overlay_source}\n"
+        else:
+            section += "  config_override_path: <unknown>\n"
+        return section
+
+    @staticmethod
+    def _build_unused_config_keys_section(unmatched_keys: List[tuple[str, str]]) -> str:
+        """Build the unused config keys section of the error message.
+
+        Args:
+            unmatched_keys: List of (yaml_key, placeholder) tuples
+
+        Returns:
+            The unused config keys section as a string
+        """
+        if not unmatched_keys:
+            return ""
+
+        section = "\n" + "-" * 80 + "\n"
+        section += "Unused Config Keys:\n"
+        section += "-" * 80 + "\n"
+        section += (
+            f"  Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
+            f"  corresponding placeholders in the application config JSON file:\n\n"
+        )
+
+        for idx, (yaml_key, placeholder) in enumerate(unmatched_keys, 1):
+            section += f"  Unused Config Key #{idx}:\n"
+            section += f"    YAML key: {yaml_key}\n"
+            section += f"    Maps to placeholder: {placeholder}\n"
+            section += (
+                f"\n    This key exists in your config file but no placeholder matches it.\n"
+                f"    Either remove this key from your config file, or add a corresponding\n"
+                f"    placeholder to the application config JSON file.\n"
+            )
+            if idx < len(unmatched_keys):
+                section += "\n"
+
+        section += "\n"
+        section += "  To fix:\n"
+        section += (
+            "    Remove the unused config keys from your YAML overlay file, or add\n"
+            "    corresponding placeholders to the application config JSON file.\n"
+        )
+        return section
+
+    @staticmethod
+    def _build_missing_placeholders_section(remaining_placeholders: set[str], config: dict) -> str:
+        """Build the missing placeholders section of the error message.
+
+        Args:
+            remaining_placeholders: Set of placeholder strings that weren't overridden
+            config: The config dictionary to find placeholder locations in
+
+        Returns:
+            The missing placeholders section as a string
+        """
+        if not remaining_placeholders:
+            return ""
+
+        sorted_placeholders = sorted(remaining_placeholders)
+        section = "\n" + "-" * 80 + "\n"
+        section += "Missing Placeholders:\n"
+        section += "-" * 80 + "\n"
+        section += (
+            f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
+            f"  application config but were not overridden in your YAML overlay:\n\n"
+        )
+
+        for idx, placeholder in enumerate(sorted_placeholders, 1):
+            # Find where this placeholder appears in the config
+            locations = NodeConfigLoader._find_placeholder_locations(config, placeholder)
+            # Convert placeholder back to YAML key format for suggestion
+            yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
+
+            section += f"  Missing Placeholder #{idx}:\n\n"
+            section += f"    Placeholder:\n"
+            section += f"      {placeholder}\n\n"
+            if locations:
+                section += f"    Location(s) in JSON:\n"
+                for loc in locations[:3]:  # Show up to 3 locations
+                    section += f"      key path: {loc}\n"
+                if len(locations) > 3:
+                    section += f"      ... and {len(locations) - 3} more location(s)\n"
+            section += f"\n    Expected config key:\n"
+            section += f"      {yaml_key_suggestion}\n\n"
+            section += f"    Add to your config file as:\n"
+            section += f"      {yaml_key_suggestion}: <value>\n"
+            if idx < len(sorted_placeholders):
+                section += "\n"
+
+        section += "\n"
+        section += "  To fix:\n"
+        section += (
+            "    Add the missing placeholder entries to your YAML overlay file, or\n"
+            "    remove the placeholders from the application config JSON file.\n"
+        )
+        return section
+
+    @staticmethod
     def apply_sequencer_overrides(
-        merged_json_config: dict, sequencer_config: Dict[str, Any], service_name: str = "unknown"
+        merged_json_config: dict,
+        sequencer_config: Dict[str, Any],
+        service_name: str = "unknown",
+        config_list_path: Optional[str] = None,
+        overlay_source: Optional[str] = None,
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
@@ -360,6 +507,9 @@ class NodeConfigLoader(Config):
                     'chain_id': '123'
                 }
                 These are converted to placeholder format for matching.
+            service_name: Name of the service (for error messages)
+            config_list_path: Optional path to the config list JSON file (for error messages)
+            overlay_source: Optional source identifier for the overlay file (for error messages)
 
         Returns:
             Updated config dictionary with overrides applied
@@ -376,7 +526,9 @@ class NodeConfigLoader(Config):
         result = merged_json_config
 
         # Step 1: Validate that all YAML keys match existing placeholders
+        # Collect unmatched keys but don't raise yet - we'll check after applying overrides
         unmatched_keys = []
+        matched_keys = []
         for yaml_key, replacement_value in sequencer_config.items():
             # Convert YAML key to placeholder format (dots -> hyphens, uppercase)
             placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
@@ -384,29 +536,43 @@ class NodeConfigLoader(Config):
             exists = NodeConfigLoader._placeholder_exists(result, placeholder)
             if not exists:
                 unmatched_keys.append((yaml_key, placeholder))
+            else:
+                matched_keys.append((yaml_key, placeholder, replacement_value))
 
-        # Raise error if any keys don't match
-        if unmatched_keys:
-            error_messages = []
-            for yaml_key, placeholder in unmatched_keys:
-                error_messages.append(
-                    f"  - YAML key '{yaml_key}' (maps to placeholder '{placeholder}') "
-                    f"does not match any placeholder in the '{service_name}' service application config."
-                )
-            raise ValueError(
-                f"Invalid sequencerConfig override keys found for service '{service_name}'. "
-                f"The following keys do not match any placeholder in the application config:\n"
-                + "\n".join(error_messages)
-            )
-
-        # Step 2: Apply overrides
-        for yaml_key, replacement_value in sequencer_config.items():
-            # Convert YAML key to placeholder format (dots -> hyphens, uppercase)
-            placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
+        # Step 2: Apply overrides for matched keys only
+        for yaml_key, placeholder, replacement_value in matched_keys:
             # Replace the placeholder value wherever it appears in the config
             result = NodeConfigLoader._replace_placeholder_value(
                 result, placeholder, replacement_value
             )
+
+        # Step 3: Check for remaining placeholders
+        remaining_placeholders = NodeConfigLoader._find_all_placeholders(result)
+
+        # Step 4: If there are any issues, raise a combined error
+        if unmatched_keys or remaining_placeholders:
+            total_issues = len(unmatched_keys) + len(remaining_placeholders)
+            error_message = "=" * 80 + "\n"
+            error_message += "ERROR: CONFIGURATION ERRORS DETECTED (Unused Config Keys & Unhandled Placeholders)\n"
+            error_message += "=" * 80 + "\n\n"
+            error_message += f"Found {total_issues} issue(s):\n"
+            if unmatched_keys:
+                error_message += f"  - {len(unmatched_keys)} unused config key(s)\n"
+            if remaining_placeholders:
+                error_message += f"  - {len(remaining_placeholders)} unhandled placeholder(s)\n"
+            error_message += "\n"
+
+            error_message += NodeConfigLoader._build_file_paths_section(
+                config_list_path, overlay_source
+            )
+            error_message += NodeConfigLoader._build_unused_config_keys_section(unmatched_keys)
+            error_message += NodeConfigLoader._build_missing_placeholders_section(
+                remaining_placeholders, result
+            )
+
+            error_message += "\n" + "=" * 80
+
+            raise ValueError(error_message)
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
@@ -439,12 +605,50 @@ class NodeConfigLoader(Config):
         return placeholders
 
     @staticmethod
-    def validate_no_remaining_placeholders(config: dict, service_name: str = "unknown") -> None:
+    def _find_placeholder_locations(obj: Any, placeholder: str, path: str = "") -> List[str]:
+        """Recursively find all key paths where a placeholder value appears in the config object.
+
+        Args:
+            obj: The object to search (dict, list, or primitive)
+            placeholder: The placeholder string to find (e.g., '$$$_CHAIN_ID_$$$')
+            path: Current path in the object (for building full paths)
+
+        Returns:
+            List of key paths where the placeholder was found (e.g., ['chain_id', 'components.batcher.port'])
+        """
+        locations: List[str] = []
+
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                current_path = f"{path}.{key}" if path else key
+                locations.extend(
+                    NodeConfigLoader._find_placeholder_locations(value, placeholder, current_path)
+                )
+        elif isinstance(obj, list):
+            for idx, item in enumerate(obj):
+                current_path = f"{path}[{idx}]" if path else f"[{idx}]"
+                locations.extend(
+                    NodeConfigLoader._find_placeholder_locations(item, placeholder, current_path)
+                )
+        elif isinstance(obj, str) and obj == placeholder:
+            locations.append(path if path else "<root>")
+        elif isinstance(obj, (int, float)) and str(obj) == placeholder:
+            locations.append(path if path else "<root>")
+
+        return locations
+
+    @staticmethod
+    def validate_no_remaining_placeholders(
+        config: dict,
+        config_list_path: Optional[str] = None,
+        overlay_source: Optional[str] = None,
+    ) -> None:
         """Validate that no placeholder values remain in the final config.
 
         Args:
             config: The final config dictionary after all overrides are applied
-            service_name: Name of the service being validated (for error messages)
+            config_list_path: Optional path to the config list JSON file (for error messages)
+            overlay_source: Optional source identifier for the overlay file (for error messages)
 
         Raises:
             ValueError: If any placeholder values ($$$_..._$$$) are found in the config
@@ -453,12 +657,21 @@ class NodeConfigLoader(Config):
 
         if remaining_placeholders:
             sorted_placeholders = sorted(remaining_placeholders)
-            error_message = f"Unhandled config placeholders found in service '{service_name}':\n"
-            for placeholder in sorted_placeholders:
-                error_message += f"  - {placeholder}\n"
-            error_message += (
-                "Please add these placeholders to sequencerConfig in your YAML configuration."
+
+            error_message = "=" * 80 + "\n"
+            error_message += "ERROR: UNHANDLED PLACEHOLDERS DETECTED\n"
+            error_message += "=" * 80 + "\n\n"
+            error_message += f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+
+            error_message += NodeConfigLoader._build_file_paths_section(
+                config_list_path, overlay_source
             )
+            error_message += NodeConfigLoader._build_missing_placeholders_section(
+                remaining_placeholders, config
+            )
+
+            error_message += "\n" + "=" * 80
+
             raise ValueError(error_message)
 
 
