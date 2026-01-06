@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
@@ -15,10 +15,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::batcher::MockBatcherStorageReader;
-use crate::commitment_manager::commitment_manager_impl::{
-    CommitmentManager,
-    CommitmentManagerConfig,
-};
+use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{test_state_diff, MockStateCommitter, INITIAL_HEIGHT};
 

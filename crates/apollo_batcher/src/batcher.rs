@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    CommitmentManagerConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -84,7 +88,6 @@ use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
-    CommitmentManagerConfig,
 };
 use crate::commitment_manager::types::FinalBlockCommitment;
 use crate::metrics::{
