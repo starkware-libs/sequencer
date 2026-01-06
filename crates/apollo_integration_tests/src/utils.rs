@@ -257,7 +257,7 @@ pub fn create_node_config(
     );
     config_pointers_map.change_target_value(
         "recorder_url",
-        to_value(recorder_url.peek_secret()).expect("Failed to serialize Url"),
+        to_value(&recorder_url).expect("Failed to serialize Url"),
     );
     config_pointers_map.change_target_value(
         "starknet_url",
