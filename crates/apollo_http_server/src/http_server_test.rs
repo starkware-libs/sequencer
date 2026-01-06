@@ -45,8 +45,10 @@ const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH: &str =
 
 const EXPECTED_TX_HASH: TransactionHash = TransactionHash(Felt::ONE);
 
+// TODO(Tsabary): find a better way to allocate different ports to different tests.
+
 // The http_server is oblivious to the GateWayOutput type, so we always return invoke.
-pub fn default_gateway_output() -> GatewayOutput {
+fn default_gateway_output() -> GatewayOutput {
     GatewayOutput::Invoke(InvokeGatewayOutput::new(EXPECTED_TX_HASH))
 }
 
@@ -88,6 +90,28 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
+// TODO(Tsabary): there's a discrepancy with the used `StatusCode` crates: reqwest and hyper. Some
+// tests expect the former and some the other, based on the used test utils. Better sort this out
+// and make consistent across.
+
+// Uses add_tx_http_client with index 0.
+/// Test that an HTTP server with a `allow_new_txs = false` config rejects new transactions.
+#[rstest]
+#[tokio::test]
+async fn allow_new_txs() {
+    let tx = rpc_invoke_tx();
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let mock_config_manager_client = get_mock_config_manager_client(false);
+
+    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 0).await;
+
+    // Send a transaction to the server.
+    let response = http_client.add_tx(tx.clone()).await;
+    let status = response.status();
+    assert_eq!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
+}
+
 #[tokio::test]
 async fn error_into_response() {
     let error = HttpServerError::DeserializationError(
@@ -106,6 +130,7 @@ async fn error_into_response() {
     );
 }
 
+// Uses add_tx_http_client with indices 1,2.
 #[traced_test]
 #[rstest]
 #[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
@@ -127,7 +152,7 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
@@ -146,6 +171,7 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
     ));
 }
 
+// Uses add_tx_http_client with indices 3,4.
 #[traced_test]
 #[rstest]
 #[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
@@ -162,7 +188,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 3 + index).await;
 
@@ -171,6 +197,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
     assert!(!logs_contain("Recorded transaction transaction_hash="));
 }
 
+// Uses add_tx_http_client with indices 5,6,7.
 #[rstest]
 #[case::add_deprecated_gateway_invoke(0, deprecated_gateway_invoke_tx())]
 #[case::add_deprecated_gateway_deploy_account(1, deprecated_gateway_deploy_account_tx())]
@@ -212,7 +239,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         expected_internal_err,
     ));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 5 + index).await;
 
@@ -231,6 +258,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
+// Uses add_tx_http_client with indices 9,10,11.
 #[rstest]
 #[case::missing_version(
     0,
@@ -281,7 +309,7 @@ async fn test_unsupported_tx_version(
     }
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
 
@@ -291,6 +319,7 @@ async fn test_unsupported_tx_version(
     assert_eq!(starknet_error, expected_err);
 }
 
+// Uses add_tx_http_client with index 13.
 #[tokio::test]
 async fn sanitizing_error_message() {
     // Set the tx version to be a problematic text.
@@ -302,7 +331,7 @@ async fn sanitizing_error_message() {
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
 
     let serialized_err =

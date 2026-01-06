@@ -33,6 +33,7 @@ fn success_gateway_client_output() -> GatewayOutput {
     GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default()))
 }
 
+// Uses add_tx_http_client with indices 14,15.
 #[rstest]
 #[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
 #[case::add_rpc_tx(1, rpc_invoke_tx())]
@@ -55,7 +56,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
         )))
     });
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
 
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -80,6 +81,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     ADDED_TRANSACTIONS_FAILURE.assert_eq::<usize>(&metrics, FAILURE_TXS_TO_SEND);
 }
 
+// Uses add_tx_http_client with index 16.
 #[tokio::test]
 async fn add_tx_serde_failure_metrics_test() {
     let mut mock_gateway_client = MockGatewayClient::new();
@@ -89,7 +91,7 @@ async fn add_tx_serde_failure_metrics_test() {
         .times(1)
         .return_once(move |_| Ok(success_gateway_client_output()));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
 
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
