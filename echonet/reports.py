@@ -223,13 +223,28 @@ class RevertClassifier:
     Classify revert errors into coarse-grained buckets.
     """
 
-    _leaf_paren = re.compile(r"\('([^']*)'\)")
-    _leaf_quote = re.compile(r'"([^"]+)"')
+    _WRAPPER_REASONS_LOWER = frozenset(
+        {
+            "argent/multicall-failed",
+            "entrypoint_failed",
+        }
+    )
+
+    _reason_in_parentheses_regex = re.compile(r"\('([^']*)'\)")
+    _reason_in_quotes_regex = re.compile(r'"([^"]+)"')
 
     def __init__(self, rules: list[RevertRule] | None = None) -> None:
         self._rules = rules or self._default_rules()
 
-    def leaf_message(self, raw: str) -> str:
+    @staticmethod
+    def _select_specific_reason(candidates: Sequence[str]) -> str | None:
+        for s in candidates:
+            t = s.strip()
+            if t and t.lower() not in RevertClassifier._WRAPPER_REASONS_LOWER:
+                return t
+        return None
+
+    def extract_revert_reason(self, raw: str) -> str:
         if not raw:
             return ""
 
@@ -238,25 +253,25 @@ class RevertClassifier:
             return raw
 
         for line in reversed(lines):
-            for r in (self._leaf_paren, self._leaf_quote):
-                m = r.search(line)
-                if m and m.group(1):
-                    return m.group(1)
+            for extractor in (self._reason_in_quotes_regex, self._reason_in_parentheses_regex):
+                hit = self._select_specific_reason(extractor.findall(line))
+                if hit:
+                    return hit
         return lines[-1]
 
-    def classify(self, leaf_message: str) -> str:
-        if not leaf_message:
+    def classify(self, revert_reason: str) -> str:
+        if not revert_reason:
             return "Unknown"
         for rule in self._rules:
-            if rule.predicate(leaf_message):
+            if rule.predicate(revert_reason):
                 return rule.name
         return "Other"
 
     def group(self, reverts: Mapping[str, str]) -> dict[str, list[tuple[str, str]]]:
         grouped: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for tx_hash, raw_msg in reverts.items():
-            leaf = self.leaf_message(raw_msg)
-            grouped[self.classify(leaf)].append((tx_hash, leaf))
+            revert_reason = self.extract_revert_reason(raw_msg)
+            grouped[self.classify(revert_reason)].append((tx_hash, revert_reason))
         return grouped
 
     @staticmethod
@@ -343,8 +358,8 @@ class RevertComparisonTextReport:
         for error_type, txs in sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])):
             lines.append("")
             lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
-            for tx_hash, leaf in sorted(txs, key=lambda x: x[0]):
-                lines.append(f"{tx_hash}: {leaf}")
+            for tx_hash, revert_reason in sorted(txs, key=lambda x: x[0]):
+                lines.append(f"{tx_hash}: {revert_reason}")
         return lines
 
 
