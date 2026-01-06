@@ -3,7 +3,11 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
-use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    CommitBlockResponse,
+    RevertBlockRequest,
+};
 use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
@@ -73,10 +77,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     /// Adds a commitment task to the state committer. If the task height does not match the
-    /// task offset, an error is returned. If the tasks channel is full, the behavior depends on
-    /// the config: if `wait_for_tasks_channel` is true, it will wait until there is space in the
-    /// channel; otherwise, it will panic. Any other error when sending the task will also cause a
-    /// panic.
+    /// task offset, an error is returned.
     pub(crate) async fn add_commitment_task(
         &mut self,
         height: BlockNumber,
@@ -96,35 +97,43 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 state_diff,
                 state_diff_commitment,
             }));
-        let error_message = format!(
-            "Failed to send commitment task to state committer. Block: {height}, state diff \
-             commitment: {state_diff_commitment:?}",
-        );
+        let task_details =
+            format!("Commit block {height}, state diff commitment: {state_diff_commitment:?}",);
+        self.add_task(commitment_task_input, &task_details).await?;
+        self.successfully_added_commitment_task(height, state_diff_commitment);
+        Ok(())
+    }
+
+    /// If the tasks channel is full, the behavior depends on the config: if
+    /// `wait_for_tasks_channel` is true, it will wait until there is space in the channel;
+    /// otherwise, it will panic. Any other error when sending the task will also cause a panic.
+    async fn add_task(
+        &self,
+        task_input: CommitterTaskInput,
+        task_details: &str,
+    ) -> CommitmentManagerResult<()> {
+        let error_message = format!("Failed to send task to state committer: {task_details}.",);
 
         if self.config.wait_for_tasks_channel {
-            info!(
-                "Waiting to send commitment task for block {height} and state diff \
-                 {state_diff_commitment:?} to state committer."
-            );
-            match self.tasks_sender.send(commitment_task_input).await {
-                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
-                Err(err) => panic!("{error_message}. error: {err}"),
-            }
+            info!("Waiting to send task for {task_details} to state committer.");
+            self.tasks_sender
+                .send(task_input)
+                .await
+                .unwrap_or_else(|err| panic!("{error_message}. error: {err}"));
         } else {
-            match self.tasks_sender.try_send(commitment_task_input) {
-                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
+            match self.tasks_sender.try_send(task_input) {
+                Ok(_) => (),
                 Err(TrySendError::Full(_)) => {
                     let channel_size = self.tasks_sender.max_capacity();
                     panic!(
-                        "Failed to send commitment task to state committer because the channel is \
-                         full. Block: {height}, state diff commitment: {state_diff_commitment:?}, \
-                         channel size: {channel_size}. Consider increasing the channel size or \
-                         enabling waiting in the config.",
+                        "{error_message}. The channel is full. channel size: {channel_size}. \
+                         Consider increasing the channel size or enabling waiting in the config.",
                     );
                 }
                 Err(err) => panic!("{error_message}. error: {err}"),
             }
         }
+        Ok(())
     }
 
     /// Fetches all ready commitment results from the state committer. Panics if any task is a
@@ -169,13 +178,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         &mut self,
         height: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> CommitmentManagerResult<()> {
+    ) {
         info!(
             "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
              state committer."
         );
         self.increase_commitment_task_offset();
-        Ok(())
     }
 
     /// Initializes the CommitmentManager. This includes starting the state committer task.
@@ -257,8 +265,29 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     // Associated functions.
 
-    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
-        unimplemented!()
+    pub(crate) async fn add_revert_task(
+        &mut self,
+        height: BlockNumber,
+        reversed_state_diff: ThinStateDiff,
+    ) -> CommitmentManagerResult<()> {
+        let expected_height =
+            self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
+        if height != expected_height {
+            return Err(CommitmentManagerError::WrongTaskHeight {
+                expected: expected_height,
+                actual: height,
+                state_diff_commitment: None,
+            });
+        }
+        let revert_task_input =
+            CommitterTaskInput(CommitterRequest::RevertBlock(RevertBlockRequest {
+                height,
+                reversed_state_diff,
+            }));
+        let task_details = format!("Revert block {height}",);
+        self.add_task(revert_task_input, &task_details).await?;
+        info!("Sent revert task for block {height}.");
+        Ok(())
     }
 
     /// Returns the final commitment output for a given commitment task output.
