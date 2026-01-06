@@ -1,24 +1,3 @@
-<<<<<<< HEAD
-[package]
-name = "apollo_propeller"
-version.workspace = true
-edition.workspace = true
-repository.workspace = true
-license-file.workspace = true
-
-[features]
-testing = []
-
-[dependencies]
-
-
-[dev-dependencies]
-
-
-[lints]
-workspace = true
-||||||| c96dea6126
-=======
 [package]
 name = "apollo_propeller"
 version.workspace = true
@@ -38,4 +17,3 @@ testing = []
 
 [lints]
 workspace = true
->>>>>>> origin/main-v0.14.1-committer

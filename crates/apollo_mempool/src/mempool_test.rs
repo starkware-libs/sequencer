@@ -1294,63 +1294,6 @@ fn metrics_correctness() {
     fake_clock.advance(Duration::from_secs(20));
     commit_block(&mut mempool, [("0x9", 1), ("0x3", 1)], []);
 
-<<<<<<< HEAD
-    let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 8,
-        txs_received_declare: 2,
-        txs_received_deploy_account: 0,
-        txs_committed: 2,
-        txs_dropped_expired: 1,
-        txs_dropped_rejected: 1,
-        txs_dropped_evicted: 1,
-        pool_size: 4,
-        priority_queue_size: 3,
-        pending_queue_size: 1,
-        get_txs_size: 1,
-        delayed_declares_size: 1,
-        total_size_in_bytes: 2024,
-        evictions_count: 1,
-        transaction_time_spent_until_batched: HistogramValue {
-            sum: 2.0,
-            count: 1,
-            ..Default::default()
-        },
-        transaction_time_spent_until_committed: HistogramValue {
-            sum: 20.0,
-            count: 2,
-            ..Default::default()
-        },
-    };
-    expected_metrics.verify_metrics(&recorder);
-||||||| c96dea6126
-    let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 8,
-        txs_received_declare: 2,
-        txs_received_deploy_account: 0,
-        txs_committed: 2,
-        txs_dropped_expired: 1,
-        txs_dropped_rejected: 1,
-        txs_dropped_evicted: 1,
-        pool_size: 4,
-        priority_queue_size: 3,
-        pending_queue_size: 1,
-        get_txs_size: 1,
-        delayed_declares_size: 1,
-        total_size_in_bytes: 1952,
-        evictions_count: 1,
-        transaction_time_spent_until_batched: HistogramValue {
-            sum: 2.0,
-            count: 1,
-            ..Default::default()
-        },
-        transaction_time_spent_until_committed: HistogramValue {
-            sum: 20.0,
-            count: 2,
-            ..Default::default()
-        },
-    };
-    expected_metrics.verify_metrics(&recorder);
-=======
     let mut metrics = MempoolMetrics::from_recorder(&recorder);
     metrics.transaction_time_spent_until_batched.histogram = Default::default();
     metrics.transaction_time_spent_until_committed.histogram = Default::default();
@@ -1382,7 +1325,6 @@ fn metrics_correctness() {
         }
     "#]]
     .assert_debug_eq(&metrics);
->>>>>>> origin/main-v0.14.1-committer
 }
 
 #[rstest]
