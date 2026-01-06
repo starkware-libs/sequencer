@@ -23,3 +23,15 @@ IGNORED_REVERT_PATTERNS = [
     "attestation is out of window",
     "attestation with wrong block hash",
 ]
+
+# ---------------------------------------------------------------------------
+# Echonet config file locations / names
+# ---------------------------------------------------------------------------
+
+# Filenames (define once).
+ECHONET_KEYS_FILENAME = "echonet_keys.json"
+ECHONET_SECRETS_FILENAME = "echonet_secrets.json"
+
+# Env overrides for paths (define once).
+ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
+ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"

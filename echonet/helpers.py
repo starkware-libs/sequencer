@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, FrozenSet
 
 
@@ -23,3 +25,14 @@ def utc_now() -> datetime:
 
 def parse_csv_to_lower_set(raw: str) -> FrozenSet[str]:
     return frozenset(part.strip().lower() for part in str(raw).split(",") if part.strip())
+
+
+def read_json_object(path: Path) -> dict[str, Any]:
+    """
+    Read a JSON file and ensure the top-level value is an object.
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    if not isinstance(obj, dict):
+        raise ValueError(f"Expected JSON object in {path}")
+    return obj
