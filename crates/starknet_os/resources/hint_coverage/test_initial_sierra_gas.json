@@ -264,9 +264,6 @@
     "OsHint": "TxEntryPointSelector"
   },
   {
-    "OsHint": "TxAccountDeploymentDataLen"
-  },
-  {
     "OsHint": "TxAccountDeploymentData"
   },
   {
