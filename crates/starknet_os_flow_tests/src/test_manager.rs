@@ -48,14 +48,8 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
-<<<<<<< HEAD
 use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
-||||||| c96dea6126
-use starknet_api::transaction::MessageToL1;
-=======
-use starknet_api::transaction::MessageToL1;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
->>>>>>> origin/main-v0.14.1-committer
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -756,34 +750,14 @@ impl<S: FlowTestState> TestBuilder<S> {
                 .collect();
 
             // Prepare the OS input.
-<<<<<<< HEAD
             let commitment_infos = create_commitment_infos(
                 &previous_state_roots,
                 &new_state_roots,
                 &mut map_storage,
+                &class_hashes_from_execution_infos,
                 &initial_reads.keys(),
             )
             .await;
-||||||| c96dea6126
-            let (cached_state_input, commitment_infos) =
-                create_cached_state_input_and_commitment_infos(
-                    &previous_state_roots,
-                    &new_state_roots,
-                    &mut map_storage,
-                    &extended_state_diff,
-                )
-                .await;
-=======
-            let (cached_state_input, commitment_infos) =
-                create_cached_state_input_and_commitment_infos(
-                    &previous_state_roots,
-                    &new_state_roots,
-                    &mut map_storage,
-                    &extended_state_diff,
-                    &class_hashes_from_execution_infos,
-                )
-                .await;
->>>>>>> origin/main-v0.14.1-committer
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())

@@ -40,13 +40,7 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
-<<<<<<< HEAD
-||||||| c96dea6126
-    CHAIN_ID_FOR_TESTS,
-=======
     NonceManager,
-    CHAIN_ID_FOR_TESTS,
->>>>>>> origin/main-v0.14.1-committer
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -111,6 +105,7 @@ use crate::special_contracts::{
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
 use crate::test_manager::{
+    block_context_for_flow_tests,
     TestBuilder,
     TestBuilderConfig,
     FUNDED_ACCOUNT_ADDRESS,
@@ -2937,17 +2932,19 @@ async fn test_initial_empty_block() {
         commitment_storage: Default::default(),
         contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-        next_block_number: BlockNumber(0),
+        block_context: block_context_for_flow_tests(BlockNumber(0), false),
     };
     let empty_initial_state_data = InitialStateData {
         initial_state: empty_initial_state,
         nonce_manager: NonceManager::default(),
         execution_contracts: OsExecutionContracts::default(),
     };
-    let test_manager = TestManager::new_with_initial_state_data(empty_initial_state_data);
+    let test_manager = TestBuilder::new_with_initial_state_data(
+        empty_initial_state_data,
+        TestBuilderConfig::default(),
+    );
 
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_manager.build_and_run().await;
 
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(
