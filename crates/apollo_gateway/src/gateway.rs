@@ -1,5 +1,6 @@
 use std::clone::Clone;
 use std::sync::Arc;
+use std::time::Instant;
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
@@ -36,7 +37,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -172,17 +173,23 @@ impl Gateway {
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         if let Some((proof_facts, proof)) = proof_data {
+            let proof_manager_store_start = Instant::now();
             let proof_manager_client = self.proof_manager_client.clone();
             if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
             {
                 error!("Failed to set proof in proof manager: {}", e);
             }
+            let proof_manager_store_duration = proof_manager_store_start.elapsed();
+            info!("Proof manager store took: {proof_manager_store_duration:?}");
+            let proof_archive_writer_start = Instant::now();
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
                 if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
                     error!("Failed to archive proof to GCS: {}", e);
                 }
             });
+            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
+            info!("Proof archive writer took: {proof_archive_writer_duration:?}");
         }
         let gateway_output = create_gateway_output(&internal_tx);
 
