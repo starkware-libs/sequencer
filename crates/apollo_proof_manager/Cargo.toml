@@ -4,6 +4,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+description = "Proof manager component for storing proofs"
 
 [features]
 testing = []

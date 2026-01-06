@@ -21,7 +21,7 @@
     "StatelessHint": "SetDecompressedDst"
   },
   {
-    "StatelessHint": "SegmentsAddTemp"
+    "StatelessHint": "SegmentsAddTempInitialTxsRangeCheckPtr"
   },
   {
     "StatelessHint": "SegmentsAdd"
@@ -33,7 +33,7 @@
     "StatelessHint": "FillHolesInRc96Segment"
   },
   {
-    "StatelessHint": "EnterSyscallScopes"
+    "StatelessHint": "EnterScopeExecuteTransactionsInner"
   },
   {
     "StatelessHint": "EnterScopeNode"
@@ -72,10 +72,10 @@
     "StatelessHint": "AllocateSegmentsForMessages"
   },
   {
-    "CommonHint": "SetTreeStructure"
+    "CommonHint": "SetProofFactTopology"
   },
   {
-    "CommonHint": "GuessContractAddrStoragePtr"
+    "CommonHint": "LoadStoragePtrAndPrevState"
   },
   {
     "CommonHint": "UpdateClassesPtr"
@@ -90,22 +90,13 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
-    "OsHint": "BlockNumber"
+    "OsHint": "GuessBlockInfo"
   },
   {
-    "OsHint": "BlockTimestamp"
+    "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
-    "OsHint": "ChainId"
-  },
-  {
-    "OsHint": "FeeTokenAddress"
-  },
-  {
-    "OsHint": "SequencerAddress"
-  },
-  {
-    "OsHint": "WriteUseKzgDaToMemory"
+    "OsHint": "WriteUseKzgDaAndFullOutputToMemory"
   },
   {
     "OsHint": "ReadAliasCounter"
@@ -141,16 +132,10 @@
     "OsHint": "GetNClassHashesToMigrate"
   },
   {
-    "OsHint": "WriteFullOutputToMemory"
-  },
-  {
     "OsHint": "ConfigureKzgManager"
   },
   {
-    "OsHint": "SetApToPrevBlockHash"
-  },
-  {
-    "OsHint": "SetApToNewBlockHash"
+    "OsHint": "CheckBlockHashConsistency"
   },
   {
     "OsHint": "BuildDescentMap"
@@ -190,6 +175,9 @@
   },
   {
     "OsHint": "GetPublicKeys"
+  },
+  {
+    "OsHint": "GetBlockHashes"
   },
   {
     "HintExtension": "LoadClassesAndBuildBytecodeSegmentStructures"
