@@ -223,11 +223,25 @@ class RevertClassifier:
     Classify revert errors into coarse-grained buckets.
     """
 
+    _WRAPPER_TOKENS_LOWER = frozenset(
+        {
+            "argent/multicall-failed",
+            "entrypoint_failed",
+        }
+    )
+
     _leaf_paren = re.compile(r"\('([^']*)'\)")
     _leaf_quote = re.compile(r'"([^"]+)"')
 
     def __init__(self, rules: list[RevertRule] | None = None) -> None:
         self._rules = rules or self._default_rules()
+
+    @staticmethod
+    def _first_non_wrapper(candidates: Sequence[str]) -> str | None:
+        for s in candidates:
+            t = s.strip()
+            if t and t.lower() not in RevertClassifier._WRAPPER_TOKENS_LOWER:
+                return t
 
     def leaf_message(self, raw: str) -> str:
         if not raw:
@@ -238,10 +252,10 @@ class RevertClassifier:
             return raw
 
         for line in reversed(lines):
-            for r in (self._leaf_paren, self._leaf_quote):
-                m = r.search(line)
-                if m and m.group(1):
-                    return m.group(1)
+            for extractor in (self._leaf_quote, self._leaf_paren):
+                hit = self._first_non_wrapper(extractor.findall(line))
+                if hit:
+                    return hit
         return lines[-1]
 
     def classify(self, leaf_message: str) -> str:
