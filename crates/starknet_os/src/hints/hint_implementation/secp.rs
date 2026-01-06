@@ -4,7 +4,6 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_from_var_name,
-    insert_value_into_ap,
 };
 use num_bigint::BigInt;
 use starknet_types_core::felt::Felt;
@@ -54,6 +53,6 @@ pub(crate) fn read_ec_point_from_address<S: StateReader>(
     } else {
         vm.add_memory_segment()
     };
-    insert_value_into_ap(vm, result)?;
+    insert_value_from_var_name(Ids::ResultPtr.into(), result, vm, ids_data, ap_tracking)?;
     Ok(())
 }
