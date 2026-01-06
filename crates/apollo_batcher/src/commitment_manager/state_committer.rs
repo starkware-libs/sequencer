@@ -1,10 +1,15 @@
 #![allow(dead_code, unused_variables, unused_mut)]
 
-use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
-use crate::commitment_manager::types::{CommitmentTaskInput, CommitterTaskResult};
+use crate::commitment_manager::types::{
+    CommitmentTaskInput,
+    CommitmentTaskOutput,
+    CommitterTaskResult,
+    RevertTaskOutput,
+};
 
 /// Commits state changes by calling the committer.
 pub(crate) trait StateCommitterTrait {
@@ -44,8 +49,24 @@ impl StateCommitter {
         mut results_sender: Sender<CommitterTaskResult>,
         committer_client: SharedCommitterClient,
     ) {
-        // Placeholder: simply drain the receiver and do nothing.
-        // TODO(Amos): Implement the actual commitment tasks logic.
-        while let Some(_task) = tasks_receiver.recv().await {}
+        while let Some(CommitmentTaskInput(request)) = tasks_receiver.recv().await {
+            let result = match request {
+                CommitterRequest::CommitBlock(commit_block_request) => {
+                    let height = commit_block_request.height;
+                    let result = committer_client.commit_block(commit_block_request).await;
+                    CommitterTaskResult::Commit(
+                        result.map(|response| CommitmentTaskOutput { response, height }),
+                    )
+                }
+                CommitterRequest::RevertBlock(revert_block_request) => {
+                    let height = revert_block_request.height;
+                    let result = committer_client.revert_block(revert_block_request).await;
+                    CommitterTaskResult::Revert(
+                        result.map(|response| RevertTaskOutput { response, height }),
+                    )
+                }
+            };
+            results_sender.send(result).await.unwrap()
+        }
     }
 }
