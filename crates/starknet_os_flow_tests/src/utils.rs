@@ -1,14 +1,4 @@
-<<<<<<< HEAD
 use std::collections::HashMap;
-||||||| c96dea6126
-#![allow(dead_code)]
-
-use std::collections::HashMap;
-=======
-#![allow(dead_code)]
-
-use std::collections::{HashMap, HashSet};
->>>>>>> origin/main-v0.14.1-committer
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -252,19 +242,8 @@ pub(crate) async fn create_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
-<<<<<<< HEAD
     initial_reads_keys: &StateChangesKeys,
 ) -> StateCommitmentInfos {
-||||||| c96dea6126
-    extended_state_diff: &StateMaps,
-) -> (CachedStateInput, CommitmentInfos) {
-    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
-=======
-    extended_state_diff: &StateMaps,
-    class_hashes_from_execution_infos: &HashSet<ClassHash>,
-) -> (CachedStateInput, CommitmentInfos) {
-    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
->>>>>>> origin/main-v0.14.1-committer
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         initial_reads_keys.modified_contracts.iter().copied(),
         previous_state_roots.contracts_trie_root_hash,
@@ -314,7 +293,6 @@ pub(crate) async fn create_commitment_infos(
             previous_root_hash: previous_state_roots.contracts_trie_root_hash,
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
-        class_hashes_from_execution_infos,
     )
     .await;
     let contracts_trie_commitment_info = CommitmentInfo {
@@ -463,27 +441,9 @@ async fn fetch_storage_proofs_from_state_changes_keys(
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
-    class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> StarknetForestProofs {
-<<<<<<< HEAD
     let class_hashes: Vec<ClassHash> =
         initial_reads_keys.compiled_class_hash_keys.iter().cloned().collect();
-||||||| c96dea6126
-    let class_hashes: Vec<ClassHash> = state_maps
-        .compiled_class_hashes
-        .keys()
-        .cloned()
-        .chain(state_maps.class_hashes.values().cloned())
-        .collect();
-=======
-    let class_hashes: Vec<ClassHash> = state_maps
-        .compiled_class_hashes
-        .keys()
-        .cloned()
-        .chain(state_maps.class_hashes.values().cloned())
-        .chain(class_hashes_from_execution_infos.iter().cloned())
-        .collect();
->>>>>>> origin/main-v0.14.1-committer
     let contract_addresses =
         &initial_reads_keys.modified_contracts.iter().cloned().collect::<Vec<_>>();
     let contract_storage_keys = initial_reads_keys.storage_keys.iter().fold(
