@@ -17,7 +17,7 @@ use starknet_os::io::os_input::{
     StarknetOsInput,
 };
 use starknet_os::io::virtual_os_output::VirtualOsRunnerOutput;
-use starknet_os::runner::{run_virtual_os, DEFAULT_OS_LAYOUT};
+use starknet_os::runner::run_virtual_os;
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
@@ -191,7 +191,7 @@ where
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualOsRunnerOutput, RunnerError> {
         let os_hints = self.create_os_hints(block_number, contract_class_manager, txs).await?;
-        let output = run_virtual_os(DEFAULT_OS_LAYOUT, os_hints)?;
+        let output = run_virtual_os(os_hints)?;
         Ok(output)
     }
 }

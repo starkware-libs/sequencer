@@ -415,6 +415,7 @@ pub(crate) struct TestBuilder<S: FlowTestState> {
     pub(crate) execution_contracts: OsExecutionContracts,
     pub(crate) os_hints_config: OsHintsConfig,
     pub(crate) private_keys: Option<Vec<Felt>>,
+    pub(crate) virtual_os: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 
@@ -426,6 +427,7 @@ impl<S: FlowTestState> TestBuilder<S> {
     pub(crate) fn new_with_initial_state_data(
         initial_state_data: InitialStateData<S>,
         config: TestBuilderConfig,
+        virtual_os: bool,
     ) -> Self {
         let public_keys =
             config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
@@ -445,6 +447,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             execution_contracts: initial_state_data.execution_contracts,
             os_hints_config,
             private_keys: config.private_keys,
+            virtual_os,
             messages_to_l1: Vec::new(),
             messages_to_l2: Vec::new(),
             per_block_txs: vec![vec![]],
@@ -457,10 +460,14 @@ impl<S: FlowTestState> TestBuilder<S> {
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
         config: TestBuilderConfig,
+        virtual_os: bool,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
             create_default_initial_state_data::<S, N>(extra_contracts).await;
-        (Self::new_with_initial_state_data(default_initial_state_data, config), extra_addresses)
+        (
+            Self::new_with_initial_state_data(default_initial_state_data, config, virtual_os),
+            extra_addresses,
+        )
     }
 
     pub(crate) fn next_nonce(&mut self, account_address: ContractAddress) -> Nonce {
@@ -702,15 +709,22 @@ impl<S: FlowTestState> TestBuilder<S> {
         let base_block_context = self.initial_state.block_context;
 
         // The state roots updated after each block.
-        let mut previous_state_roots = StateRoots {
+        let base_block_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let mut previous_state_roots = base_block_state_roots;
+
         let use_kzg_da = self.os_hints_config.use_kzg_da;
         let mut current_block_hash = BlockHash::default();
         for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
-            let block_context =
-                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
+            let block_context = if self.virtual_os {
+                // In virtual OS mode, the block context is the same as the base block context.
+                base_block_context.clone()
+            } else {
+                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da)
+            };
+
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
                 .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
@@ -719,7 +733,12 @@ impl<S: FlowTestState> TestBuilder<S> {
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, mut final_state } =
-                execute_transactions::<CachedState<S>>(state, &block_txs, block_context);
+                execute_transactions::<CachedState<S>>(
+                    state,
+                    &block_txs,
+                    block_context,
+                    self.virtual_os,
+                );
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
@@ -756,9 +775,14 @@ impl<S: FlowTestState> TestBuilder<S> {
                 maybe_dummy_block_hash_and_number(block_info.block_number);
             let prev_block_hash = current_block_hash;
             let block_hash_commitments = BlockHeaderCommitments::default();
+            let block_hash_state_root = if self.virtual_os {
+                base_block_state_roots.global_root()
+            } else {
+                new_state_roots.global_root()
+            };
             let new_block_hash = calculate_block_hash(
                 &PartialBlockHashComponents::new(&block_info, block_hash_commitments.clone()),
-                new_state_roots.global_root(),
+                block_hash_state_root,
                 prev_block_hash,
             )
             .unwrap();
@@ -822,7 +846,14 @@ impl TestBuilder<DictStateReader> {
         extra_contracts: [(FeatureContract, Calldata); N],
         config: TestBuilderConfig,
     ) -> (Self, [ContractAddress; N]) {
-        Self::new_with_default_initial_state(extra_contracts, config).await
+        Self::new_with_default_initial_state(extra_contracts, config, false).await
+    }
+
+    pub(crate) async fn create_standard_virtual<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, [ContractAddress; N]) {
+        Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
+            .await
     }
 }
 
