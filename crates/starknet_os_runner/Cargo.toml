@@ -10,6 +10,7 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 cairo_native = ["blockifier/cairo_native"]
 
 [dependencies]
+apollo_infra_utils.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
@@ -27,6 +28,7 @@ starknet_os.workspace = true
 starknet_patricia.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
