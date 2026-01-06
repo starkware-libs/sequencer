@@ -5,7 +5,12 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_committer_types::committer_types::CommitBlockResponse;
+use apollo_committer_types::communication::{
+    CommitterClientResponse,
+    MockCommitterClient,
+    SharedCommitterClient,
+};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -340,8 +345,12 @@ impl MockStateCommitter {
     ) {
         while mock_task_receiver.recv().await.is_some() {
             let task = tasks_receiver.try_recv().unwrap();
-            let result =
-                CommitmentTaskOutput { global_root: GlobalRoot::default(), height: task.height };
+            let result = CommitmentTaskOutput {
+                committer_response: CommitterClientResponse::CommitBlock(Ok(CommitBlockResponse {
+                    state_root: GlobalRoot::default(),
+                })),
+                height: task.0.height(),
+            };
             results_sender.try_send(result).unwrap();
         }
     }
