@@ -40,7 +40,7 @@ fn mock_dependencies() -> MockDependencies {
 }
 
 fn add_initial_heights(mock_dependencies: &mut MockDependencies) {
-    mock_dependencies.storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies.storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 }
 
@@ -127,7 +127,7 @@ async fn test_create_commitment_manager_with_missing_tasks(
     mut mock_dependencies: MockDependencies,
 ) {
     let global_root_height = INITIAL_HEIGHT.prev().unwrap();
-    mock_dependencies.storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies
         .storage_reader
         .expect_global_root_height()

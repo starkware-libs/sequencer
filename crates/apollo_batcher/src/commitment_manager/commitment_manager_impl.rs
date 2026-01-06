@@ -80,7 +80,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             committer_client,
         );
         let block_height =
-            storage_reader.height().expect("Failed to get block height from storage.");
+            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
         commitment_manager
             .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
             .await;
