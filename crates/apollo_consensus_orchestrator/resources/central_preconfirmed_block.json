@@ -57,6 +57,13 @@
             "account_deployment_data":[
 
             ],
+            "proof_facts": [
+                "0x5649525455414c5f534e4f53",
+                "0x4",
+                "0x3",
+                "0x2",
+                "0x1"
+            ],
             "type":"INVOKE_FUNCTION"
         },
         {
