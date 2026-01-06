@@ -3,7 +3,6 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::{calldata, invoke_tx_args};
-use starknet_os::runner::run_virtual_os;
 use starknet_types_core::felt::Felt;
 
 use crate::test_manager::TestBuilder;
@@ -23,7 +22,5 @@ async fn test_basic_happy_flow() {
         invoke_tx_args! { calldata, resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS },
     );
 
-    let test_runner = test_builder.build().await;
-    // TODO(Yoni): add running and verification logic to test_manager.rs.
-    run_virtual_os(test_runner.os_hints).unwrap();
+    test_builder.build().await.run_virtual().validate();
 }
