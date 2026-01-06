@@ -328,11 +328,11 @@
     "Batcher": {
       "panels": [
         {
-          "title": "Storage Height",
-          "description": "The height of the batcher's storage",
+          "title": "State Diff Height",
+          "description": "The height of the batcher's state diff stored in storage.",
           "type": "stat",
           "exprs": [
-            "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "batcher_state_diff_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
             "log_query": "\"Building block at height\""
