@@ -65,6 +65,7 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
     run_validate,
     update_class_hash_in_execution_context,
 )
+from starkware.starknet.core.os.execution.execution_constraints import check_n_txs, check_tx_type
 from starkware.starknet.core.os.execution.revert import init_revert_log
 from starkware.starknet.core.os.output import (
     MessageToL2Header,
@@ -144,6 +145,9 @@ func execute_transactions{
     local n_txs;
     %{ OsInputTransactions %}
     %{ EnterScopeExecuteTransactionsInner %}
+
+    check_n_txs(n_txs=n_txs);
+
     execute_transactions_inner{
         builtin_ptrs=builtin_ptrs,
         contract_state_changes=contract_state_changes,
@@ -205,6 +209,8 @@ func execute_transactions_inner{
 
     // Guess the current transaction's type.
     %{ LoadNextTx %}
+
+    check_tx_type(tx_type=tx_type);
 
     if (tx_type == 'INVOKE_FUNCTION') {
         // Handle the invoke-function transaction.

@@ -53,4 +53,16 @@ impl<S: FlowTestState> TestRunner<S> {
     pub(crate) fn run_virtual_and_validate(self) {
         self.run_virtual().validate();
     }
+
+    /// Runs the virtual OS and expects it to fail with an error containing the given string.
+    pub(crate) fn run_virtual_expect_error(self, expected_error: &str) {
+        let err = run_virtual_os(self.os_hints).expect_err("Expected virtual OS to fail");
+        let err_string = err.to_string();
+        assert!(
+            err_string.contains(expected_error),
+            "Expected error to contain '{}', got: {}",
+            expected_error,
+            err_string
+        );
+    }
 }

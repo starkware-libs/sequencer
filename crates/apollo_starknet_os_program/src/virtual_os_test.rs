@@ -5,8 +5,10 @@ use crate::{OS_PROGRAM, VIRTUAL_OS_PROGRAM, VIRTUAL_OS_SWAPPED_FILES};
 /// Asserts the list of swapped virtual OS files matches the expected list.
 #[test]
 fn test_virtual_os_swapped_files() {
-    expect!["starkware/starknet/core/os/os_utils.cairo"]
-        .assert_eq(&VIRTUAL_OS_SWAPPED_FILES.join("\n"));
+    expect![[r#"
+        starkware/starknet/core/os/execution/execution_constraints.cairo
+        starkware/starknet/core/os/os_utils.cairo"#]]
+    .assert_eq(&VIRTUAL_OS_SWAPPED_FILES.join("\n"));
 }
 
 /// Asserts the bytecode length of the OS program and virtual OS program match expected values.
@@ -14,11 +16,11 @@ fn test_virtual_os_swapped_files() {
 #[test]
 fn test_program_bytecode_lengths() {
     expect![[r#"
-    15527
-"#]]
+        15535
+    "#]]
     .assert_debug_eq(&OS_PROGRAM.data_len());
     expect![[r#"
-    13172
-"#]]
+        13184
+    "#]]
     .assert_debug_eq(&VIRTUAL_OS_PROGRAM.data_len());
 }
