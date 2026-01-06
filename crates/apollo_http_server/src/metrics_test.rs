@@ -55,7 +55,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
         )))
     });
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
 
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -89,7 +89,7 @@ async fn add_tx_serde_failure_metrics_test() {
         .times(1)
         .return_once(move |_| Ok(success_gateway_client_output()));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
 
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();

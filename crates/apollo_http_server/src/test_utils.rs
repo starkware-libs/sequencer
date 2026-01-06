@@ -183,12 +183,12 @@ pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
 }
 
-// A mock config manager client returning the default http server dynamic config for an unlimited
-// number of requests.
-pub fn get_mock_config_manager_client() -> MockConfigManagerClient {
+// A mock config manager client returning the an http server dynamic config that accepts/rejects
+// transactions for an unlimited number of requests.
+pub fn get_mock_config_manager_client(accept_new_txs: bool) -> MockConfigManagerClient {
     let mut mock_config_manager_client = MockConfigManagerClient::new();
     mock_config_manager_client
         .expect_get_http_server_dynamic_config()
-        .returning(move || Ok(HttpServerDynamicConfig::default()));
+        .returning(move || Ok(HttpServerDynamicConfig { accept_new_txs, ..Default::default() }));
     mock_config_manager_client
 }

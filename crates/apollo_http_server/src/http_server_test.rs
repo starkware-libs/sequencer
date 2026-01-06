@@ -88,6 +88,26 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
+/// Test that an HTTP server with a `allow_new_txs = false` config rejects new transactions.
+#[rstest]
+#[tokio::test]
+async fn allow_new_txs() {
+    let index = 10;
+    let tx = rpc_invoke_tx();
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let mock_config_manager_client = get_mock_config_manager_client(false);
+
+    // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
+
+    // Send a transaction to the server.
+    let response = http_client.add_tx(tx.clone()).await;
+    let status = response.status();
+    assert!(!status.is_success(), "{status:?}");
+}
+
 #[tokio::test]
 async fn error_into_response() {
     let error = HttpServerError::DeserializationError(
@@ -127,7 +147,7 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
@@ -162,7 +182,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 3 + index).await;
 
@@ -212,7 +232,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         expected_internal_err,
     ));
 
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 5 + index).await;
 
@@ -281,7 +301,7 @@ async fn test_unsupported_tx_version(
     }
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
 
@@ -302,7 +322,7 @@ async fn sanitizing_error_message() {
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
 
     let serialized_err =
