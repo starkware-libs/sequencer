@@ -6,8 +6,12 @@ use starknet_types_core::felt::Felt;
 
 use crate::io::os_output::{parse_messages_to_l1, wrap_missing, wrap_missing_as, OsOutputError};
 
+#[cfg(test)]
+#[path = "virtual_os_output_test.rs"]
+mod virtual_os_output_test;
+
 /// The parsed output of the virtual OS.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct VirtualOsOutput {
     /// The output version (currently always 0).
     pub version: Felt,
