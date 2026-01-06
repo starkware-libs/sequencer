@@ -328,11 +328,11 @@
     "Batcher": {
       "panels": [
         {
-          "title": "Storage Height",
-          "description": "The height of the batcher's storage",
+          "title": "Building Height",
+          "description": "The height of the block that should be built next.",
           "type": "stat",
           "exprs": [
-            "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "batcher_building_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
             "log_query": "\"Building block at height\""
