@@ -33,6 +33,13 @@ impl CommitterTaskOutput {
             Self::Revert(_) => panic!("Got revert output: {self:?}"),
         }
     }
+
+    pub(crate) fn height(&self) -> BlockNumber {
+        match self {
+            Self::Commit(CommitmentTaskOutput { height, .. })
+            | Self::Revert(RevertTaskOutput { height, .. }) => *height,
+        }
+    }
 }
 
 pub(crate) struct FinalBlockCommitment {
