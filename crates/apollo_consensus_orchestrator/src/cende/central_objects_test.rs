@@ -812,8 +812,8 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
-            // TODO(AvivG): Should we add non empty proof_facts?
-            proof_facts: None,
+            // Test with non-empty proof_facts for client-side proving.
+            proof_facts: Some(ProofFacts::snos_proof_facts_for_testing()),
         }),
         CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
             resource_bounds: Some(
@@ -877,7 +877,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             // Irrelevant for V3 InvokeTransaction.
             entry_point_selector: None,
             max_fee: None,
-            // TODO(AvivG): Should we add non empty proof_facts?
+            // Test without proof_facts (standard flow without client-side proving).
             proof_facts: None,
         }),
     ];
