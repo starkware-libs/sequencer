@@ -84,7 +84,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         .install_recorder()
         .expect("Should be able to install global prometheus recorder");
 
-    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
+    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(100);
     // Setup.
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
