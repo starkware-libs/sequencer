@@ -6,7 +6,7 @@ use apollo_batcher::metrics::{
     PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
-    STORAGE_HEIGHT,
+    STATE_DIFF_HEIGHT,
     VALIDATOR_WASTED_TXS,
 };
 use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
@@ -57,9 +57,9 @@ fn get_panel_proposer_deferred_txs() -> Panel {
 
 fn get_panel_storage_height() -> Panel {
     Panel::new(
-        "Storage Height",
-        "The height of the batcher's storage",
-        STORAGE_HEIGHT.get_name_with_filter().to_string(),
+        "State Diff Height",
+        "The height of the batcher's state diff stored in storage.",
+        STATE_DIFF_HEIGHT.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")

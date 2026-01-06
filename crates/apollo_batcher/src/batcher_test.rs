@@ -86,7 +86,7 @@ use crate::metrics::{
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
-    STORAGE_HEIGHT,
+    STATE_DIFF_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
@@ -421,7 +421,7 @@ async fn metrics_registered() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let _batcher = create_batcher(MockDependencies::default()).await;
     let metrics = recorder.handle().render();
-    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
+    assert_eq!(STATE_DIFF_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 }
 
 #[rstest]
@@ -1082,7 +1082,7 @@ async fn add_sync_block(
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
     assert_eq!(
-        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
+        STATE_DIFF_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(block_number.unchecked_next().0)
     );
     let metrics = recorder.handle().render();
@@ -1306,13 +1306,13 @@ async fn revert_block() {
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let metrics = recorder.handle().render();
-    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
+    assert_eq!(STATE_DIFF_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
-    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
+    assert_eq!(STATE_DIFF_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
     assert_eq!(REVERTED_BLOCKS.parse_numeric_metric::<usize>(&metrics), Some(1));
 }
 
@@ -1410,7 +1410,7 @@ async fn decision_reached() {
 
     let metrics = recorder.handle().render();
     assert_eq!(
-        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
+        STATE_DIFF_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
     assert_eq!(

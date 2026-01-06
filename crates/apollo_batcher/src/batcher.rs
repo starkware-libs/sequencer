@@ -103,7 +103,7 @@ use crate::metrics::{
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
-    STORAGE_HEIGHT,
+    STATE_DIFF_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
@@ -883,7 +883,7 @@ impl Batcher {
             error!("Failed to commit block to mempool: {}", mempool_err);
         };
 
-        STORAGE_HEIGHT.increment(1);
+        STATE_DIFF_HEIGHT.increment(1);
         Ok(())
     }
 
@@ -1106,7 +1106,7 @@ impl Batcher {
         }
 
         self.storage_writer.revert_block(height);
-        STORAGE_HEIGHT.decrement(1);
+        STATE_DIFF_HEIGHT.decrement(1);
         GLOBAL_ROOT_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
