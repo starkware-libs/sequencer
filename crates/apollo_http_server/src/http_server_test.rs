@@ -1,4 +1,3 @@
-use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -31,6 +30,7 @@ use crate::test_utils::{
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
+    get_mock_config_manager_client,
     rpc_invoke_tx,
     GatewayTransaction,
     TransactionSerialization,
@@ -127,8 +127,7 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client();
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
@@ -163,8 +162,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client();
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 3 + index).await;
 
@@ -214,8 +212,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         expected_internal_err,
     ));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client();
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 5 + index).await;
 
@@ -284,8 +281,7 @@ async fn test_unsupported_tx_version(
     }
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client();
     let http_client =
         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
 
@@ -306,8 +302,7 @@ async fn sanitizing_error_message() {
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client();
     let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
 
     let serialized_err =
