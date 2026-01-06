@@ -5,6 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use apollo_committer_types::committer_types::CommitBlockResponse;
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -41,7 +42,11 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::state_committer::StateCommitterTrait;
-use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
+use crate::commitment_manager::types::{
+    CommitmentTaskInput,
+    CommitmentTaskOutput,
+    CommitterTaskResult,
+};
 use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterFactoryTrait,
     MockPreconfirmedBlockWriterTrait,
@@ -316,7 +321,7 @@ pub(crate) struct MockStateCommitter {
 impl StateCommitterTrait for MockStateCommitter {
     fn create(
         tasks_receiver: Receiver<CommitmentTaskInput>,
-        results_sender: Sender<CommitmentTaskOutput>,
+        results_sender: Sender<CommitterTaskResult>,
         _committer_client: SharedCommitterClient,
     ) -> Self {
         let (mock_task_sender, mock_task_receiver) = channel(10);
@@ -335,13 +340,15 @@ impl MockStateCommitter {
     /// from the task receiver and sends a result to the results sender.
     pub(crate) async fn wait_for_mock_tasks(
         mut tasks_receiver: Receiver<CommitmentTaskInput>,
-        results_sender: Sender<CommitmentTaskOutput>,
+        results_sender: Sender<CommitterTaskResult>,
         mut mock_task_receiver: Receiver<()>,
     ) {
         while mock_task_receiver.recv().await.is_some() {
             let task = tasks_receiver.try_recv().unwrap();
-            let result =
-                CommitmentTaskOutput { global_root: GlobalRoot::default(), height: task.height };
+            let result = CommitterTaskResult::Commit(Ok(CommitmentTaskOutput {
+                response: CommitBlockResponse { state_root: GlobalRoot::default() },
+                height: task.height,
+            }));
             results_sender.try_send(result).unwrap();
         }
     }

@@ -4,14 +4,14 @@ use apollo_committer_types::communication::SharedCommitterClient;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
-use crate::commitment_manager::types::{CommitmentTaskInput, CommitmentTaskOutput};
+use crate::commitment_manager::types::{CommitmentTaskInput, CommitterTaskResult};
 
 /// Commits state changes by calling the committer.
 pub(crate) trait StateCommitterTrait {
     /// Creates a new instance and starts thread which performs commitment tasks.
     fn create(
         tasks_receiver: Receiver<CommitmentTaskInput>,
-        results_sender: Sender<CommitmentTaskOutput>,
+        results_sender: Sender<CommitterTaskResult>,
         committer_client: SharedCommitterClient,
     ) -> Self;
     /// Returns a handle to the thread performing commitment tasks.
@@ -25,7 +25,7 @@ pub(crate) struct StateCommitter {
 impl StateCommitterTrait for StateCommitter {
     fn create(
         tasks_receiver: Receiver<CommitmentTaskInput>,
-        results_sender: Sender<CommitmentTaskOutput>,
+        results_sender: Sender<CommitterTaskResult>,
         committer_client: SharedCommitterClient,
     ) -> Self {
         let handle = tokio::spawn(async move {
@@ -41,7 +41,7 @@ impl StateCommitterTrait for StateCommitter {
 impl StateCommitter {
     pub(crate) async fn perform_commitment_tasks(
         mut tasks_receiver: Receiver<CommitmentTaskInput>,
-        mut results_sender: Sender<CommitmentTaskOutput>,
+        mut results_sender: Sender<CommitterTaskResult>,
         committer_client: SharedCommitterClient,
     ) {
         // Placeholder: simply drain the receiver and do nothing.

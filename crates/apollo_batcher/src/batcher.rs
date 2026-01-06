@@ -1154,7 +1154,10 @@ impl Batcher {
     /// Writes the ready commitment results to storage.
     async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
         let commitment_results = self.commitment_manager.get_commitment_results().await;
-        for commitment_task_output in commitment_results.into_iter() {
+        for commitment_task_result in commitment_results.into_iter() {
+            // TODO: Handle commit block error.
+            let commitment_task_output = commitment_task_result.unwrap();
+
             let height = commitment_task_output.height;
 
             // Decide whether to finalize the block hash based on the config.

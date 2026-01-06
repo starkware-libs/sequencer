@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
+use apollo_committer_types::committer_types::CommitBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
@@ -21,6 +22,8 @@ use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterT
 use crate::commitment_manager::types::{
     CommitmentTaskInput,
     CommitmentTaskOutput,
+    CommitmentTaskResult,
+    CommitterTaskResult,
     FinalBlockCommitment,
 };
 
@@ -53,7 +56,7 @@ impl Default for CommitmentManagerConfig {
 /// Encapsulates the block hash calculation logic.
 pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) tasks_sender: Sender<CommitmentTaskInput>,
-    pub(crate) results_receiver: Receiver<CommitmentTaskOutput>,
+    pub(crate) results_receiver: Receiver<CommitterTaskResult>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
     pub(crate) state_committer: S,
@@ -142,12 +145,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
-    /// Fetches all ready commitment results from the state committer.
-    pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
+    /// Fetches all ready commitment results from the state committer. Panics if any task is a
+    /// revert.
+    pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskResult> {
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
-                Ok(result) => results.push(result),
+                Ok(result) => results.push(result.expect_commitment()),
                 Err(TryRecvError::Empty) => break,
                 Err(err) => {
                     panic!("Failed to receive commitment result from state committer. error: {err}")
@@ -262,7 +266,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Rotem): Test this function.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,
+        CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
         match should_finalize_block_hash {
