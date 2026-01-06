@@ -26,6 +26,7 @@ strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }
