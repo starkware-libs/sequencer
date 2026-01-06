@@ -165,7 +165,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     initiate_validation(
-        args.deps.batcher.as_ref(),
+        args.deps.batcher.clone(),
         args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
@@ -388,7 +388,7 @@ async fn await_second_proposal_part(
 }
 
 async fn initiate_validation(
-    batcher: &dyn BatcherClient,
+    batcher: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
