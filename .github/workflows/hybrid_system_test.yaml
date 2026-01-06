@@ -270,7 +270,7 @@ jobs:
       - name: Install Anvil
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v0.3.0
+          version: v1.5.1
 
       - name: Restore executable permissions
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
