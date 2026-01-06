@@ -557,7 +557,7 @@ impl Batcher {
     }
 
     fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
-        self.storage_reader.height().map_err(|err| {
+        self.storage_reader.state_diff_height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
         })
@@ -1329,8 +1329,9 @@ pub async fn create_batcher(
 
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageReader: Send + Sync {
-    /// Returns the next height that the batcher should work on.
-    fn height(&self) -> StorageResult<BlockNumber>;
+    /// Returns the next height for which the batcher stores state diff for.
+    /// This is the next height the batcher should work on (during validate/proposal).
+    fn state_diff_height(&self) -> StorageResult<BlockNumber>;
 
     /// Returns the first height the committer has finished calculating commitments for.
     fn global_root_height(&self) -> StorageResult<BlockNumber>;
@@ -1353,7 +1354,7 @@ pub trait BatcherStorageReader: Send + Sync {
 }
 
 impl BatcherStorageReader for StorageReader {
-    fn height(&self) -> StorageResult<BlockNumber> {
+    fn state_diff_height(&self) -> StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
     }
 
@@ -1527,7 +1528,7 @@ impl ComponentStarter for Batcher {
         default_component_start_fn::<Self>().await;
         let storage_height = self
             .storage_reader
-            .height()
+            .state_diff_height()
             .expect("Failed to get height from storage during batcher creation.");
         let global_root_height = self
             .storage_reader
