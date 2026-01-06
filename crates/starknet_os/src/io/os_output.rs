@@ -107,6 +107,31 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     Ok(MessageToL1 { from_address, to_address, payload })
 }
 
+/// Parses messages to L1 from an output iterator.
+/// Reads the segment size, parses all messages, and verifies the segment is fully consumed.
+pub fn parse_messages_to_l1<It: Iterator<Item = Felt>>(
+    iter: &mut It,
+) -> Result<Vec<MessageToL1>, OsOutputError> {
+    let mut messages_to_l1_segment_size: usize =
+        wrap_missing_as(iter.next(), "messages_to_l1_segment_size")?;
+    let mut messages_to_l1_iter = iter.take(messages_to_l1_segment_size).peekable();
+    let mut messages_to_l1 = Vec::new();
+
+    while messages_to_l1_iter.peek().is_some() {
+        let message = message_l1_from_output_iter(&mut messages_to_l1_iter)?;
+        messages_to_l1_segment_size -= message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
+        messages_to_l1.push(message);
+    }
+
+    assert_eq!(
+        messages_to_l1_segment_size, 0,
+        "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} felts \
+         were left."
+    );
+
+    Ok(messages_to_l1)
+}
+
 // TODO(Tzahi): Replace with starknet_api struct after it is updated.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "testing", derive(Clone, PartialEq))]
@@ -225,21 +250,7 @@ impl TryFromOutputIter for OutputIterParsedData {
         };
 
         // Messages to L1 and L2.
-        let mut messages_to_l1_segment_size =
-            wrap_missing_as(output_iter.next(), "messages_to_l1_segment_size")?;
-        let mut messages_to_l1_iter = output_iter.take(messages_to_l1_segment_size).peekable();
-        let mut messages_to_l1 = Vec::<MessageToL1>::new();
-
-        while messages_to_l1_iter.peek().is_some() {
-            let message = message_l1_from_output_iter(&mut messages_to_l1_iter)?;
-            messages_to_l1_segment_size -= message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
-            messages_to_l1.push(message);
-        }
-        assert_eq!(
-            messages_to_l1_segment_size, 0,
-            "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} \
-             felts were left.",
-        );
+        let messages_to_l1 = parse_messages_to_l1(output_iter)?;
 
         let mut messages_to_l2_segment_size =
             wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
