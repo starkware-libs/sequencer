@@ -660,6 +660,10 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
     }
 }
 
+/// Converts InvokeTransactionV3 to protobuf for P2P state sync.
+///
+/// For transactions with proofs (client-side proving), use `RpcInvokeTransactionV3` instead,
+/// which preserves the proof field during conversion.
 impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
     fn from(value: InvokeTransactionV3) -> Self {
         Self {
@@ -695,7 +699,7 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
                 .iter()
                 .map(|proof_fact| (*proof_fact).into())
                 .collect(),
-            // TODO(AvivG): Understand in what flow this is used. Is info lost?
+            // Empty because InvokeTransactionV3 doesn't have a proof field.
             proof: vec![],
         }
     }
