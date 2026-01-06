@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from l1_client import L1Client
-
 from echonet.constants import ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
 from echonet.helpers import timestamp_to_iso
 from echonet.l1_logic.l1_client import L1Client
