@@ -290,3 +290,13 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     assert_eq!(first_result.height, INITIAL_HEIGHT,);
     assert_eq!(second_result.height, INITIAL_HEIGHT.next().unwrap(),);
 }
+
+#[rstest]
+#[tokio::test]
+async fn show_panic_in_thread_doesnt_crash() {
+    let handle = tokio::spawn(async {
+        panic!("This is a test panic in a spawned task.");
+    });
+    let result = handle.await;
+    assert!(result.is_err(), "The spawned task should have panicked.");
+}
