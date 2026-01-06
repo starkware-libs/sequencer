@@ -39,6 +39,31 @@ def _format_rate(numerator: int, denom_seconds: int | None, unit: str) -> str:
     return f"{numerator / denom_seconds:.2f} {unit}"
 
 
+def _render_revert_comparison(
+    *,
+    mainnet_reverts: Mapping[str, str],
+    echonet_reverts: Mapping[str, str],
+    render_section: Callable[[str, Mapping[str, str]], list[str]],
+) -> str:
+    """
+    Shared "revert comparison" skeleton:
+    - print counts for each side
+    - render two sections (mainnet-only and echonet-only)
+    """
+    total_mainnet = len(mainnet_reverts)
+    total_echonet = len(echonet_reverts)
+
+    lines: list[str] = []
+    lines.append("=== Revert counts ===")
+    lines.append(f"Only on Mainnet: {total_mainnet}")
+    lines.append(f"Only on Echonet: {total_echonet}")
+    lines.append("")
+    lines.extend(render_section("Reverted only on Mainnet", mainnet_reverts))
+    lines.append("")
+    lines.extend(render_section("Reverted only on Echonet", echonet_reverts))
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def append_key_value_lines(
     lines: list[str], items: Sequence[tuple[str, str]], pad: int = 26
 ) -> None:
@@ -316,21 +341,15 @@ class RevertComparisonTextReport:
         self._classifier = classifier
 
     def render(self, mainnet_reverts: Mapping[str, str], echonet_reverts: Mapping[str, str]) -> str:
-        grouped_mainnet = self._classifier.group(mainnet_reverts)
-        grouped_echonet = self._classifier.group(echonet_reverts)
+        def render_section(title: str, reverts: Mapping[str, str]) -> list[str]:
+            grouped = self._classifier.group(reverts)
+            return self._render_grouped(title, grouped)
 
-        total_mainnet = sum(len(v) for v in grouped_mainnet.values())
-        total_echonet = sum(len(v) for v in grouped_echonet.values())
-
-        lines: list[str] = []
-        lines.append("=== Revert counts ===")
-        lines.append(f"Only on Mainnet: {total_mainnet}")
-        lines.append(f"Only on Echonet: {total_echonet}")
-        lines.append("")
-        lines.extend(self._render_grouped("Reverted only on Mainnet", grouped_mainnet))
-        lines.append("")
-        lines.extend(self._render_grouped("Reverted only on Echonet", grouped_echonet))
-        return "\n".join(lines).rstrip() + "\n"
+        return _render_revert_comparison(
+            mainnet_reverts=mainnet_reverts,
+            echonet_reverts=echonet_reverts,
+            render_section=render_section,
+        )
 
     @staticmethod
     def _render_grouped(title: str, grouped: Mapping[str, list[tuple[str, str]]]) -> list[str]:
@@ -345,6 +364,40 @@ class RevertComparisonTextReport:
             lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
             for tx_hash, leaf in sorted(txs, key=lambda x: x[0]):
                 lines.append(f"{tx_hash}: {leaf}")
+        return lines
+
+
+class RawRevertComparisonTextReport:
+    """
+    Render the revert comparison without classification and without shortening messages.
+
+    This is intended for `--compare-reverts`, where we want to additionally show
+    the full original revert errors after the classified summary.
+    """
+
+    def render(self, mainnet_reverts: Mapping[str, str], echonet_reverts: Mapping[str, str]) -> str:
+        return _render_revert_comparison(
+            mainnet_reverts=mainnet_reverts,
+            echonet_reverts=echonet_reverts,
+            render_section=self._render_raw,
+        )
+
+    @staticmethod
+    def _render_raw(title: str, reverts: Mapping[str, str]) -> list[str]:
+        total = len(reverts)
+        lines: list[str] = [f"=== {title} ({total} txs) ==="]
+        if total == 0:
+            lines.append("(none)")
+            return lines
+
+        for tx_hash, raw in sorted(reverts.items(), key=lambda kv: kv[0]):
+            lines.append("")
+            lines.append(f"{tx_hash}:")
+            if not raw:
+                lines.append("  (empty)")
+                continue
+            for ln in raw.splitlines():
+                lines.append(f"  {ln}")
         return lines
 
 
@@ -417,13 +470,18 @@ def print_snapshot(base_url: str) -> None:
 def compare_reverts(base_url: str) -> None:
     data = ReportHttpClient(base_url).fetch_report_snapshot()
     s = SnapshotModel.from_dict(data)
-    report = RevertComparisonTextReport(classifier=RevertClassifier())
-    print(
-        report.render(
-            mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-        ),
-        end="",
+    classified = RevertComparisonTextReport(classifier=RevertClassifier()).render(
+        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
     )
+    raw = RawRevertComparisonTextReport().render(
+        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
+    )
+
+    print("=== CLASSIFIED REVERTS (shortened) ===")
+    print(classified, end="")
+    print("")
+    print("=== FULL REVERTS (raw) ===")
+    print(raw, end="")
 
 
 def show_block(base_url: str, block_number: int, kind: BlockDumpKind) -> None:
@@ -442,7 +500,7 @@ def main() -> None:
     parser.add_argument(
         "--compare-reverts",
         action="store_true",
-        help="Compare revert errors from in-memory state (mainnet vs echonet)",
+        help="Compare revert errors from in-memory state (mainnet vs echonet). Prints classified + full raw sections.",
     )
     parser.add_argument(
         "--base-url",
