@@ -1159,6 +1159,7 @@ impl Batcher {
         let commitment_results = self.commitment_manager.get_commitment_results().await;
         for commitment_task_output in commitment_results.into_iter() {
             let height = commitment_task_output.height;
+            info!("Writing commitment results to storage for height {}.", height);
 
             // Decide whether to finalize the block hash based on the config.
             let should_finalize_block_hash =
