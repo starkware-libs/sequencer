@@ -1,4 +1,5 @@
 pub mod classes_provider;
+pub mod commit;
 pub mod errors;
 pub mod proving;
 pub mod runner;
@@ -8,6 +9,7 @@ pub mod virtual_block_executor;
 
 #[cfg(test)]
 mod classes_provider_test;
+mod commit_test;
 #[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
