@@ -36,6 +36,11 @@ impl VirtualOsOutput {
         let starknet_os_config_hash = wrap_missing(iter.next(), "starknet_os_config_hash")?;
         let messages_to_l1 = parse_messages_to_l1(&mut iter)?;
 
+        // Verify that we have consumed all output.
+        if iter.next().is_some() {
+            return Err(OsOutputError::OutputNotExhausted);
+        }
+
         Ok(Self {
             version,
             base_block_number,
