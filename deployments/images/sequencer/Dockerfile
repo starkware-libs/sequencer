@@ -21,8 +21,8 @@ ENV BUILD_MODE=${BUILD_MODE}
 
 # Validate BUILD_MODE value
 RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
-        echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
-        exit 1; \
+    echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
+    exit 1; \
     fi
 
 
@@ -34,7 +34,7 @@ COPY . .
 
 RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
-        BUILD_FLAGS="--release"; \
+    BUILD_FLAGS="--release"; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
@@ -44,19 +44,9 @@ FROM ubuntu:24.04 AS final_stage
 ARG BUILD_MODE=release
 ENV BUILD_MODE=${BUILD_MODE}
 
-<<<<<<< HEAD
 # Required for https requests: ca-certificates
 # Required for starknet-native-compile: binutils libc6-dev
 RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
-||||||| c96dea6126
-# Required for https requests
-RUN apt-get update && apt-get install -y ca-certificates
-# Required for starknet-native-compile
-RUN apt-get install -y binutils libc6-dev
-=======
-# Required for https requests
-RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
->>>>>>> origin/main-v0.14.1-committer
 
 ENV ID=1001
 WORKDIR /app
