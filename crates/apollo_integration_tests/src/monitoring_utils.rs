@@ -1,4 +1,4 @@
-use apollo_batcher::metrics::{REVERTED_TRANSACTIONS, STORAGE_HEIGHT};
+use apollo_batcher::metrics::{BUILDING_HEIGHT, REVERTED_TRANSACTIONS};
 use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -22,12 +22,12 @@ pub async fn get_batcher_latest_block_number(
 ) -> BlockNumber {
     BlockNumber(
         batcher_monitoring_client
-            .get_metric::<u64>(STORAGE_HEIGHT.get_name())
+            .get_metric::<u64>(BUILDING_HEIGHT.get_name())
             .await
             .expect("Failed to get storage height metric."),
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
-    .expect("Storage height should be at least 1.")
+    .expect("State diff height should be at least 1.")
 }
 
 /// Gets the latest decisions reached by consensus from the consensus metrics.
