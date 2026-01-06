@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Literal, Optional, Tuple, Union
 
 import flask  # pyright: ignore[reportMissingImports]
@@ -180,6 +180,116 @@ class BlobTransformer:
         """By shifting the integer value right by 1, the gas prices are halved."""
         return hex(int(v, 16) >> 1)
 
+    @staticmethod
+    @dataclass(slots=True)
+    class FlattenedCallInfo:
+        """
+        Result of flattening a call_info tree.
+
+        - events_with_order: list of (order, event) where event is feeder-style:
+          {from_address, keys, data}
+        - l2_to_l1_messages: passthrough list from blob
+        """
+
+        events_with_order: List[Tuple[Optional[int], JsonObject]] = field(default_factory=list)
+        l2_to_l1_messages: List[JsonObject] = field(default_factory=list)
+
+    @staticmethod
+    def _flatten_call_info(
+        call_info: Optional[JsonObject],
+    ) -> "BlobTransformer.FlattenedCallInfo":
+        """
+        Flatten a call-info tree (validate/execute/fee_transfer call info) into:
+        - events: list[(order, {from_address, keys, data})]
+        - l2_to_l1_messages: list[message]
+        """
+        if call_info is None:
+            return BlobTransformer.FlattenedCallInfo()
+
+        flat_call_info = BlobTransformer.FlattenedCallInfo()
+        from_address = call_info["call"]["storage_address"]
+
+        for exec in call_info["execution"]["events"]:
+            flat_call_info.events_with_order.append(
+                (
+                    exec["order"],
+                    {
+                        "from_address": from_address,
+                        "keys": exec["event"]["keys"],
+                        "data": exec["event"]["data"],
+                    },
+                )
+            )
+
+        flat_call_info.l2_to_l1_messages.extend(call_info["execution"]["l2_to_l1_messages"])
+
+        for inner_call in call_info["inner_calls"]:
+            flattened = BlobTransformer._flatten_call_info(inner_call)
+            flat_call_info.events_with_order.extend(flattened.events_with_order)
+            flat_call_info.l2_to_l1_messages.extend(flattened.l2_to_l1_messages)
+
+        return flat_call_info
+
+    @staticmethod
+    def _transform_receipt_from_execution_info(
+        tx_index: int, tx_hash: str, execution_info: JsonObject
+    ) -> JsonObject:
+        """
+        Transform a blob execution_infos[i] entry into a feeder gateway type transaction receipt.
+        """
+        flat_call_info = BlobTransformer.FlattenedCallInfo()
+
+        for key in ("validate_call_info", "execute_call_info", "fee_transfer_call_info"):
+            flattened = BlobTransformer._flatten_call_info(execution_info[key])
+            flat_call_info.events_with_order.extend(flattened.events_with_order)
+            flat_call_info.l2_to_l1_messages.extend(flattened.l2_to_l1_messages)
+
+        # The "order" field is globally assigned per-tx in the blob (when present).
+        flat_call_info.events_with_order.sort(
+            key=lambda p: (p[0] is None, p[0] if p[0] is not None else 0)
+        )
+        events = [ev for _order, ev in flat_call_info.events_with_order]
+
+        revert_error = execution_info["revert_error"]
+        execution_status = "SUCCEEDED" if revert_error is None else "REVERTED"
+
+        actual_resources = execution_info["actual_resources"]
+        da_gas = execution_info["da_gas"]
+        total_gas = execution_info["total_gas"]
+
+        builtin_instance_counter = {
+            k: v for k, v in actual_resources.items() if k.endswith("_builtin")
+        }
+
+        receipt: JsonObject = {
+            "execution_status": execution_status,
+            "transaction_index": tx_index,
+            "transaction_hash": tx_hash,
+            "l2_to_l1_messages": flat_call_info.l2_to_l1_messages,
+            "events": events,
+            "execution_resources": {
+                "n_steps": actual_resources["n_steps"],
+                "builtin_instance_counter": builtin_instance_counter,
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": da_gas["l1_gas"],
+                    "l1_data_gas": da_gas["l1_data_gas"],
+                    "l2_gas": da_gas["l2_gas"],
+                },
+                "total_gas_consumed": {
+                    "l1_gas": total_gas["l1_gas"],
+                    "l1_data_gas": total_gas["l1_data_gas"],
+                    "l2_gas": total_gas["l2_gas"],
+                },
+            },
+            "actual_fee": execution_info["actual_fee"],
+        }
+
+        if revert_error:
+            receipt["revert_error"] = revert_error
+
+        return receipt
+
     def _fetch_upstream_block_meta(self, block_number: int) -> JsonObject:
         """
         Fetch mainnet timestamp and gas prices for `block_number`.
@@ -266,15 +376,17 @@ class BlobTransformer:
         transformed_txs = self._transform_transactions(tx_entries)
 
         receipts: List[JsonObject] = []
-        for idx, tx in enumerate(transformed_txs):
+        execution_infos = blob["execution_infos"]
+        assert len(execution_infos) == len(
+            transformed_txs
+        ), f"The number of transactions in the blob does not match the number of execution infos."
+        for idx, (tx, execution_info) in enumerate(zip(transformed_txs, execution_infos)):
             receipts.append(
-                {
-                    "transaction_index": idx,
-                    "transaction_hash": tx["transaction_hash"],
-                    "l2_to_l1_messages": [],
-                    "events": [],
-                    "actual_fee": "0x0",
-                }
+                self._transform_receipt_from_execution_info(
+                    tx_index=idx,
+                    tx_hash=tx["transaction_hash"],
+                    execution_info=execution_info,
+                )
             )
 
         block_document: JsonObject = {
