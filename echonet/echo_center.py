@@ -188,11 +188,31 @@ class BlobTransformer:
 
         - events_with_order: list of (order, event) where event is feeder-style:
           {from_address, keys, data}
-        - l2_to_l1_messages: passthrough list from blob
+        - l2_to_l1_messages: normalized messages in feeder-gateway shape:
+          {from_address, to_address, payload}
         """
 
         events_with_order: List[Tuple[Optional[int], JsonObject]] = field(default_factory=list)
         l2_to_l1_messages: List[JsonObject] = field(default_factory=list)
+
+    @staticmethod
+    def _normalize_l2_to_l1_messages(
+        from_address: str, raw_messages: List[JsonObject]
+    ) -> List[JsonObject]:
+        """
+        Normalize blob l2->l1 messages into feeder-gateway style objects.
+        """
+        normalized: List[JsonObject] = []
+        for m in raw_messages:
+            inner = m["message"]
+            normalized.append(
+                {
+                    "from_address": from_address,
+                    "to_address": inner["to_address"],
+                    "payload": inner["payload"],
+                }
+            )
+        return normalized
 
     @staticmethod
     def _flatten_call_info(
@@ -221,7 +241,11 @@ class BlobTransformer:
                 )
             )
 
-        flat_call_info.l2_to_l1_messages.extend(call_info["execution"]["l2_to_l1_messages"])
+        flat_call_info.l2_to_l1_messages.extend(
+            BlobTransformer._normalize_l2_to_l1_messages(
+                from_address, call_info["execution"]["l2_to_l1_messages"]
+            )
+        )
 
         for inner_call in call_info["inner_calls"]:
             flattened = BlobTransformer._flatten_call_info(inner_call)
