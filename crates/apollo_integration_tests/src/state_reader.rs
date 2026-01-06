@@ -30,7 +30,11 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
@@ -394,6 +398,10 @@ fn write_state_to_apollo_storage(
         l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
         l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
         l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+        header_commitments: BlockHeaderCommitments {
+            state_diff_commitment: calculate_state_diff_hash(&state_diff),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
