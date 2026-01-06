@@ -150,6 +150,8 @@ use crate::cende::{AerospikeBlob, BlobParameters, InternalTransactionWithReceipt
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
+pub const CENTRAL_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH: &str =
+    "central_invoke_tx_client_side_proving.json";
 pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
@@ -255,6 +257,10 @@ fn central_compressed_state_diff() -> CentralCompressedStateDiff {
 }
 
 fn invoke_transaction() -> InternalRpcInvokeTransactionV3 {
+    invoke_transaction_with_proof_facts(ProofFacts::default())
+}
+
+fn invoke_transaction_with_proof_facts(proof_facts: ProofFacts) -> InternalRpcInvokeTransactionV3 {
     InternalRpcInvokeTransactionV3 {
         resource_bounds: resource_bounds(),
         tip: Tip(1),
@@ -268,7 +274,7 @@ fn invoke_transaction() -> InternalRpcInvokeTransactionV3 {
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
-        proof_facts: ProofFacts::default(),
+        proof_facts,
     }
 }
 
@@ -280,6 +286,17 @@ fn central_invoke_tx() -> CentralTransactionWritten {
     CentralTransactionWritten {
         tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3((invoke_tx, tx_hash).into())),
         time_created: 1734601615,
+    }
+}
+
+fn central_invoke_tx_client_side_proving() -> CentralTransactionWritten {
+    let invoke_tx = invoke_transaction_with_proof_facts(ProofFacts::snos_proof_facts_for_testing());
+    let tx_hash =
+        TransactionHash(felt!("0x71f8d4162900190e3bcfcce259d99c2e657015c5e429c5f2f2db6c07267358e"));
+
+    CentralTransactionWritten {
+        tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3((invoke_tx, tx_hash).into())),
+        time_created: 1767225600,
     }
 }
 
@@ -992,8 +1009,11 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
 #[rstest]
 #[case::compressed_state_diff(central_compressed_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::state_diff(central_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
-// TODO(AvivG): Consider testing invoke_tx with proof_facts.
 #[case::invoke_tx(central_invoke_tx(), CENTRAL_INVOKE_TX_JSON_PATH)]
+#[case::invoke_tx_client_side_proving(
+    central_invoke_tx_client_side_proving(),
+    CENTRAL_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH
+)]
 #[case::deploy_account_tx(central_deploy_account_tx(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 #[case::declare_tx(central_declare_tx(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
