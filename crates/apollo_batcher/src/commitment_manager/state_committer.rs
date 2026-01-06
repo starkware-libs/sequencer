@@ -1,6 +1,10 @@
 #![allow(dead_code, unused_variables, unused_mut)]
 
-use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_committer_types::communication::{
+    CommitterClientResponse,
+    CommitterRequest,
+    SharedCommitterClient,
+};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 

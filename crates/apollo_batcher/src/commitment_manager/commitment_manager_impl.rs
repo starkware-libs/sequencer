@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
-use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -110,7 +111,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             });
         }
         let commitment_task_input =
-            CommitmentTaskInput { height, state_diff, state_diff_commitment };
+            CommitmentTaskInput(CommitterRequest::CommitBlock(CommitBlockRequest {
+                height,
+                state_diff,
+                state_diff_commitment,
+            }));
         let error_message = format!(
             "Failed to send commitment task to state committer. Block: {height}, state diff \
              commitment: {state_diff_commitment:?}",
@@ -262,13 +267,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Rotem): Test this function.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { height, global_root }: CommitmentTaskOutput,
+        CommitBlockResponse { state_root }: CommitBlockResponse,
+        height: BlockNumber,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
         match should_finalize_block_hash {
             false => {
                 info!("Finalized commitment for block {height} without calculating block hash.");
-                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
+                Ok(FinalBlockCommitment { height, block_hash: None, global_root: state_root })
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
@@ -283,8 +289,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
                 let block_hash =
-                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
-                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+                    calculate_block_hash(&partial_block_hash_components, state_root, parent_hash)?;
+                Ok(FinalBlockCommitment {
+                    height,
+                    block_hash: Some(block_hash),
+                    global_root: state_root,
+                })
             }
         }
     }

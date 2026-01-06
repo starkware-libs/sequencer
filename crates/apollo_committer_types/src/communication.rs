@@ -71,6 +71,11 @@ generate_permutation_labels! {
     (LABEL_NAME_REQUEST_VARIANT, CommitterRequestLabelValue),
 }
 
+pub enum CommitterClientResponse {
+    CommitBlock(CommitterClientResult<CommitBlockResponse>),
+    RevertBlock(CommitterClientResult<RevertBlockResponse>),
+}
+
 #[async_trait]
 impl<ComponentClientType> CommitterClient for ComponentClientType
 where
