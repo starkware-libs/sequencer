@@ -963,6 +963,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_central_sync_config",
  "apollo_class_manager_types",
+ "apollo_config",
  "apollo_proc_macros",
  "apollo_starknet_client",
  "apollo_state_sync_metrics",
@@ -983,6 +984,7 @@ dependencies = [
  "papyrus_common",
  "pretty_assertions",
  "reqwest 0.12.24",
+ "serde",
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
@@ -1142,6 +1144,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 

@@ -14,17 +14,15 @@ use alloy::sol;
 use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
 use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_vec,
-    serialize_slice,
+    deserialize_milliseconds_to_duration, deserialize_vec, serialize_slice,
 };
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
 use tracing::{debug, error, info, instrument};
 use url::Url;
@@ -32,12 +30,7 @@ use validator::{Validate, ValidationError};
 
 use crate::eth_events::parse_event;
 use crate::{
-    BaseLayerContract,
-    L1BlockHash,
-    L1BlockHeader,
-    L1BlockNumber,
-    L1BlockReference,
-    L1Event,
+    BaseLayerContract, L1BlockHash, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event,
 };
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
@@ -126,7 +119,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
-        &mut self,
+        &self,
         l1_block: L1BlockNumber,
     ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
         let block_id = l1_block.into();
@@ -150,13 +143,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn events<'a>(
-        &'a mut self,
+        &'a self,
         block_range: RangeInclusive<u64>,
         event_types_to_filter: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        // Don't actually need mutability here, and using mut self doesn't work with async move in
-        // the loop below.
-        let immutable_self = &*self;
+        // Now we have &self, no need for workaround
+        let immutable_self = self;
         let filter = EthEventFilter::new()
             .select(block_range.clone())
             .events(event_types_to_filter)
@@ -184,7 +176,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     #[instrument(skip(self), err)]
-    async fn latest_l1_block_number(&mut self) -> EthereumBaseLayerResult<L1BlockNumber> {
+    async fn latest_l1_block_number(&self) -> EthereumBaseLayerResult<L1BlockNumber> {
         let block_number = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_number(),
@@ -195,7 +187,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     #[instrument(skip(self), err)]
     async fn l1_block_at(
-        &mut self,
+        &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
         let block = tokio::time::timeout(
@@ -213,7 +205,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     /// Query the Ethereum base layer for the header of a block.
     #[instrument(skip(self), err)]
     async fn get_block_header(
-        &mut self,
+        &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
         self.get_block_header_immutable(block_number).await
