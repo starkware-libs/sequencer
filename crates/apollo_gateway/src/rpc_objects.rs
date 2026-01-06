@@ -10,7 +10,15 @@ use starknet_api::block::{
     GasPricePerToken,
     NonzeroGasPrice,
 };
-use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
+use starknet_api::core::{
+    ClassHash,
+    ContractAddress,
+    EventCommitment,
+    GlobalRoot,
+    ReceiptCommitment,
+    StateDiffCommitment,
+    TransactionCommitment,
+};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
 
@@ -79,6 +87,13 @@ pub struct BlockHeader {
     pub l2_gas_price: GasPricePerToken,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
+    pub state_diff_commitment: StateDiffCommitment,
+    pub event_commitment: EventCommitment,
+    pub receipt_commitment: ReceiptCommitment,
+    pub transaction_commitment: TransactionCommitment,
+    pub transaction_count: usize,
+    pub event_count: usize,
+    pub state_diff_length: usize,
 }
 
 impl TryInto<BlockInfo> for BlockHeader {
