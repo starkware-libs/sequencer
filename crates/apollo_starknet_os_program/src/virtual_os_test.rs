@@ -2,7 +2,9 @@ use expect_test::{expect, Expect};
 
 use crate::VIRTUAL_OS_SWAPPED_FILES;
 
-static EXPECTED_SWAPPED_FILES: Expect = expect!["starkware/starknet/core/os/os_utils.cairo"];
+static EXPECTED_SWAPPED_FILES: Expect = expect![[r#"
+    starkware/starknet/core/os/execution/security_checks.cairo
+    starkware/starknet/core/os/os_utils.cairo"#]];
 
 /// Asserts the list of swapped virtual OS files matches the expected list.
 #[test]
