@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
@@ -32,7 +34,7 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use indexmap::IndexSet;
+use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -46,6 +48,7 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
@@ -107,6 +110,59 @@ use crate::test_utils::{
     PROPOSAL_ID,
     STREAMING_CHUNK_SIZE,
 };
+
+fn get_test_state_diff(
+    mut keys_stream: impl Iterator<Item = u64>,
+    mut values_stream: impl Iterator<Item = u64>,
+) -> ThinStateDiff {
+    ThinStateDiff {
+        deployed_contracts: indexmap! {
+            (keys_stream.next().unwrap()).into() => ClassHash(values_stream.next().unwrap().into()),
+            (keys_stream.next().unwrap()).into() => ClassHash(values_stream.next().unwrap().into()),
+        },
+        storage_diffs: indexmap! {
+            (keys_stream.next().unwrap()).into() => indexmap! {
+                (keys_stream.next().unwrap()).into() => (values_stream.next().unwrap()).into(),
+                (keys_stream.next().unwrap()).into() => values_stream.next().unwrap().into(),
+            },
+        },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(keys_stream.next().unwrap().into()) =>
+                CompiledClassHash(values_stream.next().unwrap().into()),
+            ClassHash(keys_stream.next().unwrap().into()) =>
+                CompiledClassHash(values_stream.next().unwrap().into()),
+        },
+        nonces: indexmap! {
+            (keys_stream.next().unwrap()).into() => Nonce(values_stream.next().unwrap().into()),
+            (keys_stream.next().unwrap()).into() => Nonce(values_stream.next().unwrap().into()),
+        },
+        deprecated_declared_classes: vec![
+            ClassHash(keys_stream.next().unwrap().into()),
+            ClassHash(keys_stream.next().unwrap().into()),
+        ],
+    }
+}
+
+/// The keys in each consecutive state diff are overlapping, for each map in the state diff.
+/// If in block A the keys are x, x+1, then in block A+1 the keys are x+1, x+2.
+fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
+    let mut state_diffs = Vec::new();
+    for i in 0..n_state_diffs {
+        state_diffs.push(get_test_state_diff(i.., (i * 100)..));
+    }
+    state_diffs
+}
+
+fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
+    batcher
+        .storage_writer
+        .commit_proposal(
+            height,
+            state_diff.clone(),
+            StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
+        )
+        .expect("set_state_diff failed");
+}
 
 async fn proposal_commitment() -> ProposalCommitment {
     BlockExecutionArtifacts::create_for_testing().await.commitment()
@@ -1557,4 +1613,62 @@ async fn get_block_hash_error() {
     let batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::InternalError));
+}
+
+/// For every key in the original map, validates that the reversed map values are identical to the
+/// base map, or zero if the key is missing in the base map.
+fn validate_is_reversed<K: Eq + Hash + Debug, V: Debug + Default + Eq + Hash>(
+    base: IndexMap<K, V>,
+    original: IndexMap<K, V>,
+    reversed: IndexMap<K, V>,
+) {
+    assert_eq!(original.len(), reversed.len());
+    for key in original.keys() {
+        assert_eq!(reversed.get(key).unwrap(), base.get(key).unwrap_or(&V::default()));
+    }
+}
+
+#[tokio::test]
+async fn test_reversed_state_diff() {
+    let mut batcher =
+        create_batcher_with_real_storage(MockDependenciesWithRealStorage::default()).await;
+
+    let state_diffs = get_overlapping_state_diffs(2);
+
+    let mut height = BlockNumber(0);
+    let base_state_diff = state_diffs[0].clone();
+    write_state_diff(&mut batcher, height, &base_state_diff);
+
+    height = height.unchecked_next();
+    let original_state_diff = state_diffs[1].clone();
+    write_state_diff(&mut batcher, height, &original_state_diff);
+
+    let reversed_state_diff = batcher.storage_reader.reversed_state_diff(height).unwrap();
+
+    validate_is_reversed(
+        base_state_diff.deployed_contracts,
+        original_state_diff.deployed_contracts,
+        reversed_state_diff.deployed_contracts,
+    );
+    for (contract_address, storage_diffs) in original_state_diff.storage_diffs {
+        validate_is_reversed(
+            base_state_diff
+                .storage_diffs
+                .get(&contract_address)
+                .unwrap_or(&IndexMap::new())
+                .clone(),
+            storage_diffs,
+            reversed_state_diff.storage_diffs.get(&contract_address).unwrap().clone(),
+        );
+    }
+    validate_is_reversed(
+        base_state_diff.class_hash_to_compiled_class_hash,
+        original_state_diff.class_hash_to_compiled_class_hash.clone(),
+        reversed_state_diff.class_hash_to_compiled_class_hash,
+    );
+    validate_is_reversed(
+        base_state_diff.nonces,
+        original_state_diff.nonces.clone(),
+        reversed_state_diff.nonces,
+    );
 }
