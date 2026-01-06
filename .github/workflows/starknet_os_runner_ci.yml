@@ -1,0 +1,52 @@
+name: Starknet-OS-Runner-CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+    paths:
+      - ".github/workflows/starknet_os_runner_ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_os_runner/**"
+      - "docs/stwo_run_and_prove.md"
+      - "scripts/install_stwo_run_and_prove.sh"
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    paths:
+      - ".github/workflows/starknet_os_runner_ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_os_runner/**"
+      - "docs/stwo_run_and_prove.md"
+      - "scripts/install_stwo_run_and_prove.sh"
+
+env:
+  RUSTFLAGS: "-D warnings"
+
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test-starknet-os-runner:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install stwo_run_and_prove
+        run: scripts/install_stwo_run_and_prove.sh
+      - name: Run starknet_os_runner tests
+        env:
+          STWO_RUN_AND_PROVE_PATH: ${{ github.workspace }}/target/tools/stwo_run_and_prove
+        run: cargo test -p starknet_os_runner
