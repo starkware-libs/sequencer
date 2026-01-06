@@ -124,7 +124,7 @@ fn test_execute_constructed_balance_of_transaction(
 
     // Verify block context was captured.
     assert_eq!(
-        result.block_context.block_info().block_number,
+        result.base_block_info.block_context.block_info().block_number,
         BlockNumber(TEST_BLOCK_NUMBER),
         "Block context should have the correct block number"
     );
