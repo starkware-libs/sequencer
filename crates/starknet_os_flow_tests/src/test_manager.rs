@@ -119,7 +119,7 @@ pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
 #[derive(Default)]
-pub(crate) struct TestManagerConfig {
+pub(crate) struct TestBuilderConfig {
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
     pub(crate) private_keys: Option<Vec<Felt>>,
@@ -390,7 +390,7 @@ impl<S: FlowTestState> TestRunner<S> {
         let os_output = run_os_stateless(layout, self.os_hints).unwrap();
 
         let decompressed_state_diff =
-            create_committer_state_diff(TestManager::<S>::get_decompressed_state_diff(
+            create_committer_state_diff(TestBuilder::<S>::get_decompressed_state_diff(
                 &os_output,
                 &final_state,
                 entire_initial_reads.alias_keys(),
@@ -407,8 +407,9 @@ impl<S: FlowTestState> TestRunner<S> {
     }
 }
 
-/// Manages the execution of flow tests by maintaining the initial state and transactions.
-pub(crate) struct TestManager<S: FlowTestState> {
+/// Builds flow tests by maintaining the initial state and transactions.
+/// Use the builder methods to configure transactions, then call `build()` to get a `TestRunner`.
+pub(crate) struct TestBuilder<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
@@ -420,11 +421,11 @@ pub(crate) struct TestManager<S: FlowTestState> {
     per_block_txs: Vec<Vec<FlowTestTx>>,
 }
 
-impl<S: FlowTestState> TestManager<S> {
-    /// Creates a new `TestManager` with the provided initial state data.
+impl<S: FlowTestState> TestBuilder<S> {
+    /// Creates a new `TestBuilder` with the provided initial state data.
     pub(crate) fn new_with_initial_state_data(
         initial_state_data: InitialStateData<S>,
-        config: TestManagerConfig,
+        config: TestBuilderConfig,
     ) -> Self {
         let public_keys =
             config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
@@ -450,13 +451,12 @@ impl<S: FlowTestState> TestManager<S> {
         }
     }
 
-    /// Creates a new `TestManager` with the default initial state.
-    /// Returns the manager and a nonce manager to help keep track of nonces.
+    /// Creates a new `TestBuilder` with the default initial state.
     /// Optionally provide an array of extra contracts to declare and deploy - the addresses of
     /// these contracts will be returned as an array of the same length.
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
-        config: TestManagerConfig,
+        config: TestBuilderConfig,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
             create_default_initial_state_data::<S, N>(extra_contracts).await;
@@ -692,8 +692,10 @@ impl<S: FlowTestState> TestManager<S> {
         decompress(&os_state_diff_maps, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
     }
 
-    // Executes the flow test.
-    pub(crate) async fn execute_flow_test(self) -> OsTestOutput<S> {
+    /// Builds the test runner from the current state and transactions.
+    /// Returns a `TestRunner` that can be used to run the OS and get the test output.
+    pub(crate) async fn build(self) -> TestRunner<S> {
+        // TODO(Yoni): make this func sync.
         let mut os_block_inputs = vec![];
         let mut state = CachedState::new(self.initial_state.updatable_state);
         let mut map_storage = self.initial_state.commitment_storage;
@@ -791,30 +793,34 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints =
             OsHints { os_input: starknet_os_input, os_hints_config: self.os_hints_config };
 
-        let test_runner = TestRunner {
+        TestRunner {
             os_hints,
             entire_cached_state: state,
             messages_to_l1: self.messages_to_l1,
             messages_to_l2: self.messages_to_l2,
             private_keys: self.private_keys,
-        };
-        test_runner.run()
+        }
+    }
+
+    /// Builds and runs the test, returning the test output.
+    pub(crate) async fn build_and_run(self) -> OsTestOutput<S> {
+        self.build().await.run()
     }
 }
 
-impl TestManager<DictStateReader> {
+impl TestBuilder<DictStateReader> {
     pub(crate) async fn create_standard<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
     ) -> (Self, [ContractAddress; N]) {
-        Self::create_standard_with_config(extra_contracts, TestManagerConfig::default()).await
+        Self::create_standard_with_config(extra_contracts, TestBuilderConfig::default()).await
     }
 
-    /// Creates a new `TestManager` with the default initial state and the provided config.
+    /// Creates a new `TestBuilder` with the default initial state and the provided config.
     /// Uses `DictStateReader` as the state type.
     /// Returns the manager and an array of addresses for any extra contracts deployed.
     pub(crate) async fn create_standard_with_config<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
-        config: TestManagerConfig,
+        config: TestBuilderConfig,
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, config).await
     }
