@@ -1,4 +1,4 @@
-use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM, VIRTUAL_OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
@@ -21,6 +21,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
+use crate::io::virtual_os_output::VirtualOsRunnerOutput;
 use crate::metrics::{AggregatorMetrics, OsMetrics};
 use crate::vm_utils::vm_error_with_code_snippet;
 
@@ -192,5 +193,32 @@ pub fn run_aggregator(
         metrics: AggregatorMetrics::new(&mut runner_output.cairo_runner)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: aggregator_hint_processor.get_unused_hints(),
+    })
+}
+
+/// Runs the virtual OS.
+pub fn run_virtual_os(
+    layout: LayoutName,
+    OsHints {
+        os_hints_config,
+        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
+    }: OsHints,
+) -> Result<VirtualOsRunnerOutput, StarknetOsError> {
+    // Create the hint processor - reuse the SNOS hint processor with the virtual OS program.
+    let mut snos_hint_processor = SnosHintProcessor::new(
+        &VIRTUAL_OS_PROGRAM,
+        os_hints_config,
+        os_block_inputs.iter().collect(),
+        deprecated_compiled_classes,
+        compiled_classes,
+        vec![PanickingStateReader; os_block_inputs.len()],
+    )?;
+
+    // Run the virtual OS program.
+    let runner_output = run_program(layout, &VIRTUAL_OS_PROGRAM, &mut snos_hint_processor)?;
+
+    Ok(VirtualOsRunnerOutput {
+        raw_output: runner_output.raw_output,
+        cairo_pie: runner_output.cairo_pie,
     })
 }
