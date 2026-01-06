@@ -65,20 +65,26 @@ fn get_panel_state_sync_new_header_maturity() -> Panel {
     .with_unit(Unit::Seconds)
 }
 fn get_panel_time_to_complete_sync() -> Panel {
+    // This is the window we use to detect if the sync is catching up or actively syncing.
+    const CATCH_UP_CHECK_WINDOW: &str = "1m";
+
     Panel::new(
         "Time to Complete Sync",
         format!(
             "Estimated time to complete syncing to the latest block (based on a {} window \
              rate).\nThe value is computed from the sync rate of the `class manager marker` \
              (which is the last component to finish downloading among all state sync parts), \
-             compared against the `central block marker` (the latest block known to central).",
-            DEFAULT_DURATION
+             compared against the `central block marker` (the latest block known to central).\nIf \
+             the sync was caught up during the last {} window, the value is 0.",
+            DEFAULT_DURATION, CATCH_UP_CHECK_WINDOW
         ),
         format!(
-            "({target_total} - {sync_state}) / clamp_min(rate({sync_state}[{d}]) - \
-             rate({target_total}[{d}]), 1e-6)",
+            "(min_over_time({target_total}[{catch_up_window}]) > {sync_state}) * ({target_total} \
+             - {sync_state}) / clamp_min(rate({sync_state}[{d}]) - rate({target_total}[{d}]), \
+             1e-6)",
             target_total = CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             sync_state = STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
+            catch_up_window = CATCH_UP_CHECK_WINDOW,
             d = DEFAULT_DURATION
         ),
         PanelType::TimeSeries,
