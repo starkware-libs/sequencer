@@ -117,6 +117,10 @@ async fn add_rpc_tx(
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
+
+    let dynamic_config = app_state.config_manager_client.get_http_server_dynamic_config().await?;
+    check_new_transactions_are_allowed(dynamic_config.accept_new_txs)?;
+
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     add_tx_inner(app_state, headers, tx).await
 }
@@ -128,11 +132,12 @@ async fn add_tx(
     headers: HeaderMap,
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
-    ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
 
     let dynamic_config = app_state.config_manager_client.get_http_server_dynamic_config().await?;
+    check_new_transactions_are_allowed(dynamic_config.accept_new_txs)?;
 
+    ADDED_TRANSACTIONS_TOTAL.increment(1);
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
         Ok(value) => value,
         Err(e) => {
@@ -152,6 +157,13 @@ async fn add_tx(
     })?;
 
     add_tx_inner(app_state, headers, rpc_tx).await
+}
+
+fn check_new_transactions_are_allowed(accept_new_txs: bool) -> HttpServerResult<()> {
+    match accept_new_txs {
+        true => Ok(()),
+        false => Err(HttpServerError::DisabledError()),
+    }
 }
 
 #[allow(clippy::result_large_err)]
