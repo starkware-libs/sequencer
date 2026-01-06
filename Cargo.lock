@@ -12753,6 +12753,7 @@ name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
  "apollo_gateway",
+ "apollo_infra_utils",
  "async-trait",
  "blockifier",
  "blockifier_reexecution",
@@ -12771,6 +12772,7 @@ dependencies = [
  "starknet_patricia",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
  "url",
 ]
 
