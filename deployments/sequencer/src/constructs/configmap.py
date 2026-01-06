@@ -46,16 +46,23 @@ class ConfigMapConstruct(BaseConstruct):
         if self.service_config.config and self.service_config.config.sequencerConfig:
             merged_sequencer_config = self.service_config.config.sequencerConfig
 
-        # Apply merged overrides
+        # Apply merged overrides (includes validation for both unused keys and remaining placeholders)
+        overlay_source = getattr(self.service_config, "_source", None)
         if merged_sequencer_config:
             node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config, merged_sequencer_config, service_name=self.service_config.name
+                node_config,
+                merged_sequencer_config,
+                service_name=self.service_config.name,
+                config_list_path=self.service_config.config.configList,
+                overlay_source=overlay_source,
             )
-
-        # Validate no remaining placeholders after all overrides are applied
-        NodeConfigLoader.validate_no_remaining_placeholders(
-            node_config, service_name=self.service_config.name
-        )
+        else:
+            # If no sequencer config overrides, still validate for remaining placeholders
+            NodeConfigLoader.validate_no_remaining_placeholders(
+                node_config,
+                config_list_path=self.service_config.config.configList,
+                overlay_source=overlay_source,
+            )
 
         config_data = json.dumps(node_config, indent=2)
 
