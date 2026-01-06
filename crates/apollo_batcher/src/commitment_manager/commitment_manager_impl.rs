@@ -263,12 +263,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 if height == BlockNumber::ZERO {
                     parent_hash = Some(BlockHash::GENESIS_PARENT_HASH);
                 }
-                let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
-                    height.prev().expect(
-                        "For the genesis block, the block hash is constant and should not be \
-                         fetched from storage.",
-                    ),
-                ))?;
+                let parent_hash = parent_hash.ok_or_else(|| {
+                    CommitmentManagerError::MissingBlockHash(
+                        height.prev().expect(
+                            "For the genesis block, the block hash is constant and should not be \
+                             fetched from storage.",
+                        ),
+                    )
+                })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
                 let block_hash =
