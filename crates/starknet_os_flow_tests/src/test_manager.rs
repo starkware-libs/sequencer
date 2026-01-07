@@ -8,7 +8,7 @@ use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::{StateReader, UpdatableState};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
+use blockifier::test_utils::{block_hash_contract_address, ALIAS_CONTRACT_ADDRESS};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
@@ -47,7 +47,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Fee, Tip};
+use starknet_api::transaction::fields::{Calldata, Fee, ProofFacts, Tip};
 use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -77,6 +77,7 @@ use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
+    create_client_side_proving_initial_state_data,
     create_default_initial_state_data,
     get_initial_deploy_account_tx,
     FlowTestState,
@@ -876,6 +877,22 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// Creates a new `TestBuilder` with an initial state that includes proof facts block hash
+    /// mappings. Use this for tests that use client-side proving with proof facts.
+    pub(crate) async fn create_standard_with_proof_facts<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+        config: TestBuilderConfig,
+        proof_facts_list: &[ProofFacts],
+    ) -> (Self, [ContractAddress; N]) {
+        let (initial_state_data, extra_addresses) =
+            create_client_side_proving_initial_state_data::<DictStateReader, N>(
+                extra_contracts,
+                proof_facts_list,
+            )
+            .await;
+        (Self::new_with_initial_state_data(initial_state_data, config, false), extra_addresses)
     }
 }
 
