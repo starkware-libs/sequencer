@@ -2499,6 +2499,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "gateway_config.proof_archive_writer_config.bucket_name": {
+    "description": "The name of the bucket to write proofs to.",
+    "privacy": "Public",
+    "value": "proof-archive"
+  },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
