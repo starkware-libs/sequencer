@@ -6,7 +6,11 @@ use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHas
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_committer_types::committer_types::CommitBlockResponse;
-use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_committer_types::communication::{
+    CommitterRequest,
+    MockCommitterClient,
+    SharedCommitterClient,
+};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -43,8 +47,8 @@ use crate::block_builder::{
 };
 use crate::commitment_manager::state_committer::StateCommitterTrait;
 use crate::commitment_manager::types::{
-    CommitmentTaskInput,
     CommitmentTaskOutput,
+    CommitterTaskInput,
     CommitterTaskOutput,
 };
 use crate::pre_confirmed_block_writer::{
@@ -320,7 +324,7 @@ pub(crate) struct MockStateCommitter {
 
 impl StateCommitterTrait for MockStateCommitter {
     fn create(
-        tasks_receiver: Receiver<CommitmentTaskInput>,
+        tasks_receiver: Receiver<CommitterTaskInput>,
         results_sender: Sender<CommitterTaskOutput>,
         _committer_client: SharedCommitterClient,
     ) -> Self {
@@ -339,7 +343,7 @@ impl MockStateCommitter {
     /// Does nothing until a message is received on the mock task receiver, then pops one task
     /// from the task receiver and sends a result to the results sender.
     pub(crate) async fn wait_for_mock_tasks(
-        mut tasks_receiver: Receiver<CommitmentTaskInput>,
+        mut tasks_receiver: Receiver<CommitterTaskInput>,
         results_sender: Sender<CommitterTaskOutput>,
         mut mock_task_receiver: Receiver<()>,
     ) {
@@ -347,7 +351,10 @@ impl MockStateCommitter {
             let task = tasks_receiver.try_recv().unwrap();
             let result = CommitterTaskOutput::Commit(CommitmentTaskOutput {
                 response: CommitBlockResponse { state_root: GlobalRoot::default() },
-                height: task.height,
+                height: match task.0 {
+                    CommitterRequest::CommitBlock(request) => request.height,
+                    CommitterRequest::RevertBlock(request) => request.height,
+                },
             });
             results_sender.try_send(result).unwrap();
         }
