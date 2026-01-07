@@ -1069,6 +1069,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         TestBuilderConfig { use_kzg_da, ..Default::default() },
     )
     .await;
+
     let chain_id = &test_builder.chain_id();
     let current_block_number = test_builder.first_block_number();
 
@@ -1105,6 +1106,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     // Test calling test_get_execution_info.
     let test_call_contract_selector_name = "test_call_contract";
     let test_execution_info_selector = selector_from_name("test_get_execution_info");
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
@@ -1118,7 +1120,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         contract_address!(TEST_SEQUENCER_ADDRESS),
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         test_builder.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        ProofFacts::default(),
+        proof_facts.clone(),
     )
     .to_syscall_result();
     let invoke_tx_args = invoke_tx_args! {
@@ -1131,6 +1133,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
                 expected_execution_info.len().into()
             ].into_iter().chain(expected_execution_info.into_iter()).collect::<Vec<_>>()
         ),
+        proof_facts,
     };
     // Put the tx hash in the signature.
     let mut invoke_tx = test_builder.create_funded_account_invoke(invoke_tx_args);
