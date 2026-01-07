@@ -1,5 +1,6 @@
 use alloy::providers::Provider;
 use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use papyrus_base_layer::BaseLayerContract;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -49,7 +50,12 @@ async fn latest_proved_block_ethereum() {
         ))),
     };
 
-    let mut base_layer = AnvilBaseLayer::new(None, None).await;
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::LatestProvedBlockEthereumTest.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for latest_proved_block_ethereum");
+    let mut base_layer = AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
     let provider = &base_layer.anvil_provider;
 
     let mut current_block = provider.get_block_number().await.expect("Failed to get block number");

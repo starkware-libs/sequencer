@@ -17,6 +17,7 @@ use apollo_infra::component_server::{
     LocalComponentServer,
     LocalServerConfig,
 };
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
@@ -67,7 +68,11 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
-    let mut base_layer = AnvilBaseLayer::new(None, None).await;
+    let mut ports_gen = AvailablePortsGenerator::new(TestIdentifier::L1ProviderUnitTests.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for L1 provider unit tests");
+    let mut base_layer = AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
     anvil_mine_blocks(base_layer.ethereum_base_layer.config.clone(), NUMBER_OF_BLOCKS_TO_MINE)
         .await;
     // We use a really long timeout because in the tests we sometimes advance the fake time by large
