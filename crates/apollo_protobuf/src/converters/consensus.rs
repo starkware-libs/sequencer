@@ -279,13 +279,17 @@ impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
         let proposal_commitment: ProposalCommitment =
             value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
-        Ok(ProposalFin { proposal_commitment })
+        let executed_transaction_count = value.executed_transaction_count;
+        Ok(ProposalFin { proposal_commitment, executed_transaction_count })
     }
 }
 
 impl From<ProposalFin> for protobuf::ProposalFin {
     fn from(value: ProposalFin) -> Self {
-        protobuf::ProposalFin { proposal_commitment: Some(value.proposal_commitment.into()) }
+        protobuf::ProposalFin {
+            proposal_commitment: Some(value.proposal_commitment.into()),
+            executed_transaction_count: value.executed_transaction_count,
+        }
     }
 }
 
@@ -305,9 +309,6 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
             Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
             Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
-            Message::ExecutedTransactionCount(count) => {
-                Ok(ProposalPart::ExecutedTransactionCount(count))
-            }
         }
     }
 }
@@ -326,9 +327,6 @@ impl From<ProposalPart> for protobuf::ProposalPart {
             },
             ProposalPart::Transactions(content) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Transactions(content.into())),
-            },
-            ProposalPart::ExecutedTransactionCount(count) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::ExecutedTransactionCount(count)),
             },
         }
     }
