@@ -1,8 +1,15 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use apollo_metrics::define_metrics;
 use apollo_metrics::metrics::LossyIntoF64;
-use apollo_network::metrics::NetworkMetrics;
+use apollo_network::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+    NETWORK_BROADCAST_DROP_LABELS,
+};
+
+use crate::protocol::TOPIC;
 
 define_metrics!(
     Infra => {
@@ -21,6 +28,9 @@ define_metrics!(
         // network metrics from the network manager
         MetricGauge { NETWORK_CONNECTED_PEERS, "network_connected_peers", "Number of connected peers in the network" },
         MetricGauge { NETWORK_BLACKLISTED_PEERS, "network_blacklisted_peers", "Number of blacklisted peers in the network" },
+        MetricCounter { NETWORK_STRESS_TEST_SENT_MESSAGES, "network_stress_test_sent_messages", "Number of stress test messages sent via broadcast", init = 0 },
+        MetricCounter { NETWORK_STRESS_TEST_RECEIVED_MESSAGES, "network_stress_test_received_messages", "Number of stress test messages received via broadcast", init = 0 },
+        LabeledMetricCounter { NETWORK_DROPPED_BROADCAST_MESSAGES, "network_dropped_broadcast_messages", "Number of dropped broadcast messages by reason", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
 
         // system metrics for the node
         MetricGauge { SYSTEM_TOTAL_MEMORY_BYTES, "system_total_memory_bytes", "Total system memory in bytes" },
@@ -49,10 +59,30 @@ pub fn get_throughput(message_size_bytes: usize, heartbeat_duration: Duration) -
 
 /// Creates barebones network metrics
 pub fn create_network_metrics() -> apollo_network::metrics::NetworkMetrics {
+    // Create broadcast metrics for the stress test topic
+    let stress_test_broadcast_metrics = BroadcastNetworkMetrics {
+        sent_broadcast_message_metrics: apollo_network::metrics::MessageMetrics {
+            num_messages: NETWORK_STRESS_TEST_SENT_MESSAGES,
+            message_size_mb: None,
+        },
+        dropped_broadcast_message_metrics: apollo_network::metrics::LabeledMessageMetrics {
+            num_messages: NETWORK_DROPPED_BROADCAST_MESSAGES,
+            message_size_mb: None,
+        },
+        received_broadcast_message_metrics: apollo_network::metrics::MessageMetrics {
+            num_messages: NETWORK_STRESS_TEST_RECEIVED_MESSAGES,
+            message_size_mb: None,
+        },
+    };
+
+    // Create a map with broadcast metrics for our stress test topic
+    let mut broadcast_metrics_by_topic = HashMap::new();
+    broadcast_metrics_by_topic.insert(TOPIC.hash(), stress_test_broadcast_metrics);
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
-        broadcast_metrics_by_topic: None,
+        broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
         event_metrics: None,
         latency_metrics: None,
