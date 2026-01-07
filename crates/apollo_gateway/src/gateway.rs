@@ -101,7 +101,7 @@ impl Gateway {
 }
 
 #[derive(Clone)]
-pub(crate) struct GenericGateway<
+pub struct GenericGateway<
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
@@ -157,7 +157,7 @@ impl<
 > GenericGateway<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
 {
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
-    pub(crate) async fn add_tx(
+    pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
