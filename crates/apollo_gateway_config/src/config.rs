@@ -321,12 +321,20 @@ impl Default for ProofArchiveWriterConfig {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl ProofArchiveWriterConfig {
+    pub fn create_for_testing() -> Self {
+        Self { bucket_name: String::new() }
+    }
+}
+
 impl SerializeConfig for ProofArchiveWriterConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([ser_param(
             "bucket_name",
             &self.bucket_name,
-            "The name of the bucket to write proofs to.",
+            "The name of the bucket to write proofs to. An empty string indicates a test \
+             environment that does not connect to GCS.",
             ParamPrivacyInput::Public,
         )])
     }

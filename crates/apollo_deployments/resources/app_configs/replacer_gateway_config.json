@@ -17,7 +17,7 @@
   "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage": 16106127360,
   "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": false,
   "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": 2,
-  "gateway_config.proof_archive_writer_config.bucket_name": "proof-archive",
+  "gateway_config.proof_archive_writer_config.bucket_name": "$$$_GATEWAY_CONFIG_PROOF_ARCHIVE_WRITER_CONFIG_BUCKET_NAME_$$$",
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": "$$$_GATEWAY_CONFIG-STATEFUL_TX_VALIDATOR_CONFIG-MAX_ALLOWED_NONCE_GAP_$$$",
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
   "gateway_config.stateful_tx_validator_config.min_gas_price_percentage": 100,
