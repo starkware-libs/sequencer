@@ -919,12 +919,14 @@ async fn send_reproposal(
         stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
         n_executed_txs += batch.len();
     }
+    let executed_transaction_count: u64 =
+        n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
     stream_sender
-        .send(ProposalPart::ExecutedTransactionCount(
-            n_executed_txs.try_into().expect("Number of executed transactions should fit in u64"),
-        ))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: id,
+            executed_transaction_count,
+        }))
         .await?;
-    stream_sender.send(ProposalPart::Fin(ProposalFin { proposal_commitment: id })).await?;
 
     Ok(())
 }
