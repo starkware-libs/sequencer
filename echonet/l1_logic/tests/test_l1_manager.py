@@ -7,8 +7,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 import unittest
 from unittest.mock import Mock, patch
 
-from l1_client import L1Client
-from l1_manager import L1Manager
 from test_utils import L1TestUtils
 
 from echonet.l1_logic.l1_blocks import L1Blocks
