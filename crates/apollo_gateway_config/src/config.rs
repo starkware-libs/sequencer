@@ -23,7 +23,7 @@ use validator::Validate;
 use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
-const DEFAULT_BUCKET_NAME: &str = "proof-archive";
+const DEFAULT_BUCKET_NAME: &str = "";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
@@ -326,7 +326,8 @@ impl SerializeConfig for ProofArchiveWriterConfig {
         BTreeMap::from_iter([ser_param(
             "bucket_name",
             &self.bucket_name,
-            "The name of the bucket to write proofs to.",
+            "The name of the bucket to write proofs to. An empty string indicates a test \
+             environment that does not connect to GCS.",
             ParamPrivacyInput::Public,
         )])
     }

@@ -43,7 +43,11 @@ use crate::errors::{
     GatewayResult,
 };
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
-use crate::proof_archive_writer::{GcsProofArchiveWriter, ProofArchiveWriterTrait};
+use crate::proof_archive_writer::{
+    GcsProofArchiveWriter,
+    NoOpProofArchiveWriter,
+    ProofArchiveWriterTrait,
+};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
@@ -246,8 +250,15 @@ pub fn create_gateway(
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.stateless_tx_validator_config.clone(),
     });
-    let proof_archive_writer =
-        Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()));
+
+    // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.
+    let proof_archive_writer: Arc<dyn ProofArchiveWriterTrait> =
+        if config.proof_archive_writer_config.bucket_name.is_empty() {
+            Arc::new(NoOpProofArchiveWriter)
+        } else {
+            Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()))
+        };
+
     Gateway::new(
         config,
         state_reader_factory,

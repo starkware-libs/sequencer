@@ -1522,6 +1522,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "clap",
  "criterion",
+ "google-cloud-storage",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
