@@ -166,6 +166,7 @@ class BlobTransformer:
         self._chain = chain
         self._custom_fields: JsonObject = dict(custom_fields)
         self._logger: logging.Logger = logger_obj
+        self._latest_block_meta: Optional[JsonObject] = None
 
     @staticmethod
     def get_blob_tx_hashes(blob: JsonObject) -> List[str]:
@@ -290,21 +291,28 @@ class BlobTransformer:
 
         return receipt
 
-    def _fetch_upstream_block_meta(self, block_number: int) -> JsonObject:
+    def _fetch_upstream_block_meta(self, block_number: Optional[int]) -> JsonObject:
         """
         Fetch mainnet timestamp and gas prices for `block_number`.
         (fetched from shared FGW snapshot or upstream feeder gateway)
         """
+        if block_number is None:
+            if self._latest_block_meta is not None:
+                return dict(self._latest_block_meta)
+            block_number = self._chain.base_block_number
+
         obj = self._shared.get_fgw_block(block_number)
         if obj is None:
             obj = self._feeder_client.get_block(block_number)
 
-        return {
+        meta: JsonObject = {
             "timestamp": obj["timestamp"],
             "l1_gas_price": obj["l1_gas_price"],
             "l1_data_gas_price": obj["l1_data_gas_price"],
             "l2_gas_price": obj["l2_gas_price"],
         }
+        self._latest_block_meta = meta
+        return meta
 
     @staticmethod
     def _transform_transactions(tx_entries: List[JsonObject]) -> List[JsonObject]:
@@ -403,10 +411,9 @@ class BlobTransformer:
         block_document.update(self._custom_fields)
 
         tx_hashes = self.get_blob_tx_hashes(blob)
-        if tx_hashes:
-            bn_for_meta = self._shared.get_sent_block_number(tx_hashes[0])
-        else:
-            bn_for_meta = self._chain.base_block_number
+        bn_for_meta: Optional[int] = (
+            self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else None
+        )
 
         meta = self._fetch_upstream_block_meta(bn_for_meta)
         block_document["timestamp"] = meta["timestamp"]
