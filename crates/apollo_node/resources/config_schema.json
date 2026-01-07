@@ -2500,7 +2500,7 @@
     "value": 2
   },
   "gateway_config.proof_archive_writer_config.bucket_name": {
-    "description": "The name of the bucket to write proofs to.",
+    "description": "The name of the bucket to write proofs to. An empty string indicates a test environment that does not connect to GCS.",
     "privacy": "Public",
     "value": "proof-archive"
   },
