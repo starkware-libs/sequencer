@@ -203,7 +203,7 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
     }
     // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
     // It is possible that a block is filled, no need to assert that this is not the case.
-    // TODO(AlonH): In the `else` case, assert that some block closed due to time.
+    // TODO(Arni): In the `else` case, assert that some block closed due to time.
 }
 
 fn assert_on_number_of_reverted_transactions_flow(
