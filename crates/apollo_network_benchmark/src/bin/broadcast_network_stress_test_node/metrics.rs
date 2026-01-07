@@ -6,6 +6,7 @@ use apollo_metrics::metrics::LossyIntoF64;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
     EventMetrics,
+    LatencyMetrics,
     NetworkMetrics,
     SqmrNetworkMetrics,
     EVENT_TYPE_LABELS,
@@ -54,6 +55,8 @@ define_metrics!(
         MetricGauge { SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL, "system_network_bytes_received_total", "Total bytes received across all network interfaces since system start" },
         MetricGauge { SYSTEM_NETWORK_BYTES_SENT_CURRENT, "system_network_bytes_sent_current", "Bytes sent across all network interfaces since last measurement" },
         MetricGauge { SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT, "system_network_bytes_received_current", "Bytes received across all network interfaces since last measurement" },
+
+        MetricHistogram { PING_LATENCY_SECONDS, "ping_latency_seconds", "Ping latency in seconds" },
     },
 );
 
@@ -94,12 +97,15 @@ pub fn create_network_metrics() -> apollo_network::metrics::NetworkMetrics {
     // Create event metrics for network events monitoring
     let event_metrics = EventMetrics { event_counter: NETWORK_EVENT_COUNTER };
 
+    // Create latency metrics for ping monitoring
+    let latency_metrics = LatencyMetrics { ping_latency_seconds: PING_LATENCY_SECONDS };
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: Some(sqmr_metrics),
         event_metrics: Some(event_metrics),
-        latency_metrics: None,
+        latency_metrics: Some(latency_metrics),
     }
 }
