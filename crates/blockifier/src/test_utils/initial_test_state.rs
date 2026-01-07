@@ -83,6 +83,7 @@ pub fn setup_test_state(
     }
 }
 
+// TODO(Meshi): Add block hash storage updates.
 pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
