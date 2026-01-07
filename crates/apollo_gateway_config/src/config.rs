@@ -23,6 +23,7 @@ use validator::Validate;
 use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
+const DEFAULT_BUCKET_NAME: &str = "proof-archive";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
@@ -33,6 +34,7 @@ pub struct GatewayConfig {
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+    pub proof_archive_writer_config: ProofArchiveWriterConfig,
 }
 
 impl Default for GatewayConfig {
@@ -47,6 +49,7 @@ impl Default for GatewayConfig {
             chain_info: ChainInfo::default(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         }
     }
 }
@@ -79,6 +82,10 @@ impl SerializeConfig for GatewayConfig {
             "Authorized declarer accounts. If set, only these accounts can declare new contracts. \
              Addresses are in hex format and separated by a comma with no space.",
             ParamPrivacyInput::Public,
+        ));
+        dump.extend(prepend_sub_config_name(
+            self.proof_archive_writer_config.dump(),
+            "proof_archive_writer_config",
         ));
         dump
     }
@@ -300,5 +307,27 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
             "versioned_constants_overrides",
         ));
         dump
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct ProofArchiveWriterConfig {
+    pub bucket_name: String,
+}
+
+impl Default for ProofArchiveWriterConfig {
+    fn default() -> Self {
+        Self { bucket_name: DEFAULT_BUCKET_NAME.to_string() }
+    }
+}
+
+impl SerializeConfig for ProofArchiveWriterConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "bucket_name",
+            &self.bucket_name,
+            "The name of the bucket to write proofs to.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
