@@ -26,6 +26,8 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{
+    BLOCK_HASH_HISTORY_RANGE,
+    CURRENT_BLOCK_NUMBER,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
@@ -41,6 +43,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
@@ -57,6 +60,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallUsageMap,
 };
 use crate::fee::resources::{StarknetResources, StateResources};
+use crate::state::cached_state::StateMaps;
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
@@ -415,4 +419,26 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
         number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
         hash: BlockHash(StarkHash::ONE),
     })
+}
+
+/// Returns the contract address for the block hash contract used in tests.
+pub fn block_hash_contract_address() -> ContractAddress {
+    VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address()
+}
+
+/// Generates deterministic block hash storage updates for historical blocks.
+/// Populates a range of blocks with deterministic hash values (block_num * 100).
+pub fn generate_block_hash_storage_updates() -> StateMaps {
+    let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
+    let block_hash_history_end = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER - 1;
+    let block_hash_contract = block_hash_contract_address();
+    let storage = (block_hash_history_start..=block_hash_history_end)
+        .map(|block_num| {
+            ((block_hash_contract, StorageKey::from(block_num)), Felt::from(block_num * 100))
+        })
+        .collect();
+    StateMaps { storage, ..Default::default() }
 }

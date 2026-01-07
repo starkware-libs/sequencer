@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -174,7 +175,13 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     );
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
+    // Add historical block hashes.
+    let block_hash_state_maps = generate_block_hash_storage_updates();
+    final_state
+        .state
+        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
+
+    // Commits the state diff with block hash mappings.
     let committer_state_diff = create_committer_state_diff(state_diff);
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
