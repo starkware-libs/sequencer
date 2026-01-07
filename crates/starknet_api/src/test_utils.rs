@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -26,6 +26,7 @@ use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass,
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
+use crate::state::StorageKey;
 use crate::transaction::fields::{
     AllResourceBounds,
     Fee,
@@ -53,6 +54,22 @@ pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
 pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
+
+// Range of historical blocks to populate in the block hash contract.
+// For block number N, we populate blocks BLOCK_HASH_HISTORY_START to BLOCK_HASH_HISTORY_END.
+// E.g., for block 2001: blocks 1950 to 1990.
+pub const BLOCK_HASH_HISTORY_START: u64 = 1950;
+pub const BLOCK_HASH_HISTORY_END: u64 = 1990;
+
+/// Generates deterministic block hash storage updates for historical blocks.
+/// Populates blocks BLOCK_HASH_HISTORY_START to BLOCK_HASH_HISTORY_END with deterministic hash
+/// values (block_num * 100, i.e., 195000, 195100, ..., 199000).
+pub fn generate_block_hash_storage_updates() -> hash_map::IntoIter<StorageKey, Felt> {
+    (BLOCK_HASH_HISTORY_START..=BLOCK_HASH_HISTORY_END)
+        .map(|block_num| (StorageKey::from(block_num), Felt::from(block_num * 100)))
+        .collect::<HashMap<_, _>>()
+        .into_iter()
+}
 
 // The block timestamp of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
@@ -127,7 +144,7 @@ macro_rules! nonce {
     };
 }
 
-/// A utility macro to create a [`StorageKey`](crate::state::StorageKey) from a hex string /
+/// A utility macro to create a [`StorageKey`] from a hex string /
 /// unsigned integer representation.
 #[macro_export]
 macro_rules! storage_key {
@@ -371,12 +388,17 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
-        // TODO(AvivG): Change to valid values when available.
         let program_hash = felt!("0x4");
-        let block_number = felt!("0x3");
-        let block_hash = felt!("0x2");
-        let config_hash = felt!("0x1");
 
+        let block_number = felt!(BLOCK_HASH_HISTORY_START + 2);
+        let block_hash = block_number * felt!(100_u64);
+        assert!(
+            block_number <= felt!(BLOCK_HASH_HISTORY_END)
+                && block_number >= felt!(BLOCK_HASH_HISTORY_START),
+            "Block number is out of range"
+        );
+        // TODO(AvivG): Change to valid values when available.
+        let config_hash = felt!("0x1");
         proof_facts![felt!(VIRTUAL_SNOS), program_hash, block_number, block_hash, config_hash]
     }
 }

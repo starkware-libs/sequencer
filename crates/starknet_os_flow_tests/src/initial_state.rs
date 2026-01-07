@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::block_hash_contract_address;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -27,7 +29,12 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
+use starknet_api::test_utils::{
+    generate_block_hash_storage_updates,
+    NonceManager,
+    CHAIN_ID_FOR_TESTS,
+    CURRENT_BLOCK_NUMBER,
+};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
@@ -174,7 +181,19 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     );
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
+    // Generates block hash storage updates for historical blocks.
+    let block_hash_storage_updates: HashMap<_, _> = generate_block_hash_storage_updates().collect();
+
+    // Add historical block hashes.
+    let mut block_hash_state_maps = StateMaps::default();
+    for (key, value) in &block_hash_storage_updates {
+        block_hash_state_maps.storage.insert((block_hash_contract_address(), *key), *value);
+    }
+    final_state
+        .state
+        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
+
+    // Commits the state diff with block hash mappings.
     let committer_state_diff = create_committer_state_diff(state_diff);
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;

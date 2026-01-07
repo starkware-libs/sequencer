@@ -41,6 +41,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
@@ -415,4 +416,12 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
         number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
         hash: BlockHash(StarkHash::ONE),
     })
+}
+
+/// Returns the contract address for the block hash contract used in tests.
+pub fn block_hash_contract_address() -> ContractAddress {
+    VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address()
 }
