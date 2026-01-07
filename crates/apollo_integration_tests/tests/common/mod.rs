@@ -29,6 +29,7 @@ use tracing::info;
 
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
+    pub instance_indices: [u16; 3],
     pub test_blocks_scenarios: Vec<TestScenario>,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
@@ -44,6 +45,7 @@ impl EndToEndFlowArgs {
     ) -> Self {
         Self {
             test_identifier,
+            instance_indices: [0, 1, 2],
             test_blocks_scenarios,
             block_max_capacity_gas,
             expecting_full_blocks: false,
@@ -63,6 +65,10 @@ impl EndToEndFlowArgs {
     pub fn allow_bootstrap_txs(self) -> Self {
         Self { allow_bootstrap_txs: true, ..self }
     }
+
+    pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
+        Self { instance_indices, ..self }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -71,6 +77,7 @@ impl EndToEndFlowArgs {
 pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let EndToEndFlowArgs {
         test_identifier,
+        instance_indices,
         test_blocks_scenarios,
         block_max_capacity_gas,
         expecting_full_blocks,
@@ -91,6 +98,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         test_identifier.into(),
         block_max_capacity_gas,
         allow_bootstrap_txs,
+        instance_indices,
     )
     .await;
 
