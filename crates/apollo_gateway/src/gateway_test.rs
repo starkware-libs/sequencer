@@ -11,6 +11,7 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
+    ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -126,6 +127,7 @@ fn mock_dependencies() -> MockDependencies {
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,
+        proof_archive_writer_config: ProofArchiveWriterConfig::default(),
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
@@ -520,13 +522,17 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     original_config.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap()).unwrap();
 
     // Load the config from the dumped config file.
-    let loaded_config = load_and_process_config::<GatewayConfig>(
+    let mut loaded_config = load_and_process_config::<GatewayConfig>(
         File::open(file_path).unwrap(), // Config file to load.
         Command::new(""),               // Unused CLI context.
         vec![],                         // No override CLI args.
         false,                          // Use schema defaults.
     )
     .unwrap();
+
+    // Sensitive fields like bucket_name can't round-trip through serialization since they
+    // serialize as "<<redacted>>". Set it to match the original for comparison.
+    loaded_config.proof_archive_writer_config = original_config.proof_archive_writer_config.clone();
 
     assert_eq!(loaded_config, original_config);
 }

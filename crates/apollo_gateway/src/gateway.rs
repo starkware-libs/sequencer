@@ -242,7 +242,6 @@ pub fn create_gateway(
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.stateless_tx_validator_config.clone(),
     });
-
     Gateway::new(
         config,
         state_reader_factory,
