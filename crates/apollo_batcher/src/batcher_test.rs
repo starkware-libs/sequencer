@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use starknet_api::core::GlobalRoot;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -1297,7 +1298,11 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
-    let mock_dependencies = MockDependencies { storage_writer, ..Default::default() };
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_reversed_state_diff().returning(|_| Ok(test_state_diff()));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    let mock_dependencies = MockDependencies { storage_reader, storage_writer, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1305,6 +1310,7 @@ async fn revert_block() {
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
+
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
