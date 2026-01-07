@@ -630,7 +630,7 @@ pub fn create_gateway_config(
         ..Default::default()
     };
     let contract_class_manager_config = ContractClassManagerConfig::default();
-    let proof_archive_writer_config = ProofArchiveWriterConfig::default();
+    let proof_archive_writer_config = ProofArchiveWriterConfig::create_for_testing();
 
     GatewayConfig {
         stateless_tx_validator_config,
