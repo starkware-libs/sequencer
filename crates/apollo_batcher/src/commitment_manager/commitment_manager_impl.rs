@@ -210,6 +210,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         self.commitment_task_offset =
             self.commitment_task_offset.next().expect("Block number overflowed.");
     }
+    pub(crate) fn decrease_commitment_task_offset(&mut self) {
+        self.commitment_task_offset =
+            self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
+    }
 
     async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
         &mut self,
