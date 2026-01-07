@@ -12,6 +12,7 @@ use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 use crate::handlers::{receive_stress_test_message, send_stress_test_messages};
+use crate::metrics::create_network_metrics;
 use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
 
 /// The main stress test node that manages network communication and monitoring
@@ -56,7 +57,9 @@ impl BroadcastNetworkStressTestNode {
         let network_config = Self::create_network_config(&args);
 
         // Create network manager
-        let mut network_manager = NetworkManager::new(network_config.clone(), None, None);
+        let network_metrics = create_network_metrics();
+        let mut network_manager =
+            NetworkManager::new(network_config.clone(), None, Some(network_metrics));
 
         // Register protocol channels
         let (message_sender, message_receiver) = register_protocol_channels(
