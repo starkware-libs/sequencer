@@ -147,7 +147,13 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Processes OS outputs by combining blocks and serializing the result.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
+}(
+    n_blocks: felt,
+    os_outputs: OsOutput*,
+    n_public_keys: felt,
+    public_keys: felt*,
+    os_global_context: OsGlobalContext*,
+) {
     alloc_locals;
     // Guess whether to use KZG commitment scheme and whether to output the full state.
     // TODO(meshi): Once use_kzg_da field is used in the OS for the computation of fees and block
@@ -181,7 +187,9 @@ func process_os_output{
 }
 
 // Returns the virtual OS config, which is always disabled in the Starknet sequencer OS.
-func get_virtual_os_config() -> VirtualOsConfig {
-    let virtual_os_config = VirtualOsConfig(enabled=FALSE);
+func get_virtual_os_config() -> VirtualOsConfig* {
+    tempvar virtual_os_config: VirtualOsConfig* = new VirtualOsConfig(
+        enabled=FALSE, authorized_account_address=0
+    );
     return virtual_os_config;
 }
