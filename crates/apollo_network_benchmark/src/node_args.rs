@@ -4,10 +4,26 @@ use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Mode {
+    /// All nodes broadcast messages
+    #[value(name = "all")]
+    AllBroadcast,
+    /// Only the node specified by --broadcaster broadcasts messages
+    #[value(name = "one")]
+    OneBroadcast,
+}
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkProtocol {
     /// Use gossipsub for broadcasting (default)
     #[value(name = "gossipsub")]
     Gossipsub,
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_possible_value().unwrap().get_name())
+    }
 }
 
 impl Display for NetworkProtocol {
@@ -49,9 +65,17 @@ pub struct UserArgs {
     #[arg(long, env, default_value = "100000")]
     pub buffer_size: usize,
 
+    /// The mode to use for the stress test.
+    #[arg(long, env, default_value = "all")]
+    pub mode: Mode,
+
     /// The network protocol to use for communication (default: gossipsub)
     #[arg(long, env, default_value = "gossipsub")]
     pub network_protocol: NetworkProtocol,
+
+    /// Which node ID should do the broadcasting - for OneBroadcast mode
+    #[arg(long, env, required_if_eq("mode", "one"))]
+    pub broadcaster: Option<u64>,
 
     /// Size of StressTestMessage
     #[arg(long, env, default_value = "1024")]
