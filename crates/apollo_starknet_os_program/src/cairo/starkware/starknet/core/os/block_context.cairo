@@ -19,6 +19,9 @@ from starkware.starknet.core.os.os_config.os_config import StarknetOsConfig
 // This mode should be disabled in the Starknet sequencer.
 struct VirtualOsConfig {
     enabled: felt,
+    // The address of the account authorized to run transactions in virtual OS mode.
+    // All the transactions in the block must be sent by this account.
+    authorized_account_address: felt,
 }
 
 // Struct to group compiled class facts parameters.
@@ -37,7 +40,7 @@ struct OsGlobalContext {
     starknet_os_config_hash: felt,
 
     // Configuration for the virtual OS.
-    virtual_os_config: VirtualOsConfig,
+    virtual_os_config: VirtualOsConfig*,
 
     // Compiled class facts available globally for all blocks.
     compiled_class_facts_bundle: CompiledClassFactsBundle,
