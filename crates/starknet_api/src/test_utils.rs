@@ -54,6 +54,9 @@ pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
 pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 
+// Range of historical blocks to populate in the block hash contract.
+pub const BLOCK_HASH_HISTORY_RANGE: u64 = 51;
+
 // The block timestamp of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
@@ -127,7 +130,7 @@ macro_rules! nonce {
     };
 }
 
-/// A utility macro to create a [`StorageKey`](crate::state::StorageKey) from a hex string /
+/// A utility macro to create a [`StorageKey`] from a hex string /
 /// unsigned integer representation.
 #[macro_export]
 macro_rules! storage_key {
@@ -371,12 +374,17 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
-        // TODO(AvivG): Change to valid values when available.
         let program_hash = felt!("0x4");
-        let block_number = felt!("0x3");
-        let block_hash = felt!("0x2");
+        let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
+        let block_number = felt!(block_hash_history_start + 2);
+        let block_hash = block_number * felt!(100_u64);
+        assert!(
+            block_number < felt!(CURRENT_BLOCK_NUMBER)
+                && block_number >= felt!(block_hash_history_start),
+            "Block number is out of range"
+        );
+        // TODO(AvivG): Change to valid values when available.
         let config_hash = felt!("0x1");
-
         proof_facts![felt!(VIRTUAL_SNOS), program_hash, block_number, block_hash, config_hash]
     }
 }
