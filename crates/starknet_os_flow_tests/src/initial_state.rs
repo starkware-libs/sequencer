@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::block_hash_contract_address;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -27,11 +29,20 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
+use starknet_api::test_utils::{
+    generate_block_hash_storage_updates,
+    NonceManager,
+    CHAIN_ID_FOR_TESTS,
+    CURRENT_BLOCK_NUMBER,
+};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
@@ -174,8 +185,26 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     );
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
-    let committer_state_diff = create_committer_state_diff(state_diff);
+    // Generate block hash storage updates for historical blocks.
+    let block_hash_storage_updates: HashMap<_, _> = generate_block_hash_storage_updates().collect();
+
+    // Commit the state diff with block hash mappings.
+    let mut committer_state_diff = create_committer_state_diff(state_diff);
+    committer_state_diff.storage_updates.entry(block_hash_contract_address()).or_default().extend(
+        block_hash_storage_updates
+            .iter()
+            .map(|(k, v)| (StarknetStorageKey(*k), StarknetStorageValue(*v))),
+    );
+
+    // Also apply block hash storage to the blockifier's cached state.
+    let mut block_hash_state_maps = StateMaps::default();
+    for (key, value) in &block_hash_storage_updates {
+        block_hash_state_maps.storage.insert((block_hash_contract_address(), *key), *value);
+    }
+    final_state
+        .state
+        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
+
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 

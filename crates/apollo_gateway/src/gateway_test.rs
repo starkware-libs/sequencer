@@ -38,6 +38,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
+use blockifier::test_utils::block_hash_contract_address;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
@@ -62,6 +63,7 @@ use starknet_api::test_utils::declare::{
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
+    generate_block_hash_storage_updates,
     valid_resource_bounds_for_testing,
     TestingTxArgs,
     CHAIN_ID_FOR_TESTS,
@@ -276,13 +278,21 @@ async fn setup_mock_state(
 
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, tx_args);
 
+    // Setup state: fund account and store proof block hash if needed.
+    let state_reader =
+        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader;
     let address = expected_internal_tx.contract_address();
     fund_account(
         &mock_dependencies.config.chain_info,
         address,
         VALID_ACCOUNT_BALANCE,
-        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
+        state_reader,
     );
+
+    let block_hash_to_number_storage = generate_block_hash_storage_updates();
+    for (block_hash, block_number) in block_hash_to_number_storage {
+        state_reader.storage_view.insert((block_hash_contract_address(), block_hash), block_number);
+    }
 
     let mempool_add_tx_args = AddTransactionArgs {
         tx: expected_internal_tx.clone(),

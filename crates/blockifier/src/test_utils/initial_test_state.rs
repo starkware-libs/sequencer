@@ -83,6 +83,7 @@ pub fn setup_test_state(
     }
 }
 
+// TODO(Meshi): create a client-side test state.
 pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
