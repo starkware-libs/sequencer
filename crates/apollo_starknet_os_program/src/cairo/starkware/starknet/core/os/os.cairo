@@ -128,6 +128,7 @@ func main{
         os_outputs=os_outputs,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+        os_global_context=os_global_context,
     );
 
     // The following code deals with the problem that untrusted code (contract code) could

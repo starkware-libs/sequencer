@@ -65,7 +65,11 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
     run_validate,
     update_class_hash_in_execution_context,
 )
-from starkware.starknet.core.os.execution.execution_constraints import check_n_txs, check_tx_type
+from starkware.starknet.core.os.execution.execution_constraints import (
+    check_n_txs,
+    check_tx_type,
+    check_sender_address,
+)
 from starkware.starknet.core.os.execution.revert import init_revert_log
 from starkware.starknet.core.os.output import (
     MessageToL2Header,
@@ -212,29 +216,38 @@ func execute_transactions_inner{
 
     check_tx_type(tx_type=tx_type);
 
+    local sender_address: felt;
     if (tx_type == 'INVOKE_FUNCTION') {
         // Handle the invoke-function transaction.
-        execute_invoke_function_transaction(block_context=block_context);
+        let (tx_sender_address) = execute_invoke_function_transaction(block_context=block_context);
         %{ ExitTx %}
-        return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
-    }
-    if (tx_type == 'L1_HANDLER') {
-        // Handle the L1-handler transaction.
-        execute_l1_handler_transaction(block_context=block_context);
-        %{ ExitTx %}
-        return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
-    }
-    if (tx_type == 'DEPLOY_ACCOUNT') {
-        // Handle the deploy-account transaction.
-        execute_deploy_account_transaction(block_context=block_context);
-        %{ ExitTx %}
-        return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
+        assert sender_address = tx_sender_address;
+    } else {
+        if (tx_type == 'L1_HANDLER') {
+            // Handle the L1-handler transaction.
+            let (tx_sender_address) = execute_l1_handler_transaction(block_context=block_context);
+            %{ ExitTx %}
+            assert sender_address = tx_sender_address;
+        } else {
+            if (tx_type == 'DEPLOY_ACCOUNT') {
+                // Handle the deploy-account transaction.
+                let (tx_sender_address) = execute_deploy_account_transaction(
+                    block_context=block_context
+                );
+                %{ ExitTx %}
+                assert sender_address = tx_sender_address;
+            } else {
+                assert tx_type = 'DECLARE';
+                // Handle the declare transaction.
+                let (tx_sender_address) = execute_declare_transaction(block_context=block_context);
+                %{ ExitTx %}
+                assert sender_address = tx_sender_address;
+            }
+        }
     }
 
-    assert tx_type = 'DECLARE';
-    // Handle the declare transaction.
-    execute_declare_transaction(block_context=block_context);
-    %{ ExitTx %}
+    check_sender_address(sender_address=sender_address, block_context=block_context);
+
     return execute_transactions_inner(block_context=block_context, n_txs=n_txs - 1);
 }
 
@@ -408,13 +421,16 @@ func fill_account_tx_info{range_check_ptr}(
 //
 // Arguments:
 // block_context - a global context that is fixed throughout the block.
+//
+// Returns:
+// sender_address - the address of the transaction sender.
 func execute_invoke_function_transaction{
     range_check_ptr,
     builtin_ptrs: BuiltinPointers*,
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*) {
+}(block_context: BlockContext*) -> (sender_address: felt) {
     alloc_locals;
 
     // TODO(Yoni): consider not sharing this code with L1 handler.
@@ -424,6 +440,7 @@ func execute_invoke_function_transaction{
         entry_point_selector=EXECUTE_ENTRY_POINT_SELECTOR,
     );
     local tx_execution_info: ExecutionInfo* = tx_execution_context.execution_info;
+    local sender_address = tx_execution_info.contract_address;
 
     // Guess transaction fields.
     // The version validation is done in `compute_invoke_transaction_hash()`.
@@ -513,7 +530,7 @@ func execute_invoke_function_transaction{
 
     %{ EndTx %}
 
-    return ();
+    return (sender_address=sender_address);
 }
 
 // Executes an L1-handler transaction.
@@ -528,7 +545,7 @@ func execute_l1_handler_transaction{
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*) {
+}(block_context: BlockContext*) -> (sender_address: felt) {
     alloc_locals;
 
     %{ StartTx %}
@@ -537,7 +554,7 @@ func execute_l1_handler_transaction{
     // Skip the execution step for reverted transaction.
     if (is_reverted != FALSE) {
         %{ EndTx %}
-        return ();
+        return (sender_address=0);
     }
 
     // TODO(Yoni): currently, the contract state is not fetched for reverted L1 handlers.
@@ -599,7 +616,7 @@ func execute_l1_handler_transaction{
     );
 
     %{ EndTx %}
-    return ();
+    return (sender_address=0);
 }
 
 // Guess the execution context of an invoke transaction (either invoke function or L1 handler).
@@ -718,13 +735,15 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
     );
 }
 
+// Returns:
+// sender_address - the address of the transaction sender.
 func execute_deploy_account_transaction{
     range_check_ptr,
     builtin_ptrs: BuiltinPointers*,
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*) {
+}(block_context: BlockContext*) -> (sender_address: felt) {
     alloc_locals;
 
     // Calculate address and prepare constructor execution context.
@@ -838,23 +857,25 @@ func execute_deploy_account_transaction{
     charge_fee(block_context=block_context, tx_execution_context=validate_deploy_execution_context);
 
     %{ EndTx %}
-    return ();
+    return (sender_address=sender_address);
 }
 
+// Returns:
+// sender_address - the address of the transaction sender.
 func execute_declare_transaction{
     range_check_ptr,
     builtin_ptrs: BuiltinPointers*,
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*) {
+}(block_context: BlockContext*) -> (sender_address: felt) {
     alloc_locals;
 
     local tx_version;
     %{ TxVersion %}
     if (tx_version == 0) {
         %{ SkipTx %}
-        return ();
+        return (sender_address=0);
     }
 
     // Guess transaction fields.
@@ -922,7 +943,7 @@ func execute_declare_transaction{
                 key=[class_hash_ptr], prev_value=0, new_value=compiled_class_hash
             );
             %{ SkipTx %}
-            return ();
+            return (sender_address=sender_address);
         }
     }
 
@@ -975,5 +996,5 @@ func execute_declare_transaction{
     );
     %{ EndTx %}
 
-    return ();
+    return (sender_address=sender_address);
 }

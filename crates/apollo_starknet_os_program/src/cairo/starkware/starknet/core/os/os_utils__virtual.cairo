@@ -7,6 +7,7 @@ from starkware.starknet.core.os.block_context import BlockContext, OsGlobalConte
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
+from starkware.cairo.common.alloc import alloc
 
 const VIRTUAL_OS_OUTPUT_VERSION = 0;
 
@@ -51,7 +52,13 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Outputs the virtual OS header and the messages to L1.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
+}(
+    n_blocks: felt,
+    os_outputs: OsOutput*,
+    n_public_keys: felt,
+    public_keys: felt*,
+    os_global_context: OsGlobalContext*,
+) {
     alloc_locals;
     assert n_public_keys = 0;
 
@@ -65,7 +72,7 @@ func process_os_output{
     serialize_word(header.prev_block_number);
     serialize_word(header.prev_block_hash);
     serialize_word(header.starknet_os_config_hash);
-    // TODO(Yoni): output the authorized account address.
+    serialize_word(os_global_context.virtual_os_config.authorized_account_address);
 
     // TODO(Yoni): output the hash of the messages instead.
     let messages_to_l1_segment_size = (
@@ -85,7 +92,10 @@ func process_os_output{
 }
 
 // Returns the virtual OS config.
-func get_virtual_os_config() -> VirtualOsConfig {
-    let virtual_os_config = VirtualOsConfig(enabled=TRUE);
+func get_virtual_os_config() -> VirtualOsConfig* {
+    let (virtual_os_config: VirtualOsConfig*) = alloc();
+    static_assert VirtualOsConfig.SIZE == 2;
+    assert virtual_os_config.enabled = TRUE;
+    // The authorized account address will be set during transaction execution.
     return virtual_os_config;
 }
