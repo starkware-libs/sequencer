@@ -29,9 +29,16 @@ struct MockDependencies {
 
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
+    let commitment_manager_config = CommitmentManagerConfig {
+        tasks_channel_size: 1,
+        results_channel_size: 1,
+        wait_for_tasks_channel: false,
+    };
+    let batcher_config = BatcherConfig { commitment_manager_config, ..Default::default() };
+
     MockDependencies {
         storage_reader: MockBatcherStorageReader::new(),
-        batcher_config: BatcherConfig::default(),
+        batcher_config,
         committer_client: MockCommitterClient::new(),
     }
 }
@@ -60,15 +67,9 @@ fn get_number_of_tasks_in_receiver<T>(receiver: &Receiver<T>) -> usize {
 async fn create_mock_commitment_manager(
     mock_dependencies: MockDependencies,
 ) -> MockCommitmentManager {
-    let commitment_manager_config = CommitmentManagerConfig {
-        tasks_channel_size: 1,
-        results_channel_size: 1,
-        wait_for_tasks_channel: false,
-    };
     CommitmentManager::create_commitment_manager(
         &mock_dependencies.batcher_config,
-        // TODO(Amos): Use commitment manager config in batcher config, once it's added.
-        &commitment_manager_config,
+        &mock_dependencies.batcher_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
     )
@@ -247,19 +248,12 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     let state_diff = test_state_diff();
     let state_diff_commitment = Some(StateDiffCommitment::default());
 
-    let commitment_manager_config = CommitmentManagerConfig {
+    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 2,
         results_channel_size: 2,
         wait_for_tasks_channel: false,
     };
-    let mut commitment_manager = MockCommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
-        // TODO(Amos): Use commitment manager config in batcher config, once it's added.
-        &commitment_manager_config,
-        &mock_dependencies.storage_reader,
-        Arc::new(mock_dependencies.committer_client),
-    )
-    .await;
+    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
     // Verify the commitment manager doesn't wait if there are no results.
     let results = commitment_manager.get_commitment_results().await;

@@ -194,6 +194,21 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.commitment_manager_config.results_channel_size": {
+    "description": "The size of the channel for receiving results from the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.tasks_channel_size": {
+    "description": "The size of the channel for sending tasks to the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.wait_for_tasks_channel": {
+    "description": "If the task channel is full: if true, will wait for the tasks channel to be available. If false, will panic.",
+    "privacy": "Public",
+    "value": true
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
