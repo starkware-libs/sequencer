@@ -6,6 +6,7 @@ use apollo_metrics::metrics::LossyIntoF64;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
     NetworkMetrics,
+    SqmrNetworkMetrics,
     NETWORK_BROADCAST_DROP_LABELS,
 };
 
@@ -28,10 +29,11 @@ define_metrics!(
         // network metrics from the network manager
         MetricGauge { NETWORK_CONNECTED_PEERS, "network_connected_peers", "Number of connected peers in the network" },
         MetricGauge { NETWORK_BLACKLISTED_PEERS, "network_blacklisted_peers", "Number of blacklisted peers in the network" },
+        MetricGauge { NETWORK_ACTIVE_INBOUND_SESSIONS, "network_active_inbound_sessions", "Number of active inbound SQMR sessions" },
+        MetricGauge { NETWORK_ACTIVE_OUTBOUND_SESSIONS, "network_active_outbound_sessions", "Number of active outbound SQMR sessions" },
         MetricCounter { NETWORK_STRESS_TEST_SENT_MESSAGES, "network_stress_test_sent_messages", "Number of stress test messages sent via broadcast", init = 0 },
         MetricCounter { NETWORK_STRESS_TEST_RECEIVED_MESSAGES, "network_stress_test_received_messages", "Number of stress test messages received via broadcast", init = 0 },
         LabeledMetricCounter { NETWORK_DROPPED_BROADCAST_MESSAGES, "network_dropped_broadcast_messages", "Number of dropped broadcast messages by reason", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
-
         // system metrics for the node
         MetricGauge { SYSTEM_TOTAL_MEMORY_BYTES, "system_total_memory_bytes", "Total system memory in bytes" },
         MetricGauge { SYSTEM_AVAILABLE_MEMORY_BYTES, "system_available_memory_bytes", "Available system memory in bytes" },
@@ -79,11 +81,17 @@ pub fn create_network_metrics() -> apollo_network::metrics::NetworkMetrics {
     let mut broadcast_metrics_by_topic = HashMap::new();
     broadcast_metrics_by_topic.insert(TOPIC.hash(), stress_test_broadcast_metrics);
 
+    // Create SQMR metrics for session monitoring
+    let sqmr_metrics = SqmrNetworkMetrics {
+        num_active_inbound_sessions: NETWORK_ACTIVE_INBOUND_SESSIONS,
+        num_active_outbound_sessions: NETWORK_ACTIVE_OUTBOUND_SESSIONS,
+    };
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
-        sqmr_metrics: None,
+        sqmr_metrics: Some(sqmr_metrics),
         event_metrics: None,
         latency_metrics: None,
     }
