@@ -4,9 +4,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::GatewayConfig;
-use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_mempool_types::communication::MockMempoolClient;
-use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
@@ -29,7 +27,6 @@ use starknet_api::transaction::fields::{
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::errors::GatewayResult;
 use crate::gateway::GenericGateway;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidatorFactory;
@@ -151,23 +148,11 @@ pub fn rpc_tx_for_testing(
     }
 }
 
-pub struct GatewayForBenchmark(
-    GenericGateway<
-        StatelessTransactionValidator,
-        TransactionConverter,
-        StatefulTransactionValidatorFactory<TestStateReaderFactory>,
-    >,
-);
-
-impl GatewayForBenchmark {
-    pub async fn add_tx(
-        &self,
-        tx: RpcTransaction,
-        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
-    ) -> GatewayResult<GatewayOutput> {
-        self.0.add_tx(tx, p2p_message_metadata).await
-    }
-}
+pub type GatewayForBenchmark = GenericGateway<
+    StatelessTransactionValidator,
+    TransactionConverter,
+    StatefulTransactionValidatorFactory<TestStateReaderFactory>,
+>;
 
 pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchmark {
     let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
@@ -186,11 +171,11 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
     mempool_client.expect_validate_tx().returning(|_| Ok(()));
     mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
 
-    GatewayForBenchmark(GenericGateway::new(
+    GenericGateway::new(
         gateway_config,
         Arc::new(state_reader_factory),
         Arc::new(mempool_client),
         Arc::new(transaction_converter),
         stateless_tx_validator,
-    ))
+    )
 }
