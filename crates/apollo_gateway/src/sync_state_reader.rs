@@ -43,7 +43,7 @@ use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFact
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
-pub(crate) struct SyncStateReader {
+pub struct SyncStateReader {
     block_number: BlockNumber,
     state_sync_client: SharedStateSyncClientMetricWrapper,
     class_manager_client: SharedClassManagerClient,
@@ -318,7 +318,7 @@ impl Drop for SharedStateSyncClientMetricWrapper {
 
 /// A state reader for genesis/empty state. Returns default values for all queries.
 /// Used for bootstrap transactions when no blocks exist yet.
-pub(crate) struct GenesisStateReader;
+pub struct GenesisStateReader;
 
 impl BlockifierStateReader for GenesisStateReader {
     fn get_storage_at(
@@ -360,7 +360,7 @@ impl GatewayStateReaderWithCompiledClasses for GenesisStateReader {}
 
 /// A fixed block state reader for genesis/empty state. Returns default genesis block info.
 /// Used for bootstrap transactions when no blocks exist yet.
-pub(crate) struct GenesisFixedBlockStateReader;
+pub struct GenesisFixedBlockStateReader;
 
 #[async_trait]
 impl GatewayFixedBlockStateReader for GenesisFixedBlockStateReader {
@@ -377,7 +377,7 @@ impl GatewayFixedBlockStateReader for GenesisFixedBlockStateReader {
     }
 }
 
-pub(crate) enum SyncOrGenesisStateReader {
+pub enum SyncOrGenesisStateReader {
     Sync(SyncStateReader),
     Genesis(GenesisStateReader),
 }
@@ -465,7 +465,7 @@ impl FetchCompiledClasses for SyncOrGenesisStateReader {
 
 impl GatewayStateReaderWithCompiledClasses for SyncOrGenesisStateReader {}
 
-pub(crate) enum SyncOrGenesisFixedBlockStateReader {
+pub enum SyncOrGenesisFixedBlockStateReader {
     Sync(GatewayFixedBlockSyncStateClient),
     Genesis(GenesisFixedBlockStateReader),
 }
@@ -502,7 +502,7 @@ impl GatewayFixedBlockStateReader for SyncOrGenesisFixedBlockStateReader {
 }
 
 #[derive(Clone)]
-pub(crate) struct SyncStateReaderFactory {
+pub struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub runtime: tokio::runtime::Handle,

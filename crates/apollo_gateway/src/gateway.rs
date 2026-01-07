@@ -63,42 +63,11 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-#[derive(Clone)]
-pub struct Gateway(
-    GenericGateway<
-        StatelessTransactionValidator,
-        TransactionConverter,
-        StatefulTransactionValidatorFactory<SyncStateReaderFactory>,
-    >,
-);
-
-impl Gateway {
-    fn new(
-        config: GatewayConfig,
-        state_reader_factory: Arc<SyncStateReaderFactory>,
-        mempool_client: SharedMempoolClient,
-        transaction_converter: Arc<TransactionConverter>,
-        stateless_tx_validator: Arc<StatelessTransactionValidator>,
-        proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
-    ) -> Self {
-        Self(GenericGateway::new(
-            config,
-            state_reader_factory,
-            mempool_client,
-            transaction_converter,
-            stateless_tx_validator,
-            proof_archive_writer,
-        ))
-    }
-
-    pub async fn add_tx(
-        &self,
-        tx: RpcTransaction,
-        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
-    ) -> GatewayResult<GatewayOutput> {
-        self.0.add_tx(tx, p2p_message_metadata).await
-    }
-}
+pub type Gateway = GenericGateway<
+    StatelessTransactionValidator,
+    TransactionConverter,
+    StatefulTransactionValidatorFactory<SyncStateReaderFactory>,
+>;
 
 #[derive(Clone)]
 pub struct GenericGateway<
