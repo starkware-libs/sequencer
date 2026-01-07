@@ -80,3 +80,26 @@ async fn test_non_invoke_tx_os_error() {
 
     test_builder.build().await.run_virtual_expect_error("Expected INVOKE_FUNCTION transaction");
 }
+
+#[rstest]
+#[tokio::test]
+/// Test that the virtual OS fails when invoking a Cairo 0 contract.
+async fn test_cairo0_contract_os_error() {
+    let (mut test_builder, [contract_address]) = TestBuilder::create_standard_virtual([(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        calldata![Felt::ZERO, Felt::ZERO],
+    )])
+    .await;
+
+    let calldata = create_calldata(contract_address, "foo", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // The OS tries to run it as a Cairo 1 contract and cannot find the compiled class.
+    // (the key 0 is the "compiled class hash" of the Cairo 0 contract).
+    test_builder
+        .build()
+        .await
+        .run_virtual_expect_error("find_element(): No value found for key: 0");
+}
+
+// TODO(Yoni): add a test for a Cairo 1 contract that is not a Sierra 1.7.0+ contract.
