@@ -234,11 +234,9 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 }
 
 pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
-    tx_hashes.to_vec()
+    validate_tx_count(tx_hashes, 1)
 }
 
-/// TODO(Itamar): Use this function in all tests built with TestScenario struct.
 #[track_caller]
 pub fn validate_tx_count(
     tx_hashes: &[TransactionHash],
