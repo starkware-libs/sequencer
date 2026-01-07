@@ -418,6 +418,52 @@ pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
     (url, join_handle)
 }
 
+// Creates a local dummy GCS server that always returns a success status.
+pub fn spawn_dummy_gcs_server(socket_address: SocketAddr) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let router = Router::new()
+            .route(
+                "/upload/storage/v1/b/:bucket/o",
+                post(move |axum::extract::Path((bucket,)): axum::extract::Path<(String,)>| {
+                    async move {
+                        debug!("Received a request to upload proof to GCS bucket: {}", bucket);
+                        (StatusCode::OK, Json(json!({
+                            "kind": "storage#object",
+                            "id": format!("{}/proofs/dummy-proof", bucket),
+                            "name": "proofs/dummy-proof",
+                            "bucket": bucket,
+                        })))
+                    }
+                    .instrument(tracing::debug_span!("dummy_gcs_upload"))
+                }),
+            )
+            .route(
+                "/storage/v1/b/:bucket/o",
+                post(move |axum::extract::Path((bucket,)): axum::extract::Path<(String,)>| {
+                    async move {
+                        debug!("Received a request to upload to GCS bucket: {}", bucket);
+                        (StatusCode::OK, Json(json!({
+                            "kind": "storage#object",
+                            "id": format!("{}/proofs/dummy-proof", bucket),
+                            "name": "proofs/dummy-proof",
+                            "bucket": bucket,
+                        })))
+                    }
+                    .instrument(tracing::debug_span!("dummy_gcs_upload_alt"))
+                }),
+            );
+        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+    })
+}
+
+pub fn spawn_local_dummy_gcs(port: u16) -> (Url, JoinHandle<()>) {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    let url = Url::parse(&format!("http://{socket_address}")).unwrap();
+    let join_handle = spawn_dummy_gcs_server(socket_address);
+    (url, join_handle)
+}
+
 /// Fake eth to strk oracle endpoint.
 const ETH_TO_STRK_ORACLE_PATH: &str = "/eth_to_strk_oracle";
 

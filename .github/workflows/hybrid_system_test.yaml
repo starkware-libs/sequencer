@@ -87,6 +87,8 @@ jobs:
             dockerfile: dummy_recorder.Dockerfile
           - svc: dummy_eth_to_strk_oracle
             dockerfile: dummy_eth_to_strk_oracle.Dockerfile
+          - svc: dummy_gcs
+            dockerfile: dummy_gcs.Dockerfile
     steps:
       - uses: actions/checkout@v4
 

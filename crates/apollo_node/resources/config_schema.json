@@ -2504,6 +2504,11 @@
     "privacy": "Public",
     "value": "proof-archive"
   },
+  "gateway_config.proof_archive_writer_config.use_gcs": {
+    "description": "If true, write proofs to GCS. If false, write to local disk (for testing).",
+    "privacy": "Public",
+    "value": false
+  },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
