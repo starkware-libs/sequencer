@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::committer_types::CommitBlockResponse;
+use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -275,8 +275,16 @@ impl Default for MockClients {
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
+        let mut committer_client = MockCommitterClient::new();
+        committer_client
+            .expect_commit_block()
+            .returning(|_| Box::pin(async { Ok(CommitBlockResponse::default()) }));
+        committer_client.expect_revert_block().returning(|_| {
+            Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
+        });
+
         Self {
-            committer_client: MockCommitterClient::new(),
+            committer_client,
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
