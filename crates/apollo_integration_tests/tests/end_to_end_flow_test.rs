@@ -31,7 +31,6 @@ fn create_test_scenarios() -> Vec<TestScenario> {
     vec![
         // This block should be the first to be tested, as the addition of L1 handler transaction
         // does not work smoothly with the current architecture of the test.
-        // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         TestScenario {
             create_rpc_txs_fn: |_| vec![],
             create_l1_to_l2_messages_args_fn: create_l1_to_l2_message_args,
