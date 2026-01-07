@@ -4,7 +4,11 @@ use std::sync::Arc;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
-use apollo_http_server_config::config::{HttpServerConfig, DEFAULT_MAX_SIERRA_PROGRAM_SIZE};
+use apollo_http_server_config::config::{
+    HttpServerConfig,
+    HttpServerDynamicConfig,
+    DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
@@ -177,4 +181,14 @@ pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 
 
 pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
+}
+
+// A mock config manager client returning the default http server dynamic config for an unlimited
+// number of requests.
+pub fn get_mock_config_manager_client() -> MockConfigManagerClient {
+    let mut mock_config_manager_client = MockConfigManagerClient::new();
+    mock_config_manager_client
+        .expect_get_http_server_dynamic_config()
+        .returning(move || Ok(HttpServerDynamicConfig::default()));
+    mock_config_manager_client
 }
