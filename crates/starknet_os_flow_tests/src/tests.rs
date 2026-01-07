@@ -55,6 +55,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ProofFacts,
+    ProofFactsVariant,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -1103,7 +1104,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
             main_contract_address, test_execution_info_selector_name, &expected_execution_info
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        proof_facts,
+        proof_facts: proof_facts.clone(),
     };
     // Put the tx hash in the signature.
     let tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
@@ -1182,7 +1183,18 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     );
 
     // Run the test.
-    let test_output = test_builder.build_and_run().await;
+    let mut test_output = test_builder.build_and_run().await;
+
+    // Add proof facts block hash storage to the decompressed state diff.
+    // The Blockifier writes this for proof facts verification, but the OS doesn't include it.
+    // TODO(Meshi): write the mapping for the os validation as well.
+    if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) = ProofFactsVariant::try_from(&proof_facts)
+    {
+        test_output.add_proof_facts_block_hash_storage(
+            snos_proof_facts.block_number,
+            snos_proof_facts.block_hash,
+        );
+    }
 
     // Perform general validations and storage update validations.
     test_output.perform_default_validations();
