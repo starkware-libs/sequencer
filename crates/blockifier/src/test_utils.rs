@@ -416,3 +416,11 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
         hash: BlockHash(StarkHash::ONE),
     })
 }
+
+/// Returns the contract address for the block hash contract used in tests.
+pub fn block_hash_contract_address() -> ContractAddress {
+    VersionedConstants::create_for_testing()
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address()
+}

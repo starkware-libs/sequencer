@@ -54,6 +54,12 @@ pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
 pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 
+// Range of historical blocks to populate in the block hash contract.
+// For block number N, we populate blocks BLOCK_HASH_HISTORY_START to BLOCK_HASH_HISTORY_END.
+// E.g., for block 2001: blocks 1950 to 1990.
+pub const BLOCK_HASH_HISTORY_START: u64 = 1950;
+pub const BLOCK_HASH_HISTORY_END: u64 = 1990;
+
 // The block timestamp of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
@@ -371,13 +377,20 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
-        // TODO(AvivG): Change to valid values when available.
         let program_hash = felt!("0x4");
-        let block_number = felt!("0x3");
-        let block_hash = felt!("0x2");
-        let config_hash = felt!("0x1");
 
+        let distance_from_start = 2;
+        let block_number = felt!(BLOCK_HASH_HISTORY_START + distance_from_start);
+        let block_hash = felt!(distance_from_start + 1);
+        assert!(
+            block_number <= felt!(BLOCK_HASH_HISTORY_END)
+            && block_number >= felt!(BLOCK_HASH_HISTORY_START),
+            "Block number is out of range"
+        );
+        // TODO(AvivG): Change to valid values when available.
+        let config_hash = felt!("0x1");
         proof_facts![felt!(VIRTUAL_SNOS), program_hash, block_number, block_hash, config_hash]
+
     }
 }
 
