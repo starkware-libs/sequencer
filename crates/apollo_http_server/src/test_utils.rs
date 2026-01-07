@@ -1,6 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{HttpServerConfig, DEFAULT_MAX_SIERRA_PROGRAM_SIZE};
@@ -87,13 +88,17 @@ pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
 }
 
 /// Creates an HTTP server and an HttpTestClient that can interact with it.
-pub async fn http_client_server_setup(
+async fn http_client_server_setup(
+    mock_config_manager_client: MockConfigManagerClient,
     mock_gateway_client: MockGatewayClient,
     http_server_config: HttpServerConfig,
 ) -> HttpTestClient {
     // Create and run the server.
-    let mut http_server =
-        HttpServer::new(http_server_config.clone(), Arc::new(mock_gateway_client));
+    let mut http_server = HttpServer::new(
+        http_server_config.clone(),
+        Arc::new(mock_config_manager_client),
+        Arc::new(mock_gateway_client),
+    );
     tokio::spawn(async move { http_server.run().await });
 
     let (ip, port) = http_server_config.ip_and_port();
@@ -145,6 +150,7 @@ impl GatewayTransaction for TransactionSerialization {
 }
 
 pub async fn add_tx_http_client(
+    mock_config_manager_client: MockConfigManagerClient,
     mock_gateway_client: MockGatewayClient,
     port_index: u16,
 ) -> HttpTestClient {
@@ -153,7 +159,8 @@ pub async fn add_tx_http_client(
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
     let http_server_config =
         HttpServerConfig::new(ip, available_ports.get_next_port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE);
-    http_client_server_setup(mock_gateway_client, http_server_config).await
+    http_client_server_setup(mock_config_manager_client, mock_gateway_client, http_server_config)
+        .await
 }
 
 pub fn rpc_invoke_tx() -> RpcTransaction {

@@ -8,6 +8,7 @@ description = "HTTP server for exposing node APIs."
 
 [features]
 testing = [
+  "apollo_config_manager_types/testing",
   "apollo_gateway_types/testing",
   "blockifier_test_utils",
   "mempool_test_utils",
@@ -19,6 +20,7 @@ testing = [
 workspace = true
 
 [dependencies]
+apollo_config_manager_types.workspace = true
 apollo_gateway_types.workspace = true
 apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
@@ -40,7 +42,9 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
+
 [dev-dependencies]
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_gateway_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
