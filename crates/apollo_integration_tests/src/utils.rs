@@ -26,6 +26,7 @@ use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
 use apollo_gateway_config::config::{
     GatewayConfig,
+    ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -629,6 +630,7 @@ pub fn create_gateway_config(
         ..Default::default()
     };
     let contract_class_manager_config = ContractClassManagerConfig::default();
+    let proof_archive_writer_config = ProofArchiveWriterConfig::default();
 
     GatewayConfig {
         stateless_tx_validator_config,
@@ -637,6 +639,7 @@ pub fn create_gateway_config(
         chain_info,
         block_declare: false,
         authorized_declarer_accounts: None,
+        proof_archive_writer_config,
     }
 }
 
