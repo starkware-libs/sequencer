@@ -16,7 +16,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::{expect, Expect};
 use itertools::Itertools;
-use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -39,16 +39,16 @@ use starknet_api::executable_transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction as StarknetApiTransaction,
+    L1HandlerTransaction as ExecutableL1HandlerTransaction,
+    Transaction as ExecutableTransaction,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Tip};
-use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
+use starknet_api::transaction::fields::{Calldata, Fee, Tip};
+use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -515,7 +515,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             panic!("Expected a V1 contract class");
         };
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
@@ -534,7 +534,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         expected_revert_reason: Option<String>,
     ) {
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Invoke(tx),
             )),
             expected_revert_reason,
@@ -573,7 +573,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             panic!("Expected a V0 contract class");
         };
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
@@ -583,7 +583,7 @@ impl<S: FlowTestState> TestBuilder<S> {
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
@@ -592,7 +592,7 @@ impl<S: FlowTestState> TestBuilder<S> {
 
     pub(crate) fn add_l1_handler_tx(
         &mut self,
-        tx: L1HandlerTransaction,
+        tx: ExecutableL1HandlerTransaction,
         expected_revert_reason: Option<String>,
     ) {
         // If the transaction is not expected to revert, add the corresponding message-to-L2.
@@ -607,9 +607,31 @@ impl<S: FlowTestState> TestBuilder<S> {
             });
         }
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::L1Handler(tx)),
             expected_revert_reason,
         });
+    }
+
+    pub(crate) fn add_l1_handler(
+        &mut self,
+        contract_address: ContractAddress,
+        entry_point_name: &str,
+        calldata: Calldata,
+        expected_revert_reason: Option<String>,
+    ) {
+        let tx = ExecutableL1HandlerTransaction::create(
+            L1HandlerTransaction {
+                version: L1HandlerTransaction::VERSION,
+                nonce: Nonce::default(),
+                contract_address,
+                entry_point_selector: selector_from_name(entry_point_name),
+                calldata,
+            },
+            &self.chain_id(),
+            Fee(1_000_000),
+        )
+        .unwrap();
+        self.add_l1_handler_tx(tx, expected_revert_reason);
     }
 
     pub(crate) fn add_fund_address_tx_with_default_amount(&mut self, address: ContractAddress) {

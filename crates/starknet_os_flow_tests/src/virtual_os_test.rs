@@ -2,11 +2,8 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::core::{EthAddress, Nonce};
-use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
-use starknet_api::transaction::fields::Fee;
-use starknet_api::transaction::{L1HandlerTransaction, L2ToL1Payload, MessageToL1};
+use starknet_api::core::EthAddress;
+use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::{calldata, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -74,20 +71,12 @@ async fn test_non_invoke_tx_os_error() {
 
     // Add an L1 handler transaction instead of an invoke.
     // TODO(Yoni): parameterize other transaction types.
-    let tx = ExecutableL1HandlerTransaction::create(
-        L1HandlerTransaction {
-            version: L1HandlerTransaction::VERSION,
-            nonce: Nonce::default(),
-            contract_address,
-            entry_point_selector: selector_from_name("l1_handle"),
-            // from_address, arg.
-            calldata: calldata![Felt::ONE, Felt::TWO],
-        },
-        &test_builder.chain_id(),
-        Fee(1_000_000),
-    )
-    .unwrap();
-    test_builder.add_l1_handler_tx(tx, None);
+    test_builder.add_l1_handler(
+        contract_address,
+        "l1_handle",
+        calldata![Felt::ONE, Felt::TWO],
+        None,
+    );
 
     test_builder.build().await.run_virtual_expect_error("Expected INVOKE_FUNCTION transaction");
 }
