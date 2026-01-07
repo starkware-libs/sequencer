@@ -8,7 +8,7 @@ use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::{StateReader, UpdatableState};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
+use blockifier::test_utils::{block_hash_contract_address, ALIAS_CONTRACT_ADDRESS};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
@@ -47,7 +47,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Fee, Tip};
+use starknet_api::transaction::fields::{Calldata, Fee, ProofFactsVariant, Tip};
 use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -117,6 +117,36 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
+
+/// The block hash contract address, cached to avoid repeated VersionedConstants creation.
+static BLOCK_HASH_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(block_hash_contract_address);
+
+/// Stores block hash for invoke transactions with SNOS proof facts.
+/// This is needed so the OS can verify block hash proofs during execution.
+// TODO(Meshi): change it so the block number to block hash mapping will be a part of the state and
+// not written during the transaction execution.
+fn store_block_hash_from_transaction<S: UpdatableState>(tx: &BlockifierTransaction, state: &mut S) {
+    if let BlockifierTransaction::Account(account_tx) = tx {
+        if let AccountTransaction::Invoke(invoke_tx) = &account_tx.tx {
+            if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) =
+                ProofFactsVariant::try_from(&invoke_tx.proof_facts())
+            {
+                let storage_writes = StateMaps {
+                    storage: HashMap::from([(
+                        (
+                            *BLOCK_HASH_CONTRACT_ADDRESS,
+                            StorageKey::from(snos_proof_facts.block_number.0),
+                        ),
+                        snos_proof_facts.block_hash.0,
+                    )]),
+                    ..Default::default()
+                };
+                state.apply_writes(&storage_writes, &HashMap::new());
+            }
+        }
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct TestBuilderConfig {
@@ -255,6 +285,25 @@ impl<S: FlowTestState> OsTestOutput<S> {
                 ))
                 .collect::<HashMap<_, _>>()
         );
+    }
+
+    /// Adds the proof facts block hash storage mapping to the decompressed state diff.
+    /// This is needed because the Blockifier writes block hash storage for proof facts
+    /// verification, but the OS doesn't include this in its output.
+    // TODO(Meshi): Remove this once we have a solution that dose not write to the state during the
+    // transaction execution.
+    pub(crate) fn add_proof_facts_block_hash_storage(
+        &mut self,
+        block_number: BlockNumber,
+        block_hash: BlockHash,
+    ) {
+        let storage_key = StarknetStorageKey(StorageKey::from(block_number.0));
+        let storage_value = StarknetStorageValue(block_hash.0);
+        self.decompressed_state_diff
+            .storage_updates
+            .entry(*BLOCK_HASH_CONTRACT_ADDRESS)
+            .or_default()
+            .insert(storage_key, storage_value);
     }
 
     fn perform_global_validations(&self) {
@@ -749,7 +798,10 @@ impl<S: FlowTestState> TestBuilder<S> {
 
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
-                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
+                .map(|flow_test_tx| {
+                    store_block_hash_from_transaction(&flow_test_tx.tx, &mut state);
+                    (flow_test_tx.tx, flow_test_tx.expected_revert_reason)
+                })
                 .unzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
