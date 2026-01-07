@@ -28,6 +28,7 @@ use crate::commitment_manager::types::{
     CommitterTaskInput,
     CommitterTaskOutput,
     FinalBlockCommitment,
+    RevertTaskOutput,
     TaskTimer,
 };
 use crate::metrics::{
@@ -160,6 +161,26 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
         }
         results
+    }
+
+    /// Fetches all ready commitment results from the state committer, until a revert result is
+    /// received.
+    pub(crate) async fn wait_for_revert_result(
+        &mut self,
+    ) -> (Vec<CommitmentTaskOutput>, RevertTaskOutput) {
+        let mut commitment_results = Vec::new();
+        loop {
+            // Sleep until a message is sent or the channel is closed.
+            match self.results_receiver.recv().await {
+                Some(CommitterTaskOutput::Commit(commitment_task_result)) => {
+                    commitment_results.push(commitment_task_result)
+                }
+                Some(CommitterTaskOutput::Revert(revert_task_result)) => {
+                    return (commitment_results, revert_task_result);
+                }
+                None => panic!("Channel closed while waiting for revert results."),
+            }
+        }
     }
 
     // Private methods.
