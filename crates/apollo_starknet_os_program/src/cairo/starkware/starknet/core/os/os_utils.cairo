@@ -3,6 +3,7 @@ from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_nn
+from starkware.cairo.common.registers import get_label_location
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext, VirtualOsConfig
 from starkware.starknet.core.os.block_hash import get_block_hashes
@@ -16,6 +17,9 @@ from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import 
 from starkware.starknet.core.os.contract_class.compiled_class import CompiledClassFact
 from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
     compiled_class_hash as poseidon_compiled_class_hash,
+)
+from starkware.starknet.core.os.execution.deprecated_execute_syscalls import (
+    execute_deprecated_syscalls,
 )
 from starkware.starknet.core.os.output import OsOutput, OsOutputHeader, serialize_os_output
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate, StateEntry
@@ -192,4 +196,9 @@ func get_virtual_os_config() -> VirtualOsConfig* {
         enabled=FALSE, authorized_account_address=0
     );
     return virtual_os_config;
+}
+
+// Returns a function pointer to execute_deprecated_syscalls.
+func get_execute_deprecated_syscalls_ptr() -> (res: felt*) {
+    return get_label_location(label_value=execute_deprecated_syscalls);
 }

@@ -30,9 +30,6 @@ from starkware.starknet.core.os.contract_class.compiled_class import (
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     deprecated_load_compiled_class_facts,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_syscalls import (
-    execute_deprecated_syscalls,
-)
 from starkware.starknet.core.os.execution.execute_syscalls import execute_syscalls
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
 from starkware.starknet.core.os.os_config.os_config import (
@@ -42,6 +39,7 @@ from starkware.starknet.core.os.os_config.os_config import (
 )
 from starkware.starknet.core.os.os_utils import (
     get_block_os_output_header,
+    get_execute_deprecated_syscalls_ptr,
     get_virtual_os_config,
     pre_process_block,
     process_os_output,
@@ -310,9 +308,7 @@ func get_os_global_context{
 
     // Function pointers.
     let (execute_syscalls_ptr) = get_label_location(label_value=execute_syscalls);
-    let (execute_deprecated_syscalls_ptr) = get_label_location(
-        label_value=execute_deprecated_syscalls
-    );
+    let (execute_deprecated_syscalls_ptr) = get_execute_deprecated_syscalls_ptr();
 
     let virtual_os_config = get_virtual_os_config();
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
