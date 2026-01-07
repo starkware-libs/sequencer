@@ -701,6 +701,18 @@ impl From<Vec<Felt>> for ProofFacts {
     }
 }
 
+impl TryFrom<ProofFacts> for SnosProofFacts {
+    type Error = StarknetApiError;
+    fn try_from(proof_facts: ProofFacts) -> Result<Self, Self::Error> {
+        match ProofFactsVariant::try_from(&proof_facts) {
+            Ok(ProofFactsVariant::Snos(snos_proof_facts)) => Ok(snos_proof_facts),
+            _ => Err(StarknetApiError::InvalidProofFacts(format!(
+                "Invalid SNOS proof facts: {proof_facts:?}",
+            ))),
+        }
+    }
+}
+
 /// Client-provided proof used for client-side proving.
 #[derive(
     Clone,
