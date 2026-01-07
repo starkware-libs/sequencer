@@ -30,7 +30,7 @@ use tracing::info;
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
     pub instance_indices: [u16; 3],
-    pub test_blocks_scenarios: Vec<TestScenario>,
+    pub test_scenario: TestScenario,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
@@ -40,13 +40,13 @@ pub struct EndToEndFlowArgs {
 impl EndToEndFlowArgs {
     pub fn new(
         test_identifier: TestIdentifier,
-        test_blocks_scenarios: Vec<TestScenario>,
+        test_scenario: TestScenario,
         block_max_capacity_gas: GasAmount,
     ) -> Self {
         Self {
             test_identifier,
             instance_indices: [0, 1, 2],
-            test_blocks_scenarios,
+            test_scenario,
             block_max_capacity_gas,
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
@@ -78,7 +78,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let EndToEndFlowArgs {
         test_identifier,
         instance_indices,
-        test_blocks_scenarios,
+        test_scenario,
         block_max_capacity_gas,
         expecting_full_blocks,
         expecting_reverted_transactions,
@@ -122,58 +122,54 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let mut total_expected_batched_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
-    for (
-        i,
-        TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn },
-    ) in test_blocks_scenarios.into_iter().enumerate()
-    {
-        info!("Starting scenario {i}.");
-        // Create and send transactions.
-        // TODO(Arni): move send messages to l2 into [run_test_scenario].
-        let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
-        mock_running_system.send_messages_to_l2(&l1_handlers).await;
+    let TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn } =
+        test_scenario;
 
-        // Run the test scenario and get the expected batched tx hashes of the current scenario.
-        let expected_batched_tx_hashes = run_test_scenario(
-            &mut tx_generator,
-            create_rpc_txs_fn,
-            l1_handlers,
-            &mut send_rpc_tx_fn,
-            test_tx_hashes_fn,
-            &chain_id,
-        )
-        .await;
+    // Create and send transactions.
+    // TODO(Arni): move send messages to l2 into [run_test_scenario].
+    let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
+    mock_running_system.send_messages_to_l2(&l1_handlers).await;
 
-        // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
-        // in the same process in this test.
-        total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
-        let mut current_batched_txs_count = 0;
+    // Run the test scenario and get the expected batched tx hashes of the current scenario.
+    let expected_batched_tx_hashes = run_test_scenario(
+        &mut tx_generator,
+        create_rpc_txs_fn,
+        l1_handlers,
+        &mut send_rpc_tx_fn,
+        test_tx_hashes_fn,
+        &chain_id,
+    )
+    .await;
 
-        tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
-            loop {
-                info!(
-                    "Waiting for more txs to be batched in a block. Expected batched txs: \
-                     {total_expected_batched_txs_count}, Currently batched txs: \
-                     {current_batched_txs_count}"
-                );
+    // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
+    // in the same process in this test.
+    total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+    let mut current_batched_txs_count = 0;
 
-                current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
-                if current_batched_txs_count == total_expected_batched_txs_count {
-                    break;
-                }
+    tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
+        loop {
+            info!(
+                "Waiting for more txs to be batched in a block. Expected batched txs: \
+                 {total_expected_batched_txs_count}, Currently batched txs: \
+                 {current_batched_txs_count}"
+            );
 
-                tokio::time::sleep(Duration::from_millis(2000)).await;
+            current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
+            if current_batched_txs_count == total_expected_batched_txs_count {
+                break;
             }
-        })
-        .await
-        .unwrap_or_else(|_| {
-            panic!(
-                "Scenario {i}: Expected transactions should be included in a block by now, \
-                 Expected amount of batched txs: {total_expected_batched_txs_count}, Currently \
-                 amount of batched txs: {current_batched_txs_count}"
-            )
-        });
-    }
+
+            tokio::time::sleep(Duration::from_millis(2000)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected transactions should be included in a block by now, Expected amount of \
+             batched txs: {total_expected_batched_txs_count}, Currently amount of batched txs: \
+             {current_batched_txs_count}"
+        )
+    });
 
     assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
     assert_on_number_of_reverted_transactions_flow(

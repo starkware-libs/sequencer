@@ -21,12 +21,12 @@ async fn l1_to_l2_message_flow() {
     .await
 }
 
-fn create_test_scenarios() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_test_scenarios() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: |_| vec![],
         create_l1_to_l2_messages_args_fn: |tx_generator| {
             create_l1_to_l2_messages_args(tx_generator, 1, false)
         },
         test_tx_hashes_fn: test_single_tx,
-    }]
+    }
 }
