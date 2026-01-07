@@ -383,12 +383,12 @@
           }
         },
         {
-          "title": "Rejected / Reverted TXs Ratio",
-          "description": "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
+          "title": "Rate of Rejected and Reverted TXs Ratio",
+          "description": "Rates of the rejected and reverted transactions ratios of all processed txs (10m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))",
-            "increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} / (batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"})[10m])",
+            "increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} / (batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"})[10m])"
           ],
           "extra_params": {
             "unit": "percentunit",
