@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig, CommitmentManagerConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -72,10 +72,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     MockBlockBuilderFactoryTrait,
 };
-use crate::commitment_manager::commitment_manager_impl::{
-    CommitmentManager,
-    CommitmentManagerConfig,
-};
+use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK_HEIGHT,

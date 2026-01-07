@@ -21,6 +21,9 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use url::Url;
 use validator::{Validate, ValidationError};
 
+pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
+pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
+
 /// Configuration for the block builder component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BlockBuilderConfig {
@@ -81,6 +84,25 @@ impl SerializeConfig for BlockBuilderConfig {
             "versioned_constants_overrides",
         ));
         dump
+    }
+}
+
+// TODO(amos): Add to Batcher config.
+#[derive(Debug, Clone)]
+pub struct CommitmentManagerConfig {
+    pub tasks_channel_size: usize,
+    pub results_channel_size: usize,
+    // Wait for tasks channel to be available before sending.
+    pub wait_for_tasks_channel: bool,
+}
+
+impl Default for CommitmentManagerConfig {
+    fn default() -> Self {
+        Self {
+            tasks_channel_size: DEFAULT_TASKS_CHANNEL_SIZE,
+            results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
+            wait_for_tasks_channel: true,
+        }
     }
 }
 

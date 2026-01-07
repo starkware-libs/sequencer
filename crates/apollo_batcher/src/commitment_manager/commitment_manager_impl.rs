@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::SharedCommitterClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
@@ -24,30 +24,8 @@ use crate::commitment_manager::types::{
     FinalBlockCommitment,
 };
 
-pub(crate) const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
-pub(crate) const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
-
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
-
-// TODO(amos): Add to Batcher config.
-#[derive(Debug, Clone)]
-pub(crate) struct CommitmentManagerConfig {
-    pub(crate) tasks_channel_size: usize,
-    pub(crate) results_channel_size: usize,
-    // Wait for tasks channel to be available before sending.
-    pub(crate) wait_for_tasks_channel: bool,
-}
-
-impl Default for CommitmentManagerConfig {
-    fn default() -> Self {
-        Self {
-            tasks_channel_size: DEFAULT_TASKS_CHANNEL_SIZE,
-            results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
-            wait_for_tasks_channel: true,
-        }
-    }
-}
 
 #[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
