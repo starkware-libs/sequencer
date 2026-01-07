@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -164,7 +165,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     // Make sure none of them is reverted.
     assert!(execution_outputs.iter().all(|output| output.0.revert_error.is_none()));
     // Update the state reader with the state diff.
-    let state_diff = final_state.to_state_diff().unwrap().state_maps;
+    let mut state_diff = final_state.to_state_diff().unwrap().state_maps;
     // Sanity check to verify the STRK_FEE_TOKEN_ADDRESS constant.
     assert_eq!(
         state_diff.class_hashes[&STRK_FEE_TOKEN_ADDRESS],
@@ -172,9 +173,19 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
             .get_sierra()
             .calculate_class_hash()
     );
+    // Add historical block hashes.
+    let block_hash_state_diff = generate_block_hash_storage_updates();
+    state_diff.extend(&block_hash_state_diff);
+
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
+    // Add historical block hashes.
+    let block_hash_state_maps = generate_block_hash_storage_updates();
+    final_state
+        .state
+        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
+
+    // Commits the state diff with block hash mappings.
     let committer_state_diff = create_committer_state_diff(state_diff);
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
