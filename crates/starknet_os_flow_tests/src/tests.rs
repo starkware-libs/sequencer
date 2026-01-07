@@ -55,7 +55,6 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ProofFacts,
-    ProofFactsVariant,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -1063,11 +1062,15 @@ async fn test_v1_bound_accounts_cairo1() {
 async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
-    let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard_with_config(
-        [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
-        TestBuilderConfig { use_kzg_da, ..Default::default() },
-    )
-    .await;
+    // Create proof facts before creating the test builder, so it can set up the initial state.
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
+    let (mut test_builder, [main_contract_address]) =
+        TestBuilder::create_standard_with_proof_facts(
+            [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+            TestBuilderConfig { use_kzg_da, ..Default::default() },
+            std::slice::from_ref(&proof_facts),
+        )
+        .await;
     let chain_id = &test_builder.chain_id();
     let current_block_number = test_builder.first_block_number();
 
@@ -1081,7 +1084,6 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let test_execution_info_selector_name = "test_get_execution_info";
     let test_execution_info_selector = selector_from_name(test_execution_info_selector_name);
     let only_query = false;
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
         *FUNDED_ACCOUNT_ADDRESS,
@@ -1183,18 +1185,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     );
 
     // Run the test.
-    let mut test_output = test_builder.build_and_run().await;
-
-    // Add proof facts block hash storage to the decompressed state diff.
-    // The Blockifier writes this for proof facts verification, but the OS doesn't include it.
-    // TODO(Meshi): write the mapping for the os validation as well.
-    if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) = ProofFactsVariant::try_from(&proof_facts)
-    {
-        test_output.add_proof_facts_block_hash_storage(
-            snos_proof_facts.block_number,
-            snos_proof_facts.block_hash,
-        );
-    }
+    let test_output = test_builder.build_and_run().await;
 
     // Perform general validations and storage update validations.
     test_output.perform_default_validations();

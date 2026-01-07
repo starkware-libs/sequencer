@@ -911,6 +911,40 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     Ok(())
 }
 
+/// Debug hint for proof facts validation.
+///
+/// Asserts that the block hash stored in the blockifier's cached state matches the expected
+/// value from the transaction's proof facts. Provides a clear error message on mismatch,
+/// rather than a cryptic Patricia tree verification failure during state update.
+///
+/// Note: This hint reads from the blockifier's cached state. If the blockifier has incorrect
+/// data but the OS's Patricia tree proofs are correct, this hint will pass but the state
+/// update will still fail.
+pub(crate) fn assert_proof_facts_block_hash<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
+    let proof_facts_block_number =
+        get_integer_from_var_name(Ids::ProofFactsBlockNumber.into(), vm, ids_data, ap_tracking)?;
+    let expected_block_hash =
+        get_integer_from_var_name(Ids::ProofFactsBlockHash.into(), vm, ids_data, ap_tracking)?;
+
+    let execution_helper = hint_processor.get_current_execution_helper()?;
+    let actual_block_hash = execution_helper.cached_state.get_storage_at(
+        ContractAddress(PatriciaKey::try_from(*block_hash_contract_address)?),
+        StorageKey(PatriciaKey::try_from(proof_facts_block_number)?),
+    )?;
+
+    assert_eq!(
+        actual_block_hash, expected_block_hash,
+        "Proof facts block hash mismatch: block_number={proof_facts_block_number}, \
+         expected_block_hash={expected_block_hash}, actual_block_hash={actual_block_hash}"
+    );
+
+    Ok(())
+}
+
 fn assert_value_cached_by_reading<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,

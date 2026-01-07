@@ -20,6 +20,7 @@ from starkware.starknet.builtins.segment_arena.segment_arena import new_arena
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import BlockInfo, ExecutionInfo, ResourceBounds, TxInfo
 from starkware.starknet.common.syscalls import TxInfo as DeprecatedTxInfo
+from starkware.starknet.common.syscalls import storage_read
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
     BuiltinPointers,
@@ -27,6 +28,7 @@ from starkware.starknet.core.os.builtins import (
     SelectableBuiltins,
 )
 from starkware.starknet.core.os.constants import (
+    BLOCK_HASH_CONTRACT_ADDRESS,
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DECLARE_HASH_PREFIX,
     DEFAULT_INITIAL_GAS_COST,
@@ -396,6 +398,52 @@ func fill_account_tx_info{range_check_ptr}(
     return ();
 }
 
+// Validates the proof facts of an invoke transaction.
+func validate_proof_facts{contract_state_changes: DictAccess*}(
+    block_context: BlockContext*,
+    tx_execution_context: ExecutionContext*,
+    proof_facts: felt*,
+    proof_facts_size: felt,
+) {
+    alloc_locals;
+    local proof_facts_block_number = [proof_facts + 2];
+    local proof_facts_block_hash = [proof_facts + 3];
+
+    assert_not_zero(proof_facts_block_hash);
+
+    // Debug hint: assert the block hash matches what's in storage.
+    // This provides a clear error message if mismatch, rather than failing later in state update.
+    %{ AssertProofFactsBlockHash %}
+
+    // Get the block hash contract state entry.
+    let (state_entry: StateEntry*) = dict_read{dict_ptr=contract_state_changes}(
+        key=BLOCK_HASH_CONTRACT_ADDRESS
+    );
+
+    // Read from storage - assert the stored block hash matches.
+    tempvar storage_ptr = state_entry.storage_ptr;
+    assert [storage_ptr] = DictAccess(
+        key=proof_facts_block_number,
+        prev_value=proof_facts_block_hash,
+        new_value=proof_facts_block_hash,
+    );
+    let storage_ptr = storage_ptr + DictAccess.SIZE;
+
+    // Update the state with the new storage_ptr.
+    dict_update{dict_ptr=contract_state_changes}(
+        key=BLOCK_HASH_CONTRACT_ADDRESS,
+        prev_value=cast(state_entry, felt),
+        new_value=cast(
+            new StateEntry(
+                class_hash=state_entry.class_hash, storage_ptr=storage_ptr, nonce=state_entry.nonce
+            ),
+            felt,
+        ),
+    );
+
+    return ();
+}
+
 // Executes an invoke-function transaction.
 //
 // The transaction should be passed in the hint variable 'tx'.
@@ -480,6 +528,19 @@ func execute_invoke_function_transaction{
     let updated_tx_execution_context = update_class_hash_in_execution_context(
         execution_context=tx_execution_context
     );
+
+    // validate proof facts
+    if (proof_facts_size != 0) {
+        validate_proof_facts(
+            block_context=block_context,
+            tx_execution_context=tx_execution_context,
+            proof_facts=proof_facts,
+            proof_facts_size=proof_facts_size,
+        );
+    } else {
+        // Align the stack with the `if` branch to avoid revoked references.
+        tempvar contract_state_changes = contract_state_changes;
+    }
 
     local is_reverted;
     %{ IsReverted %}
