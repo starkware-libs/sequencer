@@ -17,12 +17,11 @@ use apollo_metrics::metrics::{
     MetricScope,
 };
 use async_trait::async_trait;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Semaphore;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
@@ -185,11 +184,13 @@ const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHi
 pub(crate) const TEST_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&TEST_LOCAL_CLIENT_RESPONSE_TIMES);
 
-// Define the shared fixture
-pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
-    let available_ports = AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), 0);
-    Arc::new(Mutex::new(available_ports))
-});
+/// Creates an `AvailablePorts` instance with a unique `instance_index`.
+/// Each test that binds ports should use a different instance_index to get disjoint port ranges.
+/// This is necessary because nextest runs each test in its own process, so a shared static
+/// counter doesn't work - each process would start from the same base port.
+pub fn available_ports(instance_index: u16) -> AvailablePorts {
+    AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), instance_index)
+}
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(

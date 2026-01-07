@@ -33,8 +33,8 @@ use crate::component_server::{
     RemoteComponentServer,
 };
 use crate::tests::{
+    available_ports,
     dummy_remote_server_config,
-    AVAILABLE_PORTS,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
@@ -173,7 +173,7 @@ async fn setup_remote_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, RemoteTestComponentClient) {
     let (test_sem, local_client) = setup_local_server_test().await;
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = available_ports(6).get_next_local_host_socket();
     let config = RemoteClientConfig::default();
 
     let mut remote_server = RemoteComponentServer::new(
