@@ -2,11 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{
-    BatcherConfig,
-    CommitmentManagerConfig,
-    FirstBlockWithPartialBlockHash,
-};
+use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -1304,10 +1300,9 @@ pub async fn create_batcher(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
-    // TODO(Amos): Add commitment manager config to batcher config and use it here.
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
-        &CommitmentManagerConfig::default(),
+        &config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
     )
