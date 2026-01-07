@@ -26,6 +26,7 @@ use starknet_api::contract_class::compiled_class_hash::{
 };
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinSet;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::Const;
@@ -358,48 +359,56 @@ fn test_compiled_class_hash(
 ///
 /// - `hash_version`: which hash version to test (`V1` (Poseidon) or `V2` (Blake)).
 #[rstest]
-fn test_compiled_class_hash_resources_estimation(
+#[tokio::test(flavor = "multi_thread")]
+async fn test_compiled_class_hash_resources_estimation(
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
 ) {
+    let mut tasks = JoinSet::new();
+
     for feature_contract in FeatureContract::all_cairo1_casm_feature_contracts() {
-        let contract_class = match feature_contract.get_class() {
-            ContractClass::V1((casm, _sierra_version)) => casm,
-            _ => panic!("Expected ContractClass::V1"),
-        };
-        let contract_name = feature_contract.get_non_erc20_base_name();
-        let bytecode_structure = &contract_class.bytecode_segment_lengths;
+        tasks.spawn(async move {
+            let contract_class = match feature_contract.get_class() {
+                ContractClass::V1((casm, _sierra_version)) => casm,
+                _ => panic!("Expected ContractClass::V1"),
+            };
+            let contract_name = feature_contract.get_non_erc20_base_name();
+            let bytecode_structure = &contract_class.bytecode_segment_lengths;
 
-        match feature_contract {
-            // Legacy test contract is a single leaf segment, this is crucial for testing old sierra
-            // contracts.
-            FeatureContract::LegacyTestContract => {
-                assert!(
-                    bytecode_structure.is_none(),
-                    "{contract_name}: Expected single segment bytecode."
-                );
+            match feature_contract {
+                // Legacy test contract is a single leaf segment, this is crucial for testing old
+                // sierra contracts.
+                FeatureContract::LegacyTestContract => {
+                    assert!(
+                        bytecode_structure.is_none(),
+                        "{contract_name}: Expected single segment bytecode."
+                    );
+                }
+                // Empty contract is a single leaf segment as its bytecode is empty (no
+                // segmentation).
+                FeatureContract::Empty(_) => {
+                    assert!(
+                        matches!(bytecode_structure, Some(NestedIntList::Leaf(_))),
+                        "{contract_name}: Expected single segment bytecode."
+                    );
+                }
+                // Other contracts are node-segmented by their functions.
+                _ => {
+                    assert!(
+                        matches!(bytecode_structure, Some(NestedIntList::Node(_))),
+                        "{contract_name}: Expected node-segmented bytecode."
+                    );
+                }
             }
-            // Empty contract is a single leaf segment as its bytecode is empty (no segmentation).
-            FeatureContract::Empty(_) => {
-                assert!(
-                    matches!(bytecode_structure, Some(NestedIntList::Leaf(_))),
-                    "{contract_name}: Expected single segment bytecode."
-                );
-            }
-            // Other contracts are node-segmented by their functions.
-            _ => {
-                assert!(
-                    matches!(bytecode_structure, Some(NestedIntList::Node(_))),
-                    "{contract_name}: Expected node-segmented bytecode."
-                );
-            }
-        }
 
-        compare_estimated_vs_actual_casm_hash_resources(
-            contract_name,
-            contract_class,
-            &hash_version,
-        );
+            compare_estimated_vs_actual_casm_hash_resources(
+                contract_name,
+                contract_class,
+                &hash_version,
+            );
+        });
     }
+
+    tasks.join_all().await;
 }
 
 fn compare_estimated_vs_actual_casm_hash_resources(
