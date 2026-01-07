@@ -1,6 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
 use std::convert::Infallible;
+use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use libp2p::connection_limits::ConnectionLimits;
@@ -85,7 +86,8 @@ impl MixedBehaviour {
         let protocol_name =
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /");
-        let kademlia_config = kad::Config::new(protocol_name);
+        let mut kademlia_config = kad::Config::new(protocol_name);
+        kademlia_config.set_kbucket_size(NonZeroUsize::new(100).unwrap());
         let connection_limits = ConnectionLimits::default().with_max_established_per_peer(Some(1));
 
         Self {
