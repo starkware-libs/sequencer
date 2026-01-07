@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use apollo_network::network_manager::NetworkManager;
 use apollo_network::NetworkConfig;
-use apollo_network_benchmark::node_args::NodeArgs;
+use apollo_network_benchmark::node_args::{Mode, NodeArgs};
 use futures::future::{select_all, BoxFuture};
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -83,6 +83,22 @@ impl BroadcastNetworkStressTestNode {
         .boxed()
     }
 
+    /// Gets the broadcaster ID with validation for modes that require it
+    fn get_broadcaster_id(args: &NodeArgs) -> u64 {
+        args.user.broadcaster.expect("broadcaster required for OneBroadcast mode")
+    }
+
+    /// Determines if this node should broadcast messages based on the mode
+    pub fn should_broadcast(&self) -> bool {
+        match self.args.user.mode {
+            Mode::AllBroadcast => true,
+            Mode::OneBroadcast => {
+                let broadcaster_id = Self::get_broadcaster_id(&self.args);
+                self.args.runner.id == broadcaster_id
+            }
+        }
+    }
+
     fn get_peers(&self) -> Vec<PeerId> {
         self.network_config
             .bootstrap_peer_multiaddr
@@ -94,17 +110,29 @@ impl BroadcastNetworkStressTestNode {
     }
 
     /// Starts the message sending task if this node should broadcast
-    pub async fn start_message_sender(&mut self) -> BoxFuture<'static, ()> {
+    pub async fn start_message_sender(&mut self) -> Option<BoxFuture<'static, ()>> {
+        if !self.should_broadcast() {
+            info!(
+                "Node {} will NOT broadcast in mode `{}`",
+                self.args.runner.id, self.args.user.mode
+            );
+            return None;
+        }
+
+        info!("Node {} will broadcast in mode `{}`", self.args.runner.id, self.args.user.mode);
+
         let message_sender =
             self.message_sender.take().expect("message_sender should be available");
 
         let args_clone = self.args.clone();
         let peers = self.get_peers();
 
-        async move {
-            send_stress_test_messages(message_sender, &args_clone, peers).await;
-        }
-        .boxed()
+        Some(
+            async move {
+                send_stress_test_messages(message_sender, &args_clone, peers).await;
+            }
+            .boxed(),
+        )
     }
 
     /// Starts the message receiving task
@@ -125,7 +153,10 @@ impl BroadcastNetworkStressTestNode {
         let mut tasks = Vec::new();
         tasks.push(self.start_network_manager().await);
         tasks.push(self.make_message_receiver_task().await);
-        tasks.push(self.start_message_sender().await);
+
+        if let Some(sender_task) = self.start_message_sender().await {
+            tasks.push(sender_task);
+        }
 
         tasks
     }
