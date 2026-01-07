@@ -17,7 +17,7 @@ use starknet_api::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use starknet_api::block::{FeeType, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, FeeType, GasPrice};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
@@ -41,6 +41,7 @@ use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
+    CURRENT_BLOCK_NUMBER,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
@@ -55,9 +56,12 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
     Resource,
     ResourceBounds,
+    SnosProofFacts,
     ValidResourceBounds,
+    VIRTUAL_SNOS,
 };
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -79,6 +83,7 @@ use starknet_api::{
 };
 use starknet_types_core::felt::Felt;
 
+use crate::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
@@ -2190,4 +2195,113 @@ fn test_missing_validate_entrypoint_rejects(
         TransactionExecutionError::ValidateCairo0Error(ret)
         if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
     );
+}
+
+/// Converts SnosProofFacts to ProofFacts for testing.
+fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
+    vec![
+        felt!(VIRTUAL_SNOS),
+        snos.program_hash,
+        felt!(snos.block_number.0),
+        snos.block_hash.0,
+        snos.config_hash,
+    ]
+    .into()
+}
+
+/// Returns valid SNOS proof facts.
+/// Block number must be more than STORED_BLOCK_HASH_BUFFER blocks old (difference > buffer).
+fn valid_snos_proof_facts() -> SnosProofFacts {
+    SnosProofFacts {
+        program_hash: felt!(0x1_u64),
+        block_number: BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER - 1),
+        block_hash: BlockHash(felt!(0xABCDEF_u64)),
+        config_hash: felt!(0x2_u64),
+    }
+}
+
+/// Returns valid proof facts.
+fn valid_proof_facts() -> ProofFacts {
+    snos_to_proof_facts(valid_snos_proof_facts())
+}
+
+/// Returns invalid proof_facts with a too recent block number.
+fn too_recent_block_proof_facts() -> ProofFacts {
+    snos_to_proof_facts(SnosProofFacts {
+        block_number: BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER),
+        ..valid_snos_proof_facts()
+    })
+}
+
+/// Returns invalid proof_facts with a mismatched block hash.
+fn mismatched_hash_proof_facts() -> ProofFacts {
+    snos_to_proof_facts(SnosProofFacts {
+        block_hash: BlockHash(felt!(0xDEADBEEF_u64)),
+        ..valid_snos_proof_facts()
+    })
+}
+
+/// Returns invalid proof_facts with a block number greater than the current block number.
+fn future_block_proof_facts() -> ProofFacts {
+    snos_to_proof_facts(SnosProofFacts {
+        block_number: BlockNumber(CURRENT_BLOCK_NUMBER + 100),
+        ..valid_snos_proof_facts()
+    })
+}
+
+/// Tests the `validate_proof_facts` function for Invoke V3 transactions.
+/// Covers: valid proof facts, too recent block number, mismatched block hash, future block,
+/// and low current block number.
+#[rstest]
+#[case::valid_proof_facts(valid_proof_facts(), CURRENT_BLOCK_NUMBER)]
+#[should_panic(expected = "is too recent")]
+#[case::too_recent_block(too_recent_block_proof_facts(), CURRENT_BLOCK_NUMBER)]
+#[should_panic(expected = "Block hash mismatch")]
+#[case::mismatched_block_hash(mismatched_hash_proof_facts(), CURRENT_BLOCK_NUMBER)]
+#[should_panic(expected = "is less than proof block number")]
+#[case::future_block(future_block_proof_facts(), CURRENT_BLOCK_NUMBER)]
+fn test_validate_proof_facts(
+    default_all_resource_bounds: ValidResourceBounds,
+    #[case] proof_facts: ProofFacts,
+    #[case] current_block_number: u64,
+) {
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.block_info.block_number = BlockNumber(current_block_number);
+
+    let chain_info = &block_context.chain_info;
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let mut state = test_state(chain_info, BALANCE, &[(account, 1u16)]);
+    let account_address = account.get_instance_address(0_u16);
+
+    // Get the block hash contract address from versioned constants.
+    let block_hash_contract_address = block_context
+        .versioned_constants
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address();
+
+    // Store block hashes for test blocks.
+    // Valid block number: more than STORED_BLOCK_HASH_BUFFER blocks old.
+    let valid_proof_block_number = CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER - 1;
+    let stored_block_hash = felt!(0xABCDEF_u64);
+
+    // Store the block hash in the block hash contract.
+    state
+        .set_storage_at(
+            block_hash_contract_address,
+            StorageKey::try_from(felt!(valid_proof_block_number)).unwrap(),
+            stored_block_hash,
+        )
+        .unwrap();
+
+    let tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_address,
+        resource_bounds: default_all_resource_bounds,
+        version: TransactionVersion::THREE,
+        proof_facts: proof_facts,
+    });
+
+    // Run only pre-validation stage (which includes proof facts validation).
+    let tx_context = block_context.to_tx_context(&tx);
+    tx.perform_pre_validation_stage(&mut state, &tx_context).unwrap();
 }
