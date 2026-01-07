@@ -1,10 +1,12 @@
 import json
 import os
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from rich.console import Console
 from src.config.schema import CommonConfig, ServiceConfig
 
 
@@ -365,7 +367,7 @@ class NodeConfigLoader(Config):
     @staticmethod
     def _build_file_paths_section(
         config_list_path: Optional[str], overlay_source: Optional[str]
-    ) -> str:
+    ) -> List[str]:
         """Build the file paths section of the error message.
 
         Args:
@@ -373,63 +375,53 @@ class NodeConfigLoader(Config):
             overlay_source: Optional source identifier for the overlay file
 
         Returns:
-            The file paths section as a string
+            The file paths section as a list of strings with Rich markup
         """
-        section = "File Paths:\n"
+        section = ["[bold]File Paths:[/bold]"]
         if config_list_path:
             full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
-            section += f"  application_config_json_path: {full_config_path}\n"
+            section.append(f"  application_config_json_path: [cyan]{full_config_path}[/cyan]")
         else:
-            section += "  application_config_json_path: <unknown>\n"
+            section.append("  application_config_json_path: [dim]<unknown>[/dim]")
         if overlay_source:
-            section += f"  config_override_path: {overlay_source}\n"
+            section.append(f"  config_override_path: [cyan]{overlay_source}[/cyan]")
         else:
-            section += "  config_override_path: <unknown>\n"
+            section.append("  config_override_path: [dim]<unknown>[/dim]")
         return section
 
     @staticmethod
-    def _build_unused_config_keys_section(unmatched_keys: List[tuple[str, str]]) -> str:
+    def _build_unused_config_keys_section(unmatched_keys: List[tuple[str, str]]) -> List[str]:
         """Build the unused config keys section of the error message.
 
         Args:
             unmatched_keys: List of (yaml_key, placeholder) tuples
 
         Returns:
-            The unused config keys section as a string
+            The unused config keys section as a list of strings with Rich markup
         """
         if not unmatched_keys:
-            return ""
+            return []
 
-        section = "\n" + "-" * 80 + "\n"
-        section += "Unused Config Keys:\n"
-        section += "-" * 80 + "\n"
-        section += (
-            f"  Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
-            f"  corresponding placeholders in the application config JSON file:\n\n"
-        )
+        section = [
+            "[bold]" + "-" * 80 + "[/bold]",
+            "[bold]Unused Config Keys (in YAML but not in JSON):[/bold]",
+            "[bold]" + "-" * 80 + "[/bold]",
+        ]
 
-        for idx, (yaml_key, placeholder) in enumerate(unmatched_keys, 1):
-            section += f"  Unused Config Key #{idx}:\n"
-            section += f"    YAML key: {yaml_key}\n"
-            section += f"    Maps to placeholder: {placeholder}\n"
-            section += (
-                f"\n    This key exists in your config file but no placeholder matches it.\n"
-                f"    Either remove this key from your config file, or add a corresponding\n"
-                f"    placeholder to the application config JSON file.\n"
-            )
-            if idx < len(unmatched_keys):
-                section += "\n"
+        # Simple list: config key on one line, placeholder on next line
+        for yaml_key, placeholder in sorted(unmatched_keys, key=lambda x: x[0]):
+            section.append(f"[yellow]{yaml_key}[/yellow]")
+            section.append(f"[dim]{placeholder}[/dim]")
+            section.append("")  # Empty line between pairs
 
-        section += "\n"
-        section += "  To fix:\n"
-        section += (
-            "    Remove the unused config keys from your YAML overlay file, or add\n"
-            "    corresponding placeholders to the application config JSON file.\n"
-        )
+        # Remove trailing empty line
+        if section[-1] == "":
+            section.pop()
+
         return section
 
     @staticmethod
-    def _build_missing_placeholders_section(remaining_placeholders: set[str], config: dict) -> str:
+    def _build_missing_placeholders_section(remaining_placeholders: set[str], config: dict) -> List[str]:
         """Build the missing placeholders section of the error message.
 
         Args:
@@ -437,48 +429,30 @@ class NodeConfigLoader(Config):
             config: The config dictionary to find placeholder locations in
 
         Returns:
-            The missing placeholders section as a string
+            The missing placeholders section as a list of strings with Rich markup
         """
         if not remaining_placeholders:
-            return ""
+            return []
 
         sorted_placeholders = sorted(remaining_placeholders)
-        section = "\n" + "-" * 80 + "\n"
-        section += "Missing Placeholders:\n"
-        section += "-" * 80 + "\n"
-        section += (
-            f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
-            f"  application config but were not overridden in your YAML overlay:\n\n"
-        )
+        section = [
+            "[bold]" + "-" * 80 + "[/bold]",
+            "[bold]Missing Placeholders (in JSON but not in YAML):[/bold]",
+            "[bold]" + "-" * 80 + "[/bold]",
+        ]
 
-        for idx, placeholder in enumerate(sorted_placeholders, 1):
-            # Find where this placeholder appears in the config
-            locations = NodeConfigLoader._find_placeholder_locations(config, placeholder)
+        # Simple list: placeholder on one line, config key on next line
+        for placeholder in sorted_placeholders:
             # Convert placeholder back to YAML key format for suggestion
             yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
+            section.append(f"[red]{placeholder}[/red]")
+            section.append(f"[green]{yaml_key_suggestion}[/green]")
+            section.append("")  # Empty line between pairs
 
-            section += f"  Missing Placeholder #{idx}:\n\n"
-            section += f"    Placeholder:\n"
-            section += f"      {placeholder}\n\n"
-            if locations:
-                section += f"    Location(s) in JSON:\n"
-                for loc in locations[:3]:  # Show up to 3 locations
-                    section += f"      key path: {loc}\n"
-                if len(locations) > 3:
-                    section += f"      ... and {len(locations) - 3} more location(s)\n"
-            section += f"\n    Expected config key:\n"
-            section += f"      {yaml_key_suggestion}\n\n"
-            section += f"    Add to your config file as:\n"
-            section += f"      {yaml_key_suggestion}: <value>\n"
-            if idx < len(sorted_placeholders):
-                section += "\n"
+        # Remove trailing empty line
+        if section[-1] == "":
+            section.pop()
 
-        section += "\n"
-        section += "  To fix:\n"
-        section += (
-            "    Add the missing placeholder entries to your YAML overlay file, or\n"
-            "    remove the placeholders from the application config JSON file.\n"
-        )
         return section
 
     @staticmethod
@@ -551,28 +525,95 @@ class NodeConfigLoader(Config):
 
         # Step 4: If there are any issues, raise a combined error
         if unmatched_keys or remaining_placeholders:
+            # Build comprehensive error message using Rich
+            console = Console()
             total_issues = len(unmatched_keys) + len(remaining_placeholders)
-            error_message = "=" * 80 + "\n"
-            error_message += "ERROR: CONFIGURATION ERRORS DETECTED (Unused Config Keys & Unhandled Placeholders)\n"
-            error_message += "=" * 80 + "\n\n"
-            error_message += f"Found {total_issues} issue(s):\n"
-            if unmatched_keys:
-                error_message += f"  - {len(unmatched_keys)} unused config key(s)\n"
+            error_title = "CONFIGURATION ERRORS DETECTED"
+            if unmatched_keys and remaining_placeholders:
+                error_title = "CONFIGURATION ERRORS DETECTED (Missing Placeholders & Unused Config Keys)"
+            elif remaining_placeholders:
+                error_title = "UNHANDLED PLACEHOLDER(S) DETECTED"
+            elif unmatched_keys:
+                error_title = "UNUSED CONFIG KEY(S) DETECTED"
+
+            # Build error message with Rich markup
+            error_parts = [
+                "[bold red]" + "=" * 80 + "[/bold red]",
+                f"[bold red]ERROR:[/bold red] [bold]{error_title}[/bold]",
+                "[bold red]" + "=" * 80 + "[/bold red]",
+                "",
+                f"Found [yellow]{total_issues}[/yellow] issue(s):",
+            ]
             if remaining_placeholders:
-                error_message += f"  - {len(remaining_placeholders)} unhandled placeholder(s)\n"
-            error_message += "\n"
+                error_parts.append(
+                    f"  - [cyan]{len(remaining_placeholders)}[/cyan] unhandled placeholder(s)"
+                )
+            if unmatched_keys:
+                error_parts.append(f"  - [cyan]{len(unmatched_keys)}[/cyan] unused config key(s)")
+            error_parts.append("")
 
-            error_message += NodeConfigLoader._build_file_paths_section(
-                config_list_path, overlay_source
+            # Add file paths
+            error_parts.extend(
+                NodeConfigLoader._build_file_paths_section(config_list_path, overlay_source)
             )
-            error_message += NodeConfigLoader._build_unused_config_keys_section(unmatched_keys)
-            error_message += NodeConfigLoader._build_missing_placeholders_section(
-                remaining_placeholders, result
-            )
+            error_parts.append("")
 
-            error_message += "\n" + "=" * 80
+            # Add missing placeholders section
+            if remaining_placeholders:
+                error_parts.extend(
+                    NodeConfigLoader._build_missing_placeholders_section(
+                        remaining_placeholders, result
+                    )
+                )
 
-            raise ValueError(error_message)
+            # Add unused config keys section
+            if unmatched_keys:
+                error_parts.extend(
+                    NodeConfigLoader._build_unused_config_keys_section(unmatched_keys)
+                )
+
+            # Single unified "To fix" section at the bottom
+            error_parts.append("")
+            error_parts.append("[bold]To fix:[/bold]")
+            if remaining_placeholders and unmatched_keys:
+                error_parts.append(
+                    "  For missing placeholders: Add the corresponding config keys to your YAML config file,\n"
+                    "  or remove the placeholders from the source JSON file."
+                )
+                error_parts.append(
+                    "  For unused config keys: Remove the unused keys from your YAML config file, or add\n"
+                    "  corresponding placeholders to the source JSON file."
+                )
+            elif remaining_placeholders:
+                error_parts.append(
+                    "  Add the corresponding config keys to your YAML config file, or remove the\n"
+                    "  placeholders from the source JSON file."
+                )
+            elif unmatched_keys:
+                error_parts.append(
+                    "  Remove the unused config keys from your YAML config file, or add corresponding\n"
+                    "  placeholders to the source JSON file."
+                )
+
+            error_parts.append("")
+            error_parts.append("[bold red]" + "=" * 80 + "[/bold red]")
+
+            # Build the error message string with Rich formatting
+            rich_error_message = "\n".join(error_parts)
+
+            # Print with Rich formatting
+            console.print(rich_error_message)
+
+            # Build plain text version for ValueError (strip Rich markup)
+            plain_error_parts = []
+            for part in error_parts:
+                # Remove Rich markup tags like [bold], [red], etc.
+                plain_part = re.sub(r'\[/?[^\]]+\]', '', part)
+                plain_error_parts.append(plain_part)
+
+            plain_error_message = "\n".join(plain_error_parts)
+
+            raise ValueError(plain_error_message)
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
@@ -658,21 +699,55 @@ class NodeConfigLoader(Config):
         if remaining_placeholders:
             sorted_placeholders = sorted(remaining_placeholders)
 
-            error_message = "=" * 80 + "\n"
-            error_message += "ERROR: UNHANDLED PLACEHOLDERS DETECTED\n"
-            error_message += "=" * 80 + "\n\n"
-            error_message += f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+            # Build comprehensive error message using Rich
+            console = Console()
+            error_parts = [
+                "[bold red]" + "=" * 80 + "[/bold red]",
+                "[bold red]ERROR:[/bold red] [bold]UNHANDLED PLACEHOLDER(S) DETECTED[/bold]",
+                "[bold red]" + "=" * 80 + "[/bold red]",
+                "",
+                f"Found [yellow]{len(sorted_placeholders)}[/yellow] unhandled placeholder(s) in the final config.",
+                "",
+            ]
 
-            error_message += NodeConfigLoader._build_file_paths_section(
-                config_list_path, overlay_source
+            # Add file paths
+            error_parts.extend(
+                NodeConfigLoader._build_file_paths_section(config_list_path, overlay_source)
             )
-            error_message += NodeConfigLoader._build_missing_placeholders_section(
-                remaining_placeholders, config
+            error_parts.append("")
+
+            # Add missing placeholders section
+            error_parts.extend(
+                NodeConfigLoader._build_missing_placeholders_section(remaining_placeholders, config)
             )
 
-            error_message += "\n" + "=" * 80
+            # Single unified "To fix" section at the bottom
+            error_parts.append("")
+            error_parts.append("[bold]To fix:[/bold]")
+            error_parts.append(
+                "  Add the corresponding config keys to your YAML config file, or remove the\n"
+                "  placeholders from the source JSON file."
+            )
 
-            raise ValueError(error_message)
+            error_parts.append("")
+            error_parts.append("[bold red]" + "=" * 80 + "[/bold red]")
+
+            # Build the error message string with Rich formatting
+            rich_error_message = "\n".join(error_parts)
+
+            # Print with Rich formatting
+            console.print(rich_error_message)
+
+            # Build plain text version for ValueError (strip Rich markup)
+            plain_error_parts = []
+            for part in error_parts:
+                # Remove Rich markup tags like [bold], [red], etc.
+                plain_part = re.sub(r'\[/?[^\]]+\]', '', part)
+                plain_error_parts.append(plain_part)
+
+            plain_error_message = "\n".join(plain_error_parts)
+
+            raise ValueError(plain_error_message)
 
 
 class GrafanaDashboardConfigLoader(Config):
