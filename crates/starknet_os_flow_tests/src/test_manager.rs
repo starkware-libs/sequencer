@@ -47,7 +47,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Fee, ProofFactsVariant, Tip};
+use starknet_api::transaction::fields::{Calldata, Fee, ProofFacts, Tip};
 use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -77,6 +77,7 @@ use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
+    create_client_side_proving_initial_state_data,
     create_default_initial_state_data,
     get_initial_deploy_account_tx,
     FlowTestState,
@@ -118,6 +119,7 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
+<<<<<<< HEAD
 /// The block hash contract address, cached to avoid repeated VersionedConstants creation.
 static BLOCK_HASH_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(block_hash_contract_address);
@@ -148,6 +150,8 @@ fn store_block_hash_from_transaction<S: UpdatableState>(tx: &BlockifierTransacti
     }
 }
 
+=======
+>>>>>>> 60a17ea34 (starknet_os: add proof factblock number to block hash validations)
 #[derive(Default)]
 pub(crate) struct TestBuilderConfig {
     pub(crate) use_kzg_da: bool,
@@ -285,25 +289,6 @@ impl<S: FlowTestState> OsTestOutput<S> {
                 ))
                 .collect::<HashMap<_, _>>()
         );
-    }
-
-    /// Adds the proof facts block hash storage mapping to the decompressed state diff.
-    /// This is needed because the Blockifier writes block hash storage for proof facts
-    /// verification, but the OS doesn't include this in its output.
-    // TODO(Meshi): Remove this once we have a solution that dose not write to the state during the
-    // transaction execution.
-    pub(crate) fn add_proof_facts_block_hash_storage(
-        &mut self,
-        block_number: BlockNumber,
-        block_hash: BlockHash,
-    ) {
-        let storage_key = StarknetStorageKey(StorageKey::from(block_number.0));
-        let storage_value = StarknetStorageValue(block_hash.0);
-        self.decompressed_state_diff
-            .storage_updates
-            .entry(*BLOCK_HASH_CONTRACT_ADDRESS)
-            .or_default()
-            .insert(storage_key, storage_value);
     }
 
     fn perform_global_validations(&self) {
@@ -798,10 +783,14 @@ impl<S: FlowTestState> TestBuilder<S> {
 
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
+<<<<<<< HEAD
                 .map(|flow_test_tx| {
                     store_block_hash_from_transaction(&flow_test_tx.tx, &mut state);
                     (flow_test_tx.tx, flow_test_tx.expected_revert_reason)
                 })
+=======
+                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
+>>>>>>> 60a17ea34 (starknet_os: add proof factblock number to block hash validations)
                 .unzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
@@ -928,6 +917,22 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// Creates a new `TestBuilder` with an initial state that includes proof facts block hash
+    /// mappings. Use this for tests that use client-side proving with proof facts.
+    pub(crate) async fn create_standard_with_proof_facts<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+        config: TestBuilderConfig,
+        proof_facts_list: &[ProofFacts],
+    ) -> (Self, [ContractAddress; N]) {
+        let (initial_state_data, extra_addresses) =
+            create_client_side_proving_initial_state_data::<DictStateReader, N>(
+                extra_contracts,
+                proof_facts_list,
+            )
+            .await;
+        (Self::new_with_initial_state_data(initial_state_data, config, false), extra_addresses)
     }
 }
 

@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::BlockContext;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::UpdatableState;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -24,14 +26,24 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetAPITransaction,
 };
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
+use starknet_api::state::{ContractClassComponentHashes, SierraContractClass, StorageKey};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    Calldata,
+    ContractAddressSalt,
+    ProofFacts,
+    ProofFactsVariant,
+    ValidResourceBounds,
+};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
@@ -135,6 +147,16 @@ pub(crate) struct InitialState<S: FlowTestState> {
 pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
     extra_contracts: [(FeatureContract, Calldata); N],
 ) -> (InitialStateData<S>, [ContractAddress; N]) {
+    create_initial_state_data_with_additional_storage(extra_contracts, HashMap::new()).await
+}
+
+/// Creates the initial state with additional storage updates included in the initial commit.
+/// This is useful for tests that need specific storage values (like proof facts block hash
+/// mappings) to be present in the Patricia tree from the start.
+async fn create_initial_state_data_with_additional_storage<S: FlowTestState, const N: usize>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+    additional_storage: HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+) -> (InitialStateData<S>, [ContractAddress; N]) {
     let (
         InitialTransactionsData {
             transactions: default_initial_state_txs,
@@ -174,8 +196,28 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     );
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
-    let committer_state_diff = create_committer_state_diff(state_diff);
+    // Commit the state diff with any additional storage updates.
+    let mut committer_state_diff = create_committer_state_diff(state_diff);
+    for (address, storage_updates) in &additional_storage {
+        committer_state_diff
+            .storage_updates
+            .entry(*address)
+            .or_default()
+            .extend(storage_updates.iter().map(|(k, v)| (*k, *v)));
+    }
+
+    // Also apply additional storage to the blockifier's cached state.
+    if !additional_storage.is_empty() {
+        let mut additional_state_maps = StateMaps::default();
+        for (address, storage_updates) in additional_storage {
+            for (key, value) in storage_updates {
+                additional_state_maps.storage.insert((address, key.0), value.0);
+            }
+        }
+        final_state
+            .state
+            .apply_writes(&additional_state_maps, &final_state.class_hash_to_class.borrow());
+    }
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 
@@ -191,6 +233,43 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
         InitialStateData { initial_state, nonce_manager, execution_contracts },
         extra_contracts_addresses,
     )
+}
+
+/// Creates an initial state for client-side proving tests that includes proof facts block hash
+/// mappings. This ensures the Patricia tree contains the mappings needed for OS proof facts
+/// validation.
+pub(crate) async fn create_client_side_proving_initial_state_data<
+    S: FlowTestState,
+    const N: usize,
+>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+    proof_facts_list: &[ProofFacts],
+) -> (InitialStateData<S>, [ContractAddress; N]) {
+    // Collect proof facts storage updates (block_number -> block_hash mappings).
+    let mut proof_facts_storage_updates = HashMap::new();
+    for proof_facts in proof_facts_list {
+        if let Ok(ProofFactsVariant::Snos(snos_proof_facts)) =
+            ProofFactsVariant::try_from(proof_facts)
+        {
+            proof_facts_storage_updates.insert(
+                StarknetStorageKey(StorageKey::from(snos_proof_facts.block_number.0)),
+                StarknetStorageValue(snos_proof_facts.block_hash.0),
+            );
+        }
+    }
+
+    // Build additional storage map with proof facts mappings for the block hash contract.
+    let additional_storage = if proof_facts_storage_updates.is_empty() {
+        HashMap::new()
+    } else {
+        let block_hash_contract_address = VersionedConstants::create_for_testing()
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address();
+        HashMap::from([(block_hash_contract_address, proof_facts_storage_updates)])
+    };
+
+    create_initial_state_data_with_additional_storage(extra_contracts, additional_storage).await
 }
 
 struct InitialTransactionsData {

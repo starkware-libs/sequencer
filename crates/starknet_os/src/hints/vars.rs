@@ -137,6 +137,8 @@ define_string_enum! {
         (Bit),
         (BlockInfo),
         (BlockNumber),
+        (ProofFactsBlockHash),
+        (ProofFactsBlockNumber),
         (BlockTimestamp),
         (BucketIndex),
         (BuiltinCosts),
