@@ -383,12 +383,12 @@
           }
         },
         {
-          "title": "Rejected / Reverted TXs Ratio",
-          "description": "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
+          "title": "Rejected and Reverted TXs Ratio",
+          "description": "Ratios of rejected and reverted transactions out of all processed txs",
           "type": "timeseries",
           "exprs": [
-            "increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))",
-            "increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} / (batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+            "batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} / (batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"} + batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {
             "unit": "percentunit",

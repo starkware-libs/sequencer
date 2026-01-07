@@ -65,20 +65,16 @@ fn get_panel_storage_height() -> Panel {
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
-    let rejected_txs_expr = increase(&REJECTED_TRANSACTIONS, DEFAULT_DURATION);
-    let reverted_txs_expr = increase(&REVERTED_TRANSACTIONS, DEFAULT_DURATION);
+    let rejected_txs_expr = &REJECTED_TRANSACTIONS.get_name_with_filter();
+    let reverted_txs_expr = &REVERTED_TRANSACTIONS.get_name_with_filter();
+    let batched_txs_expr = &BATCHED_TRANSACTIONS.get_name_with_filter();
 
-    let denominator_expr = format!(
-        "({} + {} + {})",
-        rejected_txs_expr,
-        reverted_txs_expr,
-        increase(&BATCHED_TRANSACTIONS, DEFAULT_DURATION),
-    );
+    let denominator_expr =
+        format!("({} + {} + {})", rejected_txs_expr, reverted_txs_expr, batched_txs_expr,);
     Panel::new(
-        "Rejected / Reverted TXs Ratio",
+        "Rejected and Reverted TXs Ratio",
         format!(
-            "Ratio of rejected / reverted transactions out of all processed txs \
-             ({DEFAULT_DURATION} window)"
+            "Ratios of rejected and reverted transactions out of all processed txs"
         ),
         vec![
             format!("{rejected_txs_expr} / {denominator_expr}"),
