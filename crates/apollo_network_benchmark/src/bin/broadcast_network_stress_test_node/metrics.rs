@@ -5,8 +5,10 @@ use apollo_metrics::define_metrics;
 use apollo_metrics::metrics::LossyIntoF64;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
+    EventMetrics,
     NetworkMetrics,
     SqmrNetworkMetrics,
+    EVENT_TYPE_LABELS,
     NETWORK_BROADCAST_DROP_LABELS,
 };
 
@@ -34,6 +36,8 @@ define_metrics!(
         MetricCounter { NETWORK_STRESS_TEST_SENT_MESSAGES, "network_stress_test_sent_messages", "Number of stress test messages sent via broadcast", init = 0 },
         MetricCounter { NETWORK_STRESS_TEST_RECEIVED_MESSAGES, "network_stress_test_received_messages", "Number of stress test messages received via broadcast", init = 0 },
         LabeledMetricCounter { NETWORK_DROPPED_BROADCAST_MESSAGES, "network_dropped_broadcast_messages", "Number of dropped broadcast messages by reason", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
+        LabeledMetricCounter { NETWORK_EVENT_COUNTER, "network_event_counter", "Network events counter by type", init = 0, labels = EVENT_TYPE_LABELS },
+
         // system metrics for the node
         MetricGauge { SYSTEM_TOTAL_MEMORY_BYTES, "system_total_memory_bytes", "Total system memory in bytes" },
         MetricGauge { SYSTEM_AVAILABLE_MEMORY_BYTES, "system_available_memory_bytes", "Available system memory in bytes" },
@@ -87,12 +91,15 @@ pub fn create_network_metrics() -> apollo_network::metrics::NetworkMetrics {
         num_active_outbound_sessions: NETWORK_ACTIVE_OUTBOUND_SESSIONS,
     };
 
+    // Create event metrics for network events monitoring
+    let event_metrics = EventMetrics { event_counter: NETWORK_EVENT_COUNTER };
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: Some(sqmr_metrics),
-        event_metrics: None,
+        event_metrics: Some(event_metrics),
         latency_metrics: None,
     }
 }
