@@ -12,7 +12,7 @@ use crate::block_committer::input::{
     InputContext,
     StateDiff,
 };
-use crate::block_committer::timing_util::{Action, TimeMeasurement};
+use crate::block_committer::timing_util::{Action, TimeMeasurement, TimeMeasurementTrait};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
