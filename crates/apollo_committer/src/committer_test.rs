@@ -16,7 +16,7 @@ use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::{Input, InputContext};
-use starknet_committer::block_committer::timing_util::TimeMeasurement;
+use starknet_committer::block_committer::timing_util::TimeMeasurementTrait;
 use starknet_committer::db::forest_trait::ForestReader;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
@@ -35,7 +35,7 @@ impl CommitBlockTrait for CommitBlockMock {
     async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
         input: Input<I>,
         _trie_reader: &mut Reader,
-        _time_measurement: Option<&mut TimeMeasurement>,
+        mut _time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)>,
     ) -> BlockCommitmentResult<FilledForest> {
         let class_hash =
             input.state_diff.class_hash_to_compiled_class_hash.iter().next().unwrap().0.0;
