@@ -1,6 +1,3 @@
-// TODO(AndrewL): remove this once the struct is used
-#![allow(dead_code)]
-
 #[derive(Default, Clone, Copy)]
 pub struct MessageIndexTracker {
     seen_messages_count: u64,

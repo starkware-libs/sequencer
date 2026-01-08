@@ -5,6 +5,7 @@ use apollo_network_benchmark::node_args::NodeArgs;
 use libp2p::PeerId;
 
 use crate::message::{StressTestMessage, METADATA_SIZE};
+use crate::message_index_detector::MessageIndexTracker;
 use crate::metrics::{
     get_throughput,
     BROADCAST_MESSAGE_BYTES,
@@ -17,6 +18,7 @@ use crate::metrics::{
     RECEIVE_MESSAGE_BYTES_SUM,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
+    RECEIVE_MESSAGE_PENDING_COUNT,
 };
 use crate::protocol::MessageSender;
 
@@ -62,7 +64,11 @@ pub async fn send_stress_test_messages(
     }
 }
 
-pub fn receive_stress_test_message(received_message: Vec<u8>, _sender_peer_id: Option<PeerId>) {
+pub fn receive_stress_test_message(
+    received_message: Vec<u8>,
+    _sender_peer_id: Option<PeerId>,
+    tx: tokio::sync::mpsc::UnboundedSender<(usize, u64)>,
+) {
     let end_time = SystemTime::now();
 
     let received_message: StressTestMessage = received_message.into();
@@ -81,4 +87,30 @@ pub fn receive_stress_test_message(received_message: Vec<u8>, _sender_peer_id: O
 
     // Use apollo_metrics histograms for latency measurements
     RECEIVE_MESSAGE_DELAY_SECONDS.record(delay_seconds);
+
+    // Send to index tracker
+    tx.send((
+        usize::try_from(received_message.metadata.sender_id)
+            .expect("sender_id too large for usize"),
+        received_message.metadata.message_index,
+    ))
+    .unwrap();
+}
+
+pub async fn record_indexed_message(
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<(usize, u64)>,
+    num_peers: usize,
+) {
+    let mut index_tracker = vec![MessageIndexTracker::default(); num_peers];
+    let mut all_pending = 0;
+    while let Some((peer_id, index)) = rx.recv().await {
+        let old_pending = index_tracker[peer_id].pending_messages_count();
+        index_tracker[peer_id].seen_message(index);
+        let new_pending = index_tracker[peer_id].pending_messages_count();
+
+        all_pending -= old_pending;
+        all_pending += new_pending;
+
+        RECEIVE_MESSAGE_PENDING_COUNT.set(all_pending.into_f64());
+    }
 }
