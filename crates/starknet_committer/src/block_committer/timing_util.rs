@@ -51,6 +51,18 @@ impl BlockTimers {
     }
 }
 
+pub trait TimeMeasurementTrait {
+    fn block_timers(&mut self) -> &mut BlockTimers;
+
+    fn start_measurement(&mut self, action: Action) {
+        self.block_timers().start_measurement(action);
+    }
+
+    fn stop_measurement(&mut self, action: Action) {
+        self.block_timers().stop_measurement(&action);
+    }
+}
+
 #[derive(Default)]
 pub struct BlockMeasurement {
     pub n_new_facts: usize,
@@ -98,34 +110,17 @@ pub struct TimeMeasurement {
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurement {
-    pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
-        Self {
-            block_timers: BlockTimers::default(),
-            total_time: 0,
-            block_measurements: Vec::with_capacity(size),
-            block_number: 0,
-            total_facts: 0,
-            facts_in_db: Vec::with_capacity(size),
-            storage_stat_columns,
-        }
-    }
-
-    fn clear_measurements(&mut self) {
-        self.block_measurements.clear();
-        self.facts_in_db.clear();
-    }
-
-    pub fn start_measurement(&mut self, action: Action) {
-        self.block_timers.start_measurement(action);
+impl TimeMeasurementTrait for TimeMeasurement {
+    fn block_timers(&mut self) -> &mut BlockTimers {
+        &mut self.block_timers
     }
 
     /// Stop the measurement for the given action and add the duration to the corresponding vector.
     /// facts_count is either the number of facts read from the DB for Read action, or the number of
     /// new facts written to the DB for the Total action.
     /// Assuming the first action to be stopped in each block is Read.
-    pub fn stop_measurement(&mut self, action: Action) {
-        let instant_duration = self.block_timers.stop_measurement(&action);
+    fn stop_measurement(&mut self, action: Action) {
+        let instant_duration = self.block_timers().stop_measurement(&action);
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
@@ -149,6 +144,25 @@ impl TimeMeasurement {
             self.block_number += 1;
             self.facts_in_db.push(self.total_facts);
         }
+    }
+}
+
+impl TimeMeasurement {
+    pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
+        Self {
+            block_timers: BlockTimers::default(),
+            total_time: 0,
+            block_measurements: Vec::with_capacity(size),
+            block_number: 0,
+            total_facts: 0,
+            facts_in_db: Vec::with_capacity(size),
+            storage_stat_columns,
+        }
+    }
+
+    fn clear_measurements(&mut self) {
+        self.block_measurements.clear();
+        self.facts_in_db.clear();
     }
 
     pub fn n_results(&self) -> usize {
