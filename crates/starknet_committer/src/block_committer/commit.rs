@@ -60,7 +60,7 @@ pub trait CommitBlockTrait: Send {
             .await?;
         let n_read_facts =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-        time_measurement.attempt_to_stop_measurement(Action::Read, n_read_facts);
+        time_measurement.attempt_to_stop_measurement(Action::Read, n_read_facts).ok();
         info!("Original skeleton forest created successfully.");
 
         if input.config.warn_on_trivial_modifications() {
@@ -93,7 +93,7 @@ pub trait CommitBlockTrait: Send {
             &input.state_diff.address_to_nonce,
         )
         .await?;
-        time_measurement.attempt_to_stop_measurement(Action::Compute, 0);
+        time_measurement.attempt_to_stop_measurement(Action::Compute, 0).ok();
         info!("Filled forest created successfully.");
 
         Ok(filled_forest)

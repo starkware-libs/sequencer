@@ -1,4 +1,5 @@
 use std::fs::{self, File};
+use std::mem::take;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use csv::Writer;
@@ -63,14 +64,28 @@ impl BlockTimers {
 
 pub trait TimeMeasurementTrait {
     fn start_measurement(&mut self, action: Action);
-    fn attempt_to_stop_measurement(&mut self, action: Action, entries_count: usize);
+
+    /// Attempts to stop the measurement for the given action and returns the duration in
+    /// milliseconds.
+    fn attempt_to_stop_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError>;
 }
 
 pub struct NoTimeMeasurement;
 
 impl TimeMeasurementTrait for NoTimeMeasurement {
     fn start_measurement(&mut self, _action: Action) {}
-    fn attempt_to_stop_measurement(&mut self, _action: Action, _entries_count: usize) {}
+
+    fn attempt_to_stop_measurement(
+        &mut self,
+        _action: Action,
+        _entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError> {
+        Err(MeasurementNotStartedError)
+    }
 }
 
 #[derive(Default, Clone)]
@@ -109,8 +124,30 @@ impl BlockMeasurement {
     }
 }
 
-pub struct TimeMeasurement {
+#[derive(Default)]
+pub struct SingleBlockTimeMeasurement {
     pub block_timers: BlockTimers,
+    pub block_measurement: BlockMeasurement,
+}
+
+impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
+    fn start_measurement(&mut self, action: Action) {
+        self.block_timers.start_measurement(action);
+    }
+
+    fn attempt_to_stop_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError> {
+        let duration_in_millis = self.block_timers.attempt_to_stop_measurement(&action)?;
+        self.block_measurement.update_after_action(&action, entries_count, duration_in_millis);
+        Ok(duration_in_millis)
+    }
+}
+
+pub struct BenchmarkTimeMeasurement {
+    pub current_measurement: SingleBlockTimeMeasurement,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
     pub initial_db_entry_count: Vec<usize>, /* Number of DB entries prior to the current
@@ -119,34 +156,33 @@ pub struct TimeMeasurement {
                                          * the measurement. */
     pub block_number: usize,
     pub total_db_entry_count: usize,
-    pub current_block_measurement: BlockMeasurement,
 
     // Storage related statistics.
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurementTrait for TimeMeasurement {
+impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
     fn start_measurement(&mut self, action: Action) {
-        self.block_timers.start_measurement(action);
+        self.current_measurement.start_measurement(action);
     }
 
     /// Attempts to stop the measurement for the given action and adds the duration to the
     /// corresponding vector. For Read/Write actions, `entries_count` is the number of entries
     /// read from / written to the DB. For other actions, it is ignored.
-    fn attempt_to_stop_measurement(&mut self, action: Action, entries_count: usize) {
+    /// Returns the duration in milliseconds.
+    /// Panics if the measurement was not started.
+    fn attempt_to_stop_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError> {
         let duration_in_millis = self
-            .block_timers
-            .attempt_to_stop_measurement(&action)
+            .current_measurement
+            .attempt_to_stop_measurement(action, entries_count)
             .expect("Failed to stop measurement");
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
-            duration_in_millis,
-        );
-
-        self.current_block_measurement.update_after_action(
-            &action,
-            entries_count,
             duration_in_millis,
         );
 
@@ -158,27 +194,26 @@ impl TimeMeasurementTrait for TimeMeasurement {
             Action::EndToEnd => {
                 self.total_time += duration_in_millis;
                 self.block_number += 1;
-                self.block_measurements.push(self.current_block_measurement.clone());
+                self.block_measurements.push(take(&mut self.current_measurement.block_measurement));
                 self.time_of_measurement
                     .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
-                self.current_block_measurement = BlockMeasurement::default();
             }
             _ => {}
         }
+        Ok(duration_in_millis)
     }
 }
 
-impl TimeMeasurement {
+impl BenchmarkTimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            block_timers: BlockTimers::default(),
+            current_measurement: SingleBlockTimeMeasurement::default(),
             total_time: 0,
             block_measurements: Vec::with_capacity(size),
             block_number: 0,
             total_db_entry_count: 0,
             initial_db_entry_count: Vec::with_capacity(size),
             time_of_measurement: Vec::with_capacity(size),
-            current_block_measurement: BlockMeasurement::default(),
             storage_stat_columns,
         }
     }
