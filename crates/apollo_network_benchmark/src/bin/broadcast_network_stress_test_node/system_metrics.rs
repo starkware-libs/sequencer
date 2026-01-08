@@ -25,6 +25,50 @@ const NANOS_PER_SECOND: f64 = 1_000_000_000.0;
 /// constant that has been 100 on all mainstream architectures for decades.
 const CLOCK_TICKS_PER_SEC: u64 = 100;
 
+/// Reads TCP statistics from /proc/net/snmp on Linux systems.
+/// Returns (segments_out, retransmitted_segments) if successful.
+#[allow(dead_code)] // TODO(AndrewL): remove this once the function is used
+fn get_tcp_stats() -> Option<(u64, u64)> {
+    let content = match fs::read_to_string("/proc/net/snmp") {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("Failed to read /proc/net/snmp: {}", e);
+            return None;
+        }
+    };
+
+    let lines: Vec<&str> = content.lines().collect();
+    for i in 0..lines.len().saturating_sub(1) {
+        if lines[i].starts_with("Tcp:") && lines[i + 1].starts_with("Tcp:") {
+            let keys: Vec<&str> = lines[i].split_whitespace().skip(1).collect();
+            let values: Vec<&str> = lines[i + 1].split_whitespace().skip(1).collect();
+
+            let mut out_segs = None;
+            let mut retrans_segs = None;
+
+            for (key, val) in keys.iter().zip(values.iter()) {
+                match *key {
+                    "OutSegs" => out_segs = val.parse().ok(),
+                    "RetransSegs" => retrans_segs = val.parse().ok(),
+                    _ => {}
+                }
+            }
+
+            if out_segs.is_none() || retrans_segs.is_none() {
+                warn!(
+                    "Could not find OutSegs or RetransSegs in /proc/net/snmp. Found keys: {:?}",
+                    keys
+                );
+            }
+
+            return Some((out_segs?, retrans_segs?));
+        }
+    }
+
+    warn!("Could not find Tcp: section in /proc/net/snmp");
+    None
+}
+
 /// Reads memory info, returning (total, available) in bytes.
 ///
 /// Tries cgroup limits first (container-aware), falls back to /proc/meminfo.
