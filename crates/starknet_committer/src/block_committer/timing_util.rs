@@ -98,7 +98,19 @@ impl BlockMeasurement {
     }
 }
 
-pub struct TimeMeasurement {
+#[derive(Default)]
+pub struct SingleBlockTimeMeasurement {
+    pub block_timers: BlockTimers,
+    pub block_measurements: BlockMeasurement,
+}
+
+impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
+    fn block_timers(&mut self) -> &mut BlockTimers {
+        &mut self.block_timers
+    }
+}
+
+pub struct BenchmarkTimeMeasurement {
     pub block_timers: BlockTimers,
     pub total_time: u64, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
@@ -110,7 +122,7 @@ pub struct TimeMeasurement {
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurementTrait for TimeMeasurement {
+impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
     fn block_timers(&mut self) -> &mut BlockTimers {
         &mut self.block_timers
     }
@@ -147,7 +159,7 @@ impl TimeMeasurementTrait for TimeMeasurement {
     }
 }
 
-impl TimeMeasurement {
+impl BenchmarkTimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
             block_timers: BlockTimers::default(),
