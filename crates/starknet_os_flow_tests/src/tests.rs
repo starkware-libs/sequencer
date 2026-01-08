@@ -418,20 +418,12 @@ async fn test_reverted_l1_handler_tx(
         TestBuilder::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
 
     // Add a reverting L1 handler transaction that changes the storage.
-    let tx = ExecutableL1HandlerTransaction::create(
-        L1HandlerTransaction {
-            version: L1HandlerTransaction::VERSION,
-            nonce: Nonce::default(),
-            contract_address: test_contract_address,
-            entry_point_selector: selector_from_name("l1_handler_set_value_and_revert"),
-            // from_address (L1 address), key, value.
-            calldata: calldata![Felt::THREE, Felt::ONE, Felt::TWO],
-        },
-        &test_builder.chain_id(),
-        Fee(1_000_000),
-    )
-    .unwrap();
-    test_builder.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
+    test_builder.add_l1_handler(
+        test_contract_address,
+        "l1_handler_set_value_and_revert",
+        calldata![Felt::THREE, Felt::ONE, Felt::TWO],
+        Some(revert_reason.to_string()),
+    );
 
     let test_output = test_builder.build_and_run().await;
 
@@ -759,21 +751,12 @@ async fn test_os_logic(
     // Invoke the l1_handler deposit(from_address=85, amount=2) through the delegate proxy, and
     // define the expected consumed message.
     let l1_handler_calldata = calldata![Felt::from(85), Felt::TWO];
-    let l1_handler_nonce = Nonce::default();
-    let l1_handler_selector = selector_from_name("deposit");
-    let tx = ExecutableL1HandlerTransaction::create(
-        L1HandlerTransaction {
-            version: L1HandlerTransaction::VERSION,
-            nonce: l1_handler_nonce,
-            contract_address: delegate_proxy_address,
-            entry_point_selector: l1_handler_selector,
-            calldata: l1_handler_calldata.clone(),
-        },
-        chain_id,
-        Fee(1_000_000),
-    )
-    .unwrap();
-    test_builder.add_l1_handler_tx(tx, None);
+    test_builder.add_l1_handler(
+        delegate_proxy_address,
+        "deposit",
+        l1_handler_calldata.clone(),
+        None,
+    );
     update_expected_storage(
         &mut expected_storage_updates,
         delegate_proxy_address,
@@ -2144,7 +2127,6 @@ async fn test_initial_sierra_gas() {
         TestBuilderConfig { use_kzg_da: true, ..Default::default() },
     )
     .await;
-    let chain_id = &test_builder.chain_id();
 
     // Fund the account.
     test_builder.add_fund_address_tx_with_default_amount(account_address);
@@ -2200,24 +2182,16 @@ async fn test_initial_sierra_gas() {
     let expected_l1_handler_gas_upper_bound = os_constants.l1_handler_max_amount_bounds.l2_gas.0;
     let expected_l1_handler_gas_lower_bound = expected_l1_handler_gas_upper_bound - 1000000;
     let from_address = Felt::from_hex_unchecked("0xDEADACC");
-    let selector = selector_from_name("verify_gas_limits_l1_handler");
-    let calldata = vec![
-        Felt::from(expected_l1_handler_gas_lower_bound),
-        Felt::from(expected_l1_handler_gas_upper_bound),
-    ];
-    let l1_handler_tx = ExecutableL1HandlerTransaction::create(
-        L1HandlerTransaction {
-            version: L1HandlerTransaction::VERSION,
-            nonce: Nonce::default(),
-            contract_address: account_address,
-            entry_point_selector: selector,
-            calldata: Calldata(Arc::new([vec![from_address], calldata.clone()].concat())),
-        },
-        chain_id,
-        Fee(1_000_000),
-    )
-    .unwrap();
-    test_builder.add_l1_handler_tx(l1_handler_tx.clone(), None);
+    test_builder.add_l1_handler(
+        account_address,
+        "verify_gas_limits_l1_handler",
+        calldata![
+            from_address,
+            Felt::from(expected_l1_handler_gas_lower_bound),
+            Felt::from(expected_l1_handler_gas_upper_bound)
+        ],
+        None,
+    );
 
     // Run test.
     let test_output = test_builder.build_and_run().await;

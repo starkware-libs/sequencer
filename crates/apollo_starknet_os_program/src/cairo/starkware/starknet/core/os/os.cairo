@@ -128,6 +128,7 @@ func main{
         os_outputs=os_outputs,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+        os_global_context=os_global_context,
     );
 
     // The following code deals with the problem that untrusted code (contract code) could
@@ -229,6 +230,7 @@ func execute_blocks{
     let final_carried_outputs = outputs;
 
     // Update the state.
+    let should_allocate_aliases = 1 - os_global_context.virtual_os_config.enabled;
     %{ EnterScopeWithAliases %}
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
@@ -237,7 +239,7 @@ func execute_blocks{
             contract_class_changes_start=contract_class_changes_start,
             contract_class_changes_end=contract_class_changes,
         ),
-        should_allocate_aliases=TRUE,
+        should_allocate_aliases=should_allocate_aliases,
     );
     %{ vm_exit_scope() %}
 

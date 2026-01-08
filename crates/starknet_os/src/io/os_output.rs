@@ -47,6 +47,8 @@ pub enum OsOutputError {
     InvalidOsOutputField { value_name: String, val: Felt, message: String },
     #[error("Failed to convert to FullOsOutput. State diff variant is of a different type")]
     ConvertToFullOutput,
+    #[error("Output iterator not exhausted.")]
+    OutputNotExhausted,
 }
 
 pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOutputError> {

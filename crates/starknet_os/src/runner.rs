@@ -198,7 +198,6 @@ pub fn run_aggregator(
 
 /// Runs the virtual OS.
 pub fn run_virtual_os(
-    layout: LayoutName,
     OsHints {
         os_hints_config,
         os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
@@ -215,7 +214,8 @@ pub fn run_virtual_os(
     )?;
 
     // Run the virtual OS program.
-    let runner_output = run_program(layout, &VIRTUAL_OS_PROGRAM, &mut snos_hint_processor)?;
+    let runner_output =
+        run_program(DEFAULT_OS_LAYOUT, &VIRTUAL_OS_PROGRAM, &mut snos_hint_processor)?;
 
     Ok(VirtualOsRunnerOutput {
         raw_output: runner_output.raw_output,

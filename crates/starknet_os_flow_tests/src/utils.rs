@@ -78,19 +78,25 @@ pub(crate) fn execute_transactions<S: StateReader + Send>(
     initial_state: S,
     txs: &[Transaction],
     block_context: BlockContext,
+    virtual_os: bool,
 ) -> ExecutionOutput<S> {
     let block_number_hash_pair =
         maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
     let config = TransactionExecutorConfig::default();
 
     // Execute.
-    let mut executor = TransactionExecutor::pre_process_and_create(
-        initial_state,
-        block_context,
-        block_number_hash_pair.map(|(number, hash)| BlockHashAndNumber { hash, number }),
-        config,
-    )
-    .expect("Failed to create transaction executor.");
+    let mut executor = if virtual_os {
+        // In virtual OS mode, the executor is created without preprocessing.
+        TransactionExecutor::new(CachedState::new(initial_state), block_context, config)
+    } else {
+        TransactionExecutor::pre_process_and_create(
+            initial_state,
+            block_context,
+            block_number_hash_pair.map(|(number, hash)| BlockHashAndNumber { hash, number }),
+            config,
+        )
+        .expect("Failed to create transaction executor.")
+    };
 
     // Execute the transactions and make sure none of them failed.
     let execution_deadline = None;
@@ -108,8 +114,11 @@ pub(crate) fn execute_transactions<S: StateReader + Send>(
         }
     }
 
-    // Finalize the block.
-    executor.finalize().expect("Failed to finalize block.");
+    if !virtual_os {
+        // Finalize the block.
+        executor.finalize().expect("Failed to finalize block.");
+    }
+
     let final_state = executor.block_state.unwrap();
     ExecutionOutput { execution_outputs, final_state }
 }

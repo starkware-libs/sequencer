@@ -16,7 +16,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::{expect, Expect};
 use itertools::Itertools;
-use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -39,16 +39,16 @@ use starknet_api::executable_transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction as StarknetApiTransaction,
+    L1HandlerTransaction as ExecutableL1HandlerTransaction,
+    Transaction as ExecutableTransaction,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Tip};
-use starknet_api::transaction::{L1ToL2Payload, MessageToL1};
+use starknet_api::transaction::fields::{Calldata, Fee, Tip};
+use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -415,6 +415,7 @@ pub(crate) struct TestBuilder<S: FlowTestState> {
     pub(crate) execution_contracts: OsExecutionContracts,
     pub(crate) os_hints_config: OsHintsConfig,
     pub(crate) private_keys: Option<Vec<Felt>>,
+    pub(crate) virtual_os: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 
@@ -426,6 +427,7 @@ impl<S: FlowTestState> TestBuilder<S> {
     pub(crate) fn new_with_initial_state_data(
         initial_state_data: InitialStateData<S>,
         config: TestBuilderConfig,
+        virtual_os: bool,
     ) -> Self {
         let public_keys =
             config.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
@@ -445,6 +447,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             execution_contracts: initial_state_data.execution_contracts,
             os_hints_config,
             private_keys: config.private_keys,
+            virtual_os,
             messages_to_l1: Vec::new(),
             messages_to_l2: Vec::new(),
             per_block_txs: vec![vec![]],
@@ -457,10 +460,14 @@ impl<S: FlowTestState> TestBuilder<S> {
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
         config: TestBuilderConfig,
+        virtual_os: bool,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
             create_default_initial_state_data::<S, N>(extra_contracts).await;
-        (Self::new_with_initial_state_data(default_initial_state_data, config), extra_addresses)
+        (
+            Self::new_with_initial_state_data(default_initial_state_data, config, virtual_os),
+            extra_addresses,
+        )
     }
 
     pub(crate) fn next_nonce(&mut self, account_address: ContractAddress) -> Nonce {
@@ -508,7 +515,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             panic!("Expected a V1 contract class");
         };
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
@@ -527,7 +534,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         expected_revert_reason: Option<String>,
     ) {
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Invoke(tx),
             )),
             expected_revert_reason,
@@ -566,7 +573,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             panic!("Expected a V0 contract class");
         };
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
@@ -576,7 +583,7 @@ impl<S: FlowTestState> TestBuilder<S> {
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
@@ -585,7 +592,7 @@ impl<S: FlowTestState> TestBuilder<S> {
 
     pub(crate) fn add_l1_handler_tx(
         &mut self,
-        tx: L1HandlerTransaction,
+        tx: ExecutableL1HandlerTransaction,
         expected_revert_reason: Option<String>,
     ) {
         // If the transaction is not expected to revert, add the corresponding message-to-L2.
@@ -600,9 +607,31 @@ impl<S: FlowTestState> TestBuilder<S> {
             });
         }
         self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::L1Handler(tx)),
             expected_revert_reason,
         });
+    }
+
+    pub(crate) fn add_l1_handler(
+        &mut self,
+        contract_address: ContractAddress,
+        entry_point_name: &str,
+        calldata: Calldata,
+        expected_revert_reason: Option<String>,
+    ) {
+        let tx = ExecutableL1HandlerTransaction::create(
+            L1HandlerTransaction {
+                version: L1HandlerTransaction::VERSION,
+                nonce: Nonce::default(),
+                contract_address,
+                entry_point_selector: selector_from_name(entry_point_name),
+                calldata,
+            },
+            &self.chain_id(),
+            Fee(1_000_000),
+        )
+        .unwrap();
+        self.add_l1_handler_tx(tx, expected_revert_reason);
     }
 
     pub(crate) fn add_fund_address_tx_with_default_amount(&mut self, address: ContractAddress) {
@@ -702,15 +731,22 @@ impl<S: FlowTestState> TestBuilder<S> {
         let base_block_context = self.initial_state.block_context;
 
         // The state roots updated after each block.
-        let mut previous_state_roots = StateRoots {
+        let base_block_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let mut previous_state_roots = base_block_state_roots;
+
         let use_kzg_da = self.os_hints_config.use_kzg_da;
         let mut current_block_hash = BlockHash::default();
         for (block_index, block_txs_with_reason) in self.per_block_txs.into_iter().enumerate() {
-            let block_context =
-                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da);
+            let block_context = if self.virtual_os {
+                // In virtual OS mode, the block context is the same as the base block context.
+                base_block_context.clone()
+            } else {
+                BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da)
+            };
+
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
                 .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
@@ -719,7 +755,12 @@ impl<S: FlowTestState> TestBuilder<S> {
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, mut final_state } =
-                execute_transactions::<CachedState<S>>(state, &block_txs, block_context);
+                execute_transactions::<CachedState<S>>(
+                    state,
+                    &block_txs,
+                    block_context,
+                    self.virtual_os,
+                );
             Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
@@ -756,9 +797,14 @@ impl<S: FlowTestState> TestBuilder<S> {
                 maybe_dummy_block_hash_and_number(block_info.block_number);
             let prev_block_hash = current_block_hash;
             let block_hash_commitments = BlockHeaderCommitments::default();
+            let block_hash_state_root = if self.virtual_os {
+                base_block_state_roots.global_root()
+            } else {
+                new_state_roots.global_root()
+            };
             let new_block_hash = calculate_block_hash(
                 &PartialBlockHashComponents::new(&block_info, block_hash_commitments.clone()),
-                new_state_roots.global_root(),
+                block_hash_state_root,
                 prev_block_hash,
             )
             .unwrap();
@@ -822,7 +868,14 @@ impl TestBuilder<DictStateReader> {
         extra_contracts: [(FeatureContract, Calldata); N],
         config: TestBuilderConfig,
     ) -> (Self, [ContractAddress; N]) {
-        Self::new_with_default_initial_state(extra_contracts, config).await
+        Self::new_with_default_initial_state(extra_contracts, config, false).await
+    }
+
+    pub(crate) async fn create_standard_virtual<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, [ContractAddress; N]) {
+        Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
+            .await
     }
 }
 

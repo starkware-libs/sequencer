@@ -1,7 +1,8 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.segments import relocate_segment
+from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.serialize import serialize_word
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext, VirtualOsConfig
 from starkware.starknet.core.os.block_hash import get_block_hashes
@@ -51,7 +52,14 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Outputs the virtual OS header and the messages to L1.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
+}(
+    n_blocks: felt,
+    os_outputs: OsOutput*,
+    n_public_keys: felt,
+    public_keys: felt*,
+    os_global_context: OsGlobalContext*,
+) {
+    alloc_locals;
     assert n_public_keys = 0;
 
     // Restrict the virtual OS to process a single block.
@@ -64,7 +72,7 @@ func process_os_output{
     serialize_word(header.prev_block_number);
     serialize_word(header.prev_block_hash);
     serialize_word(header.starknet_os_config_hash);
-    // TODO(Yoni): output the authorized account address.
+    serialize_word(os_global_context.virtual_os_config.authorized_account_address);
 
     // TODO(Yoni): output the hash of the messages instead.
     let messages_to_l1_segment_size = (
@@ -73,14 +81,21 @@ func process_os_output{
     );
     serialize_word(messages_to_l1_segment_size);
 
-    // Relocate 'messages_to_l1_segment' to the correct place in the output segment.
-    relocate_segment(src_ptr=os_output.initial_carried_outputs.messages_to_l1, dest_ptr=output_ptr);
-    let output_ptr = cast(os_output.final_carried_outputs.messages_to_l1, felt*);
+    // Copy 'messages_to_l1_segment' to the correct place in the output segment.
+    memcpy(
+        dst=output_ptr,
+        src=os_output.initial_carried_outputs.messages_to_l1,
+        len=messages_to_l1_segment_size,
+    );
+    let output_ptr = &output_ptr[messages_to_l1_segment_size];
     return ();
 }
 
 // Returns the virtual OS config.
-func get_virtual_os_config() -> VirtualOsConfig {
-    let virtual_os_config = VirtualOsConfig(enabled=TRUE);
+func get_virtual_os_config() -> VirtualOsConfig* {
+    let (virtual_os_config: VirtualOsConfig*) = alloc();
+    static_assert VirtualOsConfig.SIZE == 2;
+    assert virtual_os_config.enabled = TRUE;
+    // The authorized account address will be set during transaction execution.
     return virtual_os_config;
 }

@@ -26,17 +26,11 @@ use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
     StateReaderAndContractManager,
 };
+use blockifier::state::utils::get_compiled_class_hash_v2 as default_get_compiled_class_hash_v2;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
-use serde_json::{json, to_value, Value};
-use starknet_api::block::{
-    BlockHash,
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    GasPricePerToken,
-    StarknetVersion,
-};
+use serde_json::{json, Value};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -61,7 +55,6 @@ use crate::state_reader::offline_state_reader::{
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
-    DUMMY_COMPILED_CLASS_HASH,
 };
 use crate::utils::{
     disjoint_hashmap_union,
@@ -106,9 +99,9 @@ impl Default for RetryConfig {
 
 #[derive(Clone)]
 pub struct RpcStateReader {
-    pub(crate) rpc_state_reader: GatewayRpcStateReader,
+    pub rpc_state_reader: GatewayRpcStateReader,
     pub(crate) retry_config: RetryConfig,
-    pub(crate) chain_id: ChainId,
+    pub chain_id: ChainId,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
@@ -163,23 +156,16 @@ impl StateReader for RpcStateReader {
         }
     }
 
-    /// Returns a dummy compiled class hash for reexecution purposes.
-    ///
-    /// This method is required since v0.14.1 for checking if compiled class hashes
-    /// need to be migrated from v1 to v2 format.
-    /// In reexecution we use a dummy value for both get_compiled_class_hash and
-    /// get_compiled_class_hash_v2, to avoid the migration process.
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        Ok(DUMMY_COMPILED_CLASS_HASH)
+        unimplemented!("The rpc state reader does not support get_compiled_class_hash.")
     }
 
-    /// returns the same value as get_compiled_class_hash, to avoid the migration process.
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        self.get_compiled_class_hash(class_hash)
+        default_get_compiled_class_hash_v2(self, class_hash, compiled_class)
     }
 }
 
@@ -231,32 +217,21 @@ impl RpcStateReader {
         RpcStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
     }
 
-    /// Get the block info of the current block.
-    /// If l2_gas_price is not present in the block header, it will be set to 1.
-    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
-        let mut json = retry_request!(self.retry_config, || {
+    /// Get the block header of the current block.
+    pub fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        let json = retry_request!(self.retry_config, || {
             self.rpc_state_reader.send_rpc_request(
                 "starknet_getBlockWithTxHashes",
                 GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
             )
         })?;
 
-        let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
-            "starknet_getBlockWithTxHashes should return JSON value of type Object".to_string(),
-        ))?;
+        Ok(serde_json::from_value::<BlockHeader>(json)?)
+    }
 
-        if block_header_map.get("l2_gas_price").is_none() {
-            // In old blocks, the l2_gas_price field is not present.
-            block_header_map.insert(
-                "l2_gas_price".to_string(),
-                to_value(GasPricePerToken {
-                    price_in_wei: 1_u8.into(),
-                    price_in_fri: 1_u8.into(),
-                })?,
-            );
-        }
-
-        Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
+    /// Get the block info of the current block.
+    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
+        Ok(self.get_block_header()?.try_into()?)
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
@@ -309,15 +284,19 @@ impl RpcStateReader {
             .collect::<Result<_, _>>()
     }
 
-    pub fn get_versioned_constants(&self) -> ReexecutionResult<&'static VersionedConstants> {
-        Ok(VersionedConstants::get(&self.get_starknet_version()?)?)
+    pub fn get_versioned_constants(&self) -> ReexecutionResult<VersionedConstants> {
+        let mut vc = VersionedConstants::get(&self.get_starknet_version()?)?.clone();
+        // Casm hash migration is not supported. It requires compiled class hashes, and the
+        // reexecution state readers do not have them.
+        vc.enable_casm_hash_migration = false;
+        Ok(vc)
     }
 
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
             get_chain_info(&self.chain_id),
-            self.get_versioned_constants()?.clone(),
+            self.get_versioned_constants()?,
             BouncerConfig::max(),
         ))
     }
@@ -348,6 +327,8 @@ impl RpcStateReader {
         )?)
     }
 
+    /// Get the commitment state diff of the current block.
+    /// Note: the commitment state diff does not include migrated_compiled_classes.
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         let raw_statediff =
             &retry_request!(self.retry_config, || self.rpc_state_reader.send_rpc_request(

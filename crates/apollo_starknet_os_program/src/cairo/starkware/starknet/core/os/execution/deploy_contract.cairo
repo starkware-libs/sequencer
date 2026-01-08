@@ -9,9 +9,7 @@ from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
     RESERVED_CONTRACT_ADDRESS,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
-    select_execute_entry_point_func,
-)
+from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.revert import (
     CHANGE_CLASS_ENTRY,
