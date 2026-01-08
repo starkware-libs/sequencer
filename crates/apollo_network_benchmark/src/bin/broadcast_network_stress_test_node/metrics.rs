@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use apollo_metrics::define_metrics;
 use apollo_metrics::metrics::LossyIntoF64;
@@ -65,6 +65,11 @@ define_metrics!(
 pub fn get_throughput(message_size_bytes: usize, heartbeat_duration: Duration) -> f64 {
     let tps = Duration::from_secs(1).as_secs_f64() / heartbeat_duration.as_secs_f64();
     tps * message_size_bytes.into_f64()
+}
+
+pub fn seconds_since_epoch() -> u64 {
+    let now = SystemTime::now();
+    now.duration_since(UNIX_EPOCH).unwrap().as_secs()
 }
 
 /// Creates barebones network metrics
