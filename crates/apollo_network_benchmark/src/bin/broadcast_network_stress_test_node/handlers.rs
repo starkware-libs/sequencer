@@ -6,12 +6,24 @@ use libp2p::PeerId;
 
 use crate::message::{StressTestMessage, METADATA_SIZE};
 use crate::metrics::{
+    get_throughput,
+    BROADCAST_MESSAGE_BYTES,
+    BROADCAST_MESSAGE_BYTES_SUM,
+    BROADCAST_MESSAGE_COUNT,
+    BROADCAST_MESSAGE_HEARTBEAT_MILLIS,
+    BROADCAST_MESSAGE_SEND_DELAY_SECONDS,
+    BROADCAST_MESSAGE_THROUGHPUT,
     RECEIVE_MESSAGE_BYTES,
     RECEIVE_MESSAGE_BYTES_SUM,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
 };
 use crate::protocol::MessageSender;
+
+fn update_broadcast_metrics(message_size_bytes: usize, broadcast_heartbeat: Duration) {
+    BROADCAST_MESSAGE_HEARTBEAT_MILLIS.set(broadcast_heartbeat.as_millis().into_f64());
+    BROADCAST_MESSAGE_THROUGHPUT.set(get_throughput(message_size_bytes, broadcast_heartbeat));
+}
 
 fn get_message(id: u64, size_bytes: usize) -> StressTestMessage {
     let message = StressTestMessage::new(id, 0, vec![0; size_bytes - *METADATA_SIZE]);
@@ -30,6 +42,7 @@ pub async fn send_stress_test_messages(
 
     let mut message_index = 0;
     let mut message = get_message(args.runner.id, size_bytes).clone();
+    update_broadcast_metrics(message.len(), heartbeat);
 
     let mut interval = tokio::time::interval(heartbeat);
     loop {
@@ -38,7 +51,13 @@ pub async fn send_stress_test_messages(
         message.metadata.time = SystemTime::now();
         message.metadata.message_index = message_index;
         let message_clone = message.clone().into();
+        let start_time = std::time::Instant::now();
         message_sender.send_message(&peers, message_clone).await;
+        BROADCAST_MESSAGE_SEND_DELAY_SECONDS.record(start_time.elapsed().as_secs_f64());
+        BROADCAST_MESSAGE_BYTES.set(message.len().into_f64());
+        BROADCAST_MESSAGE_COUNT.increment(1);
+        BROADCAST_MESSAGE_BYTES_SUM
+            .increment(u64::try_from(message.len()).expect("Message length too large for u64"));
         message_index += 1;
     }
 }
