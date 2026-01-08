@@ -1,0 +1,8 @@
+---
+name: test-execution
+description: Test execution patterns and best practices
+---
+
+# Overview
+
+When running specific tests, always use `-p` to compile only the specific crate.
