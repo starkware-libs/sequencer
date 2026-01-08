@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::sync::{Arc, LazyLock};
 
-use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};

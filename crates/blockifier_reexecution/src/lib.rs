@@ -5,7 +5,7 @@ pub mod serde_utils;
 pub mod state_reader;
 pub mod utils;
 
-use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutionOutput;
 use blockifier::context::BlockContext;
