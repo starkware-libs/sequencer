@@ -14,7 +14,6 @@ use starknet_api::rpc_transaction::{
 use crate::consensus::{
     ConsensusBlockInfo,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -75,17 +74,6 @@ fn convert_vote_to_vec_u8_and_back() {
     let bytes_data: Vec<u8> = vote.clone().into();
     let res_data = Vote::try_from(bytes_data).unwrap();
     assert_eq!(vote, res_data);
-}
-
-#[test]
-fn convert_proposal_init_to_vec_u8_and_back() {
-    let mut rng = get_rng();
-
-    let proposal_init = ProposalInit::get_test_instance(&mut rng);
-
-    let bytes_data: Vec<u8> = proposal_init.into();
-    let res_data = ProposalInit::try_from(bytes_data).unwrap();
-    assert_eq!(proposal_init, res_data);
 }
 
 #[test]
