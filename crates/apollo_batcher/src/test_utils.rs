@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::committer_types::CommitBlockResponse;
+use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -46,6 +46,7 @@ use crate::commitment_manager::types::{
     CommitmentTaskOutput,
     CommitterTaskInput,
     CommitterTaskOutput,
+    RevertTaskOutput,
 };
 use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterFactoryTrait,
@@ -345,10 +346,20 @@ impl MockStateCommitter {
     ) {
         while mock_task_receiver.recv().await.is_some() {
             let task = tasks_receiver.try_recv().unwrap();
-            let result = CommitterTaskOutput::Commit(CommitmentTaskOutput {
-                response: CommitBlockResponse { state_root: GlobalRoot::default() },
-                height: task.height(),
-            });
+            let result = match task {
+                CommitterTaskInput::Commit(commit_request) => {
+                    CommitterTaskOutput::Commit(CommitmentTaskOutput {
+                        response: CommitBlockResponse { state_root: GlobalRoot::default() },
+                        height: commit_request.height,
+                    })
+                }
+                CommitterTaskInput::Revert(revert_request) => {
+                    CommitterTaskOutput::Revert(RevertTaskOutput {
+                        response: RevertBlockResponse::RevertedTo(GlobalRoot::default()),
+                        height: revert_request.height,
+                    })
+                }
+            };
             results_sender.try_send(result).unwrap();
         }
     }
