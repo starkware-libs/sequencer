@@ -2,7 +2,11 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
+use blockifier::execution::contract_class::{
+    program_hints_to_casm_hints,
+    CompiledClassV1,
+    RunnableCompiledClass,
+};
 use blockifier::state::state_api::StateReader;
 use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
@@ -22,7 +26,9 @@ use crate::errors::ClassesProviderError;
 /// - `compiler_version`: Set to empty string
 /// - `hints`: Set to empty (OS doesn't use them from this struct for Cairo 1 contracts)
 /// - `pythonic_hints`: Set to None
-fn compiled_class_v1_to_casm(class: &CompiledClassV1) -> CasmContractClass {
+pub(crate) fn compiled_class_v1_to_casm(
+    class: &CompiledClassV1,
+) -> Result<CasmContractClass, ClassesProviderError> {
     // TODO(Aviv): Consider using dummy prime since it is not used in the OS.
     let prime = Felt::prime();
 
@@ -35,15 +41,15 @@ fn compiled_class_v1_to_casm(class: &CompiledClassV1) -> CasmContractClass {
         })
         .collect();
 
-    CasmContractClass {
+    Ok(CasmContractClass {
         prime,
         compiler_version: String::new(),
         bytecode,
         bytecode_segment_lengths: Some(class.bytecode_segment_felt_sizes().into()),
-        hints: Vec::new(),
+        hints: program_hints_to_casm_hints(&class.program.shared_program_data.hints_collection)?,
         pythonic_hints: None,
         entry_points_by_type: (&class.entry_points_by_type).into(),
-    }
+    })
 }
 
 /// Fetch class from the state reader and contract manager.
@@ -65,7 +71,7 @@ where
             Err(ClassesProviderError::DeprecatedContractError(class_hash))
         }
         RunnableCompiledClass::V1(compiled_class_v1) => {
-            let casm = compiled_class_v1_to_casm(&compiled_class_v1);
+            let casm = compiled_class_v1_to_casm(&compiled_class_v1)?;
             Ok((compiled_class_hash, casm))
         }
         #[cfg(feature = "cairo_native")]
