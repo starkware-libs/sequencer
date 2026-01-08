@@ -14,6 +14,7 @@ blockifier.workspace = true
 mockall.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+static_assertions.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
