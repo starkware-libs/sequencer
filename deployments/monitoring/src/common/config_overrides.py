@@ -19,6 +19,10 @@ from typing import Any, Callable, Optional
 import yaml
 from rich.console import Console
 
+# Pattern to match $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
+# Allow digits in item name and field path (e.g., L1_MESSAGE_SCRAPER, EXPR)
+PLACEHOLDER_PATTERN = r"\$\$\$_([A-Z0-9_]+)\.([A-Z0-9_.]+)_\$\$\$"
+
 
 def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
     """
@@ -55,10 +59,7 @@ def extract_config_key_from_placeholder(placeholder: str) -> Optional[str]:
     Returns:
         Config key in format item_name.field (lowercase), or None if invalid format
     """
-    # Pattern to match $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
-    # Allow digits in item name (e.g., L1_MESSAGE_SCRAPER)
-    placeholder_pattern = r"\$\$\$_([A-Z0-9_]+)\.([A-Z0-9_.]+)_\$\$\$"
-    match = re.match(placeholder_pattern, placeholder)
+    match = re.match(PLACEHOLDER_PATTERN, placeholder)
     if match:
         item_name = match.group(1).lower()
         field_path = match.group(2).lower()
@@ -89,9 +90,6 @@ def replace_placeholder_in_string(
         The value with placeholders replaced, or original value if no match found
     """
     log = logger_instance
-    # Pattern to match $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2.PART3_$$$
-    # Allow digits in item name and field path (e.g., L1_MESSAGE_SCRAPER, EXPR)
-    placeholder_pattern = r"\$\$\$_([A-Z0-9_]+)\.([A-Z0-9_.]+)_\$\$\$"
 
     def replace_match(match):
         placeholder_item_name = match.group(1).lower()
@@ -140,7 +138,7 @@ def replace_placeholder_in_string(
             return full_placeholder
 
     # Replace all placeholders in the value
-    result = re.sub(placeholder_pattern, replace_match, value)
+    result = re.sub(PLACEHOLDER_PATTERN, replace_match, value)
     return result
 
 
@@ -162,8 +160,6 @@ def collect_placeholders_recursive(
         Set of tuples: (full_placeholder, config_key, field_path)
     """
     placeholders = set()
-    # Allow digits in item name and field path (e.g., L1_MESSAGE_SCRAPER, EXPR)
-    placeholder_pattern = r"\$\$\$_([A-Z0-9_]+)\.([A-Z0-9_.]+)_\$\$\$"
 
     if isinstance(obj, dict):
         for key, value in obj.items():
@@ -179,7 +175,7 @@ def collect_placeholders_recursive(
             )
     elif isinstance(obj, str):
         # Find all placeholders in this string
-        for match in re.finditer(placeholder_pattern, obj):
+        for match in re.finditer(PLACEHOLDER_PATTERN, obj):
             placeholder_item_name = match.group(1).lower()
             placeholder_field_path = match.group(2).lower()
             full_placeholder = match.group(0)
@@ -316,10 +312,7 @@ def validate_config_overrides(
                 )
 
     # Check for unused config keys (keys in config that don't have corresponding placeholders)
-    unused_config_keys = []
-    for config_key in config.keys():
-        if config_key not in all_placeholders:
-            unused_config_keys.append(config_key)
+    unused_config_keys = list(set(config.keys()) - all_placeholders)
 
     # If there are missing placeholders OR unused config keys, show error
     if not all_missing_placeholders and not unused_config_keys:
@@ -375,8 +368,7 @@ def validate_config_overrides(
             error_parts.append("")  # Empty line between pairs
 
         # Remove trailing empty line
-        if error_parts[-1] == "":
-            error_parts.pop()
+        error_parts.pop()
 
     # Display unused config keys in simple list format
     if unused_config_keys:
@@ -394,8 +386,7 @@ def validate_config_overrides(
             error_parts.append("")  # Empty line between pairs
 
         # Remove trailing empty line
-        if error_parts[-1] == "":
-            error_parts.pop()
+        error_parts.pop()
 
     # Single unified "To fix" section at the bottom
     error_parts.append("")
