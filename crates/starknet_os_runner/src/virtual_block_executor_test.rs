@@ -1,5 +1,7 @@
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_api::StateReader;
+use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
@@ -10,6 +12,7 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::test_utils::{
     rpc_virtual_block_executor,
+    BINANCE_ADDRESS,
     SENDER_ADDRESS,
     STRK_TOKEN_ADDRESS,
     TEST_BLOCK_NUMBER,
@@ -20,7 +23,7 @@ use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecuto
 ///
 /// Since we skip validation and fee charging, we can use dummy values for signature,
 /// nonce, and resource bounds.
-fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
+pub(crate) fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
     let sender = ContractAddress::try_from(SENDER_ADDRESS).unwrap();
 
@@ -43,6 +46,48 @@ fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
         sender_address: sender,
         calldata,
         nonce: Nonce(felt!("0x1000000")),
+    });
+
+    let tx_hash = Transaction::Invoke(invoke_tx.clone())
+        .calculate_transaction_hash(&ChainId::Mainnet)
+        .unwrap();
+    (invoke_tx, tx_hash)
+}
+
+/// Constructs an Invoke transaction that calls `balanceOf` on the STRK token contract
+/// for the Binance address (Cairo 1 contracts only).
+///
+/// This function uses:
+/// - STRK token contract address for the balanceOf call
+/// - Binance address as both sender and the account whose balance is queried
+/// - Actual nonce fetched from RPC state reader at runtime
+///
+/// Since we skip validation and fee charging, we can use dummy values for signature
+/// and resource bounds.
+pub(crate) fn construct_balance_of_invoke_cairo1(
+    rpc_state_reader: &RpcStateReader,
+) -> (InvokeTransaction, TransactionHash) {
+    let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
+    let binance = ContractAddress::try_from(BINANCE_ADDRESS).unwrap();
+
+    // Fetch the actual nonce for the Binance address from RPC.
+    let nonce = rpc_state_reader.get_nonce_at(binance).expect("Failed to fetch nonce from RPC");
+
+    // Calldata for account's __execute__ (Cairo 1 account format):
+    // [contract_address, entry_point_selector, calldata_length, *calldata]
+    let balance_of_selector = selector_from_name("balanceOf");
+    let calldata = calldata![
+        *strk_token.0.key(),   // contract_address - contract to call
+        balance_of_selector.0, // entry_point_selector - function selector
+        felt!("1"),            // calldata_length - length of calldata
+        *binance.0.key()       // calldata[0] - address to check balance of (Binance)
+    ];
+
+    // Use the actual nonce fetched from RPC.
+    let invoke_tx = invoke_tx(invoke_tx_args! {
+        sender_address: binance,
+        calldata,
+        nonce,
     });
 
     let tx_hash = Transaction::Invoke(invoke_tx.clone())

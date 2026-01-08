@@ -14,6 +14,8 @@ pub enum VirtualBlockExecutorError {
     TransactionExecutionError(String),
     #[error("Block state unavailable after execution")]
     StateUnavailable,
+    #[error(transparent)]
+    StateError(#[from] StateError),
 }
 
 #[derive(Debug, Error)]

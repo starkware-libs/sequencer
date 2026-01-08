@@ -4,6 +4,7 @@ use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::fixture;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
@@ -21,20 +22,29 @@ pub const STRK_TOKEN_ADDRESS: Felt =
 pub const SENDER_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x01176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8");
 
+/// Binance address on mainnet (Cairo 1 account).
+pub const BINANCE_ADDRESS: Felt =
+    Felt::from_hex_unchecked("0x0213c67ed78bc280887234fe5ed5e77272465317978ae86c25a71531d9332a2d");
+
 /// Gets the RPC URL from the environment (NODE_URL).
 pub fn get_rpc_url() -> String {
     env::var("NODE_URL").expect("NODE_URL environment variable required for this test")
 }
 
+/// Fixture that fetches the latest block number from RPC.
+#[fixture]
+pub fn latest_block_number(rpc_provider: RpcStorageProofsProvider) -> BlockNumber {
+    let block_number = runtime
+        .block_on(async { rpc_provider.0.block_number().await })
+        .expect("Failed to fetch latest block number");
+    BlockNumber(block_number)
+}
+
 /// Fixture that creates an RpcStateReader for testing.
 #[fixture]
-pub fn rpc_state_reader() -> RpcStateReader {
+pub fn rpc_state_reader(latest_block_number: BlockNumber) -> RpcStateReader {
     let node_url = get_rpc_url();
-    RpcStateReader::new_with_config_from_url(
-        node_url,
-        ChainId::Mainnet,
-        BlockNumber(TEST_BLOCK_NUMBER),
-    )
+    RpcStateReader::new_with_config_from_url(node_url, ChainId::Mainnet, latest_block_number)
 }
 
 #[fixture]
