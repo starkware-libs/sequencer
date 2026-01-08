@@ -4,8 +4,8 @@ use serde_json::json;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
-    Leaf,
     LeafModifications,
+    LeafWithEmptyKeyContext,
     SkeletonLeaf,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
@@ -15,7 +15,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
-use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 
 use crate::db::trie_traversal::create_original_skeleton_tree;
@@ -29,7 +29,7 @@ pub async fn tree_computation_flow<L, TH>(
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
-    L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext> + 'static,
+    L: LeafWithEmptyKeyContext + 'static,
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
@@ -67,7 +67,7 @@ where
 }
 
 pub async fn single_tree_flow_test<
-    L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext> + 'static,
+    L: LeafWithEmptyKeyContext + 'static,
     TH: TreeHashFunction<L> + 'static,
 >(
     leaf_modifications: LeafModifications<L>,
