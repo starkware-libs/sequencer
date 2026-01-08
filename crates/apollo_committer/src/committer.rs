@@ -31,7 +31,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
-use tracing::error;
+use tracing::{debug, error, info, warn};
 
 #[cfg(test)]
 #[path = "committer_test.rs"]
@@ -66,6 +66,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
+        info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
@@ -75,6 +76,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
+        info!(
+            "Received request to commit block number {height} with state diff \
+             {state_diff_commitment:?}"
+        );
         if height > self.offset {
             // Request to commit a future height.
             // Returns an error, indicating the committer has a hole in the state diff series.
@@ -89,6 +94,11 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         if height < self.offset {
             // Request to commit an old height.
             // Might be ok if the caller didn't get the results properly.
+            warn!(
+                "Received request to commit an old block number {height}. The committer offset is \
+                 {0}.",
+                self.offset
+            );
             let stored_state_diff_commitment = self.load_state_diff_commitment(height).await?;
             // Verify the input state diff matches the stored one by comparing the commitments.
             if state_diff_commitment != stored_state_diff_commitment {
@@ -104,6 +114,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
+        debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
         let (filled_forest, global_root) = self.commit_state_diff(state_diff).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
@@ -120,6 +131,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 serialize_felt_no_packing(state_diff_commitment.0.0),
             ),
         ]);
+        info!(
+            "For block number {height}, writing filled forest to storage with metadata: \
+             {metadata:?}"
+        );
         self.forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
@@ -133,19 +148,27 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         &mut self,
         RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
     ) -> CommitterResult<RevertBlockResponse> {
+        info!("Received request to revert block number {height}");
         let Some(last_committed_block) = self.offset.prev() else {
             // No committed blocks. Nothing to revert.
+            warn!("Received request to revert block number {height}. No committed blocks.");
             return Ok(RevertBlockResponse::Uncommitted);
         };
 
         if height > self.offset {
             // Request to revert a future height. Nothing to revert.
+            warn!(
+                "Received request to revert a future block number {height}. The committer offset \
+                 is {0}.",
+                self.offset
+            );
             return Ok(RevertBlockResponse::Uncommitted);
         }
 
         if height == self.offset {
             // Request to revert the next future height.
             // Nothing to revert, but we have the resulted state root.
+            warn!("Received request to revert the committer offset height block {height}.");
             let db_state_root = self.load_global_root(last_committed_block).await?;
             return Ok(RevertBlockResponse::AlreadyReverted(db_state_root));
         }
@@ -158,6 +181,8 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 last_committed_block,
             });
         }
+
+        debug!("Reverting block number {height}");
         // Sanity.
         assert_eq!(height, last_committed_block);
         // Happy flow. Reverts the state diff and returns the computed global root.
@@ -187,6 +212,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             ForestMetadataType::CommitmentOffset,
             DbValue(DbBlockNumber(last_committed_block).serialize().to_vec()),
         )]);
+        info!(
+            "For block number {height}, writing filled forest and updating the commitment offset \
+             to {last_committed_block}"
+        );
         self.forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
