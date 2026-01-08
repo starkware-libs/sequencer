@@ -21,6 +21,9 @@ pub enum NetworkProtocol {
     /// Use SQMR for point-to-point communication
     #[value(name = "sqmr")]
     Sqmr,
+    /// Use Reversed SQMR where receivers initiate requests to broadcasters
+    #[value(name = "reversed-sqmr")]
+    ReveresedSqmr,
 }
 
 impl Display for Mode {
