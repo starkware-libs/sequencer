@@ -29,6 +29,7 @@ pub struct VirtualOsBlockInput {
     pub contract_state_commitment_info: CommitmentInfo,
     pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub contract_class_commitment_info: CommitmentInfo,
+    pub chain_info: OsChainInfo,
     pub transactions: Vec<(InvokeTransaction, TransactionHash)>,
     pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     pub block_info: BlockInfo,
@@ -39,7 +40,7 @@ pub struct VirtualOsBlockInput {
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
-impl From<VirtualOsBlockInput> for StarknetOsInput {
+impl From<VirtualOsBlockInput> for OsHints {
     fn from(virtual_os_block_input: VirtualOsBlockInput) -> Self {
         let os_block_input = OsBlockInput {
             block_hash_commitments: virtual_os_block_input.base_block_header_commitments,
@@ -71,10 +72,22 @@ impl From<VirtualOsBlockInput> for StarknetOsInput {
             class_hashes_to_migrate: Vec::new(),
         };
 
-        StarknetOsInput {
+        let os_input = StarknetOsInput {
             os_block_inputs: vec![os_block_input],
             deprecated_compiled_classes: BTreeMap::new(),
             compiled_classes: virtual_os_block_input.compiled_classes,
+        };
+
+        OsHints {
+            os_input,
+            os_hints_config: OsHintsConfig {
+                debug_mode: false,
+                full_output: false,
+                use_kzg_da: false,
+                chain_info: virtual_os_block_input.chain_info,
+                public_keys: None,
+                rng_seed_salt: None,
+            },
         }
     }
 }
@@ -148,6 +161,7 @@ where
             contract_class_commitment_info: storage_proofs
                 .commitment_infos
                 .classes_trie_commitment_info,
+            chain_info: os_chain_info,
             transactions: txs,
             tx_execution_infos,
             block_info: execution_data.base_block_info.block_context.block_info().clone(),
@@ -160,19 +174,8 @@ where
             compiled_classes: classes.compiled_classes,
         };
 
-        // Build OsHints.
-        Ok(OsHints {
-            os_input: virtual_os_block_input.into(),
-            // TODO(Aviv): choose os hints config.
-            os_hints_config: OsHintsConfig {
-                debug_mode: false,
-                full_output: true,
-                use_kzg_da: false,
-                chain_info: os_chain_info,
-                public_keys: None,
-                rng_seed_salt: None,
-            },
-        })
+        // Return OsHints.
+        Ok(virtual_os_block_input.into())
     }
 
     /// Runs the Starknet OS with the given transactions.
