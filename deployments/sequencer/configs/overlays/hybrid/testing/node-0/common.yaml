@@ -14,6 +14,7 @@ config:
     chain_id: "CHAIN_ID_SUBDIR"
     eth_fee_token_address: "0x1001"
     monitoring_endpoint_config_port: 8082
+    recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
     starknet_url: "https://integration-sepolia.starknet.io/"
     strk_fee_token_address: "0x1002"
     validator_id: "0x64"

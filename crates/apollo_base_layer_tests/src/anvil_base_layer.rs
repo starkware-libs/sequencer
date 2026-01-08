@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 use std::process::Command;
+use std::time::Duration;
 
 use alloy::node_bindings::NodeError as AnvilError;
 use alloy::primitives::{I256, U256};
@@ -28,6 +29,7 @@ use papyrus_base_layer::{
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::L1HandlerTransaction;
+use tracing::info;
 use url::Url;
 
 /// Initialize an anvil instance under the default port and deploy the Starknet contract.
@@ -96,8 +98,22 @@ curl -L \
                 _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
             });
 
-        Starknet::deploy(anvil_client.clone()).await.unwrap();
-
+        info!("Deploying Starknet contract to Anvil with port: {}", port);
+        let mut retries = 0;
+        for _ in 0..100 {
+            let result = Starknet::deploy(anvil_client.clone()).await;
+            if result.is_ok() {
+                break;
+            }
+            retries += 1;
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        Starknet::deploy(anvil_client.clone()).await.unwrap_or_else(|error| {
+            panic!(
+                "Failed to deploy Starknet contract to Anvil on port {port} after {retries} \
+                 retries: {error:?}"
+            );
+        });
         let config = Self::config(Self::url_static(port));
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();

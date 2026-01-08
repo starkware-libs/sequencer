@@ -7,7 +7,7 @@ max-threads = 1
 # serialized tests (mostly integration tests)
 [[profile.default.overrides]]
 # TODO(victork): evaluate whether these are indeed required to run sequentially
-filter = '(package(apollo_integration_tests) & kind(test)) | package(apollo_network) | (package(apollo_l1_provider) & kind(test))'
+filter = '(package(apollo_integration_tests) & kind(test)) | package(apollo_infra) | package(apollo_network) | (package(apollo_l1_provider) & kind(test))'
 test-group = 'serialized'
 
 # slow test exception whitelist

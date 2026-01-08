@@ -8,7 +8,6 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_http_server::test_utils::HttpTestClient;
-use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -143,8 +142,8 @@ impl NodeSetup {
         .as_ref()
         .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
-        let HttpServerConfig { ip, port, .. } = http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
+        let (ip, port) = http_server_config.ip_and_port();
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(ip, port));
 
         Self { node_type, executables, add_tx_http_client, storage_handles }
     }
@@ -180,8 +179,15 @@ impl NodeSetup {
     }
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
+        let (_, http_port) = self
+            .get_http_server()
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .expect("Should have http server config")
+            .ip_and_port();
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            HTTP_PORT_ARG: http_port,
             MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
         serialize_to_file(&json_data, path);
@@ -641,12 +647,12 @@ impl IntegrationTestManager {
             .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
         let http_server = node_0_setup.get_http_server();
-        let http_server_port = http_server
+        let (_, http_server_port) = http_server
             .get_config()
             .http_server_config
             .as_ref()
             .expect("No executable with a set http server.")
-            .port;
+            .ip_and_port();
         let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
         let monitoring_port = http_server
             .get_config()

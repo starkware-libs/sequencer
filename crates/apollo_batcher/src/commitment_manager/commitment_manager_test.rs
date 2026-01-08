@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
@@ -15,10 +15,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::batcher::MockBatcherStorageReader;
-use crate::commitment_manager::commitment_manager_impl::{
-    CommitmentManager,
-    CommitmentManagerConfig,
-};
+use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{test_state_diff, MockStateCommitter, INITIAL_HEIGHT};
 
@@ -149,7 +146,7 @@ async fn test_create_commitment_manager_with_missing_tasks(
     assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1,);
     commitment_manager.state_committer.pop_task_and_insert_result().await;
     let results = await_results(&mut commitment_manager.results_receiver, 1).await;
-    let result = results.first().unwrap();
+    let result = (results.first().unwrap()).clone().expect_commitment();
     assert_eq!(result.height, global_root_height);
 }
 
@@ -285,8 +282,8 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     commitment_manager.state_committer.pop_task_and_insert_result().await;
 
     let results = await_results(&mut commitment_manager.results_receiver, 2).await;
-    let first_result = results.first().unwrap();
-    let second_result = results.get(1).unwrap();
+    let first_result = results.first().unwrap().clone().expect_commitment();
+    let second_result = results.get(1).unwrap().clone().expect_commitment();
     assert_eq!(first_result.height, INITIAL_HEIGHT,);
     assert_eq!(second_result.height, INITIAL_HEIGHT.next().unwrap(),);
 }

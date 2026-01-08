@@ -866,11 +866,13 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra_utils",
  "async-trait",
  "colored 3.0.0",
  "papyrus_base_layer",
  "starknet_api",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -1227,6 +1229,7 @@ dependencies = [
  "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_consensus_config",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_metrics",
@@ -1255,6 +1258,7 @@ name = "apollo_config_manager_types"
 version = "0.0.0"
 dependencies = [
  "apollo_consensus_config",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_metrics",
@@ -1574,6 +1578,7 @@ dependencies = [
 name = "apollo_http_server"
 version = "0.0.0"
 dependencies = [
+ "apollo_config_manager_types",
  "apollo_gateway_types",
  "apollo_http_server_config",
  "apollo_infra",
@@ -1692,7 +1697,6 @@ dependencies = [
  "apollo_deployments",
  "apollo_gateway_config",
  "apollo_http_server",
- "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price",
@@ -12746,6 +12750,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 

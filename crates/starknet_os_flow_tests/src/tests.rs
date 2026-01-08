@@ -2958,3 +2958,26 @@ async fn test_initial_empty_block() {
     );
     test_output.expect_hint_coverage("test_initial_empty_block");
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_nested_self_revert_storage_order() {
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "catch_write_revert_panic",
+        &[**test_contract_address, Felt::THREE],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
