@@ -390,7 +390,7 @@ impl TxCollector {
 
         let StreamMessage {
             stream_id: first_stream_id,
-            message: init_message,
+            message: block_info_message,
             message_id: incoming_message_id,
         } = messages_cache.remove(&0).expect("Stream is missing its first message");
 
@@ -398,15 +398,16 @@ impl TxCollector {
             incoming_message_id, 0,
             "Expected the first message in the stream to have id 0, got {incoming_message_id}"
         );
-        let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
+        let StreamMessageBody::Content(ProposalPart::BlockInfo(incoming_block_info)) =
+            block_info_message
         else {
-            panic!("Expected an init message. Got: {init_message:?}")
+            panic!("Expected a block info message. Got: {block_info_message:?}")
         };
 
         self.accumulated_txs
             .lock()
             .await
-            .start_round(incoming_proposal_init.height, incoming_proposal_init.round);
+            .start_round(incoming_block_info.height, incoming_block_info.round);
 
         let mut got_proposal_fin = false;
         let mut got_channel_fin = false;
@@ -415,14 +416,11 @@ impl TxCollector {
                 messages_cache.remove(&i).expect("Stream should have all consecutive messages");
             assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
             match message {
-                StreamMessageBody::Content(ProposalPart::Init(init)) => {
-                    panic!("Unexpected init: {init:?}")
+                StreamMessageBody::Content(ProposalPart::BlockInfo(block_info)) => {
+                    panic!("Unexpected block info: {block_info:?}")
                 }
                 StreamMessageBody::Content(ProposalPart::Fin(..)) => {
                     got_proposal_fin = true;
-                }
-                StreamMessageBody::Content(ProposalPart::BlockInfo(_)) => {
-                    // TODO(Asmaa): Add validation for block info.
                 }
                 StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
                     // TODO(Arni): add calculate_transaction_hash to consensus transaction and use

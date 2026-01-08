@@ -9,8 +9,8 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
-use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -30,11 +30,11 @@ pub type ValidatorId = ContractAddress;
 #[async_trait]
 pub trait ConsensusContext {
     /// The parts of the proposal that are streamed in.
-    /// Must contain at least the ProposalInit and ProposalFin.
+    /// Must contain at least the ConsensusBlockInfo and ProposalFin.
     type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
         + Into<Vec<u8>>
-        + TryInto<ProposalInit, Error = ProtobufConversionError>
-        + From<ProposalInit>
+        + TryInto<ConsensusBlockInfo, Error = ProtobufConversionError>
+        + From<ConsensusBlockInfo>
         + Clone
         + Send
         + Debug;
@@ -76,7 +76,7 @@ pub trait ConsensusContext {
     ///   by ConsensusContext.
     async fn validate_proposal(
         &mut self,
-        init: ProposalInit,
+        block_info: ConsensusBlockInfo,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment>;
@@ -86,7 +86,7 @@ pub trait ConsensusContext {
     ///
     /// Params:
     /// - `id`: The `ProposalCommitment` associated with the block's content.
-    /// - `init`: The `ProposalInit` that is broadcast to the network.
+    /// - `init`: The consensus metadata for reproposing.
     async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit);
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
