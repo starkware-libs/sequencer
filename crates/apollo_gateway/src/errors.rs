@@ -83,6 +83,10 @@ pub enum StatelessTransactionValidatorError {
          {max_gas_amount:?}."
     )]
     MaxGasAmountTooHigh { gas_amount: GasAmount, max_gas_amount: u64 },
+    #[error(
+        "Transactions with client-side proving (non-empty proof_facts or proof) are not accepted."
+    )]
+    ClientSideProvingNotAllowed,
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -104,7 +108,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. }
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. }
-            | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. } => {
+            | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. }
+            | StatelessTransactionValidatorError::ClientSideProvingNotAllowed => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -177,6 +182,11 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
             StatelessTransactionValidatorError::ZeroResourceBounds { .. }
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
                 StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InsufficientMaxFee)
+            }
+            StatelessTransactionValidatorError::ClientSideProvingNotAllowed => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.CLIENT_SIDE_PROVING_NOT_ALLOWED".to_string(),
+                )
             }
         };
         StarknetError { code, message }
