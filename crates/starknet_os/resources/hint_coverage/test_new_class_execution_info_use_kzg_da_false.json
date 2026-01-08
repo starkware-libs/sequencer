@@ -285,6 +285,9 @@
     "OsHint": "WriteOldBlockToStorage"
   },
   {
+    "OsHint": "AssertProofFactsBlockHash"
+  },
+  {
     "OsHint": "CacheContractStorageRequestKey"
   },
   {
