@@ -1,5 +1,10 @@
 use apollo_consensus_config::config::TimeoutsConfig;
-use apollo_protobuf::consensus::{ProposalInit, VoteType, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{
+    ConsensusBlockInfo,
+    ProposalInit,
+    VoteType,
+    DEFAULT_VALIDATOR_ID,
+};
 use assert_matches::assert_matches;
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
@@ -29,8 +34,8 @@ const HEIGHT_0: BlockNumber = BlockNumber(0);
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
 
-fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
-    ProposalInit { height, ..*PROPOSAL_INIT }
+fn get_block_info_for_height(height: BlockNumber, round: Round) -> ConsensusBlockInfo {
+    ConsensusBlockInfo { height, round, proposer: *PROPOSER_ID, ..Default::default() }
 }
 
 #[test]
@@ -92,7 +97,7 @@ fn proposer() {
 #[test_case(false; "single_proposal")]
 #[test_case(true; "repeat_proposal")]
 fn validator(repeat_proposal: bool) {
-    let proposal_init = get_proposal_init_for_height(HEIGHT_0);
+    let block_info = get_block_info_for_height(HEIGHT_0, ROUND_0);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -103,17 +108,18 @@ fn validator(repeat_proposal: bool) {
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
 
-    // Accept init -> should request validation.
-    let ret = shc.handle_proposal(&leader_fn, proposal_init);
+    // Accept block info -> should request validation.
+    let round = block_info.round;
+    let ret = shc.handle_proposal(&leader_fn, block_info.clone());
     assert_matches!(ret, mut reqs => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(init)) if init == proposal_init);
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(info)) if info == block_info);
         assert!(reqs.is_empty());
     });
 
     // After validation finished -> expect prevote broadcast request.
     let ret = shc.handle_event(
         &leader_fn,
-        StateMachineEvent::FinishedValidation(Some(BLOCK.id), proposal_init.round, None),
+        StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None),
     );
     assert_matches!(ret, mut reqs => {
         assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote);
@@ -121,8 +127,8 @@ fn validator(repeat_proposal: bool) {
     });
 
     if repeat_proposal {
-        // Duplicate proposal init should be ignored.
-        let ret = shc.handle_proposal(&leader_fn, proposal_init);
+        // Duplicate block info should be ignored.
+        let ret = shc.handle_proposal(&leader_fn, block_info.clone());
         assert!(matches!(ret, rs if rs.is_empty()));
     }
 
@@ -156,7 +162,7 @@ fn validator(repeat_proposal: bool) {
 #[test_case(true; "repeat")]
 #[test_case(false; "equivocation")]
 fn vote_twice(same_vote: bool) {
-    let proposal_init = get_proposal_init_for_height(HEIGHT_0);
+    let block_info = get_block_info_for_height(HEIGHT_0, ROUND_0);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -167,10 +173,11 @@ fn vote_twice(same_vote: bool) {
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
     // Validate a proposal so the SM is ready to prevote.
-    shc.handle_proposal(&leader_fn, proposal_init);
+    let round = block_info.round;
+    shc.handle_proposal(&leader_fn, block_info);
     shc.handle_event(
         &leader_fn,
-        StateMachineEvent::FinishedValidation(Some(BLOCK.id), proposal_init.round, None),
+        StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None),
     );
 
     let _ = shc.handle_vote(&leader_fn, prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
@@ -398,7 +405,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
 
 #[test]
 fn broadcast_vote_before_decision_on_validation_finish() {
-    let proposal_init = get_proposal_init_for_height(HEIGHT_0);
+    let block_info = get_block_info_for_height(HEIGHT_0, ROUND_0);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -410,9 +417,10 @@ fn broadcast_vote_before_decision_on_validation_finish() {
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
 
     // 1. Accept proposal -> should request validation
-    let ret = shc.handle_proposal(&leader_fn, proposal_init);
+    let round = block_info.round;
+    let ret = shc.handle_proposal(&leader_fn, block_info);
     assert_matches!(ret, mut reqs => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(init)) if init == proposal_init);
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(_block_info)));
         assert!(reqs.is_empty());
     });
 
@@ -443,7 +451,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
     // 6. Should return BOTH BroadcastVote (precommit) and DecisionReached
     let ret = shc.handle_event(
         &leader_fn,
-        StateMachineEvent::FinishedValidation(Some(BLOCK.id), proposal_init.round, None),
+        StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None),
     );
     assert_matches!(ret, mut reqs => {
         assert_matches!(
