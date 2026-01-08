@@ -384,7 +384,7 @@ class BlobTransformer:
             if tx_type == TxType.DEPLOY_ACCOUNT:
                 extra_keys = ["contract_address_salt", "class_hash", "constructor_calldata"]
             elif tx_type == TxType.DECLARE:
-                extra_keys = ["class_hash", "compiled_class_hash"]
+                extra_keys = ["class_hash", "compiled_class_hash", "account_deployment_data"]
             else:  # invoke
                 extra_keys = ["calldata", "account_deployment_data"]
 
