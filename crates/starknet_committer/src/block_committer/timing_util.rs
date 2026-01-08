@@ -52,20 +52,54 @@ impl BlockTimers {
     }
 }
 
+#[derive(Default, Clone)]
+pub struct BlockMeasurement {
+    pub n_writes: usize,
+    pub n_reads: usize,
+    pub block_duration: u128,   // Duration of a block commit (milliseconds).
+    pub read_duration: u128,    // Duration of a read phase (milliseconds).
+    pub compute_duration: u128, // Duration of a computation phase (milliseconds).
+    pub write_duration: u128,   // Duration of a write phase (milliseconds).
+    pub time_of_measurement: u128, /* Milliseconds since epoch (timestamp) of finalizing the
+                                 * measurement. */
+}
+
+impl BlockMeasurement {
+    pub fn update_after_action(
+        &mut self,
+        action: &Action,
+        facts_count: usize,
+        duration_in_millis: u128,
+    ) {
+        match action {
+            Action::Read => {
+                self.read_duration = duration_in_millis;
+                self.n_reads = facts_count;
+            }
+            Action::Compute => {
+                self.compute_duration = duration_in_millis;
+            }
+            Action::Write => {
+                self.write_duration = duration_in_millis;
+                self.n_writes = facts_count;
+            }
+            Action::EndToEnd => {
+                self.block_duration = duration_in_millis;
+                self.time_of_measurement =
+                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+            }
+        }
+    }
+}
+
 pub struct TimeMeasurement {
     pub block_timers: BlockTimers,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
-    pub n_new_facts: Vec<usize>,
-    pub n_read_facts: Vec<usize>,
-    pub block_durations: Vec<u128>, // Duration of an end-to-end block commit (milliseconds).
-    pub read_durations: Vec<u128>,  // Duration of a block facts read (milliseconds).
-    pub compute_durations: Vec<u128>, // Duration of a block new facts computation (milliseconds).
-    pub write_durations: Vec<u128>, // Duration of a block new facts write (milliseconds).
-    pub facts_in_db: Vec<usize>,    // Number of facts in the DB prior to the current block.
-    pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of the measurement
-                                     * for each action. */
+    pub block_measurements: Vec<BlockMeasurement>,
+    pub facts_in_db: Vec<usize>, // Number of facts in the DB prior to the current block.
     pub block_number: usize,
     pub total_facts: usize,
+    pub current_block_measurement: BlockMeasurement,
 
     // Storage related statistics.
     pub storage_stat_columns: Vec<&'static str>,
@@ -76,29 +110,18 @@ impl TimeMeasurement {
         Self {
             block_timers: BlockTimers::default(),
             total_time: 0,
-            n_new_facts: Vec::with_capacity(size),
-            n_read_facts: Vec::with_capacity(size),
-            read_durations: Vec::with_capacity(size),
-            compute_durations: Vec::with_capacity(size),
-            write_durations: Vec::with_capacity(size),
-            block_durations: Vec::with_capacity(size),
-            facts_in_db: Vec::with_capacity(size),
-            time_of_measurement: Vec::with_capacity(size),
+            block_measurements: Vec::with_capacity(size),
             block_number: 0,
             total_facts: 0,
+            facts_in_db: Vec::with_capacity(size),
+            current_block_measurement: BlockMeasurement::default(),
             storage_stat_columns,
         }
     }
 
     fn clear_measurements(&mut self) {
-        self.n_new_facts.clear();
-        self.block_durations.clear();
+        self.block_measurements.clear();
         self.facts_in_db.clear();
-        self.time_of_measurement.clear();
-        self.n_read_facts.clear();
-        self.read_durations.clear();
-        self.compute_durations.clear();
-        self.write_durations.clear();
     }
 
     pub fn start_measurement(&mut self, action: Action) {
@@ -115,32 +138,30 @@ impl TimeMeasurement {
             self.n_results(),
             duration_in_millis,
         );
+
+        self.current_block_measurement.update_after_action(
+            &action,
+            facts_count,
+            duration_in_millis,
+        );
+
         match action {
-            Action::EndToEnd => {
-                self.block_durations.push(duration_in_millis);
-                self.total_time += duration_in_millis;
-                self.time_of_measurement
-                    .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
-                self.block_number += 1;
-            }
-            Action::Read => {
-                self.read_durations.push(duration_in_millis);
-                self.n_read_facts.push(facts_count);
-            }
-            Action::Compute => {
-                self.compute_durations.push(duration_in_millis);
-            }
             Action::Write => {
-                self.write_durations.push(duration_in_millis);
-                self.n_new_facts.push(facts_count);
                 self.facts_in_db.push(self.total_facts);
-                self.total_facts += self.n_new_facts.last().unwrap_or(&0);
+                self.total_facts += self.current_block_measurement.n_writes;
             }
+            Action::EndToEnd => {
+                self.total_time += duration_in_millis;
+                self.block_number += 1;
+                self.block_measurements.push(self.current_block_measurement.clone());
+                self.current_block_measurement = BlockMeasurement::default();
+            }
+            _ => {}
         }
     }
 
     pub fn n_results(&self) -> usize {
-        self.block_durations.len()
+        self.block_measurements.len()
     }
 
     /// Returns the average time per block (milliseconds).
@@ -159,12 +180,18 @@ impl TimeMeasurement {
         let n_windows = self.n_results() / window_size;
         for i in 0..n_windows {
             let window_start = i * window_size;
-            let sum: u128 =
-                self.block_durations[window_start..window_start + window_size].iter().sum();
-            let sum_of_facts: usize =
-                self.n_new_facts[window_start..window_start + window_size].iter().sum();
+            let total_duration: u128 = self.block_measurements
+                [window_start..window_start + window_size]
+                .iter()
+                .map(|measurement| measurement.block_duration)
+                .sum();
+            let sum_of_facts: usize = self.block_measurements
+                [window_start..window_start + window_size]
+                .iter()
+                .map(|measurement| measurement.n_writes)
+                .sum();
             #[allow(clippy::as_conversions)]
-            averages.push(1000.0 * sum as f64 / sum_of_facts as f64);
+            averages.push(1000.0 * total_duration as f64 / sum_of_facts as f64);
         }
         averages
     }
@@ -213,8 +240,8 @@ impl TimeMeasurement {
             [
                 vec![
                     "block_number",
-                    "n_new_facts",
-                    "n_read_facts",
+                    "n_writes",
+                    "n_reads",
                     "initial_facts_in_db",
                     "time_of_measurement",
                     "block_duration_millis",
@@ -231,16 +258,17 @@ impl TimeMeasurement {
         let empty_storage_stat_row = vec!["".to_string(); self.storage_stat_columns.len()];
         for i in 0..n_results {
             // The last row in this checkpoint contains the storage statistics.
+            let measurement = &self.block_measurements[i];
             let mut record = vec![
                 (self.block_number - n_results + i).to_string(),
-                self.n_new_facts[i].to_string(),
-                self.n_read_facts[i].to_string(),
+                measurement.n_writes.to_string(),
+                measurement.n_reads.to_string(),
                 self.facts_in_db[i].to_string(),
-                self.time_of_measurement[i].to_string(),
-                self.block_durations[i].to_string(),
-                self.read_durations[i].to_string(),
-                self.compute_durations[i].to_string(),
-                self.write_durations[i].to_string(),
+                measurement.time_of_measurement.to_string(),
+                measurement.block_duration.to_string(),
+                measurement.read_duration.to_string(),
+                measurement.compute_duration.to_string(),
+                measurement.write_duration.to_string(),
             ];
             if i == n_results - 1 {
                 record
