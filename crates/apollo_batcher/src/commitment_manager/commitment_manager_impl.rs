@@ -112,7 +112,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// `wait_for_tasks_channel` is true, it will wait until there is space in the channel;
     /// otherwise, it will panic. Any other error when sending the task will also cause a panic.
     async fn add_task(&self, task_input: CommitterTaskInput) -> CommitmentManagerResult<()> {
-        let error_message = format!("Failed to send task to state committer: {task_input}.",);
+        let error_message = format!("Failed to send task to state committer: {task_input}",);
 
         if self.config.wait_for_tasks_channel {
             info!("Waiting to send task for {task_input} to state committer.");
