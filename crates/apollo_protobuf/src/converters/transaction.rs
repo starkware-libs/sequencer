@@ -15,13 +15,11 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
     PaymasterData,
-    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -58,7 +56,7 @@ use super::common::{
 };
 use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, Query, TransactionQuery};
-use crate::transaction::DeclareTransactionV3Common;
+use crate::transaction::{DeclareTransactionV3Common, InvokeTransactionV3Common};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
 impl TryFrom<protobuf::TransactionsResponse> for DataOrFin<FullTransaction> {
@@ -590,114 +588,47 @@ impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
     }
 }
 
-impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
+impl TryFrom<protobuf::transaction_in_block::InvokeV3WithoutProof> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ValidResourceBounds::try_from(
-            value.resource_bounds.ok_or(missing("InvokeV3::resource_bounds"))?,
+    fn try_from(
+        value: protobuf::transaction_in_block::InvokeV3WithoutProof,
+    ) -> Result<Self, Self::Error> {
+        let common = InvokeTransactionV3Common::try_from(
+            value.common.ok_or(missing("InvokeV3WithoutProof::common"))?,
         )?;
 
-        let tip = Tip(value.tip);
-
-        let signature = TransactionSignature(
-            value
-                .signature
-                .ok_or(missing("InvokeV3::signature"))?
-                .parts
-                .into_iter()
-                .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?
-                .into(),
-        );
-
-        let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
-
-        let sender_address = value.sender.ok_or(missing("InvokeV3::sender"))?.try_into()?;
-
-        let calldata =
-            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
-
-        let calldata = Calldata(calldata.into());
-
-        let nonce_data_availability_mode =
-            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
-
-        let fee_data_availability_mode =
-            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
-
-        let paymaster_data = PaymasterData(
-            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
-        );
-
-        let account_deployment_data = AccountDeploymentData(
-            value
-                .account_deployment_data
-                .into_iter()
-                .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        );
-
-        let proof_facts: ProofFacts = value
-            .proof_facts
-            .into_iter()
-            .map(Felt::try_from)
-            .collect::<Result<Vec<_>, _>>()?
-            .into();
-
         Ok(Self {
-            resource_bounds,
-            tip,
-            signature,
-            nonce,
-            sender_address,
-            calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-            proof_facts,
+            resource_bounds: common.resource_bounds,
+            tip: common.tip,
+            signature: common.signature,
+            nonce: common.nonce,
+            sender_address: common.sender_address,
+            calldata: common.calldata,
+            nonce_data_availability_mode: common.nonce_data_availability_mode,
+            fee_data_availability_mode: common.fee_data_availability_mode,
+            paymaster_data: common.paymaster_data,
+            account_deployment_data: common.account_deployment_data,
+            proof_facts: common.proof_facts,
         })
     }
 }
 
-impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
+impl From<InvokeTransactionV3> for protobuf::transaction_in_block::InvokeV3WithoutProof {
     fn from(value: InvokeTransactionV3) -> Self {
-        Self {
-            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
-            tip: value.tip.0,
-            signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
-            }),
-            nonce: Some(value.nonce.0.into()),
-            sender: Some(value.sender_address.into()),
-            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
-            nonce_data_availability_mode: volition_domain_to_enum_int(
-                value.nonce_data_availability_mode,
-            ),
-            fee_data_availability_mode: volition_domain_to_enum_int(
-                value.fee_data_availability_mode,
-            ),
-            paymaster_data: value
-                .paymaster_data
-                .0
-                .iter()
-                .map(|paymaster_data| (*paymaster_data).into())
-                .collect(),
-            account_deployment_data: value
-                .account_deployment_data
-                .0
-                .iter()
-                .map(|account_deployment_data| (*account_deployment_data).into())
-                .collect(),
-            proof_facts: value
-                .proof_facts
-                .0
-                .iter()
-                .map(|proof_fact| (*proof_fact).into())
-                .collect(),
-            // TODO(AvivG): Understand in what flow this is used. Is info lost?
-            proof: vec![],
-        }
+        let common = InvokeTransactionV3Common {
+            resource_bounds: value.resource_bounds,
+            tip: value.tip,
+            signature: value.signature,
+            nonce: value.nonce,
+            sender_address: value.sender_address,
+            calldata: value.calldata,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+            paymaster_data: value.paymaster_data,
+            account_deployment_data: value.account_deployment_data,
+            proof_facts: value.proof_facts,
+        };
+        Self { common: Some(common.into()) }
     }
 }
 
