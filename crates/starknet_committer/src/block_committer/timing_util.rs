@@ -47,6 +47,11 @@ impl BlockTimers {
     }
 }
 
+pub trait TimeMeasurementTrait {
+    fn start_measurement(&mut self, action: Action);
+    fn stop_measurement(&mut self, action: Action, entries_count: usize);
+}
+
 #[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,
@@ -101,33 +106,15 @@ pub struct TimeMeasurement {
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurement {
-    pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
-        Self {
-            block_timers: BlockTimers::default(),
-            total_time: 0,
-            block_measurements: Vec::with_capacity(size),
-            block_number: 0,
-            total_db_entry_count: 0,
-            initial_db_entry_count: Vec::with_capacity(size),
-            current_block_measurement: BlockMeasurement::default(),
-            storage_stat_columns,
-        }
-    }
-
-    fn clear_measurements(&mut self) {
-        self.block_measurements.clear();
-        self.initial_db_entry_count.clear();
-    }
-
-    pub fn start_measurement(&mut self, action: Action) {
+impl TimeMeasurementTrait for TimeMeasurement {
+    fn start_measurement(&mut self, action: Action) {
         self.block_timers.start_measurement(action);
     }
 
     /// Stops the measurement for the given action and adds the duration to the corresponding
     /// vector. For Read/Write actions, `entries_count` is the number of entries read from / written
     /// to the DB. For other actions, it is ignored.
-    pub fn stop_measurement(&mut self, action: Action, entries_count: usize) {
+    fn stop_measurement(&mut self, action: Action, entries_count: usize) {
         let duration_in_millis = self.block_timers.stop_measurement(&action);
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
@@ -154,6 +141,26 @@ impl TimeMeasurement {
             }
             _ => {}
         }
+    }
+}
+
+impl TimeMeasurement {
+    pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
+        Self {
+            block_timers: BlockTimers::default(),
+            total_time: 0,
+            block_measurements: Vec::with_capacity(size),
+            block_number: 0,
+            total_db_entry_count: 0,
+            initial_db_entry_count: Vec::with_capacity(size),
+            current_block_measurement: BlockMeasurement::default(),
+            storage_stat_columns,
+        }
+    }
+
+    fn clear_measurements(&mut self) {
+        self.block_measurements.clear();
+        self.initial_db_entry_count.clear();
     }
 
     pub fn n_results(&self) -> usize {
