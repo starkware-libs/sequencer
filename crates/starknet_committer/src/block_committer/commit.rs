@@ -45,7 +45,7 @@ pub trait CommitBlockTrait: Send {
         let actual_classes_updates = input.state_diff.actual_classes_updates();
         // Reads - fetch_nodes.
         if let Some(ref mut tm) = time_measurement {
-            tm.start_measurement(Action::Read);
+            tm.start_measurement(Action::Read(0));
         }
         let (mut original_forest, original_contracts_trie_leaves) = trie_reader
             .read(
@@ -59,7 +59,7 @@ pub trait CommitBlockTrait: Send {
         if let Some(ref mut tm) = time_measurement {
             let n_read_facts =
                 original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-            tm.stop_measurement(Some(n_read_facts), Action::Read);
+            tm.stop_measurement(Action::Read(n_read_facts));
         }
         info!("Original skeleton forest created successfully.");
 
@@ -96,7 +96,7 @@ pub trait CommitBlockTrait: Send {
         )
         .await?;
         if let Some(ref mut tm) = time_measurement {
-            tm.stop_measurement(None, Action::Compute);
+            tm.stop_measurement(Action::Compute);
         }
         info!("Filled forest created successfully.");
 
