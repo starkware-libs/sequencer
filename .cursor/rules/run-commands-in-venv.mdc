@@ -1,0 +1,9 @@
+---
+name: run-commands-in-venv
+description: running command in venv
+---
+
+# Overview
+
+ALWAYS run ". sequencer_venv/bin/activate" before executing any terminal commands.
+
