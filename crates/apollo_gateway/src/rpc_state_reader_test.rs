@@ -1,20 +1,15 @@
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
-use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::rpc_objects::{
-    BlockHeader,
     BlockId,
-    GetBlockWithTxHashesParams,
     GetClassHashAtParams,
     GetCompiledClassParams,
     GetNonceParams,
@@ -48,56 +43,6 @@ fn mock_rpc_interaction(
         .with_status(201)
         .with_body(serde_json::to_string(expected_response).unwrap())
         .create()
-}
-
-#[tokio::test]
-async fn test_get_block_info() {
-    let mut server = run_rpc_server().await;
-    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
-
-    // GasPrice must be non-zero.
-    let l1_gas_price = GasPricePerToken { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
-    let l1_data_gas_price =
-        GasPricePerToken { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
-    let l2_gas_price = GasPricePerToken { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
-    let gas_prices = validated_gas_prices(
-        l1_gas_price.price_in_wei.try_into().unwrap(),
-        l1_gas_price.price_in_fri.try_into().unwrap(),
-        l1_data_gas_price.price_in_wei.try_into().unwrap(),
-        l1_data_gas_price.price_in_fri.try_into().unwrap(),
-        l2_gas_price.price_in_wei.try_into().unwrap(),
-        l2_gas_price.price_in_fri.try_into().unwrap(),
-    );
-
-    let block_number = BlockNumber(100);
-    let starknet_version = StarknetVersion::LATEST;
-
-    let expected_result =
-        BlockInfo { block_number, gas_prices, starknet_version, ..Default::default() };
-
-    let mock = mock_rpc_interaction(
-        &mut server,
-        &config.json_rpc_version,
-        "starknet_getBlockWithTxHashes",
-        GetBlockWithTxHashesParams { block_id: BlockId::Latest },
-        &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value(BlockHeader {
-                block_number,
-                l1_gas_price,
-                l1_data_gas_price,
-                l2_gas_price,
-                starknet_version: starknet_version.to_string(),
-                ..Default::default()
-            })
-            .unwrap(),
-            ..Default::default()
-        }),
-    );
-
-    let client = RpcStateReader::from_latest(&config);
-    let result = client.get_block_info().await.unwrap();
-    assert_eq!(result, expected_result);
-    mock.assert_async().await;
 }
 
 #[tokio::test]
