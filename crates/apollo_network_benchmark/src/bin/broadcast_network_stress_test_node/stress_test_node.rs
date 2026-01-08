@@ -11,7 +11,11 @@ use libp2p::{Multiaddr, PeerId};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::handlers::{receive_stress_test_message, send_stress_test_messages};
+use crate::handlers::{
+    receive_stress_test_message,
+    record_indexed_message,
+    send_stress_test_messages,
+};
 use crate::metrics::create_network_metrics;
 use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
 
@@ -138,24 +142,39 @@ impl BroadcastNetworkStressTestNode {
         )
     }
 
-    /// Starts the message receiving task
-    pub async fn make_message_receiver_task(&mut self) -> BoxFuture<'static, ()> {
+    /// Starts the message receiving tasks (receiver + index tracker)
+    pub async fn make_message_receiver_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
         let message_receiver =
             self.message_receiver.take().expect("message_receiver should be available");
 
-        async move {
-            info!("Starting message receiver");
-            message_receiver.for_each(receive_stress_test_message).await;
-            info!("Message receiver task ended");
-        }
-        .boxed()
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let num_peers = self.args.runner.bootstrap.len();
+
+        vec![
+            async move {
+                record_indexed_message(rx, num_peers).await;
+            }
+            .boxed(),
+            async move {
+                info!("Starting message receiver");
+                let tx_clone = tx.clone();
+                message_receiver
+                    .for_each(|message, peer_id| {
+                        let tx_clone = tx_clone.clone();
+                        receive_stress_test_message(message, peer_id, tx_clone);
+                    })
+                    .await;
+                info!("Message receiver task ended");
+            }
+            .boxed(),
+        ]
     }
 
     /// Gets all the tasks that need to be run
     async fn get_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
         let mut tasks = Vec::new();
         tasks.push(self.start_network_manager().await);
-        tasks.push(self.make_message_receiver_task().await);
+        tasks.extend(self.make_message_receiver_tasks().await);
 
         if let Some(sender_task) = self.start_message_sender().await {
             tasks.push(sender_task);
