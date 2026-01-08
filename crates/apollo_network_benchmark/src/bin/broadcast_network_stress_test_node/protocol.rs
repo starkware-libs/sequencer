@@ -7,11 +7,13 @@ use apollo_network::network_manager::{
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
     NetworkManager,
+    SqmrClientSender,
 };
 use apollo_network_benchmark::node_args::NetworkProtocol;
 use futures::StreamExt;
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::PeerId;
+use tracing::error;
 
 // ================================
 // Types and Constants
@@ -59,6 +61,7 @@ pub fn register_protocol_channels(
 /// Message sender abstraction for different protocols
 pub enum MessageSender {
     Gossipsub(BroadcastTopicClient<TopicType>),
+    Sqmr(SqmrClientSender<TopicType, TopicType>),
 }
 
 impl MessageSender {
@@ -67,6 +70,16 @@ impl MessageSender {
             MessageSender::Gossipsub(client) => {
                 client.broadcast_message(message).await.unwrap();
             }
+            MessageSender::Sqmr(client) => match client.send_new_query(message).await {
+                Ok(mut response_manager) => {
+                    tokio::spawn(async move {
+                        while let Some(_response) = response_manager.next().await {}
+                    });
+                }
+                Err(e) => {
+                    error!("Failed to send SQMR query: {:?}", e);
+                }
+            },
         }
     }
 }
