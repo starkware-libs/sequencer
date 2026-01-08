@@ -15,6 +15,9 @@ use crate::metrics::{
     SYSTEM_PROCESS_CPU_USAGE_PERCENT,
     SYSTEM_PROCESS_MEMORY_USAGE_BYTES,
     SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES,
+    SYSTEM_TCP_RETRANSMIT_RATE_PERCENT,
+    SYSTEM_TCP_SEGMENTS_OUT,
+    SYSTEM_TCP_SEGMENTS_RETRANS,
     SYSTEM_TOTAL_MEMORY_BYTES,
     SYSTEM_USED_MEMORY_BYTES,
 };
@@ -27,7 +30,6 @@ const CLOCK_TICKS_PER_SEC: u64 = 100;
 
 /// Reads TCP statistics from /proc/net/snmp on Linux systems.
 /// Returns (segments_out, retransmitted_segments) if successful.
-#[allow(dead_code)] // TODO(AndrewL): remove this once the function is used
 fn get_tcp_stats() -> Option<(u64, u64)> {
     let content = match fs::read_to_string("/proc/net/snmp") {
         Ok(c) => c,
@@ -278,15 +280,49 @@ fn collect_network_metrics(network_state: &mut Option<NetworkState>) {
     });
 }
 
+/// Collects TCP statistics and calculates retransmit rate.
+fn collect_tcp_metrics(
+    prev_tcp_out_segs: &mut Option<u64>,
+    prev_tcp_retrans_segs: &mut Option<u64>,
+) {
+    if let Some((curr_out_segs, curr_retrans_segs)) = get_tcp_stats() {
+        SYSTEM_TCP_SEGMENTS_OUT.set(curr_out_segs.into_f64());
+        SYSTEM_TCP_SEGMENTS_RETRANS.set(curr_retrans_segs.into_f64());
+
+        if let (Some(prev_out), Some(prev_retrans)) = (*prev_tcp_out_segs, *prev_tcp_retrans_segs) {
+            let delta_out = curr_out_segs.saturating_sub(prev_out);
+            let delta_retrans = curr_retrans_segs.saturating_sub(prev_retrans);
+
+            let retransmit_rate_percent = if delta_out > 0 {
+                (delta_retrans.into_f64() / delta_out.into_f64()) * 100.0
+            } else {
+                0.0
+            };
+
+            SYSTEM_TCP_RETRANSMIT_RATE_PERCENT.set(retransmit_rate_percent);
+        }
+
+        *prev_tcp_out_segs = Some(curr_out_segs);
+        *prev_tcp_retrans_segs = Some(curr_retrans_segs);
+    }
+}
+
 pub async fn monitor_process_metrics(interval_seconds: u64) {
     let mut interval = interval(Duration::from_secs(interval_seconds));
 
     struct State {
         cpu_state: Option<CpuState>,
         network_state: Option<NetworkState>,
+        prev_tcp_out_segs: Option<u64>,
+        prev_tcp_retrans_segs: Option<u64>,
     }
 
-    let mut state = Some(State { cpu_state: None, network_state: None });
+    let mut state = Some(State {
+        cpu_state: None,
+        network_state: None,
+        prev_tcp_out_segs: None,
+        prev_tcp_retrans_segs: None,
+    });
 
     loop {
         interval.tick().await;
@@ -296,6 +332,7 @@ pub async fn monitor_process_metrics(interval_seconds: u64) {
             let mut state = passed_state.unwrap();
             collect_system_and_process_metrics(&mut state.cpu_state);
             collect_network_metrics(&mut state.network_state);
+            collect_tcp_metrics(&mut state.prev_tcp_out_segs, &mut state.prev_tcp_retrans_segs);
             Some(state)
         })
         .await
