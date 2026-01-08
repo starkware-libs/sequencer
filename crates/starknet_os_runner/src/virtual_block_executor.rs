@@ -68,16 +68,18 @@ impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
             ))
         })?;
         let chain_info = get_chain_info(&chain_id);
-        let versioned_constants =
-            VersionedConstants::get(&block_info.starknet_version).map_err(|e| {
+        let mut versioned_constants = VersionedConstants::get(&block_info.starknet_version)
+            .map_err(|e| {
                 VirtualBlockExecutorError::TransactionExecutionError(format!(
                     "Failed to get versioned constants: {e}"
                 ))
-            })?;
+            })?
+            .clone();
+        versioned_constants.enable_casm_hash_migration = false;
         let block_context = BlockContext::new(
             block_info,
             chain_info,
-            versioned_constants.clone(),
+            versioned_constants,
             BouncerConfig::default(),
         );
 

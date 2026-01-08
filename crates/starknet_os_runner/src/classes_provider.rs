@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -82,6 +82,8 @@ pub struct ClassesInput {
     /// Cairo 1+ contract classes (CASM).
     /// Maps CompiledClassHash to the CASM contract class definition.
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    /// Mapping from ClassHash to CompiledClassHash for all executed classes.
+    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[async_trait]
@@ -108,8 +110,13 @@ where
         // Creating tasks to fetch classes in parallel.
         let tasks = executed_class_hashes.iter().map(|&class_hash| {
             let manager = shared_contract_class_manager.clone();
+            let class_hash_for_result = class_hash;
 
-            tokio::task::spawn_blocking(move || fetch_class(manager, class_hash))
+            tokio::task::spawn_blocking(move || {
+                fetch_class(manager, class_hash_for_result).map(|(compiled_class_hash, casm)| {
+                    (class_hash_for_result, compiled_class_hash, casm)
+                })
+            })
         });
 
         // Fetching classes in parallel.
@@ -117,11 +124,16 @@ where
             .await
             .map_err(|e| ClassesProviderError::GetClassesError(format!("Task join error: {e}")))?;
 
-        // Collecting results into a BTreeMap.
-        let compiled_classes = results
-        .into_iter()
-        .collect::<Result<BTreeMap<CompiledClassHash, CasmContractClass>, ClassesProviderError>>()?;
+        // Build both mappings
+        let mut compiled_classes = BTreeMap::new();
+        let mut class_hash_to_compiled_class_hash = HashMap::new();
 
-        Ok(ClassesInput { compiled_classes })
+        for result in results {
+            let (class_hash, compiled_class_hash, casm) = result?;
+            compiled_classes.insert(compiled_class_hash, casm);
+            class_hash_to_compiled_class_hash.insert(class_hash, compiled_class_hash);
+        }
+
+        Ok(ClassesInput { compiled_classes, class_hash_to_compiled_class_hash })
     }
 }

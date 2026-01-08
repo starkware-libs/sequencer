@@ -109,11 +109,16 @@ where
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
         // Execute virtual block and get execution data.
-        let mut execution_data = self.virtual_block_executor.execute(
-            block_number,
-            contract_class_manager.clone(),
-            txs.clone(),
-        )?;
+        // Use block_in_place to allow blocking HTTP calls inside the VirtualBlockExecutor.
+        // This is necessary because RpcVirtualBlockExecutor uses reqwest::blocking internally,
+        // which creates its own tokio runtime that conflicts with being called from async context.
+        let mut execution_data = tokio::task::block_in_place(|| {
+            self.virtual_block_executor.execute(
+                block_number,
+                contract_class_manager.clone(),
+                txs.clone(),
+            )
+        })?;
 
         // Extract chain info from block context.
         let chain_info = execution_data.base_block_info.block_context.chain_info();
@@ -130,12 +135,30 @@ where
         let classes = classes?;
         let storage_proofs = storage_proofs?;
 
+        // Populate initial_reads.compiled_class_hashes with the mapping from class_hash to
+        // compiled_class_hash. This is needed because the OS uses
+        // writes_compiled_class_hashes() which only includes compiled class hashes that
+        // were written. We need to include all executed class hashes so the OS can look
+        // them up in the contract_class_changes dictionary.
+        for (class_hash, compiled_class_hash) in &classes.class_hash_to_compiled_class_hash {
+            execution_data
+                .initial_reads
+                .compiled_class_hashes
+                .insert(*class_hash, *compiled_class_hash);
+        }
+
         // Convert execution outputs to CentralTransactionExecutionInfo.
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
         // Merge initial_reads with proof_state.
         execution_data.initial_reads.extend(&storage_proofs.proof_state);
+
+        // Clear declared_contracts as this field is not used by the OS.
+        // The OS doesn't need to track declared contracts in initial_reads,
+        // and passing entries with value=true would cause an assertion failure
+        // in update_cache since we don't provide the corresponding classes.
+        execution_data.initial_reads.declared_contracts.clear();
 
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
