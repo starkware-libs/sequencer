@@ -26,7 +26,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{
     Action,
-    TimeMeasurement,
+    BenchmarkTimeMeasurement,
     TimeMeasurementTrait,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
@@ -398,7 +398,8 @@ pub async fn run_storage_benchmark<S: Storage>(
     checkpoint_interval: usize,
 ) {
     let mut interference_task_set = JoinSet::new();
-    let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
+    let mut time_measurement =
+        BenchmarkTimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
             time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
