@@ -311,6 +311,8 @@ pub enum RPCStateReaderError {
     UnexpectedErrorCode(RpcErrorCode),
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 pub type RPCStateReaderResult<T> = Result<T, RPCStateReaderError>;

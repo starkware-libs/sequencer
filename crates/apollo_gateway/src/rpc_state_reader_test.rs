@@ -10,7 +10,6 @@ use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken, StarknetVers
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::rpc_objects::{
     BlockHeader,
     BlockId,
