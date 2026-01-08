@@ -190,35 +190,18 @@ def _convert_numeric_strings_in_conditions(conditions: list[dict[str, any]]) -> 
     """
     for condition in conditions:
         if isinstance(condition, dict):
-            # Handle evaluator.params
-            if "evaluator" in condition and "params" in condition["evaluator"]:
-                params = condition["evaluator"]["params"]
+            # Handle evaluator.params and reducer.params in a single loop
+            for key in ["evaluator", "reducer"]:
+                params = condition.get(key, {}).get("params", [])
                 for i, param in enumerate(params):
                     if isinstance(param, str):
                         # Try to convert to float first (handles decimals), then int if whole number
                         try:
                             float_val = float(param)
                             # If it's a whole number, convert to int, otherwise keep as float
-                            if float_val.is_integer():
-                                params[i] = int(float_val)
-                            else:
-                                params[i] = float_val
+                            params[i] = int(float_val) if float_val.is_integer() else float_val
                         except ValueError:
                             # Keep as string if conversion fails
-                            pass
-
-            # Handle reducer.params
-            if "reducer" in condition and "params" in condition["reducer"]:
-                params = condition["reducer"]["params"]
-                for i, param in enumerate(params):
-                    if isinstance(param, str):
-                        try:
-                            float_val = float(param)
-                            if float_val.is_integer():
-                                params[i] = int(float_val)
-                            else:
-                                params[i] = float_val
-                        except ValueError:
                             pass
 
 
@@ -236,17 +219,19 @@ def post_process_alert(alert: dict[str, any]) -> dict[str, any]:
     """
     # Special handling for intervalSec: if it was a placeholder string that got replaced,
     # try to convert it to int if it's now numeric
-    if "intervalSec" in alert and isinstance(alert["intervalSec"], str):
+    val = alert.get("intervalSec")
+    if isinstance(val, str):
         try:
             # Try to convert to int if it's a numeric string
-            alert["intervalSec"] = int(alert["intervalSec"])
+            alert["intervalSec"] = int(val)
         except ValueError:
             # Keep as string if conversion fails
             pass
 
     # Convert numeric strings in conditions.params back to numbers
-    if "conditions" in alert and isinstance(alert["conditions"], list):
-        _convert_numeric_strings_in_conditions(alert["conditions"])
+    conds = alert.get("conditions")
+    if isinstance(conds, list):
+        _convert_numeric_strings_in_conditions(conds)
 
     return alert
 
@@ -285,9 +270,10 @@ def alert_builder(args: argparse.Namespace):
         dev_alerts = json.load(f)
 
     # Load config overrides if provided
+    args_dict = vars(args)
     config = (
-        load_config_file(args.config_file, logger_instance=logger)
-        if hasattr(args, "config_file") and args.config_file
+        load_config_file(args_dict.get("config_file"), logger_instance=logger)
+        if args_dict.get("config_file")
         else {}
     )
     if config:
@@ -300,7 +286,7 @@ def alert_builder(args: argparse.Namespace):
         folder_uid = args.folder_uid
 
     # Get config file path for error messages
-    config_file_path = args.config_file if hasattr(args, "config_file") and args.config_file else ""
+    config_file_path = args_dict.get("config_file", "")
 
     # Validate all placeholders from all alerts first (before processing any)
     # Always validate, even if config is empty, to catch missing placeholders
@@ -360,16 +346,19 @@ def alert_builder(args: argparse.Namespace):
         if args.debug:
             logger.debug(json.dumps(alert))
         if not args.dry_run:
+            alert_created_or_exists = False
             try:
                 client.alertingprovisioning.create_alertrule(
                     alertrule=alert,
                     disable_provenance=True,
                 )
                 logger.info(f'Alert "{alert["name"]}" uploaded to Grafana successfully')
+                alert_created_or_exists = True
 
             except GrafanaBadInputError as e:
                 if "alerting.alert-rule.conflict" in e.message:
                     logger.info(f'Alert "{alert["name"]}" already exists. Skipping creation.')
+                    alert_created_or_exists = True
                 else:
                     # Handle other bad input errors
                     logger.error(
@@ -390,22 +379,24 @@ def alert_builder(args: argparse.Namespace):
                 # Catch any other exceptions (non-Grafana-related)
                 logger.error(f'Failed to create alert "{alert["name"]}". Unexpected error: {e}')
 
-            try:
-                group_uid = alert["ruleGroup"]
-                rule_group = get_alert_rule_group(
-                    client=client, folder_uid=folder_uid, group_uid=group_uid
-                )
-                if rule_group["interval"] != alert["intervalSec"]:
-                    rule_group["interval"] = alert["intervalSec"]
-                    update_alert_rule_group(
-                        client=client,
-                        folder_uid=folder_uid,
-                        group_uid=group_uid,
-                        alertrule_group=rule_group,
+            # Only update rule group interval if alert was successfully created or already exists
+            if alert_created_or_exists:
+                try:
+                    group_uid = alert["ruleGroup"]
+                    rule_group = get_alert_rule_group(
+                        client=client, folder_uid=folder_uid, group_uid=group_uid
                     )
-                    logger.info(f'Alert rule group "{group_uid}" updated successfully')
-            except Exception as e:
-                logger.error(f'Failed to update alert rule group "{alert["ruleGroup"]}". {e}')
+                    if rule_group["interval"] != alert["intervalSec"]:
+                        rule_group["interval"] = alert["intervalSec"]
+                        update_alert_rule_group(
+                            client=client,
+                            folder_uid=folder_uid,
+                            group_uid=group_uid,
+                            alertrule_group=rule_group,
+                        )
+                        logger.info(f'Alert rule group "{group_uid}" updated successfully')
+                except Exception as e:
+                    logger.error(f'Failed to update alert rule group "{alert["ruleGroup"]}". {e}')
 
         if args.out_dir:
             output_dir = f"{args.out_dir}/alerts"
