@@ -106,6 +106,16 @@ pub trait ReexecutionStateReader {
                 let sierra = SierraContractClass::from(flat_sierra);
                 let (class_v1, _) = sierra_to_versioned_contract_class_v1(sierra.clone())?;
 
+                // DEBUG: Save original CASM as JSON for comparison
+                if let starknet_api::contract_class::ContractClass::V1((original_casm, _)) = &class_v1 {
+                    use crate::debug_casm_storage;
+                    use starknet_api::contract_class::compiled_class_hash::{HashableCompiledClass, HashVersion};
+                    let compiled_class_hash = original_casm.hash(&HashVersion::V2);
+                    if let Ok(json) = serde_json::to_string_pretty(original_casm) {
+                        debug_casm_storage::store_original_casm(compiled_class_hash, json);
+                    }
+                }
+
                 Ok(contract_class_to_compiled_classes(class_v1, Some(sierra))?)
             }
             StarknetContractClass::Legacy(legacy) => {

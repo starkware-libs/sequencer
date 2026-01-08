@@ -194,14 +194,25 @@ impl NestedFeltCounts {
     }
 }
 
-impl From<&NestedFeltCounts> for NestedIntList {
+/// Helper function to convert NestedFeltCounts to NestedIntList recursively.
+/// This always converts, including Leaf nodes (used for recursive conversion).
+fn nested_felt_counts_to_nested_int_list(counts: &NestedFeltCounts) -> NestedIntList {
+    match counts {
+        NestedFeltCounts::Leaf(len, _) => NestedIntList::Leaf(*len),
+        NestedFeltCounts::Node(segments) => NestedIntList::Node(
+            segments.iter().map(nested_felt_counts_to_nested_int_list).collect(),
+        ),
+    }
+}
+
+impl From<&NestedFeltCounts> for Option<NestedIntList> {
     fn from(counts: &NestedFeltCounts) -> Self {
-        match counts {
-            NestedFeltCounts::Leaf(len, _) => NestedIntList::Leaf(*len),
-            NestedFeltCounts::Node(segments) => {
-                NestedIntList::Node(segments.iter().map(Into::into).collect())
-            }
+        // If the root is a leaf, return None.
+        if let NestedFeltCounts::Leaf(..) = counts {
+            return None;
         }
+        // Otherwise, convert recursively (including Leaf nodes in the recursion).
+        Some(nested_felt_counts_to_nested_int_list(counts))
     }
 }
 

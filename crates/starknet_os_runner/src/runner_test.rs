@@ -1,3 +1,4 @@
+use std::env;
 use std::sync::Arc;
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
@@ -9,8 +10,15 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
+use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::{
+    InvokeTransaction,
+    Transaction,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_core::crypto::ecdsa_sign;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 use url::Url;
@@ -20,20 +28,28 @@ use crate::storage_proofs::RpcStorageProofsProvider;
 use crate::test_utils::{get_rpc_url, STRK_TOKEN_ADDRESS};
 use crate::virtual_block_executor::RpcVirtualBlockExecutor;
 
-/// Binance address on mainnet (Cairo 1 account).
-pub const BINANCE_ADDRESS: Felt =
-    Felt::from_hex_unchecked("0x0213c67ed78bc280887234fe5ed5e77272465317978ae86c25a71531d9332a2d");
+/// Account address on mainnet (Cairo 1 account).
+/// Contract: https://starkscan.co/contract/0x07f2f71bebfd9021684fcbcb954a37450febef5f3649ac6228e0c76c4f8819c4
+/// Class: https://starkscan.co/class/0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564
+pub const ACCOUNT_ADDRESS: Felt =
+    Felt::from_hex_unchecked("0x07f2f71bebfd9021684fcbcb954a37450febef5f3649ac6228e0c76c4f8819c4");
 
-/// Constructs a balance_of invoke transaction for a Cairo 1 account (Binance).
-/// Fetches the real nonce from the RPC state reader.
+/// Constructs a balance_of invoke transaction for a Cairo 1 account.
+/// Fetches the real nonce from the RPC state reader and signs the transaction.
+///
+/// # Arguments
+///
+/// * `rpc_state_reader` - RPC state reader to fetch nonce
+/// * `private_key` - Private key for signing the transaction (as hex string)
 fn construct_balance_of_invoke_cairo1(
     rpc_state_reader: &RpcStateReader,
+    private_key: &str,
 ) -> (InvokeTransaction, TransactionHash) {
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
-    let binance = ContractAddress::try_from(BINANCE_ADDRESS).unwrap();
+    let account = ContractAddress::try_from(ACCOUNT_ADDRESS).unwrap();
 
-    // Fetch the actual nonce for the Binance address from RPC.
-    let nonce = rpc_state_reader.get_nonce_at(binance).expect("Failed to fetch nonce from RPC");
+    // Fetch the actual nonce for the account address from RPC.
+    let nonce = rpc_state_reader.get_nonce_at(account).expect("Failed to fetch nonce from RPC");
 
     // Calldata for Cairo 1 account's __execute__:
     // The format is: [calls_len, call.to, call.selector, call.calldata_len, ...call.calldata, ...]
@@ -44,19 +60,35 @@ fn construct_balance_of_invoke_cairo1(
         *strk_token.0.key(),   // call.to - contract to call
         balance_of_selector.0, // call.selector - function selector
         felt!("1"),            // call.calldata_len - length of inner calldata
-        *binance.0.key()       // call.calldata[0] - address to check balance of
+        *account.0.key()       // call.calldata[0] - address to check balance of
     ];
 
-    // Use the actual nonce fetched from RPC.
-    let invoke_tx = invoke_tx(invoke_tx_args! {
-        sender_address: binance,
-        calldata,
+    // Create the transaction with a placeholder signature first (V3 transaction).
+    let invoke_tx_unsigned = invoke_tx(invoke_tx_args! {
+        sender_address: account,
+        calldata: calldata.clone(),
         nonce,
+        version: TransactionVersion::THREE,
     });
 
-    let tx_hash = Transaction::Invoke(invoke_tx.clone())
+    // Calculate the transaction hash (signature is not part of hash for V3).
+    let tx_hash = Transaction::Invoke(invoke_tx_unsigned.clone())
         .calculate_transaction_hash(&ChainId::Mainnet)
         .unwrap();
+
+    // Sign the transaction with the private key.
+    let private_key_felt = Felt::from_hex(private_key)
+        .expect("Failed to parse private key. Expected hex string (e.g., '0x123...')");
+    let signature = ecdsa_sign(&private_key_felt, &tx_hash.0).expect("Failed to sign transaction");
+
+    // Create the final V3 transaction with the signature.
+    let invoke_tx = invoke_tx(invoke_tx_args! {
+        sender_address: account,
+        calldata,
+        nonce,
+        version: TransactionVersion::THREE,
+        signature: TransactionSignature(Arc::new(vec![signature.r, signature.s])),
+    });
 
     (invoke_tx, tx_hash)
 }
@@ -65,21 +97,29 @@ fn construct_balance_of_invoke_cairo1(
 ///
 /// This test:
 /// 1. Constructs a balanceOf call on the STRK token contract using real nonce
-/// 2. Creates a Runner with RPC-based providers
-/// 3. Runs the OS with the transaction
+/// 2. Signs the transaction with the provided private key
+/// 3. Creates a Runner with RPC-based providers
+/// 4. Runs the OS with the transaction
 ///
 /// # Environment Variables
 ///
 /// - `NODE_URL`: Required. URL of a Starknet mainnet RPC node.
+/// - `PRIVATE_KEY`: Required. Private key of the account (hex string, e.g., "0x123...").
 ///
 /// # Running
 ///
 /// ```bash
-/// NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner test_run_os_with_balance_of_transaction -- --ignored
+/// NODE_URL=https://your-rpc-node PRIVATE_KEY=0x... cargo test -p starknet_os_runner test_run_os_with_balance_of_transaction -- --ignored
 /// ```
 #[test]
 #[ignore] // Requires RPC access
 fn test_run_os_with_balance_of_transaction() {
+    // Get private key from environment variable.
+    let private_key = env::var("PRIVATE_KEY").expect(
+        "PRIVATE_KEY environment variable is required. Provide the private key as a hex string \
+         (e.g., '0x123...')",
+    );
+
     // Get RPC URL and create providers.
     let rpc_url_str = get_rpc_url();
     let rpc_url = Url::parse(&rpc_url_str).expect("Invalid RPC URL");
@@ -106,18 +146,18 @@ fn test_run_os_with_balance_of_transaction() {
     // Create contract class manager.
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
 
-    // Construct the transaction using real nonce from RPC.
-    let (tx, tx_hash) = construct_balance_of_invoke_cairo1(&rpc_state_reader);
+    // Construct the transaction using real nonce from RPC and sign it.
+    let (tx, tx_hash) = construct_balance_of_invoke_cairo1(&rpc_state_reader, &private_key);
 
     // Create the virtual block executor for the test block.
-    // Disable validation since we don't have a valid signature.
+    // Enable validation since we now have a valid signature.
     let rpc_virtual_block_executor = RpcVirtualBlockExecutor {
         rpc_state_reader: RpcStateReader::new_with_config_from_url(
             rpc_url_str.clone(),
             ChainId::Mainnet,
             block_number,
         ),
-        validate_txs: false,
+        validate_txs: true,
     };
 
     // Create the classes provider using a state reader and contract manager.
