@@ -66,6 +66,13 @@ pub trait TimeMeasurementTrait {
     fn attempt_to_stop_measurement(&mut self, action: Action, entries_count: usize);
 }
 
+pub struct NoTimeMeasurement;
+
+impl TimeMeasurementTrait for NoTimeMeasurement {
+    fn start_measurement(&mut self, _action: Action) {}
+    fn attempt_to_stop_measurement(&mut self, _action: Action, _entries_count: usize) {}
+}
+
 #[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,
