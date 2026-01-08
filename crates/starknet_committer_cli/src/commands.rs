@@ -13,11 +13,7 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
-use starknet_committer::block_committer::timing_util::{
-    Action,
-    BenchmarkTimeMeasurement,
-    TimeMeasurementTrait,
-};
+use starknet_committer::block_committer::timing_util::{Action, TimeMeasurementTrait};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
@@ -36,6 +32,7 @@ use crate::args::{
     StorageType,
     DEFAULT_DATA_PATH,
 };
+use crate::utils::BenchmarkTimeMeasurement;
 
 pub type InputImpl = Input<FactsDbInitialRead>;
 
