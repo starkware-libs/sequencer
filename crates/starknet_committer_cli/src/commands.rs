@@ -360,13 +360,13 @@ pub async fn run_storage_benchmark<S: Storage>(
             CommitBlockImpl::commit_block(input, &mut facts_db, Some(&mut time_measurement))
                 .await
                 .expect("Failed to commit the given block.");
-        time_measurement.start_measurement(Action::Write);
+        time_measurement.start_measurement(Action::Write(()));
         let n_new_facts =
             facts_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
-        time_measurement.stop_measurement(None, Action::Write);
+        time_measurement.stop_measurement(Action::Write(n_new_facts));
 
-        time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);
+        time_measurement.stop_measurement(Action::EndToEnd);
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {

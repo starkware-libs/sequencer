@@ -12,12 +12,14 @@ use crate::db::facts_db::types::FactsDbInitialRead;
 
 pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Action {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Action<T = ()> {
     EndToEnd,
-    Read,
+    /// When stopping, T is usize representing the number of facts read from the DB.
+    Read(T),
     Compute,
-    Write,
+    /// When stopping, T is usize representing the number of new facts written to the DB.
+    Write(T),
 }
 
 pub struct TimeMeasurement {
@@ -64,12 +66,12 @@ impl TimeMeasurement {
         }
     }
 
-    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Instant> {
+    fn get_mut_timers<T>(&mut self, action: &Action<T>) -> &mut Option<Instant> {
         match action {
             Action::EndToEnd => &mut self.block_timer,
-            Action::Read => &mut self.read_timer,
+            Action::Read(_) => &mut self.read_timer,
             Action::Compute => &mut self.compute_timer,
-            Action::Write => &mut self.writer_timer,
+            Action::Write(_) => &mut self.writer_timer,
         }
     }
 
@@ -89,9 +91,9 @@ impl TimeMeasurement {
     }
 
     /// Stop the measurement for the given action and add the duration to the corresponding vector.
-    /// facts_count is either the number of facts read from the DB for Read action, or the number of
-    /// new facts written to the DB for the Total action.
-    pub fn stop_measurement(&mut self, facts_count: Option<usize>, action: Action) {
+    /// For Read/Write actions, the inner value is the number of facts read from / written to the
+    /// DB.
+    pub fn stop_measurement(&mut self, action: Action<usize>) {
         let instant_timer = self
             .get_mut_timers(&action)
             .as_mut()
@@ -107,22 +109,22 @@ impl TimeMeasurement {
             Action::EndToEnd => {
                 self.block_durations.push(millis);
                 self.total_time += millis;
-                self.n_new_facts.push(facts_count.unwrap());
                 self.facts_in_db.push(self.total_facts);
                 self.time_of_measurement
                     .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
-                self.total_facts += facts_count.unwrap();
+                self.total_facts += self.n_new_facts.last().unwrap_or(&0);
                 self.block_number += 1;
             }
-            Action::Read => {
+            Action::Read(facts_count) => {
                 self.read_durations.push(millis);
-                self.n_read_facts.push(facts_count.unwrap());
+                self.n_read_facts.push(facts_count);
             }
             Action::Compute => {
                 self.compute_durations.push(millis);
             }
-            Action::Write => {
+            Action::Write(facts_count) => {
                 self.write_durations.push(millis);
+                self.n_new_facts.push(facts_count);
             }
         }
     }
