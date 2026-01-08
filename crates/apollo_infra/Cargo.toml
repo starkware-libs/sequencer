@@ -33,6 +33,10 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
 validator.workspace = true
 
+[[bin]]
+name = "trace_test_helper"
+path = "src/bin/trace_test_helper.rs"
+
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
