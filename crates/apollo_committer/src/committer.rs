@@ -10,6 +10,8 @@ use apollo_committer_types::committer_types::{
     RevertBlockResponse,
 };
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
@@ -32,6 +34,8 @@ use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
+
+use crate::metrics::register_metrics;
 
 #[cfg(test)]
 #[path = "committer_test.rs"]
@@ -258,5 +262,13 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         let error_message = format!("{err:?}: {err}");
         error!("Error committing block number {0}. {error_message}.", self.offset);
         CommitterError::Internal { height: self.offset, message: error_message }
+    }
+}
+
+#[async_trait]
+impl ComponentStarter for ApolloCommitter {
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
+        register_metrics();
     }
 }
