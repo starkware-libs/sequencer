@@ -57,6 +57,11 @@ define_metrics!(
         MetricGauge { SYSTEM_NETWORK_BYTES_SENT_CURRENT, "system_network_bytes_sent_current", "Bytes sent across all network interfaces since last measurement" },
         MetricGauge { SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT, "system_network_bytes_received_current", "Bytes received across all network interfaces since last measurement" },
 
+        // system metrics for TCP statistics
+        MetricGauge { SYSTEM_TCP_SEGMENTS_OUT, "system_tcp_segments_out", "Total TCP segments sent since system start" },
+        MetricGauge { SYSTEM_TCP_SEGMENTS_RETRANS, "system_tcp_segments_retrans", "Total TCP segments retransmitted since system start" },
+        MetricGauge { SYSTEM_TCP_RETRANSMIT_RATE_PERCENT, "system_tcp_retransmit_rate_percent", "TCP retransmission rate as percentage of segments sent" },
+
         MetricHistogram { PING_LATENCY_SECONDS, "ping_latency_seconds", "Ping latency in seconds" },
     },
 );
