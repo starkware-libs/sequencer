@@ -38,12 +38,14 @@ pub enum CommitteeProviderError {
     StateSyncClientError(#[from] StateSyncClientError),
     #[error("Committee is empty.")]
     EmptyCommittee,
+    #[error("Committee info unavailable for height {height}.")]
+    InvalidHeight { height: BlockNumber },
 }
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 
-#[cfg_attr(test, derive(Clone))]
-pub struct ExecutionContext<S: StateReader> {
+#[derive(Clone)]
+pub struct ExecutionContext<S: StateReader + Clone> {
     pub state_reader: S,
     pub block_context: Arc<BlockContext>,
     pub state_sync_client: SharedStateSyncClient,
@@ -55,11 +57,11 @@ pub struct ExecutionContext<S: StateReader> {
 /// the consensus at a given epoch, responsible for proposing blocks and voting on them.
 #[async_trait]
 pub trait CommitteeProvider {
-    /// Returns a list of the committee members at the given epoch.
+    /// Returns a list of the committee members at the epoch of the given height.
     /// The state's most recent block should be provided in the execution_context.
-    fn get_committee<S: StateReader>(
+    fn get_committee<S: StateReader + Clone>(
         &mut self,
-        epoch: u64,
+        height: BlockNumber,
         execution_context: ExecutionContext<S>,
     ) -> CommitteeProviderResult<Arc<Committee>>;
 
@@ -67,7 +69,7 @@ pub trait CommitteeProvider {
     ///
     /// The proposer is deterministically selected for a given height and round, from the committee
     /// corresponding to the epoch associated with that height.
-    async fn get_proposer<S: StateReader + Send>(
+    async fn get_proposer<S: StateReader + Clone + Send>(
         &mut self,
         height: BlockNumber,
         round: Round,

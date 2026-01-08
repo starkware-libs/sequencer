@@ -19,7 +19,12 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
-use crate::contract_types::{ContractStaker, EPOCH_LENGTH, GET_STAKERS_ENTRY_POINT};
+use crate::contract_types::{
+    ContractStaker,
+    EPOCH_LENGTH,
+    GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
+    GET_STAKERS_ENTRY_POINT,
+};
 use crate::utils::BlockRandomGenerator;
 
 pub type StakerSet = Vec<Staker>;
@@ -27,6 +32,14 @@ pub type StakerSet = Vec<Staker>;
 #[cfg(test)]
 #[path = "staking_manager_test.rs"]
 mod staking_manager_test;
+
+// The minimum number of blocks in an epoch. This is used to anticipate if a
+// height falls within the next epoch, even when the exact epoch length is unknown.
+//
+// CONSTRAINT: Must be ≥ `STORED_BLOCK_HASH_BUFFER` - the maximum StateSync lag.
+// A smaller value could cause the consensus tip to advance beyond our knowledge of the next epoch,
+// resulting in a failure to retrieve the committee.
+const MIN_EPOCH_LENGTH: u64 = 10;
 
 // TODO(Dafna): implement SerializeConfig and Validate for this struct. Specifically, the Validate
 // should check that proposer_prediction_window_in_heights >= STORED_BLOCK_HASH_BUFFER.
@@ -58,11 +71,33 @@ struct CommitteeDataCache {
     cache: BTreeMap<u64, Arc<CommitteeData>>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Epoch {
+    pub(crate) epoch_id: u64,
+    pub(crate) start_block: BlockNumber,
+    pub(crate) epoch_length: u64,
+}
+
+impl Epoch {
+    fn contains(&self, height: BlockNumber) -> bool {
+        height.0 >= self.start_block.0 && height.0 < (self.start_block.0 + self.epoch_length)
+    }
+
+    fn within_next_epoch_min_bounds(&self, height: BlockNumber) -> bool {
+        let next_epoch_start_block = self.start_block.0 + self.epoch_length;
+        height.0 >= next_epoch_start_block && height.0 < (next_epoch_start_block + MIN_EPOCH_LENGTH)
+    }
+}
+
 // Responsible for fetching and storing the committee at a given epoch.
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct StakingManager {
     committee_data_cache: CommitteeDataCache,
+
+    // Caches the current epoch fetched from the state.
+    cached_epoch: Option<Epoch>,
+
     random_generator: Box<dyn BlockRandomGenerator>,
     config: StakingManagerConfig,
 }
@@ -91,6 +126,7 @@ impl StakingManager {
     ) -> Self {
         Self {
             committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
+            cached_epoch: None,
             random_generator,
             config,
         }
@@ -98,7 +134,7 @@ impl StakingManager {
 
     // Returns the committee data for the given epoch.
     // If the data is not cached, it is fetched from the state and cached.
-    fn committee_data_at_epoch<S: StateReader>(
+    fn committee_data_at_epoch<S: StateReader + Clone>(
         &mut self,
         epoch: u64,
         execution_context: ExecutionContext<S>,
@@ -119,7 +155,7 @@ impl StakingManager {
     // Queries the state to fetch stakers for the given epoch and builds the full committee data.
     // This includes selecting the committee and preparing cumulative weights for proposer
     // selection.
-    fn fetch_and_build_committee_data<S: StateReader>(
+    fn fetch_and_build_committee_data<S: StateReader + Clone>(
         &self,
         epoch: u64,
         execution_context: ExecutionContext<S>,
@@ -227,15 +263,52 @@ impl StakingManager {
         // We should never reach this point.
         panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
     }
+
+    fn epoch_at_height<S: StateReader + Clone>(
+        &mut self,
+        height: BlockNumber,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeProviderResult<u64> {
+        if self.cached_epoch.as_ref().is_none_or(|epoch| !epoch.contains(height)) {
+            // Fetch the epoch from the state.
+            let call_info = call_view_entry_point(
+                execution_context.state_reader,
+                execution_context.block_context,
+                self.config.staking_contract_address,
+                GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
+                Calldata(Arc::new(vec![])),
+            )?;
+
+            self.cached_epoch = Some(Epoch::try_from(call_info.execution.retdata)?);
+        }
+
+        let cached_epoch = self.cached_epoch.as_ref().expect("cached_epoch should be set");
+        println!(
+            "cached_epoch: {}, {}, {}",
+            cached_epoch.epoch_id, cached_epoch.start_block, cached_epoch.epoch_length
+        );
+        if cached_epoch.contains(height) {
+            Ok(cached_epoch.epoch_id)
+        } else if cached_epoch.within_next_epoch_min_bounds(height) {
+            Ok(cached_epoch.epoch_id + 1)
+        } else {
+            Err(CommitteeProviderError::InvalidHeight { height })
+        }
+    }
 }
 
 #[async_trait]
 impl CommitteeProvider for StakingManager {
-    fn get_committee<S: StateReader>(
+    // Returns the committee for the epoch at the given height.
+    // The height must be within the bounds of the current epoch, or the next epoch's min bounds
+    // (see `MIN_EPOCH_LENGTH`).
+    fn get_committee<S: StateReader + Clone>(
         &mut self,
-        epoch: u64,
+        height: BlockNumber,
         execution_context: ExecutionContext<S>,
     ) -> CommitteeProviderResult<Arc<Committee>> {
+        let epoch = self.epoch_at_height(height, execution_context.clone())?;
+
         let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
         Ok(committee_data.committee_members.clone())
     }
@@ -244,7 +317,7 @@ impl CommitteeProvider for StakingManager {
     // The proposer is chosen from the committee corresponding to the epoch of the given height.
     // Selection is based on a deterministic random number derived from the height, round,
     // and the hash of a past block — offset by `config.proposer_prediction_window`.
-    async fn get_proposer<S: StateReader + Send>(
+    async fn get_proposer<S: StateReader + Clone + Send>(
         &mut self,
         height: BlockNumber,
         round: Round,
