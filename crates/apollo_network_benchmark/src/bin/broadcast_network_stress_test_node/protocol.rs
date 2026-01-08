@@ -23,6 +23,8 @@ lazy_static::lazy_static! {
 
 pub type TopicType = Vec<u8>;
 
+pub const SQMR_PROTOCOL_NAME: &str = "/stress-test/1.0.0";
+
 /// Registers protocol channels on an existing network manager.
 /// Returns a sender and receiver for the configured protocol.
 pub fn register_protocol_channels(
