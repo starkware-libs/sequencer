@@ -10,6 +10,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -52,6 +53,15 @@ pub trait CommitterClient: Send + Sync {
 pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
+}
+
+impl CommitterRequest {
+    pub fn height(&self) -> BlockNumber {
+        match self {
+            CommitterRequest::CommitBlock(request) => request.height,
+            CommitterRequest::RevertBlock(request) => request.height,
+        }
+    }
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);

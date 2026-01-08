@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
-use apollo_committer_types::committer_types::CommitBlockResponse;
-use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -20,8 +20,8 @@ use crate::batcher::BatcherStorageReader;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterTrait};
 use crate::commitment_manager::types::{
-    CommitmentTaskInput,
     CommitmentTaskOutput,
+    CommitterTaskInput,
     CommitterTaskOutput,
     FinalBlockCommitment,
 };
@@ -32,7 +32,7 @@ pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
 #[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
 pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
-    pub(crate) tasks_sender: Sender<CommitmentTaskInput>,
+    pub(crate) tasks_sender: Sender<CommitterTaskInput>,
     pub(crate) results_receiver: Receiver<CommitterTaskOutput>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
@@ -90,7 +90,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             });
         }
         let commitment_task_input =
-            CommitmentTaskInput { height, state_diff, state_diff_commitment };
+            CommitterTaskInput(CommitterRequest::CommitBlock(CommitBlockRequest {
+                height,
+                state_diff,
+                state_diff_commitment,
+            }));
         let error_message = format!(
             "Failed to send commitment task to state committer. Block: {height}, state diff \
              commitment: {state_diff_commitment:?}",
