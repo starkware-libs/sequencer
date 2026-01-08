@@ -99,3 +99,9 @@ func get_virtual_os_config() -> VirtualOsConfig* {
     // The authorized account address will be set during transaction execution.
     return virtual_os_config;
 }
+
+// Returns a function pointer to execute_deprecated_syscalls.
+// In virtual OS mode, deprecated syscalls are not supported, so we return 0.
+func get_execute_deprecated_syscalls_ptr() -> (res: felt*) {
+    return (res=cast(0, felt*));
+}
