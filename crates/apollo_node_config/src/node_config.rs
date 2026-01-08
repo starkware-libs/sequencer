@@ -330,25 +330,6 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
     }
 }
 
-macro_rules! validate_component_config_is_set_iff_running_locally {
-    ($self:ident, $component_field:ident, $config_field:ident) => {{
-        // The component config should be set iff its running locally.
-        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
-            let execution_mode = &$self.components.$component_field.execution_mode;
-            let component_config_availability =
-                if $self.$config_field.is_some() { "available" } else { "not available" };
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: format!(
-                    "{} component configs mismatch: execution mode {:?} while config is {}",
-                    stringify!($component_field),
-                    execution_mode,
-                    component_config_availability
-                ),
-            });
-        }
-    }};
-}
-
 impl SequencerNodeConfig {
     /// Creates a config object, using the config schema and provided resources.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
@@ -366,60 +347,59 @@ impl SequencerNodeConfig {
     }
 
     fn cross_member_validations(&self) -> Result<(), ConfigError> {
+        macro_rules! validate_component_config_is_set_iff_running_locally {
+            ($component_field:ident, $config_field:ident) => {{
+                // The component config should be set iff its running locally.
+                if self.components.$component_field.is_running_locally()
+                    != self.$config_field.is_some()
+                {
+                    let execution_mode = &self.components.$component_field.execution_mode;
+                    let component_config_availability =
+                        if self.$config_field.is_some() { "available" } else { "not available" };
+                    return Err(ConfigError::ComponentConfigMismatch {
+                        component_config_mismatch: format!(
+                            "{} component configs mismatch: execution mode {:?} while config is {}",
+                            stringify!($component_field),
+                            execution_mode,
+                            component_config_availability
+                        ),
+                    });
+                }
+            }};
+        }
+
         // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
-        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(class_manager, class_manager_config);
+        validate_component_config_is_set_iff_running_locally!(committer, committer_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            class_manager,
-            class_manager_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, committer, committer_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             config_manager,
             config_manager_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            l1_provider,
-            l1_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             l1_gas_price_provider,
             l1_gas_price_provider_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(mempool_p2p, mempool_p2p_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            mempool_p2p,
-            mempool_p2p_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             sierra_compiler,
             sierra_compiler_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
             consensus_manager,
             consensus_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
+        validate_component_config_is_set_iff_running_locally!(l1_scraper, l1_scraper_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            http_server,
-            http_server_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             l1_gas_price_scraper,
             l1_gas_price_scraper_config
         );
         validate_component_config_is_set_iff_running_locally!(
-            self,
             monitoring_endpoint,
             monitoring_endpoint_config
         );
