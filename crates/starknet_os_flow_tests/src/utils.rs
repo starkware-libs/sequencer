@@ -45,6 +45,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::block_committer::timing_util::TimeMeasurement;
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
@@ -153,7 +154,8 @@ pub(crate) async fn commit_state_diff(
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
-    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None)
+    let time_measurement = None::<&mut TimeMeasurement>;
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, time_measurement)
         .await
         .expect("Failed to commit the given block.");
     facts_db.write(&filled_forest).await.expect("Failed to write filled forest to storage");
