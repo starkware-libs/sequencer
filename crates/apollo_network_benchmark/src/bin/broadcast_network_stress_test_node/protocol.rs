@@ -63,8 +63,21 @@ pub fn register_protocol_channels(
             (MessageSender::Sqmr(sqmr_client), MessageReceiver::Sqmr(sqmr_server))
         }
         NetworkProtocol::ReveresedSqmr => {
-            // TODO(AndrewL): Implement ReveresedSqmr protocol registration
-            todo!("ReveresedSqmr protocol registration not yet implemented")
+            let sqmr_client = network_manager
+                .register_sqmr_protocol_client::<TopicType, TopicType>(
+                    SQMR_PROTOCOL_NAME.to_string(),
+                    buffer_size,
+                );
+            let sqmr_server = network_manager
+                .register_sqmr_protocol_server::<TopicType, TopicType>(
+                    SQMR_PROTOCOL_NAME.to_string(),
+                    buffer_size,
+                );
+
+            (
+                MessageSender::ReveresedSqmr(ReveresedSqmrSender::new(sqmr_server)),
+                MessageReceiver::ReveresedSqmr(sqmr_client),
+            )
         }
     }
 }
@@ -154,6 +167,7 @@ impl MessageSender {
 pub enum MessageReceiver {
     Gossipsub(BroadcastTopicServer<TopicType>),
     Sqmr(SqmrServerReceiver<TopicType, TopicType>),
+    ReveresedSqmr(SqmrClientSender<TopicType, TopicType>),
 }
 
 impl MessageReceiver {
@@ -180,6 +194,33 @@ impl MessageReceiver {
                     })
                     .await
             }
+            MessageReceiver::ReveresedSqmr(mut client) => loop {
+                match client.send_new_query(vec![]).await {
+                    Ok(mut response_manager) => loop {
+                        let response_result = response_manager.next().await;
+                        match response_result {
+                            Some(Ok(response_data)) => {
+                                f(response_data, None);
+                            }
+                            Some(Err(_)) => {
+                                error!("ReveresedSqmr: Failed to parse response");
+                                break;
+                            }
+                            None => {
+                                error!("ReveresedSqmr: Response stream ended");
+                                break;
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        error!(
+                            "Failed to establish ReveresedSqmr connection, keeping client alive, \
+                             error: {:?}",
+                            e
+                        );
+                    }
+                }
+            },
         }
     }
 }
