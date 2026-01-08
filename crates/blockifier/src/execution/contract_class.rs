@@ -205,6 +205,15 @@ impl From<&NestedFeltCounts> for NestedIntList {
     }
 }
 
+/// Converts `NestedFeltCounts` back to casm's `NestedIntList` format, stripping felt size
+/// information. Returns `None` for single-segment contracts (no meaningful segmentation).
+impl From<&NestedFeltCounts> for Option<NestedIntList> {
+    fn from(counts: &NestedFeltCounts) -> Self {
+        // Single leaf = flat bytecode with no segmentation, represented as `None` in casm format.
+        if counts.is_leaf() { None } else { Some(counts.into()) }
+    }
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
