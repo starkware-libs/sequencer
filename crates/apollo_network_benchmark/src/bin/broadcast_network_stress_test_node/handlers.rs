@@ -1,13 +1,15 @@
 use std::time::{Duration, SystemTime};
 
 use apollo_metrics::metrics::LossyIntoF64;
-use apollo_network_benchmark::node_args::NodeArgs;
+use apollo_network_benchmark::node_args::{Mode, NodeArgs};
 use libp2p::PeerId;
+use tracing::trace;
 
 use crate::message::{StressTestMessage, METADATA_SIZE};
 use crate::message_index_detector::MessageIndexTracker;
 use crate::metrics::{
     get_throughput,
+    seconds_since_epoch,
     BROADCAST_MESSAGE_BYTES,
     BROADCAST_MESSAGE_BYTES_SUM,
     BROADCAST_MESSAGE_COUNT,
@@ -33,6 +35,14 @@ fn get_message(id: u64, size_bytes: usize) -> StressTestMessage {
     message
 }
 
+fn should_broadcast_round_robin(args: &NodeArgs) -> bool {
+    let now_seconds = seconds_since_epoch();
+    let round_duration_seconds = args.user.round_duration_seconds;
+    let num_nodes: u64 = args.runner.bootstrap.len().try_into().unwrap();
+    let current_round = (now_seconds / round_duration_seconds) % num_nodes;
+    args.runner.id == current_round
+}
+
 /// Unified implementation for sending stress test messages via any protocol
 pub async fn send_stress_test_messages(
     mut message_sender: MessageSender,
@@ -50,17 +60,30 @@ pub async fn send_stress_test_messages(
     loop {
         interval.tick().await;
 
-        message.metadata.time = SystemTime::now();
-        message.metadata.message_index = message_index;
-        let message_clone = message.clone().into();
-        let start_time = std::time::Instant::now();
-        message_sender.send_message(&peers, message_clone).await;
-        BROADCAST_MESSAGE_SEND_DELAY_SECONDS.record(start_time.elapsed().as_secs_f64());
-        BROADCAST_MESSAGE_BYTES.set(message.len().into_f64());
-        BROADCAST_MESSAGE_COUNT.increment(1);
-        BROADCAST_MESSAGE_BYTES_SUM
-            .increment(u64::try_from(message.len()).expect("Message length too large for u64"));
-        message_index += 1;
+        // Check if this node should broadcast based on the mode
+        let should_broadcast_now = match args.user.mode {
+            Mode::AllBroadcast | Mode::OneBroadcast => true,
+            Mode::RoundRobin => should_broadcast_round_robin(args),
+        };
+
+        if should_broadcast_now {
+            message.metadata.time = SystemTime::now();
+            message.metadata.message_index = message_index;
+            let message_clone = message.clone().into();
+            let start_time = std::time::Instant::now();
+            message_sender.send_message(&peers, message_clone).await;
+            BROADCAST_MESSAGE_SEND_DELAY_SECONDS.record(start_time.elapsed().as_secs_f64());
+            BROADCAST_MESSAGE_BYTES.set(message.len().into_f64());
+            BROADCAST_MESSAGE_COUNT.increment(1);
+            BROADCAST_MESSAGE_BYTES_SUM
+                .increment(u64::try_from(message.len()).expect("Message length too large for u64"));
+            trace!(
+                "Node {} sent message {message_index} in mode `{}`",
+                args.runner.id,
+                args.user.mode
+            );
+            message_index += 1;
+        }
     }
 }
 
