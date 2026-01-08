@@ -12,7 +12,7 @@ use crate::db::facts_db::types::FactsDbInitialRead;
 
 pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     EndToEnd,
     Read,
@@ -88,10 +88,10 @@ impl TimeMeasurement {
         *self.get_mut_timers(&action) = Some(Instant::now());
     }
 
-    /// Stop the measurement for the given action and add the duration to the corresponding vector.
-    /// facts_count is either the number of facts read from the DB for Read action, or the number of
-    /// new facts written to the DB for the Total action.
-    pub fn stop_measurement(&mut self, facts_count: Option<usize>, action: Action) {
+    /// Stops the measurement for the given action and adds the duration to the corresponding
+    /// vector. For Read/Write actions, `facts_count` is the number of facts read from / written
+    /// to the DB. For other actions, it is ignored.
+    pub fn stop_measurement(&mut self, action: Action, facts_count: usize) {
         let instant_timer = self
             .get_mut_timers(&action)
             .as_mut()
@@ -107,22 +107,22 @@ impl TimeMeasurement {
             Action::EndToEnd => {
                 self.block_durations.push(millis);
                 self.total_time += millis;
-                self.n_new_facts.push(facts_count.unwrap());
-                self.facts_in_db.push(self.total_facts);
                 self.time_of_measurement
                     .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
-                self.total_facts += facts_count.unwrap();
                 self.block_number += 1;
             }
             Action::Read => {
                 self.read_durations.push(millis);
-                self.n_read_facts.push(facts_count.unwrap());
+                self.n_read_facts.push(facts_count);
             }
             Action::Compute => {
                 self.compute_durations.push(millis);
             }
             Action::Write => {
                 self.write_durations.push(millis);
+                self.n_new_facts.push(facts_count);
+                self.facts_in_db.push(self.total_facts);
+                self.total_facts += self.n_new_facts.last().unwrap_or(&0);
             }
         }
     }
