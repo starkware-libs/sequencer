@@ -1523,6 +1523,7 @@ dependencies = [
  "apollo_metrics",
  "assert_matches",
  "async-trait",
+ "chrono",
  "hyper 0.14.32",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1541,6 +1542,7 @@ dependencies = [
  "tokio-metrics",
  "tower 0.4.13",
  "tracing",
+ "tracing-core",
  "tracing-subscriber",
  "validator",
 ]

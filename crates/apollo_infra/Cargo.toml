@@ -18,6 +18,7 @@ apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+chrono.workspace = true
 hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
 metrics-exporter-prometheus.workspace = true
 rstest.workspace = true
@@ -30,6 +31,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
 tower = { workspace = true, features = ["limit", "util"] }
 tracing.workspace = true
+tracing-core.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
 validator.workspace = true
 
