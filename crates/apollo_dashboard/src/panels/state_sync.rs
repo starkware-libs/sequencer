@@ -91,8 +91,8 @@ pub(crate) fn get_state_sync_row() -> Row {
         "State Sync",
         vec![
             get_panel_central_sync_central_block_marker(),
-            get_panel_time_to_complete_sync(),
             get_panel_state_sync_diff_from_central(),
+            get_panel_time_to_complete_sync(),
             get_panel_state_sync_new_header_maturity(),
             get_panel_state_sync_body_marker(),
             get_panel_state_sync_class_manager_marker(),
