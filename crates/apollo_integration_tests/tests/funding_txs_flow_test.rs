@@ -20,12 +20,12 @@ async fn funding_txs_flow() {
     .await
 }
 
-fn create_test_scenarios() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_test_scenarios() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_funding_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_single_tx,
-    }]
+    }
 }
 
 fn create_funding_txs(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {

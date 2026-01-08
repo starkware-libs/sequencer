@@ -26,12 +26,12 @@ async fn many_txs_fill_at_least_one_block() {
     .await
 }
 
-fn create_many_txs_scenario() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_many_txs_scenario() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_many_invoke_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, N_TXS),
-    }]
+    }
 }
 
 /// Creates and sends more transactions than can fit in a block.

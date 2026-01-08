@@ -37,12 +37,12 @@ async fn custom_cairo1_txs() {
     .await
 }
 
-fn create_custom_cairo1_txs_scenario() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_custom_cairo1_txs_scenario() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_custom_cairo1_test_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, CUSTOM_INVOKE_TX_COUNT),
-    }]
+    }
 }
 
 /// Creates a set of transactions that test the Cairo 1.0 syscall functionality.

@@ -22,12 +22,12 @@ async fn reverted_l1_handler_tx_flow() {
     .await
 }
 
-fn create_test_scenarios() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_test_scenarios() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: |_| vec![],
         create_l1_to_l2_messages_args_fn: create_l1_to_l2_reverted_message_args,
         test_tx_hashes_fn: test_single_tx,
-    }]
+    }
 }
 
 fn create_l1_to_l2_reverted_message_args(

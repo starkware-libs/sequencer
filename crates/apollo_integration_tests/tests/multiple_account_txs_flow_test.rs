@@ -21,12 +21,12 @@ async fn multiple_account_txs_flow() {
     .await
 }
 
-fn create_test_scenarios() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_test_scenarios() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_multiple_account_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_multiple_account_txs,
-    }]
+    }
 }
 
 fn create_multiple_account_txs(
