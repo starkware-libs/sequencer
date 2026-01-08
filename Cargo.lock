@@ -12756,6 +12756,7 @@ dependencies = [
  "async-trait",
  "blockifier",
  "blockifier_reexecution",
+ "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
