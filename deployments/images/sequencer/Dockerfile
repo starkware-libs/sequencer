@@ -21,18 +21,20 @@ ENV BUILD_MODE=${BUILD_MODE}
 
 # Validate BUILD_MODE value
 RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
-        echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
-        exit 1; \
+    echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
+    exit 1; \
     fi
 
 
 COPY --from=planner /app/recipe.json recipe.json
+# Copy .cargo/config.toml before cargo chef cook so llvm-sys can find LLVM
+COPY .cargo .cargo
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 
 RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
-        BUILD_FLAGS="--release"; \
+    BUILD_FLAGS="--release"; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use alloy::primitives::U256;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
@@ -22,7 +23,12 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, Transac
 #[tokio::test]
 async fn scraper_end_to_end() {
     // Setup.
-    let mut base_layer = AnvilBaseLayer::new(None).await;
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::L1EventsScraperEndToEndTest.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for l1_events_scraper_end_to_end");
+    let mut base_layer = AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
     let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
 

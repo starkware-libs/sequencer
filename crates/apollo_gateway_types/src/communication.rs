@@ -20,7 +20,7 @@ pub type RemoteGatewayClient = RemoteComponentClient<GatewayRequest, GatewayResp
 pub type GatewayClientResult<T> = Result<T, GatewayClientError>;
 pub type GatewayRequestWrapper = RequestWrapper<GatewayRequest, GatewayResponse>;
 pub type SharedGatewayClient = Arc<dyn GatewayClient>;
-use tracing::{error, instrument};
+use tracing::instrument;
 
 /// Serves as the gateway's shared interface. Requires `Send + Sync` to allow transferring
 /// and sharing resources (inputs, futures) across threads.

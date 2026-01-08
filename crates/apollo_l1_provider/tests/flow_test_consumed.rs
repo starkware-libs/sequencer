@@ -25,6 +25,7 @@ use utils::{
     L1_CONTRACT_ADDRESS,
     L2_ENTRY_POINT,
     POLLING_INTERVAL_DURATION,
+    ROUND_TO_SEC_MARGIN_DURATION,
     TARGET_L2_HEIGHT,
     TIMELOCK_DURATION,
 };
@@ -98,7 +99,7 @@ async fn l1_handler_tx_consumed_txs() {
         Ok(all_events[start..end_exclusive].to_vec())
     });
 
-    let l1_provider_client = setup_scraper_and_provider(base_layer).await;
+    let l1_provider_client = setup_scraper_and_provider(base_layer, None).await;
 
     tokio::time::pause();
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
@@ -121,7 +122,7 @@ async fn l1_handler_tx_consumed_txs() {
     // Sleep at least one second more than the polling interval to make sure we are not failing due
     // to fractional seconds. After the polling interval passes, the transaction should be
     // consumed.
-    tokio::time::advance(POLLING_INTERVAL_DURATION + Duration::from_secs(1)).await;
+    tokio::time::advance(POLLING_INTERVAL_DURATION + ROUND_TO_SEC_MARGIN_DURATION).await;
 
     for _i in 0..100 {
         let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
@@ -140,7 +141,7 @@ async fn l1_handler_tx_consumed_txs() {
     // Block number 3 is created.
     current_l1_block_number.store(3, Ordering::Relaxed);
     // Wait again to make sure the consumption timelock has passed, allowing a deletion to occur.
-    tokio::time::advance(TIMELOCK_DURATION + Duration::from_secs(1)).await;
+    tokio::time::advance(TIMELOCK_DURATION + ROUND_TO_SEC_MARGIN_DURATION).await;
 
     // Scraping the second consumed event triggers a deletion of the transaction from the records.
     for _i in 0..100 {

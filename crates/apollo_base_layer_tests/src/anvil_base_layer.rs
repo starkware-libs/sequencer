@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 use std::process::Command;
+use std::time::Duration;
 
 use alloy::node_bindings::NodeError as AnvilError;
 use alloy::primitives::{I256, U256};
@@ -7,6 +8,7 @@ use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionReceipt;
 use alloy::sol;
 use alloy::sol_types::SolValue;
+use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
@@ -27,6 +29,7 @@ use papyrus_base_layer::{
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::L1HandlerTransaction;
+use tracing::info;
 use url::Url;
 
 /// Initialize an anvil instance under the default port and deploy the Starknet contract.
@@ -40,6 +43,7 @@ use url::Url;
 pub struct AnvilBaseLayer {
     pub anvil_provider: DynProvider,
     pub ethereum_base_layer: EthereumBaseLayerContract,
+    pub port: u16,
 }
 
 impl AnvilBaseLayer {
@@ -51,7 +55,7 @@ impl AnvilBaseLayer {
     /// Note: if you have port conflicts, you might have a zombie anvil instance
     /// running, but that should be impossible if using through this service, you probably have a
     /// manually triggered Anvil instance somewhere in your shell.
-    pub async fn new(block_time: Option<u64>) -> Self {
+    pub async fn new(block_time: Option<u64>, port: Option<u16>) -> Self {
         let is_unit_test = cfg!(test);
         if is_unit_test {
             panic!(
@@ -67,7 +71,7 @@ impl AnvilBaseLayer {
 "Install instructions (for local development):\n
 Execute from within a directory that's included in PATH, like ~/.local/bin:\n
 curl -L \
- https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz \
+ https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz \
  | tar -xz --wildcards 'anvil'".yellow()
         );
 
@@ -79,10 +83,10 @@ curl -L \
                 panic!("Failed anvil version check: {error:?}")
             }
         });
-
+        let port = port.unwrap_or(Self::DEFAULT_ANVIL_PORT);
         let anvil_client = ProviderBuilder::new()
             .connect_anvil_with_wallet_and_config(|anvil| {
-                let anvil = anvil.port(Self::DEFAULT_ANVIL_PORT);
+                let anvil = anvil.port(port);
                 if let Some(block_time) = block_time { anvil.block_time(block_time) } else { anvil }
             })
             .unwrap_or_else(|error| match error {
@@ -94,9 +98,23 @@ curl -L \
                 _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
             });
 
-        Starknet::deploy(anvil_client.clone()).await.unwrap();
-
-        let config = Self::config();
+        info!("Deploying Starknet contract to Anvil with port: {}", port);
+        let mut retries = 0;
+        for _ in 0..100 {
+            let result = Starknet::deploy(anvil_client.clone()).await;
+            if result.is_ok() {
+                break;
+            }
+            retries += 1;
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        Starknet::deploy(anvil_client.clone()).await.unwrap_or_else(|error| {
+            panic!(
+                "Failed to deploy Starknet contract to Anvil on port {port} after {retries} \
+                 retries: {error:?}"
+            );
+        });
+        let config = Self::config(Self::url_static(port));
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
@@ -104,6 +122,7 @@ curl -L \
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
             ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
+            port,
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -117,14 +136,18 @@ curl -L \
         send_message_to_l2(&self.ethereum_base_layer.contract, l1_handler).await
     }
 
-    pub fn url() -> Url {
-        format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap()
+    pub fn url(&self) -> Url {
+        Self::url_static(self.port)
     }
 
-    pub fn config() -> EthereumBaseLayerConfig {
+    pub fn url_static(port: u16) -> Url {
+        format!("http://127.0.0.1:{}", port).parse().unwrap()
+    }
+
+    pub fn config(url: Url) -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-            ordered_l1_endpoint_urls: vec![Self::url()],
+            ordered_l1_endpoint_urls: vec![url.into()],
             ..Default::default()
         }
     }
@@ -235,11 +258,11 @@ impl BaseLayerContract for AnvilBaseLayer {
     }
 
     // TODO(Arni): Consider deleting this function from the trait.
-    async fn get_url(&self) -> Result<Url, Self::Error> {
+    async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
         Ok(self.ethereum_base_layer.url_iterator.get_current_url())
     }
 
-    async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
+    async fn set_provider_url(&mut self, _url: Sensitive<Url>) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
 

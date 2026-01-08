@@ -5,26 +5,31 @@ use starknet_api::state::ThinStateDiff;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
-    state_diff: ThinStateDiff,
+    pub state_diff: ThinStateDiff,
     // Field is optional because for old blocks, the state diff commitment might not be available.
-    state_diff_commitment: Option<StateDiffCommitment>,
-    height: BlockNumber,
+    pub state_diff_commitment: Option<StateDiffCommitment>,
+    pub height: BlockNumber,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockResponse {
-    state_root: GlobalRoot,
+    // TODO(Yoav): Rename to global_root.
+    pub state_root: GlobalRoot,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RevertBlockRequest {
     // A synthetic state diff that undoes the state diff of the given height.
-    reversed_state_diff: ThinStateDiff,
-    height: BlockNumber,
+    pub reversed_state_diff: ThinStateDiff,
+    pub height: BlockNumber,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RevertBlockResponse {
-    Uncommitted,
+    // Nothing to revert, the committer had the resulted state root.
+    AlreadyReverted(GlobalRoot),
+    // The block was reverted, return the state root after reverting the state.
     RevertedTo(GlobalRoot),
+    // Nothing to revert. A future block that has not been committed.
+    Uncommitted,
 }

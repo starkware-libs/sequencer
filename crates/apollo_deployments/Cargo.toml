@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Deployment configurations and utilities for various Starknet environments."
 
 [lints]
 workspace = true
@@ -18,6 +19,7 @@ apollo_node_config.workspace = true
 phf = { workspace = true, features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
+static_assertions.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 url.workspace = true

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::future::Future;
@@ -172,15 +173,15 @@ impl Storage for NullStorage {
 }
 
 #[derive(Debug)]
-pub struct DbKeyPrefix(&'static [u8]);
+pub struct DbKeyPrefix(Cow<'static, [u8]>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: &'static [u8]) -> Self {
+    pub fn new(prefix: Cow<'static, [u8]>) -> Self {
         Self(prefix)
     }
 
-    pub fn to_bytes(&self) -> &'static [u8] {
-        self.0
+    pub fn to_bytes(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 

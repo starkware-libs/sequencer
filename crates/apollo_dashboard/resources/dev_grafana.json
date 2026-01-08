@@ -52,7 +52,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Transactions Failed by Reason",
@@ -123,7 +125,9 @@
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"State sync is not ready\" OR \"to fetch retrospective block hash\""
+          }
         },
         {
           "title": "Consensus Decisions Reached As Proposer",
@@ -1091,6 +1095,15 @@
             "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Average L2 Gas Usage in Block",
+          "description": "The average L2 gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_l2_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
@@ -1102,8 +1115,8 @@
           "description": "Server-side compilation of Sierra to Casm duration",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))",
+            "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))"
           ],
           "extra_params": {
             "unit": "s"
@@ -1123,8 +1136,8 @@
           "description": "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))",
+            "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2h])))"
           ],
           "extra_params": {
             "unit": "decmbytes",
@@ -1590,6 +1603,32 @@
           "extra_params": {}
         },
         {
+          "title": "get_block_hash (client-side)",
+          "description": "client-side infra metrics for request type get_block_hash",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_block_hash (server-side)",
+          "description": "server-side infra metrics for request type get_block_hash",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_current_height (client-side)",
           "description": "client-side infra metrics for request type get_current_height",
           "type": "timeseries",
@@ -2034,6 +2073,32 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_http_server_dynamic_config (client-side)",
+          "description": "client-side infra metrics for request type get_http_server_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_http_server_dynamic_config (server-side)",
+          "description": "server-side infra metrics for request type get_http_server_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_http_server_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3108,6 +3173,32 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_latest_block_header (client-side)",
+          "description": "client-side infra metrics for request type get_latest_block_header",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.50 state_sync_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.95 state_sync_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.50 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_latest_block_header (server-side)",
+          "description": "server-side infra metrics for request type get_latest_block_header",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_header\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },

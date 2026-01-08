@@ -1,4 +1,5 @@
 use alloy::node_bindings::Anvil;
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -10,15 +11,24 @@ use papyrus_base_layer::test_utils::{
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::BaseLayerContract;
+use tracing::info;
 
 #[tokio::test]
 async fn anvil_starts_with_no_contract() {
     const NUM_L1_TRANSACTIONS: usize = 10;
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::AnvilStartsWithNoContractTest.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for anvil_starts_with_no_contract");
+    let port = available_ports.get_next_port();
+    info!("Starting Anvil with port: {}", port);
     let anvil = Anvil::new()
+        .port(port)
         .try_spawn()
         .expect("Anvil not installed, see anvil base layer for installation instructions.");
     let base_layer_config = EthereumBaseLayerConfig {
-        ordered_l1_endpoint_urls: vec![anvil.endpoint_url()],
+        ordered_l1_endpoint_urls: vec![anvil.endpoint_url().into()],
         ..Default::default()
     };
     let mut base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());

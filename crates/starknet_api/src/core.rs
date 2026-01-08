@@ -407,7 +407,18 @@ pub struct EventCommitment(pub StarkHash);
 pub struct ReceiptCommitment(pub StarkHash);
 
 #[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
+    derive_more::Display,
 )]
 pub struct StateDiffCommitment(pub PoseidonHash);
 

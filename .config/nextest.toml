@@ -1,0 +1,16 @@
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[test-groups.serialized]
+max-threads = 1
+
+# serialized tests (mostly integration tests)
+[[profile.default.overrides]]
+# TODO(victork): evaluate whether these are indeed required to run sequentially
+filter = '(package(apollo_integration_tests) & kind(test)) | package(apollo_infra) | package(apollo_network) | (package(apollo_l1_provider) & kind(test))'
+test-group = 'serialized'
+
+# slow test exception whitelist
+[[profile.default.overrides]]
+filter = 'none()'
+slow-timeout = { period = "120s", terminate-after = 2 }

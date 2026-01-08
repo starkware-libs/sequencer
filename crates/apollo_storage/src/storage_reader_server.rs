@@ -42,7 +42,7 @@ impl ServerConfig {
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8080, enable: false }
+        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091, enable: false }
     }
 }
 

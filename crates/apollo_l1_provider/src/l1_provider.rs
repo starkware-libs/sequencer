@@ -2,7 +2,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::sync::Arc;
 
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
+use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -131,7 +131,7 @@ impl L1Provider {
         }
 
         // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
-        info_every_n_sec!(1, "Adding {} l1 events", events.len());
+        info_every_n_ms!(1000, "Adding {} l1 events", events.len());
         trace!("Adding events: {events:?}");
 
         for event in events {
@@ -327,10 +327,16 @@ impl L1Provider {
                     );
                 } else {
                     info!(
-                        "Provider received a block_height ({height}) that is higher than the \
+                        "Provider received a block_height ({height}) that is different than the \
                          current height ({}), starting catch-up process.",
                         self.current_height
                     );
+                    // TODO(guyn): in case block_height is lower than current_height, should we
+                    // still go to catchup? Perhaps it is better to return an
+                    // error and let the batcher keep going without the Provider?
+                    // Do we need to check that the blocks getting committed are consistent with the
+                    // provider records? Can we just accept the block without an
+                    // error if we do that check?
                     self.start_catching_up(height);
                 }
                 Err(err)

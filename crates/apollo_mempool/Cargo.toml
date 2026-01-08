@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "Transaction pool management for pending transactions in the Starknet sequencer."
 
 [features]
 testing = [
@@ -51,6 +52,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
+expect-test.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true

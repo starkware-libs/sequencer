@@ -10,7 +10,7 @@ use hyper::StatusCode;
 use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
-use tracing::{debug, error};
+use tracing::debug;
 
 /// Errors originating from `[`HttpServer::run`]` command.
 #[derive(Debug, Error)]

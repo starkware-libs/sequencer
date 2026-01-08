@@ -83,6 +83,7 @@ rstest.workspace = true
 starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [lints]
 workspace = true

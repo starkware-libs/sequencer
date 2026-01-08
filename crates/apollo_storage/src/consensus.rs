@@ -35,6 +35,7 @@
 //! assert_eq!(Some(last_voted_marker), last_voted_marker_from_storage);
 //! # Ok::<(), apollo_storage::StorageError>(())
 
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
@@ -42,7 +43,7 @@ use crate::db::{TransactionKind, RW};
 use crate::{StorageResult, StorageTxn};
 
 /// Information about the last vote sent out by consensus.
-#[derive(Debug, Clone, Eq, PartialEq, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LastVotedMarker {
     /// The last height in which consensus voted.
     pub height: BlockNumber,

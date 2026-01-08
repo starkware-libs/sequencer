@@ -4,6 +4,7 @@ license.workspace = true
 name = "apollo_gateway"
 repository.workspace = true
 version.workspace = true
+description = "Gateway component for receiving and validating transactions submitted to the Starknet sequencer."
 
 [lints]
 workspace = true

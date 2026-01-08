@@ -6,8 +6,8 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
+use crate::hints::hint_implementation::kzg::test_utils::horner_eval;
 use crate::hints::hint_implementation::kzg::utils::{
-    horner_eval,
     polynomial_coefficients_to_kzg_commitment,
     BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,

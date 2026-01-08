@@ -35,10 +35,12 @@ use starknet_api::executable_transaction::{
     TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::HashOutput;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
+    NonceManager,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -91,6 +93,9 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
+    InitialState,
+    InitialStateData,
+    OsExecutionContracts,
 };
 use crate::special_contracts::{
     DATA_GAS_ACCOUNT_CONTRACT_CASM,
@@ -100,6 +105,7 @@ use crate::special_contracts::{
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
 use crate::test_manager::{
+    block_context_for_flow_tests,
     TestBuilder,
     TestBuilderConfig,
     FUNDED_ACCOUNT_ADDRESS,
@@ -2890,4 +2896,61 @@ async fn test_load_bottom() {
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
     test_output.expect_hint_coverage("test_load_bottom");
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_initial_empty_block() {
+    let empty_initial_state = InitialState {
+        updatable_state: DictStateReader::default(),
+        commitment_storage: Default::default(),
+        contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        block_context: block_context_for_flow_tests(BlockNumber(0), false),
+    };
+    let empty_initial_state_data = InitialStateData {
+        initial_state: empty_initial_state,
+        nonce_manager: NonceManager::default(),
+        execution_contracts: OsExecutionContracts::default(),
+    };
+    let virtual_os = false;
+    let test_builder = TestBuilder::new_with_initial_state_data(
+        empty_initial_state_data,
+        TestBuilderConfig::default(),
+        virtual_os,
+    );
+
+    let test_output = test_builder.build_and_run().await;
+
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(
+        Const::AliasContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+        HashMap::from([(
+            Const::AliasCounterStorageKey.fetch_from_os_program().unwrap(),
+            Const::InitialAvailableAlias.fetch_from_os_program().unwrap(),
+        )]),
+    );
+    test_output.expect_hint_coverage("test_initial_empty_block");
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_nested_self_revert_storage_order() {
+    let (mut test_builder, [test_contract_address]) =
+        TestBuilder::<DictStateReader>::create_standard([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "catch_write_revert_panic",
+        &[**test_contract_address, Felt::THREE],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test.
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_default_validations();
 }

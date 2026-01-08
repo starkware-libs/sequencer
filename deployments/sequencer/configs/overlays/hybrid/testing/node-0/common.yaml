@@ -1,0 +1,68 @@
+imagePullSecrets: []
+
+metaLabels:
+  app: sequencer
+
+image:
+  repository: ghcr.io/starkware-libs/sequencer/sequencer
+  tag: dev
+  digest: ''
+  imagePullPolicy: IfNotPresent
+
+config:
+  sequencerConfig:
+    chain_id: "CHAIN_ID_SUBDIR"
+    eth_fee_token_address: "0x1001"
+    monitoring_endpoint_config_port: 8082
+    recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
+    starknet_url: "https://integration-sepolia.starknet.io/"
+    strk_fee_token_address: "0x1002"
+    validator_id: "0x64"
+    versioned_constants_overrides_max_n_events: 1000
+
+service:
+  ports:
+  - name: monitoring-endpoint
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+
+secret:
+  enabled: true
+  type: "Opaque"
+  file: "crates/apollo_deployments/resources/testing_secrets.json"
+
+env:
+- name: RUST_LOG
+  value: debug
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'
+
+startupProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+readinessProbe:
+  enabled: true
+  path: /monitoring/ready
+  successThreshold: 2
+  failureThreshold: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+livenessProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+securityContext:
+  fsGroup: 1000

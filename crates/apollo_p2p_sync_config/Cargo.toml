@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Configuration types for Apollo P2P state synchronization."
 
 [dependencies]
 apollo_config.workspace = true

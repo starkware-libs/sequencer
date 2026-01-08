@@ -1,11 +1,44 @@
 use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::{GlobalRoot, StateDiffCommitment};
+use starknet_committer::db::forest_trait::ForestMetadataType;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Deserialize, Error, Serialize)]
 pub enum CommitterError {
-    #[error("Failed to commit block: {0}")]
-    Commitment(String),
+    #[error(
+        "The next height to commit is {committer_offset}, but got greater height {input_height}."
+    )]
+    CommitHeightHole { input_height: BlockNumber, committer_offset: BlockNumber },
+    #[error("Failed to commit block number {height}: {message}")]
+    Internal { height: BlockNumber, message: String },
+    #[error(
+        "Height {height} already committed with state diff commitment {stored_commitment}, got \
+         {input_commitment}."
+    )]
+    InvalidStateDiffCommitment {
+        input_commitment: StateDiffCommitment,
+        stored_commitment: StateDiffCommitment,
+        height: BlockNumber,
+    },
+    #[error(
+        "Global root for the committed block number {height} is {stored_global_root}, got \
+         post-reverted root {input_global_root}."
+    )]
+    InvalidRevertedGlobalRoot {
+        input_global_root: GlobalRoot,
+        stored_global_root: GlobalRoot,
+        height: BlockNumber,
+    },
+    #[error("Failed to read metadata for {0:?}")]
+    MissingMetadata(ForestMetadataType),
+    #[error("State root for the committed block number {height} is missing.")]
+    MissingStateRoot { height: BlockNumber },
+    #[error(
+        "The next height to revert is {last_committed_block}, but got lower height {input_height}."
+    )]
+    RevertHeightHole { input_height: BlockNumber, last_committed_block: BlockNumber },
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;

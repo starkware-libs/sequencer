@@ -3,6 +3,7 @@ use alloy::providers::Provider;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol_types::SolEventInterface;
 use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
 use papyrus_base_layer::BaseLayerContract;
 use pretty_assertions::assert_eq;
@@ -10,7 +11,12 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 
 #[tokio::test]
 async fn test_mocked_starknet_state_update() {
-    let mut base_layer = AnvilBaseLayer::new(None).await;
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::MockedStarknetStateUpdateTest.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for mocked_starknet_state_update_test");
+    let mut base_layer = AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
 
     // Check that the contract was initialized (during the construction above).
     let genesis_block_number = 1;

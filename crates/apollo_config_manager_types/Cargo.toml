@@ -4,12 +4,14 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Type definitions for the Apollo config manager component."
 
 [lints]
 workspace = true
 
 [dependencies]
 apollo_consensus_config.workspace = true
+apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_config.workspace = true
 apollo_metrics.workspace = true

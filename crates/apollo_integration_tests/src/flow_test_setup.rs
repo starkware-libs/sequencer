@@ -3,9 +3,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
-use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
@@ -122,7 +122,7 @@ impl FlowTestSetup {
             .try_into()
             .unwrap();
 
-        let anvil_base_layer = AnvilBaseLayer::new(None).await;
+        let anvil_base_layer = AnvilBaseLayer::new(None, None).await;
         let base_layer_url = anvil_base_layer.get_url().await.unwrap();
         let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
 
@@ -232,7 +232,7 @@ impl FlowSequencerSetup {
         node_index: usize,
         chain_info: ChainInfo,
         base_layer_config: EthereumBaseLayerConfig,
-        base_layer_url: Url,
+        base_layer_url: Sensitive<Url>,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -246,7 +246,7 @@ impl FlowSequencerSetup {
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
-        consensus_manager_config.cende_config.recorder_url = recorder_url.into();
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
@@ -294,8 +294,7 @@ impl FlowSequencerSetup {
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port, .. } =
-            node_config.http_server_config.as_ref().unwrap().to_owned();
+        let (ip, port) = node_config.http_server_config.as_ref().unwrap().ip_and_port();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Run the sequencer node.

@@ -25,7 +25,6 @@ use starknet_types_core::felt::Felt;
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -33,6 +32,7 @@ use crate::block_committer::input::{
     StateDiff,
 };
 use crate::db::facts_db::db::FactsDb;
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::ForestReader;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -50,12 +50,12 @@ macro_rules! compare_skeleton_tree {
 
 pub(crate) fn create_storage_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = StarknetStorageValue(Felt::from(val));
-    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize().unwrap())
 }
 
 pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = CompiledClassHash(Felt::from(val));
-    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize().unwrap())
 }
 
 pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
@@ -65,7 +65,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         storage_root_hash: HashOutput(felt),
         class_hash: ClassHash(felt),
     };
-    (leaf.get_db_key(&EmptyKeyContext, &felt.to_bytes_be()), leaf.serialize())
+    (leaf.get_db_key(&EmptyKeyContext, &felt.to_bytes_be()), leaf.serialize().unwrap())
 }
 
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).

@@ -18,14 +18,14 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
 use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree;
+use crate::db::trie_traversal::create_original_skeleton_tree;
 
 // TODO(Ariel, 14/12/2025): make this generic over the layout.
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: impl OriginalSkeletonTreeConfig,
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
@@ -73,7 +73,7 @@ pub async fn single_tree_flow_test<
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: impl OriginalSkeletonTreeConfig,
 ) -> String {
     // Move from leaf number to actual index.
     let leaf_modifications = leaf_modifications
@@ -91,7 +91,7 @@ pub async fn single_tree_flow_test<
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize(&EmptyKeyContext));
+    let json_storage = &json!(filled_tree.serialize(&EmptyKeyContext).unwrap());
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }

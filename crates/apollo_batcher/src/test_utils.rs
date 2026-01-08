@@ -1,31 +1,72 @@
+use std::collections::HashMap;
 use std::ops::Range;
+use std::sync::Arc;
 
+use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
+use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use apollo_committer_types::committer_types::CommitBlockResponse;
+use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_l1_provider_types::MockL1ProviderClient;
+use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
-use indexmap::IndexMap;
-use starknet_api::block::BlockInfo;
+use indexmap::{indexmap, IndexMap};
+use mockall::predicate::eq;
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
+use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
-use tokio::sync::mpsc::UnboundedSender;
+use starknet_types_core::felt::Felt;
+use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
+use tokio::task::JoinHandle;
 
+use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
+    BlockBuilderError,
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
     BlockTransactionExecutionData,
+    FailOnErrorCause,
+    MockBlockBuilderFactoryTrait,
+};
+use crate::commitment_manager::state_committer::StateCommitterTrait;
+use crate::commitment_manager::types::{
+    CommitmentTaskInput,
+    CommitmentTaskOutput,
+    CommitterTaskOutput,
+};
+use crate::pre_confirmed_block_writer::{
+    MockPreconfirmedBlockWriterFactoryTrait,
+    MockPreconfirmedBlockWriterTrait,
 };
 use crate::transaction_provider::{TransactionProvider, TxProviderPhase};
 
 pub const EXECUTION_INFO_LEN: usize = 10;
 pub const DUMMY_FINAL_N_EXECUTED_TXS: usize = 12;
+
+pub(crate) const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+pub(crate) const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber =
+    INITIAL_HEIGHT.prev().unwrap();
+pub(crate) const DUMMY_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0xdeadbeef"));
+pub(crate) const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
+pub(crate) const STREAMING_CHUNK_SIZE: usize = 3;
+pub(crate) const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration =
+    tokio::time::Duration::from_secs(1);
+pub(crate) const PROPOSAL_ID: ProposalId = ProposalId(0);
+pub(crate) const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
+    BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 // A fake block builder for validate flow, that fetches transactions from the transaction provider
 // until it is exhausted.
@@ -161,5 +202,158 @@ impl BlockExecutionArtifacts {
             block_info: BlockInfo::create_for_testing(),
         };
         Self::new(block_execution_summary, execution_data, DUMMY_FINAL_N_EXECUTED_TXS).await
+    }
+}
+
+pub(crate) fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
+    ProposeBlockInput {
+        proposal_id,
+        proposal_round: 0,
+        retrospective_block_hash: None,
+        deadline: chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT,
+        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() },
+    }
+}
+
+pub(crate) fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
+    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
+}
+
+pub(crate) fn test_state_diff() -> ThinStateDiff {
+    ThinStateDiff {
+        storage_diffs: indexmap! {
+            4u64.into() => indexmap! {
+                5u64.into() => 6u64.into(),
+                7u64.into() => 8u64.into(),
+            },
+            9u64.into() => indexmap! {
+                10u64.into() => 11u64.into(),
+            },
+        },
+        nonces: test_contract_nonces().into_iter().collect(),
+        ..Default::default()
+    }
+}
+
+pub(crate) struct MockDependencies {
+    pub(crate) storage_reader: MockBatcherStorageReader,
+    pub(crate) storage_writer: MockBatcherStorageWriter,
+    pub(crate) batcher_config: BatcherConfig,
+    pub(crate) clients: MockClients,
+}
+
+pub(crate) struct MockClients {
+    pub(crate) committer_client: MockCommitterClient,
+    pub(crate) mempool_client: MockMempoolClient,
+    pub(crate) l1_provider_client: MockL1ProviderClient,
+    pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
+    pub(crate) pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
+    pub(crate) class_manager_client: SharedClassManagerClient,
+}
+
+impl Default for MockClients {
+    fn default() -> Self {
+        let mut mempool_client = MockMempoolClient::new();
+        let expected_gas_price = propose_block_input(PROPOSAL_ID)
+            .block_info
+            .gas_prices
+            .strk_gas_prices
+            .l2_gas_price
+            .get();
+        mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
+        mempool_client
+            .expect_commit_block()
+            .with(eq(CommitBlockArgs::default()))
+            .returning(|_| Ok(()));
+        let block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        let mut pre_confirmed_block_writer_factory = MockPreconfirmedBlockWriterFactoryTrait::new();
+        pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
+            let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
+            mock_writer.expect_run().return_once(|| Ok(()));
+            (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
+        });
+
+        Self {
+            committer_client: MockCommitterClient::new(),
+            l1_provider_client: MockL1ProviderClient::new(),
+            mempool_client,
+            block_builder_factory,
+            pre_confirmed_block_writer_factory,
+            // TODO(noamsp): use MockClassManagerClient
+            class_manager_client: Arc::new(EmptyClassManagerClient),
+        }
+    }
+}
+
+impl Default for MockDependencies {
+    fn default() -> Self {
+        let mut storage_reader = MockBatcherStorageReader::new();
+        storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
+
+        let batcher_config = BatcherConfig {
+            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+            first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
+                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                parent_block_hash: DUMMY_BLOCK_HASH,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        Self {
+            storage_reader,
+            storage_writer: MockBatcherStorageWriter::new(),
+            clients: MockClients::default(),
+            batcher_config,
+        }
+    }
+}
+
+/// A mock state committer that allows controlling when tasks are "processed".
+pub(crate) struct MockStateCommitter {
+    _task_performer_handle: JoinHandle<()>,
+    mock_task_sender: Sender<()>,
+}
+
+impl StateCommitterTrait for MockStateCommitter {
+    fn create(
+        tasks_receiver: Receiver<CommitmentTaskInput>,
+        results_sender: Sender<CommitterTaskOutput>,
+        _committer_client: SharedCommitterClient,
+    ) -> Self {
+        let (mock_task_sender, mock_task_receiver) = channel(10);
+        let handle = tokio::spawn(async move {
+            Self::wait_for_mock_tasks(tasks_receiver, results_sender, mock_task_receiver).await;
+        });
+        Self { _task_performer_handle: handle, mock_task_sender }
+    }
+    fn get_handle(&self) -> &JoinHandle<()> {
+        &self._task_performer_handle
+    }
+}
+
+impl MockStateCommitter {
+    /// Does nothing until a message is received on the mock task receiver, then pops one task
+    /// from the task receiver and sends a result to the results sender.
+    pub(crate) async fn wait_for_mock_tasks(
+        mut tasks_receiver: Receiver<CommitmentTaskInput>,
+        results_sender: Sender<CommitterTaskOutput>,
+        mut mock_task_receiver: Receiver<()>,
+    ) {
+        while mock_task_receiver.recv().await.is_some() {
+            let task = tasks_receiver.try_recv().unwrap();
+            let result = CommitterTaskOutput::Commit(CommitmentTaskOutput {
+                response: CommitBlockResponse { state_root: GlobalRoot::default() },
+                height: task.height,
+            });
+            results_sender.try_send(result).unwrap();
+        }
+    }
+
+    pub(crate) async fn pop_task_and_insert_result(&self) {
+        self.mock_task_sender.send(()).await.unwrap();
     }
 }

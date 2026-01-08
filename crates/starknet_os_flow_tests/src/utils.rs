@@ -33,11 +33,10 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
     try_node_index_into_patricia_key,
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -46,6 +45,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
@@ -159,9 +159,10 @@ pub(crate) async fn commit_state_diff(
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
-    let filled_forest =
-        commit_block(input, facts_db, None).await.expect("Failed to commit the given block.");
-    facts_db.write(&filled_forest).await;
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None)
+        .await
+        .expect("Failed to commit the given block.");
+    facts_db.write(&filled_forest).await.expect("Failed to write filled forest to storage");
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),

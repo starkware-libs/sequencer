@@ -53,6 +53,7 @@ macro_rules! make_catchupper {
     }};
 }
 
+#[cfg(test)]
 pub(crate) use make_catchupper;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {

@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Integration tests for Starknet OS execution and state commitment flow."
 
 [dev-dependencies]
 assert_matches.workspace = true

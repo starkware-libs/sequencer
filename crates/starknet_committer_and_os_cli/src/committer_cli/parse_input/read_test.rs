@@ -5,13 +5,13 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;

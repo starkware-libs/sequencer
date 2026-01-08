@@ -1,57 +1,25 @@
-use std::fmt::{Display, Formatter, Result};
-use std::path::PathBuf;
-
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
+use apollo_node_config::component_execution_config::DEFAULT_INVALID_PORT;
 use serde::{Deserialize, Serialize};
+use static_assertions::const_assert_ne;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
-use strum_macros::Display;
+use strum_macros::{AsRefStr, Display};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
-const BATCHER_PORT: u16 = 55000;
-const CLASS_MANAGER_PORT: u16 = 55001;
-const COMMITTER_PORT: u16 = 55011;
+// TODO(Tsabary): check if these ports are required.
 pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
-const GATEWAY_PORT: u16 = 55002;
-const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
-const L1_PROVIDER_PORT: u16 = 55004;
-const MEMPOOL_PORT: u16 = 55006;
 pub(crate) const MEMPOOL_P2P_PORT: u16 = 53200;
-const SIERRA_COMPILER_PORT: u16 = 55007;
-const SIGNATURE_MANAGER_PORT: u16 = 55008;
-const STATE_SYNC_PORT: u16 = 55009;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
-pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Environment {
-    #[serde(rename = "local_k8s")]
-    LocalK8s,
-}
-
-impl Display for Environment {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            Environment::LocalK8s => write!(f, "testing"),
-        }
-    }
-}
-
-impl Environment {
-    pub fn env_dir_path(&self) -> PathBuf {
-        let env_str = match self {
-            Environment::LocalK8s => "testing".to_string(),
-        };
-        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(env_str)
-    }
-}
+pub(crate) const INFRA_PORT_PLACEHOLDER: u16 = 1;
+const_assert_ne!(INFRA_PORT_PLACEHOLDER, DEFAULT_INVALID_PORT);
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct StateSyncConfig {
@@ -105,6 +73,8 @@ impl BusinessLogicServicePort {
     }
 }
 
+// TODO(Tsabary): check if the InfraServicePort and BusinessLogicServicePort enums are needed.
+
 // TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
 // is complete.
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
@@ -123,18 +93,7 @@ pub enum InfraServicePort {
 
 impl InfraServicePort {
     pub fn get_port(&self) -> u16 {
-        match self {
-            InfraServicePort::Batcher => BATCHER_PORT,
-            InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
-            InfraServicePort::Committer => COMMITTER_PORT,
-            InfraServicePort::Gateway => GATEWAY_PORT,
-            InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
-            InfraServicePort::L1Provider => L1_PROVIDER_PORT,
-            InfraServicePort::Mempool => MEMPOOL_PORT,
-            InfraServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
-            InfraServicePort::SignatureManager => SIGNATURE_MANAGER_PORT,
-            InfraServicePort::StateSync => STATE_SYNC_PORT,
-        }
+        INFRA_PORT_PLACEHOLDER
     }
 }
 
@@ -171,14 +130,17 @@ impl ServicePort {
     }
 }
 
-#[derive(Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+#[derive(
+    Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter, AsRefStr,
+)]
+#[strum(serialize_all = "snake_case")]
 pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
     ClassManager,
     Committer,
     ConfigManager,
-    Consensus,
+    ConsensusManager,
     General, // General configs that are not specific to any service, e.g., pointer targets.
     Gateway,
     HttpServer,
@@ -198,35 +160,15 @@ pub enum ComponentConfigInService {
 impl ComponentConfigInService {
     pub fn get_component_config_names(&self) -> Vec<String> {
         match self {
-            ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
-            ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
-            ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
-            ComponentConfigInService::Committer => vec!["committer_config".to_string()],
-            ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
-            ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
-            ComponentConfigInService::General => vec!["general_config".to_string()],
-            ComponentConfigInService::Gateway => vec!["gateway_config".to_string()],
-            ComponentConfigInService::HttpServer => vec!["http_server_config".to_string()],
-            ComponentConfigInService::L1GasPriceProvider => {
-                vec!["l1_gas_price_provider_config".to_string()]
-            }
-            ComponentConfigInService::L1GasPriceScraper => {
-                vec!["l1_gas_price_scraper_config".to_string()]
-            }
-            ComponentConfigInService::L1Provider => vec!["l1_provider_config".to_string()],
-            ComponentConfigInService::L1Scraper => vec!["l1_scraper_config".to_string()],
-            ComponentConfigInService::Mempool => vec!["mempool_config".to_string()],
-            ComponentConfigInService::MempoolP2p => vec!["mempool_p2p_config".to_string()],
-            ComponentConfigInService::MonitoringEndpoint => {
-                vec!["monitoring_endpoint_config".to_string()]
-            }
-            ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
             // Signature manager does not have a separate config sub-struct in
             // `SequencerNodeConfig`. Keep this empty to avoid generating
             // `signature_manager_config.#is_none` flags.
             // TODO(Nadin): TAL add refactor this temp fix.
             ComponentConfigInService::SignatureManager => vec![],
-            ComponentConfigInService::StateSync => vec!["state_sync_config".to_string()],
+            _ => {
+                let base = self.as_ref();
+                vec![format!("{base}_config")]
+            }
         }
     }
 
