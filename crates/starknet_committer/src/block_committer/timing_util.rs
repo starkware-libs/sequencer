@@ -54,7 +54,9 @@ impl BlockTimers {
 
 pub trait TimeMeasurementTrait {
     fn start_measurement(&mut self, action: Action);
-    fn stop_measurement(&mut self, action: Action, facts_count: usize);
+
+    /// Stops the measurement for the given action and returns the duration in milliseconds.
+    fn stop_measurement(&mut self, action: Action, facts_count: usize) -> u128;
 }
 
 #[derive(Default, Clone)]
@@ -97,63 +99,76 @@ impl BlockMeasurement {
     }
 }
 
-pub struct TimeMeasurement {
+#[derive(Default)]
+pub struct SingleBlockTimeMeasurement {
     pub block_timers: BlockTimers,
+    pub block_measurement: BlockMeasurement,
+}
+
+impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
+    fn start_measurement(&mut self, action: Action) {
+        self.block_timers.start_measurement(action);
+    }
+
+    fn stop_measurement(&mut self, action: Action, facts_count: usize) -> u128 {
+        let duration_in_millis = self.block_timers.stop_measurement(&action);
+        self.block_measurement.update_after_action(&action, facts_count, duration_in_millis);
+        duration_in_millis
+    }
+}
+
+pub struct BenchmarkTimeMeasurement {
+    pub current_block_measurement: SingleBlockTimeMeasurement,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
     pub initial_facts_in_db: Vec<usize>, /* Number of facts in the DB prior to the current
                                           * block. */
     pub block_number: usize,
     pub total_facts: usize,
-    pub current_block_measurement: BlockMeasurement,
 
     // Storage related statistics.
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurementTrait for TimeMeasurement {
+impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
     fn start_measurement(&mut self, action: Action) {
-        self.block_timers.start_measurement(action);
+        self.current_block_measurement.start_measurement(action);
     }
 
     /// Stops the measurement for the given action and adds the duration to the corresponding
     /// vector. For Read/Write actions, `facts_count` is the number of facts read from / written
     /// to the DB. For other actions, it is ignored.
-    fn stop_measurement(&mut self, action: Action, facts_count: usize) {
-        let duration_in_millis = self.block_timers.stop_measurement(&action);
+    /// Returns the duration in milliseconds.
+    fn stop_measurement(&mut self, action: Action, facts_count: usize) -> u128 {
+        let duration_in_millis =
+            self.current_block_measurement.stop_measurement(action, facts_count);
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
             duration_in_millis,
         );
 
-        self.current_block_measurement.update_after_action(
-            &action,
-            facts_count,
-            duration_in_millis,
-        );
-
         if let Action::EndToEnd = action {
             self.total_time += duration_in_millis;
             self.initial_facts_in_db.push(self.total_facts);
-            self.total_facts += self.current_block_measurement.n_new_facts;
+            self.total_facts += self.current_block_measurement.block_measurement.n_new_facts;
             self.block_number += 1;
-            self.block_measurements.push(self.current_block_measurement.clone());
-            self.current_block_measurement = BlockMeasurement::default();
+            self.block_measurements.push(self.current_block_measurement.block_measurement.clone());
+            self.current_block_measurement = SingleBlockTimeMeasurement::default();
         }
+        duration_in_millis
     }
 }
 
-impl TimeMeasurement {
+impl BenchmarkTimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            block_timers: BlockTimers::default(),
+            current_block_measurement: SingleBlockTimeMeasurement::default(),
             total_time: 0,
             block_measurements: Vec::with_capacity(size),
             block_number: 0,
             total_facts: 0,
             initial_facts_in_db: Vec::with_capacity(size),
-            current_block_measurement: BlockMeasurement::default(),
             storage_stat_columns,
         }
     }
