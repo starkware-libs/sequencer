@@ -98,7 +98,7 @@ impl BroadcastNetworkStressTestNode {
     /// Determines if this node should broadcast messages based on the mode
     pub fn should_broadcast(&self) -> bool {
         match self.args.user.mode {
-            Mode::AllBroadcast => true,
+            Mode::AllBroadcast | Mode::RoundRobin => true,
             Mode::OneBroadcast => {
                 let broadcaster_id = Self::get_broadcaster_id(&self.args);
                 self.args.runner.id == broadcaster_id

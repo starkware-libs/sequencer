@@ -11,6 +11,9 @@ pub enum Mode {
     /// Only the node specified by --broadcaster broadcasts messages
     #[value(name = "one")]
     OneBroadcast,
+    /// Nodes take turns broadcasting in round-robin fashion
+    #[value(name = "rr")]
+    RoundRobin,
 }
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +85,10 @@ pub struct UserArgs {
     /// Which node ID should do the broadcasting - for OneBroadcast mode
     #[arg(long, env, required_if_eq("mode", "one"))]
     pub broadcaster: Option<u64>,
+
+    /// Duration each node broadcasts before switching (in seconds) - for RoundRobin mode
+    #[arg(long, env, default_value = "3")]
+    pub round_duration_seconds: u64,
 
     /// Size of StressTestMessage
     #[arg(long, env, default_value = "1024")]
