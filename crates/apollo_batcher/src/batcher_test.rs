@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig, CommitmentManagerConfig};
+use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -231,11 +231,10 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     clients: MockClients,
     config: BatcherConfig,
 ) -> Batcher {
-    // TODO(Amos): Use commitment manager config in batcher config, once it's added there.
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
-        &CommitmentManagerConfig::default(),
+        &config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
     )
