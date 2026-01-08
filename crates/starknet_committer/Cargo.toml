@@ -12,7 +12,6 @@ testing = ["starknet_patricia/testing"]
 [dependencies]
 apollo_config.workspace = true
 async-trait.workspace = true
-csv.workspace = true
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
 ethnum.workspace = true
 hex.workspace = true
