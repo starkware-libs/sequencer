@@ -74,8 +74,8 @@ class BenchmarkData:
                 datetime.fromtimestamp(int(row["time_of_measurement"]) / 1000) for row in data
             ]
             self.write_duration_millis = [float(row["write_duration_millis"]) for row in data]
-            self.n_new_facts = [int(row["n_new_facts"]) for row in data]
-            self.n_read_facts = [int(row["n_read_facts"]) for row in data]
+            self.n_writes = [int(row["n_writes"]) for row in data]
+            self.n_reads = [int(row["n_reads"]) for row in data]
             self.block_numbers = [int(row["block_number"]) for row in data]
 
             # Storage-specific data.
@@ -116,19 +116,19 @@ class BenchmarkData:
 
     def create_durations_figure(self) -> go.Figure:
         read_duration_per_read_fact = self._duration_per_fact(
-            self.read_duration_millis, self.n_read_facts
+            self.read_duration_millis, self.n_reads
         )
         read_duration_per_new_fact = self._duration_per_fact(
-            self.read_duration_millis, self.n_new_facts
+            self.read_duration_millis, self.n_writes
         )
         compute_duration_per_new_fact = self._duration_per_fact(
-            self.compute_duration_millis, self.n_new_facts
+            self.compute_duration_millis, self.n_writes
         )
         write_duration_per_new_fact = self._duration_per_fact(
-            self.write_duration_millis, self.n_new_facts
+            self.write_duration_millis, self.n_writes
         )
         total_duration_per_new_fact = self._duration_per_fact(
-            self.block_duration_millis, self.n_new_facts
+            self.block_duration_millis, self.n_writes
         )
 
         durations_figure = go.Figure()
