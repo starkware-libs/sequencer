@@ -2937,12 +2937,11 @@ async fn test_initial_empty_block() {
 #[tokio::test]
 async fn test_nested_self_revert_storage_order() {
     let (mut test_builder, [test_contract_address]) =
-        TestBuilder::<DictStateReader>::new_with_default_initial_state(
+        TestBuilder::<DictStateReader>::create_standard(
             [(
                 FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
                 calldata![Felt::ZERO, Felt::ZERO],
             )],
-            TestBuilderConfig::default(),
             false,
         )
         .await;
