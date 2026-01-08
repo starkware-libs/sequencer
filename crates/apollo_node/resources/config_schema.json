@@ -2534,6 +2534,11 @@
     "privacy": "Public",
     "value": 4194304
   },
+  "http_server_config.static_config.dynamic_config_poll_interval": {
+    "description": "Polling interval (in milliseconds) for dynamic config.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "http_server_config.static_config.ip": {
     "description": "The http server ip.",
     "privacy": "Public",

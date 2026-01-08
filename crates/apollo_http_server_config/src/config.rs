@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::Duration;
 
+use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -8,6 +10,7 @@ use validator::Validate;
 
 pub const HTTP_SERVER_PORT: u16 = 8080;
 pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
+const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
 
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
@@ -32,7 +35,13 @@ impl HttpServerConfig {
                 accept_new_txs: true,
                 max_sierra_program_size,
             },
-            static_config: HttpServerStaticConfig { ip, port },
+            static_config: HttpServerStaticConfig {
+                ip,
+                port,
+                dynamic_config_poll_interval: Duration::from_millis(
+                    DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
+                ),
+            },
         }
     }
 
@@ -45,6 +54,8 @@ impl HttpServerConfig {
 pub struct HttpServerStaticConfig {
     pub ip: IpAddr,
     pub port: u16,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub dynamic_config_poll_interval: Duration,
 }
 
 impl SerializeConfig for HttpServerStaticConfig {
@@ -52,13 +63,25 @@ impl SerializeConfig for HttpServerStaticConfig {
         BTreeMap::from_iter([
             ser_param("ip", &self.ip.to_string(), "The http server ip.", ParamPrivacyInput::Public),
             ser_param("port", &self.port, "The http server port.", ParamPrivacyInput::Public),
+            ser_param(
+                "dynamic_config_poll_interval",
+                &self.dynamic_config_poll_interval.as_millis(),
+                "Polling interval (in milliseconds) for dynamic config.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
 impl Default for HttpServerStaticConfig {
     fn default() -> Self {
-        Self { ip: IpAddr::from(Ipv4Addr::UNSPECIFIED), port: HTTP_SERVER_PORT }
+        Self {
+            ip: IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port: HTTP_SERVER_PORT,
+            dynamic_config_poll_interval: Duration::from_millis(
+                DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
+            ),
+        }
     }
 }
 
