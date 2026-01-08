@@ -201,8 +201,8 @@ fn get_high_empty_blocks_ratio_alert(
         "High ratio of empty blocks",
         AlertGroup::Batcher,
         format!(
-            "sum(increase({zero_bucket}[{}s])) / clamp_min(sum(increase({total_count}[{}s])), 1)",
-            time_window_seconds, time_window_seconds
+            "sum(increase({zero_bucket}[{time_window_seconds}s])) / \
+             clamp_min(sum(increase({total_count}[{time_window_seconds}s])), 1)"
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,

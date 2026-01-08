@@ -253,7 +253,7 @@ where
         });
 
         let mut incoming = AddrIncoming::bind(&bind_socket).unwrap_or_else(|e| {
-            panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
+            panic!("Failed to bind remote component server socket {bind_socket:#?}: {e}")
         });
         incoming.set_nodelay(self.config.set_tcp_nodelay);
 

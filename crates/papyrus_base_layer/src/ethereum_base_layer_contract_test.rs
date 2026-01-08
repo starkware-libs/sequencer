@@ -22,7 +22,7 @@ async fn fusaka_blob_fee_sanity_check() {
     // It went on BPO2 on epoch 275712 (slot 8822784) which is about block 9504747
     let infura_api_key = std::env::var("INFURA_API_KEY")
         .expect("expected infura api key to be set in INFURA_API_KEY environment variable");
-    let url = Url::parse(&format!("https://sepolia.infura.io/v3/{}", infura_api_key))
+    let url = Url::parse(&format!("https://sepolia.infura.io/v3/{infura_api_key}"))
         .expect("expected infura url to be valid");
     config.ordered_l1_endpoint_urls = vec![url];
     let mut base_layer = EthereumBaseLayerContract::new(config.clone());
@@ -55,7 +55,7 @@ async fn fusaka_blob_fee_sanity_check() {
     // Choose a mainnet block number that is not yet on Fusaka (but has non-zero blob fee).
     // https://blobscan.com/block/23824000
     // The blob fee here is 31.042082881 Gwei.
-    let url = Url::parse(&format!("https://mainnet.infura.io/v3/{}", infura_api_key))
+    let url = Url::parse(&format!("https://mainnet.infura.io/v3/{infura_api_key}"))
         .expect("expected infura url to be valid");
     config.ordered_l1_endpoint_urls = vec![url];
     let mut base_layer = EthereumBaseLayerContract::new(config);

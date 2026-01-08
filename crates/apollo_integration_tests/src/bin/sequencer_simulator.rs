@@ -37,10 +37,10 @@ impl AnvilAddresses {
     ) -> anyhow::Result<Option<Self>> {
         match (sender, receiver) {
             (Some(s), Some(r)) => Ok(Some(Self {
-                sender: s.parse().map_err(|e| anyhow::anyhow!("Invalid sender address: {}", e))?,
+                sender: s.parse().map_err(|e| anyhow::anyhow!("Invalid sender address: {e}"))?,
                 receiver: r
                     .parse()
-                    .map_err(|e| anyhow::anyhow!("Invalid receiver address: {}", e))?,
+                    .map_err(|e| anyhow::anyhow!("Invalid receiver address: {e}"))?,
             })),
             (None, None) => Ok(None),
             _ => anyhow::bail!(

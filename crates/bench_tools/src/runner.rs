@@ -26,7 +26,7 @@ fn prepare_inputs(bench: &BenchmarkConfig, input_dir: Option<&str>) {
     if let Some(local_dir) = input_dir {
         let local_path = PathBuf::from(local_dir);
         if !local_path.exists() {
-            panic!("Input directory does not exist: {}", local_dir);
+            panic!("Input directory does not exist: {local_dir}");
         }
 
         // Copy local directory contents to the benchmark input directory.
@@ -79,7 +79,7 @@ fn save_benchmark_results(bench: &BenchmarkConfig, output_dir: &str) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) {
                 if let Ok(pretty) = serde_json::to_string_pretty(&json) {
                     let dest =
-                        PathBuf::from(output_dir).join(format!("{}_estimates.json", bench_name));
+                        PathBuf::from(output_dir).join(format!("{bench_name}_estimates.json"));
                     if fs::write(&dest, pretty).is_ok() {
                         println!("Saved results: {}", dest.display());
                     }
@@ -97,7 +97,7 @@ pub fn run_benchmarks(benchmarks: &[&BenchmarkConfig], input_dir: Option<&str>, 
     }
 
     // Create output directory.
-    fs::create_dir_all(output_dir).unwrap_or_else(|e| panic!("Failed to create output dir: {}", e));
+    fs::create_dir_all(output_dir).unwrap_or_else(|e| panic!("Failed to create output dir: {e}"));
 
     // Run benchmarks.
     for bench in benchmarks {
@@ -105,7 +105,7 @@ pub fn run_benchmarks(benchmarks: &[&BenchmarkConfig], input_dir: Option<&str>, 
         save_benchmark_results(bench, output_dir);
     }
 
-    println!("\n✓ All benchmarks completed! Results saved to: {}", output_dir);
+    println!("\n✓ All benchmarks completed! Results saved to: {output_dir}");
 }
 
 /// Runs benchmarks and compares them against previous results, failing if regression exceeds limit.
@@ -125,7 +125,7 @@ pub fn run_and_compare_benchmarks(
         bench_names.extend(bench.criterion_benchmark_names.unwrap_or(&[bench.name]));
     }
 
-    print!("\n📊 Checking for performance regressions (limit: {}%", regression_limit);
+    print!("\n📊 Checking for performance regressions (limit: {regression_limit}%");
     if !absolute_time_ns_limits.is_empty() {
         print!(", {} benchmark(s) with absolute time limits", absolute_time_ns_limits.len());
     }
@@ -166,7 +166,7 @@ pub fn run_and_compare_benchmarks(
                     );
                 }
             }
-            panic!("\n{}", error_msg);
+            panic!("\n{error_msg}");
         }
     }
 }
