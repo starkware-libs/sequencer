@@ -67,6 +67,7 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
 )
 from starkware.starknet.core.os.execution.execution_constraints import (
     check_n_txs,
+    check_proof_facts,
     check_sender_address,
     check_tx_type,
 )
@@ -502,6 +503,13 @@ func execute_invoke_function_transaction{
 
     let updated_tx_execution_context = update_class_hash_in_execution_context(
         execution_context=tx_execution_context
+    );
+
+    // validate proof facts
+    check_proof_facts(
+        proof_facts_size=proof_facts_size,
+        proof_facts=proof_facts,
+        current_block_number=block_context.block_info_for_execute.block_number,
     );
 
     local is_reverted;
