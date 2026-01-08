@@ -105,10 +105,9 @@ pub(crate) enum BuildProposalError {
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
-    let block_info = initiate_build(&args).await?;
-    args.stream_sender.send(ProposalPart::Init(args.proposal_init)).await.map_err(|e| {
-        BuildProposalError::SendError(format!("Failed to send proposal init: {e:?}"))
-    })?;
+    let block_info = initiate_build(&mut args).await?;
+    let height = block_info.height;
+
     args.stream_sender
         .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
@@ -120,7 +119,7 @@ pub(crate) async fn build_proposal(
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
     valid_proposals.insert_proposal_for_height(
-        &args.proposal_init.height,
+        &height,
         &proposal_commitment,
         block_info,
         content,
@@ -143,7 +142,9 @@ async fn get_proposal_timestamp(
     clock.unix_now()
 }
 
-async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(
+    args: &mut ProposalBuildArguments,
+) -> BuildProposalResult<ConsensusBlockInfo> {
     let timestamp = get_proposal_timestamp(
         args.use_state_sync_block_timestamp,
         &args.deps.state_sync_client,
@@ -158,10 +159,15 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
     )
     .await;
 
+    // Create complete ConsensusBlockInfo with consensus metadata from ProposalInit and block
+    // execution params
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
-        timestamp,
+        round: args.proposal_init.round,
+        valid_round: args.proposal_init.valid_round,
+        proposer: args.proposal_init.proposer,
         builder: args.builder_address,
+        timestamp,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
         l1_gas_price_wei: l1_prices.base_fee_per_gas,
