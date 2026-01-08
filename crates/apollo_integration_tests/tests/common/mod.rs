@@ -177,6 +177,8 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
 pub struct TestScenario {
     pub create_rpc_txs_fn: CreateRpcTxsFn,
     pub create_l1_to_l2_messages_args_fn: CreateL1ToL2MessagesArgsFn,
+    // TODO(Arni): replace with an optional apply shuffle to the tx hashes + a length assertion
+    // parameter.
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
@@ -235,11 +237,9 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 }
 
 pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
-    tx_hashes.to_vec()
+    validate_tx_count(tx_hashes, 1)
 }
 
-/// TODO(Itamar): Use this function in all tests built with TestScenario struct.
 #[track_caller]
 pub fn validate_tx_count(
     tx_hashes: &[TransactionHash],

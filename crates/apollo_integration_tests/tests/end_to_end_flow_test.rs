@@ -11,7 +11,13 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 
-use crate::common::{end_to_end_flow, test_single_tx, EndToEndFlowArgs, TestScenario};
+use crate::common::{
+    end_to_end_flow,
+    test_single_tx,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 
 mod common;
 
@@ -48,7 +54,7 @@ fn create_test_scenarios() -> Vec<TestScenario> {
         TestScenario {
             create_rpc_txs_fn: deploy_account_and_invoke,
             create_l1_to_l2_messages_args_fn: |_| vec![],
-            test_tx_hashes_fn: test_two_txs,
+            test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, 2),
         },
         TestScenario {
             create_rpc_txs_fn: create_declare_tx,
@@ -109,11 +115,6 @@ fn deploy_account_and_invoke(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     create_deploy_account_tx_and_invoke_tx(tx_generator, UNDEPLOYED_ACCOUNT_ID)
-}
-
-fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert_eq!(tx_hashes.len(), 2, "Expected two transactions");
-    tx_hashes.to_vec()
 }
 
 fn create_declare_tx(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
