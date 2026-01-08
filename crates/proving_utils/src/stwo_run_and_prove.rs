@@ -298,8 +298,8 @@ pub async fn run_stwo_run_and_prove(
     // Execute with timeout.
     let output = tokio::time::timeout(config.timeout, command.output())
         .await
-        .map_err(|_| StwoRunAndProveError::Timeout { duration: config.timeout })?
-        .map_err(|e| {
+        .map_err(|_| StwoRunAndProveError::Timeout { duration: config.timeout })? // Handle timeout error
+        .map_err(|e| { // Handle command execution error
             if e.kind() == std::io::ErrorKind::NotFound {
                 StwoRunAndProveError::BinaryNotFound
             } else {

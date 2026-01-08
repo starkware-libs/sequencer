@@ -10529,6 +10529,12 @@ dependencies = [
 [[package]]
 name = "proving_utils"
 version = "0.0.0"
+dependencies = [
+ "apollo_infra_utils",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "pwhash"
@@ -12766,6 +12772,7 @@ dependencies = [
  "cairo-vm",
  "futures",
  "indexmap 2.12.0",
+ "proving_utils",
  "rstest",
  "shared_execution_objects",
  "starknet-rust",

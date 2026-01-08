@@ -27,6 +27,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
+proving_utils.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
