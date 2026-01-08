@@ -205,6 +205,13 @@ impl From<&NestedFeltCounts> for NestedIntList {
     }
 }
 
+impl From<&NestedFeltCounts> for Option<NestedIntList> {
+    fn from(counts: &NestedFeltCounts) -> Self {
+        // If it's a single leaf, it means the original bytecode_segment_lengths was None
+        if counts.is_leaf() { None } else { Some(counts.into()) }
+    }
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
