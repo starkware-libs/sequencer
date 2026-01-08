@@ -58,6 +58,9 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+#[cfg(test)]
+#[path = "cende_client_types_test.rs"]
+mod cende_client_types_test;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct L1ToL2Nonce(pub StarkHash);
