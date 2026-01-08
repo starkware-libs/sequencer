@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::cli::{

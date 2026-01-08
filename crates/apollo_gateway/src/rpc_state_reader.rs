@@ -1,4 +1,4 @@
-use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use apollo_gateway_types::deprecated_gateway_error::StarknetError;
 use apollo_rpc::CompiledContractClass;
 use blockifier::execution::contract_class::{
