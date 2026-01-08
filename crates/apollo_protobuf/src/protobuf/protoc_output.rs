@@ -280,6 +280,7 @@ pub struct DeclareV3WithClass {
     pub class: ::core::option::Option<Cairo1Class>,
 }
 /// see <https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x41906f1c314cca5f43170ea75d3b1904196a10101190d2b12a41cc61cfd17c>
+/// An invoke V3 transaction without client-side proof (only contains proof_facts).
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InvokeV3 {
@@ -305,7 +306,15 @@ pub struct InvokeV3 {
     pub nonce: ::core::option::Option<Felt252>,
     #[prost(message, repeated, tag = "11")]
     pub proof_facts: ::prost::alloc::vec::Vec<Felt252>,
-    #[prost(uint32, repeated, tag = "12")]
+}
+/// An invoke V3 transaction with client-side proof.
+/// Used in consensus and mempool contexts where proof is included.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InvokeV3WithProof {
+    #[prost(message, optional, tag = "1")]
+    pub invoke: ::core::option::Option<InvokeV3>,
+    #[prost(uint32, repeated, tag = "2")]
     pub proof: ::prost::alloc::vec::Vec<u32>,
 }
 /// see <https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x29fd7881f14380842414cdfdd8d6c0b1f2174f8916edcfeb1ede1eb26ac3ef0>
@@ -353,7 +362,7 @@ pub mod consensus_transaction {
         #[prost(message, tag = "2")]
         DeployAccountV3(super::DeployAccountV3),
         #[prost(message, tag = "3")]
-        InvokeV3(super::InvokeV3),
+        InvokeV3(super::InvokeV3WithProof),
         #[prost(message, tag = "4")]
         L1Handler(super::L1HandlerV0),
     }
@@ -950,7 +959,7 @@ pub mod mempool_transaction {
         #[prost(message, tag = "2")]
         DeployAccountV3(super::DeployAccountV3),
         #[prost(message, tag = "3")]
-        InvokeV3(super::InvokeV3),
+        InvokeV3(super::InvokeV3WithProof),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
