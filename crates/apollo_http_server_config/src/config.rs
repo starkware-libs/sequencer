@@ -28,7 +28,10 @@ impl SerializeConfig for HttpServerConfig {
 impl HttpServerConfig {
     pub fn new(ip: IpAddr, port: u16, max_sierra_program_size: usize) -> Self {
         Self {
-            dynamic_config: HttpServerDynamicConfig { max_sierra_program_size },
+            dynamic_config: HttpServerDynamicConfig {
+                accept_new_txs: true,
+                max_sierra_program_size,
+            },
             static_config: HttpServerStaticConfig { ip, port },
         }
     }
@@ -61,22 +64,31 @@ impl Default for HttpServerStaticConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct HttpServerDynamicConfig {
+    pub accept_new_txs: bool,
     pub max_sierra_program_size: usize,
 }
 
 impl SerializeConfig for HttpServerDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "max_sierra_program_size",
-            &self.max_sierra_program_size,
-            "The maximum size of a sierra program in bytes.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "accept_new_txs",
+                &self.accept_new_txs,
+                "Enables accepting new txs.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_sierra_program_size",
+                &self.max_sierra_program_size,
+                "The maximum size of a sierra program in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
 impl Default for HttpServerDynamicConfig {
     fn default() -> Self {
-        Self { max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE }
+        Self { accept_new_txs: true, max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE }
     }
 }
