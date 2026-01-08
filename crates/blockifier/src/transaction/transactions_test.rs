@@ -2635,7 +2635,7 @@ fn test_only_query_flag(
         &block_context.chain_info,
         CairoVersion::Cairo1(RunnableCairo1::Casm),
     );
-    let entry_point_selector = selector_from_name("test_get_execution_info");
+    let entry_point_selector = selector_from_name("test_get_execution_info_v3");
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
         account_address,
