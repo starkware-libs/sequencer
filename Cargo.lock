@@ -11482,7 +11482,6 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
  "async-trait",
- "csv",
  "derive_more 2.1.1",
  "ethnum",
  "hex",
@@ -11546,7 +11545,10 @@ dependencies = [
  "apollo_storage",
  "blake2",
  "clap",
+ "csv",
  "rand 0.8.5",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
