@@ -39,7 +39,7 @@ fn compiled_class_v1_to_casm(class: &CompiledClassV1) -> CasmContractClass {
         prime,
         compiler_version: String::new(),
         bytecode,
-        bytecode_segment_lengths: Some(class.bytecode_segment_felt_sizes().into()),
+        bytecode_segment_lengths: class.bytecode_segment_felt_sizes().into(),
         hints: Vec::new(),
         pythonic_hints: None,
         entry_points_by_type: (&class.entry_points_by_type).into(),
