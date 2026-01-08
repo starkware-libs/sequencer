@@ -23,6 +23,7 @@ pub mod staking;
 pub mod state;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
+pub mod tools;
 pub mod transaction;
 pub mod transaction_hash;
 pub mod type_utils;
