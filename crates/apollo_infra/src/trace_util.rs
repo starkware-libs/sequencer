@@ -1,3 +1,4 @@
+use std::io::{self, Write};
 use std::str::FromStr;
 
 use time::macros::format_description;
@@ -8,6 +9,34 @@ use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, reload, EnvFilter};
+
+// Renames the "error" key to "message" in a JSON object, if present.
+pub(crate) fn rename_error_to_message(buf: &[u8]) -> Option<Vec<u8>> {
+    let mut obj: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(buf).ok()?;
+    if let Some(v) = obj.remove("error") {
+        obj.insert("message".into(), v);
+    }
+    let mut out = serde_json::to_vec(&obj).ok()?;
+    out.push(b'\n');
+    Some(out)
+}
+
+// Wraps any writer to rename the "error" JSON key to "message" in log output.
+// This is used because #[instrument(...,err)] emits errors in the "error" field.
+struct ErrorToMessageWriter<W>(W);
+
+impl<W: Write> Write for ErrorToMessageWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let len = buf.len();
+        let output = rename_error_to_message(buf).unwrap_or_else(|| buf.to_vec());
+        self.0.write_all(&output)?;
+        Ok(len)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
 
 // Crates we always keep at INFO regardless of operator-supplied spec.
 const QUIET_LIBS: &[&str] = &[
@@ -47,6 +76,7 @@ pub async fn configure_tracing() -> ReloadHandle {
 
             let fmt_layer = fmt::layer()
                 .json()
+                .map_writer(|w| move || ErrorToMessageWriter(w()))
                 .with_timer(timer)
                 .with_target(false) // No module name.
                 // Instead, file name and line number.
