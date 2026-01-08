@@ -2,7 +2,6 @@ pub mod classes_provider;
 pub mod errors;
 pub mod runner;
 pub mod storage_proofs;
-pub mod tools;
 pub mod virtual_block_executor;
 
 #[cfg(test)]

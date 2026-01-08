@@ -10,3 +10,7 @@ description = "Utilities for proving."
 workspace = true
 
 [dependencies]
+apollo_infra_utils.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
