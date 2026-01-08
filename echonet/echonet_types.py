@@ -19,6 +19,18 @@ from echonet.constants import (
 JsonObject: TypeAlias = dict[str, Any]
 
 
+@dataclass(frozen=True, slots=True)
+class BlockStoreTuning:
+    """
+    Tuning parameters for SharedContext's in-memory block retention.
+    """
+
+    max_blocks_to_keep_in_memory: int = 100
+
+
+BLOCK_STORE_TUNING = BlockStoreTuning()
+
+
 class ResyncTriggerPayload(TypedDict):
     """
     Metadata stored when a transaction causes a resync trigger.
