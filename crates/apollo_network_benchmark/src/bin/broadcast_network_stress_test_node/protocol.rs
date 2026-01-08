@@ -45,6 +45,10 @@ pub fn register_protocol_channels(
                 MessageReceiver::Gossipsub(broadcasted_messages_receiver),
             )
         }
+        NetworkProtocol::Sqmr => {
+            // TODO(AndrewL): Implement SQMR protocol registration
+            todo!("SQMR protocol registration not yet implemented")
+        }
     }
 }
 
