@@ -80,7 +80,7 @@ func check_and_increment_nonce{contract_state_changes: DictAccess*}(tx_info: TxI
     tempvar new_state_entry = new StateEntry(
         class_hash=state_entry.class_hash,
         storage_ptr=state_entry.storage_ptr,
-        nonce=current_nonce + 1,
+        nonce=current_nonce 
     );
     dict_update{dict_ptr=contract_state_changes}(
         key=tx_info.account_contract_address,

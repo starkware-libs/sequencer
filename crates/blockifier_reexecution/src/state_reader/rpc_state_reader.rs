@@ -148,6 +148,17 @@ impl StateReader for RpcStateReader {
             StarknetContractClass::Sierra(sierra) => {
                 let sierra_contract = SierraContractClass::from(sierra);
                 let (casm, _) = sierra_to_versioned_contract_class_v1(sierra_contract).unwrap();
+
+                // DEBUG: Save original CASM as JSON for comparison
+                if let starknet_api::contract_class::ContractClass::V1((original_casm, _)) = &casm {
+                    use std::sync::{LazyLock, Mutex};
+                    static ORIGINAL_CASMS: LazyLock<Mutex<HashMap<ClassHash, String>>> =
+                        LazyLock::new(|| Mutex::new(HashMap::new()));
+                    if let Ok(json) = serde_json::to_string_pretty(original_casm) {
+                        ORIGINAL_CASMS.lock().unwrap().insert(class_hash, json);
+                    }
+                }
+
                 Ok(RunnableCompiledClass::try_from(casm).unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {

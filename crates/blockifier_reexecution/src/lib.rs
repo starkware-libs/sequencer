@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod compile;
+pub mod debug_casm_storage;
 pub mod errors;
 pub mod serde_utils;
 pub mod state_reader;
