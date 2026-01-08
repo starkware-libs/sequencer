@@ -24,7 +24,11 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
-use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
+use starknet_committer::block_committer::timing_util::{
+    Action,
+    TimeMeasurement,
+    TimeMeasurementTrait,
+};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
@@ -440,9 +444,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         let n_new_facts =
             facts_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
-        time_measurement.stop_measurement(Action::Write, n_new_facts);
+        time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts);
 
-        time_measurement.stop_measurement(Action::EndToEnd, 0);
+        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0);
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
