@@ -6,6 +6,8 @@ pub mod tools;
 pub mod virtual_block_executor;
 
 #[cfg(test)]
+mod classes_provider_test;
+#[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
 pub mod test_utils;
