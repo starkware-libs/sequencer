@@ -19,6 +19,7 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::contract_class::{
+    program_hints_to_casm_hints,
     CompiledClassV1,
     ContractClassV1Inner,
     EntryPointV1,
@@ -235,4 +236,33 @@ fn test_entry_points_round_trip(#[case] original: CasmContractEntryPoints) {
     let round_tripped: CasmContractEntryPoints = (&entry_points_by_type).into();
 
     assert_eq!(round_tripped, original);
+}
+
+#[rstest]
+fn test_hints_round_trip() {
+    // Get a test contract that has hints.
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (casm, sierra_version) = match feature_contract.get_class() {
+        ContractClass::V1(versioned_casm) => versioned_casm,
+        _ => panic!("Expected ContractClass::V1"),
+    };
+
+    // Panic if the contract has no hints - we need hints to test the roundtrip.
+    assert!(!casm.hints.is_empty(), "Test contract must have hints for roundtrip test");
+
+    // Get original hints from the CasmContractClass.
+    let original_hints = casm.hints.clone();
+
+    // Forward conversion: Convert CasmContractClass convert the hints from Vec<(usize, Vec<Hint>)>
+    // to HashMap<usize, Vec<HintParams>>.
+    let compiled_class = CompiledClassV1::try_from((casm, sierra_version)).unwrap();
+
+    // Reverse conversion: Access the hints from the VM program and convert back.
+    // The program stores hints as a HintsCollection, which can be converted to BTreeMap.
+    let program_hints = &compiled_class.program.shared_program_data.hints_collection;
+    let round_tripped_hints = program_hints_to_casm_hints(program_hints).unwrap();
+
+    // Compare with original (need to sort both for comparison).
+    assert_eq!(round_tripped_hints, original_hints);
 }

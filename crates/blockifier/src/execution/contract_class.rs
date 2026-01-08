@@ -20,7 +20,7 @@ use cairo_vm::serde::deserialize_program::{
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
-use cairo_vm::types::program::Program;
+use cairo_vm::types::program::{HintsCollection, Program};
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
@@ -707,6 +707,29 @@ fn hint_to_hint_params(hint: &Hint) -> Result<HintParams, ProgramError> {
             reference_ids: HashMap::new(),
         },
     })
+}
+
+/// Converts `HintParams` back to `Hint` by deserializing the JSON code.
+/// This is the reverse of `hint_to_hint_params`.
+fn hint_params_to_hint(hint_params: &HintParams) -> Result<Hint, ProgramError> {
+    Ok(serde_json::from_str(&hint_params.code)?)
+}
+
+/// Converts `BTreeMap<usize, Vec<HintParams>>` back to `Vec<(usize, Vec<Hint>)>`.
+/// This is the reverse of the conversion done in `TryFrom<VersionedCasm> for CompiledClassV1`.
+pub fn program_hints_to_casm_hints(
+    program_hints: &HintsCollection,
+) -> Result<Vec<(usize, Vec<Hint>)>, ProgramError> {
+    let program_hints: BTreeMap<usize, Vec<HintParams>> = program_hints.into();
+    let mut casm_hints: Vec<(usize, Vec<Hint>)> = Vec::new();
+    for (i, hint_params_list) in program_hints.iter() {
+        let hints: Vec<Hint> = hint_params_list
+            .iter()
+            .map(hint_params_to_hint)
+            .collect::<Result<Vec<Hint>, ProgramError>>()?;
+        casm_hints.push((*i, hints));
+    }
+    Ok(casm_hints)
 }
 
 fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPointV1> {
