@@ -137,6 +137,12 @@ where
         // Merge initial_reads with proof_state.
         execution_data.initial_reads.extend(&storage_proofs.proof_state);
 
+        // Add class hash to compiled class hash mappings from the classes provider.
+        execution_data
+            .initial_reads
+            .compiled_class_hashes
+            .extend(&classes.class_hash_to_compiled_class_hash);
+
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
             contract_state_commitment_info: storage_proofs
