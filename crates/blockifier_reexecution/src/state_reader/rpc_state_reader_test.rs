@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use apollo_gateway::rpc_objects::BlockId;
 use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
-use apollo_gateway_config::config::RpcStateReaderConfig;
+use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
