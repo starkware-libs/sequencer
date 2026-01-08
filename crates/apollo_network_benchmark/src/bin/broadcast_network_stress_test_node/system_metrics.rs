@@ -16,13 +16,15 @@ use crate::metrics::{
     SYSTEM_PROCESS_CPU_USAGE_PERCENT,
     SYSTEM_PROCESS_MEMORY_USAGE_BYTES,
     SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES,
+    SYSTEM_TCP_RETRANSMIT_RATE_PERCENT,
+    SYSTEM_TCP_SEGMENTS_OUT,
+    SYSTEM_TCP_SEGMENTS_RETRANS,
     SYSTEM_TOTAL_MEMORY_BYTES,
     SYSTEM_USED_MEMORY_BYTES,
 };
 
 /// Reads TCP statistics from /proc/net/snmp on Linux systems
 /// Returns (segments_out, retransmitted_segments) if successful
-#[allow(dead_code)] // TODO(AndrewL): remove this once the function is used
 fn get_tcp_stats() -> Option<(u64, u64)> {
     let content = match fs::read_to_string("/proc/net/snmp") {
         Ok(c) => c,
@@ -120,6 +122,38 @@ fn collect_network_metrics(networks: &mut Networks) {
     SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT.set(current_bytes_received.into_f64());
 }
 
+/// Collects TCP statistics and calculates retransmit rate
+fn collect_tcp_metrics(
+    prev_tcp_out_segs: &mut Option<u64>,
+    prev_tcp_retrans_segs: &mut Option<u64>,
+) {
+    // Collect TCP statistics and calculate retransmit rate
+    if let Some((curr_out_segs, curr_retrans_segs)) = get_tcp_stats() {
+        // Update total counters
+        SYSTEM_TCP_SEGMENTS_OUT.set(curr_out_segs.into_f64());
+        SYSTEM_TCP_SEGMENTS_RETRANS.set(curr_retrans_segs.into_f64());
+
+        // Calculate retransmit rate based on delta since last measurement
+        if let (Some(prev_out), Some(prev_retrans)) = (*prev_tcp_out_segs, *prev_tcp_retrans_segs) {
+            let delta_out = curr_out_segs.saturating_sub(prev_out);
+            let delta_retrans = curr_retrans_segs.saturating_sub(prev_retrans);
+
+            let retransmit_rate_percent = if delta_out > 0 {
+                (delta_retrans.into_f64() / delta_out.into_f64()) * 100.0
+            } else {
+                0.0
+            };
+
+            SYSTEM_TCP_RETRANSMIT_RATE_PERCENT.set(retransmit_rate_percent);
+        }
+
+        // Update previous values for next iteration
+        *prev_tcp_out_segs = Some(curr_out_segs);
+        *prev_tcp_retrans_segs = Some(curr_retrans_segs);
+    }
+    // Note: get_tcp_stats() logs detailed warnings on failure
+}
+
 pub async fn monitor_process_metrics(interval_seconds: u64) {
     let mut interval = interval(Duration::from_secs(interval_seconds));
     let current_pid = sysinfo::get_current_pid().expect("Failed to get current process PID");
@@ -127,21 +161,29 @@ pub async fn monitor_process_metrics(interval_seconds: u64) {
     struct State {
         system: System,
         networks: Networks,
+        prev_tcp_out_segs: Option<u64>,
+        prev_tcp_retrans_segs: Option<u64>,
     }
 
-    let mut state =
-        Some(State { system: System::new_all(), networks: Networks::new_with_refreshed_list() });
+    let mut state = Some(State {
+        system: System::new_all(),
+        networks: Networks::new_with_refreshed_list(),
+        prev_tcp_out_segs: None,
+        prev_tcp_retrans_segs: None,
+    });
 
     loop {
         interval.tick().await;
 
-        let mut passed_state = state.take().unwrap();
+        let passed_state = state.take();
         // the metrics update need to be done in a blocking context to avoid slowing down tokio
         // threads
         state = tokio::task::spawn_blocking(move || {
-            collect_system_and_process_metrics(&mut passed_state.system, current_pid);
-            collect_network_metrics(&mut passed_state.networks);
-            Some(passed_state)
+            let mut state = passed_state.unwrap();
+            collect_system_and_process_metrics(&mut state.system, current_pid);
+            collect_network_metrics(&mut state.networks);
+            collect_tcp_metrics(&mut state.prev_tcp_out_segs, &mut state.prev_tcp_retrans_segs);
+            Some(state)
         })
         .await
         .unwrap();
