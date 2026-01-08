@@ -82,11 +82,8 @@ num-bigint = { workspace = true, features = ["rand"] }
 rstest.workspace = true
 starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
-<<<<<<< HEAD
 tempfile.workspace = true
-=======
 tokio = { workspace = true, features = ["rt-multi-thread"] }
->>>>>>> origin/main-v0.14.1-committer
 
 [lints]
 workspace = true
