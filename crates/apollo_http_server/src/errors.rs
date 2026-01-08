@@ -1,3 +1,4 @@
+use apollo_config_manager_types::communication::ConfigManagerClientError;
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -23,19 +24,24 @@ pub enum HttpServerRunError {
 #[derive(Error, Debug)]
 pub enum HttpServerError {
     #[error(transparent)]
-    GatewayClientError(#[from] Box<GatewayClientError>),
+    ConfigManagerClientError(#[from] ConfigManagerClientError),
+    #[error(transparent)]
+    DecompressionError(#[from] CompressionError),
     #[error(transparent)]
     DeserializationError(#[from] serde_json::Error),
     #[error(transparent)]
-    DecompressionError(#[from] CompressionError),
+    GatewayClientError(#[from] Box<GatewayClientError>),
 }
 
 impl IntoResponse for HttpServerError {
     fn into_response(self) -> Response {
         match self {
-            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
-            HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::ConfigManagerClientError(e) => {
+                config_manager_client_err_into_response(e)
+            }
             HttpServerError::DecompressionError(e) => compression_error_into_response(e),
+            HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
         }
     }
 }
@@ -86,6 +92,15 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
 
     let response_body = serialize_error(&deprecated_gateway_error);
 
+    (response_code, response_body).into_response()
+}
+
+fn config_manager_client_err_into_response(err: ConfigManagerClientError) -> Response {
+    let (response_code, config_manager_error) = (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        StarknetError::internal_with_logging("Failed to process client request", err),
+    );
+    let response_body = serialize_error(&config_manager_error);
     (response_code, response_body).into_response()
 }
 
