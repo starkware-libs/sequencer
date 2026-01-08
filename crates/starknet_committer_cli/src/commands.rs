@@ -437,7 +437,7 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         time_measurement.start_measurement(Action::EndToEnd);
         let filled_forest =
-            CommitBlockImpl::commit_block(input, &mut facts_db, Some(&mut time_measurement))
+            CommitBlockImpl::commit_block(input, &mut facts_db, &mut time_measurement)
                 .await
                 .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);

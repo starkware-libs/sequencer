@@ -20,7 +20,7 @@ use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
-use starknet_committer::block_committer::timing_util::TimeMeasurement;
+use starknet_committer::block_committer::timing_util::{NoTimeMeasurement, TimeMeasurementTrait};
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
@@ -53,10 +53,10 @@ pub struct CommitBlockMock;
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
     /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<Reader: ForestReader + Send>(
+    async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
-        _time_measurement: Option<&mut TimeMeasurement>,
+        _time_measurement: &mut TM,
     ) -> BlockCommitmentResult<FilledForest> {
         let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
         {
@@ -319,10 +319,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             initial_read_context: MockIndexInitialRead {},
             config: self.config.reader_config.clone(),
         };
-        let time_measurement = None;
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let filled_forest =
+            CB::commit_block(input, &mut self.forest_storage, &mut NoTimeMeasurement)
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
         Ok((filled_forest, global_root))
     }
