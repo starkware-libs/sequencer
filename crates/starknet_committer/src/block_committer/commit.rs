@@ -59,7 +59,7 @@ pub trait CommitBlockTrait: Send {
         if let Some(ref mut tm) = time_measurement {
             let n_read_facts =
                 original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-            tm.stop_measurement(Some(n_read_facts), Action::Read);
+            tm.stop_measurement(Action::Read, n_read_facts);
         }
         info!("Original skeleton forest created successfully.");
 
@@ -96,7 +96,7 @@ pub trait CommitBlockTrait: Send {
         )
         .await?;
         if let Some(ref mut tm) = time_measurement {
-            tm.stop_measurement(None, Action::Compute);
+            tm.stop_measurement(Action::Compute, 0);
         }
         info!("Filled forest created successfully.");
 
