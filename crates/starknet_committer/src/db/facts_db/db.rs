@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
@@ -61,6 +61,18 @@ impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
     }
 }
 
+impl NodeLayoutFor<StarknetStorageValue> for FactsNodeLayout {
+    type DbLeaf = StarknetStorageValue;
+}
+
+impl NodeLayoutFor<ContractState> for FactsNodeLayout {
+    type DbLeaf = ContractState;
+}
+
+impl NodeLayoutFor<CompiledClassHash> for FactsNodeLayout {
+    type DbLeaf = CompiledClassHash;
+}
+
 pub struct FactsDb<S: Storage> {
     // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
     // private.
@@ -92,7 +104,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        read_forest::<S, StarknetStorageValue, ContractState, CompiledClassHash, FactsNodeLayout>(
+        read_forest::<S, FactsNodeLayout>(
             &mut self.storage,
             context,
             storage_updates,
