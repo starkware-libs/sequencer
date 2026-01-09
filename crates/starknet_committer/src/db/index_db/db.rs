@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
@@ -76,6 +76,18 @@ where
     }
 }
 
+impl NodeLayoutFor<StarknetStorageValue> for IndexNodeLayout {
+    type DbLeaf = IndexLayoutStarknetStorageValue;
+}
+
+impl NodeLayoutFor<ContractState> for IndexNodeLayout {
+    type DbLeaf = IndexLayoutContractState;
+}
+
+impl NodeLayoutFor<CompiledClassHash> for IndexNodeLayout {
+    type DbLeaf = IndexLayoutCompiledClassHash;
+}
+
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
@@ -91,13 +103,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        read_forest::<
-            S,
-            IndexLayoutStarknetStorageValue,
-            IndexLayoutContractState,
-            IndexLayoutCompiledClassHash,
-            IndexNodeLayout,
-        >(
+        read_forest::<S, IndexNodeLayout>(
             &mut self.storage,
             context,
             storage_updates,
