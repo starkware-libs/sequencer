@@ -83,3 +83,17 @@ pub trait NodeLayout<'a, L: Leaf> {
         FilledNode { hash: filled_node.hash, data: node_data }
     }
 }
+
+/// A layout trait for one of the base leaf types: StarknetStorageValue, ContractState, or
+/// CompiledClassHash. Use NodeLayout<DbLeaf> when you only deal with the DB representation, use
+/// NodeLayoutFor<BaseLeaf> when you need to refer to both the logical type and the DB type.
+///
+/// We require that the BaseLeaf type and its DB representation NodeLayout::DbLeaf are isomorphic.
+/// The From<BaseLeaf> conversions are needed to convert incoming modifications, and the
+/// Into<BaseLeaf> conversions are used in the `ContractState` case where we need to return the
+/// leaves. For more details see `create_contracts_trie`, `create_classes_trie`, and
+/// `create_storage_tries` in `starknet_committer`.
+pub trait NodeLayoutFor<BaseLeaf>: for<'a> NodeLayout<'a, Self::DbLeaf> {
+    /// This layout's DB representation of BaseLeaf.
+    type DbLeaf: Leaf + From<BaseLeaf> + Into<BaseLeaf>;
+}
