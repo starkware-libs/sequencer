@@ -40,7 +40,7 @@ apollo_test_utils.workspace = true
 assert_matches.workspace = true
 enum-iterator.workspace = true
 mockall.workspace = true
-# TODO(Dori): Upgrade to workspace-defined version.
+# TODO(Dori): Upgrade to workspace-defined version (requires API migration to mockito 1.x).
 mockito = "0.31.0"
 pretty_assertions.workspace = true
 rand.workspace = true
