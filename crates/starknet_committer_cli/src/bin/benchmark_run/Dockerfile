@@ -23,6 +23,7 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
 CMD ["cached-aerospike", \
     "--n-iterations", "1000000", \
+    "--aeroset", "index_storage", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
     "--cache-size", "800000", \
