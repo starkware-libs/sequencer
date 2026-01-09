@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -341,11 +341,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     Ok(skeleton_tree)
 }
 
-pub async fn create_storage_tries<
-    'a,
-    L: Leaf + From<StarknetStorageValue>,
-    Layout: NodeLayout<'a, L>,
->(
+pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     storage: &mut impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -364,14 +360,14 @@ pub async fn create_storage_tries<
             config.warn_on_trivial_modifications(),
         );
 
-        let original_skeleton = create_original_skeleton_tree::<L, Layout>(
+        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
             storage,
             contract_state.storage_root_hash,
             *sorted_leaf_indices,
             &config,
             // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
             // iterator over borrowed data so that the conversion below is costless.
-            &updates.iter().map(|(idx, value)| (*idx, L::from(*value))).collect(),
+            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
             None,
             &Layout::generate_key_context(TrieType::StorageTrie(*address)),
         )
@@ -383,7 +379,7 @@ pub async fn create_storage_tries<
 
 /// Creates the contracts trie original skeleton.
 /// Also returns the previous contracts state of the modified contracts.
-pub async fn create_contracts_trie<'a, L: Leaf + Into<ContractState>, Layout: NodeLayout<'a, L>>(
+pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
     storage: &mut impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
@@ -391,7 +387,7 @@ pub async fn create_contracts_trie<'a, L: Leaf + Into<ContractState>, Layout: No
     let config = OriginalSkeletonTrieConfig::new_for_contracts_trie();
 
     let mut leaves = HashMap::new();
-    let skeleton_tree = create_original_skeleton_tree::<L, Layout>(
+    let skeleton_tree = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         contracts_trie_root_hash,
         contracts_trie_sorted_indices,
@@ -408,11 +404,7 @@ pub async fn create_contracts_trie<'a, L: Leaf + Into<ContractState>, Layout: No
     Ok((skeleton_tree, leaves))
 }
 
-pub async fn create_classes_trie<
-    'a,
-    L: Leaf + From<CompiledClassHash>,
-    Layout: NodeLayout<'a, L>,
->(
+pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
     storage: &mut impl Storage,
     actual_classes_updates: &LeafModifications<CompiledClassHash>,
     classes_trie_root_hash: HashOutput,
@@ -423,14 +415,17 @@ pub async fn create_classes_trie<
         config.warn_on_trivial_modifications(),
     );
 
-    Ok(create_original_skeleton_tree::<L, Layout>(
+    Ok(create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         classes_trie_root_hash,
         contracts_trie_sorted_indices,
         &config,
         // TODO(Ariel): Change `actual_classes_updates` to be an iterator over borrowed data so
         // that the conversion below is costless.
-        &actual_classes_updates.iter().map(|(idx, value)| (*idx, L::from(*value))).collect(),
+        &actual_classes_updates
+            .iter()
+            .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
+            .collect(),
         None,
         &Layout::generate_key_context(TrieType::ClassesTrie),
     )

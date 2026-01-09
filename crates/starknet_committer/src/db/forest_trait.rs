@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_patricia::db_layout::NodeLayout;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+use starknet_patricia::db_layout::NodeLayoutFor;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
@@ -69,7 +69,7 @@ pub trait ForestReader<I: InputContext> {
 }
 
 /// Helper function containing layout-common read logic.
-pub(crate) async fn read_forest<'a, S, StorageLeaf, ContractStateLeaf, ClassesLeaf, Layout>(
+pub(crate) async fn read_forest<'a, S, Layout>(
     storage: &mut S,
     context: FactsDbInitialRead,
     storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -79,21 +79,17 @@ pub(crate) async fn read_forest<'a, S, StorageLeaf, ContractStateLeaf, ClassesLe
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
     S: Storage,
-    ContractStateLeaf: Leaf + Into<ContractState>,
-    StorageLeaf: Leaf + From<StarknetStorageValue>,
-    ClassesLeaf: Leaf + From<CompiledClassHash>,
-    Layout: NodeLayout<'a, StorageLeaf>
-        + NodeLayout<'a, ContractStateLeaf>
-        + NodeLayout<'a, ClassesLeaf>,
+    Layout: NodeLayoutFor<StarknetStorageValue>
+        + NodeLayoutFor<ContractState>
+        + NodeLayoutFor<CompiledClassHash>,
 {
-    let (contracts_trie, original_contracts_trie_leaves) =
-        create_contracts_trie::<ContractStateLeaf, Layout>(
-            storage,
-            context.0.contracts_trie_root_hash,
-            forest_sorted_indices.contracts_trie_sorted_indices,
-        )
-        .await?;
-    let storage_tries = create_storage_tries::<StorageLeaf, Layout>(
+    let (contracts_trie, original_contracts_trie_leaves) = create_contracts_trie::<Layout>(
+        storage,
+        context.0.contracts_trie_root_hash,
+        forest_sorted_indices.contracts_trie_sorted_indices,
+    )
+    .await?;
+    let storage_tries = create_storage_tries::<Layout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
@@ -101,7 +97,7 @@ where
         &forest_sorted_indices.storage_tries_sorted_indices,
     )
     .await?;
-    let classes_trie = create_classes_trie::<ClassesLeaf, Layout>(
+    let classes_trie = create_classes_trie::<Layout>(
         storage,
         classes_updates,
         context.0.classes_trie_root_hash,
