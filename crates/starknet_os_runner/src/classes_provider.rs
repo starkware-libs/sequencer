@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -82,6 +82,8 @@ pub struct ClassesInput {
     /// Cairo 1+ contract classes (CASM).
     /// Maps CompiledClassHash to the CASM contract class definition.
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    /// Maps ClassHash to CompiledClassHash.
+    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[async_trait]
@@ -117,11 +119,16 @@ where
             .await
             .map_err(|e| ClassesProviderError::GetClassesError(format!("Task join error: {e}")))?;
 
-        // Collecting results into a BTreeMap.
-        let compiled_classes = results
-        .into_iter()
-        .collect::<Result<BTreeMap<CompiledClassHash, CasmContractClass>, ClassesProviderError>>()?;
+        // Collecting results into maps.
+        let mut compiled_classes = BTreeMap::new();
+        let mut class_hash_to_compiled_class_hash = HashMap::new();
 
-        Ok(ClassesInput { compiled_classes })
+        for (class_hash, result) in executed_class_hashes.iter().zip(results) {
+            let (compiled_class_hash, casm) = result?;
+            compiled_classes.insert(compiled_class_hash, casm);
+            class_hash_to_compiled_class_hash.insert(*class_hash, compiled_class_hash);
+        }
+
+        Ok(ClassesInput { compiled_classes, class_hash_to_compiled_class_hash })
     }
 }
