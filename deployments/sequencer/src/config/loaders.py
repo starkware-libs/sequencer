@@ -379,7 +379,6 @@ class NodeConfigLoader(Config):
     def _print_file_paths_section(
         console: Console,
         config_list_path: Optional[str],
-        overlay_source: Optional[str],
         layout: Optional[str] = None,
         overlay: Optional[str] = None,
     ) -> None:
@@ -388,7 +387,6 @@ class NodeConfigLoader(Config):
         Args:
             console: Rich Console instance
             config_list_path: Optional path to the config list JSON file
-            overlay_source: Optional source identifier for the overlay file
             layout: Optional layout name (e.g., "hybrid")
             overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
         """
@@ -500,7 +498,6 @@ class NodeConfigLoader(Config):
         sequencer_config: Dict[str, Any],
         service_name: str = "unknown",
         config_list_path: Optional[str] = None,
-        overlay_source: Optional[str] = None,
         layout: Optional[str] = None,
         overlay: Optional[str] = None,
     ) -> dict:
@@ -524,7 +521,8 @@ class NodeConfigLoader(Config):
                 These are converted to placeholder format for matching.
             service_name: Name of the service (for error messages)
             config_list_path: Optional path to the config list JSON file (for error messages)
-            overlay_source: Optional source identifier for the overlay file (for error messages)
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
 
         Returns:
             Updated config dictionary with overrides applied
@@ -600,9 +598,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(
-                console, config_list_path, overlay_source, layout, overlay
-            )
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, result
             )
@@ -689,7 +685,6 @@ class NodeConfigLoader(Config):
     def validate_no_remaining_placeholders(
         config: dict,
         config_list_path: Optional[str] = None,
-        overlay_source: Optional[str] = None,
         layout: Optional[str] = None,
         overlay: Optional[str] = None,
     ) -> None:
@@ -698,7 +693,8 @@ class NodeConfigLoader(Config):
         Args:
             config: The final config dictionary after all overrides are applied
             config_list_path: Optional path to the config list JSON file (for error messages)
-            overlay_source: Optional source identifier for the overlay file (for error messages)
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
 
         Raises:
             ValueError: If any placeholder values ($$$_..._$$$) are found in the config
@@ -720,9 +716,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(
-                console, config_list_path, overlay_source, layout, overlay
-            )
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, config
             )
