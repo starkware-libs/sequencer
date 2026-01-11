@@ -15,7 +15,6 @@ apollo_infra_utils.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
-bzip2 = { workspace = true, features = ["libbz2-rs-sys"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
