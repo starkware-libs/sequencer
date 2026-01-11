@@ -694,6 +694,32 @@ func execute_storage_write{
     return ();
 }
 
+func read_block_hash_from_storage{contract_state_changes: DictAccess*}(
+    block_number: felt, block_hash: felt, state_entry: StateEntry*
+) {
+    alloc_locals;
+    // Read from storage.
+    tempvar storage_ptr = state_entry.storage_ptr;
+    assert [storage_ptr] = DictAccess(
+        key=block_number, prev_value=block_hash, new_value=block_hash
+    );
+    let storage_ptr = storage_ptr + DictAccess.SIZE;
+
+    // Update the state.
+    dict_update{dict_ptr=contract_state_changes}(
+        key=BLOCK_HASH_CONTRACT_ADDRESS,
+        prev_value=cast(state_entry, felt),
+        new_value=cast(
+            new StateEntry(
+                class_hash=state_entry.class_hash, storage_ptr=storage_ptr, nonce=state_entry.nonce
+            ),
+            felt,
+        ),
+    );
+
+    return ();
+}
+
 // Gets the block hash of the block at given block number.
 func execute_get_block_hash{
     range_check_ptr, syscall_ptr: felt*, contract_state_changes: DictAccess*
@@ -743,24 +769,10 @@ func execute_get_block_hash{
     // Fetch a state_entry in this hint. Validate it in the update that comes next.
     %{ GetBlockHashMapping %}
 
-    // Read from storage.
-    tempvar block_hash = response.block_hash;
-    tempvar storage_ptr = state_entry.storage_ptr;
-    assert [storage_ptr] = DictAccess(
-        key=request_block_number, prev_value=block_hash, new_value=block_hash
-    );
-    let storage_ptr = storage_ptr + DictAccess.SIZE;
+    let block_hash = response.block_hash;
 
-    // Update the state.
-    dict_update{dict_ptr=contract_state_changes}(
-        key=BLOCK_HASH_CONTRACT_ADDRESS,
-        prev_value=cast(state_entry, felt),
-        new_value=cast(
-            new StateEntry(
-                class_hash=state_entry.class_hash, storage_ptr=storage_ptr, nonce=state_entry.nonce
-            ),
-            felt,
-        ),
+    read_block_hash_from_storage(
+        block_number=request_block_number, block_hash=block_hash, state_entry=state_entry
     );
 
     return ();
