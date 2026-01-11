@@ -15,7 +15,6 @@ use crate::common::{end_to_end_flow, test_single_tx, EndToEndFlowArgs, TestScena
 
 mod common;
 
-// TODO(Meshi): Fail the test if no class have migrated.
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_end_to_end_flow() {
@@ -31,7 +30,6 @@ fn create_test_scenarios() -> Vec<TestScenario> {
     vec![
         // This block should be the first to be tested, as the addition of L1 handler transaction
         // does not work smoothly with the current architecture of the test.
-        // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         TestScenario {
             create_rpc_txs_fn: |_| vec![],
             create_l1_to_l2_messages_args_fn: create_l1_to_l2_message_args,
