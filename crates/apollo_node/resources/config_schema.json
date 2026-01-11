@@ -582,7 +582,7 @@
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.batcher.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -692,7 +692,7 @@
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.class_manager.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -802,7 +802,7 @@
   "components.committer.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.committer.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -912,7 +912,7 @@
   "components.config_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.config_manager.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1027,7 +1027,7 @@
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.gateway.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1142,7 +1142,7 @@
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.l1_gas_price_provider.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1257,7 +1257,7 @@
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.l1_provider.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1372,7 +1372,7 @@
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.mempool.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1482,7 +1482,7 @@
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.mempool_p2p.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1597,7 +1597,7 @@
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.sierra_compiler.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1707,7 +1707,7 @@
   "components.signature_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.signature_manager.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -1817,7 +1817,7 @@
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.state_sync.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
