@@ -16,7 +16,7 @@ image:
 config:
   configList: deployments/sequencer/test/app_configs/sequencer/replacer_deployment_common.json
   sequencerConfig:
-    components_fake_field: "overridden in common.yaml"
+    components.fake_field: "overridden in common.yaml"
 
 service:
   enabled: true
