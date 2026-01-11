@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::declare_tx;
@@ -26,6 +27,7 @@ async fn test_compiled_class_hash_mismatch() {
     assert_ne!(declare_tx_inner.compiled_class_hash, other_compiled_class_hash);
 
     let mut mock_class_manager_client = MockClassManagerClient::new();
+    let mock_proof_manager_client = MockProofManagerClient::new();
 
     mock_class_manager_client
         .expect_add_class()
@@ -40,6 +42,7 @@ async fn test_compiled_class_hash_mismatch() {
 
     let transaction_converter = TransactionConverter::new(
         Arc::new(mock_class_manager_client),
+        Arc::new(mock_proof_manager_client),
         ChainInfo::create_for_testing().chain_id,
     );
 

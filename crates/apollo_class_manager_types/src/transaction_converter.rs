@@ -1,3 +1,4 @@
+use apollo_proof_manager_types::SharedProofManagerClient;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -84,12 +85,18 @@ pub trait TransactionConverterTrait: Send + Sync {
 #[derive(Clone)]
 pub struct TransactionConverter {
     class_manager_client: SharedClassManagerClient,
+    #[allow(dead_code)]
+    proof_manager_client: SharedProofManagerClient,
     chain_id: ChainId,
 }
 
 impl TransactionConverter {
-    pub fn new(class_manager_client: SharedClassManagerClient, chain_id: ChainId) -> Self {
-        Self { class_manager_client, chain_id }
+    pub fn new(
+        class_manager_client: SharedClassManagerClient,
+        proof_manager_client: SharedProofManagerClient,
+        chain_id: ChainId,
+    ) -> Self {
+        Self { class_manager_client, proof_manager_client, chain_id }
     }
 
     async fn get_sierra(

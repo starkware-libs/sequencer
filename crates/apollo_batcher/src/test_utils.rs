@@ -10,6 +10,7 @@ use apollo_committer_types::communication::{MockCommitterClient, SharedCommitter
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_proof_manager_types::MockProofManagerClient;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -249,6 +250,7 @@ pub(crate) struct MockClients {
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
     pub(crate) pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
     pub(crate) class_manager_client: SharedClassManagerClient,
+    pub(crate) proof_manager_client: MockProofManagerClient,
 }
 
 impl Default for MockClients {
@@ -283,6 +285,7 @@ impl Default for MockClients {
             pre_confirmed_block_writer_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
+            proof_manager_client: MockProofManagerClient::new(),
         }
     }
 }

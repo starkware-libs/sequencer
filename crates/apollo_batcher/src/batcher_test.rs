@@ -248,7 +248,11 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         Arc::new(clients.mempool_client),
-        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
+        TransactionConverter::new(
+            clients.class_manager_client,
+            Arc::new(clients.proof_manager_client),
+            CHAIN_ID_FOR_TESTS.clone(),
+        ),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         None,
