@@ -32,7 +32,10 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{error, info, warn};
 
-use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+use crate::metrics::{
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC,
+};
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -264,11 +267,11 @@ pub(crate) async fn retrospective_block_hash(
                     )
                 },
             )?;
-            // TODO(Rotem): Add an alert to alert we used a block hash from the state sync.
             warn!(
                 "Successfully retrieved retrospective block hash from state sync after failing to \
                  get it from the Batcher, at retrospective block number {block_number}."
             );
+            CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC.increment(1);
             block_hash
         }
     };

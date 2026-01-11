@@ -5,11 +5,13 @@ use apollo_protobuf::consensus::ConsensusBlockInfo;
 use apollo_state_sync_types::communication::{StateSyncClientError, StateSyncClientResult};
 use apollo_state_sync_types::errors::StateSyncError;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
+use crate::metrics::CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC;
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
     get_oracle_rate_and_prices,
@@ -156,6 +158,8 @@ async fn retrospective_block_hash_sad_flow(
 
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return an error.
@@ -198,10 +202,17 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
         res,
         Some(BlockHashAndNumber { number: RETRO_BLOCK_NUMBER, hash: RETRO_BLOCK_HASH })
     );
+    assert_eq!(
+        CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC
+            .parse_numeric_metric::<u64>(&recorder.handle().render()),
+        Some(1)
+    );
 }
 
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return BlockHashNotFound error in the first attempt.
@@ -247,5 +258,10 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
     assert_eq!(
         res,
         Some(BlockHashAndNumber { number: RETRO_BLOCK_NUMBER, hash: RETRO_BLOCK_HASH })
+    );
+    assert_eq!(
+        CONSENSUS_RETROSPECTIVE_FALLBACK_TO_STATE_SYNC
+            .parse_numeric_metric::<u64>(&recorder.handle().render()),
+        None
     );
 }
