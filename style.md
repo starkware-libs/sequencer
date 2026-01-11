@@ -189,7 +189,10 @@ let is_executable = false;
 create_transaction(is_dry_run, is_executable)
 
 // GOOD
-TransactionBuilder::new().with_dry_run(true).with_execution_status(ExecutionStatus::Enabled);
+TransactionBuilder::new().with_dry_run(true).with_execution_status(false);
+
+// ALSO GOOD
+create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
 ```
 
 **Rationale**: callsite is more readable, without having to resort to using auxiliary args.
