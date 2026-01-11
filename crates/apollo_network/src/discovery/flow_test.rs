@@ -50,7 +50,7 @@ impl DiscoveryMixedBehaviour {
 
 #[tokio::test]
 async fn all_nodes_have_same_bootstrap_peer() {
-    const NUM_NODES: usize = 2;
+    const NUM_NODES: usize = 100;
 
     let mut bootstrap_swarm =
         Swarm::new_ephemeral_tokio(|keypair| DiscoveryMixedBehaviour::new(keypair, None));
