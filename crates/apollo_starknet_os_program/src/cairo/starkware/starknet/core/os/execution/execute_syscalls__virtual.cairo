@@ -1,4 +1,3 @@
-from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_HIGH as SECP256K1_PRIME_HIGH
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_LOW as SECP256K1_PRIME_LOW
 from starkware.cairo.common.dict_access import DictAccess
@@ -7,15 +6,11 @@ from starkware.cairo.common.secp256r1.constants import SECP_PRIME_LOW as SECP256
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.new_syscalls import (
     CALL_CONTRACT_SELECTOR,
-    DEPLOY_SELECTOR,
     EMIT_EVENT_SELECTOR,
-    GET_BLOCK_HASH_SELECTOR,
     GET_CLASS_HASH_AT_SELECTOR,
     GET_EXECUTION_INFO_SELECTOR,
     KECCAK_SELECTOR,
     LIBRARY_CALL_SELECTOR,
-    META_TX_V0_SELECTOR,
-    REPLACE_CLASS_SELECTOR,
     SECP256K1_ADD_SELECTOR,
     SECP256K1_GET_POINT_FROM_X_SELECTOR,
     SECP256K1_GET_XY_SELECTOR,
@@ -43,14 +38,10 @@ from starkware.starknet.core.os.execution.execute_entry_point import ExecutionCo
 from starkware.starknet.core.os.execution.revert import RevertLogEntry
 from starkware.starknet.core.os.execution.syscall_impls import (
     execute_call_contract,
-    execute_deploy,
-    execute_get_block_hash,
     execute_get_class_hash_at,
     execute_get_execution_info,
     execute_keccak,
     execute_library_call,
-    execute_meta_tx_v0,
-    execute_replace_class,
     execute_secp256k1_add,
     execute_secp256k1_get_point_from_x,
     execute_secp256k1_mul,
@@ -68,13 +59,8 @@ from starkware.starknet.core.os.execution.syscall_impls import (
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
-// Executes the system calls in syscall_ptr.
-// The signature of the function 'call_execute_syscalls' must match this function's signature.
-//
-// Arguments:
-// block_context - a read-only context used for transaction execution.
-// execution_context - The execution context in which the system calls need to be executed.
-// syscall_ptr_end - a pointer to the end of the syscall segment.
+// Virtual OS version of execute_syscalls.
+// Executes a subset of the system calls that are allowed in virtual OS mode.
 func execute_syscalls{
     range_check_ptr,
     syscall_ptr: felt*,
@@ -160,38 +146,8 @@ func execute_syscalls{
         );
     }
 
-    if (selector == DEPLOY_SELECTOR) {
-        execute_deploy(block_context=block_context, caller_execution_context=execution_context);
-        %{ OsLoggerExitSyscall %}
-        return execute_syscalls(
-            block_context=block_context,
-            execution_context=execution_context,
-            syscall_ptr_end=syscall_ptr_end,
-        );
-    }
-
-    if (selector == GET_BLOCK_HASH_SELECTOR) {
-        execute_get_block_hash(block_context=block_context);
-        %{ OsLoggerExitSyscall %}
-        return execute_syscalls(
-            block_context=block_context,
-            execution_context=execution_context,
-            syscall_ptr_end=syscall_ptr_end,
-        );
-    }
-
     if (selector == GET_CLASS_HASH_AT_SELECTOR) {
         execute_get_class_hash_at();
-        %{ OsLoggerExitSyscall %}
-        return execute_syscalls(
-            block_context=block_context,
-            execution_context=execution_context,
-            syscall_ptr_end=syscall_ptr_end,
-        );
-    }
-
-    if (selector == REPLACE_CLASS_SELECTOR) {
-        execute_replace_class(contract_address=execution_context.execution_info.contract_address);
         %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
@@ -326,20 +282,10 @@ func execute_syscalls{
         );
     }
 
-    if (selector == SEND_MESSAGE_TO_L1_SELECTOR) {
-        execute_send_message_to_l1(
-            contract_address=execution_context.execution_info.contract_address
-        );
-        %{ OsLoggerExitSyscall %}
-        return execute_syscalls(
-            block_context=block_context,
-            execution_context=execution_context,
-            syscall_ptr_end=syscall_ptr_end,
-        );
+    with_attr error_message("Unexpected syscall selector in virtual mode: {selector}.") {
+        assert selector = SEND_MESSAGE_TO_L1_SELECTOR;
     }
-
-    assert selector = META_TX_V0_SELECTOR;
-    execute_meta_tx_v0(block_context=block_context, caller_execution_context=execution_context);
+    execute_send_message_to_l1(contract_address=execution_context.execution_info.contract_address);
     %{ OsLoggerExitSyscall %}
     return execute_syscalls(
         block_context=block_context,

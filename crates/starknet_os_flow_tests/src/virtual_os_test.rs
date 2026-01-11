@@ -103,3 +103,29 @@ async fn test_cairo0_contract_os_error() {
 }
 
 // TODO(Yoni): add a test for a Cairo 1 contract that is not a Sierra 1.7.0+ contract.
+
+#[rstest]
+#[case::deploy("Deploy")]
+#[case::get_block_hash("GetBlockHash")]
+#[case::replace_class("ReplaceClass")]
+#[case::meta_tx_v0("MetaTxV0")]
+#[tokio::test]
+async fn test_forbidden_syscall(#[case] selector: &str) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    let selector_felt = Felt::from_bytes_be_slice(selector.as_bytes());
+    let calldata = create_calldata(
+        contract_address,
+        "test_forbidden_syscall_in_virtual_mode",
+        &[selector_felt],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let expected_error = format!("Unexpected syscall selector in virtual mode: {selector_felt}.");
+    test_builder.build().await.run_virtual_expect_error(&expected_error);
+}
+
+// TODO(Yoni): consider adding a positive test for all supported syscalls.

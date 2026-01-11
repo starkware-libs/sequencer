@@ -75,6 +75,9 @@ from starkware.starknet.core.os.output import OsCarriedOutputs
 // block_context - a read-only context used for transaction execution.
 // execution_context - The execution context in which the system calls need to be executed.
 // syscall_ptr_end - a pointer to the end of the syscall segment.
+//
+// NOTE: the virtual OS version of this function is in execute_syscalls__virtual.cairo;
+// when adding a new syscall, consider whether it needs to be added to the virtual OS as well.
 func execute_syscalls{
     range_check_ptr,
     syscall_ptr: felt*,
