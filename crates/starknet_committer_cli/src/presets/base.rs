@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 use std::sync::LazyLock;
 
-use starknet_patricia_storage::map_storage::CachedStorageConfig;
+use starknet_patricia_storage::map_storage::{CachedStorageConfig, DEFAULT_CACHE_SIZE};
 use tracing::Level;
 
 use crate::presets::types::flavors::{
@@ -18,13 +18,15 @@ use crate::presets::types::storage::{
     SingleStorageGlobalFields,
     SpecificDbFields,
     StorageLayout,
+    DEFAULT_DATA_PATH,
+    DEFAULT_STORAGE_PATH,
 };
 use crate::presets::types::PresetFields;
 
 pub static BASE_PRESET: LazyLock<PresetFields> = LazyLock::new(|| {
     PresetFields::new(
         FlavorFields {
-            data_path: "/mnt/data/committer_storage_benchmark".to_string(),
+            data_path: DEFAULT_DATA_PATH.clone(),
             seed: 42,
             n_iterations: 1000000,
             flavor: BenchmarkFlavor::Constant,
@@ -37,11 +39,11 @@ pub static BASE_PRESET: LazyLock<PresetFields> = LazyLock::new(|| {
             log_level: Level::WARN,
         },
         StorageLayout::Fact(SingleStorageFields::FileBased(FileBasedStorageFields {
-            storage_path: "/mnt/data/storage".to_string(),
+            storage_path: DEFAULT_STORAGE_PATH.clone(),
             global_fields: SingleStorageGlobalFields {
                 short_key_size: None,
                 cache_fields: Some(CachedStorageConfig {
-                    cache_size: NonZeroUsize::new(10_000_000).unwrap(),
+                    cache_size: DEFAULT_CACHE_SIZE,
                     cache_on_write: true,
                     include_inner_stats: false,
                 }),

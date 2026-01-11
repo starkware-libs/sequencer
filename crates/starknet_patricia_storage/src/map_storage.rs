@@ -16,6 +16,8 @@ use crate::storage_trait::{
     StorageStats,
 };
 
+pub const DEFAULT_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(10_000_000).unwrap();
+
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
 
