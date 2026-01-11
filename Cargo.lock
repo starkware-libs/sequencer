@@ -907,7 +907,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
- "mockito 1.7.0",
+ "mockito",
  "pretty_assertions",
  "reqwest 0.12.24",
  "rstest",
@@ -1402,7 +1402,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
- "mockito 1.7.0",
+ "mockito",
  "num-bigint",
  "num-rational",
  "paste",
@@ -1519,7 +1519,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
- "mockito 1.7.0",
+ "mockito",
  "num-bigint",
  "num-rational",
  "pretty_assertions",
@@ -1765,7 +1765,7 @@ dependencies = [
  "futures",
  "lru 0.12.5",
  "mockall",
- "mockito 1.7.0",
+ "mockito",
  "papyrus_base_layer",
  "reqwest 0.12.24",
  "rstest",
@@ -2473,7 +2473,7 @@ dependencies = [
  "enum-iterator",
  "indexmap 2.12.0",
  "mockall",
- "mockito 0.31.1",
+ "mockito",
  "os_info",
  "papyrus_common",
  "pretty_assertions",
@@ -8972,24 +8972,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
-]
-
-[[package]]
-name = "mockito"
-version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80f9fece9bd97ab74339fe19f4bcaf52b76dcc18e5364c7977c1838f76b38de9"
-dependencies = [
- "assert-json-diff",
- "colored 2.2.0",
- "httparse",
- "lazy_static",
- "log",
- "rand 0.8.5",
- "regex",
- "serde_json",
- "serde_urlencoded",
- "similar",
 ]
 
 [[package]]

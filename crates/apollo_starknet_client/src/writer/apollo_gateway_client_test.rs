@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::future::Future;
 
-use mockito::{mock, Matcher};
+use mockito::Matcher;
 use serde::{Deserialize, Serialize};
 use starknet_api::test_utils::read_json_file;
 
@@ -21,19 +21,21 @@ async fn run_add_transaction<
     resource_file_response_path: &str,
     add_transaction_function: F,
 ) -> WriterClientResult<Response> {
+    let mut server = mockito::Server::new_async().await;
     let client =
-        StarknetGatewayClient::new(&mockito::server_url(), NODE_VERSION, get_test_config())
-            .unwrap();
+        StarknetGatewayClient::new(&server.url(), NODE_VERSION, get_test_config()).unwrap();
     let tx_json_value: serde_json::Value = read_json_file(resource_file_transaction_path);
     let tx = serde_json::from_value::<Transaction>(tx_json_value.clone()).unwrap();
     let response_json_value: serde_json::Value = read_json_file(resource_file_response_path);
-    let mock_add_transaction = mock("POST", "/gateway/add_transaction")
+    let mock_add_transaction = server
+        .mock("POST", "/gateway/add_transaction")
         .match_body(Matcher::Json(tx_json_value))
         .with_status(200)
         .with_body(serde_json::to_string(&response_json_value).unwrap())
-        .create();
+        .create_async()
+        .await;
     let result = add_transaction_function(client, tx).await;
-    mock_add_transaction.assert();
+    mock_add_transaction.assert_async().await;
     result
 }
 
@@ -83,15 +85,17 @@ async fn test_add_transaction_fails_serde<
 
 #[tokio::test]
 async fn is_alive() {
+    let mut server = mockito::Server::new_async().await;
     let apollo_starknet_client =
-        StarknetGatewayClient::new(&mockito::server_url(), NODE_VERSION, get_test_config())
-            .unwrap();
-    let mock_is_alive = mock("GET", "/gateway/is_alive")
+        StarknetGatewayClient::new(&server.url(), NODE_VERSION, get_test_config()).unwrap();
+    let mock_is_alive = server
+        .mock("GET", "/gateway/is_alive")
         .with_status(200)
         .with_body(GATEWAY_ALIVE_RESPONSE)
-        .create();
+        .create_async()
+        .await;
     let response = apollo_starknet_client.is_alive().await;
-    mock_is_alive.assert();
+    mock_is_alive.assert_async().await;
     assert!(response);
 }
 
