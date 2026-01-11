@@ -116,7 +116,9 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 
         // Happy flow. Commits the state diff and returns the computed global root.
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
-        let (filled_forest, global_root) = self.commit_state_diff(state_diff).await?;
+        let time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)> = None;
+        let (filled_forest, global_root) =
+            self.commit_state_diff(state_diff, time_measurement).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
             (
@@ -187,8 +189,9 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         // Sanity.
         assert_eq!(height, last_committed_block);
         // Happy flow. Reverts the state diff and returns the computed global root.
+        let time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)> = None;
         let (filled_forest, revert_global_root) =
-            self.commit_state_diff(reversed_state_diff).await?;
+            self.commit_state_diff(reversed_state_diff, time_measurement).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
         // offset-2 (if exists).
@@ -270,13 +273,13 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     async fn commit_state_diff(
         &mut self,
         state_diff: ThinStateDiff,
+        time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)>,
     ) -> CommitterResult<(FilledForest, GlobalRoot)> {
         let input = Input {
             state_diff: state_diff.into(),
             initial_read_context: MockIndexInitialRead {},
             config: self.config.reader_config.clone(),
         };
-        let time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)> = None;
         let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
             .await
             .map_err(|err| self.map_internal_error(err))?;
