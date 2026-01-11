@@ -11,6 +11,12 @@ workspace = true
 
 [dependencies]
 apollo_infra_utils.workspace = true
+bzip2 = { workspace = true, features = ["libbz2-rs-sys"] }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+tempfile.workspace = true

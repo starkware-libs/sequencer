@@ -40,11 +40,14 @@ async fn test_prove_cairo_pie_10_transfers() {
     // Read expected proof (it's bzip2 compressed).
     let expected_proof_file =
         fs::File::open(&expected_proof_path).expect("Failed to open expected proof file");
-    let mut expected_proof = Vec::new();
+    let mut expected_proof_bytes = Vec::new();
     let mut expected_bz_decoder = BzDecoder::new(expected_proof_file);
     expected_bz_decoder
-        .read_to_end(&mut expected_proof)
+        .read_to_end(&mut expected_proof_bytes)
         .expect("Failed to read expected proof file");
+
+    // Encode expected proof bytes to u32s for comparison.
+    let expected_proof = proving_utils::proof_encoding::encode_bytes_to_u32(&expected_proof_bytes);
 
     // Read expected proof facts.
     let expected_proof_facts_str = fs::read_to_string(&expected_proof_facts_path)
