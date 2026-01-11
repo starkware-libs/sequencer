@@ -44,7 +44,6 @@ impl StatelessTransactionValidator {
 
         if let RpcTransaction::Invoke(invoke_tx) = tx {
             self.validate_client_side_proving_allowed(invoke_tx)?;
-            self.validate_proof(invoke_tx)?;
         }
 
         if let RpcTransaction::Declare(declare_tx) = tx {
@@ -238,11 +237,6 @@ impl StatelessTransactionValidator {
             return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
         }
 
-        Ok(())
-    }
-
-    fn validate_proof(&self, _: &RpcInvokeTransaction) -> StatelessTransactionValidatorResult<()> {
-        // TODO(Einat): Implement proof validation.
         Ok(())
     }
 
