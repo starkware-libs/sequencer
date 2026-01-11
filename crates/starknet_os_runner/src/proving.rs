@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use bzip2::read::BzDecoder;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use proving_utils::proof_encoding::encode_bytes_to_u32;
 use proving_utils::stwo_run_and_prove::{
     run_stwo_run_and_prove,
     ProofFormat,
@@ -44,7 +45,8 @@ fn create_program_input(cairo_pie_path: &str) -> String {
 /// Output from the prover containing the compressed proof and associated facts.
 #[derive(Debug, Clone)]
 pub struct ProverOutput {
-    pub proof: Vec<u8>,
+    /// The proof packed as u32s (4 bytes per u32, big-endian, with length prefix).
+    pub proof: Vec<u32>,
     pub proof_facts: Vec<Felt>,
 }
 
@@ -136,6 +138,9 @@ pub async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
     let proof_facts: Vec<Felt> =
         serde_json::from_str(&proof_facts_str).map_err(ProvingError::ParseProofFacts)?;
     info!("Finished reading proof facts from file. Number of proof facts: {}.", proof_facts.len());
+
+    // Encode the proof bytes as u32s (4 bytes per u32, big-endian, with length prefix).
+    let proof = encode_bytes_to_u32(&proof);
 
     Ok(ProverOutput { proof, proof_facts })
 }
