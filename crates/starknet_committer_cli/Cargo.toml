@@ -23,6 +23,11 @@ starknet_patricia_storage = { workspace = true, features = [
   "rocksdb_storage",
   "short_key_storage",
 ] }
+strum = { workspace = true, features = ["derive"] }
+strum_macros.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[dev-dependencies]
+expect-test.workspace = true

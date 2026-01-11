@@ -2,6 +2,7 @@ use tracing::Level;
 
 pub const DEFAULT_INTERFERENCE_CONCURRENCY_LIMIT: usize = 20;
 
+#[derive(Debug)]
 pub struct FlavorFields {
     /// A path to a directory to store the output and checkpoints.
     pub data_path: String,
@@ -31,7 +32,7 @@ pub struct FlavorFields {
 }
 
 /// Specific flavors of workloads to run in the benchmark.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub enum BenchmarkFlavor {
     // Constant number of updates per iteration.
     #[default]
@@ -48,7 +49,7 @@ pub enum BenchmarkFlavor {
     Continuous,
 }
 
-#[derive(Default, PartialEq, Clone)]
+#[derive(Default, PartialEq, Clone, Debug)]
 pub enum InterferenceFlavor {
     // No interference.
     #[default]
@@ -58,7 +59,7 @@ pub enum InterferenceFlavor {
 }
 
 /// Settings for interference (spawned tasks that run in parallel to the main benchmark).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InterferenceFields {
     // The type of interference to apply.
     pub interference_type: InterferenceFlavor,
