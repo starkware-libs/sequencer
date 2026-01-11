@@ -2,12 +2,11 @@
 //!
 //! Provides functionality to generate zero-knowledge proofs from Cairo PIE files.
 
-use std::io::Read;
 use std::path::PathBuf;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
-use bzip2::read::BzDecoder;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use proving_utils::proof_encoding::ProofBytes;
 use proving_utils::simple_bootloader_input::SimpleBootloaderInput;
 use proving_utils::stwo_run_and_prove::{
     run_stwo_run_and_prove,
@@ -15,7 +14,7 @@ use proving_utils::stwo_run_and_prove::{
     StwoRunAndProveConfig,
     StwoRunAndProveInput,
 };
-use starknet_types_core::felt::Felt;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 use tempfile::NamedTempFile;
 use tracing::{debug, info};
 
@@ -27,8 +26,9 @@ const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
 /// Output from the prover containing the compressed proof and associated facts.
 #[derive(Debug, Clone)]
 pub struct ProverOutput {
-    pub proof: Vec<u8>,
-    pub proof_facts: Vec<Felt>,
+    /// The proof packed as u32s (4 bytes per u32, big-endian, with padding prefix).
+    pub proof: Proof,
+    pub proof_facts: ProofFacts,
 }
 
 /// Resolves a path to a resource file in the crate's resources directory.
@@ -111,19 +111,22 @@ pub async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
 
     // Read and decompress the proof.
     info!("Reading proof from file.");
-    let proof_file_handle = std::fs::File::open(&proof_path).map_err(ProvingError::ReadProof)?;
-    let mut proof = Vec::new();
-    let mut bz_decoder = BzDecoder::new(proof_file_handle);
-    bz_decoder.read_to_end(&mut proof).map_err(ProvingError::ReadProof)?;
-    info!("Finished reading proof from file. Proof size: {} KB.", proof.len() / 1024);
+    let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
+    info!("Finished reading proof from file. Proof size: {} KB.", proof_bytes.0.len() / 1024);
 
     // Read and parse proof facts.
     info!("Reading proof facts from file.");
     let proof_facts_str =
         std::fs::read_to_string(&proof_facts_path).map_err(ProvingError::ReadProofFacts)?;
-    let proof_facts: Vec<Felt> =
+    let proof_facts: ProofFacts =
         serde_json::from_str(&proof_facts_str).map_err(ProvingError::ParseProofFacts)?;
-    info!("Finished reading proof facts from file. Number of proof facts: {}.", proof_facts.len());
+    info!(
+        "Finished reading proof facts from file. Number of proof facts: {}.",
+        proof_facts.0.len()
+    );
+
+    // Convert proof bytes to packed u32 format.
+    let proof: Proof = proof_bytes.into();
 
     Ok(ProverOutput { proof, proof_facts })
 }
