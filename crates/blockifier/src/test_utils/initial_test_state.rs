@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -99,7 +101,6 @@ pub fn setup_test_state(
     }
 }
 
-// TODO(Meshi): create a client-side test state.
 pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
@@ -127,6 +128,40 @@ pub fn test_state(
         &HashVersion::V2,
         erc20_version,
     )
+}
+
+pub fn test_state_for_client_side_proving(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContract, u16)],
+    proof_facts: HashSet<ProofFacts>,
+) -> CachedState<DictStateReader> {
+    // Prefer the first ERC20's Cairo version; otherwise fall back to the first contract's version;
+    // and if there are no contracts at all, default to Cairo0.
+    let erc20_version = contract_instances
+        .iter()
+        .find_map(|(contract, _)| match contract {
+            FeatureContract::ERC20(v) => Some(*v),
+            _ => None,
+        })
+        .or_else(|| contract_instances.first().map(|(contract, _)| contract.cairo_version()))
+        .unwrap_or(CairoVersion::Cairo0);
+
+    let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
+        .iter()
+        .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
+        .collect();
+    let mut reader = test_state_inner(
+        chain_info,
+        initial_balances,
+        &contract_instances_vec[..],
+        &HashVersion::V2,
+        erc20_version,
+    );
+    for proof_fact in proof_facts {
+        store_block_hash_from_proof_facts(&proof_fact, &mut reader.state);
+    }
+    reader
 }
 
 pub fn test_state_with_contract_manager(
