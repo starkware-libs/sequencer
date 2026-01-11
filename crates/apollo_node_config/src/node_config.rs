@@ -376,33 +376,33 @@ impl SequencerNodeConfig {
             config_manager,
             config_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(
+            consensus_manager,
+            consensus_manager_config
+        );
         validate_component_config_is_set_iff_running_locally!(gateway, gateway_config);
-        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
+        validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
         validate_component_config_is_set_iff_running_locally!(
             l1_gas_price_provider,
             l1_gas_price_provider_config
         );
+        validate_component_config_is_set_iff_running_locally!(
+            l1_gas_price_scraper,
+            l1_gas_price_scraper_config
+        );
+        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
+        validate_component_config_is_set_iff_running_locally!(l1_scraper, l1_scraper_config);
         validate_component_config_is_set_iff_running_locally!(mempool, mempool_config);
         validate_component_config_is_set_iff_running_locally!(mempool_p2p, mempool_p2p_config);
+        validate_component_config_is_set_iff_running_locally!(
+            monitoring_endpoint,
+            monitoring_endpoint_config
+        );
         validate_component_config_is_set_iff_running_locally!(
             sierra_compiler,
             sierra_compiler_config
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
-        validate_component_config_is_set_iff_running_locally!(
-            consensus_manager,
-            consensus_manager_config
-        );
-        validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
-        validate_component_config_is_set_iff_running_locally!(l1_scraper, l1_scraper_config);
-        validate_component_config_is_set_iff_running_locally!(
-            l1_gas_price_scraper,
-            l1_gas_price_scraper_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            monitoring_endpoint,
-            monitoring_endpoint_config
-        );
 
         Ok(())
     }
