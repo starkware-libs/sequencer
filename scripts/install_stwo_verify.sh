@@ -1,22 +1,22 @@
 #!/bin/bash
 #
-# Installs the stwo_run_and_prove binary from the starkware-libs/proving-utils repo.
+# Installs the stwo_verify binary from the starkware-libs/proving-utils repo.
 #
 # This script:
 # 1. Clones proving-utils to a build cache directory under target/third_party/.
 # 2. Checks out the pinned revision.
-# 3. Builds stwo_run_and_prove in release mode.
+# 3. Builds stwo_verify in release mode.
 # 4. Copies the binary to target/tools/.
-# 5. Prints instructions for adding to PATH or configuring STWO_RUN_AND_PROVE_PATH.
+# 5. Prints instructions for adding to PATH or configuring STWO_VERIFY_PATH.
 #
 # Usage:
-#   ./scripts/install_stwo_run_and_prove.sh
+#   ./scripts/install_stwo_verify.sh
 #
 # Environment Variables:
 #   PROVING_UTILS_REV - Override the default pinned revision (see scripts/proving_utils_env.sh).
 #   SKIP_BUILD_IF_EXISTS - If set to "1", skip building if binary already exists.
 #
-# The binary will be installed to: <repo_root>/target/tools/stwo_run_and_prove
+# The binary will be installed to: <repo_root>/target/tools/stwo_verify
 
 # If any command fails, exit immediately.
 set -euo pipefail
@@ -27,8 +27,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/proving_utils_env.sh"
 
 # Configuration.
-PACKAGE_NAME="stwo_run_and_prove"
-BINARY_NAME="stwo_run_and_prove"
+PACKAGE_NAME="stwo_verify"
+BINARY_NAME="stwo_verify"
 
 # Build and install directories.
 TOOLS_DIR="${REPO_ROOT}/target/tools"
