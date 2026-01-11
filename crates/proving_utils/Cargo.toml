@@ -1,0 +1,12 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "proving_utils"
+repository.workspace = true
+version.workspace = true
+description = "Utilities for proving."
+
+[lints]
+workspace = true
+
+[dependencies]
