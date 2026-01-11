@@ -16,14 +16,14 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{AllResourceBounds, Proof, ValidResourceBounds};
-use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
+use starknet_api::transaction::DeployAccountTransactionV3;
 
 use super::common::missing;
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
 use crate::mempool::RpcTransactionBatch;
 use crate::protobuf::{self};
-use crate::transaction::DeclareTransactionV3Common;
+use crate::transaction::{DeclareTransactionV3Common, InvokeTransactionV3Common};
 auto_impl_into_and_try_from_vec_u8!(RpcTransactionBatch, protobuf::MempoolTransactionBatch);
 
 const DEPRECATED_RESOURCE_BOUNDS_ERROR: ProtobufConversionError =
@@ -112,29 +112,68 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     }
 }
 
-impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
+impl TryFrom<protobuf::InvokeV3WithProof> for (InvokeTransactionV3Common, Proof) {
     type Error = ProtobufConversionError;
-    fn try_from(mut value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
-        // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
-        // carry a `proof` field.
-        let proof = Proof::from(std::mem::take(&mut value.proof));
-
-        let snapi_invoke: InvokeTransactionV3 = value.try_into()?;
-
-        // This conversion can fail only if the resource_bounds are not AllResources.
-        Ok(Self { proof, ..snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)? })
+    fn try_from(value: protobuf::InvokeV3WithProof) -> Result<Self, Self::Error> {
+        let common = InvokeTransactionV3Common::try_from(value.common.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "InvokeV3WithProof::common",
+            },
+        )?)?;
+        let proof = Proof::from(value.proof);
+        Ok((common, proof))
     }
 }
 
-impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
+impl From<(InvokeTransactionV3Common, Proof)> for protobuf::InvokeV3WithProof {
+    fn from(value: (InvokeTransactionV3Common, Proof)) -> Self {
+        Self { common: Some(value.0.into()), proof: Arc::unwrap_or_clone(value.1.0) }
+    }
+}
+
+impl TryFrom<protobuf::InvokeV3WithProof> for RpcInvokeTransactionV3 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::InvokeV3WithProof) -> Result<Self, Self::Error> {
+        let (common, proof) = value.try_into()?;
+        Ok(Self {
+            resource_bounds: match common.resource_bounds {
+                ValidResourceBounds::AllResources(resource_bounds) => resource_bounds,
+                _ => {
+                    return Err(DEPRECATED_RESOURCE_BOUNDS_ERROR);
+                }
+            },
+            tip: common.tip,
+            signature: common.signature,
+            nonce: common.nonce,
+            sender_address: common.sender_address,
+            calldata: common.calldata,
+            nonce_data_availability_mode: common.nonce_data_availability_mode,
+            fee_data_availability_mode: common.fee_data_availability_mode,
+            paymaster_data: common.paymaster_data,
+            account_deployment_data: common.account_deployment_data,
+            proof_facts: common.proof_facts,
+            proof,
+        })
+    }
+}
+
+impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3WithProof {
     fn from(mut value: RpcInvokeTransactionV3) -> Self {
-        // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
-        // carry a `proof` field.
-        let proof = Arc::unwrap_or_clone(std::mem::take(&mut value.proof).0);
-
-        let snapi_invoke: InvokeTransactionV3 = value.into();
-
-        Self { proof, ..snapi_invoke.into() }
+        let proof = std::mem::take(&mut value.proof);
+        let snapi_invoke = InvokeTransactionV3Common {
+            resource_bounds: ValidResourceBounds::AllResources(value.resource_bounds),
+            tip: value.tip,
+            signature: value.signature,
+            nonce: value.nonce,
+            sender_address: value.sender_address,
+            calldata: value.calldata,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+            paymaster_data: value.paymaster_data,
+            account_deployment_data: value.account_deployment_data,
+            proof_facts: value.proof_facts,
+        };
+        (snapi_invoke, proof).into()
     }
 }
 

@@ -3,7 +3,9 @@ use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    Calldata,
     PaymasterData,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -124,6 +126,131 @@ impl From<DeclareTransactionV3Common> for protobuf::DeclareV3Common {
                 .0
                 .iter()
                 .map(|account_deployment_data| (*account_deployment_data).into())
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub(crate) struct InvokeTransactionV3Common {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
+    pub calldata: Calldata,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub proof_facts: ProofFacts,
+}
+
+impl TryFrom<protobuf::InvokeV3Common> for InvokeTransactionV3Common {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::InvokeV3Common) -> Result<Self, Self::Error> {
+        let resource_bounds = ValidResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("InvokeV3Common::resource_bounds"))?,
+        )?;
+
+        let tip = Tip(value.tip);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(missing("InvokeV3Common::signature"))?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
+
+        let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3Common::nonce"))?.try_into()?);
+
+        let sender_address = value.sender.ok_or(missing("InvokeV3Common::sender"))?.try_into()?;
+
+        let calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+        let calldata = Calldata(calldata.into());
+
+        let nonce_data_availability_mode =
+            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
+
+        let fee_data_availability_mode =
+            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
+
+        let paymaster_data = PaymasterData(
+            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let account_deployment_data = AccountDeploymentData(
+            value
+                .account_deployment_data
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let proof_facts = ProofFacts(
+            value
+                .proof_facts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
+
+        Ok(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            sender_address,
+            calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+            account_deployment_data,
+            proof_facts,
+        })
+    }
+}
+
+impl From<InvokeTransactionV3Common> for protobuf::InvokeV3Common {
+    fn from(value: InvokeTransactionV3Common) -> Self {
+        Self {
+            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            sender: Some(value.sender_address.into()),
+            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+            account_deployment_data: value
+                .account_deployment_data
+                .0
+                .iter()
+                .map(|account_deployment_data| (*account_deployment_data).into())
+                .collect(),
+            proof_facts: value
+                .proof_facts
+                .0
+                .iter()
+                .map(|proof_fact| (*proof_fact).into())
                 .collect(),
         }
     }

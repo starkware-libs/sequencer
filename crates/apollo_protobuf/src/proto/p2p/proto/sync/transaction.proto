@@ -91,6 +91,10 @@ message TransactionInBlock {
         Felt252 nonce = 5;
     }
 
+    message InvokeV3WithoutProof {
+        InvokeV3Common common = 1;
+    }
+
     oneof txn {
         DeclareV0WithoutClass declare_v0 = 1;
         DeclareV1WithoutClass declare_v1 = 2;
@@ -101,7 +105,7 @@ message TransactionInBlock {
         DeployAccountV3 deploy_account_v3 = 7;
         InvokeV0 invoke_v0 = 8;
         InvokeV1 invoke_v1 = 9;
-        InvokeV3 invoke_v3 = 10;
+        InvokeV3WithoutProof invoke_v3 = 10;
         L1HandlerV0 l1_handler = 11;
     }
     Hash transaction_hash = 12;
