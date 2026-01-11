@@ -5,6 +5,7 @@ use tracing::{info, warn};
 pub async fn integration_test_setup(test_specifier: &str) {
     configure_tracing().await;
     info!("Running sequencer node end to end {test_specifier} flow integration test setup.");
+    info!("Hello world!");
 
     let sequencer_path = get_node_executable_path();
     warn!(
