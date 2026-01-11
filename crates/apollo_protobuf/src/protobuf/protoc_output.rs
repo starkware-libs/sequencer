@@ -434,7 +434,7 @@ pub mod stream_message {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProposalInit {
+pub struct BlockInfo {
     #[prost(uint64, tag = "1")]
     pub height: u64,
     #[prost(uint32, tag = "2")]
@@ -443,25 +443,19 @@ pub struct ProposalInit {
     pub valid_round: ::core::option::Option<u32>,
     #[prost(message, optional, tag = "4")]
     pub proposer: ::core::option::Option<Address>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockInfo {
-    #[prost(uint64, tag = "1")]
-    pub height: u64,
-    #[prost(uint64, tag = "2")]
+    #[prost(uint64, tag = "5")]
     pub timestamp: u64,
-    #[prost(message, optional, tag = "3")]
-    pub builder: ::core::option::Option<Address>,
-    #[prost(enumeration = "L1DataAvailabilityMode", tag = "4")]
-    pub l1_da_mode: i32,
-    #[prost(message, optional, tag = "5")]
-    pub l2_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "6")]
-    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "7")]
-    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
+    pub builder: ::core::option::Option<Address>,
+    #[prost(enumeration = "L1DataAvailabilityMode", tag = "7")]
+    pub l1_da_mode: i32,
     #[prost(message, optional, tag = "8")]
+    pub l2_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "9")]
+    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "10")]
+    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "11")]
     pub eth_to_fri_rate: ::core::option::Option<Uint128>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -481,18 +475,13 @@ pub struct ProposalFin {
     pub executed_transaction_count: u64,
 }
 /// Network format:
-/// 1. First message is ProposalInit
-/// 2. block_info is sent once
+/// 1. First message is BlockInfo (includes all block metadata)
+/// 2. transactions is sent repeatedly (for non-empty blocks)
 /// 3. Last message is ProposalFin
-///
-/// Empty block - no other messages sent.
-///
-/// Block with transactions:
-/// 4. transactions is sent repeatedly
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalPart {
-    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 4")]
     pub message: ::core::option::Option<proposal_part::Message>,
 }
 /// Nested message and enum types in `ProposalPart`.
@@ -501,11 +490,9 @@ pub mod proposal_part {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Message {
         #[prost(message, tag = "1")]
-        Init(super::ProposalInit),
+        BlockInfo(super::BlockInfo),
         #[prost(message, tag = "2")]
         Fin(super::ProposalFin),
-        #[prost(message, tag = "3")]
-        BlockInfo(super::BlockInfo),
         #[prost(message, tag = "4")]
         Transactions(super::TransactionBatch),
     }

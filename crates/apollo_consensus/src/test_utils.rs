@@ -2,7 +2,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use apollo_protobuf::consensus::{ProposalCommitment, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{
+    ConsensusBlockInfo,
+    ProposalCommitment,
+    ProposalInit,
+    Vote,
+    VoteType,
+};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
@@ -24,21 +30,21 @@ pub struct TestBlock {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TestProposalPart {
-    Init(ProposalInit),
+    BlockInfo(ConsensusBlockInfo),
     Invalid,
 }
 
-impl From<ProposalInit> for TestProposalPart {
-    fn from(init: ProposalInit) -> Self {
-        TestProposalPart::Init(init)
+impl From<ConsensusBlockInfo> for TestProposalPart {
+    fn from(block_info: ConsensusBlockInfo) -> Self {
+        TestProposalPart::BlockInfo(block_info)
     }
 }
 
-impl TryFrom<TestProposalPart> for ProposalInit {
+impl TryFrom<TestProposalPart> for ConsensusBlockInfo {
     type Error = ProtobufConversionError;
     fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
-        if let TestProposalPart::Init(init) = part {
-            return Ok(init);
+        if let TestProposalPart::BlockInfo(block_info) = part {
+            return Ok(block_info);
         }
         Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
     }
@@ -46,8 +52,8 @@ impl TryFrom<TestProposalPart> for ProposalInit {
 
 impl From<TestProposalPart> for Vec<u8> {
     fn from(part: TestProposalPart) -> Vec<u8> {
-        if let TestProposalPart::Init(init) = part {
-            return init.into();
+        if let TestProposalPart::BlockInfo(block_info) = part {
+            return block_info.into();
         }
         vec![]
     }
@@ -57,7 +63,7 @@ impl TryFrom<Vec<u8>> for TestProposalPart {
     type Error = ProtobufConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(TestProposalPart::Init(value.try_into()?))
+        Ok(TestProposalPart::BlockInfo(value.try_into()?))
     }
 }
 
@@ -77,7 +83,7 @@ mock! {
 
         async fn validate_proposal(
             &mut self,
-            init: ProposalInit,
+            block_info: ConsensusBlockInfo,
             timeout: Duration,
             content: mpsc::Receiver<TestProposalPart>
         ) -> oneshot::Receiver<ProposalCommitment>;
@@ -128,6 +134,10 @@ pub fn precommit(
 
 pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height, round, proposer, ..Default::default() }
+}
+
+pub fn block_info(height: BlockNumber, round: Round, proposer: ValidatorId) -> ConsensusBlockInfo {
+    ConsensusBlockInfo { height, round, proposer, ..Default::default() }
 }
 
 #[derive(Debug)]
