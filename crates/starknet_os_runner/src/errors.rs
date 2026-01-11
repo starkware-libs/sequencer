@@ -28,6 +28,8 @@ pub enum RunnerError {
     OsExecution(#[from] StarknetOsError),
     #[error("OS Input generation failed: {0}")]
     InputGenerationError(String),
+    #[error(transparent)]
+    TaskJoin(#[from] tokio::task::JoinError),
 }
 
 #[derive(Debug, Error)]
