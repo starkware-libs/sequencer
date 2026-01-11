@@ -2,6 +2,8 @@ use std::fmt::{Debug, Formatter, Result};
 
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
+use derive_more::{Display, FromStr};
+use rand::random;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -88,15 +90,28 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
     pub creation_time: Instant,
+    pub request_id: RequestId,
 }
+
+#[derive(Clone, Display, FromStr)]
+pub struct RequestId(pub u64);
+
+impl RequestId {
+    pub fn generate() -> Self {
+        Self(random::<u64>())
+    }
+}
+
+/// Header name for Request ID header.
+pub const REQUEST_ID_HEADER: &str = "request-id";
 
 impl<Request, Response> RequestWrapper<Request, Response>
 where
     Request: Send,
     Response: Send,
 {
-    pub fn new(request: Request, tx: Sender<Response>) -> Self {
-        Self { request, tx, creation_time: Instant::now() }
+    pub fn new(request: Request, tx: Sender<Response>, request_id: RequestId) -> Self {
+        Self { request, tx, creation_time: Instant::now(), request_id }
     }
 }
 
