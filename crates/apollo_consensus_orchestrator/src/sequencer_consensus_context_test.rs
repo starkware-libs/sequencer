@@ -87,12 +87,9 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         }))
         .await
         .unwrap();
@@ -149,12 +146,9 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
-    content_sender
-        .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap()))
-        .await
-        .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+        executed_transaction_count: final_n_executed_txs.try_into().unwrap(),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver =
@@ -170,10 +164,6 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
-    );
-    assert_eq!(
-        receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap())
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
@@ -191,17 +181,15 @@ async fn proposals_from_different_rounds() {
     // Proposal parts sent in the proposals.
     let prop_part_txs =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
-    let prop_part_executed_count =
-        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap());
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+        executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
     });
 
     // The proposal from the past round is ignored.
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
-    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
 
     let mut init = ProposalInit { round: 0, ..Default::default() };
     let fin_receiver_past_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -212,7 +200,6 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
-    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     init.round = 1;
     let fin_receiver_curr_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -222,7 +209,6 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
-    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
         .validate_proposal(
@@ -259,12 +245,9 @@ async fn interrupt_active_proposal() {
         .await
         .unwrap();
     content_sender_1
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender_1
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         }))
         .await
         .unwrap();
@@ -308,12 +291,9 @@ async fn build_proposal() {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
-    );
-    assert_eq!(
-        receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -513,8 +493,6 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let _init = receiver.next().await.unwrap();
     let block_info = receiver.next().await.unwrap();
     let _txs = receiver.next().await.unwrap();
-    let final_n_executed_txs = receiver.next().await.unwrap();
-    assert!(matches!(final_n_executed_txs, ProposalPart::ExecutedTransactionCount(_)));
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -533,7 +511,6 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
 
-    assert_eq!(receiver.next().await.unwrap(), final_n_executed_txs);
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
 }
@@ -615,12 +592,9 @@ async fn gas_price_limits(#[case] maximum: bool) {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         }))
         .await
         .unwrap();
@@ -746,12 +720,9 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
-    );
-    assert_eq!(
-        receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -837,12 +808,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         }))
         .await
         .unwrap();
@@ -884,12 +852,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
-    );
-    assert_eq!(
-        receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         })
     );
     assert!(receiver.next().await.is_none());

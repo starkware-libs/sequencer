@@ -476,21 +476,23 @@ pub struct ProposalFin {
     /// Identifies a Starknet block based on the content streamed in the proposal.
     #[prost(message, optional, tag = "1")]
     pub proposal_commitment: ::core::option::Option<Hash>,
+    /// Number of executed transactions in the proposal.
+    #[prost(uint64, tag = "2")]
+    pub executed_transaction_count: u64,
 }
 /// Network format:
 /// 1. First message is ProposalInit
-/// 2. Last message is ProposalFin
+/// 2. block_info is sent once
+/// 3. Last message is ProposalFin
 ///
 /// Empty block - no other messages sent.
 ///
 /// Block with transactions:
-/// 3. block_info is sent once
 /// 4. transactions is sent repeatedly
-/// 5. executed_transaction_count is sent once
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalPart {
-    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4, 5")]
+    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4")]
     pub message: ::core::option::Option<proposal_part::Message>,
 }
 /// Nested message and enum types in `ProposalPart`.
@@ -506,8 +508,6 @@ pub mod proposal_part {
         BlockInfo(super::BlockInfo),
         #[prost(message, tag = "4")]
         Transactions(super::TransactionBatch),
-        #[prost(uint64, tag = "5")]
-        ExecutedTransactionCount(u64),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

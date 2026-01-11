@@ -288,18 +288,10 @@ async fn get_proposal_content(
                     }
                 }
 
-                let final_n_executed_txs_u64 = final_n_executed_txs
+                let executed_transaction_count: u64 = final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                args.stream_sender
-                    .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
-                    .await
-                    .map_err(|e| {
-                        BuildProposalError::SendError(format!(
-                            "Failed to send executed transaction count: {e:?}"
-                        ))
-                    })?;
-                let fin = ProposalFin { proposal_commitment };
+                let fin = ProposalFin { proposal_commitment, executed_transaction_count };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
