@@ -116,17 +116,23 @@ where
     /// Creates the OS hints required to run the given transactions virtually
     /// on top of the given block number.
     pub async fn create_os_hints(
-        &self,
+        self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
-        // Execute virtual block and get execution data.
-        let mut execution_data = self.virtual_block_executor.execute(
-            block_number,
-            contract_class_manager.clone(),
-            txs.clone(),
-        )?;
+        // Destructure self to move executor into spawn_blocking while keeping providers.
+        let Self { classes_provider, storage_proofs_provider, virtual_block_executor } = self;
+
+        // Clone txs since we need them after spawn_blocking for VirtualOsBlockInput.
+        let txs_for_execute = txs.clone();
+
+        // Execute virtual block in a blocking thread pool to avoid blocking the async runtime.
+        // The RPC state reader uses reqwest::blocking which would block the tokio runtime.
+        let mut execution_data = tokio::task::spawn_blocking(move || {
+            virtual_block_executor.execute(block_number, contract_class_manager, txs_for_execute)
+        })
+        .await??;
 
         // Extract chain info from block context.
         let chain_info = execution_data.base_block_info.block_context.chain_info();
@@ -137,8 +143,8 @@ where
 
         // Fetch classes and storage proofs in parallel.
         let (classes, storage_proofs) = tokio::join!(
-            self.classes_provider.get_classes(&execution_data.executed_class_hashes),
-            self.storage_proofs_provider.get_storage_proofs(block_number, &execution_data)
+            classes_provider.get_classes(&execution_data.executed_class_hashes),
+            storage_proofs_provider.get_storage_proofs(block_number, &execution_data)
         );
         let classes = classes?;
         let storage_proofs = storage_proofs?;
@@ -192,9 +198,11 @@ where
     /// 3. Builds OS hints
     /// 4. Runs the OS in stateless mode (all state pre-loaded in input)
     ///
+    /// Consumes the runner since the virtual block executor is single-use per block.
+    ///
     /// Returns the OS output containing the Cairo PIE and execution metrics.
     pub async fn run_os(
-        &self,
+        self,
         block_number: BlockNumber,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
