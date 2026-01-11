@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
-use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
@@ -350,7 +350,7 @@ pub(crate) fn truncate_to_executed_txs(
     executed_content
 }
 
-pub(crate) fn make_gas_price_params(config: &ContextConfig) -> GasPriceParams {
+pub(crate) fn make_gas_price_params(config: &ContextDynamicConfig) -> GasPriceParams {
     GasPriceParams {
         min_l1_gas_price_wei: GasPrice(config.min_l1_gas_price_wei),
         max_l1_gas_price_wei: GasPrice(config.max_l1_gas_price_wei),
