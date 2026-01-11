@@ -16,6 +16,9 @@ COPY rust-toolchain.toml .
 RUN apt update && apt -y install \
     bzip2 \
     curl \
+    gnupg \
+    lsb-release \
+    software-properties-common \
     tini \
     unzip
 
