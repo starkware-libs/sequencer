@@ -34,6 +34,8 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
+use crate::metrics::register_metrics;
+
 #[cfg(test)]
 #[path = "committer_test.rs"]
 mod committer_test;
@@ -67,6 +69,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
         let mut forest_storage = MockForestStorage { storage: S::create_storage() };
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
+        register_metrics();
         info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
