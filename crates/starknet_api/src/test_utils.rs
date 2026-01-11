@@ -372,7 +372,12 @@ impl ProofFacts {
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
         // TODO(AvivG): Change to valid values when available.
-        proof_facts![felt!(VIRTUAL_SNOS), felt!("0x4"), felt!("0x3"), felt!("0x2"), felt!("0x1")]
+        let program_hash = felt!("0x4");
+        let block_number = felt!("0x3");
+        let block_hash = felt!("0x2");
+        let config_hash = felt!("0x1");
+
+        proof_facts![felt!(VIRTUAL_SNOS), program_hash, block_number, block_hash, config_hash]
     }
 }
 
