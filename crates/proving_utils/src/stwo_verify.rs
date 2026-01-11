@@ -1,26 +1,26 @@
-//! Wrapper module for executing the `stwo_run_and_prove` external binary.
+//! Wrapper module for executing the `stwo_verify` external binary.
 //!
-//! This module provides a robust interface for invoking the `stwo_run_and_prove` tool,
-//! which runs a Cairo program and generates a Stwo proof for it.
+//! This module provides a robust interface for invoking the `stwo_verify` tool,
+//! which verifies a Stwo Cairo proof.
 //!
 //! # Binary Resolution
 //!
 //! The binary is resolved in the following order:
-//! 1. `STWO_RUN_AND_PROVE_PATH` environment variable (explicit path)
-//! 2. Local install location: `<repo_root>/target/tools/stwo_run_and_prove`
+//! 1. `STWO_VERIFY_PATH` environment variable (explicit path)
+//! 2. Local install location: `<repo_root>/target/tools/stwo_verify`
 //! 3. PATH lookup (preferred in Docker containers where it's at `/usr/local/bin/`)
 //!
 //! # Installation
 //!
 //! For local development, run:
 //! ```bash
-//! scripts/install_stwo_run_and_prove.sh
+//! scripts/install_stwo_verify.sh
 //! ```
 //!
 //! After running the install script, the binary will be automatically found - no PATH
 //! modification needed.
 //!
-//! In Docker/k8s, the binary is pre-installed at `/usr/local/bin/stwo_run_and_prove`.
+//! In Docker/k8s, the binary is pre-installed at `/usr/local/bin/stwo_verify`.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -29,47 +29,47 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use thiserror::Error;
 use tokio::process::Command;
 
-/// Environment variable for overriding the `stwo_run_and_prove` binary path.
-pub const STWO_RUN_AND_PROVE_PATH_ENV: &str = "STWO_RUN_AND_PROVE_PATH";
+/// Environment variable for overriding the `stwo_verify` binary path.
+pub const STWO_VERIFY_PATH_ENV: &str = "STWO_VERIFY_PATH";
 
 /// Default binary name for PATH lookup.
-const DEFAULT_BINARY_NAME: &str = "stwo_run_and_prove";
+const DEFAULT_BINARY_NAME: &str = "stwo_verify";
 
 /// Relative path from repo root to the installed binary.
-const INSTALL_RELATIVE_PATH: &str = "target/tools/stwo_run_and_prove";
+const INSTALL_RELATIVE_PATH: &str = "target/tools/stwo_verify";
 
-/// Default timeout for proving operations (10 minutes).
+/// Default timeout for verification operations (10 minutes).
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Errors that can occur when executing `stwo_run_and_prove`.
+/// Errors that can occur when executing `stwo_verify`.
 #[derive(Debug, Error)]
-pub enum StwoRunAndProveError {
+pub enum StwoVerifyError {
     /// The binary was not found at the configured path or in PATH.
     #[error(
-        "stwo_run_and_prove binary not found. Either set {STWO_RUN_AND_PROVE_PATH_ENV} \
-         environment variable, add it to PATH, or run: scripts/install_stwo_run_and_prove.sh"
+        "stwo_verify binary not found. Either set {STWO_VERIFY_PATH_ENV} environment variable, \
+         add it to PATH, or run: scripts/install_stwo_verify.sh"
     )]
     BinaryNotFound,
 
     /// Failed to spawn the process.
-    #[error("Failed to spawn stwo_run_and_prove: {0}")]
+    #[error("Failed to spawn stwo_verify: {0}")]
     SpawnError(#[source] std::io::Error),
 
     /// The process exited with a non-zero status.
     #[error(
-        "stwo_run_and_prove failed with exit code {exit_code}.\nStderr (last {stderr_lines} \
+        "stwo_verify failed with exit code {exit_code}.\nStderr (last {stderr_lines} \
          lines):\n{stderr}"
     )]
     ProcessFailed { exit_code: i32, stderr: String, stderr_lines: usize },
 
     /// The process was killed by a signal.
-    #[error("stwo_run_and_prove was killed by signal {signal}")]
+    #[error("stwo_verify was killed by signal {signal}")]
     ProcessKilled { signal: i32 },
 
     /// The process timed out.
     #[error(
-        "stwo_run_and_prove timed out after {duration:?}. Consider increasing the timeout or \
-         checking resource constraints."
+        "stwo_verify timed out after {duration:?}. Consider increasing the timeout or checking \
+         resource constraints."
     )]
     Timeout { duration: Duration },
 
@@ -78,42 +78,39 @@ pub enum StwoRunAndProveError {
     IoError(#[from] std::io::Error),
 }
 
-/// Configuration for running `stwo_run_and_prove`.
+/// Configuration for running `stwo_verify`.
 #[derive(Debug, Clone)]
-pub struct StwoRunAndProveConfig {
+pub struct StwoVerifyConfig {
     /// Optional explicit path to the binary. If None, uses PATH lookup.
     pub binary_path: Option<PathBuf>,
-    /// Timeout for the proving operation.
+    /// Timeout for the verification operation.
     pub timeout: Duration,
-    /// Whether to verify the generated proof.
-    pub verify: bool,
-    /// Proof output format.
+    /// Proof format for deserialization.
     pub proof_format: ProofFormat,
-    /// Whether to always save debug data (even when there is no error).
-    pub save_debug_data: bool,
-    /// Directory for debug data output.
-    pub debug_data_dir: Option<PathBuf>,
+    /// Hash variant for the Merkle channel.
+    pub channel_hash: ChannelHash,
+    /// Preprocessed trace variant.
+    pub preprocessed_trace: PreprocessedTrace,
 }
 
-impl Default for StwoRunAndProveConfig {
+impl Default for StwoVerifyConfig {
     fn default() -> Self {
         Self {
             binary_path: None,
             timeout: DEFAULT_TIMEOUT,
-            verify: false,
             proof_format: ProofFormat::CairoSerde,
-            save_debug_data: false,
-            debug_data_dir: None,
+            channel_hash: ChannelHash::Blake2s,
+            preprocessed_trace: PreprocessedTrace::Canonical,
         }
     }
 }
 
-/// Proof output format.
+/// Proof format for `stwo_verify`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ProofFormat {
     /// Standard JSON format.
     Json,
-    /// Array of field elements serialized as hex strings. Compatible with `scarb execute`.
+    /// Array of field elements serialized as hex strings.
     #[default]
     CairoSerde,
     /// Binary format, additionally compressed to minimize the proof size.
@@ -130,24 +127,58 @@ impl ProofFormat {
     }
 }
 
-/// Input for a `stwo_run_and_prove` invocation.
-#[derive(Debug, Clone)]
-pub struct StwoRunAndProveInput {
-    /// Absolute path to the compiled program.
-    pub program_path: PathBuf,
-    /// Optional absolute path to the program input file.
-    pub program_input_path: Option<PathBuf>,
-    /// Optional absolute path to the prover parameters JSON file.
-    pub prover_params_path: Option<PathBuf>,
-    /// Absolute path where the generated proof will be saved.
-    pub proof_output_path: PathBuf,
-    /// Optional absolute path for the program output.
-    pub program_output_path: Option<PathBuf>,
+/// Hash variant for the Merkle channel.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ChannelHash {
+    /// Blake2s-based Merkle channel.
+    #[default]
+    Blake2s,
+    /// Poseidon252-based Merkle channel.
+    Poseidon252,
 }
 
-/// Output from a successful `stwo_run_and_prove` invocation.
+impl ChannelHash {
+    fn as_str(&self) -> &'static str {
+        match self {
+            ChannelHash::Blake2s => "blake2s",
+            ChannelHash::Poseidon252 => "poseidon252",
+        }
+    }
+}
+
+/// Preprocessed trace variant.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PreprocessedTrace {
+    /// Canonical preprocessed trace.
+    #[default]
+    Canonical,
+    /// Canonical trace without pedersen.
+    CanonicalWithoutPedersen,
+}
+
+impl PreprocessedTrace {
+    fn as_str(&self) -> &'static str {
+        match self {
+            PreprocessedTrace::Canonical => "canonical",
+            PreprocessedTrace::CanonicalWithoutPedersen => "canonical_without_pedersen",
+        }
+    }
+}
+
+/// Input for a `stwo_verify` invocation.
+#[derive(Debug, Clone)]
+pub struct StwoVerifyInput {
+    /// Absolute path to the proof file.
+    pub proof_path: PathBuf,
+    /// Optional absolute path where the program output will be saved.
+    pub program_output_path: Option<PathBuf>,
+    /// Optional absolute path where the program hash will be saved.
+    pub program_hash_output_path: Option<PathBuf>,
+}
+
+/// Output from a successful `stwo_verify` invocation.
 #[derive(Debug)]
-pub struct StwoRunAndProveOutput {
+pub struct StwoVerifyOutput {
     /// Standard output from the process.
     pub stdout: String,
     /// Standard error from the process (may contain logs).
@@ -159,24 +190,24 @@ pub fn get_local_install_path() -> Option<PathBuf> {
     resolve_project_relative_path(INSTALL_RELATIVE_PATH).ok()
 }
 
-/// Resolves the path to the `stwo_run_and_prove` binary.
+/// Resolves the path to the `stwo_verify` binary.
 ///
 /// Resolution order:
 /// 1. Explicit path from config (if provided)
-/// 2. `STWO_RUN_AND_PROVE_PATH` environment variable
-/// 3. Local install location: `<repo_root>/target/tools/stwo_run_and_prove`
+/// 2. `STWO_VERIFY_PATH` environment variable
+/// 3. Local install location: `<repo_root>/target/tools/stwo_verify`
 /// 4. Default binary name for PATH lookup
 ///
 /// For option 3, the function checks if the file exists before returning.
 /// If the local install doesn't exist, it falls back to PATH lookup.
-pub fn resolve_binary_path(config: &StwoRunAndProveConfig) -> PathBuf {
+pub fn resolve_binary_path(config: &StwoVerifyConfig) -> PathBuf {
     // 1. Check explicit config.
     if let Some(ref path) = config.binary_path {
         return path.clone();
     }
 
     // 2. Check environment variable.
-    if let Ok(env_path) = std::env::var(STWO_RUN_AND_PROVE_PATH_ENV) {
+    if let Ok(env_path) = std::env::var(STWO_VERIFY_PATH_ENV) {
         return PathBuf::from(env_path);
     }
 
@@ -191,12 +222,10 @@ pub fn resolve_binary_path(config: &StwoRunAndProveConfig) -> PathBuf {
     PathBuf::from(DEFAULT_BINARY_NAME)
 }
 
-/// Checks if the `stwo_run_and_prove` binary is available.
+/// Checks if the `stwo_verify` binary is available.
 ///
 /// Returns the resolved path if found, or an error if not found.
-pub async fn check_binary_available(
-    config: &StwoRunAndProveConfig,
-) -> Result<PathBuf, StwoRunAndProveError> {
+pub async fn check_binary_available(config: &StwoVerifyConfig) -> Result<PathBuf, StwoVerifyError> {
     let binary_path = resolve_binary_path(config);
 
     // Try running with --help to verify the binary exists and is executable.
@@ -208,42 +237,38 @@ pub async fn check_binary_available(
             // Binary exists but --help failed (unusual).
             Ok(binary_path)
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(StwoRunAndProveError::BinaryNotFound)
-        }
-        Err(e) => Err(StwoRunAndProveError::SpawnError(e)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(StwoVerifyError::BinaryNotFound),
+        Err(e) => Err(StwoVerifyError::SpawnError(e)),
     }
 }
 
-/// Runs `stwo_run_and_prove` with the given input and configuration.
+/// Runs `stwo_verify` with the given input and configuration.
 ///
 /// # Arguments
 ///
-/// * `input` - The input paths for the proving operation.
-/// * `config` - Configuration for the proving operation.
+/// * `input` - The input paths for the verification operation.
+/// * `config` - Configuration for the verification operation.
 ///
 /// # Returns
 ///
-/// The output from the proving operation, or an error if it failed.
+/// The output from the verification operation, or an error if it failed.
 ///
 /// # Example
 ///
 /// ```ignore
-/// let input = StwoRunAndProveInput {
-///     program_path: PathBuf::from("/path/to/program.json"),
-///     program_input_path: Some(PathBuf::from("/path/to/input.json")),
-///     prover_params_path: None,
-///     proof_output_path: PathBuf::from("/path/to/proof.json"),
-///     program_output_path: None,
+/// let input = StwoVerifyInput {
+///     proof_path: PathBuf::from("/path/to/proof.json"),
+///     program_output_path: Some(PathBuf::from("/path/to/output.json")),
+///     program_hash_output_path: None,
 /// };
 ///
-/// let config = StwoRunAndProveConfig::default();
-/// let output = run_stwo_run_and_prove(&input, &config).await?;
+/// let config = StwoVerifyConfig::default();
+/// let output = run_stwo_verify(&input, &config).await?;
 /// ```
-pub async fn run_stwo_run_and_prove(
-    input: &StwoRunAndProveInput,
-    config: &StwoRunAndProveConfig,
-) -> Result<StwoRunAndProveOutput, StwoRunAndProveError> {
+pub async fn run_stwo_verify(
+    input: &StwoVerifyInput,
+    config: &StwoVerifyConfig,
+) -> Result<StwoVerifyOutput, StwoVerifyError> {
     // Resolve binary path.
     let binary_path = resolve_binary_path(config);
 
@@ -251,35 +276,20 @@ pub async fn run_stwo_run_and_prove(
     let mut command = Command::new(&binary_path);
 
     // Required arguments.
-    command.arg("--program").arg(&input.program_path);
-    command.arg("--proof_path").arg(&input.proof_output_path);
+    command.arg("--proof_path").arg(&input.proof_path);
+
+    // Configuration options.
+    command.arg("--proof-format").arg(config.proof_format.as_str());
+    command.arg("--channel_hash").arg(config.channel_hash.as_str());
+    command.arg("--preprocessed_trace").arg(config.preprocessed_trace.as_str());
 
     // Optional arguments.
-    if let Some(ref input_path) = input.program_input_path {
-        command.arg("--program_input").arg(input_path);
-    }
-
-    if let Some(ref params_path) = input.prover_params_path {
-        command.arg("--prover_params_json").arg(params_path);
-    }
-
     if let Some(ref output_path) = input.program_output_path {
         command.arg("--program_output").arg(output_path);
     }
 
-    // Configuration options.
-    command.arg("--proof-format").arg(config.proof_format.as_str());
-
-    if config.verify {
-        command.arg("--verify");
-    }
-
-    if config.save_debug_data {
-        command.arg("--save_debug_data");
-    }
-
-    if let Some(ref debug_dir) = config.debug_data_dir {
-        command.arg("--debug_data_dir").arg(debug_dir);
+    if let Some(ref hash_path) = input.program_hash_output_path {
+        command.arg("--program_hash_output").arg(hash_path);
     }
 
     // Set RUST_BACKTRACE for better error diagnostics.
@@ -288,20 +298,19 @@ pub async fn run_stwo_run_and_prove(
     // Log the command being executed (without sensitive data).
     tracing::info!(
         binary_path = %binary_path.display(),
-        program = %input.program_path.display(),
-        proof_output = %input.proof_output_path.display(),
-        "Executing stwo_run_and_prove"
+        proof = %input.proof_path.display(),
+        "Executing stwo_verify"
     );
 
     // Execute with timeout.
     let output = tokio::time::timeout(config.timeout, command.output())
         .await
-        .map_err(|_| StwoRunAndProveError::Timeout { duration: config.timeout })?
+        .map_err(|_| StwoVerifyError::Timeout { duration: config.timeout })?
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                StwoRunAndProveError::BinaryNotFound
+                StwoVerifyError::BinaryNotFound
             } else {
-                StwoRunAndProveError::SpawnError(e)
+                StwoVerifyError::SpawnError(e)
             }
         })?;
 
@@ -318,9 +327,9 @@ pub async fn run_stwo_run_and_prove(
                 tracing::error!(
                     signal,
                     stderr = %stderr,
-                    "stwo_run_and_prove killed by signal"
+                    "stwo_verify killed by signal"
                 );
-                return Err(StwoRunAndProveError::ProcessKilled { signal });
+                return Err(StwoVerifyError::ProcessKilled { signal });
             }
         }
 
@@ -338,22 +347,19 @@ pub async fn run_stwo_run_and_prove(
         tracing::error!(
             exit_code,
             stderr = %stderr_tail,
-            "stwo_run_and_prove failed"
+            "stwo_verify failed"
         );
 
-        return Err(StwoRunAndProveError::ProcessFailed {
+        return Err(StwoVerifyError::ProcessFailed {
             exit_code,
             stderr: stderr_tail,
             stderr_lines: MAX_STDERR_LINES.min(stderr_lines.len()),
         });
     }
 
-    tracing::info!(
-        proof_path = %input.proof_output_path.display(),
-        "stwo_run_and_prove completed successfully"
-    );
+    tracing::info!("stwo_verify completed successfully");
 
-    Ok(StwoRunAndProveOutput { stdout, stderr })
+    Ok(StwoVerifyOutput { stdout, stderr })
 }
 
 #[cfg(test)]
@@ -369,9 +375,9 @@ mod tests {
     fn test_resolve_binary_path_default() {
         let _lock = ENV_LOCK.lock().expect("env lock poisoned.");
         // Clear environment variable for this test.
-        std::env::remove_var(STWO_RUN_AND_PROVE_PATH_ENV);
+        std::env::remove_var(STWO_VERIFY_PATH_ENV);
 
-        let config = StwoRunAndProveConfig::default();
+        let config = StwoVerifyConfig::default();
         let path = resolve_binary_path(&config);
 
         // Should either find local install or fall back to PATH lookup.
@@ -388,7 +394,7 @@ mod tests {
     fn test_get_local_install_path() {
         // Should return a path ending with the expected relative path.
         if let Some(path) = get_local_install_path() {
-            assert!(path.ends_with("target/tools/stwo_run_and_prove"));
+            assert!(path.ends_with("target/tools/stwo_verify"));
         }
         // It's OK if this returns None in some environments (e.g., if CARGO_MANIFEST_DIR is not
         // set).
@@ -396,21 +402,21 @@ mod tests {
 
     #[test]
     fn test_resolve_binary_path_from_config() {
-        let config = StwoRunAndProveConfig {
-            binary_path: Some(PathBuf::from("/custom/path/stwo_run_and_prove")),
+        let config = StwoVerifyConfig {
+            binary_path: Some(PathBuf::from("/custom/path/stwo_verify")),
             ..Default::default()
         };
         let path = resolve_binary_path(&config);
-        assert_eq!(path, PathBuf::from("/custom/path/stwo_run_and_prove"));
+        assert_eq!(path, PathBuf::from("/custom/path/stwo_verify"));
     }
 
     #[test]
     fn test_resolve_binary_path_from_env() {
         let _lock = ENV_LOCK.lock().expect("env lock poisoned.");
-        std::env::set_var(STWO_RUN_AND_PROVE_PATH_ENV, "/env/path/stwo_run_and_prove");
-        let config = StwoRunAndProveConfig::default();
+        std::env::set_var(STWO_VERIFY_PATH_ENV, "/env/path/stwo_verify");
+        let config = StwoVerifyConfig::default();
         let path = resolve_binary_path(&config);
-        assert_eq!(path, PathBuf::from("/env/path/stwo_run_and_prove"));
-        std::env::remove_var(STWO_RUN_AND_PROVE_PATH_ENV);
+        assert_eq!(path, PathBuf::from("/env/path/stwo_verify"));
+        std::env::remove_var(STWO_VERIFY_PATH_ENV);
     }
 }
