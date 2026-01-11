@@ -32,6 +32,7 @@ url.workspace = true
 
 [dev-dependencies]
 blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
 rstest.workspace = true
 
 [lints]

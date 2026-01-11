@@ -1,5 +1,6 @@
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
+use cairo_vm::types::errors::program_errors::ProgramError;
 use starknet_api::core::ClassHash;
 use starknet_os::errors::StarknetOsError;
 use starknet_rust::providers::ProviderError;
@@ -49,4 +50,6 @@ pub enum ClassesProviderError {
     DeprecatedContractError(ClassHash),
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error(transparent)]
+    HintsConversionError(#[from] ProgramError),
 }
