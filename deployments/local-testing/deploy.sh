@@ -404,6 +404,7 @@ build_images() {
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
         "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
+        "dummy-gcs:deployments/images/sequencer/dummy_gcs.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
     
@@ -822,6 +823,7 @@ prepare_box() {
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
         "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
+        "dummy-gcs:deployments/images/sequencer/dummy_gcs.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
     
