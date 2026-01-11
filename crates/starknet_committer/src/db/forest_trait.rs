@@ -137,7 +137,7 @@ where
 
     // Storage tries.
     for (contract_address, tree) in &filled_forest.storage_tries {
-        serialized_forest.extend(tree.serialize::<Layout>(&contract_address)?);
+        serialized_forest.extend(tree.serialize::<Layout>(contract_address)?);
     }
 
     // Contracts trie.

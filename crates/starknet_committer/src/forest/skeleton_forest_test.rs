@@ -34,6 +34,8 @@ use crate::block_committer::input::{
 use crate::db::facts_db::db::FactsDb;
 use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::ForestReader;
+use crate::db::index_db::db::IndexDb;
+use crate::db::index_db::test_utils::convert_facts_forest_db_to_index_db;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
