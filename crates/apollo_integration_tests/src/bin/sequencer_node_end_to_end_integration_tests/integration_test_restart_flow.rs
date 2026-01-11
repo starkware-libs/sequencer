@@ -101,5 +101,6 @@ async fn main() {
         .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
+    info!("Yahoo! We made it to the end of the test.");
     info!("Restart flow integration test completed successfully!");
 }
