@@ -18,6 +18,9 @@ RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v1.5.1/found
 COPY --from=planner /app/recipe.json recipe.json
 # Copy .cargo/config.toml before cargo chef cook so llvm-sys can find LLVM
 COPY .cargo .cargo
+# Verify LLVM environment variables are set (inherited from base image)
+RUN echo "LLVM environment variables:" && \
+    env | grep -E "LLVM_SYS|MLIR_SYS|TABLEGEN" || true
 RUN cargo chef cook --recipe-path recipe.json --bin sequencer_node_setup
 COPY . .
 RUN cargo build --bin sequencer_node_setup

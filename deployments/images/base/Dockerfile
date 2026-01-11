@@ -23,6 +23,14 @@ ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 RUN ./install_build_tools.sh
+
+# Set LLVM environment variables explicitly (in addition to .cargo/config.toml)
+# Note: LLVM installation is verified in dependencies.sh during installation
+# Note: These are version-specific and should match .cargo/config.toml
+ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
+ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"
+ENV TABLEGEN_190_PREFIX="/usr/lib/llvm-19/"
+
 RUN rustup toolchain install
 RUN cargo install cargo-chef
 
