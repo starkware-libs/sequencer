@@ -10609,7 +10609,11 @@ name = "proving_utils"
 version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
+ "bzip2 0.5.2",
+ "rstest",
  "serde",
+ "starknet_api",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
