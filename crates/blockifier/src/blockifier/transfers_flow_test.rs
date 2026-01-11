@@ -16,7 +16,8 @@ use crate::transaction::objects::TransactionExecutionInfo;
 const TIME_FOR_ZERO_TXS: Duration = Duration::ZERO;
 const TIME_FOR_ALL_TXS: Duration = Duration::from_secs(100000000);
 
-const N_TXS: usize = 200;
+const N_ACCOUNTS: u16 = 100;
+const N_TXS: usize = 20;
 
 #[rstest]
 #[case::zero_txs(Some(TIME_FOR_ZERO_TXS), RecipientGeneratorType::DisjointFromSenders)]
@@ -75,6 +76,7 @@ pub fn transfers_flow_test_body(
         recipient_generator_type,
         concurrency_config,
         cairo_version: CairoVersion::Cairo1(cairo1_version),
+        n_accounts: N_ACCOUNTS,
         n_txs: N_TXS,
         ..Default::default()
     };

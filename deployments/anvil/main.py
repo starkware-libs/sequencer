@@ -8,7 +8,7 @@ from constructs import Construct
 from imports import k8s
 
 SERVICE_PORT = 8545
-IMAGE = "ghcr.io/foundry-rs/foundry:v0.3.0"
+IMAGE = "ghcr.io/foundry-rs/foundry:v1.5.1"
 
 
 def argument_parser():

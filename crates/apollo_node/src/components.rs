@@ -232,12 +232,19 @@ pub async fn create_node_components(
 
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
             let gateway_client =
                 clients.get_gateway_shared_client().expect("Gateway client should be available");
 
-            Some(create_http_server(http_server_config.clone(), gateway_client))
+            Some(create_http_server(
+                http_server_config.clone(),
+                config_manager_client,
+                gateway_client,
+            ))
         }
         ActiveComponentExecutionMode::Disabled => None,
     };

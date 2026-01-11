@@ -76,6 +76,7 @@ use starknet_api::state::SierraContractClass;
 
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::state::{DeclaredClassesTable, DeprecatedDeclaredClassesTable, FileOffsetTable};
 use crate::{
     DbTransaction,
@@ -93,11 +94,35 @@ pub trait ClassStorageReader {
     /// Returns the Cairo 1 class with the given hash.
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>>;
 
+    /// Returns the location of the Cairo 1 class in the mmap file for the given class hash.
+    fn get_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<crate::LocationInFile>>;
+
+    /// Returns the Cairo 1 class stored in the mmap file at the given location.
+    fn get_class_from_location(
+        &self,
+        location: crate::LocationInFile,
+    ) -> StorageResult<SierraContractClass>;
+
     /// Returns the Cairo 0 class with the given hash.
     fn get_deprecated_class(
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<DeprecatedContractClass>>;
+
+    /// Returns the file location for a Cairo 0 class with the given hash.
+    fn get_deprecated_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<LocationInFile>>;
+
+    /// Returns the Cairo 0 class from a specific file location.
+    fn get_deprecated_class_from_location(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<DeprecatedContractClass>;
 
     /// The block marker is the first block number that we don't have all of its classes.
     fn get_class_marker(&self) -> StorageResult<BlockNumber>;
@@ -126,27 +151,53 @@ where
 }
 
 impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
+    // TODO(Nadin): Consider moving the function to the general impl StorageTxn<'_, Mode> block.
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
+        let contract_class_location = self.get_class_location(class_hash)?;
+        contract_class_location.map(|location| self.get_class_from_location(location)).transpose()
+    }
+
+    fn get_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<crate::LocationInFile>> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        let contract_class_location = declared_classes_table.get(&self.txn, class_hash)?;
-        contract_class_location
-            .map(|location| self.file_handlers.get_contract_class_unchecked(location))
-            .transpose()
+        Ok(declared_classes_table.get(&self.txn, class_hash)?)
+    }
+
+    fn get_class_from_location(
+        &self,
+        location: crate::LocationInFile,
+    ) -> StorageResult<SierraContractClass> {
+        self.file_handlers.get_contract_class_unchecked(location)
     }
 
     fn get_deprecated_class(
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<DeprecatedContractClass>> {
+        let deprecated_contract_class_location = self.get_deprecated_class_location(class_hash)?;
+        deprecated_contract_class_location
+            .map(|location| self.get_deprecated_class_from_location(location))
+            .transpose()
+    }
+
+    fn get_deprecated_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<LocationInFile>> {
         let deprecated_declared_classes_table =
             self.open_table(&self.tables.deprecated_declared_classes)?;
         let deprecated_contract_class_location =
             deprecated_declared_classes_table.get(&self.txn, class_hash)?;
-        deprecated_contract_class_location
-            .map(|value| {
-                self.file_handlers.get_deprecated_contract_class_unchecked(value.location_in_file)
-            })
-            .transpose()
+        Ok(deprecated_contract_class_location.map(|value| value.location_in_file))
+    }
+
+    fn get_deprecated_class_from_location(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<DeprecatedContractClass> {
+        self.file_handlers.get_deprecated_contract_class_unchecked(location)
     }
 
     fn get_class_marker(&self) -> StorageResult<BlockNumber> {

@@ -194,6 +194,21 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.commitment_manager_config.results_channel_size": {
+    "description": "The size of the channel for receiving results from the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.tasks_channel_size": {
+    "description": "The size of the channel for sending tasks to the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.wait_for_tasks_channel": {
+    "description": "If the task channel is full: if true, will wait for the tasks channel to be available. If false, will panic.",
+    "privacy": "Public",
+    "value": true
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -317,7 +332,7 @@
   "batcher_config.pre_confirmed_cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",
-    "privacy": "Private"
+    "privacy": "Public"
   },
   "batcher_config.propose_l1_txs_every": {
     "description": "Only propose L1 transactions every N proposals.",
@@ -1882,7 +1897,7 @@
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",
-    "privacy": "Private"
+    "privacy": "Public"
   },
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
@@ -2038,6 +2053,11 @@
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
+  },
+  "consensus_manager_config.context_config.deployment_mode": {
+    "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
+    "privacy": "Public",
+    "value": "starknet"
   },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
@@ -2504,17 +2524,22 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "http_server_config.ip": {
-    "description": "The http server ip.",
+  "http_server_config.dynamic_config.accept_new_txs": {
+    "description": "Enables accepting new txs.",
     "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": true
   },
-  "http_server_config.max_sierra_program_size": {
+  "http_server_config.dynamic_config.max_sierra_program_size": {
     "description": "The maximum size of a sierra program in bytes.",
     "privacy": "Public",
     "value": 4194304
   },
-  "http_server_config.port": {
+  "http_server_config.static_config.ip": {
+    "description": "The http server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "http_server_config.static_config.port": {
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080

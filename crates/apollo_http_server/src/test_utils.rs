@@ -1,9 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
-use apollo_http_server_config::config::{HttpServerConfig, DEFAULT_MAX_SIERRA_PROGRAM_SIZE};
+use apollo_http_server_config::config::{
+    HttpServerConfig,
+    HttpServerDynamicConfig,
+    DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
@@ -83,24 +88,24 @@ impl HttpTestClient {
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
-    HttpServerConfig {
-        ip: socket.ip(),
-        port: socket.port(),
-        max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
-    }
+    HttpServerConfig::new(socket.ip(), socket.port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE)
 }
 
 /// Creates an HTTP server and an HttpTestClient that can interact with it.
-pub async fn http_client_server_setup(
+async fn http_client_server_setup(
+    mock_config_manager_client: MockConfigManagerClient,
     mock_gateway_client: MockGatewayClient,
     http_server_config: HttpServerConfig,
 ) -> HttpTestClient {
     // Create and run the server.
-    let mut http_server =
-        HttpServer::new(http_server_config.clone(), Arc::new(mock_gateway_client));
+    let mut http_server = HttpServer::new(
+        http_server_config.clone(),
+        Arc::new(mock_config_manager_client),
+        Arc::new(mock_gateway_client),
+    );
     tokio::spawn(async move { http_server.run().await });
 
-    let HttpServerConfig { ip, port, .. } = http_server_config;
+    let (ip, port) = http_server_config.ip_and_port();
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
     // Ensure the server starts running.
@@ -149,18 +154,17 @@ impl GatewayTransaction for TransactionSerialization {
 }
 
 pub async fn add_tx_http_client(
+    mock_config_manager_client: MockConfigManagerClient,
     mock_gateway_client: MockGatewayClient,
     port_index: u16,
 ) -> HttpTestClient {
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
-    let http_server_config = HttpServerConfig {
-        ip,
-        port: available_ports.get_next_port(),
-        max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
-    };
-    http_client_server_setup(mock_gateway_client, http_server_config).await
+    let http_server_config =
+        HttpServerConfig::new(ip, available_ports.get_next_port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE);
+    http_client_server_setup(mock_config_manager_client, mock_gateway_client, http_server_config)
+        .await
 }
 
 pub fn rpc_invoke_tx() -> RpcTransaction {
@@ -177,4 +181,14 @@ pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 
 
 pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
+}
+
+// A mock config manager client returning the default http server dynamic config for an unlimited
+// number of requests.
+pub fn get_mock_config_manager_client() -> MockConfigManagerClient {
+    let mut mock_config_manager_client = MockConfigManagerClient::new();
+    mock_config_manager_client
+        .expect_get_http_server_dynamic_config()
+        .returning(move || Ok(HttpServerDynamicConfig::default()));
+    mock_config_manager_client
 }

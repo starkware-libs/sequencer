@@ -17,7 +17,10 @@ use apollo_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use apollo_batcher_types::communication::BatcherClient;
-use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -43,19 +46,24 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
+use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
+    BlockInfo,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
     WEI_PER_ETH,
 };
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
@@ -179,6 +187,14 @@ pub struct SequencerConsensusContextDeps {
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }
 
+#[derive(thiserror::Error, PartialEq, Debug)]
+enum ReproposeError {
+    #[error(transparent)]
+    SendError(#[from] SendError),
+    #[error(transparent)]
+    ConvertError(#[from] TransactionConverterError),
+}
+
 impl SequencerConsensusContext {
     pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
@@ -242,6 +258,187 @@ impl SequencerConsensusContext {
             None => false,
         }
     }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn update_state_sync_with_new_block(
+        &self,
+        height: BlockNumber,
+        state_diff: &ThinStateDiff,
+        transactions: &[InternalTransactionWithReceipt],
+        block_info: &ConsensusBlockInfo,
+        cende_block_info: &BlockInfo,
+        l2_gas_used: GasAmount,
+        block_header_commitments: BlockHeaderCommitments,
+    ) -> Result<(), StateSyncClientError> {
+        // Divide transactions hashes to L1Handler and RpcTransaction hashes.
+        let account_transaction_hashes = transactions
+            .iter()
+            .filter_map(|tx| match tx.transaction {
+                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.transaction.tx_hash()),
+                _ => None,
+            })
+            .collect::<Vec<TransactionHash>>();
+        let l1_transaction_hashes = transactions
+            .iter()
+            .filter_map(|tx| match tx.transaction {
+                InternalConsensusTransaction::L1Handler(_) => Some(tx.transaction.tx_hash()),
+                _ => None,
+            })
+            .collect::<Vec<TransactionHash>>();
+
+        let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
+        let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
+        let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
+        let sequencer = SequencerContractAddress(block_info.builder);
+
+        let block_header_without_hash = BlockHeaderWithoutHash {
+            block_number: height,
+            l1_gas_price,
+            l1_data_gas_price,
+            l2_gas_price,
+            l2_gas_consumed: l2_gas_used,
+            next_l2_gas_price: self.l2_gas_price,
+            sequencer,
+            timestamp: BlockTimestamp(block_info.timestamp),
+            l1_da_mode: block_info.l1_da_mode,
+            // TODO(guy.f): Figure out where/if to get the values below from and fill them.
+            ..Default::default()
+        };
+
+        let sync_block = SyncBlock {
+            state_diff: state_diff.clone(),
+            account_transaction_hashes,
+            l1_transaction_hashes,
+            block_header_without_hash,
+            block_header_commitments: Some(block_header_commitments),
+        };
+
+        self.deps.state_sync_client.add_new_block(sync_block).await
+    }
+
+    fn update_l2_gas_price(&mut self, l2_gas_used: GasAmount) {
+        let gas_target = VersionedConstants::latest_constants().gas_target;
+        if let Some(override_value) = self.config.override_l2_gas_price_fri {
+            info!(
+                "L2 gas price ({}) is not updated, remains on override value of {override_value} \
+                 fri",
+                self.l2_gas_price.0
+            );
+            self.l2_gas_price = GasPrice(override_value);
+        } else {
+            self.l2_gas_price =
+                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        }
+
+        let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
+        CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+    }
+
+    async fn finalize_decision(
+        &mut self,
+        height: BlockNumber,
+        block_info: &ConsensusBlockInfo,
+        commitment: ProposalCommitment,
+        // Accepts transactions as a vector of batches, as stored in the `BuiltProposals` map.
+        transactions: Vec<Vec<InternalConsensusTransaction>>,
+        decision_reached_response: DecisionReachedResponse,
+    ) {
+        let DecisionReachedResponse {
+            state_diff,
+            l2_gas_used,
+            central_objects,
+            block_header_commitments,
+        } = decision_reached_response;
+
+        self.update_l2_gas_price(l2_gas_used);
+
+        // A hash map of (possibly failed) transactions, where the key is the transaction hash
+        // and the value is the transaction itself.
+        let mut transactions_hash_map = HashMap::new();
+        for tx in transactions.into_iter().flatten() {
+            let key = tx.tx_hash();
+            if transactions_hash_map.insert(key, tx).is_some() {
+                // TODO(Dafna): Handle this error gracefully.
+                panic!("Duplicate transactions found with the same tx_hash: {key:?}");
+            }
+        }
+
+        // Convert the execution infos to `InternalTransactionWithReceipt` format.
+        // This is done by matching the transaction hashes in IndexMap<tx hash,execution info> with
+        // the transactions returned by the batcher.
+        //
+        // Only successfully executed transactions will have execution infos.
+        //
+        // This data structure preserves the order of transactions as they were listed in
+        // execution_infos.
+        let transactions_with_execution_infos = central_objects
+            .execution_infos
+            .into_iter()
+            .map(|(tx_hash, execution_info)| match transactions_hash_map.remove(&tx_hash) {
+                Some(tx) => InternalTransactionWithReceipt { transaction: tx, execution_info },
+                None => {
+                    // TODO(Dafna): Handle this error gracefully.
+                    panic!("Failed to find transaction for execution info with hash {tx_hash:?}.")
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // The conversion should never fail, if we already managed to get a decision.
+        let Ok(cende_block_info) = convert_to_sn_api_block_info(block_info) else {
+            warn!(
+                "Failed to convert block info to SN API block info at height {height}: \
+                 {block_info:?}"
+            );
+            return;
+        };
+
+        if let Err(e) = self
+            .update_state_sync_with_new_block(
+                height,
+                &state_diff,
+                &transactions_with_execution_infos,
+                block_info,
+                &cende_block_info,
+                l2_gas_used,
+                block_header_commitments,
+            )
+            .await
+        {
+            // TODO(Shahak): Decide how to handle this error once p2p state sync is
+            // production-ready. At this point, the block has already been committed to
+            // the state.
+            warn!("Failed to update state sync with new block at height {height}: {e:?}");
+        }
+
+        if let Err(e) = self
+            .deps
+            .cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters {
+                block_info: cende_block_info,
+                state_diff,
+                compressed_state_diff: central_objects.compressed_state_diff,
+                transactions_with_execution_infos,
+                bouncer_weights: central_objects.bouncer_weights,
+                casm_hash_computation_data_sierra_gas: central_objects
+                    .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: central_objects
+                    .casm_hash_computation_data_proving_gas,
+                fee_market_info: FeeMarketInfo {
+                    l2_gas_consumed: l2_gas_used,
+                    next_l2_gas_price: self.l2_gas_price,
+                },
+                compiled_class_hashes_for_migration: central_objects
+                    .compiled_class_hashes_for_migration,
+                proposal_commitment: commitment,
+                parent_proposal_commitment: central_objects
+                    .parent_proposal_commitment
+                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
+            })
+            .await
+        {
+            error!("Failed to prepare blob for next height at height {height}: {e:?}");
+        }
+    }
 }
 
 #[async_trait]
@@ -301,6 +498,9 @@ impl ConsensusContext for SequencerConsensusContext {
             + total_build_proposal_time
                 .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
 
+        let use_state_sync_block_timestamp =
+            self.config.deployment_mode.use_state_sync_block_timestamp();
+
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_deadline,
@@ -320,13 +520,16 @@ impl ConsensusContext for SequencerConsensusContext {
             retrospective_block_hash_retry_interval_millis: self
                 .config
                 .retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp,
         };
         let handle = tokio::spawn(
             async move {
                 let res = build_proposal(args).await.map(|proposal_commitment| {
-                    fin_sender
-                        .send(proposal_commitment)
-                        .map_err(|_| BuildProposalError::SendError(proposal_commitment))?;
+                    fin_sender.send(proposal_commitment).map_err(|e| {
+                        BuildProposalError::SendError(format!(
+                            "Failed to send proposal commitment: {e:?}"
+                        ))
+                    })?;
                     Ok::<_, BuildProposalError>(proposal_commitment)
                 });
                 match res {
@@ -414,48 +617,23 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                stream_sender
-                    .send(ProposalPart::Init(init))
-                    .await
-                    .expect("Failed to send proposal init");
-                stream_sender
-                    .send(ProposalPart::BlockInfo(block_info.clone()))
-                    .await
-                    .expect("Failed to send block info");
-                let mut n_executed_txs: usize = 0;
-                for batch in txs.iter() {
-                    let transactions = futures::future::join_all(batch.iter().map(|tx| {
-                        transaction_converter
-                            .convert_internal_consensus_tx_to_consensus_tx(tx.clone())
-                    }))
-                    .await
-                    .into_iter()
-                    .collect::<Result<Vec<_>, _>>();
-                    let Ok(transactions) = transactions else {
-                        // transaction_converter is an external dependency (class manager) and so
-                        // we can't assume success on reproposal.
-                        error!("Failed converting transaction during repropose: {transactions:?}");
-                        return;
-                    };
-
-                    stream_sender
-                        .send(ProposalPart::Transactions(TransactionBatch { transactions }))
-                        .await
-                        .expect("Failed to broadcast proposal content");
-                    n_executed_txs += batch.len();
+                let res = send_reproposal(
+                    id,
+                    init,
+                    block_info,
+                    txs,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
+                match res {
+                    Ok(()) => {
+                        info!(?id, ?init, "Reproposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("REPROPOSE_FAILED: Reproposal failed. Error: {e:?}");
+                    }
                 }
-                stream_sender
-                    .send(ProposalPart::ExecutedTransactionCount(
-                        n_executed_txs
-                            .try_into()
-                            .expect("Number of executed transactions should fit in u64"),
-                    ))
-                    .await
-                    .expect("Failed to broadcast executed transaction count");
-                stream_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
-                    .await
-                    .expect("Failed to broadcast proposal fin");
             }
             .instrument(error_span!("consensus_repropose", round = init.round)),
         );
@@ -503,141 +681,24 @@ impl ConsensusContext for SequencerConsensusContext {
             proposals.remove_proposals_below_or_at_height(&height);
         }
 
-        let DecisionReachedResponse {
-            state_diff,
-            l2_gas_used,
-            central_objects,
-            block_header_commitments,
-        } = self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
+        let decision_reached_response =
+            self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
 
-        // A hash map of (possibly failed) transactions, where the key is the transaction hash
-        // and the value is the transaction itself.
-        let mut transactions_hash_map = HashMap::new();
-        for tx in transactions.into_iter().flatten() {
-            let key = tx.tx_hash();
-            if transactions_hash_map.insert(key, tx).is_some() {
-                let err = format!("Duplicate transactions found with the same tx_hash: {key:?}");
-                error!(err);
-                return Err(ConsensusError::Other(err));
-            }
-        }
+        // CRITICAL: The block is now committed. This function must not fail beyond this point
+        // unless the state is fully reverted, otherwise the node will be left in an
+        // inconsistent state.
 
-        // Convert the execution infos to `InternalTransactionWithReceipt` format.
-        // This is done by matching the transaction hashes in IndexMap<tx hash,execution info> with
-        // the transactions returned by the batcher.
-        //
-        // Only successfully executed transactions will have execution infos.
-        //
-        // This data structure preserves the order of transactions as they were listed in
-        // execution_infos.
-        let transactions_with_execution_infos = central_objects
-            .execution_infos
-            .into_iter()
-            .map(|(tx_hash, execution_info)| match transactions_hash_map.remove(&tx_hash) {
-                Some(tx) => Ok(InternalTransactionWithReceipt { transaction: tx, execution_info }),
-                None => Err("Failed to find transaction for execution info with hash {tx_hash:?}."),
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| {
-                error!("{e}");
-                ConsensusError::Other(e.to_string())
-            })?;
+        self.finalize_decision(
+            height,
+            &block_info,
+            commitment,
+            transactions,
+            decision_reached_response,
+        )
+        .await;
 
-        let gas_target = VersionedConstants::latest_constants().gas_target;
-        if let Some(override_value) = self.config.override_l2_gas_price_fri {
-            info!(
-                "L2 gas price ({}) is not updated, remains on override value of {override_value} \
-                 fri",
-                self.l2_gas_price.0
-            );
-            self.l2_gas_price = GasPrice(override_value);
-        } else {
-            self.l2_gas_price =
-                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
-        }
-
-        let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
-        CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
-
-        // The conversion should never fail, if we already managed to get a decision.
-        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
-        let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
-        let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
-        let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
-        let sequencer = SequencerContractAddress(block_info.builder);
-
-        let block_header_without_hash = BlockHeaderWithoutHash {
-            block_number: height,
-            l1_gas_price,
-            l1_data_gas_price,
-            l2_gas_price,
-            l2_gas_consumed: l2_gas_used,
-            next_l2_gas_price: self.l2_gas_price,
-            sequencer,
-            timestamp: BlockTimestamp(block_info.timestamp),
-            l1_da_mode: block_info.l1_da_mode,
-            // TODO(guy.f): Figure out where/if to get the values below from and fill them.
-            ..Default::default()
-        };
-
-        // Divide transactions hashes to L1Handler and RpcTransaction hashes.
-        let account_transaction_hashes = transactions_with_execution_infos
-            .iter()
-            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
-                InternalConsensusTransaction::RpcTransaction(_) => {
-                    Some(tx_with_receipt.transaction.tx_hash())
-                }
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-        let l1_transaction_hashes = transactions_with_execution_infos
-            .iter()
-            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
-                InternalConsensusTransaction::L1Handler(_) => {
-                    Some(tx_with_receipt.transaction.tx_hash())
-                }
-                _ => None,
-            })
-            .collect::<Vec<TransactionHash>>();
-
-        let sync_block = SyncBlock {
-            state_diff: state_diff.clone(),
-            account_transaction_hashes,
-            l1_transaction_hashes,
-            block_header_without_hash,
-            block_header_commitments: Some(block_header_commitments),
-        };
-        self.sync_add_new_block(sync_block).await;
-
-        let _ = self
-            .deps
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
-                block_info: cende_block_info,
-                state_diff,
-                compressed_state_diff: central_objects.compressed_state_diff,
-                transactions_with_execution_infos,
-                bouncer_weights: central_objects.bouncer_weights,
-                casm_hash_computation_data_sierra_gas: central_objects
-                    .casm_hash_computation_data_sierra_gas,
-                casm_hash_computation_data_proving_gas: central_objects
-                    .casm_hash_computation_data_proving_gas,
-                fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used,
-                    next_l2_gas_price: self.l2_gas_price,
-                },
-                compiled_class_hashes_for_migration: central_objects
-                    .compiled_class_hashes_for_migration,
-                proposal_commitment: commitment,
-                parent_proposal_commitment: central_objects
-                    .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
-            })
-            .await
-            .inspect_err(|e| {
-                error!("Failed to prepare blob for next height: {e:?}");
-            });
         self.previous_block_info = Some(block_info);
+
         Ok(())
     }
 
@@ -817,19 +878,10 @@ impl SequencerConsensusContext {
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
-            handle.await.expect("Proposal task failed, propagating panic");
+            if let Err(e) = handle.await {
+                warn!("Proposal task finished unexpectedly: {e:?}");
+            }
         }
-    }
-
-    // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
-    async fn sync_add_new_block(&mut self, sync_block: SyncBlock) {
-        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
-        // should have a way to report an error and continue to the next height.
-        self.deps
-            .state_sync_client
-            .add_new_block(sync_block.clone())
-            .await
-            .expect("Failed to add new block due to sync error: {e:?}");
     }
 }
 
@@ -842,6 +894,39 @@ async fn validate_and_send(
         .send(proposal_commitment)
         .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
     Ok(proposal_commitment)
+}
+
+async fn send_reproposal(
+    id: ProposalCommitment,
+    init: ProposalInit,
+    block_info: ConsensusBlockInfo,
+    txs: Vec<Vec<InternalConsensusTransaction>>,
+    stream_sender: &mut StreamSender,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
+) -> Result<(), ReproposeError> {
+    stream_sender.send(ProposalPart::Init(init)).await?;
+    stream_sender.send(ProposalPart::BlockInfo(block_info)).await?;
+    let mut n_executed_txs: usize = 0;
+    for batch in txs.iter() {
+        let transactions = futures::future::join_all(batch.iter().map(|tx| {
+            // transaction_converter is an external dependency (class manager) and so
+            // we can't assume success on reproposal.
+            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
+        }))
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+        stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
+        n_executed_txs += batch.len();
+    }
+    stream_sender
+        .send(ProposalPart::ExecutedTransactionCount(
+            n_executed_txs.try_into().expect("Number of executed transactions should fit in u64"),
+        ))
+        .await?;
+    stream_sender.send(ProposalPart::Fin(ProposalFin { proposal_commitment: id })).await?;
+
+    Ok(())
 }
 
 fn get_eth_to_fri_rate(sync_block: &SyncBlock) -> u128 {

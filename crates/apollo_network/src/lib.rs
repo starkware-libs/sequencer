@@ -324,9 +324,16 @@ impl SerializeConfig for NetworkConfig {
                 "The timeout in seconds for a ping to be considered failed.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "secret_key",
+                &serialize_optional_vec_u8(
+                    &self.secret_key.as_ref().map(|s| s.clone().expose_secret()),
+                ),
+                "The secret key used for building the peer id. If it's an empty string a random one \
+                 will be used.",
+                ParamPrivacyInput::Private,
+            ),
         ]);
-        // TODO(Tsabary): this is not the proper way to dump a config. Needs fixing, and
-        // specifically, need to move the condition to be part of the serialization fn.
         config.extend(ser_optional_param(
             &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
             String::from(""),
@@ -334,15 +341,6 @@ impl SerializeConfig for NetworkConfig {
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
         ));
-        config.extend([ser_param(
-            "secret_key",
-            &serialize_optional_vec_u8(
-                &self.secret_key.as_ref().map(|s| s.clone().expose_secret()),
-            ),
-            "The secret key used for building the peer id. If it's an empty string a random one \
-             will be used.",
-            ParamPrivacyInput::Private,
-        )]);
         config.extend(ser_optional_param(
             &self.advertised_multiaddr,
             Multiaddr::empty(),

@@ -1,4 +1,5 @@
 use apollo_base_layer_tests::anvil_base_layer::{send_message_to_l2, AnvilBaseLayer};
+use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use assert_matches::assert_matches;
 use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
@@ -14,7 +15,13 @@ use starknet_api::{calldata, contract_address, felt};
 async fn events_from_other_contract() {
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let mut anvil_base_layer = AnvilBaseLayer::new(None, Some(8888)).await;
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::EventsFromOtherContractsTest.into());
+    let mut available_ports = ports_gen
+        .next()
+        .expect("Failed to get an AvailablePorts instance for events_from_other_contract");
+    let mut anvil_base_layer =
+        AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
     // Anvil base layer already auto-deployed a starknet contract.
     let this_contract = &anvil_base_layer.ethereum_base_layer.contract;
 

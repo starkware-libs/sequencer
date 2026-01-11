@@ -2,6 +2,7 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
 
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -56,12 +57,17 @@ pub struct HttpServer {
 
 #[derive(Clone)]
 pub struct AppState {
+    config_manager_client: SharedConfigManagerClient,
     pub gateway_client: SharedGatewayClient,
 }
 
 impl HttpServer {
-    pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
-        let app_state = AppState { gateway_client };
+    pub fn new(
+        config: HttpServerConfig,
+        config_manager_client: SharedConfigManagerClient,
+        gateway_client: SharedGatewayClient,
+    ) -> Self {
+        let app_state = AppState { config_manager_client, gateway_client };
         HttpServer { config, app_state }
     }
 
@@ -69,7 +75,7 @@ impl HttpServer {
         init_metrics();
 
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
-        let HttpServerConfig { ip, port, max_sierra_program_size: _ } = self.config;
+        let (ip, port) = self.config.ip_and_port();
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
@@ -86,8 +92,7 @@ impl HttpServer {
             .with_state(self.app_state.clone())
             // Rest api endpoint
             .route("/gateway/add_transaction", post({
-                let max_sierra_program_size = self.config.max_sierra_program_size;
-                move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx, max_sierra_program_size)
+                move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx)
             }))
             .with_state(self.app_state.clone())
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
@@ -122,10 +127,11 @@ async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
-    max_sierra_program_size: usize,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
+
+    let dynamic_config = app_state.config_manager_client.get_http_server_dynamic_config().await?;
 
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
         Ok(value) => value,
@@ -141,7 +147,7 @@ async fn add_tx(
         }
     };
 
-    let rpc_tx = tx.convert_to_rpc_tx(max_sierra_program_size).inspect_err(|e| {
+    let rpc_tx = tx.convert_to_rpc_tx(dynamic_config.max_sierra_program_size).inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
 
@@ -259,9 +265,10 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 
 pub fn create_http_server(
     config: HttpServerConfig,
+    config_manager_client: SharedConfigManagerClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
-    HttpServer::new(config, gateway_client)
+    HttpServer::new(config, config_manager_client, gateway_client)
 }
 
 #[async_trait]

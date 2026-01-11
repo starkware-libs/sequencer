@@ -31,8 +31,8 @@ use crate::component_server::{
     RemoteComponentServer,
 };
 use crate::tests::{
+    available_ports_factory,
     dummy_remote_server_config,
-    AVAILABLE_PORTS,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
@@ -157,7 +157,7 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
 
 async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let local_client = setup_concurrent_local_test().await;
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = available_ports_factory(7).get_next_local_host_socket();
     let remote_client_config = RemoteClientConfig::default();
 
     let max_concurrency = 10;

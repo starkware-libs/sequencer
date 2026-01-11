@@ -50,6 +50,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    RetrospectiveBlockHashError,
 };
 
 const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
@@ -99,10 +100,8 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -165,7 +164,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     initiate_validation(
-        args.deps.batcher.as_ref(),
+        args.deps.batcher.clone(),
         args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
@@ -178,13 +177,15 @@ pub(crate) async fn validate_proposal(
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                // Ignoring batcher errors, to better reflect the proposal interruption.
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ProposalInterrupted(
                     "validating proposal parts".to_string(),
                 ));
             }
             _ = args.deps.clock.sleep_until(deadline) => {
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                // Ignoring batcher errors, to better reflect the proposal deadline timeout.
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ValidationTimeout(
                     "validating proposal parts".to_string(),
                 ));
@@ -207,7 +208,7 @@ pub(crate) async fn validate_proposal(
                         return Err(ValidateProposalError::InvalidProposal(err));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
-                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
+                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await?;
                         return Err(ValidateProposalError::ProposalPartFailed(fail_reason,proposal_part));
                     }
                 }
@@ -386,7 +387,7 @@ async fn await_second_proposal_part(
 }
 
 async fn initiate_validation(
-    batcher: &dyn BatcherClient,
+    batcher: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
@@ -399,9 +400,13 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info)
-            .await
-            .map_err(ValidateProposalError::from)?,
+        retrospective_block_hash: retrospective_block_hash(
+            batcher.clone(),
+            state_sync_client,
+            &block_info,
+        )
+        .await
+        .map_err(ValidateProposalError::from)?,
         block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
@@ -546,38 +551,24 @@ async fn handle_proposal_part(
     }
 }
 
-// TODO(alonl, matan): consider making the retry logic part of the client interface.
-async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
+async fn batcher_abort_proposal(
+    batcher: &dyn BatcherClient,
+    proposal_id: ProposalId,
+) -> Result<(), ValidateProposalError> {
     let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
 
-    const MAX_CLIENT_RETRIES: usize = 10;
-    let mut client_attempts = 0;
-
-    loop {
-        match batcher.send_proposal_content(input.clone()).await {
-            Ok(_) => return, // Success - abort sent successfully
-
-            Err(BatcherClientError::BatcherError(BatcherError::ProposalAborted)) => {
-                warn!("Proposal {proposal_id:?} was already aborted by batcher");
-                return;
-            }
-
-            // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics.
-            // We should have a way to report an error and continue to the next height.
-            Err(BatcherClientError::BatcherError(e)) => {
-                panic!("Batcher failed to abort proposal {proposal_id:?}: {e:?}");
-            }
-
-            Err(BatcherClientError::ClientError(e)) => {
-                client_attempts += 1;
-                if client_attempts >= MAX_CLIENT_RETRIES {
-                    panic!(
-                        "Failed to send abort to batcher after {MAX_CLIENT_RETRIES} attempts: \
-                         {e:?}"
-                    );
-                }
-                // Continue loop for retry
-            }
+    match batcher.send_proposal_content(input.clone()).await {
+        Ok(_) => Ok(()),
+        Err(BatcherClientError::BatcherError(BatcherError::ProposalAborted)) => {
+            warn!("Proposal {proposal_id:?} was already aborted by batcher");
+            Ok(())
+        }
+        Err(e) => {
+            warn!("Batcher failed to abort proposal {proposal_id:?}: {e:?}");
+            Err(ValidateProposalError::Batcher(
+                format!("Failed to abort proposal {proposal_id:?}."),
+                e,
+            ))
         }
     }
 }

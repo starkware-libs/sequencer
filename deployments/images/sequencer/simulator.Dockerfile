@@ -15,6 +15,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
+# Copy .cargo/config.toml before cargo chef cook so llvm-sys can find LLVM
+COPY .cargo .cargo
 RUN cargo chef cook --recipe-path recipe.json --bin sequencer_simulator
 COPY . .
 RUN cargo build --bin sequencer_simulator

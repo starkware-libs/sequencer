@@ -4,10 +4,11 @@ import json
 import threading
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Set
 
 from echonet.constants import IGNORED_REVERT_PATTERNS
-from echonet.echonet_types import CONFIG, JsonObject, ResyncTriggerMap
+from echonet.echonet_types import BLOCK_STORE_TUNING, CONFIG, JsonObject, ResyncTriggerMap
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
@@ -143,30 +144,52 @@ class _BlockStore:
 
     blocks: Dict[int, JsonObject]  # block_number -> {blob, block, state_update}
     fgw_blocks: Dict[int, JsonObject]  # feeder-gateway block_number -> raw block object
+    archive_dir: Optional[Path]  # lazily created on first eviction; reused for the run
 
     @classmethod
     def empty(cls) -> "_BlockStore":
-        return cls(blocks={}, fgw_blocks={})
+        return cls(blocks={}, fgw_blocks={}, archive_dir=None)
 
     def clear_live(self) -> None:
         self.blocks.clear()
         self.fgw_blocks.clear()
+        self.archive_dir = None
 
     def snapshot_items(self) -> List[tuple[int, JsonObject]]:
         return sorted(((bn, dict(entry)) for bn, entry in self.blocks.items()), key=lambda p: p[0])
 
+    def _ensure_archive_dir(self) -> Path:
+        if self.archive_dir:
+            return self.archive_dir
+
+        ts_suffix = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        candidate = CONFIG.paths.log_dir / f"blocks_{ts_suffix}"
+        candidate.mkdir(parents=True, exist_ok=True)
+        self.archive_dir = candidate
+        return candidate
+
+    @staticmethod
+    def _evict_old_items(
+        store: Dict[int, JsonObject], current_block_number: int
+    ) -> List[tuple[int, JsonObject]]:
+        cutoff = current_block_number - BLOCK_STORE_TUNING.max_blocks_to_keep_in_memory
+        evict_bns = [bn for bn in store.keys() if bn < cutoff]
+        return [(bn, store.pop(bn)) for bn in sorted(evict_bns)]
+
     # --- Block store API ---
     def store_block(
         self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
-    ) -> None:
+    ) -> List[tuple[int, JsonObject]]:
         self.blocks[block_number] = {
             "blob": blob,
             "block": fgw_block,
             "state_update": state_update,
         }
+        return self._evict_old_items(self.blocks, current_block_number=block_number)
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
         self.fgw_blocks[block_number] = block_obj
+        self._evict_old_items(self.fgw_blocks, current_block_number=block_number)
 
     def get_fgw_block(self, block_number: int) -> Optional[JsonObject]:
         return self.fgw_blocks.get(block_number)
@@ -188,13 +211,10 @@ class _BlockStore:
         return bool(self.blocks)
 
     @staticmethod
-    def write_snapshot_items_to_disk(snapshot_items: List[tuple[int, JsonObject]]) -> None:
-        if not snapshot_items:
-            return
-        ts_suffix = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    def write_snapshot_items_to_disk(
+        snapshot_items: List[tuple[int, JsonObject]], base_dir: Path
+    ) -> None:
         try:
-            base_dir = CONFIG.paths.log_dir / f"blocks_{ts_suffix}"
-            base_dir.mkdir(parents=True, exist_ok=True)
             for bn, entry in snapshot_items:
                 (base_dir / f"blob_{bn}.json").write_text(
                     json.dumps(entry["blob"], ensure_ascii=False),
@@ -350,12 +370,13 @@ class SharedContext:
         """Clear live state for a new run while preserving cumulative stats."""
         with self._lock:
             snapshot_items = self._blocks.snapshot_items()
+            archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()
             self._errors.clear_live()
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
-        _BlockStore.write_snapshot_items_to_disk(snapshot_items)
+        _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
@@ -363,8 +384,12 @@ class SharedContext:
         self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
     ) -> None:
         with self._lock:
-            self._blocks.store_block(
+            evicted_items = self._blocks.store_block(
                 block_number, blob=blob, fgw_block=fgw_block, state_update=state_update
+            )
+        if evicted_items:
+            _BlockStore.write_snapshot_items_to_disk(
+                evicted_items, base_dir=self._blocks._ensure_archive_dir()
             )
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:

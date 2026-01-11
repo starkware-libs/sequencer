@@ -8,7 +8,6 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_http_server::test_utils::HttpTestClient;
-use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -31,6 +30,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -142,8 +142,8 @@ impl NodeSetup {
         .as_ref()
         .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
-        let HttpServerConfig { ip, port, .. } = http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
+        let (ip, port) = http_server_config.ip_and_port();
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(ip, port));
 
         Self { node_type, executables, add_tx_http_client, storage_handles }
     }
@@ -179,8 +179,15 @@ impl NodeSetup {
     }
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
+        let (_, http_port) = self
+            .get_http_server()
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .expect("Should have http server config")
+            .ip_and_port();
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            HTTP_PORT_ARG: http_port,
             MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
         serialize_to_file(&json_data, path);
@@ -259,6 +266,18 @@ impl NodeSetup {
         .l1_gas_price_scraper_config
         .clone()
         .expect("No executable with a set l1 gas price scraper config.")
+    }
+
+    pub fn get_base_layer_config(&self) -> EthereumBaseLayerConfig {
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::BaseLayer,
+        )
+        .get_config()
+        .base_layer_config
+        .clone()
+        .expect("No executable with a set base layer config.")
     }
 }
 
@@ -345,8 +364,26 @@ impl IntegrationTestManager {
 
         let l1_gas_price_scraper_config =
             sequencers_setup.first().unwrap().get_l1_gas_price_scraper_config();
+        let anvil_base_layer_config = sequencers_setup.first().unwrap().get_base_layer_config();
 
-        let anvil_base_layer = AnvilBaseLayer::new(Some(1), None).await;
+        // TODO(guyn): consider saving the port as a part of the base layer config, not just (or
+        // instead of) in the url.
+        let mut anvil_base_layer = AnvilBaseLayer::new(
+            Some(1),
+            Some(
+                anvil_base_layer_config
+                    .ordered_l1_endpoint_urls
+                    .first()
+                    .unwrap()
+                    .peek_secret()
+                    .port()
+                    .unwrap(),
+            ),
+        )
+        .await;
+        // Make sure to update the rest of the config to match what comes from the sequencer setup.
+        anvil_base_layer.ethereum_base_layer.config = anvil_base_layer_config;
+
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
@@ -610,12 +647,12 @@ impl IntegrationTestManager {
             .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
         let http_server = node_0_setup.get_http_server();
-        let http_server_port = http_server
+        let (_, http_server_port) = http_server
             .get_config()
             .http_server_config
             .as_ref()
             .expect("No executable with a set http server.")
-            .port;
+            .ip_and_port();
         let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
         let monitoring_port = http_server
             .get_config()
@@ -1101,12 +1138,7 @@ async fn get_sequencer_setup_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
     let base_layer_config =
-        // TODO(guyn): Need to start using the ports generator for anvil, but we need to make sure 
-        // we pass it from "setup configs" into IntegrationTestManager::new() where we setup an actual Anvil instance. 
-        // Use this commented line:
-        // AnvilBaseLayer::config(AnvilBaseLayer::url_static(base_layer_ports.get_next_port()));
-        // TODO(guyn): Also check if DEFAULT_ANVIL_PORT should be pub in AnvilBaseLayer.
-        AnvilBaseLayer::config(AnvilBaseLayer::url_static(AnvilBaseLayer::DEFAULT_ANVIL_PORT));
+        AnvilBaseLayer::config(AnvilBaseLayer::url_static(base_layer_ports.get_next_port()));
 
     let mut nodes = Vec::new();
 
@@ -1131,7 +1163,7 @@ async fn get_sequencer_setup_configs(
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
         let state_sync_config = state_sync_configs.remove(0);
 
-        consensus_manager_config.cende_config.recorder_url = recorder_url.clone().into();
+        consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()

@@ -9,7 +9,6 @@ import unittest
 from unittest.mock import Mock, patch
 
 import requests
-from l1_client import L1Client
 from test_utils import L1TestUtils
 
 from echonet.l1_logic.l1_client import L1Client

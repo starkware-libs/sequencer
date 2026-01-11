@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
@@ -15,10 +15,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::batcher::MockBatcherStorageReader;
-use crate::commitment_manager::commitment_manager_impl::{
-    CommitmentManager,
-    CommitmentManagerConfig,
-};
+use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{test_state_diff, MockStateCommitter, INITIAL_HEIGHT};
 
@@ -32,9 +29,16 @@ struct MockDependencies {
 
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
+    let commitment_manager_config = CommitmentManagerConfig {
+        tasks_channel_size: 1,
+        results_channel_size: 1,
+        wait_for_tasks_channel: false,
+    };
+    let batcher_config = BatcherConfig { commitment_manager_config, ..Default::default() };
+
     MockDependencies {
         storage_reader: MockBatcherStorageReader::new(),
-        batcher_config: BatcherConfig::default(),
+        batcher_config,
         committer_client: MockCommitterClient::new(),
     }
 }
@@ -63,15 +67,9 @@ fn get_number_of_tasks_in_receiver<T>(receiver: &Receiver<T>) -> usize {
 async fn create_mock_commitment_manager(
     mock_dependencies: MockDependencies,
 ) -> MockCommitmentManager {
-    let commitment_manager_config = CommitmentManagerConfig {
-        tasks_channel_size: 1,
-        results_channel_size: 1,
-        wait_for_tasks_channel: false,
-    };
     CommitmentManager::create_commitment_manager(
         &mock_dependencies.batcher_config,
-        // TODO(Amos): Use commitment manager config in batcher config, once it's added.
-        &commitment_manager_config,
+        &mock_dependencies.batcher_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
     )
@@ -149,7 +147,7 @@ async fn test_create_commitment_manager_with_missing_tasks(
     assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1,);
     commitment_manager.state_committer.pop_task_and_insert_result().await;
     let results = await_results(&mut commitment_manager.results_receiver, 1).await;
-    let result = results.first().unwrap();
+    let result = (results.first().unwrap()).clone().expect_commitment();
     assert_eq!(result.height, global_root_height);
 }
 
@@ -250,19 +248,12 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     let state_diff = test_state_diff();
     let state_diff_commitment = Some(StateDiffCommitment::default());
 
-    let commitment_manager_config = CommitmentManagerConfig {
+    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 2,
         results_channel_size: 2,
         wait_for_tasks_channel: false,
     };
-    let mut commitment_manager = MockCommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
-        // TODO(Amos): Use commitment manager config in batcher config, once it's added.
-        &commitment_manager_config,
-        &mock_dependencies.storage_reader,
-        Arc::new(mock_dependencies.committer_client),
-    )
-    .await;
+    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
     // Verify the commitment manager doesn't wait if there are no results.
     let results = commitment_manager.get_commitment_results().await;
@@ -285,8 +276,8 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     commitment_manager.state_committer.pop_task_and_insert_result().await;
 
     let results = await_results(&mut commitment_manager.results_receiver, 2).await;
-    let first_result = results.first().unwrap();
-    let second_result = results.get(1).unwrap();
+    let first_result = results.first().unwrap().clone().expect_commitment();
+    let second_result = results.get(1).unwrap().clone().expect_commitment();
     assert_eq!(first_result.height, INITIAL_HEIGHT,);
     assert_eq!(second_result.height, INITIAL_HEIGHT.next().unwrap(),);
 }

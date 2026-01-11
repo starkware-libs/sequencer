@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
@@ -32,6 +33,10 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_http_server_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
+
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
 
     async fn set_node_dynamic_config(
@@ -48,6 +53,7 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
@@ -65,6 +71,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
@@ -90,6 +97,19 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_http_server_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<HttpServerDynamicConfig> {
+        let request = ConfigManagerRequest::GetHttpServerDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetHttpServerDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct

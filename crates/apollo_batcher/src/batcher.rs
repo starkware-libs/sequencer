@@ -84,7 +84,6 @@ use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
-    CommitmentManagerConfig,
 };
 use crate::commitment_manager::types::FinalBlockCommitment;
 use crate::metrics::{
@@ -241,6 +240,8 @@ impl Batcher {
         Ok(())
     }
 
+    // TODO(Rotem): Once the fallback option to state sync is removed - remove
+    // `retrospective_block_hash` from the input and get it from storage instead.
     #[instrument(skip(self), err)]
     pub async fn propose_block(
         &mut self,
@@ -1301,10 +1302,9 @@ pub async fn create_batcher(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
-    // TODO(Amos): Add commitment manager config to batcher config and use it here.
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
-        &CommitmentManagerConfig::default(),
+        &config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
     )

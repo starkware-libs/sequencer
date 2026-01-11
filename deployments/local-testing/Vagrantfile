@@ -1,0 +1,240 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Sequencer Local Testing VM
+# Provides a consistent development environment with all prerequisites pre-installed.
+#
+# Usage:
+#   vagrant up                        # Start with default base box
+#   vagrant up                        # (after adding pre-baked box) uses pre-baked if available
+#   BOX=cloud-image/ubuntu-24.04 vagrant up  # Force fresh base box
+#   BOX=sequencer-dev vagrant up      # Use pre-baked box explicitly
+#
+#   vagrant ssh       # SSH into the VM
+#   vagrant halt      # Stop the VM
+#   vagrant destroy   # Delete the VM
+#
+# After vagrant up, connect to the VM and deploy:
+#   vagrant ssh
+#   cd ~/sequencer/deployments/local-testing
+#   ./deploy.sh up
+#
+
+# Default box - use pre-baked if available, otherwise fall back to base image
+DEFAULT_BOX = "cloud-image/ubuntu-24.04"
+PREBAKED_BOX = "sequencer-dev"
+
+# Check if pre-baked box exists (unless BOX is explicitly set)
+def get_box_name
+  explicit_box = ENV['BOX']
+  return explicit_box if explicit_box && !explicit_box.empty?
+  
+  # Check if pre-baked box is installed
+  boxes = `vagrant box list 2>/dev/null`
+  if boxes.include?(PREBAKED_BOX)
+    PREBAKED_BOX
+  else
+    DEFAULT_BOX
+  end
+end
+
+Vagrant.configure("2") do |config|
+  # Box selection: BOX env var > pre-baked (if installed) > default base
+  config.vm.box = get_box_name
+  config.vm.hostname = "sequencer-dev"
+  
+  # Force bash as the SSH shell
+  config.ssh.shell = "bash -l"
+
+  # Detect host CPU count (leave 2 cores for host, minimum 4 for VM)
+  host_cpus = `nproc`.to_i rescue 8
+  vm_cpus = [host_cpus - 2, 4].max  # At least 4, up to (total - 2)
+
+  # VM Resources - libvirt (KVM)
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.memory = 16384      # 16 GB RAM
+    libvirt.cpus = vm_cpus      # Dynamic: all cores minus 2 for host
+    libvirt.disk_bus = "virtio"
+    libvirt.nic_model_type = "virtio"
+    libvirt.machine_virtual_size = 100  # 100 GB disk
+  end
+
+  # VM Resources - VirtualBox fallback (for macOS/Windows users)
+  config.vm.provider :virtualbox do |vb|
+    vb.memory = 16384
+    vb.cpus = vm_cpus           # Dynamic: all cores minus 2 for host
+    # Note: VirtualBox disk resize requires manual steps or vagrant-disksize plugin
+  end
+
+  # Port forwarding - access services from host browser
+  config.vm.network "forwarded_port", guest: 3000, host: 3000   # Grafana
+  config.vm.network "forwarded_port", guest: 9090, host: 9090   # Prometheus
+  config.vm.network "forwarded_port", guest: 8080, host: 8080   # Sequencer HTTP
+  config.vm.network "forwarded_port", guest: 5050, host: 5050   # Docker Registry
+
+  # Sync the entire sequencer repo into the VM
+  # Uses rsync to copy files (one-way sync from host to VM)
+  # Run 'vagrant rsync' to re-sync after making changes on host
+  config.vm.synced_folder "../../", "/home/vagrant/sequencer", type: "rsync",
+    rsync__exclude: [".git/", "target/", "node_modules/", ".venv/", "output/",
+      "*.box",  # Exclude Vagrant box files (can be 10-25GB)
+      "deployments/local-testing/manifests/sequencer/",
+      "deployments/local-testing/manifests/dummy-recorder/",
+      "deployments/local-testing/manifests/dummy-eth2strk-oracle/",
+      "deployments/local-testing/manifests/anvil/"]
+
+  # Provision: Install all prerequisites
+  config.vm.provision "shell", name: "install-prerequisites", inline: <<-SHELL
+    set -euxo pipefail
+    
+    export DEBIAN_FRONTEND=noninteractive
+    
+    echo "=== Expanding disk partition to use full disk ==="
+    # Install growpart if not available
+    apt-get update
+    apt-get install -y cloud-guest-utils
+    # Resize partition to use all available space
+    growpart /dev/vda 1 || true
+    resize2fs /dev/vda1 || true
+    echo "Disk space after expansion:"
+    df -h /
+    
+    echo "=== Updating system ==="
+    apt-get update && apt-get upgrade -y
+    
+    echo "=== Installing base packages ==="
+    apt-get install -y \
+      curl wget git build-essential pkg-config \
+      libssl-dev libclang-dev clang lld \
+      python3 python3-pip python3-venv \
+      ca-certificates gnupg lsb-release jq \
+      bash bash-completion binutils \
+      software-properties-common
+    
+    echo "=== Installing Python 3.10 (required by some Pipfiles) ==="
+    add-apt-repository -y ppa:deadsnakes/ppa
+    apt-get update
+    apt-get install -y python3.10 python3.10-venv python3.10-dev
+    
+    echo "=== Installing Docker ==="
+    curl -fsSL https://get.docker.com | sh
+    usermod -aG docker vagrant
+    
+    # Configure Docker to allow insecure registry for k3d local registry
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json << 'DOCKER_DAEMON'
+{
+  "insecure-registries": ["sequencer-registry.localhost:5050", "localhost:5050"]
+}
+DOCKER_DAEMON
+    systemctl restart docker
+    
+    echo "=== Installing k3d ==="
+    curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+    
+    echo "=== Installing kubectl ==="
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    rm kubectl
+    
+    echo "=== Installing Helm (v3.16+) ==="
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    
+    echo "=== Installing kubectx and kubens ==="
+    apt-get install -y kubectx
+    
+    echo "=== Installing Node.js 20.x + cdk8s-cli ==="
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+    npm install -g cdk8s-cli
+    
+    echo "=== Installing Rust (as vagrant user) ==="
+    su - vagrant -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+    
+    echo "=== Installing pipenv ==="
+    pip3 install --break-system-packages pipenv
+    
+    echo "=== Installing Anvil (Foundry v0.3.0) ==="
+    mkdir -p /home/vagrant/.local/bin
+    cd /home/vagrant/.local/bin
+    curl -L https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz | tar -xz anvil
+    chmod +x anvil
+    chown -R vagrant:vagrant /home/vagrant/.local
+    
+    # Ensure bash is the default shell for vagrant user
+    chsh -s /bin/bash vagrant
+    
+    # Ensure vagrant user has passwordless sudo
+    echo 'vagrant ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vagrant
+    chmod 440 /etc/sudoers.d/vagrant
+    
+    # Configure bash environment for vagrant user
+    cat >> /home/vagrant/.bashrc << 'BASHRC'
+
+# Path additions
+export PATH="$HOME/.local/bin:$PATH"
+source $HOME/.cargo/env 2>/dev/null || true
+
+# Enable bash completion
+if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+fi
+
+# kubectl completion
+source <(kubectl completion bash) 2>/dev/null || true
+alias k=kubectl
+complete -o default -F __start_kubectl k 2>/dev/null || true
+
+# helm completion
+source <(helm completion bash) 2>/dev/null || true
+
+# kubectx/kubens aliases
+alias kctx=kubectx
+alias kns=kubens
+
+# Common aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# Colored prompt with git branch
+parse_git_branch() {
+    git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+}
+export PS1='\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[33m\\]$(parse_git_branch)\\[\\033[00m\\]\\$ '
+
+# Start in sequencer directory
+cd ~/sequencer 2>/dev/null || true
+BASHRC
+    
+    chown vagrant:vagrant /home/vagrant/.bashrc
+    
+    echo "=== Prerequisites installed successfully ==="
+  SHELL
+
+  # Post-provision message
+  config.vm.post_up_message = <<-MSG
+
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  Sequencer Development VM is ready!                          ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║                                                               ║
+  ║  To deploy:                                                   ║
+  ║    vagrant ssh                                                ║
+  ║    cd ~/sequencer/deployments/local-testing                   ║
+  ║    ./deploy.sh up                                             ║
+  ║                                                               ║
+  ║  Access (after deploy.sh up):                                 ║
+  ║    Grafana:    http://localhost:3000                          ║
+  ║    Prometheus: http://localhost:9090                          ║
+  ║    Sequencer:  http://localhost:8080                          ║
+  ║                                                               ║
+  ║  Sync code changes:                                           ║
+  ║    vagrant rsync                                              ║
+  ║                                                               ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+  MSG
+end

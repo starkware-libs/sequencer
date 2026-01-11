@@ -191,7 +191,25 @@ impl<'state> SyscallHandlerBase<'state> {
 
         match self.original_values.entry(key) {
             hash_map::Entry::Vacant(entry) => {
-                entry.insert(self.state.get_storage_at(contract_address, key)?);
+                // Check if any inner call (entries created after this handler's entry) already
+                // captured an original value for this key. If so, use that value instead of the
+                // current state, because the inner call captured the true original before any
+                // writes in this execution scope.
+                let original_value = self
+                    .context
+                    .revert_infos
+                    .0
+                    .iter()
+                    .skip(self.revert_info_idx + 1)
+                    .find_map(|info| {
+                        if info.contract_address == contract_address {
+                            info.original_values.get(&key).copied()
+                        } else {
+                            None
+                        }
+                    })
+                    .map_or_else(|| self.state.get_storage_at(contract_address, key), Ok)?;
+                entry.insert(original_value);
             }
             hash_map::Entry::Occupied(_) => {}
         }

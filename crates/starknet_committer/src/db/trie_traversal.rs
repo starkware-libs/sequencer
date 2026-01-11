@@ -10,7 +10,11 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     EdgeData,
     NodeData,
 };
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
+    Leaf,
+    LeafModifications,
+    LeafWithEmptyKeyContext,
+};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
@@ -288,7 +292,7 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
     Ok(())
 }
 
-pub async fn create_original_skeleton_tree<'a, L: Leaf>(
+pub async fn create_original_skeleton_tree<'a, L: LeafWithEmptyKeyContext>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -368,7 +372,6 @@ pub async fn create_contracts_trie<'a>(
         contracts_trie_sorted_indices,
         &HashMap::new(),
         &OriginalSkeletonTrieConfig::new_for_contracts_trie(),
-        &EmptyKeyContext,
     )
     .await?)
 }

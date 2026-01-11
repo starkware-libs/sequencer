@@ -26,7 +26,7 @@ use crate::db::index_db::leaves::{
     IndexLayoutContractState,
     IndexLayoutStarknetStorageValue,
 };
-use crate::db::index_db::types::{IndexFilledNode, IndexNodeContext};
+use crate::db::index_db::types::{EmptyNodeData, IndexFilledNode, IndexNodeContext};
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
@@ -35,7 +35,9 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 ///
 /// Useful for using the same data for computing the hash and creating an index layout leaf
 /// instance.
-fn index_leaf_data_from_hash_data<L: Leaf>(data: NodeData<L, HashOutput>) -> NodeData<L, ()> {
+fn index_leaf_data_from_hash_data<L: Leaf>(
+    data: NodeData<L, HashOutput>,
+) -> NodeData<L, EmptyNodeData> {
     match data {
         NodeData::Binary(_) | NodeData::Edge(_) => {
             unreachable!("this helper is intended for leaf-only test data")
@@ -85,7 +87,7 @@ fn starknet_storage_value_leaf_136_bits() -> IndexLayoutStarknetStorageValue {
 fn binary_node() -> IndexFilledNode<IndexLayoutContractState> {
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
-        data: NodeData::Binary(BinaryData { left_data: (), right_data: () }),
+        data: NodeData::Binary(BinaryData { left_data: EmptyNodeData, right_data: EmptyNodeData }),
     })
 }
 
@@ -93,7 +95,7 @@ fn edge_node_short_path_len_3() -> IndexFilledNode<IndexLayoutContractState> {
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             // 110, right, right, left
             path_to_bottom: PathToBottom::new(
                 EdgePath(U256::from(6_u128)),
@@ -108,7 +110,7 @@ fn edge_node_short_path_len_10() -> IndexFilledNode<IndexLayoutContractState> {
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             // 0...0 seven times followed by 110
             path_to_bottom: PathToBottom::new(
                 EdgePath(U256::from(6_u128)),
@@ -123,7 +125,7 @@ fn edge_node_path_divisible_by_8() -> IndexFilledNode<IndexLayoutContractState> 
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             path_to_bottom: PathToBottom::new(
                 // 1...1 24 times
                 EdgePath(U256::from((1_u128 << 24) - 1)),
@@ -138,7 +140,7 @@ fn edge_node_path_not_divisible_by_8() -> IndexFilledNode<IndexLayoutContractSta
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             // 000 followed by 1...1 19 times
             path_to_bottom: PathToBottom::new(
                 EdgePath(U256::from((1_u128 << 19) - 1)),
@@ -153,7 +155,7 @@ fn edge_node_long_zero_path() -> IndexFilledNode<IndexLayoutContractState> {
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             // 0...0 path of length 250
             path_to_bottom: PathToBottom::new(
                 EdgePath(U256::ZERO),
@@ -168,7 +170,7 @@ fn edge_node_long_non_zero_path() -> IndexFilledNode<IndexLayoutContractState> {
     IndexFilledNode(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
-            bottom_data: (),
+            bottom_data: EmptyNodeData,
             // 1 followed by 250 zeros path of length 251
             path_to_bottom: PathToBottom::new(
                 EdgePath(U256::from(1u8) << 250),

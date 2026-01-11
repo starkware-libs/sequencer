@@ -24,7 +24,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_gateway_config::config::GatewayConfig;
-use apollo_http_server_config::config::HttpServerConfig;
+use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
@@ -294,6 +294,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
+    pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
+    #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 
@@ -301,6 +303,7 @@ impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
         ];
         sub_configs.into_iter().flatten().collect()
@@ -315,31 +318,16 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
+        let http_server_dynamic_config = sequencer_node_config
+            .http_server_config
+            .as_ref()
+            .map(|http_server_config| http_server_config.dynamic_config.clone());
         let mempool_dynamic_config = sequencer_node_config
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, mempool_dynamic_config }
+        Self { consensus_dynamic_config, http_server_dynamic_config, mempool_dynamic_config }
     }
-}
-
-macro_rules! validate_component_config_is_set_iff_running_locally {
-    ($self:ident, $component_field:ident, $config_field:ident) => {{
-        // The component config should be set iff its running locally.
-        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
-            let execution_mode = &$self.components.$component_field.execution_mode;
-            let component_config_availability =
-                if $self.$config_field.is_some() { "available" } else { "not available" };
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: format!(
-                    "{} component configs mismatch: execution mode {:?} while config is {}",
-                    stringify!($component_field),
-                    execution_mode,
-                    component_config_availability
-                ),
-            });
-        }
-    }};
 }
 
 impl SequencerNodeConfig {
@@ -359,60 +347,59 @@ impl SequencerNodeConfig {
     }
 
     fn cross_member_validations(&self) -> Result<(), ConfigError> {
+        macro_rules! validate_component_config_is_set_iff_running_locally {
+            ($component_field:ident, $config_field:ident) => {{
+                // The component config should be set iff its running locally.
+                if self.components.$component_field.is_running_locally()
+                    != self.$config_field.is_some()
+                {
+                    let execution_mode = &self.components.$component_field.execution_mode;
+                    let component_config_availability =
+                        if self.$config_field.is_some() { "available" } else { "not available" };
+                    return Err(ConfigError::ComponentConfigMismatch {
+                        component_config_mismatch: format!(
+                            "{} component configs mismatch: execution mode {:?} while config is {}",
+                            stringify!($component_field),
+                            execution_mode,
+                            component_config_availability
+                        ),
+                    });
+                }
+            }};
+        }
+
         // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
-        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(class_manager, class_manager_config);
+        validate_component_config_is_set_iff_running_locally!(committer, committer_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            class_manager,
-            class_manager_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, committer, committer_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             config_manager,
             config_manager_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            l1_provider,
-            l1_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             l1_gas_price_provider,
             l1_gas_price_provider_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(mempool_p2p, mempool_p2p_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            mempool_p2p,
-            mempool_p2p_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             sierra_compiler,
             sierra_compiler_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
             consensus_manager,
             consensus_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
+        validate_component_config_is_set_iff_running_locally!(l1_scraper, l1_scraper_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            http_server,
-            http_server_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             l1_gas_price_scraper,
             l1_gas_price_scraper_config
         );
         validate_component_config_is_set_iff_running_locally!(
-            self,
             monitoring_endpoint,
             monitoring_endpoint_config
         );

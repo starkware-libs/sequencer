@@ -28,8 +28,17 @@ use crate::hash_function::hash::TreeHashFunctionImpl;
 // In index layout, for binary nodes, only the hash is stored.
 pub(crate) const INDEX_LAYOUT_BINARY_BYTES: usize = SERIALIZE_HASH_BYTES;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EmptyNodeData;
+
+impl From<HashOutput> for EmptyNodeData {
+    fn from(_hash: HashOutput) -> Self {
+        Self
+    }
+}
+
 #[derive(PartialEq, Debug)]
-pub struct IndexFilledNode<L: Leaf>(pub FilledNode<L, ()>);
+pub struct IndexFilledNode<L: Leaf>(pub FilledNode<L, EmptyNodeData>);
 
 pub struct IndexNodeContext {
     pub is_leaf: bool,
@@ -82,7 +91,10 @@ where
         } else if value.0.len() == INDEX_LAYOUT_BINARY_BYTES {
             Ok(Self(FilledNode {
                 hash: HashOutput(Felt::from_bytes_be_slice(&value.0)),
-                data: NodeData::Binary(BinaryData { left_data: (), right_data: () }),
+                data: NodeData::Binary(BinaryData {
+                    left_data: EmptyNodeData,
+                    right_data: EmptyNodeData,
+                }),
             }))
         }
         // Edge nodes are always serailized to more than INDEX_LAYOUT_BINARY_BYTES bytes.
@@ -112,8 +124,8 @@ where
 
             Ok(Self(FilledNode {
                 hash: node_hash,
-                data: NodeData::Edge(EdgeData::<()> {
-                    bottom_data: (),
+                data: NodeData::Edge(EdgeData {
+                    bottom_data: EmptyNodeData,
                     path_to_bottom: PathToBottom::new(
                         EdgePath(path),
                         EdgePathLength::new(bit_len)

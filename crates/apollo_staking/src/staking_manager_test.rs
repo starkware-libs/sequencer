@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -32,8 +33,8 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
-use crate::contract_types::RetdataDeserializationError;
-use crate::staking_manager::{StakerSet, StakingManager, StakingManagerConfig};
+use crate::contract_types::{ContractStaker, RetdataDeserializationError, TryFromIterator};
+use crate::staking_manager::{StakingManager, StakingManagerConfig};
 use crate::utils::MockBlockRandomGenerator;
 
 const STAKING_CONTRACT: FeatureContract =
@@ -92,9 +93,9 @@ fn default_config() -> StakingManagerConfig {
     }
 }
 
-fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
-    let mut stakers_as_felts: Vec<Felt> = stakers.iter().flat_map(<Vec<Felt>>::from).collect();
-    stakers_as_felts.insert(0, Felt::from(stakers.len()));
+fn set_stakers(state: &mut State, block_context: &Context, stakers: &[ContractStaker]) {
+    let mut raw_felts: Vec<Felt> = stakers.iter().flat_map(<Vec<Felt>>::from).collect();
+    raw_felts.insert(0, Felt::from(stakers.len()));
 
     // Invoke the set_stakers function on the mock staking contract.
     let account_address = ACCOUNT_CONTRACT.get_instance_address(0);
@@ -103,13 +104,14 @@ fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
         calldata: create_calldata(
             STAKING_CONTRACT.get_instance_address(0),
             "set_stakers",
-            &stakers_as_felts,
+            &raw_felts,
         ),
         resource_bounds: default_all_resource_bounds(),
         nonce: state.get_nonce_at(account_address).unwrap(),
     };
     let account_tx = invoke_tx_with_default_flags(invoke_args);
-    assert!(account_tx.execute(state, block_context).is_ok());
+    let result = account_tx.execute(state, block_context).unwrap();
+    assert!(!result.execute_call_info.unwrap().execution.failed);
 }
 
 #[rstest]
@@ -123,10 +125,11 @@ fn get_committee_success(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
-    #[case] stakers: StakerSet,
+    #[case] stakers: Vec<Staker>,
     #[case] expected_committee: Committee,
 ) {
-    set_stakers(&mut state, &block_context, &stakers);
+    let contract_stakers: Vec<ContractStaker> = stakers.iter().map(&ContractStaker::from).collect();
+    set_stakers(&mut state, &block_context, &contract_stakers);
 
     let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
@@ -155,7 +158,7 @@ fn get_committee_cache(
     );
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
-    set_stakers(&mut state, &block_context, vec![STAKER_1].as_slice());
+    set_stakers(&mut state, &block_context, &[ContractStaker::from(&STAKER_1)]);
     let context = ExecutionContext {
         state_reader: state.clone(),
         block_context: block_context.clone(),
@@ -166,7 +169,7 @@ fn get_committee_cache(
 
     // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache despite contract
     // change.
-    set_stakers(&mut state, &block_context, vec![STAKER_2].as_slice());
+    set_stakers(&mut state, &block_context, &[ContractStaker::from(&STAKER_2)]);
     let context = ExecutionContext {
         state_reader: state.clone(),
         block_context: block_context.clone(),
@@ -183,6 +186,37 @@ fn get_committee_cache(
     // from contract.
     let committee = committee_manager.get_committee(1, context).unwrap();
     assert_eq!(*committee, vec![STAKER_2]);
+}
+
+#[rstest]
+fn get_committee_filters_out_stakers_without_public_key(
+    default_config: StakingManagerConfig,
+    mut state: State,
+    block_context: Context,
+) {
+    // Prepare the stakers that will be set in the contract. Set the public key of the first staker
+    // to None.
+    let mut contract_stakers: Vec<ContractStaker> =
+        [STAKER_1, STAKER_2, STAKER_3].iter().map(&ContractStaker::from).collect();
+    contract_stakers[0].public_key = None;
+
+    set_stakers(&mut state, &block_context, &contract_stakers);
+
+    let mut committee_manager = StakingManager::new(
+        Box::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig { committee_size: 3, ..default_config },
+    );
+
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let committee = (*committee_manager.get_committee(1, context).unwrap()).clone();
+
+    // STAKER_1 should be filtered out. Comparing HashSets since the order of the stakers is not
+    // important.
+    assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_2, STAKER_3]));
 }
 
 #[rstest]
@@ -209,7 +243,9 @@ async fn get_proposer_success(
     // - [7000–8999] → STAKER_2
     // - [9000–9999] → STAKER_1
 
-    set_stakers(&mut state, &block_context, &[STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+    let contract_stakers: Vec<ContractStaker> =
+        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
+    set_stakers(&mut state, &block_context, &contract_stakers);
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
@@ -259,7 +295,9 @@ async fn get_proposer_random_value_exceeds_total_weight(
     block_context: Context,
 ) {
     // Stakers with total weight 10000.
-    set_stakers(&mut state, &block_context, &[STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+    let contract_stakers: Vec<ContractStaker> =
+        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
+    set_stakers(&mut state, &block_context, &contract_stakers);
 
     // Random value is out of range. Valid range is [0, 10000).
     let mut random_generator = MockBlockRandomGenerator::new();
@@ -276,47 +314,84 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let _ = committee_manager.get_proposer(BlockNumber(1), 0, context).await;
 }
 
-// --- TryFrom tests for Staker and ArrayRetdata ---
+// --- TryFrom tests for ContractStaker and ArrayRetdata ---
 
 #[rstest]
 fn staker_try_from_valid() {
-    let staker = Staker::try_from([Felt::ONE, Felt::TWO, Felt::THREE]).unwrap();
-    assert_eq!(staker.address, contract_address!("0x1"));
-    assert_eq!(staker.weight, StakingWeight(2));
-    assert_eq!(staker.public_key, Felt::THREE);
+    let staker = ContractStaker::try_from_iter(
+        &mut vec![Felt::ONE, Felt::TWO, Felt::ZERO, Felt::THREE].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(staker.contract_address, contract_address!("0x1"));
+    assert_eq!(staker.staking_power, StakingWeight(2));
+    assert_eq!(staker.public_key, Some(Felt::THREE));
+
+    // A valid staker with no public key.
+    let staker =
+        ContractStaker::try_from_iter(&mut vec![Felt::ONE, Felt::TWO, Felt::ONE].into_iter())
+            .unwrap();
+    assert_eq!(staker.contract_address, contract_address!("0x1"));
+    assert_eq!(staker.staking_power, StakingWeight(2));
+    assert_eq!(staker.public_key, None);
 }
 
 #[rstest]
 fn staker_try_from_invalid_address() {
-    let err = Staker::try_from([CONTRACT_ADDRESS_DOMAIN_SIZE, Felt::ONE, Felt::ONE]).unwrap_err();
+    let err = ContractStaker::try_from_iter(
+        &mut vec![CONTRACT_ADDRESS_DOMAIN_SIZE, Felt::ONE, Felt::ZERO, Felt::ONE].into_iter(),
+    )
+    .unwrap_err();
     assert_matches!(err, RetdataDeserializationError::ContractAddressConversionError { .. });
 }
 
 #[rstest]
+fn staker_try_from_invalid_public_key() {
+    let err = ContractStaker::try_from_iter(
+        &mut vec![Felt::ONE, Felt::TWO, Felt::TWO, Felt::THREE].into_iter(),
+    )
+    .unwrap_err();
+    assert_matches!(err, RetdataDeserializationError::UnexpectedEnumVariant { .. });
+}
+
+#[rstest]
 fn staker_try_from_invalid_staked_amount() {
-    let err = Staker::try_from([Felt::ONE, Felt::MAX, Felt::ONE]).unwrap_err(); // Felt::MAX is too big for u128
+    let err = ContractStaker::try_from_iter(
+        &mut vec![Felt::ONE, Felt::MAX, Felt::ZERO, Felt::ONE].into_iter(),
+    )
+    .unwrap_err(); // Felt::MAX is too big for u128
     assert_matches!(err, RetdataDeserializationError::U128ConversionError { .. });
 }
 
 #[rstest]
-#[case::empty(0)]
-#[case::two_elements(2)]
-fn staker_array_retdata_try_from_valid(#[case] num_structs: usize) {
-    let valid_retdata = [
-        [Felt::from(num_structs)].as_slice(),
-        vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS * num_structs].as_slice(),
+fn staker_array_retdata_try_from_valid() {
+    // Case 1: No stakers.
+    let retdata = Retdata(vec![Felt::ZERO]);
+    assert!(ContractStaker::from_retdata_many(retdata).unwrap().is_empty());
+
+    // Case 2: 4 Stakers, 1 with no public key.
+    let mut expected_stakers: Vec<ContractStaker> =
+        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
+    expected_stakers[2].public_key = None;
+    let raw_felts = [
+        [Felt::from(4)].as_slice(),
+        expected_stakers.iter().map(Vec::<Felt>::from).collect::<Vec<_>>().concat().as_slice(),
     ]
     .concat();
 
-    let result = Staker::from_retdata_many(Retdata(valid_retdata)).unwrap();
-    assert_eq!(result.len(), num_structs);
+    // A sanity check that the raw felts are constructed correctly.
+    // 1 felt for the number of stakers (4) + 3 stakers with public key (4 felts) + 1 staker with no
+    // public key (3 felts).
+    assert_eq!(raw_felts.len(), 1 + 3 * 4 + 3);
+
+    let result = ContractStaker::from_retdata_many(Retdata(raw_felts)).unwrap();
+    assert_eq!(result, expected_stakers);
 }
 
 #[rstest]
 #[case::empty_retdata(vec![])]
-#[case::missing_num_structs(vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS * 2])]
-#[case::invalid_staker_length(vec![Felt::ONE; Staker::CAIRO_OBJECT_NUM_FELTS - 1])]
-fn staker_array_retdata_try_from_invalid_length(#[case] retdata: Vec<Felt>) {
-    let err = Staker::from_retdata_many(Retdata(retdata)).unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::InvalidArrayLength { .. });
+#[case::invalid_length_1(vec![Felt::ONE; 3])]
+#[case::invalid_length_2(vec![Felt::ONE; 10])]
+fn staker_array_retdata_try_from_invalid_length(#[case] raw_felts: Vec<Felt>) {
+    let err = ContractStaker::from_retdata_many(Retdata(raw_felts)).unwrap_err();
+    assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
 }

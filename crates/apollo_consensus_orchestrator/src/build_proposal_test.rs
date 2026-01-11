@@ -8,6 +8,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
 };
 use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
@@ -16,7 +17,6 @@ use apollo_consensus::types::{ProposalCommitment as ConsensusProposalCommitment,
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
-use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::DateTime;
 use assert_matches::assert_matches;
@@ -60,6 +60,7 @@ struct TestProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    pub use_state_sync_block_timestamp: bool,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -82,6 +83,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
         }
     }
 }
@@ -108,7 +110,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     let cancel_token = CancellationToken::new();
     let previous_block_info = None;
     let proposal_round = 0;
-
+    let use_state_sync_block_timestamp = false;
     (
         TestProposalBuildArguments {
             deps,
@@ -127,6 +129,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
+            use_state_sync_block_timestamp,
         },
         proposal_receiver,
     )
@@ -153,37 +156,6 @@ async fn build_proposal_succeed() {
 }
 
 #[tokio::test]
-async fn state_sync_client_error() {
-    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
-    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
-    // Setup state sync client to return an error.
-    proposal_args.deps.state_sync_client.expect_get_block_hash().returning(|_| {
-        Err(StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
-    });
-
-    let res = build_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(BuildProposalError::StateSyncClientError(_))));
-}
-
-#[tokio::test]
-async fn state_sync_not_ready_error() {
-    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
-    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
-    // Setup state sync client to return BlockNotFound error.
-    proposal_args
-        .deps
-        .state_sync_client
-        .expect_get_block_hash()
-        .times(2..11) // At least twice, but no more than 10 times.
-        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
-
-    let res = build_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(BuildProposalError::StateSyncNotReady(_))));
-}
-
-#[tokio::test]
 async fn state_sync_ready_after_a_while() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
 
@@ -200,8 +172,12 @@ async fn state_sync_ready_after_a_while() {
     // Make sure cende returns on time.
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    // Make sure clients are being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // state_sync_client is being called only if the batcher client returns an error.
+    proposal_args.deps.batcher.expect_get_block_hash().returning(|block_number| {
+        Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+    });
     // Setup state sync client to return BlockNotFound error in the first attempt.
     proposal_args
         .deps

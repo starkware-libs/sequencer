@@ -93,6 +93,9 @@ pub trait BodyStorageReader {
     /// The body marker is the first block number that doesn't exist yet.
     fn get_body_marker(&self) -> StorageResult<BlockNumber>;
 
+    /// The event marker is the first block number that doesn't have events indexed yet.
+    fn get_event_marker(&self) -> StorageResult<BlockNumber>;
+
     /// Returns the transaction and its execution status at the given index.
     fn get_transaction(
         &self,
@@ -116,6 +119,12 @@ pub trait BodyStorageReader {
         &self,
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionHash>>;
+
+    /// Returns the transaction metadata for the given transaction index.
+    fn get_transaction_metadata(
+        &self,
+        tx_index: &TransactionIndex,
+    ) -> StorageResult<Option<TransactionMetadata>>;
 
     /// Returns the transactions and their execution status of the block with the given number.
     fn get_block_transactions(
@@ -175,14 +184,17 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         Ok(markers_table.get(&self.txn, &MarkerKind::Body)?.unwrap_or_default())
     }
 
+    fn get_event_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+    }
+
     // TODO(dvir): add option to get transaction with its hash.
     fn get_transaction(
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<Transaction>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let Some(tx_metadata) = transaction_metadata_table.get(&self.txn, &transaction_index)?
-        else {
+        let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
         let transaction = self.file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
@@ -193,9 +205,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<TransactionOutput>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let Some(tx_metadata) = transaction_metadata_table.get(&self.txn, &transaction_index)?
-        else {
+        let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
         let transaction_output =
@@ -217,11 +227,19 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionHash>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let Some(tx_metadata) = transaction_metadata_table.get(&self.txn, tx_index)? else {
+        let Some(tx_metadata) = self.get_transaction_metadata(tx_index)? else {
             return Ok(None);
         };
         Ok(Some(tx_metadata.tx_hash))
+    }
+
+    fn get_transaction_metadata(
+        &self,
+        tx_index: &TransactionIndex,
+    ) -> StorageResult<Option<TransactionMetadata>> {
+        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let metadata = transaction_metadata_table.get(&self.txn, tx_index)?;
+        Ok(metadata)
     }
 
     fn get_block_transactions(

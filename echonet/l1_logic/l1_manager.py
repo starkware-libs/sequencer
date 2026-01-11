@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from l1_blocks import L1Blocks
-from l1_client import L1Client
-
 from echonet.constants import (
     STATE_BLOCK_HASH_SELECTOR,
     STATE_BLOCK_NUMBER_SELECTOR,
