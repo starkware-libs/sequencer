@@ -4,18 +4,19 @@ use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, TrieType};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
+    Leaf,
     LeafModifications,
     LeafWithEmptyKeyContext,
 };
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
@@ -44,6 +45,18 @@ impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
 
     fn generate_key_context(_trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
         EmptyKeyContext
+    }
+
+    fn get_db_object<LeafBase: Leaf + Into<L>>(
+        _node_index: NodeIndex,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+        filled_node: FilledNode<LeafBase, HashOutput>,
+    ) -> (DbKey, Self::NodeDbObject) {
+        let db_filled_node = Self::convert_node_data_and_leaf(filled_node);
+
+        let key = db_filled_node.get_db_key(key_context, &db_filled_node.hash.0.to_bytes_be());
+
+        (key, db_filled_node)
     }
 }
 
