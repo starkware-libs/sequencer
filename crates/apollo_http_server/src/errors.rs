@@ -29,6 +29,8 @@ pub enum HttpServerError {
     DecompressionError(#[from] CompressionError),
     #[error(transparent)]
     DeserializationError(#[from] serde_json::Error),
+    #[error("Server is rejecting new transactions.")]
+    DisabledError(),
     #[error(transparent)]
     GatewayClientError(#[from] Box<GatewayClientError>),
 }
@@ -41,6 +43,7 @@ impl IntoResponse for HttpServerError {
             }
             HttpServerError::DecompressionError(e) => compression_error_into_response(e),
             HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::DisabledError() => disabled_error_into_response(),
             HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
         }
     }
@@ -71,6 +74,19 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
         },
     );
     let response_body = serialize_error(&deprecated_gateway_error);
+    (response_code, response_body).into_response()
+}
+
+fn disabled_error_into_response() -> Response {
+    debug!("Server is configured to reject transactions.");
+    let (response_code, starknet_error) = (
+        StatusCode::SERVICE_UNAVAILABLE,
+        StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode("Server unavailable.".to_string()),
+            message: "Server unavailable.".to_string(),
+        },
+    );
+    let response_body = serialize_error(&starknet_error);
     (response_code, response_body).into_response()
 }
 
