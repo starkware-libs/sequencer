@@ -21,7 +21,6 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -50,7 +49,6 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::state::ThinStateDiff;
-use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 use starknet_types_core::felt::Felt;
@@ -248,7 +246,6 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         Arc::new(clients.mempool_client),
-        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         None,

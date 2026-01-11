@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 use std::ops::Range;
-use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
-use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_committer_types::committer_types::CommitBlockResponse;
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_l1_provider_types::MockL1ProviderClient;
@@ -248,7 +246,6 @@ pub(crate) struct MockClients {
     pub(crate) l1_provider_client: MockL1ProviderClient,
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
     pub(crate) pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
-    pub(crate) class_manager_client: SharedClassManagerClient,
 }
 
 impl Default for MockClients {
@@ -281,8 +278,6 @@ impl Default for MockClients {
             mempool_client,
             block_builder_factory,
             pre_confirmed_block_writer_factory,
-            // TODO(noamsp): use MockClassManagerClient
-            class_manager_client: Arc::new(EmptyClassManagerClient),
         }
     }
 }
