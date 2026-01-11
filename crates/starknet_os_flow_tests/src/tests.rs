@@ -498,7 +498,7 @@ async fn test_os_logic(
     )
     .await;
     let chain_id = &test_builder.chain_id();
-    let n_expected_txs = 31;
+    let n_expected_txs = 32;
     let mut expected_storage_updates = HashMap::new();
 
     // Declare a Cairo 0 test contract.
@@ -580,6 +580,18 @@ async fn test_os_logic(
 
     let calldata = create_calldata(contract_addresses[0], "test_builtins", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Invoke with non-empty `proof_fact`; we use an arbitrary read-only entry point since
+    // this test only verifies successful execution.
+    let calldata = create_calldata(
+        contract_addresses[0],
+        "test_get_contract_address",
+        &[**contract_addresses[0]],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata,
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+    });
 
     // Call test_get_block_timestamp with the current (testing) block timestamp.
     let calldata = create_calldata(
