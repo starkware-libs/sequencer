@@ -10,6 +10,7 @@ description = "Implementation of the Propeller algorithm for the Starknet sequen
 testing = []
 
 [dependencies]
+reed-solomon-simd.workspace = true
 sha2.workspace = true
 
 [dev-dependencies]
