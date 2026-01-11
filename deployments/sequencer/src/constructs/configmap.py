@@ -13,6 +13,8 @@ class ConfigMapConstruct(BaseConstruct):
         service_config,
         labels,
         monitoring_endpoint_port,
+        layout: str,
+        overlay: str | None,
     ):
         super().__init__(
             scope,
@@ -22,6 +24,8 @@ class ConfigMapConstruct(BaseConstruct):
             monitoring_endpoint_port,
         )
 
+        self.layout = layout
+        self.overlay = overlay
         self.config_map = self._get_config_map()
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
@@ -42,20 +46,30 @@ class ConfigMapConstruct(BaseConstruct):
         node_config = node_config_loader.load()
 
         # sequencerConfig is now already merged from common into service_config
-        merged_sequencer_config = {}
-        if self.service_config.config and self.service_config.config.sequencerConfig:
-            merged_sequencer_config = self.service_config.config.sequencerConfig
+        merged_sequencer_config = (
+            self.service_config.config.sequencerConfig
+            if self.service_config.config and self.service_config.config.sequencerConfig
+            else {}
+        )
 
-        # Apply merged overrides
+        # Apply merged overrides (includes validation for both unused keys and remaining placeholders)
         if merged_sequencer_config:
             node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config, merged_sequencer_config, service_name=self.service_config.name
+                node_config,
+                merged_sequencer_config,
+                service_name=self.service_config.name,
+                config_list_path=self.service_config.config.configList,
+                layout=self.layout,
+                overlay=self.overlay,
             )
-
-        # Validate no remaining placeholders after all overrides are applied
-        NodeConfigLoader.validate_no_remaining_placeholders(
-            node_config, service_name=self.service_config.name
-        )
+        else:
+            # If no sequencer config overrides, still validate for remaining placeholders
+            NodeConfigLoader.validate_no_remaining_placeholders(
+                node_config,
+                config_list_path=self.service_config.config.configList,
+                layout=self.layout,
+                overlay=self.overlay,
+            )
 
         config_data = json.dumps(node_config, indent=2)
 
