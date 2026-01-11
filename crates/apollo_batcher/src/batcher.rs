@@ -28,7 +28,6 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -138,7 +137,6 @@ pub struct Batcher {
     pub committer_client: SharedCommitterClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
-    pub transaction_converter: TransactionConverter,
 
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
@@ -193,7 +191,6 @@ impl Batcher {
         committer_client: SharedCommitterClient,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
-        transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         storage_reader_server: Option<GenericStorageReaderServer>,
@@ -206,7 +203,6 @@ impl Batcher {
             committer_client,
             l1_provider_client,
             mempool_client,
-            transaction_converter,
             block_builder_factory,
             pre_confirmed_block_writer_factory,
             active_height: None,
@@ -1304,8 +1300,6 @@ pub async fn create_batcher(
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let transaction_converter =
-        TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     // TODO(Amos): Add commitment manager config to batcher config and use it here.
     let commitment_manager = CommitmentManager::create_commitment_manager(
@@ -1323,7 +1317,6 @@ pub async fn create_batcher(
         committer_client,
         l1_provider_client,
         mempool_client,
-        transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         storage_reader_server,
