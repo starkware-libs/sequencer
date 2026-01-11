@@ -49,6 +49,10 @@ use tracing::error;
 
 use crate::reader::ReaderClientError;
 
+/// Transaction format returned by Feeder Gateway in blocks.
+///
+/// Used in [`BlockPostV0_13_1::transactions`](crate::reader::objects::block::BlockPostV0_13_1::transactions)
+/// when syncing historical block data from the Feeder Gateway API.
 // TODO(dan): consider extracting common fields out (version, hash, type).
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
@@ -193,6 +197,9 @@ impl From<starknet_api::data_availability::DataAvailabilityMode> for ReservedDat
     }
 }
 
+/// Feeder Gateway format for declare transactions (see [`Transaction`]).
+///
+/// Supports multiple transaction versions (V0/V1/V2/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -362,6 +369,9 @@ impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
     }
 }
 
+/// Feeder Gateway format for deploy account transactions (see [`Transaction`]).
+///
+/// Supports multiple transaction versions (V1/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -485,6 +495,9 @@ impl TryFrom<IntermediateDeployAccountTransaction>
     }
 }
 
+/// Feeder Gateway format for invoke transactions (see [`Transaction`]).
+///
+/// Supports multiple transaction versions (V0/V1/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
