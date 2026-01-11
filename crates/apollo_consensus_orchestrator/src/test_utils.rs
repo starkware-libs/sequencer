@@ -33,9 +33,9 @@ use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClie
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
-    ProposalInit,
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
