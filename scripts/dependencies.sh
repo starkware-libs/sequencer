@@ -60,6 +60,17 @@ function setup_llvm_deps() {
             libzstd-dev \
             mlir-19-tools
         '
+        # Verify LLVM installation (generic - works with any version)
+        LLVM_DIR=$(ls -d /usr/lib/llvm-* 2>/dev/null | head -n 1)
+        if [ -z "$LLVM_DIR" ] || [ ! -d "$LLVM_DIR" ]; then
+            echo "ERROR: LLVM installation failed - no LLVM directory found in /usr/lib/llvm-*" >&2
+            exit 1
+        fi
+        if [ ! -f "$LLVM_DIR/lib/libLLVM.so" ] && ! ls "$LLVM_DIR/lib/libLLVM"*.so* >/dev/null 2>&1; then
+            echo "ERROR: LLVM library not found in $LLVM_DIR/lib/" >&2
+            exit 1
+        fi
+        echo "LLVM installation verified successfully at $LLVM_DIR"
         ;;
     *)
         echo "Error: Unsupported operating system"
