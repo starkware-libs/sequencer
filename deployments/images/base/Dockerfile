@@ -12,11 +12,23 @@ COPY scripts/apt_utils.sh .
 COPY scripts/requirements.txt .
 COPY rust-toolchain.toml .
 
+# Install basic packages in one layer
 RUN apt update && apt -y install \
     bzip2 \
     curl \
     tini \
     unzip
+
+# Install LLVM 19 (required for llvm-sys-191) in a separate layer for better caching
+RUN curl https://apt.llvm.org/llvm.sh -Lo /tmp/llvm.sh && \
+    bash /tmp/llvm.sh 19 all && \
+    rm -f /tmp/llvm.sh && \
+    apt-get update && apt-get install -y \
+        libgmp3-dev \
+        libmlir-19-dev \
+        libpolly-19-dev \
+        libzstd-dev \
+        mlir-19-tools
 
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
