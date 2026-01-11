@@ -4,10 +4,10 @@ use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer
 use async_trait::async_trait;
 use starknet_committer::block_committer::commit::CommitBlockTrait;
 
-use crate::committer::{Committer, StorageConstructor};
+use crate::committer::{ApolloCommitter, Committer, StorageConstructor};
 
-pub type LocalCommitterServer<S, CB> =
-    LocalComponentServer<Committer<S, CB>, CommitterRequest, CommitterResponse>;
+pub type LocalCommitterServer =
+    LocalComponentServer<ApolloCommitter, CommitterRequest, CommitterResponse>;
 pub type RemoteCommitterServer = RemoteComponentServer<CommitterRequest, CommitterResponse>;
 
 #[async_trait]

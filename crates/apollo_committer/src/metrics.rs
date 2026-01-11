@@ -10,3 +10,5 @@ use apollo_metrics::define_infra_metrics;
 
 // TODO(Yoav): Add the committer metrics and panels.
 define_infra_metrics!(committer);
+
+pub fn register_metrics() {}
