@@ -6,17 +6,16 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
-use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
-use crate::db::forest_trait::{read_forest, ForestReader, ForestWriter};
+use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -110,18 +109,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
 #[async_trait]
 impl<S: Storage> ForestWriter for FactsDb<S> {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
-        let mut serialized_forest = DbHashMap::new();
-
-        // Storage tries.
-        for (contract_address, tree) in &filled_forest.storage_tries {
-            serialized_forest.extend(tree.serialize(&contract_address)?);
-        }
-
-        // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
-
-        Ok(serialized_forest)
+        serialize_forest::<FactsNodeLayout>(filled_forest)
     }
 
     async fn write_updates(&mut self, updates: DbHashMap) -> usize {
