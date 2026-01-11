@@ -108,6 +108,7 @@ impl FsProofStorage {
 
         let mut writer = BufWriter::new(file);
         // Pre-allocate exactly enough space, 4 bytes per u32.
+        // TODO(Einat): Use the struct `ProofBytes` for this conversion.
         let mut buf: Vec<u8> = Vec::with_capacity(proof.len() * std::mem::size_of::<u32>());
 
         for &value in proof.iter() {
