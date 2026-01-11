@@ -50,7 +50,10 @@ macro_rules! compare_skeleton_tree {
 
 pub(crate) fn create_storage_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = StarknetStorageValue(Felt::from(val));
-    (leaf.get_db_key(&EmptyKeyContext, &leaf.0.to_bytes_be()), leaf.serialize().unwrap())
+    (
+        leaf.get_db_key(&ContractAddress::from(0_u128), &leaf.0.to_bytes_be()),
+        leaf.serialize().unwrap(),
+    )
 }
 
 pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (DbKey, DbValue) {

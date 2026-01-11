@@ -3,15 +3,11 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
-    Leaf,
-    LeafModifications,
-    LeafWithEmptyKeyContext,
-};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
@@ -34,7 +30,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 /// have the db keys of its children.
 pub struct FactsNodeLayout {}
 
-impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
+impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
     type NodeData = HashOutput;
 
     type NodeDbObject = FactDbFilledNode<L>;
@@ -42,10 +38,6 @@ impl<'a, L: LeafWithEmptyKeyContext> NodeLayout<'a, L> for FactsNodeLayout {
     type DeserializationContext = FactNodeDeserializationContext;
 
     type SubTree = FactsSubTree<'a>;
-
-    fn generate_key_context(_trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
-        EmptyKeyContext
-    }
 
     fn get_db_object<LeafBase: Leaf + Into<L>>(
         _node_index: NodeIndex,
@@ -121,8 +113,8 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         let mut serialized_forest = DbHashMap::new();
 
         // Storage tries.
-        for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        for (contract_address, tree) in &filled_forest.storage_tries {
+            serialized_forest.extend(tree.serialize(&contract_address)?);
         }
 
         // Contracts and classes tries.
