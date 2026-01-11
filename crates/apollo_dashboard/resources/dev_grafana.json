@@ -339,6 +339,15 @@
           }
         },
         {
+          "title": "Global Root Height",
+          "description": "The height of the first block without global root stored.",
+          "type": "stat",
+          "exprs": [
+            "batcher_global_root_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Average Block Time",
           "description": "Average block time (1m window)",
           "type": "timeseries",
