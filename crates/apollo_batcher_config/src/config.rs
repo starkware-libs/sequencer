@@ -289,6 +289,7 @@ impl SerializeConfig for BatcherConfig {
             self.contract_class_manager_config.dump(),
             "contract_class_manager_config",
         ));
+        // TODO(guyn): why would a comment cause a failure of system test?
         dump.append(&mut prepend_sub_config_name(
             self.commitment_manager_config.dump(),
             "commitment_manager_config",
