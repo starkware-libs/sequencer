@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::block_hash_contract_address;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -24,14 +26,24 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetAPITransaction,
 };
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
+use starknet_api::state::{ContractClassComponentHashes, SierraContractClass, StorageKey};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
+use starknet_api::test_utils::{
+    NonceManager,
+    BLOCK_HASH_HISTORY_END,
+    BLOCK_HASH_HISTORY_START,
+    CHAIN_ID_FOR_TESTS,
+    CURRENT_BLOCK_NUMBER,
+};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
@@ -128,6 +140,22 @@ pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) block_context: BlockContext,
 }
 
+/// Generates deterministic block hash storage updates for historical blocks.
+/// Populates blocks BLOCK_HASH_HISTORY_START to BLOCK_HASH_HISTORY_END with deterministic hash
+/// values (block_number - start_block + 1, i.e., 1 to 41).
+fn generate_block_hash_storage_updates() -> HashMap<StarknetStorageKey, StarknetStorageValue> {
+    (BLOCK_HASH_HISTORY_START..=BLOCK_HASH_HISTORY_END)
+        .map(|block_num| {
+            // Deterministic hash: (block_num - start_block + 1), so values are 1, 2, 3, ..., 41
+            let hash_value = block_num - BLOCK_HASH_HISTORY_START + 1;
+            (
+                StarknetStorageKey(StorageKey::from(block_num)),
+                StarknetStorageValue(Felt::from(hash_value)),
+            )
+        })
+        .collect()
+}
+
 /// Creates the initial state for the flow test which includes:
 /// Declares token and account contracts.
 /// Deploys both contracts and funds the account.
@@ -174,8 +202,26 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     );
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
-    // Commit the state diff.
-    let committer_state_diff = create_committer_state_diff(state_diff);
+    // Generate block hash storage updates for historical blocks.
+    let block_hash_storage_updates = generate_block_hash_storage_updates();
+
+    // Commit the state diff with block hash mappings.
+    let mut committer_state_diff = create_committer_state_diff(state_diff);
+    committer_state_diff
+        .storage_updates
+        .entry(block_hash_contract_address())
+        .or_default()
+        .extend(block_hash_storage_updates.iter().map(|(k, v)| (*k, *v)));
+
+    // Also apply block hash storage to the blockifier's cached state.
+    let mut block_hash_state_maps = StateMaps::default();
+    for (key, value) in block_hash_storage_updates {
+        block_hash_state_maps.storage.insert((block_hash_contract_address(), key.0), value.0);
+    }
+    final_state
+        .state
+        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
+
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 
