@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
 use std::iter;
 use std::net::SocketAddr;
 use std::ops::Index;
@@ -20,23 +19,6 @@ use apollo_starknet_client::reader::objects::transaction::{
     Transaction as ClientTransaction,
     TransactionReceipt as ClientTransactionReceipt,
 };
-use apollo_starknet_client::starknet_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
-};
-use apollo_starknet_client::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
-};
-use apollo_starknet_client::writer::objects::transaction::{
-    DeclareTransaction as ClientDeclareTransaction,
-    DeployAccountTransaction as ClientDeployAccountTransaction,
-    InvokeTransaction as ClientInvokeTransaction,
-};
-use apollo_starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
-use apollo_starknet_client::ClientError;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::body::{BodyStorageWriter, TransactionIndex};
@@ -57,7 +39,6 @@ use apollo_test_utils::{
     GetTestInstance,
 };
 use assert_matches::assert_matches;
-use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use itertools::Itertools;
@@ -65,13 +46,10 @@ use jsonrpsee::core::Error;
 use jsonrpsee::Methods;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
-use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use pretty_assertions::assert_eq;
 use rand::{random, RngCore};
 use rand_chacha::ChaCha8Rng;
-use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block as StarknetApiBlock,
     BlockHash,
@@ -117,16 +95,11 @@ use starknet_types_core::felt::Felt;
 
 use super::super::api::EventsChunk;
 use super::super::block::{Block, GeneralBlockHeader, PendingBlockHeader};
-use super::super::broadcasted_transaction::BroadcastedDeclareTransaction;
 use super::super::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use super::super::error::{
-    unexpected_error,
-    JsonRpcError,
     BLOCK_NOT_FOUND,
     CLASS_HASH_NOT_FOUND,
-    COMPILATION_FAILED,
     CONTRACT_NOT_FOUND,
-    DUPLICATE_TX,
     INVALID_CONTINUATION_TOKEN,
     INVALID_TRANSACTION_INDEX,
     NO_BLOCKS,
@@ -168,11 +141,6 @@ use super::super::transaction::{
     TypedDeployAccountTransaction,
     TypedInvokeTransaction,
 };
-use super::super::write_api_result::{
-    AddDeclareOkResult,
-    AddDeployAccountOkResult,
-    AddInvokeOkResult,
-};
 use super::api_impl::JsonRpcServerImpl;
 use super::{ContinuationToken, EventFilter, GatewayContractClass};
 use crate::api::{BlockHashOrNumber, BlockId, Tag};
@@ -197,13 +165,7 @@ use crate::test_utils::{
 };
 use crate::v0_8::api::CompiledContractClass;
 use crate::version_config::VERSION_0_8 as VERSION;
-use crate::{
-    internal_server_error,
-    internal_server_error_with_msg,
-    run_server,
-    ContinuationTokenAsStruct,
-    GENESIS_HASH,
-};
+use crate::{internal_server_error_with_msg, run_server, ContinuationTokenAsStruct, GENESIS_HASH};
 
 const NODE_VERSION: &str = "NODE VERSION";
 
@@ -3837,312 +3799,6 @@ async fn get_compiled_class() {
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == CLASS_HASH_NOT_FOUND.into());
-}
-
-#[async_trait]
-trait AddTransactionTest
-where
-    // This bound is a work-around for associated type bounds. It bounds
-    // `Self::ClientTransaction::Error` to implement `Debug`.
-    // associated type bounds is described here:
-    // https://github.com/rust-lang/rfcs/blob/master/text/2289-associated-type-bounds.md
-    <<Self as AddTransactionTest>::ClientTransaction as TryFrom<Self::Transaction>>::Error: Debug,
-{
-    type Transaction: GetTestInstance + Serialize + Clone + Send + Sync + 'static + Debug;
-    type ClientTransaction: TryFrom<Self::Transaction> + Send + Debug;
-    type Response: From<Self::ClientResponse>
-        + for<'de> Deserialize<'de>
-        + Eq
-        + Debug
-        + Clone
-        + Send
-        + Sync;
-    type ClientResponse: GetTestInstance + Clone + Send;
-
-    const METHOD_NAME: &'static str;
-
-    fn expect_add_transaction(
-        client_mock: &mut MockStarknetWriter,
-        client_tx: Self::ClientTransaction,
-        client_result: WriterClientResult<Self::ClientResponse>,
-    );
-
-    async fn test_positive_flow() {
-        let mut rng = get_rng();
-        let tx = Self::Transaction::get_test_instance(&mut rng);
-        let client_resp = Self::ClientResponse::get_test_instance(&mut rng);
-        let expected_resp = Self::Response::from(client_resp.clone());
-
-        let mut client_mock = MockStarknetWriter::new();
-        Self::expect_add_transaction(
-            &mut client_mock,
-            Self::ClientTransaction::try_from(tx.clone()).unwrap(),
-            Ok(client_resp),
-        );
-
-        let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-            Some(client_mock),
-            None,
-            None,
-            None,
-            None,
-        );
-        call_api_then_assert_and_validate_schema_for_result(
-            &module,
-            Self::METHOD_NAME,
-            vec![Box::new(tx)],
-            &VERSION,
-            SpecFile::WriteApi,
-            &expected_resp,
-        )
-        .await;
-    }
-
-    async fn test_internal_error() {
-        let mut rng = get_rng();
-        let tx = Self::Transaction::get_test_instance(&mut rng);
-        let client_error = WriterClientError::ClientError(ClientError::BadResponseStatus {
-            code: StatusCode::from_u16(404).unwrap(),
-            message: "This site can’t be reached".to_owned(),
-        });
-        let expected_error = internal_server_error(&client_error);
-
-        let mut client_mock = MockStarknetWriter::new();
-        Self::expect_add_transaction(
-            &mut client_mock,
-            Self::ClientTransaction::try_from(tx.clone()).unwrap(),
-            Err(client_error),
-        );
-
-        let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-            Some(client_mock),
-            None,
-            None,
-            None,
-            None,
-        );
-        let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
-            panic!("Got an error which is not a call error");
-        };
-        assert_eq!(error, expected_error);
-    }
-
-    async fn test_known_starknet_error(
-        known_starknet_error_code: KnownStarknetErrorCode,
-        expected_error: JsonRpcError<String>,
-    ) {
-        let mut rng = get_rng();
-        let tx = Self::Transaction::get_test_instance(&mut rng);
-        const MESSAGE: &str = "message";
-        let client_error =
-            WriterClientError::ClientError(ClientError::StarknetError(StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(known_starknet_error_code),
-                message: MESSAGE.to_owned(),
-            }));
-
-        let mut client_mock = MockStarknetWriter::new();
-        Self::expect_add_transaction(
-            &mut client_mock,
-            Self::ClientTransaction::try_from(tx.clone()).unwrap(),
-            Err(client_error),
-        );
-
-        let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-            Some(client_mock),
-            None,
-            None,
-            None,
-            None,
-        );
-        let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
-            panic!("Got an error which is not a call error");
-        };
-        assert_eq!(error, expected_error.into());
-    }
-
-    async fn test_unexpected_error(known_starknet_error_code: KnownStarknetErrorCode) {
-        let mut rng = get_rng();
-        let tx = Self::Transaction::get_test_instance(&mut rng);
-        const MESSAGE: &str = "message";
-        let client_error =
-            WriterClientError::ClientError(ClientError::StarknetError(StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(known_starknet_error_code),
-                message: MESSAGE.to_owned(),
-            }));
-
-        let mut client_mock = MockStarknetWriter::new();
-        Self::expect_add_transaction(
-            &mut client_mock,
-            Self::ClientTransaction::try_from(tx.clone()).unwrap(),
-            Err(client_error),
-        );
-
-        let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-            Some(client_mock),
-            None,
-            None,
-            None,
-            None,
-        );
-        let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
-            panic!("Got an error which is not a call error");
-        };
-        assert_eq!(error, unexpected_error(MESSAGE.to_owned()).into());
-    }
-}
-
-struct AddInvokeTest {}
-impl AddTransactionTest for AddInvokeTest {
-    type Transaction = TypedInvokeTransaction;
-    type ClientTransaction = ClientInvokeTransaction;
-    type Response = AddInvokeOkResult;
-    type ClientResponse = InvokeResponse;
-
-    const METHOD_NAME: &'static str = "starknet_V0_8_addInvokeTransaction";
-
-    fn expect_add_transaction(
-        client_mock: &mut MockStarknetWriter,
-        client_tx: Self::ClientTransaction,
-        client_result: WriterClientResult<Self::ClientResponse>,
-    ) {
-        client_mock
-            .expect_add_invoke_transaction()
-            .times(1)
-            .with(eq(client_tx))
-            .return_once(move |_| client_result);
-    }
-}
-
-struct AddDeployAccountTest {}
-impl AddTransactionTest for AddDeployAccountTest {
-    type Transaction = TypedDeployAccountTransaction;
-    type ClientTransaction = ClientDeployAccountTransaction;
-    type Response = AddDeployAccountOkResult;
-    type ClientResponse = DeployAccountResponse;
-
-    const METHOD_NAME: &'static str = "starknet_V0_8_addDeployAccountTransaction";
-
-    fn expect_add_transaction(
-        client_mock: &mut MockStarknetWriter,
-        client_tx: Self::ClientTransaction,
-        client_result: WriterClientResult<Self::ClientResponse>,
-    ) {
-        client_mock
-            .expect_add_deploy_account_transaction()
-            .times(1)
-            .with(eq(client_tx))
-            .return_once(move |_| client_result);
-    }
-}
-
-struct AddDeclareTest {}
-impl AddTransactionTest for AddDeclareTest {
-    type Transaction = BroadcastedDeclareTransaction;
-    type ClientTransaction = ClientDeclareTransaction;
-    type Response = AddDeclareOkResult;
-    type ClientResponse = DeclareResponse;
-
-    const METHOD_NAME: &'static str = "starknet_V0_8_addDeclareTransaction";
-
-    fn expect_add_transaction(
-        client_mock: &mut MockStarknetWriter,
-        client_tx: Self::ClientTransaction,
-        client_result: WriterClientResult<Self::ClientResponse>,
-    ) {
-        client_mock
-            .expect_add_declare_transaction()
-            .times(1)
-            .with(eq(client_tx))
-            .return_once(move |_| client_result);
-    }
-}
-
-// TODO(shahak): Test starknet error.
-
-#[tokio::test]
-async fn add_invoke_positive_flow() {
-    AddInvokeTest::test_positive_flow().await;
-}
-
-#[tokio::test]
-async fn add_invoke_internal_error() {
-    AddInvokeTest::test_internal_error().await;
-}
-
-#[tokio::test]
-async fn add_invoke_known_starknet_error() {
-    AddInvokeTest::test_known_starknet_error(
-        KnownStarknetErrorCode::DuplicatedTransaction,
-        DUPLICATE_TX,
-    )
-    .await;
-}
-
-#[tokio::test]
-async fn add_invoke_unexpected_error() {
-    // Choosing error codes that map under the other transaction types into an expected error in
-    // order to check that we call invoke's error conversion.
-    AddInvokeTest::test_unexpected_error(KnownStarknetErrorCode::CompilationFailed).await;
-    AddInvokeTest::test_unexpected_error(KnownStarknetErrorCode::UndeclaredClass).await;
-}
-
-#[tokio::test]
-async fn add_deploy_account_positive_flow() {
-    AddDeployAccountTest::test_positive_flow().await;
-}
-
-#[tokio::test]
-async fn add_deploy_account_internal_error() {
-    AddDeployAccountTest::test_internal_error().await;
-}
-
-#[tokio::test]
-async fn add_deploy_account_known_starknet_error() {
-    // Choosing an error code that maps under the other transaction types into an unexpected error
-    // in order to check that we call deploy_account's error conversion.
-    AddDeployAccountTest::test_known_starknet_error(
-        KnownStarknetErrorCode::UndeclaredClass,
-        CLASS_HASH_NOT_FOUND,
-    )
-    .await;
-}
-
-#[tokio::test]
-async fn add_deploy_account_unexpected_error() {
-    // Choosing an error code that maps under the other transaction types into an expected error in
-    // order to check that we call deploy_account's error conversion.
-    AddDeployAccountTest::test_unexpected_error(KnownStarknetErrorCode::CompilationFailed).await;
-}
-
-#[tokio::test]
-async fn add_declare_positive_flow() {
-    AddDeclareTest::test_positive_flow().await;
-}
-
-#[tokio::test]
-async fn add_declare_internal_error() {
-    AddDeclareTest::test_internal_error().await;
-}
-
-#[tokio::test]
-async fn add_declare_known_starknet_error() {
-    // Choosing an error code that maps under the other transaction types into an unexpected error
-    // in order to check that we call declare's error conversion.
-    AddDeclareTest::test_known_starknet_error(
-        KnownStarknetErrorCode::CompilationFailed,
-        COMPILATION_FAILED,
-    )
-    .await;
-}
-
-#[tokio::test]
-async fn add_declare_unexpected_error() {
-    // Choosing an error code that maps under the other transaction types into an expected error in
-    // order to check that we call declare's error conversion.
-    AddDeclareTest::test_unexpected_error(KnownStarknetErrorCode::UndeclaredClass).await;
 }
 
 #[test]
