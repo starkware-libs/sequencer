@@ -3,6 +3,8 @@ use std::io::Read;
 
 use bzip2::read::BzDecoder;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use proving_utils::proof_encoding::ProofBytes;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_types_core::felt::Felt;
 
 use crate::proving::{prove, resolve_resource_path};
@@ -30,19 +32,15 @@ async fn test_prove_cairo_pie_10_transfers() {
     // Prove the Cairo PIE.
     let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
 
-    // Read expected proof (it's bzip2 compressed).
-    let expected_proof_file =
-        fs::File::open(&expected_proof_path).expect("Failed to open expected proof file");
-    let mut expected_proof = Vec::new();
-    let mut expected_bz_decoder = BzDecoder::new(expected_proof_file);
-    expected_bz_decoder
-        .read_to_end(&mut expected_proof)
-        .expect("Failed to read expected proof file");
+    // Read expected proof.
+    let expected_proof: Proof = ProofBytes::from_file(&expected_proof_path)
+        .expect("Failed to decode expected proof bytes")
+        .into();
 
     // Read expected proof facts.
     let expected_proof_facts_str = fs::read_to_string(&expected_proof_facts_path)
         .expect("Failed to read expected proof facts file");
-    let expected_proof_facts: Vec<Felt> = serde_json::from_str(&expected_proof_facts_str)
+    let expected_proof_facts: ProofFacts = serde_json::from_str(&expected_proof_facts_str)
         .expect("Failed to parse expected proof facts");
 
     // Compare proofs.
