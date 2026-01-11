@@ -26,7 +26,7 @@ define_metrics!(
         MetricCounter { CLASS_CACHE_MISSES, "batcher_class_cache_misses", "Counter of the batcher's global class cache misses", init=0 },
         MetricCounter { CLASS_CACHE_HITS, "batcher_class_cache_hits", "Counter of the batcher's global class cache hits", init=0 },
         // Heights
-        MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
+        MetricGauge { BUILDING_HEIGHT, "batcher_building_height", "The height of the block that should be built next. The height of the state diff marker as stored in the batcher's storage." },
         MetricGauge { GLOBAL_ROOT_HEIGHT, "batcher_global_root_height", "The height of the first block without global root stored." },
         MetricGauge { LAST_BATCHED_BLOCK_HEIGHT, "batcher_last_batched_block_height", "The height of the last block received by batching" },
         MetricGauge { LAST_SYNCED_BLOCK_HEIGHT, "batcher_last_synced_block_height", "The height of the last block received by syncing" },
@@ -84,8 +84,8 @@ pub const BATCHER_CLASS_CACHE_METRICS: CacheMetrics =
     CacheMetrics::new(CLASS_CACHE_MISSES, CLASS_CACHE_HITS);
 
 pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNumber) {
-    STORAGE_HEIGHT.register();
-    STORAGE_HEIGHT.set_lossy(storage_height.0);
+    BUILDING_HEIGHT.register();
+    BUILDING_HEIGHT.set_lossy(storage_height.0);
     GLOBAL_ROOT_HEIGHT.register();
     GLOBAL_ROOT_HEIGHT.set_lossy(global_root_height.0);
     LAST_BATCHED_BLOCK_HEIGHT.register();
