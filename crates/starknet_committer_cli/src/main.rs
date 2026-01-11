@@ -1,6 +1,7 @@
-use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
+use apollo_infra_utils::tracing_utils::configure_tracing;
 use clap::{Args, Parser, Subcommand};
-use starknet_committer_cli::args::{default_preset, GlobalArgs, Preset};
+use starknet_committer_cli::commands::run_benchmark;
+use starknet_committer_cli::presets::types::Preset;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -31,10 +32,11 @@ pub async fn run_committer_cli(
     info!("Starting committer-cli with command: \n{:?}", committer_command);
     match committer_command.command {
         Command::StorageBenchmark(StorageBenchmarkArgs { preset }) => {
-            let args = default_preset(preset);
-            let GlobalArgs { ref log_level, .. } = args.global_args();
-            modify_log_level(log_level.clone(), log_filter_handle);
-            args.run_benchmark().await;
+            let fields = preset.preset_fields();
+            log_filter_handle
+                .modify(|filter| *filter = fields.flavor_fields().log_level.into())
+                .expect("Failed to set the log level.");
+            run_benchmark(fields).await;
         }
     }
 }
