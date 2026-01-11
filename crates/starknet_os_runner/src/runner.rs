@@ -1,12 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-use starknet_api::core::{CompiledClassHash, ContractAddress};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
 use starknet_os::io::os_input::{
     CommitmentInfo,
@@ -18,11 +21,16 @@ use starknet_os::io::os_input::{
 };
 use starknet_os::io::virtual_os_output::VirtualOsRunnerOutput;
 use starknet_os::runner::run_virtual_os;
+use url::Url;
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
-use crate::storage_proofs::StorageProofProvider;
-use crate::virtual_block_executor::VirtualBlockExecutor;
+use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
+
+// ================================================================================================
+// Virtual Os Types
+// ================================================================================================
 
 /// Virtual block input containing all non-trivial fields for OS block input construction.
 pub struct VirtualOsBlockInput {
@@ -92,6 +100,16 @@ impl From<VirtualOsBlockInput> for OsHints {
     }
 }
 
+// ================================================================================================
+// Runner
+// ================================================================================================
+
+/// Generic runner for executing transactions and generating OS input.
+///
+/// The runner is parameterized by its providers:
+/// - `C`: Classes provider for fetching compiled classes
+/// - `S`: Storage proof provider for fetching Patricia proofs
+/// - `V`: Virtual block executor for transaction execution
 pub struct Runner<C, S, V>
 where
     C: ClassesProvider + Sync,
@@ -210,5 +228,96 @@ where
         let os_hints = self.create_os_hints(block_number, contract_class_manager, txs).await?;
         let output = run_virtual_os(os_hints)?;
         Ok(output)
+    }
+}
+
+// ================================================================================================
+// RPC Runner Factory
+// ================================================================================================
+
+/// Type alias for an RPC-based runner.
+///
+/// This runner uses:
+/// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching
+/// - `RpcStorageProofsProvider` for storage proofs
+/// - `RpcVirtualBlockExecutor` for transaction execution
+pub type RpcRunner = Runner<
+    Arc<StateReaderAndContractManager<RpcStateReader>>,
+    RpcStorageProofsProvider,
+    RpcVirtualBlockExecutor,
+>;
+
+/// Factory for creating RPC-based runners.
+///
+/// Holds configuration that is shared across all runners:
+/// - RPC node URL.
+/// - Chain ID.
+/// - Contract class manager (for caching compiled classes).
+///
+/// # Example
+///
+/// ```ignore
+/// let factory = RpcRunnerFactory::new(
+///     Url::parse("http://localhost:9545").unwrap(),
+///     ChainId::Mainnet,
+///     contract_class_manager,
+/// );
+///
+/// let runner = factory.create_runner(BlockNumber(800000));
+/// let output = runner.run_os(txs).await?;
+/// ```
+pub struct RpcRunnerFactory {
+    /// URL of the RPC node.
+    pub node_url: Url,
+    /// Chain ID for the network.
+    pub chain_id: ChainId,
+    /// Contract class manager for caching compiled classes.
+    pub contract_class_manager: ContractClassManager,
+}
+
+impl RpcRunnerFactory {
+    /// Creates a new RPC runner factory.
+    pub fn new(
+        node_url: Url,
+        chain_id: ChainId,
+        contract_class_manager: ContractClassManager,
+    ) -> Self {
+        Self { node_url, chain_id, contract_class_manager }
+    }
+
+    /// Creates a runner configured for the given block number.
+    ///
+    /// The runner is ready to execute transactions on top of the specified block.
+    /// Each runner is single-use (consumed when `run_os` is called).
+    pub fn create_runner(&self, block_number: BlockNumber) -> RpcRunner {
+        // Create the virtual block executor for this block.
+        let virtual_block_executor = RpcVirtualBlockExecutor::new(
+            self.node_url.to_string(),
+            self.chain_id.clone(),
+            block_number,
+        );
+
+        // Create the storage proofs provider.
+        let storage_proofs_provider = RpcStorageProofsProvider::new(self.node_url.clone());
+
+        // Create the state reader for class fetching.
+        let rpc_state_reader = RpcStateReader::new_with_config_from_url(
+            self.node_url.to_string(),
+            self.chain_id.clone(),
+            block_number,
+        );
+
+        // Wrap in StateReaderAndContractManager for class resolution.
+        let state_reader_and_contract_manager = Arc::new(StateReaderAndContractManager::new(
+            rpc_state_reader,
+            self.contract_class_manager.clone(),
+            None,
+        ));
+
+        Runner::new(
+            state_reader_and_contract_manager,
+            storage_proofs_provider,
+            virtual_block_executor,
+        )
     }
 }

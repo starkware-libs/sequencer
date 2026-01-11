@@ -251,8 +251,7 @@ pub trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
-#[allow(dead_code)]
-pub(crate) struct RpcVirtualBlockExecutor {
+pub struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
     pub rpc_state_reader: RpcStateReader,
     /// Whether transaction validation is enabled during execution.
@@ -260,7 +259,6 @@ pub(crate) struct RpcVirtualBlockExecutor {
 }
 
 impl RpcVirtualBlockExecutor {
-    #[allow(dead_code)]
     pub fn new(node_url: String, chain_id: ChainId, block_number: BlockNumber) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
