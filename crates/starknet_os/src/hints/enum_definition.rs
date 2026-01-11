@@ -71,6 +71,7 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     start_tx,
 };
 use crate::hints::hint_implementation::execution::implementation::{
+    assert_proof_facts_block_hash,
     assert_transaction_hash,
     cache_contract_storage_request_key,
     cache_contract_storage_syscall_request_address,
@@ -523,6 +524,7 @@ define_hint_enum!(
     (WriteSyscallResult, write_syscall_result),
     (DeclareTxFields, declare_tx_fields),
     (WriteOldBlockToStorage, write_old_block_to_storage),
+    (AssertProofFactsBlockHash, assert_proof_facts_block_hash),
     (CacheContractStorageRequestKey, cache_contract_storage_request_key),
     (CacheContractStorageSyscallRequestAddress, cache_contract_storage_syscall_request_address),
     (GetOldBlockNumberAndHash, get_old_block_number_and_hash),
