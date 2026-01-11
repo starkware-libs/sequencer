@@ -6,10 +6,10 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     Preimage,
     PreimageMap,
 };
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafWithEmptyKeyContext;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::db::facts_db::db::FactsNodeLayout;
@@ -24,11 +24,12 @@ pub mod traversal_test;
 /// given tree according to the `root_hash`.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-pub async fn fetch_patricia_paths<L: LeafWithEmptyKeyContext>(
+pub async fn fetch_patricia_paths<L: Leaf>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<PreimageMap> {
     let mut witnesses = PreimageMap::new();
 
@@ -38,7 +39,14 @@ pub async fn fetch_patricia_paths<L: LeafWithEmptyKeyContext>(
 
     let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
 
-    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves).await?;
+    fetch_patricia_paths_inner::<L>(
+        storage,
+        vec![main_subtree],
+        &mut witnesses,
+        leaves,
+        key_context,
+    )
+    .await?;
     Ok(witnesses)
 }
 
@@ -51,21 +59,19 @@ pub async fn fetch_patricia_paths<L: LeafWithEmptyKeyContext>(
 /// inner nodes in their paths and their siblings.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
-pub(crate) async fn fetch_patricia_paths_inner<'a, L: LeafWithEmptyKeyContext>(
+pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     storage: &mut impl Storage,
     subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<()> {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
-        let filled_roots = get_roots_from_storage::<L, FactsNodeLayout>(
-            &current_subtrees,
-            storage,
-            &EmptyKeyContext,
-        )
-        .await?;
+        let filled_roots =
+            get_roots_from_storage::<L, FactsNodeLayout>(&current_subtrees, storage, key_context)
+                .await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.

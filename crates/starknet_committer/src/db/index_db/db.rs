@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
@@ -48,17 +48,13 @@ pub struct IndexNodeLayout {}
 
 impl<'a, L> NodeLayout<'a, L> for IndexNodeLayout
 where
-    L: Leaf + HasStaticPrefix<KeyContext = TrieType>,
+    L: Leaf,
     TreeHashFunctionImpl: TreeHashFunction<L>,
 {
     type NodeData = EmptyNodeData;
     type NodeDbObject = IndexFilledNode<L>;
     type DeserializationContext = IndexNodeContext;
     type SubTree = IndexLayoutSubTree<'a>;
-
-    fn generate_key_context(trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext {
-        trie_type
-    }
 
     fn get_db_object<LeafBase: Leaf + Into<L>>(
         node_index: NodeIndex,
@@ -120,9 +116,8 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
         let mut serialized_forest = DbHashMap::new();
 
-        // TODO(Ariel): use a different key context when FilledForest is generic over leaf types.
-        for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        for (contract_address, tree) in &filled_forest.storage_tries {
+            serialized_forest.extend(tree.serialize(contract_address)?);
         }
 
         // Contracts and classes tries.

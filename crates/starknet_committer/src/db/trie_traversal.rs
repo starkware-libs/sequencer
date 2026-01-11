@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
-use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor, TrieType};
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -24,7 +24,7 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
     UnmodifiedChildTraversal,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 use tracing::warn;
@@ -293,8 +293,8 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
 /// The following arguments depend on the `Layout` type parameter:
 /// - `storage`: storage to fetch nodes from, expected to match the serialization of
 ///   `Layout::NodeDbObject`.
-/// - `key_context`: Generated via `Layout::generate_key_context`, determines the DB key prefix used
-///   when fetching nodes from storage.
+/// - `key_context`: additional context that is needed to determine the DB key prefix used when
+///   fetching nodes from storage.
 /// - `leaf_modifications` and `previous_leaves`: Their leaf type `L` is constrained by `Layout`.
 pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     storage: &mut impl Storage,
@@ -347,7 +347,11 @@ pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
         let sorted_leaf_indices = storage_tries_sorted_indices
@@ -369,7 +373,7 @@ pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue
             // iterator over borrowed data so that the conversion below is costless.
             &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
             None,
-            &Layout::generate_key_context(TrieType::StorageTrie(*address)),
+            address,
         )
         .await?;
         storage_tries.insert(*address, original_skeleton);
@@ -383,7 +387,10 @@ pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
     storage: &mut impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)>
+where
+    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
     let config = OriginalSkeletonTrieConfig::new_for_contracts_trie();
 
     let mut leaves = HashMap::new();
@@ -394,7 +401,7 @@ pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
         &config,
         &HashMap::new(),
         Some(&mut leaves),
-        &Layout::generate_key_context(TrieType::ContractsTrie),
+        &EmptyKeyContext,
     )
     .await?;
 
@@ -410,7 +417,11 @@ pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
     classes_trie_root_hash: HashOutput,
     config: &ReaderConfig,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
+) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+where
+    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
+        HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
     let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
         config.warn_on_trivial_modifications(),
     );
@@ -427,7 +438,7 @@ pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
             .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
             .collect(),
         None,
-        &Layout::generate_key_context(TrieType::ClassesTrie),
+        &EmptyKeyContext,
     )
     .await?)
 }
