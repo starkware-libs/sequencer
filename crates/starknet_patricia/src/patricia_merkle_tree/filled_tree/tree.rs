@@ -169,6 +169,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 let (leaf_data, leaf_output) = L::create(leaf_input).await.map_err(|leaf_err| {
                     FilledTreeError::Leaf { leaf_error: leaf_err, leaf_index: index }
                 })?;
+
                 Ok((leaf_data, Some(leaf_output)))
             }
         }
