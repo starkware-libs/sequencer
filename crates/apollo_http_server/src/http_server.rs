@@ -97,12 +97,10 @@ impl HttpServer {
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
 
-        // TODO(Tsabary): make the poll interval part of the config.
-        let poll_interval = Duration::from_millis(1_000);
         tokio::spawn(dynamic_config_poll(
             self.dynamic_config_tx.clone(),
             self.config_manager_client.clone(),
-            poll_interval,
+            self.config.static_config.dynamic_config_poll_interval,
         ));
 
         // TODO(Tsabary): update the http server struct to hold optional fields of the
