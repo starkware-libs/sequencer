@@ -1,11 +1,15 @@
 use std::fs;
+use std::sync::LazyLock;
 
 use starknet_patricia_storage::aerospike_storage::Port;
 use starknet_patricia_storage::map_storage::CachedStorageConfig;
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 
-pub const DEFAULT_DATA_PATH: &str = "/mnt/data/committer_storage_benchmark";
-pub const DEFAULT_STORAGE_PATH: &str = "/mnt/data/storage";
+pub const DEFAULT_DATA_PATH_PREFIX: &str = "/mnt/data";
+pub const DEFAULT_DATA_PATH: LazyLock<String> =
+    LazyLock::new(|| format!("{DEFAULT_DATA_PATH_PREFIX}/committer_storage_benchmark"));
+pub const DEFAULT_STORAGE_PATH: LazyLock<String> =
+    LazyLock::new(|| format!("{DEFAULT_DATA_PATH_PREFIX}/storage"));
 
 /// Defines the underlying forest storage used by the committer.
 #[derive(Debug)]
