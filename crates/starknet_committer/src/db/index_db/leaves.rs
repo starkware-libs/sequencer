@@ -24,10 +24,12 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 )]
 pub struct IndexLayoutContractState(pub ContractState);
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From, derive_more::Into,
+)]
 pub struct IndexLayoutCompiledClassHash(pub CompiledClassHash);
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::From)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::From, derive_more::Into)]
 pub struct IndexLayoutStarknetStorageValue(pub StarknetStorageValue);
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
