@@ -17,9 +17,11 @@ pub enum CommitmentManagerError {
         "Wrong commitment task height. Expected: {expected}, Actual: {actual}. State diff \
          commitment: {state_diff_commitment:?}"
     )]
-    WrongTaskHeight {
+    WrongCommitmentTaskHeight {
         expected: BlockNumber,
         actual: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
     },
+    #[error("Wrong revert task height. Expected: {expected}, Actual: {actual}.")]
+    WrongRevertTaskHeight { expected: BlockNumber, actual: BlockNumber },
 }
