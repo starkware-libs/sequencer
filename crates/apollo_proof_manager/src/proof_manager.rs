@@ -1,4 +1,6 @@
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_proof_manager_config::config::ProofManagerConfig;
+use async_trait::async_trait;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::proof_storage::{FsProofStorage, FsProofStorageError, ProofStorage};
@@ -29,5 +31,12 @@ impl ProofStorage for ProofManager {
 
     fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, Self::Error> {
         self.proof_storage.contains_proof(proof_facts)
+    }
+}
+
+#[async_trait]
+impl ComponentStarter for ProofManager {
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
     }
 }
