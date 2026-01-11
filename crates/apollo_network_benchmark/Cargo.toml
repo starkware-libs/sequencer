@@ -10,6 +10,7 @@ description = "Benchmarking tool for the Apollo Network"
 testing = []
 
 [dependencies]
+apollo_metrics.workspace = true
 apollo_network.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
