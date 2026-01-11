@@ -64,6 +64,12 @@ const RESERVED_CONTRACT_ADDRESS = 0x3;
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = 10;
 
+// Allowed virtual OS program hashes for client-side proving.
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
+    0x0130206a40921880628605041292e995870334451179c63090221210893986a2
+);
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN = 1;
+
 // Gas constants.
 
 const STEP_GAS_COST = 100;
