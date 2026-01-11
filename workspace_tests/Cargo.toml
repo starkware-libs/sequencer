@@ -8,6 +8,7 @@ description = "Workspace-level tests."
 
 [dev-dependencies]
 toml_test_utils.path = "../toml_test_utils"
+expect-test.workspace = true
 
 [[test]]
 name = "workspace_tests"
