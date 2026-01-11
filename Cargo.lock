@@ -10609,7 +10609,11 @@ name = "proving_utils"
 version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
+ "bzip2 0.5.2",
+ "rstest",
  "serde",
+ "starknet_api",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -12850,7 +12854,6 @@ dependencies = [
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
- "bzip2 0.5.2",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",

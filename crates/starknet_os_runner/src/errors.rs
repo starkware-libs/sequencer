@@ -1,6 +1,7 @@
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
+use proving_utils::proof_encoding::ProofEncodingError;
 use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
 use starknet_api::core::ClassHash;
 use starknet_os::errors::StarknetOsError;
@@ -83,7 +84,7 @@ pub enum ProvingError {
     ProverExecution(#[from] StwoRunAndProveError),
 
     #[error("Failed to read proof file: {0}")]
-    ReadProof(#[source] std::io::Error),
+    ReadProof(#[source] ProofEncodingError),
 
     #[error("Failed to read proof facts file: {0}")]
     ReadProofFacts(#[source] std::io::Error),
