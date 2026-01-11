@@ -80,13 +80,14 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        let (contracts_trie, original_contracts_trie_leaves) = create_contracts_trie(
-            &mut self.storage,
-            context.0.contracts_trie_root_hash,
-            forest_sorted_indices.contracts_trie_sorted_indices,
-        )
-        .await?;
-        let storage_tries = create_storage_tries(
+        let (contracts_trie, original_contracts_trie_leaves) =
+            create_contracts_trie::<ContractState, FactsNodeLayout>(
+                &mut self.storage,
+                context.0.contracts_trie_root_hash,
+                forest_sorted_indices.contracts_trie_sorted_indices,
+            )
+            .await?;
+        let storage_tries = create_storage_tries::<StarknetStorageValue, FactsNodeLayout>(
             &mut self.storage,
             storage_updates,
             &original_contracts_trie_leaves,
@@ -94,7 +95,7 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
             &forest_sorted_indices.storage_tries_sorted_indices,
         )
         .await?;
-        let classes_trie = create_classes_trie(
+        let classes_trie = create_classes_trie::<CompiledClassHash, FactsNodeLayout>(
             &mut self.storage,
             classes_updates,
             context.0.classes_trie_root_hash,
