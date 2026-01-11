@@ -1,11 +1,24 @@
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from src.config.schema import CommonConfig, ServiceConfig
+
+
+class ConfigValidationError(ValueError):
+    """Custom exception for configuration validation errors.
+
+    This exception is used to signal that a nicely formatted error message
+    has already been displayed, so the traceback can be suppressed unless
+    verbose mode is enabled.
+    """
 
 
 class Config(ABC):
@@ -363,123 +376,123 @@ class NodeConfigLoader(Config):
         return yaml_key
 
     @staticmethod
-    def _build_file_paths_section(
-        config_list_path: Optional[str], overlay_source: Optional[str]
-    ) -> str:
-        """Build the file paths section of the error message.
+    def _print_file_paths_section(
+        console: Console,
+        config_list_path: Optional[str],
+        overlay_source: Optional[str],
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
+    ) -> None:
+        """Print the file paths section using rich formatting.
 
         Args:
+            console: Rich Console instance
             config_list_path: Optional path to the config list JSON file
             overlay_source: Optional source identifier for the overlay file
-
-        Returns:
-            The file paths section as a string
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
         """
-        section = "File Paths:\n"
+        paths_table = Table(show_header=False, box=None, padding=(0, 2))
+        paths_table.add_column(style="bold cyan", width=30)
+        paths_table.add_column(style="white")
+
         if config_list_path:
-            full_config_path = os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
-            section += f"  application_config_json_path: {full_config_path}\n"
+            full_config_path = os.path.abspath(
+                os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
+            )
+            paths_table.add_row("application_config_json_path:", full_config_path)
         else:
-            section += "  application_config_json_path: <unknown>\n"
-        if overlay_source:
-            section += f"  config_override_path: {overlay_source}\n"
+            paths_table.add_row("application_config_json_path:", "[dim]<unknown>[/dim]")
+
+        # Construct layout path
+        if layout:
+            layout_path = (
+                Path(NodeConfigLoader.ROOT_DIR) / "configs" / "layouts" / layout
+            ).resolve()
+            paths_table.add_row("config_layout_path:", str(layout_path))
         else:
-            section += "  config_override_path: <unknown>\n"
-        return section
+            paths_table.add_row("config_layout_path:", "[dim]<unknown>[/dim]")
+
+        # Construct overlay path from overlay flag value
+        if overlay:
+            # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
+            overlay_path_segments = overlay.split(".")
+            if overlay_path_segments and overlay_path_segments[0] == layout:
+                overlay_base_path = (
+                    Path(NodeConfigLoader.ROOT_DIR) / "configs" / "overlays" / layout
+                ).resolve()
+                for segment in overlay_path_segments[1:]:
+                    overlay_base_path = overlay_base_path / segment
+                paths_table.add_row("config_overlay_path:", str(overlay_base_path))
+            else:
+                paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+        else:
+            paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+
+        console.print("\n[bold]File Paths:[/bold]")
+        console.print(paths_table)
 
     @staticmethod
-    def _build_unused_config_keys_section(unmatched_keys: List[tuple[str, str]]) -> str:
-        """Build the unused config keys section of the error message.
+    def _print_unused_config_keys_section(
+        console: Console, unmatched_keys: List[tuple[str, str]]
+    ) -> None:
+        """Print the unused config keys section using rich formatting.
 
         Args:
+            console: Rich Console instance
             unmatched_keys: List of (yaml_key, placeholder) tuples
-
-        Returns:
-            The unused config keys section as a string
         """
         if not unmatched_keys:
-            return ""
+            return
 
-        section = "\n" + "-" * 80 + "\n"
-        section += "Unused Config Keys:\n"
-        section += "-" * 80 + "\n"
-        section += (
-            f"  Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
-            f"  corresponding placeholders in the application config JSON file:\n\n"
-        )
-
-        for idx, (yaml_key, placeholder) in enumerate(unmatched_keys, 1):
-            section += f"  Unused Config Key #{idx}:\n"
-            section += f"    YAML key: {yaml_key}\n"
-            section += f"    Maps to placeholder: {placeholder}\n"
-            section += (
-                f"\n    This key exists in your config file but no placeholder matches it.\n"
-                f"    Either remove this key from your config file, or add a corresponding\n"
-                f"    placeholder to the application config JSON file.\n"
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[yellow]Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
+                "corresponding placeholders in the application config JSON file[/yellow]",
+                title="[bold red]Unused Config Keys[/bold red]",
+                border_style="red",
             )
-            if idx < len(unmatched_keys):
-                section += "\n"
-
-        section += "\n"
-        section += "  To fix:\n"
-        section += (
-            "    Remove the unused config keys from your YAML overlay file, or add\n"
-            "    corresponding placeholders to the application config JSON file.\n"
         )
-        return section
+
+        # Simple list format: config key on one line, placeholder on next line
+        for yaml_key, placeholder in unmatched_keys:
+            console.print(f"[yellow]{yaml_key}[/yellow]")
+            console.print(f"[dim]{placeholder}[/dim]")
+            console.print()  # Empty line between items
 
     @staticmethod
-    def _build_missing_placeholders_section(remaining_placeholders: set[str], config: dict) -> str:
-        """Build the missing placeholders section of the error message.
+    def _print_missing_placeholders_section(
+        console: Console, remaining_placeholders: set[str], config: dict
+    ) -> None:
+        """Print the missing placeholders section using rich formatting.
 
         Args:
+            console: Rich Console instance
             remaining_placeholders: Set of placeholder strings that weren't overridden
             config: The config dictionary to find placeholder locations in
-
-        Returns:
-            The missing placeholders section as a string
         """
         if not remaining_placeholders:
-            return ""
+            return
 
         sorted_placeholders = sorted(remaining_placeholders)
-        section = "\n" + "-" * 80 + "\n"
-        section += "Missing Placeholders:\n"
-        section += "-" * 80 + "\n"
-        section += (
-            f"  The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
-            f"  application config but were not overridden in your YAML overlay:\n\n"
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[yellow]The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
+                "application config but were not overridden in your YAML overlay[/yellow]",
+                title="[bold red]Missing Placeholders[/bold red]",
+                border_style="red",
+            )
         )
 
-        for idx, placeholder in enumerate(sorted_placeholders, 1):
-            # Find where this placeholder appears in the config
-            locations = NodeConfigLoader._find_placeholder_locations(config, placeholder)
+        # Simple list format: placeholder on one line, expected config key on next line
+        for placeholder in sorted_placeholders:
             # Convert placeholder back to YAML key format for suggestion
             yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
-
-            section += f"  Missing Placeholder #{idx}:\n\n"
-            section += f"    Placeholder:\n"
-            section += f"      {placeholder}\n\n"
-            if locations:
-                section += f"    Location(s) in JSON:\n"
-                for loc in locations[:3]:  # Show up to 3 locations
-                    section += f"      key path: {loc}\n"
-                if len(locations) > 3:
-                    section += f"      ... and {len(locations) - 3} more location(s)\n"
-            section += f"\n    Expected config key:\n"
-            section += f"      {yaml_key_suggestion}\n\n"
-            section += f"    Add to your config file as:\n"
-            section += f"      {yaml_key_suggestion}: <value>\n"
-            if idx < len(sorted_placeholders):
-                section += "\n"
-
-        section += "\n"
-        section += "  To fix:\n"
-        section += (
-            "    Add the missing placeholder entries to your YAML overlay file, or\n"
-            "    remove the placeholders from the application config JSON file.\n"
-        )
-        return section
+            console.print(f"[red]{placeholder}[/red]")
+            console.print(f"[green]{yaml_key_suggestion}[/green]")
+            console.print()  # Empty line between items
 
     @staticmethod
     def apply_sequencer_overrides(
@@ -488,6 +501,8 @@ class NodeConfigLoader(Config):
         service_name: str = "unknown",
         config_list_path: Optional[str] = None,
         overlay_source: Optional[str] = None,
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
@@ -551,28 +566,61 @@ class NodeConfigLoader(Config):
 
         # Step 4: If there are any issues, raise a combined error
         if unmatched_keys or remaining_placeholders:
+            # Use stderr for error output to ensure it's visible even when stdout is captured
+            console = Console(file=sys.stderr, force_terminal=True)
             total_issues = len(unmatched_keys) + len(remaining_placeholders)
-            error_message = "=" * 80 + "\n"
-            error_message += "ERROR: CONFIGURATION ERRORS DETECTED (Unused Config Keys & Unhandled Placeholders)\n"
-            error_message += "=" * 80 + "\n\n"
+
+            # Determine error title
+            if unmatched_keys and remaining_placeholders:
+                error_title = (
+                    "CONFIGURATION ERRORS DETECTED (Unused Config Keys & Unhandled Placeholders)"
+                )
+            elif unmatched_keys:
+                error_title = "UNUSED CONFIG KEY(S) DETECTED"
+            else:
+                error_title = "UNHANDLED PLACEHOLDER(S) DETECTED"
+
+            # Print formatted error message
+            console.print()
+            console.print(
+                Panel.fit(
+                    f"[bold red]{error_title}[/bold red]\n\n"
+                    f"Found [yellow]{total_issues}[/yellow] issue(s):\n"
+                    + (
+                        f"  - [cyan]{len(remaining_placeholders)}[/cyan] unhandled placeholder(s)\n"
+                        if remaining_placeholders
+                        else ""
+                    )
+                    + (
+                        f"  - [cyan]{len(unmatched_keys)}[/cyan] unused config key(s)\n"
+                        if unmatched_keys
+                        else ""
+                    ),
+                    border_style="red",
+                )
+            )
+
+            NodeConfigLoader._print_file_paths_section(
+                console, config_list_path, overlay_source, layout, overlay
+            )
+            NodeConfigLoader._print_missing_placeholders_section(
+                console, remaining_placeholders, result
+            )
+            NodeConfigLoader._print_unused_config_keys_section(console, unmatched_keys)
+
+            # Ensure output is flushed before raising exception
+            sys.stderr.flush()
+
+            # Build plain text version for ValueError
+            error_message = f"{error_title}\n\n"
             error_message += f"Found {total_issues} issue(s):\n"
-            if unmatched_keys:
-                error_message += f"  - {len(unmatched_keys)} unused config key(s)\n"
             if remaining_placeholders:
                 error_message += f"  - {len(remaining_placeholders)} unhandled placeholder(s)\n"
-            error_message += "\n"
+            if unmatched_keys:
+                error_message += f"  - {len(unmatched_keys)} unused config key(s)\n"
+            error_message += "\nSee formatted output above for details."
 
-            error_message += NodeConfigLoader._build_file_paths_section(
-                config_list_path, overlay_source
-            )
-            error_message += NodeConfigLoader._build_unused_config_keys_section(unmatched_keys)
-            error_message += NodeConfigLoader._build_missing_placeholders_section(
-                remaining_placeholders, result
-            )
-
-            error_message += "\n" + "=" * 80
-
-            raise ValueError(error_message)
+            raise ConfigValidationError(error_message)
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
@@ -642,6 +690,8 @@ class NodeConfigLoader(Config):
         config: dict,
         config_list_path: Optional[str] = None,
         overlay_source: Optional[str] = None,
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
     ) -> None:
         """Validate that no placeholder values remain in the final config.
 
@@ -656,23 +706,36 @@ class NodeConfigLoader(Config):
         remaining_placeholders = NodeConfigLoader._find_all_placeholders(config)
 
         if remaining_placeholders:
+            # Use stderr for error output to ensure it's visible even when stdout is captured
+            console = Console(file=sys.stderr, force_terminal=True)
             sorted_placeholders = sorted(remaining_placeholders)
 
-            error_message = "=" * 80 + "\n"
-            error_message += "ERROR: UNHANDLED PLACEHOLDERS DETECTED\n"
-            error_message += "=" * 80 + "\n\n"
+            # Print formatted error message
+            console.print()
+            console.print(
+                Panel.fit(
+                    f"[bold red]UNHANDLED PLACEHOLDERS DETECTED[/bold red]\n\n"
+                    f"Found [yellow]{len(sorted_placeholders)}[/yellow] unhandled placeholder(s) in the final config.",
+                    border_style="red",
+                )
+            )
+
+            NodeConfigLoader._print_file_paths_section(
+                console, config_list_path, overlay_source, layout, overlay
+            )
+            NodeConfigLoader._print_missing_placeholders_section(
+                console, remaining_placeholders, config
+            )
+
+            # Ensure output is flushed before raising exception
+            sys.stderr.flush()
+
+            # Build plain text version for ValueError
+            error_message = "UNHANDLED PLACEHOLDERS DETECTED\n\n"
             error_message += f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+            error_message += "See formatted output above for details."
 
-            error_message += NodeConfigLoader._build_file_paths_section(
-                config_list_path, overlay_source
-            )
-            error_message += NodeConfigLoader._build_missing_placeholders_section(
-                remaining_placeholders, config
-            )
-
-            error_message += "\n" + "=" * 80
-
-            raise ValueError(error_message)
+            raise ConfigValidationError(error_message)
 
 
 class GrafanaDashboardConfigLoader(Config):
