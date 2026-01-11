@@ -1,4 +1,4 @@
-use starknet_api::core::{ClassHash, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -28,7 +28,7 @@ impl AsRef<ContractState> for ContractState {
 }
 
 impl HasStaticPrefix for StarknetStorageValue {
-    type KeyContext = EmptyKeyContext;
+    type KeyContext = ContractAddress;
     fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
         CommitterLeafPrefix::StorageLeaf.into()
     }

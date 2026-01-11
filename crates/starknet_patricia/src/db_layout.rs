@@ -1,4 +1,3 @@
-use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::storage_trait::DbKey;
@@ -8,14 +7,6 @@ use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, N
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::traversal::SubTreeTrait;
 use crate::patricia_merkle_tree::types::NodeIndex;
-
-// TODO(Ariel): Delete this enum and use `CommitmentType` instead.
-#[derive(Debug, PartialEq)]
-pub enum TrieType {
-    ContractsTrie,
-    ClassesTrie,
-    StorageTrie(ContractAddress),
-}
 
 /// Specifies the trie db layout.
 pub trait NodeLayout<'a, L: Leaf> {
@@ -45,10 +36,6 @@ pub trait NodeLayout<'a, L: Leaf> {
             NodeData = Self::NodeData,
             NodeDeserializeContext = Self::DeserializationContext,
         >;
-
-    /// Generates the key context for the given trie type. Used for reading nodes of a specific
-    /// tree (contracts, classes, or storage), to construct a skeleton tree.
-    fn generate_key_context(trie_type: TrieType) -> <L as HasStaticPrefix>::KeyContext;
 
     /// Converts `FilledTree` nodes to db objects.
     ///
