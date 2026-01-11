@@ -44,5 +44,7 @@ async fn main() {
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
 
+    std::thread::sleep(std::time::Duration::from_secs(3600));
+
     info!("Positive flow integration test completed successfully!");
 }
