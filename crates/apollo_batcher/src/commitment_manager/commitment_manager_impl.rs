@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
-use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
+use apollo_committer_types::communication::SharedCommitterClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -90,12 +90,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 state_diff_commitment,
             });
         }
-        let commitment_task_input =
-            CommitterTaskInput(CommitterRequest::CommitBlock(CommitBlockRequest {
-                height,
-                state_diff,
-                state_diff_commitment,
-            }));
+        let commitment_task_input = CommitterTaskInput::Commit(CommitBlockRequest {
+            height,
+            state_diff,
+            state_diff_commitment,
+        });
         let error_message = format!(
             "Failed to send commitment task to state committer. Block: {height}, state diff \
              commitment: {state_diff_commitment:?}",

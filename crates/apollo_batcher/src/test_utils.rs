@@ -347,7 +347,7 @@ impl MockStateCommitter {
             let task = tasks_receiver.try_recv().unwrap();
             let result = CommitterTaskOutput::Commit(CommitmentTaskOutput {
                 response: CommitBlockResponse { state_root: GlobalRoot::default() },
-                height: task.0.height(),
+                height: task.height(),
             });
             results_sender.try_send(result).unwrap();
         }
