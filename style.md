@@ -75,7 +75,8 @@ Consider pushing the const inside the impl block/function if it makes sense, oth
 ## Error Handling & Safety
 
 Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
-Use `unreachable!` for impossible states, `todo!` for to-be-completed code sections, and `unimplemented!` for APIs that are NOT planned on being implemented.
+Use `todo!` for to-be-completed code sections.
+Don't use `unreachable!` and `unimplemented!`, as they are very similar in meaning to `panic!` and `todo!` and it's not worth the headache of figuring which one fits better.
 
 ### Error Types
 
