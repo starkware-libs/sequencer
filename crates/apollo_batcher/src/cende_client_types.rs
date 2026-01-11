@@ -420,6 +420,9 @@ impl From<AllResourceBounds> for CentralResourceBounds {
     }
 }
 
+/// API format for preconfirmed declare transactions (see [`CendePreconfirmedTransaction`]).
+///
+/// Supports multiple transaction versions (V0/V1/V2/V3) through optional fields.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeclareTransaction {
@@ -447,6 +450,9 @@ pub struct IntermediateDeclareTransaction {
     pub transaction_hash: TransactionHash,
 }
 
+/// API format for preconfirmed deploy account transactions (see [`CendePreconfirmedTransaction`]).
+///
+/// Supports multiple transaction versions (V1/V3) through optional fields.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeployAccountTransaction {
@@ -475,6 +481,9 @@ pub struct IntermediateDeployAccountTransaction {
     pub version: TransactionVersion,
 }
 
+/// API format for preconfirmed invoke transactions (see [`CendePreconfirmedTransaction`]).
+///
+/// Supports multiple transaction versions (V0/V1/V3) through optional fields.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateInvokeTransaction {
