@@ -14,7 +14,7 @@ config:
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
     gateway_config.authorized_declarer_accounts: ""
-    gateway_config.authorized_declarer_accounts.is_none: true
+    gateway_config.authorized_declarer_accounts.#is_none: true
     gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
     gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap: 200
     gateway_config.stateless_tx_validator_config.min_gas_price: 3000000000

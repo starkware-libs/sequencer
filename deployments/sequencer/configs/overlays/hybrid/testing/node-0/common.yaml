@@ -13,7 +13,7 @@ config:
   sequencerConfig:
     chain_id: "CHAIN_ID_SUBDIR"
     eth_fee_token_address: "0x1001"
-    monitoring_endpoint_config_port: 8082
+    monitoring_endpoint_config.port: 8082
     native_classes_whitelist: "All"
     recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
     starknet_url: "https://integration-sepolia.starknet.io/"
