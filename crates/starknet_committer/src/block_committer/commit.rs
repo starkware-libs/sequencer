@@ -12,7 +12,7 @@ use crate::block_committer::input::{
     InputContext,
     StateDiff,
 };
-use crate::block_committer::timing_util::{Action, TimeMeasurement, TimeMeasurementTrait};
+use crate::block_committer::timing_util::{Action, TimeMeasurementTrait};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
@@ -29,7 +29,7 @@ pub trait CommitBlockTrait: Send {
     async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
         input: Input<I>,
         trie_reader: &mut Reader,
-        mut time_measurement: Option<&mut TimeMeasurement>,
+        mut time_measurement: Option<&mut (dyn TimeMeasurementTrait + Send)>,
     ) -> BlockCommitmentResult<FilledForest> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
