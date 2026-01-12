@@ -631,6 +631,15 @@ pub struct StorageWriter {
     /// Reusable buffer for processing pending writes during flush, kept as a field to avoid
     /// repeated allocations.
     pending_writes_buffer: Vec<PendingWrite>,
+    /// Tracks the highest block number currently in the batch queue for each data type.
+    /// Used to provide "effective markers" that include both disk and in-flight data.
+    /// This prevents duplicate fetching: sync can query max(disk_marker, queue_marker)
+    /// to know the true progress including queued but not yet flushed data.
+    queue_header_marker: BlockNumber,
+    queue_body_marker: BlockNumber,
+    queue_state_marker: BlockNumber,
+    queue_compiled_class_marker: BlockNumber,
+    queue_base_layer_marker: BlockNumber,
 }
 
 impl StorageWriter {
@@ -657,6 +666,11 @@ impl StorageWriter {
             batch_config: batch_config.clone(),
             batch_queue,
             pending_writes_buffer,
+            queue_header_marker: BlockNumber::default(),
+            queue_body_marker: BlockNumber::default(),
+            queue_state_marker: BlockNumber::default(),
+            queue_compiled_class_marker: BlockNumber::default(),
+            queue_base_layer_marker: BlockNumber::default(),
         }
     }
 
@@ -707,6 +721,14 @@ impl StorageWriter {
         // Restore the buffer (now empty but with its capacity intact) for reuse.
         self.pending_writes_buffer = pending_writes;
 
+        // Reset queue markers since all queued items have been flushed to disk.
+        // After flush, disk markers reflect the true state, so queue markers can be reset.
+        self.queue_header_marker = BlockNumber::default();
+        self.queue_body_marker = BlockNumber::default();
+        self.queue_state_marker = BlockNumber::default();
+        self.queue_compiled_class_marker = BlockNumber::default();
+        self.queue_base_layer_marker = BlockNumber::default();
+
         Ok(())
     }
 
@@ -720,9 +742,118 @@ impl StorageWriter {
         Ok(())
     }
 
+    /// Gets the effective state marker, considering both disk and queued data.
+    /// Returns the maximum of the disk marker and the queue marker.
+    /// This allows sync logic to know the true progress, including in-flight batched data.
+    pub fn get_state_marker(&self) -> StorageResult<BlockNumber> {
+        use crate::state::StateStorageReader;
+        let db_reader = self.db_writer.get_reader();
+        let file_readers = self.file_writers.as_readers();
+        let txn = StorageTxn::new(
+            db_reader.begin_ro_txn()?,
+            file_readers,
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        );
+        let disk_marker = txn.get_state_marker()?;
+        Ok(disk_marker.max(self.queue_state_marker))
+    }
+
+    /// Gets the effective header marker, considering both disk and queued data.
+    /// Returns the maximum of the disk marker and the queue marker.
+    pub fn get_header_marker(&self) -> StorageResult<BlockNumber> {
+        use crate::header::HeaderStorageReader;
+        let db_reader = self.db_writer.get_reader();
+        let file_readers = self.file_writers.as_readers();
+        let txn = StorageTxn::new(
+            db_reader.begin_ro_txn()?,
+            file_readers,
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        );
+        let disk_marker = txn.get_header_marker()?;
+        Ok(disk_marker.max(self.queue_header_marker))
+    }
+
+    /// Gets the effective body marker, considering both disk and queued data.
+    /// Returns the maximum of the disk marker and the queue marker.
+    pub fn get_body_marker(&self) -> StorageResult<BlockNumber> {
+        use crate::body::BodyStorageReader;
+        let db_reader = self.db_writer.get_reader();
+        let file_readers = self.file_writers.as_readers();
+        let txn = StorageTxn::new(
+            db_reader.begin_ro_txn()?,
+            file_readers,
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        );
+        let disk_marker = txn.get_body_marker()?;
+        Ok(disk_marker.max(self.queue_body_marker))
+    }
+
+    /// Gets the effective class marker, considering both disk and queued data.
+    /// Returns the maximum of the disk marker and the queue marker.
+    pub fn get_class_marker(&self) -> StorageResult<BlockNumber> {
+        use crate::class::ClassStorageReader;
+        let db_reader = self.db_writer.get_reader();
+        let file_readers = self.file_writers.as_readers();
+        let txn = StorageTxn::new(
+            db_reader.begin_ro_txn()?,
+            file_readers,
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        );
+        let disk_marker = txn.get_class_marker()?;
+        Ok(disk_marker.max(self.queue_compiled_class_marker))
+    }
+
+    /// Gets the effective base layer block marker, considering both disk and queued data.
+    /// Returns the maximum of the disk marker and the queue marker.
+    pub fn get_base_layer_block_marker(&self) -> StorageResult<BlockNumber> {
+        use crate::base_layer::BaseLayerStorageReader;
+        let db_reader = self.db_writer.get_reader();
+        let file_readers = self.file_writers.as_readers();
+        let txn = StorageTxn::new(
+            db_reader.begin_ro_txn()?,
+            file_readers,
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        );
+        let disk_marker = txn.get_base_layer_block_marker()?;
+        Ok(disk_marker.max(self.queue_base_layer_marker))
+    }
+
     /// Internal helper to queue an item and handle auto-flushing.
     /// Flushes immediately if batching is disabled, or when batch size is reached if enabled.
     fn queue_item(&mut self, item: PendingWrite) -> StorageResult<()> {
+        // Update queue markers to track the highest block number for each data type.
+        // This allows readers to see the "effective marker" including queued data.
+        match &item {
+            PendingWrite::AppendHeader(block_number, _) => {
+                self.queue_header_marker = (*block_number).max(self.queue_header_marker);
+            }
+            PendingWrite::AppendBody(block_number, _) => {
+                self.queue_body_marker = (*block_number).max(self.queue_body_marker);
+            }
+            PendingWrite::AppendStateDiff(block_number, _) => {
+                self.queue_state_marker = (*block_number).max(self.queue_state_marker);
+            }
+            PendingWrite::AppendClasses(block_number, _, _) => {
+                self.queue_compiled_class_marker =
+                    (*block_number).max(self.queue_compiled_class_marker);
+            }
+            PendingWrite::UpdateBaseLayerBlockMarker(block_number) => {
+                self.queue_base_layer_marker = (*block_number).max(self.queue_base_layer_marker);
+            }
+            PendingWrite::AppendBlockSignature(_, _) | PendingWrite::AppendCasm(_, _) => {
+                // These don't have associated block markers
+            }
+        }
         self.batch_queue.push(item);
         self.flush_if_needed()
     }
@@ -1144,6 +1275,19 @@ impl FileHandlers<RW> {
         self.deprecated_contract_class.flush();
         self.transaction_output.flush();
         self.transaction.flush();
+    }
+
+    /// Creates a read-only FileHandlers that shares the same underlying mmap files.
+    /// Useful for read operations from a writer.
+    fn as_readers(&self) -> FileHandlers<RO> {
+        FileHandlers {
+            thin_state_diff: self.thin_state_diff.as_reader(),
+            contract_class: self.contract_class.as_reader(),
+            casm: self.casm.as_reader(),
+            deprecated_contract_class: self.deprecated_contract_class.as_reader(),
+            transaction_output: self.transaction_output.as_reader(),
+            transaction: self.transaction.as_reader(),
+        }
     }
 }
 
