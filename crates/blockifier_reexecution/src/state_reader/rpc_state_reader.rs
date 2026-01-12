@@ -2,10 +2,6 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::sync::{Arc, Mutex};
 
-use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
-use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
-use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -40,8 +36,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::cli::TransactionInput;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
-use crate::errors::ReexecutionResult;
+use crate::errors::{serde_err_to_state_err, RPCStateReaderError, ReexecutionResult};
 use crate::retry_request;
+use crate::rpc_state_reader::config::RpcStateReaderConfig;
+use crate::rpc_state_reader::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
+use crate::rpc_state_reader::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
 use crate::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
     hashmap_from_raw,
