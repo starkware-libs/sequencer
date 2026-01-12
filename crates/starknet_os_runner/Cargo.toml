@@ -12,6 +12,7 @@ cairo_native = ["blockifier/cairo_native"]
 [dependencies]
 apollo_infra_utils.workspace = true
 async-trait.workspace = true
+axum.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
