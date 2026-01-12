@@ -1,7 +1,7 @@
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, PatriciaStorageError};
+use starknet_patricia_storage::storage_trait::{DbKey, PatriciaStorageError};
 use thiserror::Error;
 
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
@@ -116,14 +116,8 @@ pub trait SubTreeTrait<'a>: Sized {
     /// [crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree].
     fn should_traverse_unmodified_child(data: Self::NodeData) -> UnmodifiedChildTraversal;
 
-    /// Returns the [DbKeyPrefix] of the root node.
-    fn get_root_prefix<L: Leaf>(
-        &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
-    ) -> DbKeyPrefix;
-
-    /// Returns the suffix of the root's db key.
-    fn get_root_suffix(&self) -> Vec<u8>;
+    /// Returns the full [DbKey] for the root node.
+    fn get_root_db_key<L: Leaf>(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey;
 
     /// Returns the `Self::NodeDeserializeContext` that's needed to deserialize the root node from a
     /// raw `DbValue`.
