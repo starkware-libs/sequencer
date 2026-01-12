@@ -1,6 +1,4 @@
-use apollo_node_config::component_execution_config::DEFAULT_INVALID_PORT;
 use serde::Serialize;
-use static_assertions::const_assert_ne;
 use strum::EnumIter;
 use strum_macros::{AsRefStr, Display};
 
@@ -9,33 +7,9 @@ use strum_macros::{AsRefStr, Display};
 mod deployment_definitions_test;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
-pub(crate) const INFRA_PORT_PLACEHOLDER: u16 = 1;
-const_assert_ne!(INFRA_PORT_PLACEHOLDER, DEFAULT_INVALID_PORT);
+pub(crate) const RETRIES_FOR_L1_SERVICES: usize = 0;
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
-
-// TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
-// is complete.
-
-#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
-pub enum InfraServicePort {
-    Batcher,
-    ClassManager,
-    Committer,
-    Gateway,
-    L1GasPriceProvider,
-    L1Provider,
-    Mempool,
-    SierraCompiler,
-    SignatureManager,
-    StateSync,
-}
-
-impl InfraServicePort {
-    pub fn get_port(&self) -> u16 {
-        INFRA_PORT_PLACEHOLDER
-    }
-}
 
 #[derive(
     Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter, AsRefStr,
