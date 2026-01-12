@@ -12856,6 +12856,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
+ "clap",
  "futures",
  "indexmap 2.12.0",
  "proving_utils",
