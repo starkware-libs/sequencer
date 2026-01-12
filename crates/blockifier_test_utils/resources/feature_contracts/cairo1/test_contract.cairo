@@ -1295,4 +1295,35 @@ mod TestContract {
         let address_domain = 0;
         syscalls::storage_read_syscall(address_domain, key).unwrap_syscall()
     }
+
+    // Tests forbidden syscalls in virtual OS mode.
+    // Gets valid class_hash and contract_address from the current contract.
+    // syscall_selector should be one of: 'Deploy', 'GetBlockHash', 'ReplaceClass', 'MetaTxV0'.
+    #[external(v0)]
+    fn test_forbidden_syscall_in_virtual_mode(self: @ContractState, syscall_selector: felt252) {
+        let execution_info = get_execution_info().unbox();
+        let contract_address = execution_info.contract_address;
+        let class_hash = syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
+
+        if syscall_selector == 'GetBlockHash' {
+            syscalls::get_block_hash_syscall(0).unwrap_syscall();
+        } else if syscall_selector == 'ReplaceClass' {
+            syscalls::replace_class_syscall(class_hash).unwrap_syscall();
+        } else if syscall_selector == 'Deploy' {
+            // Pass constructor arguments (two felt252 values).
+            syscalls::deploy_syscall(class_hash, 0, array![0, 0].span(), false).unwrap_syscall();
+        } else if syscall_selector == 'MetaTxV0' {
+            // meta_tx_v0 requires the selector to be `__execute__`.
+            // __execute__ takes (class_hash: ClassHash, to_panic: bool).
+            meta_tx_v0_syscall(
+                contract_address,
+                selector!("__execute__"),
+                array![class_hash.into(), 0].span(),
+                array![].span()
+            )
+                .unwrap_syscall();
+        } else {
+            panic!("Unexpected syscall selector");
+        }
+    }
 }
