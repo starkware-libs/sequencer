@@ -39,11 +39,14 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
             ForestMetadataType::CommitmentOffset => DbKey("commitment_offset".into()),
             ForestMetadataType::StateDiffHash(block_number) => create_db_key(
                 DbKeyPrefix::new(b"state_diff_hash".into()),
+                &[],
                 &block_number.serialize(),
             ),
-            ForestMetadataType::StateRoot(block_number) => {
-                create_db_key(DbKeyPrefix::new(b"state_root".into()), &block_number.serialize())
-            }
+            ForestMetadataType::StateRoot(block_number) => create_db_key(
+                DbKeyPrefix::new(b"state_root".into()),
+                &[],
+                &block_number.serialize(),
+            ),
         }
     }
 

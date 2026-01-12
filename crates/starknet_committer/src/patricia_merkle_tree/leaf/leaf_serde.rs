@@ -4,9 +4,13 @@ use serde_json::Value;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
-use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
+use starknet_patricia_storage::db_object::{
+    DBObject,
+    EmptyDeserializationContext,
+    HasDynamicPrefix,
+};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
@@ -45,6 +49,10 @@ impl DBObject for StarknetStorageValue {
     ) -> Result<Self, DeserializationError> {
         Ok(Self(deserialize_felt_no_packing(value)))
     }
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), b":", suffix)
+    }
 }
 
 impl DBObject for CompiledClassHash {
@@ -66,6 +74,10 @@ impl DBObject for CompiledClassHash {
             .get("compiled_class_hash")
             .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
         Ok(Self::from_hex(hash_as_hex)?)
+    }
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), b":", suffix)
     }
 }
 
@@ -109,6 +121,10 @@ impl DBObject for ContractState {
             storage_root_hash: HashOutput::from_hex(&root_hash_as_hex)?,
             class_hash: ClassHash(Felt::from_hex(&class_hash_as_hex)?),
         })
+    }
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), b":", suffix)
     }
 }
 

@@ -7,7 +7,7 @@ use starknet_patricia_storage::db_object::{
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
@@ -150,5 +150,9 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
                 }),
             })
         }
+    }
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), b":", suffix)
     }
 }
