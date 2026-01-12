@@ -22,7 +22,6 @@ use crate::errors::ProvingError;
 /// Bootloader program file name.
 const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
 
-#[allow(dead_code)]
 /// Output from the prover containing the compressed proof and associated facts.
 #[derive(Debug, Clone)]
 pub(crate) struct ProverOutput {
@@ -31,7 +30,6 @@ pub(crate) struct ProverOutput {
     pub proof_facts: ProofFacts,
 }
 
-#[allow(dead_code)]
 /// Resolves a path to a resource file in the crate's resources directory.
 /// Constructs the path relative to the project root.
 pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingError> {
@@ -41,7 +39,6 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
     })
 }
 
-#[allow(dead_code)]
 /// Proves a Cairo PIE using the stwo prover.
 ///
 /// # Arguments

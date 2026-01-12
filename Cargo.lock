@@ -12111,6 +12111,7 @@ dependencies = [
  "cairo-vm",
  "clap",
  "futures",
+ "hyper 0.14.32",
  "indexmap 2.12.0",
  "proving_utils",
  "rstest",
@@ -12127,6 +12128,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
 ]
 
