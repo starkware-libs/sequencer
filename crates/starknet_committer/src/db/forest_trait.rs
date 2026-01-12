@@ -3,15 +3,15 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_patricia::db_layout::NodeLayoutFor;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
+use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
@@ -81,22 +81,16 @@ pub(crate) async fn read_forest<'a, S, Layout>(
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
     S: Storage,
-    Layout: NodeLayoutFor<StarknetStorageValue>
-        + NodeLayoutFor<ContractState>
-        + NodeLayoutFor<CompiledClassHash>,
-    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
-        HasStaticPrefix<KeyContext = ContractAddress>,
-    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
-    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
-        HasStaticPrefix<KeyContext = EmptyKeyContext>,
+    Layout: DbLayout,
 {
-    let (contracts_trie, original_contracts_trie_leaves) = create_contracts_trie::<Layout>(
-        storage,
-        context.0.contracts_trie_root_hash,
-        forest_sorted_indices.contracts_trie_sorted_indices,
-    )
-    .await?;
-    let storage_tries = create_storage_tries::<Layout>(
+    let (contracts_trie, original_contracts_trie_leaves) =
+        create_contracts_trie::<Layout::NodeLayout>(
+            storage,
+            context.0.contracts_trie_root_hash,
+            forest_sorted_indices.contracts_trie_sorted_indices,
+        )
+        .await?;
+    let storage_tries = create_storage_tries::<Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
@@ -104,7 +98,7 @@ where
         &forest_sorted_indices.storage_tries_sorted_indices,
     )
     .await?;
-    let classes_trie = create_classes_trie::<Layout>(
+    let classes_trie = create_classes_trie::<Layout::NodeLayout>(
         storage,
         classes_updates,
         context.0.classes_trie_root_hash,
@@ -120,31 +114,23 @@ where
 }
 
 /// Helper function containing layout-common write logic.
-pub(crate) fn serialize_forest<Layout>(
+pub(crate) fn serialize_forest<Layout: DbLayout>(
     filled_forest: &FilledForest,
-) -> SerializationResult<DbHashMap>
-where
-    Layout: NodeLayoutFor<StarknetStorageValue>
-        + NodeLayoutFor<ContractState>
-        + NodeLayoutFor<CompiledClassHash>,
-    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
-        HasStaticPrefix<KeyContext = ContractAddress>,
-    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
-    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
-        HasStaticPrefix<KeyContext = EmptyKeyContext>,
-{
+) -> SerializationResult<DbHashMap> {
     let mut serialized_forest = DbHashMap::new();
 
     // Storage tries.
     for (contract_address, tree) in &filled_forest.storage_tries {
-        serialized_forest.extend(tree.serialize::<Layout>(contract_address)?);
+        serialized_forest.extend(tree.serialize::<Layout::NodeLayout>(contract_address)?);
     }
 
     // Contracts trie.
-    serialized_forest.extend(filled_forest.contracts_trie.serialize::<Layout>(&EmptyKeyContext)?);
+    serialized_forest
+        .extend(filled_forest.contracts_trie.serialize::<Layout::NodeLayout>(&EmptyKeyContext)?);
 
     // Classes trie.
-    serialized_forest.extend(filled_forest.classes_trie.serialize::<Layout>(&EmptyKeyContext)?);
+    serialized_forest
+        .extend(filled_forest.classes_trie.serialize::<Layout::NodeLayout>(&EmptyKeyContext)?);
 
     Ok(serialized_forest)
 }
