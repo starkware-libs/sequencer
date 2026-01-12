@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::env;
 use std::sync::{Arc, LazyLock};
 
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
@@ -15,6 +14,8 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
+
+use crate::rpc_state_reader::config::RpcStateReaderConfig;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
