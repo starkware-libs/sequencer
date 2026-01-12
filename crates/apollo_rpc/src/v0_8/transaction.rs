@@ -7,13 +7,12 @@ use std::num::NonZeroU64;
 use std::ops::Add;
 use std::sync::Arc;
 
+use alloy_primitives::keccak256;
 use apollo_rpc_execution::objects::PriceUnit;
 use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::StorageTxn;
-use ethers::core::abi::{encode_packed, Token};
-use ethers::core::utils::keccak256;
 use jsonrpsee::types::ErrorObjectOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_api::block::{BlockHash, BlockNumber, BlockStatus};
@@ -1263,22 +1262,21 @@ fn l1_handler_message_hash(
     let (from_address, payload) =
         calldata.0.split_first().expect("Invalid calldata, expected at least from_address");
 
-    let from_address = Token::Bytes(from_address.to_bytes_be().to_vec());
-    let to_address = Token::Bytes(contract_address.0.key().to_bytes_be().to_vec());
-    let nonce = Token::Bytes(nonce.to_bytes_be().to_vec());
-    let selector = Token::Bytes(entry_point_selector.0.to_bytes_be().to_vec());
+    let mut encoded = Vec::new();
+    encoded.extend(from_address.to_bytes_be());
+    encoded.extend(contract_address.0.key().to_bytes_be());
+    encoded.extend(nonce.to_bytes_be());
+    encoded.extend(entry_point_selector.0.to_bytes_be());
+
     let payload_length_as_felt =
         Felt::from(u64::try_from(payload.len()).expect("usize should fit in u64"));
-    let payload_length = Token::Bytes(payload_length_as_felt.to_bytes_be().to_vec());
+    encoded.extend(payload_length_as_felt.to_bytes_be());
 
-    let mut payload: Vec<_> =
-        payload.iter().map(|felt| Token::Bytes(felt.to_bytes_be().to_vec())).collect();
+    for felt in payload {
+        encoded.extend(felt.to_bytes_be());
+    }
 
-    let mut to_encode = vec![from_address, to_address, nonce, selector, payload_length];
-    to_encode.append(&mut payload);
-    let encoded = encode_packed(to_encode.as_slice()).expect("Should be able to encode");
-
-    L1L2MsgHash(keccak256(encoded))
+    L1L2MsgHash(keccak256(&encoded).0)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
