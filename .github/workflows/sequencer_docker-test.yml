@@ -61,7 +61,7 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-    runs-on: namespace-profile-2xlarge-ubuntu-24-04-amd64-local-builder
+    runs-on: namespace-profile-2xlarge-ubuntu-24-04-amd64-local-builder;ephemeral-storage.size-multiplier=1.5
     timeout-minutes: 45
     env:
       MONITORING_ENABLED: false
@@ -72,6 +72,15 @@ jobs:
       COMPOSE_BAKE: false
 
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          tool-cache: false
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
