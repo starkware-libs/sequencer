@@ -3692,17 +3692,23 @@ version = "0.0.0"
 dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
+ "apollo_config",
  "apollo_gateway",
  "apollo_gateway_config",
+ "apollo_gateway_types",
+ "apollo_rpc",
  "apollo_rpc_execution",
  "apollo_sierra_compilation_config",
  "assert_matches",
  "blockifier",
+ "cairo-lang-starknet-classes",
  "clap",
  "flate2",
  "google-cloud-storage",
  "indexmap 2.12.0",
+ "mockito 1.7.0",
  "pretty_assertions",
+ "reqwest 0.12.24",
  "retry",
  "rstest",
  "serde",
@@ -3712,6 +3718,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "validator",
 ]
 
 [[package]]
