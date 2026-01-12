@@ -30,8 +30,9 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
-use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
@@ -445,17 +446,17 @@ pub(crate) fn test_node_db_key() -> String {
         data: NodeData::Binary(BinaryData { left_data: hash, right_data: hash }),
         hash,
     };
-    let binary_node_key = binary_node.db_key(&dummy_contract_address).0;
+    let binary_node_key = db_key(&binary_node, &dummy_contract_address).0;
 
     let edge_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
         data: NodeData::Edge(EdgeData { bottom_data: hash, path_to_bottom: Default::default() }),
         hash,
     };
 
-    let edge_node_key = edge_node.db_key(&dummy_contract_address).0;
+    let edge_node_key = db_key(&edge_node, &dummy_contract_address).0;
 
     let storage_leaf = FactDbFilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
-    let storage_leaf_key = storage_leaf.db_key(&dummy_contract_address).0;
+    let storage_leaf_key = db_key(&storage_leaf, &dummy_contract_address).0;
 
     let state_tree_leaf = FactDbFilledNode {
         data: NodeData::Leaf(ContractState {
@@ -465,11 +466,11 @@ pub(crate) fn test_node_db_key() -> String {
         }),
         hash,
     };
-    let state_tree_leaf_key = state_tree_leaf.db_key(&EmptyKeyContext).0;
+    let state_tree_leaf_key = db_key(&state_tree_leaf, &EmptyKeyContext).0;
 
     let compiled_class_leaf =
         FactDbFilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash };
-    let compiled_class_leaf_key = compiled_class_leaf.db_key(&EmptyKeyContext).0;
+    let compiled_class_leaf_key = db_key(&compiled_class_leaf, &EmptyKeyContext).0;
 
     // Store keys in a HashMap.
     let mut map: HashMap<String, Vec<u8>> = HashMap::new();
@@ -544,7 +545,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the binary node in the storage.
     rust_fact_storage
         .set(
-            binary_rust.db_key(&dummy_contract_address),
+            db_key(&binary_rust, &dummy_contract_address),
             binary_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -578,7 +579,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the edge node in the storage.
     rust_fact_storage
         .set(
-            edge_rust.db_key(&dummy_contract_address),
+            db_key(&edge_rust, &dummy_contract_address),
             edge_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -601,7 +602,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the storage leaf node in the storage.
     rust_fact_storage
         .set(
-            storage_leaf_rust.db_key(&dummy_contract_address),
+            db_key(&storage_leaf_rust, &dummy_contract_address),
             storage_leaf_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -633,7 +634,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the contract state leaf node in the storage.
     rust_fact_storage
         .set(
-            contract_state_leaf_rust.db_key(&EmptyKeyContext),
+            db_key(&contract_state_leaf_rust, &EmptyKeyContext),
             contract_state_leaf_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -657,7 +658,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the compiled class leaf node in the storage.
     rust_fact_storage
         .set(
-            compiled_class_leaf_rust.db_key(&EmptyKeyContext),
+            db_key(&compiled_class_leaf_rust, &EmptyKeyContext),
             compiled_class_leaf_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -676,4 +677,12 @@ pub(crate) async fn filled_forest_output_test() -> CommitterPythonTestResult {
     })?;
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)
+}
+
+pub fn db_key<L: Leaf>(
+    node: &FactDbFilledNode<L>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+) -> DbKey {
+    let suffix = node.hash.0.to_bytes_be();
+    node.get_db_key(key_context, &suffix)
 }
