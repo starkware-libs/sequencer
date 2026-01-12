@@ -12849,6 +12849,7 @@ dependencies = [
  "apollo_gateway",
  "apollo_infra_utils",
  "async-trait",
+ "axum",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
