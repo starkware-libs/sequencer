@@ -5,6 +5,7 @@ use starknet_api::block::FeeType;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
+use starknet_api::test_utils::generate_block_hash_storage_updates;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
@@ -12,10 +13,12 @@ use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
+use crate::state::state_api::State;
 use crate::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
     StateReaderAndContractManager,
 };
+use crate::test_utils::block_hash_contract_address;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -104,13 +107,18 @@ pub fn test_state(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    test_state_inner(
+    let mut state = test_state_inner(
         chain_info,
         initial_balances,
         &contract_instances_vec[..],
         &HashVersion::V2,
         erc20_version,
-    )
+    );
+    let block_hash_mapping = generate_block_hash_storage_updates();
+    for (block_number, block_hash) in block_hash_mapping {
+        state.set_storage_at(block_hash_contract_address(), block_number, block_hash).unwrap();
+    }
+    state
 }
 
 pub fn test_state_with_contract_manager(

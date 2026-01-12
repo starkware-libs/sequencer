@@ -55,6 +55,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
     Resource,
     ResourceBounds,
     ValidResourceBounds,
@@ -2190,4 +2191,32 @@ fn test_missing_validate_entrypoint_rejects(
         TransactionExecutionError::ValidateCairo0Error(ret)
         if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
     );
+}
+
+#[rstest]
+fn test_invoke_tx_with_proof_facts(
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(
+            &block_context.chain_info,
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        );
+
+    // Create an invoke transaction with valid proof facts.
+    let tx_execution_info = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata: create_trivial_calldata(contract_address),
+            resource_bounds: default_all_resource_bounds,
+            nonce: nonce_manager.next(account_address),
+            proof_facts: ProofFacts::snos_proof_facts_for_testing(),
+        },
+    )
+    .unwrap();
+
+    assert!(!tx_execution_info.is_reverted());
 }
