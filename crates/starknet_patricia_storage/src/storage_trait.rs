@@ -182,7 +182,7 @@ impl Storage for NullStorage {
 pub struct DbKeyPrefix(Cow<'static, [u8]>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: Cow<'static, [u8]>) -> Self {
+    pub const fn new(prefix: Cow<'static, [u8]>) -> Self {
         Self(prefix)
     }
 
