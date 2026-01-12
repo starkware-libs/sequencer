@@ -107,6 +107,7 @@ impl_leaf_for_wrappers!(
 
 impl DBObject for IndexLayoutContractState {
     type DeserializeContext = EmptyDeserializationContext;
+
     fn serialize(&self) -> Result<DbValue, SerializationError> {
         serialize_felts(&[self.0.class_hash.0, self.0.storage_root_hash.0, self.0.nonce.0])
     }

@@ -2,7 +2,7 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
-use starknet_patricia_storage::storage_trait::DbKeyPrefix;
+use starknet_patricia_storage::storage_trait::DbKey;
 
 use crate::patricia_merkle_tree::external_test_utils::{small_tree_index_to_full, TEST_PREFIX};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
@@ -44,16 +44,12 @@ impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
 
     fn get_root_context(&self) -> Self::NodeDeserializeContext {}
 
-    fn get_root_prefix<L: Leaf>(
+    fn get_root_db_key<L: Leaf>(
         &self,
         _key_context: &<L as HasStaticPrefix>::KeyContext,
-    ) -> DbKeyPrefix {
-        // Dummy prefix for testing purposes (we only need a prefix when interacting with storage).
-        DbKeyPrefix::new(TEST_PREFIX.into())
-    }
-
-    fn get_root_suffix(&self) -> Vec<u8> {
-        vec![]
+    ) -> DbKey {
+        // Dummy key for testing purposes (we only need a key when interacting with storage).
+        DbKey(TEST_PREFIX.to_vec())
     }
 }
 

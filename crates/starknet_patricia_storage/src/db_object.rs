@@ -49,6 +49,6 @@ pub trait DBObject: Sized + HasDynamicPrefix {
 
     /// Returns a [DbKey] from a prefix and a suffix.
     fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
-        create_db_key(self.get_prefix(key_context), suffix)
+        create_db_key(self.get_prefix(key_context), &[], suffix)
     }
 }
