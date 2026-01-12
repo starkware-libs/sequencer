@@ -7,7 +7,7 @@ use starknet_patricia_storage::db_object::{
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
@@ -41,18 +41,6 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
             PatriciaPrefix::InnerNode => Self::new(b"patricia_node".into()),
             PatriciaPrefix::Leaf(prefix) => prefix,
         }
-    }
-}
-
-// TODO(Ariel, 14/12/2025): generalize this to both layouts (e.g. via a new trait). ATM db_key is
-// only used in the filled tree serialize function, which assumes facts layout.
-impl<L: Leaf> FactDbFilledNode<L> {
-    pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
-        self.hash.0.to_bytes_be()
-    }
-
-    pub fn db_key(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey {
-        self.get_db_key(key_context, &self.suffix())
     }
 }
 
