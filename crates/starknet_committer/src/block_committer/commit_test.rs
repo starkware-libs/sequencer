@@ -20,10 +20,10 @@ use crate::block_committer::input::{
     StateDiff,
 };
 use crate::block_committer::state_diff_generator::generate_random_state_diff;
-use crate::db::facts_db::db::FactsDb;
 use crate::db::facts_db::types::FactsDbInitialRead;
+use crate::db::facts_db::FactsDb;
 use crate::db::forest_trait::{ForestReader, ForestWriter};
-use crate::db::index_db::db::IndexDb;
+use crate::db::index_db::IndexDb;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 static FIRST_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
