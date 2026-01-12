@@ -47,6 +47,7 @@ use crate::metrics::{
     register_metrics,
     COMPUTE_DURATION_PER_BLOCK,
     COMPUTE_DURATION_PER_BLOCK_HIST,
+    OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     READ_DURATION_PER_BLOCK_HIST,
@@ -217,6 +218,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(&time_measurement);
         self.offset = next_offset;
+        OFFSET.increment(1);
         Ok(CommitBlockResponse { state_root: global_root })
     }
 
@@ -305,6 +307,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(&time_measurement);
         self.offset = last_committed_block;
+        OFFSET.decrement(1);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
@@ -378,7 +381,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 impl ComponentStarter for ApolloCommitter {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
-        register_metrics();
+        register_metrics(self.offset);
     }
 }
 

@@ -7,11 +7,17 @@ use apollo_infra::metrics::{
     RemoteServerMetrics,
 };
 use apollo_metrics::{define_infra_metrics, define_metrics};
+use starknet_api::block::BlockNumber;
 
 define_infra_metrics!(committer);
 
 define_metrics!(
     Committer => {
+        MetricGauge {
+            OFFSET,
+            "offset",
+            "The next block number to commit"
+        },
         MetricHistogram {
             READ_DURATION_PER_BLOCK_HIST,
             "read_duration_per_block_hist",
@@ -55,7 +61,9 @@ define_metrics!(
     },
 );
 
-pub fn register_metrics() {
+pub fn register_metrics(offset: BlockNumber) {
+    OFFSET.register();
+    OFFSET.set_lossy(offset.0);
     READ_DURATION_PER_BLOCK_HIST.register();
     READ_DURATION_PER_BLOCK.register();
     READ_DB_ENTRIES_PER_BLOCK.register();
