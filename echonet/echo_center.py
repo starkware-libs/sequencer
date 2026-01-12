@@ -181,6 +181,12 @@ class BlobTransformer:
         """By shifting the integer value right by 1, the gas prices are halved."""
         return hex(int(v, 16) >> 1)
 
+    def _with_halved_gas_prices(self, price: JsonObject) -> JsonObject:
+        out = dict(price)
+        out["price_in_wei"] = self._halve_gas_prices(out["price_in_wei"])
+        out["price_in_fri"] = self._halve_gas_prices(out["price_in_fri"])
+        return out
+
     @staticmethod
     @dataclass(slots=True)
     class FlattenedCallInfo:
@@ -442,18 +448,10 @@ class BlobTransformer:
         meta = self._fetch_upstream_block_meta(bn_for_meta)
         block_document["timestamp"] = meta["timestamp"]
 
-        l1_price = dict(meta["l1_gas_price"])
         # The gas prices are halved in order for txs to pass the fee sequencer checks.
-        l1_price["price_in_wei"] = self._halve_gas_prices(l1_price["price_in_wei"])
-        l1_price["price_in_fri"] = self._halve_gas_prices(l1_price["price_in_fri"])
-        block_document["l1_gas_price"] = l1_price
+        for price in ("l1_gas_price", "l1_data_gas_price", "l2_gas_price"):
+            block_document[price] = self._with_halved_gas_prices(meta[price])
 
-        l1_data_price = dict(meta["l1_data_gas_price"])
-        l1_data_price["price_in_wei"] = self._halve_gas_prices(l1_data_price["price_in_wei"])
-        l1_data_price["price_in_fri"] = self._halve_gas_prices(l1_data_price["price_in_fri"])
-        block_document["l1_data_gas_price"] = l1_data_price
-
-        block_document["l2_gas_price"] = meta["l2_gas_price"]
         return block_document
 
     def transform_state_update(self, blob: JsonObject, block_number: int) -> JsonObject:
