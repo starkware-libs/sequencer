@@ -426,3 +426,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 
 [workspace.lints.clippy]
 as_conversions = "warn"
+
+# Memory optimization patches - use cairo-vm with clear_trace() and clear_data() methods
+[patch.crates-io]
+cairo-vm = { git = "https://github.com/heemankv/cairo-vm", branch = "feat/memory-optimization-methods" }
