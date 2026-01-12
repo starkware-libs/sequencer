@@ -12,8 +12,8 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::Storage;
 
-use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::facts_db::FactsNodeLayout;
 use crate::db::trie_traversal::get_roots_from_storage;
 
 #[cfg(test)]

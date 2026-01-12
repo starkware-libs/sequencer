@@ -32,7 +32,7 @@ use starknet_committer::db::forest_trait::{
     ForestReader,
     ForestStorageWithEmptyReadContext,
 };
-use starknet_committer::db::index_db::db::IndexDb;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
