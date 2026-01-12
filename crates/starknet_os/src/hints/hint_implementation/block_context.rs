@@ -1,5 +1,4 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -13,15 +12,15 @@ use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn guess_block_info<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let block_info = &hint_processor.get_current_execution_helper()?.os_block_input.block_info;
-    let block_info_ptr = vm.add_memory_segment();
-    insert_value_from_var_name(Ids::BlockInfo.into(), block_info_ptr, vm, ids_data, ap_tracking)?;
+    let block_info_ptr = ctx.vm.add_memory_segment();
+    ctx.insert_value(Ids::BlockInfo, block_info_ptr)?;
     insert_values_to_fields(
         block_info_ptr,
         CairoStruct::BlockInfo,
-        vm,
+        ctx.vm,
         &[
             ("block_number", Felt::from(block_info.block_number.0).into()),
             ("block_timestamp", Felt::from(block_info.block_timestamp.0).into()),
@@ -34,29 +33,21 @@ pub(crate) fn guess_block_info<S: StateReader>(
 
 pub(crate) fn chain_id_and_fee_token_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let chain_info = &hint_processor.os_hints_config.chain_info;
-    insert_value_from_var_name(
-        Ids::ChainId.into(),
-        Felt::try_from(&chain_info.chain_id)?,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::FeeTokenAddress.into(),
-        **chain_info.strk_fee_token_address,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::ChainId, Felt::try_from(&chain_info.chain_id)?)?;
+    ctx.insert_value(Ids::FeeTokenAddress, **chain_info.strk_fee_token_address)?;
     Ok(())
 }
 
-pub(crate) fn get_block_hash_mapping(
-    HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
-    set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
+pub(crate) fn get_block_hash_mapping(ctx: HintArgs<'_>) -> OsHintResult {
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(ctx.constants)?;
+    set_state_entry(
+        block_hash_contract_address,
+        ctx.vm,
+        ctx.exec_scopes,
+        ctx.ids_data,
+        ctx.ap_tracking,
+    )
 }

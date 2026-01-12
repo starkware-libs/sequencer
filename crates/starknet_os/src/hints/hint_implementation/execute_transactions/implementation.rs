@@ -1,10 +1,5 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-    insert_value_into_ap,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use num_traits::ToPrimitive;
@@ -21,25 +16,21 @@ use crate::hints::hint_implementation::execute_transactions::utils::{
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
-pub(crate) fn log_remaining_txs(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let n_txs = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
+pub(crate) fn log_remaining_txs(ctx: HintArgs<'_>) -> OsHintResult {
+    let n_txs = ctx.get_integer(Ids::NTxs)?;
     log::info!("execute_transactions_inner: {n_txs} transactions remaining.");
     Ok(())
 }
 
-pub(crate) fn fill_holes_in_rc96_segment(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let rc96_ptr = get_ptr_from_var_name(Ids::RangeCheck96Ptr.into(), vm, ids_data, ap_tracking)?;
+pub(crate) fn fill_holes_in_rc96_segment(ctx: HintArgs<'_>) -> OsHintResult {
+    let rc96_ptr = ctx.get_ptr(Ids::RangeCheck96Ptr)?;
     let segment_size = rc96_ptr.offset;
     let base = Relocatable::from((rc96_ptr.segment_index, 0));
 
     for i in 0..segment_size {
         let address = (base + i)?;
-        if vm.get_maybe(&address).is_none() {
-            vm.insert_value(address, Felt::ZERO)?;
+        if ctx.vm.get_maybe(&address).is_none() {
+            ctx.vm.insert_value(address, Felt::ZERO)?;
         }
     }
 
@@ -50,7 +41,7 @@ pub(crate) fn fill_holes_in_rc96_segment(
 /// Assumes the current transaction is of type Declare.
 pub(crate) fn set_component_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let account_tx = current_execution_helper.tx_tracker.get_account_tx()?;
@@ -68,21 +59,13 @@ pub(crate) fn set_component_hashes<S: StateReader>(
         .into_iter()
         .map(MaybeRelocatable::from)
         .collect();
-    let class_component_hashes_base = vm.gen_arg(&class_component_hashes)?;
-    Ok(insert_value_from_var_name(
-        Ids::ContractClassComponentHashes.into(),
-        class_component_hashes_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)
+    let class_component_hashes_base = ctx.vm.gen_arg(&class_component_hashes)?;
+    Ok(ctx.insert_value(Ids::ContractClassComponentHashes, class_component_hashes_base)?)
 }
 
-pub(crate) fn sha2_finalize(
-    HintArgs { constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let batch_size = &Const::ShaBatchSize.fetch(constants)?.to_bigint();
-    let n = &get_integer_from_var_name(Ids::N.into(), vm, ids_data, ap_tracking)?.to_bigint();
+pub(crate) fn sha2_finalize(ctx: HintArgs<'_>) -> OsHintResult {
+    let batch_size = &Const::ShaBatchSize.fetch(ctx.constants)?.to_bigint();
+    let n = &ctx.get_integer(Ids::N)?.to_bigint();
     // Calculate the modulus operation, not the remainder.
     let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
         .to_u32()
@@ -93,7 +76,7 @@ pub(crate) fn sha2_finalize(
          {N_MISSING_BLOCKS_BOUND}). Got n: {n} and batch size: {batch_size}."
     );
     let sha256_input_chunk_size_felts =
-        felt_to_usize(Const::Sha256InputChunkSize.fetch(constants)?)?;
+        felt_to_usize(Const::Sha256InputChunkSize.fetch(ctx.constants)?)?;
     assert!(
         (0..SHA256_INPUT_CHUNK_SIZE_BOUND).contains(&sha256_input_chunk_size_felts),
         "sha256_input_chunk_size_felts: {sha256_input_chunk_size_felts} is expected to be in the \
@@ -101,27 +84,19 @@ pub(crate) fn sha2_finalize(
     );
     let padding = calculate_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
 
-    let sha_ptr_end = get_ptr_from_var_name(Ids::Sha256PtrEnd.into(), vm, ids_data, ap_tracking)?;
-    vm.load_data(sha_ptr_end, &padding)?;
+    let sha_ptr_end = ctx.get_ptr(Ids::Sha256PtrEnd)?;
+    ctx.vm.load_data(sha_ptr_end, &padding)?;
     Ok(())
 }
 
-pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let temp_segment = vm.add_temporary_segment();
-    Ok(insert_value_from_var_name(
-        Ids::InitialTxsRangeCheckPtr.into(),
-        temp_segment,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)
+pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let temp_segment = ctx.vm.add_temporary_segment();
+    Ok(ctx.insert_value(Ids::InitialTxsRangeCheckPtr, temp_segment)?)
 }
 
 pub(crate) fn load_actual_fee<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let actual_fee = Felt::from(
         hint_processor
@@ -131,19 +106,19 @@ pub(crate) fn load_actual_fee<S: StateReader>(
             .tx_execution_info
             .actual_fee,
     );
-    Ok(insert_value_from_var_name(Ids::LowActualFee.into(), actual_fee, vm, ids_data, ap_tracking)?)
+    Ok(ctx.insert_value(Ids::LowActualFee, actual_fee)?)
 }
 
 pub(crate) fn skip_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintArgs<'_>,
 ) -> OsHintResult {
     Ok(hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.skip_tx()?)
 }
 
 pub(crate) fn start_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let tx_type = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_type();
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx(tx_type)?;
@@ -152,13 +127,13 @@ pub(crate) fn start_tx<S: StateReader>(
 
 pub(crate) fn os_input_transactions<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let num_txns = hint_processor.get_current_execution_helper()?.os_block_input.transactions.len();
-    Ok(insert_value_from_var_name(Ids::NTxs.into(), num_txns, vm, ids_data, ap_tracking)?)
+    Ok(ctx.insert_value(Ids::NTxs, num_txns)?)
 }
 
-pub(crate) fn segments_add(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
-    let segment = vm.add_memory_segment();
-    Ok(insert_value_into_ap(vm, segment)?)
+pub(crate) fn segments_add(ctx: HintArgs<'_>) -> OsHintResult {
+    let segment = ctx.vm.add_memory_segment();
+    Ok(insert_value_into_ap(ctx.vm, segment)?)
 }
