@@ -47,6 +47,9 @@ use crate::metrics::{
     register_metrics,
     COMPUTE_DURATION_PER_BLOCK,
     COMPUTE_DURATION_PER_BLOCK_HIST,
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
@@ -395,4 +398,10 @@ fn update_metrics(time_measurement: &SingleBlockTimeMeasurement) {
     WRITE_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.write_duration);
     WRITE_DURATION_PER_BLOCK_HIST.record_lossy(time_measurement.block_measurement.write_duration);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(time_measurement.block_measurement.n_writes);
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK
+        .set_lossy(time_measurement.block_measurement.n_storage_tries_modifications);
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK
+        .set_lossy(time_measurement.block_measurement.n_contracts_trie_modifications);
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK
+        .set_lossy(time_measurement.block_measurement.n_classes_trie_modifications);
 }

@@ -18,6 +18,21 @@ define_metrics!(
             "offset",
             "The next block number to commit"
         },
+        MetricGauge {
+            COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
+            "count_storage_tries_modifications_per_block",
+            "Number of all storage tries modifications"
+        },
+        MetricGauge {
+            COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+            "count_contracts_trie_modifications_per_block",
+            "Number of contracts trie modifications"
+        },
+        MetricGauge {
+            COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
+            "count_classes_trie_modifications_per_block",
+            "Number of classes trie modifications"
+        },
         MetricHistogram {
             READ_DURATION_PER_BLOCK_HIST,
             "read_duration_per_block_hist",
@@ -64,6 +79,9 @@ define_metrics!(
 pub fn register_metrics(offset: BlockNumber) {
     OFFSET.register();
     OFFSET.set_lossy(offset.0);
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
     READ_DURATION_PER_BLOCK_HIST.register();
     READ_DURATION_PER_BLOCK.register();
     READ_DB_ENTRIES_PER_BLOCK.register();
