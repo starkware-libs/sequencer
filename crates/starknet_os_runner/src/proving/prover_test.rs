@@ -3,7 +3,7 @@ use std::fs;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_api::transaction::fields::ProofFacts;
 
-use crate::proving::{prove, resolve_resource_path};
+use crate::proving::prover::{prove, resolve_resource_path};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
