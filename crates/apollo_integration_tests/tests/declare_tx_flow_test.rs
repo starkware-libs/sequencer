@@ -1,12 +1,14 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    test_single_tx,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::ACCOUNT_ID_0;
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
-
-use crate::common::{end_to_end_flow, test_single_tx, EndToEndFlowArgs, TestScenario};
-
-mod common;
 
 // Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [0, 1, 2].
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.

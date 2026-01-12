@@ -1,31 +1,22 @@
-// Each test module is compiled as a separate crate, and all can declare the common module.
-// This means that any peace of code in this module that is not used by *all* test modules will be
-// identified as unused code by clippy (for one of the crates).
-// TODO(Arni): Fix this.
-#![allow(dead_code)]
-
 use std::time::Duration;
 
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::flow_test_setup::{
-    FlowSequencerSetup,
-    FlowTestSetup,
-    NUM_OF_SEQUENCERS,
-};
-use apollo_integration_tests::utils::{
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use pretty_assertions::assert_eq;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::TransactionHash;
+use tracing::info;
+
+use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
+use crate::utils::{
     create_flow_test_tx_generator,
     run_test_scenario,
     CreateL1ToL2MessagesArgsFn,
     CreateRpcTxsFn,
     TestTxHashesFn,
 };
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
-use pretty_assertions::assert_eq;
-use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::TransactionHash;
-use tracing::info;
 
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,

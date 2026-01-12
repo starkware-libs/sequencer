@@ -1,4 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     UNDEPLOYED_ACCOUNT_ID,
@@ -6,10 +12,6 @@ use apollo_integration_tests::utils::{
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
-
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
 
 // TODO(Meshi): Fail the test if no class have migrated.
 // Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [3, 4, 5].
