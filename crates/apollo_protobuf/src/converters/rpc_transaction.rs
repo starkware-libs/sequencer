@@ -112,21 +112,26 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     }
 }
 
-impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
+impl TryFrom<protobuf::InvokeV3WithProof> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(mut value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
+    fn try_from(mut value: protobuf::InvokeV3WithProof) -> Result<Self, Self::Error> {
         // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
         // carry a `proof` field.
         let proof = Proof::from(std::mem::take(&mut value.proof));
 
-        let snapi_invoke: InvokeTransactionV3 = value.try_into()?;
+        let snapi_invoke: InvokeTransactionV3 = value
+            .invoke
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "InvokeV3WithProof::invoke",
+            })?
+            .try_into()?;
 
         // This conversion can fail only if the resource_bounds are not AllResources.
         Ok(Self { proof, ..snapi_invoke.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)? })
     }
 }
 
-impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
+impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3WithProof {
     fn from(mut value: RpcInvokeTransactionV3) -> Self {
         // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
         // carry a `proof` field.
@@ -134,7 +139,7 @@ impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
 
         let snapi_invoke: InvokeTransactionV3 = value.into();
 
-        Self { proof, ..snapi_invoke.into() }
+        Self { invoke: Some(snapi_invoke.into()), proof }
     }
 }
 
