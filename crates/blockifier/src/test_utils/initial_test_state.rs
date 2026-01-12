@@ -18,6 +18,7 @@ use crate::state::state_reader_and_contract_manager::{
 };
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
+use crate::test_utils::generate_block_hash_storage_updates;
 
 /// Utility to fund an account.
 pub fn fund_account(
@@ -104,13 +105,16 @@ pub fn test_state(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    test_state_inner(
+    let mut state = test_state_inner(
         chain_info,
         initial_balances,
         &contract_instances_vec[..],
         &HashVersion::V2,
         erc20_version,
-    )
+    );
+    let block_hash_mapping = generate_block_hash_storage_updates();
+    state.state.storage_view.extend(block_hash_mapping.storage);
+    state
 }
 
 pub fn test_state_with_contract_manager(
