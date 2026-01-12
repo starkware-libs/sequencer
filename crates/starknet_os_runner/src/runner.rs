@@ -289,9 +289,9 @@ pub(crate) type RpcRunner = Runner<
 /// );
 ///
 /// let runner = factory.create_runner(BlockId::Number(BlockNumber(800000)));
-/// let output = runner.run_os(txs).await?;
+/// let output = runner.run_virtual_os(txs).await?;
 /// ```
-#[allow(dead_code)]
+#[derive(Clone)]
 pub(crate) struct RpcRunnerFactory {
     /// URL of the RPC node.
     node_url: Url,
@@ -301,7 +301,6 @@ pub(crate) struct RpcRunnerFactory {
     contract_class_manager: ContractClassManager,
 }
 
-#[allow(dead_code)]
 impl RpcRunnerFactory {
     /// Creates a new RPC runner factory.
     pub(crate) fn new(
