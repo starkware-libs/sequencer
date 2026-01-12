@@ -17,51 +17,50 @@ use crate::hints::vars::Ids;
 
 pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let is_deprecated = true;
     log_enter_syscall_helper(
         hint_processor,
-        ids_data,
-        ap_tracking,
+        ctx.ids_data,
+        ctx.ap_tracking,
         is_deprecated,
         hint_processor.program,
-        vm,
+        ctx.vm,
     )
 }
 
 pub(crate) fn os_logger_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
-    let selector = get_integer_from_var_name(Ids::Selector.into(), vm, ids_data, ap_tracking)?;
-    let range_check_ptr =
-        get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
+    let selector = ctx.get_integer(Ids::Selector)?;
+    let range_check_ptr = ctx.get_ptr(Ids::RangeCheckPtr)?;
     Ok(execution_helper.os_logger.exit_syscall(
         selector.try_into()?,
-        vm.get_current_step(),
+        ctx.vm.get_current_step(),
         range_check_ptr,
-        ids_data,
-        vm,
-        ap_tracking,
+        ctx.ids_data,
+        ctx.vm,
+        ctx.ap_tracking,
         hint_processor.program,
     )?)
 }
 
 pub(crate) fn log_enter_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let is_deprecated = false;
     log_enter_syscall_helper(
         hint_processor,
-        ids_data,
-        ap_tracking,
+        ctx.ids_data,
+        ctx.ap_tracking,
         is_deprecated,
         hint_processor.program,
-        vm,
+        ctx.vm,
     )
 }
 

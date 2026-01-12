@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::serde::deserialize_program::HintParams;
 use cairo_vm::types::relocatable::Relocatable;
@@ -16,60 +15,48 @@ use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    insert_value_from_var_name(
-        Ids::NCompiledClassFacts.into(),
-        hint_processor.deprecated_class_hashes.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    exec_scopes.enter_scope(HashMap::new());
+    ctx.insert_value(Ids::NCompiledClassFacts, hint_processor.deprecated_class_hashes.len())?;
+    ctx.exec_scopes.enter_scope(HashMap::new());
     Ok(())
 }
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let (class_hash, deprecated_class) =
         hint_processor.deprecated_compiled_classes_iter.next().ok_or_else(|| {
             OsHintError::EndOfIterator { item_type: "deprecated_compiled_classes".to_string() }
         })?;
 
-    let dep_class_base = vm.add_memory_segment();
-    deprecated_class.load_into(vm, hint_processor.program, dep_class_base, constants)?;
+    let dep_class_base = ctx.vm.add_memory_segment();
+    deprecated_class.load_into(ctx.vm, hint_processor.program, dep_class_base, ctx.constants)?;
 
     let compiled_class_v0 = CompiledClassV0::try_from(deprecated_class)?;
 
-    exec_scopes.insert_value(Scope::ClassHash.into(), class_hash);
-    exec_scopes.insert_value(Scope::CompiledClass.into(), compiled_class_v0);
+    ctx.exec_scopes.insert_value(Scope::ClassHash.into(), class_hash);
+    ctx.exec_scopes.insert_value(Scope::CompiledClass.into(), compiled_class_v0);
 
-    Ok(insert_value_from_var_name(
-        Ids::CompiledClass.into(),
-        dep_class_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)
+    Ok(ctx.insert_value(Ids::CompiledClass, dep_class_base)?)
 }
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintExtensionResult {
     let computed_hash_addr = get_address_of_nested_fields(
-        ids_data,
+        ctx.ids_data,
         Ids::CompiledClassFact,
         CairoStruct::DeprecatedCompiledClassFactPtr,
-        vm,
-        ap_tracking,
+        ctx.vm,
+        ctx.ap_tracking,
         &["hash"],
         hint_processor.program,
     )?;
-    let computed_hash = vm.get_integer(computed_hash_addr)?;
-    let expected_hash = exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
+    let computed_hash = ctx.vm.get_integer(computed_hash_addr)?;
+    let expected_hash = ctx.exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
 
     if computed_hash.as_ref() != &expected_hash.0 {
         return Err(OsHintError::AssertionFailed {
@@ -80,21 +67,21 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         });
     }
 
-    let dep_class = exec_scopes.get_ref::<CompiledClassV0>(Scope::CompiledClass.into())?;
+    let dep_class = ctx.exec_scopes.get_ref::<CompiledClassV0>(Scope::CompiledClass.into())?;
 
     let hints: BTreeMap<usize, Vec<HintParams>> =
         (&dep_class.program.shared_program_data.hints_collection).into();
 
     let byte_code_ptr_addr = get_address_of_nested_fields(
-        ids_data,
+        ctx.ids_data,
         Ids::CompiledClass,
         CairoStruct::DeprecatedCompiledClassPtr,
-        vm,
-        ap_tracking,
+        ctx.vm,
+        ctx.ap_tracking,
         &["bytecode_ptr"],
         hint_processor.program,
     )?;
-    let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;
+    let byte_code_ptr = ctx.vm.get_relocatable(byte_code_ptr_addr)?;
     let constants = dep_class.program.constants.clone();
 
     let mut hint_extension = HintExtension::new();

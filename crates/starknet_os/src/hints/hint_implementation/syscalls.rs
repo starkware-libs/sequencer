@@ -2,7 +2,6 @@ use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::exe
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use paste::paste;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -21,18 +20,18 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 /// Expands to:
 ///
 /// pub(crate) fn get_block_number<S: StateReader>(
-/// HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+/// hint_processor: &mut SnosHintProcessor<'_, S>,
+/// ctx: HintArgs<'_>,
 /// ) -> OsHintResult
 /// {
 ///     assert_eq!(
-///         exec_scopes.get(Scope::SyscallHandlerType.into())?,
+///         ctx.exec_scopes.get(Scope::SyscallHandlerType.into())?,
 ///         SyscallHandlerType::DeprecatedSyscallHandler
 ///     );
 ///     let syscall_hint_processor = &mut hint_processor.deprecated_syscall_hint_processor;
-///         let syscall_ptr = get_ptr_from_var_name(
-///         Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?;
-///         let syscall_selector = DeprecatedSyscallSelector::try_from(
-///         vm.get_integer(syscall_ptr)?.into_owned()
+///     let syscall_ptr = ctx.get_ptr(Ids::SyscallPtr)?;
+///     let syscall_selector = DeprecatedSyscallSelector::try_from(
+///         ctx.vm.get_integer(syscall_ptr)?.into_owned()
 ///     )?;
 ///     let expected_selector = paste! { DeprecatedSyscallSelector::[$name:camel] };
 ///     if syscall_selector != expected_selector {
@@ -47,9 +46,9 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 ///     Ok(
 ///         execute_next_deprecated_syscall(
 ///             syscall_hint_processor,
-///             vm,
-///             ids_data,
-///             ap_tracking
+///             ctx.vm,
+///             ctx.ids_data,
+///             ctx.ap_tracking
 ///         )?
 ///     )
 /// }
@@ -57,25 +56,17 @@ macro_rules! create_syscall_func {
     ($($name:ident),+) => {
         $(
             pub(crate) fn $name<S: StateReader>(
-                hint_processor: & mut SnosHintProcessor<'_, S>,
-                HintArgs {
-                    vm,
-                    ids_data,
-                    ap_tracking,
-                    exec_scopes,
-                    ..
-                }: HintArgs<'_>
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                ctx: HintArgs<'_>
             ) -> OsHintResult {
                 assert_eq!(
-                    exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
+                    ctx.exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
                     SyscallHandlerType::DeprecatedSyscallHandler
                 );
                 let syscall_hint_processor = &mut hint_processor.get_mut_current_execution_helper()?.deprecated_syscall_hint_processor;
-                let syscall_ptr = get_ptr_from_var_name(
-                    Ids::SyscallPtr.into(), vm, ids_data, ap_tracking
-                )?;
+                let syscall_ptr = ctx.get_ptr(Ids::SyscallPtr)?;
                 let syscall_selector = DeprecatedSyscallSelector::try_from(
-                    vm.get_integer(syscall_ptr)?.into_owned()
+                    ctx.vm.get_integer(syscall_ptr)?.into_owned()
                 )?;
                 let expected_selector = paste! { DeprecatedSyscallSelector::[<$name:camel>] };
                 if syscall_selector != expected_selector {
@@ -90,9 +81,9 @@ macro_rules! create_syscall_func {
                 Ok(
                     execute_next_deprecated_syscall(
                         hint_processor,
-                        vm,
-                        ids_data,
-                        ap_tracking
+                        ctx.vm,
+                        ctx.ids_data,
+                        ctx.ap_tracking
                     )?
                 )
             }
@@ -123,15 +114,15 @@ create_syscall_func!(
 
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     assert!(
-        !exec_scopes
+        !ctx.exec_scopes
             .get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())
             .is_ok_and(|handler_type| handler_type == SyscallHandlerType::DeprecatedSyscallHandler),
         "Syscall handler type should either be unset or non-deprecated."
     );
-    let syscall_ptr = get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?;
+    let syscall_ptr = ctx.get_ptr(Ids::SyscallPtr)?;
     hint_processor
         .get_mut_current_execution_helper()?
         .syscall_hint_processor
