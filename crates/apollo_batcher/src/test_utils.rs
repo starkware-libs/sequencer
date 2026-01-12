@@ -290,7 +290,7 @@ impl Default for MockClients {
 impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReader::new();
-        storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
 
