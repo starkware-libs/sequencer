@@ -17,9 +17,11 @@ blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
+clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 indexmap.workspace = true
 proving_utils.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true
 starknet-rust.workspace = true
