@@ -1,4 +1,4 @@
-mod prover;
+pub mod prover;
 
 #[cfg(test)]
 mod prover_test;
