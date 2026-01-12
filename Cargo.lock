@@ -1510,7 +1510,6 @@ dependencies = [
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_proof_manager_types",
- "apollo_rpc",
  "apollo_state_sync_types",
  "apollo_test_utils",
  "assert_matches",
@@ -1519,7 +1518,6 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
- "cairo-lang-starknet-classes",
  "clap",
  "criterion",
  "mempool_test_utils",
@@ -1530,9 +1528,7 @@ dependencies = [
  "num-bigint",
  "num-rational",
  "pretty_assertions",
- "reqwest 0.12.24",
  "rstest",
- "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -3752,17 +3748,20 @@ version = "0.0.0"
 dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
- "apollo_gateway",
- "apollo_gateway_config",
+ "apollo_config",
+ "apollo_rpc",
  "apollo_rpc_execution",
  "apollo_sierra_compilation_config",
  "assert_matches",
  "blockifier",
+ "cairo-lang-starknet-classes",
  "clap",
  "flate2",
  "google-cloud-storage",
  "indexmap 2.12.0",
+ "mockito 1.7.0",
  "pretty_assertions",
+ "reqwest 0.12.24",
  "retry",
  "rstest",
  "serde",
@@ -3772,6 +3771,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "validator",
 ]
 
 [[package]]
@@ -12826,7 +12826,6 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
- "apollo_gateway",
  "async-trait",
  "blockifier",
  "blockifier_reexecution",

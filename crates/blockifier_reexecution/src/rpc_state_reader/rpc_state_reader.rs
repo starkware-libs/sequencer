@@ -1,4 +1,3 @@
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
@@ -17,7 +16,8 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
-use crate::rpc_objects::{
+use crate::rpc_state_reader::config::RpcStateReaderConfig;
+use crate::rpc_state_reader::rpc_objects::{
     BlockId,
     GetClassHashAtParams,
     GetCompiledClassParams,
