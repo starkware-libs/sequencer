@@ -1,6 +1,7 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
+    GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
@@ -59,6 +60,16 @@ fn get_panel_storage_height() -> Panel {
         "Storage Height",
         "The height of the batcher's storage",
         STORAGE_HEIGHT.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+    .with_log_query("Building block at height")
+}
+
+fn get_panel_global_root_height() -> Panel {
+    Panel::new(
+        "Global Root Height",
+        "The height of the first block without global root stored.",
+        GLOBAL_ROOT_HEIGHT.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")
@@ -139,6 +150,7 @@ pub(crate) fn get_batcher_row() -> Row {
         "Batcher",
         vec![
             get_panel_storage_height(),
+            get_panel_global_root_height(),
             get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),

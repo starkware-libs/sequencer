@@ -52,7 +52,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     ) -> Self {
         let global_root_height = storage_reader
             .global_root_height()
-            .expect("Failed to get block hash height from storage.");
+            .expect("Failed to get global root height from storage.");
         info!("Initializing commitment manager.");
         let mut commitment_manager = CommitmentManager::initialize(
             commitment_manager_config,
