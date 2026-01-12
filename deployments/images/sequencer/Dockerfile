@@ -25,10 +25,7 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
         exit 1; \
     fi
 
-
 COPY --from=planner /app/recipe.json recipe.json
-# Copy .cargo/config.toml before cargo chef cook so llvm-sys can find LLVM
-COPY .cargo .cargo
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 
