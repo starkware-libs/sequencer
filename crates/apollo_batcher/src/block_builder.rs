@@ -13,6 +13,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
+use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
@@ -756,6 +757,7 @@ pub struct BlockBuilderFactory {
     pub storage_reader: StorageReader,
     pub contract_class_manager: ContractClassManager,
     pub class_manager_client: SharedClassManagerClient,
+    pub proof_manager_client: SharedProofManagerClient,
     pub worker_pool: BatcherWorkerPool,
 }
 
@@ -821,6 +823,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),
+            self.proof_manager_client.clone(),
             self.block_builder_config.chain_info.chain_id.clone(),
         );
         let block_builder = Box::new(BlockBuilder::new(
