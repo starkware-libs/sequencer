@@ -4,7 +4,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::core::ChainId;
+use starknet_api::rpc_transaction::{
+    InternalRpcInvokeTransactionV3,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
+use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::MessageToL1;
 use starknet_os::io::os_output::OsOutputError;
@@ -84,4 +90,37 @@ impl IntoResponse for HttpServerError {
 
         (status, Json(body)).into_response()
     }
+}
+
+/// Validates that the transaction is an Invoke V3 transaction.
+pub fn validate_invoke_transaction(
+    tx: &RpcTransaction,
+) -> Result<&RpcInvokeTransaction, HttpServerError> {
+    match tx {
+        RpcTransaction::Invoke(invoke) => match invoke {
+            RpcInvokeTransaction::V3(_) => Ok(invoke),
+        },
+        RpcTransaction::Declare(_) => Err(HttpServerError::InvalidTransactionType(
+            "Declare transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+        RpcTransaction::DeployAccount(_) => Err(HttpServerError::InvalidTransactionType(
+            "DeployAccount transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+    }
+}
+
+/// Calculates the transaction hash for an invoke transaction.
+pub fn calculate_tx_hash(
+    invoke_tx: &RpcInvokeTransaction,
+    chain_id: &ChainId,
+) -> Result<TransactionHash, HttpServerError> {
+    let internal_tx: InternalRpcInvokeTransactionV3 = match invoke_tx {
+        RpcInvokeTransaction::V3(tx) => tx.clone().into(),
+    };
+    let version = internal_tx.version();
+    internal_tx.calculate_transaction_hash(chain_id, &version).map_err(|e| {
+        HttpServerError::ValidationError(format!("Failed to calculate transaction hash: {e}"))
+    })
 }
