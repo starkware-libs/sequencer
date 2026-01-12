@@ -106,7 +106,7 @@ impl Default for GlobalArgs {
 #[derive(Debug)]
 pub struct FileStorageArgs {
     /// A path to a directory to store the DB, output and checkpoints unless they are
-    /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
+    /// explicitly provided.
     pub data_path: String,
 
     /// A path to a directory to store the DB if needed.
