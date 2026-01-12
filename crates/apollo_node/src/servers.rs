@@ -5,6 +5,8 @@ use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
+use apollo_committer::communication::{LocalCommitterServer, RemoteCommitterServer};
+use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_compile_to_casm::communication::{
     LocalSierraCompilerServer,
     RemoteSierraCompilerServer,
@@ -73,6 +75,7 @@ use crate::components::SequencerNodeComponents;
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
+    pub(crate) committer: Option<Box<LocalCommitterServer>>,
     pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
@@ -103,6 +106,7 @@ struct WrapperServers {
 pub struct RemoteServers {
     pub batcher: Option<Box<RemoteBatcherServer>>,
     pub class_manager: Option<Box<RemoteClassManagerServer>>,
+    pub committer: Option<Box<RemoteCommitterServer>>,
     // Note: we explicitly avoid adding a config manager runner server to the remote servers as it
     // is not used for remote connections.
     pub gateway: Option<Box<RemoteGatewayServer>>,
@@ -316,6 +320,20 @@ fn create_local_servers(
         config.components.class_manager.max_concurrency
     );
 
+    let committer_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
+        &config.components.committer.execution_mode,
+        &mut components.committer,
+        &config
+            .components
+            .committer
+            .local_server_config
+            .as_ref()
+            .expect("Committer local server config should be available."),
+        communication.take_committer_rx(),
+        &COMMITTER_INFRA_METRICS.get_local_server_metrics()
+    );
+
     let config_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.config_manager.execution_mode,
@@ -450,6 +468,7 @@ fn create_local_servers(
     LocalServers {
         batcher: batcher_server,
         class_manager: class_manager_server,
+        committer: committer_server,
         config_manager: config_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
@@ -477,6 +496,7 @@ impl LocalServers {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
+            server_future_and_label(self.committer, "Local Committer"),
             server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
@@ -511,6 +531,15 @@ pub fn create_remote_servers(
         config.components.class_manager.port,
         config.components.class_manager.max_concurrency,
         CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics()
+    );
+
+    let committer_server = create_remote_server!(
+        &config.components.committer.execution_mode,
+        || { clients.get_committer_local_client() },
+        config.components.committer.remote_server_config,
+        config.components.committer.port,
+        config.components.committer.max_concurrency,
+        COMMITTER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let gateway_server = create_remote_server!(
@@ -588,6 +617,7 @@ pub fn create_remote_servers(
     RemoteServers {
         batcher: batcher_server,
         class_manager: class_manager_server,
+        committer: committer_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
@@ -604,6 +634,7 @@ impl RemoteServers {
         create_servers(vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
+            server_future_and_label(self.committer, "Remote Committer"),
             server_future_and_label(self.gateway, "Remote Gateway"),
             server_future_and_label(self.l1_provider, "Remote L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Remote L1 Gas Price Provider"),
