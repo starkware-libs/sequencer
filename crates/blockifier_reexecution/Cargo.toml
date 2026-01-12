@@ -12,8 +12,8 @@ cairo_native = ["blockifier/cairo_native"]
 [dependencies]
 apollo_compile_to_casm.workspace = true
 apollo_compile_to_casm_types.workspace = true
-apollo_gateway.workspace = true
-apollo_gateway_config.workspace = true
+apollo_config.workspace = true
+apollo_rpc.workspace = true
 apollo_rpc_execution.workspace = true
 apollo_sierra_compilation_config.workspace = true
 assert_matches.workspace = true
@@ -23,6 +23,7 @@ flate2.workspace = true
 google-cloud-storage.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 pretty_assertions.workspace = true
+reqwest = { workspace = true, features = ["blocking", "json"] }
 retry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -31,8 +32,11 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+validator.workspace = true
 
 [dev-dependencies]
+cairo-lang-starknet-classes.workspace = true
+mockito.workspace = true
 rstest.workspace = true
 
 [lints]
