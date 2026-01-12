@@ -7,7 +7,7 @@ use proving_utils::proof_encoding::ProofBytes;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_types_core::felt::Felt;
 
-use crate::proving::{prove, resolve_resource_path};
+use crate::prove::prove::{prove, resolve_resource_path};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
