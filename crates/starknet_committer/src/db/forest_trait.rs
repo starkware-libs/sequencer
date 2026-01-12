@@ -3,13 +3,16 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::db_layout::NodeLayout;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::serde_db_utils::DbBlockNumber;
+use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -63,6 +66,54 @@ pub trait ForestReader<I: InputContext> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
+}
+
+/// Helper function containing layout-common read logic.
+pub(crate) async fn read_forest<'a, S, StorageLeaf, ContractStateLeaf, ClassesLeaf, Layout>(
+    storage: &mut S,
+    context: FactsDbInitialRead,
+    storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    classes_updates: &'a LeafModifications<CompiledClassHash>,
+    forest_sorted_indices: &'a ForestSortedIndices<'a>,
+    config: ReaderConfig,
+) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
+where
+    S: Storage,
+    ContractStateLeaf: Leaf + Into<ContractState>,
+    StorageLeaf: Leaf + From<StarknetStorageValue>,
+    ClassesLeaf: Leaf + From<CompiledClassHash>,
+    Layout: NodeLayout<'a, StorageLeaf>
+        + NodeLayout<'a, ContractStateLeaf>
+        + NodeLayout<'a, ClassesLeaf>,
+{
+    let (contracts_trie, original_contracts_trie_leaves) =
+        create_contracts_trie::<ContractStateLeaf, Layout>(
+            storage,
+            context.0.contracts_trie_root_hash,
+            forest_sorted_indices.contracts_trie_sorted_indices,
+        )
+        .await?;
+    let storage_tries = create_storage_tries::<StorageLeaf, Layout>(
+        storage,
+        storage_updates,
+        &original_contracts_trie_leaves,
+        &config,
+        &forest_sorted_indices.storage_tries_sorted_indices,
+    )
+    .await?;
+    let classes_trie = create_classes_trie::<ClassesLeaf, Layout>(
+        storage,
+        classes_updates,
+        context.0.classes_trie_root_hash,
+        &config,
+        forest_sorted_indices.classes_trie_sorted_indices,
+    )
+    .await?;
+
+    Ok((
+        OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
+        original_contracts_trie_leaves,
+    ))
 }
 
 #[async_trait]

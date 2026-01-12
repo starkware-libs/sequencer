@@ -69,6 +69,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::block_builder::{
@@ -91,6 +92,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_PROVIDER_ERRORS,
+    GLOBAL_ROOT_HEIGHT,
     L2_GAS_IN_LAST_BLOCK,
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
@@ -172,11 +174,10 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    /// Optional storage reader server for handling remote storage reader queries.
-    /// Kept alive to maintain the server running.
-    #[allow(dead_code)]
-    storage_reader_server: Option<GenericStorageReaderServer>,
     commitment_manager: ApolloCommitmentManager,
+
+    /// Task handle for the storage reader server, if enabled.
+    storage_reader_server_handle: Option<JoinHandle<()>>,
 }
 
 impl Batcher {
@@ -191,8 +192,8 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
-        storage_reader_server: Option<GenericStorageReaderServer>,
         commitment_manager: ApolloCommitmentManager,
+        storage_reader_server_handle: Option<JoinHandle<()>>,
     ) -> Self {
         Self {
             config,
@@ -213,8 +214,8 @@ impl Batcher {
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
             prev_proposal_commitment: None,
-            storage_reader_server,
             commitment_manager,
+            storage_reader_server_handle,
         }
     }
 
@@ -556,7 +557,7 @@ impl Batcher {
     }
 
     fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
-        self.storage_reader.height().map_err(|err| {
+        self.storage_reader.state_diff_height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
         })
@@ -1107,6 +1108,7 @@ impl Batcher {
 
         self.storage_writer.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
+        GLOBAL_ROOT_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
     }
@@ -1266,6 +1268,15 @@ fn log_txs_execution_result(
     }
 }
 
+impl Drop for Batcher {
+    fn drop(&mut self) {
+        // Abort the storage reader server task if it was spawned.
+        if let Some(handle) = self.storage_reader_server_handle.take() {
+            handle.abort();
+        }
+    }
+}
+
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
@@ -1281,6 +1292,9 @@ pub async fn create_batcher(
             config.storage_reader_server_config.clone(),
         )
         .expect("Failed to open batcher's storage");
+
+    let storage_reader_server_handle =
+        GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1320,15 +1334,16 @@ pub async fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
-        storage_reader_server,
         commitment_manager,
+        storage_reader_server_handle,
     )
 }
 
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageReader: Send + Sync {
-    /// Returns the next height that the batcher should work on.
-    fn height(&self) -> StorageResult<BlockNumber>;
+    /// Returns the next height for which the batcher stores state diff for.
+    /// This is the next height the batcher should work on (during validate/proposal).
+    fn state_diff_height(&self) -> StorageResult<BlockNumber>;
 
     /// Returns the first height the committer has finished calculating commitments for.
     fn global_root_height(&self) -> StorageResult<BlockNumber>;
@@ -1351,7 +1366,7 @@ pub trait BatcherStorageReader: Send + Sync {
 }
 
 impl BatcherStorageReader for StorageReader {
-    fn height(&self) -> StorageResult<BlockNumber> {
+    fn state_diff_height(&self) -> StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
     }
 
@@ -1525,9 +1540,13 @@ impl ComponentStarter for Batcher {
         default_component_start_fn::<Self>().await;
         let storage_height = self
             .storage_reader
-            .height()
+            .state_diff_height()
             .expect("Failed to get height from storage during batcher creation.");
-        register_metrics(storage_height);
+        let global_root_height = self
+            .storage_reader
+            .global_root_height()
+            .expect("Failed to get global roots height from storage during batcher creation.");
+        register_metrics(storage_height, global_root_height);
     }
 }
 

@@ -250,8 +250,8 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
-        None,
         commitment_manager,
+        None,
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
@@ -512,10 +512,13 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
+    storage_reader
+        .expect_state_diff_height()
+        .times(1)
+        .returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
@@ -818,7 +821,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 #[tokio::test]
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
@@ -832,7 +835,7 @@ async fn get_height() {
 async fn propose_block_without_retrospective_block_hash() {
     let mut storage_reader = MockBatcherStorageReader::new();
     let initial_block_height = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
-    storage_reader.expect_height().returning(move || Ok(initial_block_height));
+    storage_reader.expect_state_diff_height().returning(move || Ok(initial_block_height));
     storage_reader.expect_global_root_height().returning(move || Ok(initial_block_height));
 
     let mut batcher =
@@ -1023,7 +1026,7 @@ async fn add_sync_block(
     let mut mock_clients = MockClients::default();
 
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(move || Ok(block_number));
+    storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
     let mut storage_writer = MockBatcherStorageWriter::new();
@@ -1116,7 +1119,7 @@ async fn add_sync_block_mismatch_block_number() {
 #[tokio::test]
 async fn add_sync_block_missing_block_header_commitments() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     let mut batcher = create_batcher(mock_dependencies).await;
@@ -1142,7 +1145,7 @@ async fn add_sync_block_missing_block_header_commitments() {
 async fn add_sync_block_missing_block_header_commitments_for_new_block() {
     let block_number = FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.unchecked_next();
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(move || Ok(block_number));
+    storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
@@ -1169,7 +1172,9 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
 #[tokio::test]
 async fn add_sync_block_for_first_new_block() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader
+        .expect_state_diff_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     storage_reader
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
@@ -1228,7 +1233,9 @@ async fn add_sync_block_for_first_new_block() {
 #[should_panic(expected = "does not match the configured parent block hash")]
 async fn add_sync_block_parent_hash_mismatch() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader
+        .expect_state_diff_height()
+        .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     storage_reader
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
@@ -1258,7 +1265,7 @@ async fn add_sync_block_parent_hash_mismatch() {
 async fn add_sync_block_with_partial_block_hash_but_older_than_configured_first_block() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader
-        .expect_height()
+        .expect_state_diff_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()));
     storage_reader
         .expect_global_root_height()
@@ -1323,7 +1330,7 @@ async fn revert_block_mismatch_block_number() {
 #[tokio::test]
 async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
+    storage_reader.expect_state_diff_height().returning(|| Ok(BlockNumber(0)));
     storage_reader.expect_global_root_height().returning(|| Ok(BlockNumber(0)));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
     let mut batcher = create_batcher(mock_dependencies).await;

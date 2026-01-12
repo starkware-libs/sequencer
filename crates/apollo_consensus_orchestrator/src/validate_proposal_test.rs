@@ -8,8 +8,9 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    StartHeightInput,
 };
-use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{
@@ -35,6 +36,7 @@ use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
     block_info,
     create_test_and_network_deps,
+    SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
     TIMEOUT,
@@ -94,7 +96,7 @@ fn create_proposal_validate_arguments()
     let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
     let (content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let context_config = ContextConfig::default();
-    let gas_price_params = make_gas_price_params(&context_config);
+    let gas_price_params = make_gas_price_params(&context_config.dynamic_config);
     let cancel_token = CancellationToken::new();
 
     (
@@ -131,9 +133,20 @@ async fn validate_empty_proposal() {
 #[tokio::test]
 async fn validate_proposal_success() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    let n_executed = 1;
+    let n_executed_txs_count = 1;
     // Setup deps to validate the block.
-    proposal_args.deps.setup_deps_for_validate(BlockNumber(0), n_executed, 1);
+    proposal_args
+        .deps
+        .setup_deps_for_validate(SetupDepsArgs { n_executed_txs_count, ..Default::default() });
+
+    // Batcher will expect a "start height" due to setup_deps_for_validate.
+    proposal_args
+        .deps
+        .batcher
+        .start_height(StartHeightInput { height: BlockNumber(0) })
+        .await
+        .unwrap();
+
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
@@ -143,7 +156,7 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(n_executed.try_into().unwrap()))
+        .send(ProposalPart::ExecutedTransactionCount(n_executed_txs_count.try_into().unwrap()))
         .await
         .unwrap();
     content_sender

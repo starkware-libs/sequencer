@@ -23,6 +23,7 @@ use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -72,7 +73,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.storage.db_config.chain_id",
                 "class_manager_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
                 "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
-                "consensus_manager_config.context_config.chain_id",
+                "consensus_manager_config.context_config.static_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
@@ -294,6 +295,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
+    pub context_dynamic_config: Option<ContextDynamicConfig>,
+    #[validate(nested)]
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
@@ -303,6 +306,7 @@ impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
         ];
@@ -318,6 +322,11 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
+        let context_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
+            |consensus_manager_config| {
+                consensus_manager_config.context_config.dynamic_config.clone()
+            },
+        );
         let http_server_dynamic_config = sequencer_node_config
             .http_server_config
             .as_ref()
@@ -326,7 +335,12 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, http_server_dynamic_config, mempool_dynamic_config }
+        Self {
+            consensus_dynamic_config,
+            context_dynamic_config,
+            http_server_dynamic_config,
+            mempool_dynamic_config,
+        }
     }
 }
 

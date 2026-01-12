@@ -93,7 +93,7 @@
   "components.sierra_compiler.remote_client_config.idle_timeout_ms": 30000,
   "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": 1,
   "components.sierra_compiler.remote_client_config.max_retry_interval_ms": 1000,
-  "components.sierra_compiler.remote_client_config.retries": 150,
+  "components.sierra_compiler.remote_client_config.retries": 15,
   "components.sierra_compiler.remote_client_config.set_tcp_nodelay": true,
   "components.sierra_compiler.remote_server_config.#is_none": true,
   "components.sierra_compiler.url": "$$$_COMPONENTS-SIERRA_COMPILER-URL_$$$",
