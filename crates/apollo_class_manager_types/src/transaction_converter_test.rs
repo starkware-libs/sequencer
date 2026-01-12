@@ -76,16 +76,13 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
     );
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
+    // Expect contains_proof to be called and return false (proof does not exist).
+    // Expect set_proof not to be called when converting rpc tx to internal rpc tx.
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
         .with(eq(proof_facts.clone()))
         .return_once(|_| Ok(false));
-    mock_proof_manager_client
-        .expect_set_proof()
-        .once()
-        .with(eq(proof_facts), eq(proof))
-        .return_once(|_, _| Ok(()));
 
     let mock_class_manager_client = MockClassManagerClient::new();
 
