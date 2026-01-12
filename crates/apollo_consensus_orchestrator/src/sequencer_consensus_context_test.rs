@@ -302,7 +302,7 @@ async fn build_proposal() {
 async fn build_proposal_skips_write_for_height_0() {
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(SetupDepsArgs::default());
+    deps.batcher.expect_start_height().returning(|_| Ok(()));
 
     // Make sure the state sync client isn't called by clearing its expectations.
     deps.state_sync_client = MockStateSyncClient::new();
