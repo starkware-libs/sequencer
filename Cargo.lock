@@ -176,7 +176,7 @@ dependencies = [
  "auto_impl",
  "borsh",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "either",
  "k256",
  "once_cell",
@@ -306,7 +306,7 @@ dependencies = [
  "auto_impl",
  "borsh",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "either",
  "serde",
  "serde_with",
@@ -388,7 +388,7 @@ dependencies = [
  "alloy-sol-types",
  "async-trait",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "futures-utils-wasm",
  "serde",
  "serde_json",
@@ -439,7 +439,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "const-hex",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "foldhash 0.2.0",
  "hashbrown 0.16.0",
  "indexmap 2.12.0",
@@ -723,7 +723,7 @@ dependencies = [
  "alloy-json-rpc",
  "auto_impl",
  "base64 0.22.1",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "futures",
  "futures-utils-wasm",
  "parking_lot 0.12.5",
@@ -761,7 +761,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "arrayvec",
- "derive_more 2.0.1",
+ "derive_more 2.1.1",
  "nybbles",
  "serde",
  "smallvec",
@@ -942,7 +942,7 @@ dependencies = [
  "axum",
  "blockifier",
  "chrono",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "indexmap 2.12.0",
  "mockall",
  "serde",
@@ -1893,7 +1893,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "criterion",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "expect-test",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -2054,7 +2054,7 @@ dependencies = [
  "clap",
  "deadqueue",
  "defaultmap",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "futures",
  "lazy_static",
  "libp2p",
@@ -2257,7 +2257,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_test_utils",
  "bytes",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "indexmap 2.12.0",
  "lazy_static",
  "papyrus_common",
@@ -2310,7 +2310,7 @@ dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "camelpaste",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "enum-iterator",
  "flate2",
  "hex",
@@ -3554,7 +3554,7 @@ dependencies = [
  "cairo-vm",
  "criterion",
  "dashmap",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "expect-test",
  "glob",
  "hex",
@@ -4731,6 +4731,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "convert_case"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5204,21 +5213,23 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "2.0.1"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
+checksum = "d751e9e49156b02b44f9c1815bcb94b984cdcc4396ecc32521c739452808b134"
 dependencies = [
  "derive_more-impl",
 ]
 
 [[package]]
 name = "derive_more-impl"
-version = "2.0.1"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
+checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
 dependencies = [
+ "convert_case 0.10.0",
  "proc-macro2",
  "quote",
+ "rustc_version 0.4.1",
  "syn 2.0.110",
  "unicode-xid",
 ]
@@ -11350,7 +11361,7 @@ dependencies = [
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "expect-test",
  "flate2",
  "hex",
@@ -11384,7 +11395,7 @@ dependencies = [
  "apollo_config",
  "async-trait",
  "csv",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "ethnum",
  "hex",
  "pretty_assertions",
@@ -11415,7 +11426,7 @@ dependencies = [
  "cairo-vm",
  "clap",
  "criterion",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "ethnum",
  "futures",
  "indexmap 2.12.0",
@@ -11476,7 +11487,7 @@ dependencies = [
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-vm",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "digest 0.10.7",
  "ethnum",
  "expect-test",
@@ -11538,7 +11549,7 @@ name = "starknet_patricia"
 version = "0.17.0-rc.0"
 dependencies = [
  "async-recursion",
- "derive_more 0.99.20",
+ "derive_more 2.1.1",
  "ethnum",
  "num-bigint",
  "pretty_assertions",

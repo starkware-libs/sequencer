@@ -28,7 +28,7 @@ cairo-vm = { workspace = true, features = [
   "cairo-0-secp-hints",
 ] }
 clap = { workspace = true, features = ["cargo", "derive"] }
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["deref"] }
 ethnum.workspace = true
 indexmap.workspace = true
 rand.workspace = true
