@@ -44,7 +44,7 @@ assert_matches.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-starknet-classes.workspace = true
 camelpaste.workspace = true
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["display"] }
 enum-iterator.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 insta = { workspace = true, features = ["json"] }

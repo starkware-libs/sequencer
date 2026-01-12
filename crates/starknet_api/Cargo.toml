@@ -18,7 +18,16 @@ cached.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
-derive_more.workspace = true
+derive_more = { workspace = true, features = [
+    "add",
+    "add_assign",
+    "deref",
+    "display",
+    "from",
+    "into_iterator",
+    "mul",
+    "sum",
+] }
 expect-test = { workspace = true, optional = true }
 flate2.workspace = true
 hex.workspace = true
