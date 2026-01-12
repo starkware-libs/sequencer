@@ -2736,31 +2736,14 @@ dependencies = [
 
 [[package]]
 name = "ark-bls12-381"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c775f0d12169cba7aae4caeb547bb6a50781c7449a8aa53793827c9ec4abf488"
+checksum = "3df4dcc01ff89867cd86b0da835f23c3f02738353aaee7dde7495af71363b8d5"
 dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-ec"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "defd9a439d56ac24968cca0571f598a61bc8c55f71d50a89cda591cb750670ba"
-dependencies = [
- "ark-ff 0.4.2",
- "ark-poly 0.4.2",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
- "derivative",
- "hashbrown 0.13.2",
- "itertools 0.10.5",
- "num-traits",
- "zeroize",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-serialize 0.5.0",
+ "ark-std 0.5.0",
 ]
 
 [[package]]
@@ -2771,7 +2754,7 @@ checksum = "43d68f2d516162846c1238e755a7c4d131b892b70cc70c471a8e3ca3ed818fce"
 dependencies = [
  "ahash",
  "ark-ff 0.5.0",
- "ark-poly 0.5.0",
+ "ark-poly",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "educe 0.6.0",
@@ -2912,19 +2895,6 @@ dependencies = [
 
 [[package]]
 name = "ark-poly"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d320bfc44ee185d899ccbadfa8bc31aab923ce1558716e1997a1e74057fe86bf"
-dependencies = [
- "ark-ff 0.4.2",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
- "derivative",
- "hashbrown 0.13.2",
-]
-
-[[package]]
-name = "ark-poly"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "579305839da207f02b89cd1679e50e67b4331e2f9294a57693e5051b7703fe27"
@@ -2940,35 +2910,13 @@ dependencies = [
 
 [[package]]
 name = "ark-secp256k1"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c02e954eaeb4ddb29613fee20840c2bbc85ca4396d53e33837e11905363c5f2"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-secp256k1"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8bd211c48debd3037b48873a7aa22c3aba034e83388aa4124795c9f220b88c7"
 dependencies = [
- "ark-ec 0.5.0",
+ "ark-ec",
  "ark-ff 0.5.0",
  "ark-std 0.5.0",
-]
-
-[[package]]
-name = "ark-secp256r1"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3975a01b0a6e3eae0f72ec7ca8598a6620fc72fa5981f6f5cca33b7cd788f633"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-std 0.4.0",
 ]
 
 [[package]]
@@ -2977,7 +2925,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5cf8be5820de567729bfa73a410ddd07cec8ad102d9a4bf61fd6b2e60db264e8"
 dependencies = [
- "ark-ec 0.5.0",
+ "ark-ec",
  "ark-ff 0.5.0",
  "ark-std 0.5.0",
 ]
@@ -2998,7 +2946,6 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb7b85a02b83d2f22f89bd5cac66c9c89474240cb6207cb1efc16d098e822a5"
 dependencies = [
- "ark-serialize-derive 0.4.2",
  "ark-std 0.4.0",
  "digest 0.10.7",
  "num-bigint",
@@ -3010,22 +2957,11 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f4d068aaf107ebcd7dfb52bc748f8030e0fc930ac8e360146ca54c1203088f7"
 dependencies = [
- "ark-serialize-derive 0.5.0",
+ "ark-serialize-derive",
  "ark-std 0.5.0",
  "arrayvec",
  "digest 0.10.7",
  "num-bigint",
-]
-
-[[package]]
-name = "ark-serialize-derive"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae3281bc6d0fd7e549af32b52511e1302185bd688fd3359fa36423346ff682ea"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -3640,10 +3576,10 @@ dependencies = [
  "apollo_config",
  "apollo_infra_utils",
  "apollo_metrics",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-secp256k1 0.4.0",
- "ark-secp256r1 0.4.0",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-secp256k1",
+ "ark-secp256r1",
  "assert_matches",
  "blockifier_test_utils",
  "cached",
@@ -4157,8 +4093,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40a9ab4bb286d641463b2253070c145c53ff7e71f29cda2a49915f79ff7db927"
 dependencies = [
  "ark-ff 0.5.0",
- "ark-secp256k1 0.5.0",
- "ark-secp256r1 0.5.0",
+ "ark-secp256k1",
+ "ark-secp256r1",
  "cairo-lang-casm",
  "cairo-lang-lowering",
  "cairo-lang-runnable-utils",
@@ -4441,10 +4377,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ce3a73f176cbb920f729bc528a152a3c717d46e0d4f1023d56096b6aad1186b"
 dependencies = [
  "aquamarine",
- "ark-ec 0.5.0",
+ "ark-ec",
  "ark-ff 0.5.0",
- "ark-secp256k1 0.5.0",
- "ark-secp256r1 0.5.0",
+ "ark-secp256k1",
+ "ark-secp256r1",
  "bumpalo",
  "cairo-lang-runner",
  "cairo-lang-sierra",
@@ -6843,9 +6779,6 @@ name = "hashbrown"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
-dependencies = [
- "ahash",
-]
 
 [[package]]
 name = "hashbrown"
@@ -12440,10 +12373,10 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
  "ark-bls12-381",
- "ark-ff 0.4.2",
- "ark-poly 0.4.2",
- "ark-secp256k1 0.4.0",
- "ark-secp256r1 0.4.0",
+ "ark-ff 0.5.0",
+ "ark-poly",
+ "ark-secp256k1",
+ "ark-secp256r1",
  "assert_matches",
  "blake2",
  "blockifier",
