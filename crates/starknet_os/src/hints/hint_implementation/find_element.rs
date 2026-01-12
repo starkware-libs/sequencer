@@ -1,8 +1,3 @@
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-};
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use starknet_types_core::felt::Felt;
 
@@ -11,12 +6,9 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 // TODO(Nimrod): Delete this hint (should be implemented in the VM).
-pub(crate) fn search_sorted_optimistic(
-    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let array_ptr = get_ptr_from_var_name(Ids::ArrayPtr.into(), vm, ids_data, ap_tracking)?;
-    let elm_size =
-        felt_to_usize(&get_integer_from_var_name(Ids::ElmSize.into(), vm, ids_data, ap_tracking)?)?;
+pub(crate) fn search_sorted_optimistic(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let array_ptr = ctx.get_ptr(Ids::ArrayPtr.into())?;
+    let elm_size = felt_to_usize(&ctx.get_integer(Ids::ElmSize.into())?)?;
 
     if elm_size == 0 {
         return Err(OsHintError::AssertionFailed {
@@ -24,10 +16,9 @@ pub(crate) fn search_sorted_optimistic(
         });
     }
 
-    let n_elms =
-        felt_to_usize(&get_integer_from_var_name(Ids::NElms.into(), vm, ids_data, ap_tracking)?)?;
+    let n_elms = felt_to_usize(&ctx.get_integer(Ids::NElms.into())?)?;
 
-    let key = &get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
+    let key = &ctx.get_integer(Ids::Key.into())?;
 
     let mut index = n_elms;
     let mut exists = false;
@@ -35,7 +26,7 @@ pub(crate) fn search_sorted_optimistic(
     // TODO(Nimrod): Verify that it's ok to ignore the `__find_element_max_size` variable.
     for i in 0..n_elms {
         let address = (array_ptr + (elm_size * i))?;
-        let value = vm.get_integer(address)?;
+        let value = ctx.vm.get_integer(address)?;
 
         if value.as_ref() >= key {
             index = i;
@@ -47,8 +38,8 @@ pub(crate) fn search_sorted_optimistic(
 
     let exists_felt = Felt::from(exists);
 
-    insert_value_from_var_name(Ids::Index.into(), index, vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(Ids::Exists.into(), exists_felt, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::Index.into(), index)?;
+    ctx.insert_value(Ids::Exists.into(), exists_felt)?;
 
     Ok(())
 }

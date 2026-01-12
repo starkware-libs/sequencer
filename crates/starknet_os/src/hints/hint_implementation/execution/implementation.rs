@@ -5,11 +5,6 @@ use std::collections::HashMap;
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-};
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
@@ -42,30 +37,23 @@ use crate::vm_utils::{
 
 pub(crate) fn load_next_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
     let tx = execution_helper.tx_tracker.load_next_tx()?;
-    insert_value_from_var_name(
-        Ids::TxType.into(),
-        tx.tx_type().tx_type_as_felt(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::TxType.into(), tx.tx_type().tx_type_as_felt())?;
 
     // Log enter tx.
-    let range_check_ptr =
-        get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
+    let range_check_ptr = ctx.get_ptr(Ids::RangeCheckPtr.into())?;
     execution_helper.os_logger.enter_tx(
         tx.tx_type(),
         tx.tx_hash(),
-        vm.get_current_step(),
+        ctx.vm.get_current_step(),
         range_check_ptr,
-        ids_data,
-        vm,
-        ap_tracking,
+        ctx.ids_data,
+        ctx.vm,
+        ctx.ap_tracking,
         hint_processor.program,
     )?;
 
@@ -74,7 +62,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
 
 pub(crate) fn load_common_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -87,7 +75,7 @@ pub(crate) fn load_common_tx_fields<S: StateReader>(
     let paymaster_data_len = Felt::from(account_tx.paymaster_data().0.len());
     let paymaster_data: Vec<_> =
         account_tx.paymaster_data().0.into_iter().map(MaybeRelocatable::from).collect();
-    let paymaster_data_base = vm.gen_arg(&paymaster_data)?;
+    let paymaster_data_base = ctx.vm.gen_arg(&paymaster_data)?;
     let nonce_da_mode_as_felt = Felt::from(account_tx.nonce_data_availability_mode());
     let fee_da_mode_as_felt = Felt::from(account_tx.fee_data_availability_mode());
 
@@ -99,72 +87,46 @@ pub(crate) fn load_common_tx_fields<S: StateReader>(
                 .to_string(),
         });
     }
-    let resource_bound_address = vm.add_memory_segment();
-    resource_bounds.load_into(vm, hint_processor.program, resource_bound_address, constants)?;
+    let resource_bound_address = ctx.vm.add_memory_segment();
+    resource_bounds.load_into(
+        ctx.vm,
+        hint_processor.program,
+        resource_bound_address,
+        ctx.constants,
+    )?;
 
     // Insert.
-    insert_value_from_var_name(Ids::Tip.into(), tip, vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(
-        Ids::PaymasterDataLength.into(),
-        paymaster_data_len,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::PaymasterData.into(),
-        paymaster_data_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::NonceDataAvailabilityMode.into(),
-        nonce_da_mode_as_felt,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::FeeDataAvailabilityMode.into(),
-        fee_da_mode_as_felt,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::ResourceBounds.into(),
-        resource_bound_address,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::Tip.into(), tip)?;
+    ctx.insert_value(Ids::PaymasterDataLength.into(), paymaster_data_len)?;
+    ctx.insert_value(Ids::PaymasterData.into(), paymaster_data_base)?;
+    ctx.insert_value(Ids::NonceDataAvailabilityMode.into(), nonce_da_mode_as_felt)?;
+    ctx.insert_value(Ids::FeeDataAvailabilityMode.into(), fee_da_mode_as_felt)?;
+    ctx.insert_value(Ids::ResourceBounds.into(), resource_bound_address)?;
     Ok(())
 }
 
 pub(crate) fn exit_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    let range_check_ptr =
-        get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
+    let range_check_ptr = ctx.get_ptr(Ids::RangeCheckPtr.into())?;
     Ok(hint_processor
         .execution_helpers_manager
         .get_mut_current_execution_helper()?
         .os_logger
         .exit_tx(
-            vm.get_current_step(),
+            ctx.vm.get_current_step(),
             range_check_ptr,
-            ids_data,
-            vm,
-            ap_tracking,
+            ctx.ids_data,
+            ctx.vm,
+            ctx.ap_tracking,
             hint_processor.program,
         )?)
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -175,52 +137,27 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
         return Err(OsHintError::UnexpectedTxType(account_tx.tx_type()));
     };
 
-    insert_value_from_var_name(
-        Ids::ContractAddressSalt.into(),
-        deploy_account_tx.contract_address_salt().0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::ClassHash.into(),
-        deploy_account_tx.class_hash().0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::ContractAddressSalt.into(), deploy_account_tx.contract_address_salt().0)?;
+    ctx.insert_value(Ids::ClassHash.into(), deploy_account_tx.class_hash().0)?;
 
     let constructor_calldata = match &deploy_account_tx.tx {
         DeployAccountTransaction::V1(v1_tx) => &v1_tx.constructor_calldata,
         DeployAccountTransaction::V3(v3_tx) => &v3_tx.constructor_calldata,
     };
-    insert_value_from_var_name(
-        Ids::ConstructorCalldataSize.into(),
-        constructor_calldata.0.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    let constructor_calldata_base = vm.add_memory_segment();
+    ctx.insert_value(Ids::ConstructorCalldataSize.into(), constructor_calldata.0.len())?;
+    let constructor_calldata_base = ctx.vm.add_memory_segment();
     let constructor_calldata_as_relocatable: Vec<MaybeRelocatable> =
         constructor_calldata.0.iter().map(MaybeRelocatable::from).collect();
-    vm.load_data(constructor_calldata_base, &constructor_calldata_as_relocatable)?;
-    insert_value_from_var_name(
-        Ids::ConstructorCalldata.into(),
-        constructor_calldata_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.vm.load_data(constructor_calldata_base, &constructor_calldata_as_relocatable)?;
+    ctx.insert_value(Ids::ConstructorCalldata.into(), constructor_calldata_base)?;
     Ok(())
 }
 
 pub(crate) fn assert_transaction_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    let stored_transaction_hash =
-        get_integer_from_var_name(Ids::TransactionHash.into(), vm, ids_data, ap_tracking)?;
+    let stored_transaction_hash = ctx.get_integer(Ids::TransactionHash.into())?;
     let calculated_tx_hash =
         hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_hash().0;
 
@@ -237,68 +174,68 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
     }
 }
 
-pub(crate) fn enter_scope_deprecated_syscall_handler(
-    HintArgs { exec_scopes, .. }: HintArgs<'_>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_deprecated_syscall_handler(ctx: HintArgs<'_>) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
         any_box!(SyscallHandlerType::DeprecatedSyscallHandler),
     )]);
-    exec_scopes.enter_scope(new_scope);
+    ctx.exec_scopes.enter_scope(new_scope);
     Ok(())
 }
 
-pub(crate) fn enter_scope_syscall_handler(
-    HintArgs { exec_scopes, .. }: HintArgs<'_>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_syscall_handler(ctx: HintArgs<'_>) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
         any_box!(SyscallHandlerType::SyscallHandler),
     )]);
-    exec_scopes.enter_scope(new_scope);
+    ctx.exec_scopes.enter_scope(new_scope);
     Ok(())
 }
 
-pub(crate) fn get_contract_address_state_entry(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let contract_address =
-        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
-    set_state_entry(&contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
+pub(crate) fn get_contract_address_state_entry(ctx: HintArgs<'_>) -> OsHintResult {
+    let contract_address = ctx.get_integer(Ids::ContractAddress.into())?;
+    set_state_entry(&contract_address, ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)?;
     Ok(())
 }
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    let account_contract_address = vm
+    let account_contract_address = ctx
+        .vm
         .get_integer(get_address_of_nested_fields(
-            ids_data,
+            ctx.ids_data,
             Ids::TxInfo,
             CairoStruct::TxInfoPtr,
-            vm,
-            ap_tracking,
+            ctx.vm,
+            ctx.ap_tracking,
             &["account_contract_address"],
             hint_processor.program,
         )?)?
         .into_owned();
-    set_state_entry(&account_contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
+    set_state_entry(
+        &account_contract_address,
+        ctx.vm,
+        ctx.exec_scopes,
+        ctx.ids_data,
+        ctx.ap_tracking,
+    )?;
     Ok(())
 }
 
 pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let class_hash = ClassHash(
-        *vm.get_integer(
+        *ctx.vm.get_integer(
             get_address_of_nested_fields(
-                ids_data,
+                ctx.ids_data,
                 Ids::ExecutionContext,
                 CairoStruct::ExecutionContextPtr,
-                vm,
-                ap_tracking,
+                ctx.vm,
+                ctx.ap_tracking,
                 &["class_hash"],
                 hint_processor.program,
             )?
@@ -307,28 +244,26 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     );
 
     let is_deprecated = Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash));
-    insert_value_from_var_name(Ids::IsDeprecated.into(), is_deprecated, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::IsDeprecated.into(), is_deprecated)?;
 
     Ok(())
 }
 
-pub(crate) fn enter_scope_execute_transactions_inner(
-    HintArgs { exec_scopes, .. }: HintArgs<'_>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_execute_transactions_inner(ctx: HintArgs<'_>) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
     // variables since they are accessible via the hint processor.
-    let dict_manager = exec_scopes.get_dict_manager()?;
+    let dict_manager = ctx.exec_scopes.get_dict_manager()?;
 
     let new_scope = HashMap::from([(Scope::DictManager.into(), any_box!(dict_manager))]);
-    exec_scopes.enter_scope(new_scope);
+    ctx.exec_scopes.enter_scope(new_scope);
 
     Ok(())
 }
 
 pub(crate) fn end_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.end_tx()?;
     Ok(())
@@ -336,23 +271,23 @@ pub(crate) fn end_tx<S: StateReader>(
 
 pub(crate) fn enter_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ids_data, vm, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    let execution_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
-        ids_data,
+    let execution_info_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
+        ctx.ids_data,
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
-        vm,
-        ap_tracking,
+        ctx.vm,
+        ctx.ap_tracking,
         &["execution_info"],
         hint_processor.program,
     )?)?;
-    let deprecated_tx_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
-        ids_data,
+    let deprecated_tx_info_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
+        ctx.ids_data,
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
-        vm,
-        ap_tracking,
+        ctx.vm,
+        ctx.ap_tracking,
         &["deprecated_tx_info"],
         hint_processor.program,
     )?)?;
@@ -367,7 +302,7 @@ pub(crate) fn enter_call<S: StateReader>(
 
 pub(crate) fn exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor
         .get_mut_current_execution_helper()?
@@ -379,26 +314,20 @@ pub(crate) fn exit_call<S: StateReader>(
 
 pub(crate) fn contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let tx = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?;
     let contract_address = match tx {
         Transaction::Account(account_tx) => account_tx.sender_address(),
         Transaction::L1Handler(l1_handler) => l1_handler.tx.contract_address,
     };
-    insert_value_from_var_name(
-        Ids::ContractAddress.into(),
-        **contract_address,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::ContractAddress.into(), **contract_address)?;
     Ok(())
 }
 
 pub(crate) fn tx_calldata<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let calldata: Vec<_> =
         get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?
@@ -406,21 +335,15 @@ pub(crate) fn tx_calldata<S: StateReader>(
             .iter()
             .map(MaybeRelocatable::from)
             .collect();
-    let calldata_base = vm.gen_arg(&calldata)?;
-    insert_value_from_var_name(Ids::Calldata.into(), calldata_base, vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(
-        Ids::CalldataSize.into(),
-        Felt::from(calldata.len()),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    let calldata_base = ctx.vm.gen_arg(&calldata)?;
+    ctx.insert_value(Ids::Calldata.into(), calldata_base)?;
+    ctx.insert_value(Ids::CalldataSize.into(), Felt::from(calldata.len()))?;
     Ok(())
 }
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let tx = hint_processor
         .execution_helpers_manager
@@ -433,28 +356,22 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
             return Err(OsHintError::UnexpectedTxType(tx.tx_type()));
         }
     };
-    insert_value_from_var_name(
-        Ids::EntryPointSelector.into(),
-        entry_point_selector.0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::EntryPointSelector.into(), entry_point_selector.0)?;
     Ok(())
 }
 
 pub(crate) fn tx_version<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
-    insert_value_from_var_name(Ids::TxVersion.into(), version.0, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::TxVersion.into(), version.0)?;
     Ok(())
 }
 
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let account_deployment_data: Vec<_> =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?
@@ -462,54 +379,33 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
             .iter()
             .map(MaybeRelocatable::from)
             .collect();
-    let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
-    insert_value_from_var_name(
-        Ids::AccountDeploymentData.into(),
-        account_deployment_data_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
+    let account_deployment_data_base = ctx.vm.gen_arg(&account_deployment_data)?;
+    ctx.insert_value(Ids::AccountDeploymentData.into(), account_deployment_data_base)?;
+    ctx.insert_value(
         Ids::AccountDeploymentDataSize.into(),
         Felt::from(account_deployment_data.len()),
-        vm,
-        ids_data,
-        ap_tracking,
     )?;
     Ok(())
 }
 
 pub(crate) fn tx_proof_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let proof_facts: Vec<_> = get_proof_facts(hint_processor.get_current_execution_helper()?)?
         .0
         .iter()
         .map(MaybeRelocatable::from)
         .collect();
-    let proof_facts_base = vm.gen_arg(&proof_facts)?;
-    insert_value_from_var_name(
-        Ids::ProofFacts.into(),
-        proof_facts_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::ProofFactsSize.into(),
-        proof_facts.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    let proof_facts_base = ctx.vm.gen_arg(&proof_facts)?;
+    ctx.insert_value(Ids::ProofFacts.into(), proof_facts_base)?;
+    ctx.insert_value(Ids::ProofFactsSize.into(), proof_facts.len())?;
     Ok(())
 }
 
 pub(crate) fn gen_signature_arg<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -517,28 +413,16 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
         .tx_tracker
         .get_account_tx()?;
     let signature: Vec<_> = account_tx.signature().0.iter().map(MaybeRelocatable::from).collect();
-    let signature_start = vm.gen_arg(&signature)?;
-    insert_value_from_var_name(
-        Ids::SignatureStart.into(),
-        signature_start,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::SignatureLen.into(),
-        signature.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    let signature_start = ctx.vm.gen_arg(&signature)?;
+    ctx.insert_value(Ids::SignatureStart.into(), signature_start)?;
+    ctx.insert_value(Ids::SignatureLen.into(), signature.len())?;
 
     Ok(())
 }
 
 pub(crate) fn is_reverted<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let is_reverted = hint_processor
         .execution_helpers_manager
@@ -547,33 +431,26 @@ pub(crate) fn is_reverted<S: StateReader>(
         .get_tx_execution_info_ref()?
         .tx_execution_info
         .is_reverted();
-    insert_value_from_var_name(
-        Ids::IsReverted.into(),
-        Felt::from(is_reverted),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::IsReverted.into(), Felt::from(is_reverted))?;
     Ok(())
 }
 
 pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
     if current_execution_helper.os_logger.debug {
         // Validate the predicted gas cost.
         // TODO(Yoni): remove this check once Cairo 0 is not supported.
-        let remaining_gas =
-            get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
-        let gas_builtin = vm.get_integer(get_address_of_nested_fields(
-            ids_data,
+        let remaining_gas = ctx.get_integer(Ids::RemainingGas.into())?;
+        let gas_builtin = ctx.vm.get_integer(get_address_of_nested_fields(
+            ctx.ids_data,
             Ids::EntryPointReturnValues,
             CairoStruct::EntryPointReturnValuesPtr,
-            vm,
-            ap_tracking,
+            ctx.vm,
+            ctx.ap_tracking,
             &["gas_builtin"],
             hint_processor.program,
         )?)?;
@@ -588,7 +465,7 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
 
         match call_info.tracked_resource {
             TrackedResource::SierraGas => {
-                let initial_budget = Const::EntryPointInitialBudget.fetch(constants)?;
+                let initial_budget = Const::EntryPointInitialBudget.fetch(ctx.constants)?;
                 predicted -= initial_budget;
                 if actual_gas != predicted {
                     return Err(OsHintError::AssertionFailed {
@@ -610,15 +487,15 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     }
 
     let syscall_ptr_end_address = get_address_of_nested_fields(
-        ids_data,
+        ctx.ids_data,
         Ids::EntryPointReturnValues,
         CairoStruct::EntryPointReturnValuesPtr,
-        vm,
-        ap_tracking,
+        ctx.vm,
+        ctx.ap_tracking,
         &["syscall_ptr"],
         hint_processor.program,
     )?;
-    let syscall_ptr_end = vm.get_relocatable(syscall_ptr_end_address)?;
+    let syscall_ptr_end = ctx.vm.get_relocatable(syscall_ptr_end_address)?;
     current_execution_helper
         .syscall_hint_processor
         .validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
@@ -626,104 +503,84 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn is_remaining_gas_lt_initial_budget(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let remaining_gas =
-        get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
-    let initial_budget = Const::EntryPointInitialBudget.fetch(constants)?;
+pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let remaining_gas = ctx.get_integer(Ids::RemainingGas.into())?;
+    let initial_budget = Const::EntryPointInitialBudget.fetch(ctx.constants)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
-    Ok(insert_value_from_var_name(
-        Ids::IsRemainingGasLtInitialBudget.into(),
-        remaining_gas_lt_initial_budget,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)
+    Ok(ctx
+        .insert_value(Ids::IsRemainingGasLtInitialBudget.into(), remaining_gas_lt_initial_budget)?)
 }
 
 pub(crate) fn check_syscall_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    let actual_retdata = extract_actual_retdata(vm, ids_data, ap_tracking)?;
-    let call_response_ptr =
-        get_ptr_from_var_name(Ids::CallResponse.into(), vm, ids_data, ap_tracking)?;
-    let retdata_size = vm.get_integer(get_address_of_nested_fields_from_base_address(
+    let actual_retdata = extract_actual_retdata(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
+    let call_response_ptr = ctx.get_ptr(Ids::CallResponse.into())?;
+    let retdata_size = ctx.vm.get_integer(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
         CairoStruct::DeprecatedCallContractResponse,
-        vm,
+        ctx.vm,
         &["retdata_size"],
         hint_processor.program,
     )?)?;
-    let retdata_base = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+    let retdata_base = ctx.vm.get_relocatable(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
         CairoStruct::DeprecatedCallContractResponse,
-        vm,
+        ctx.vm,
         &["retdata"],
         hint_processor.program,
     )?)?;
-    let expected_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    let expected_retdata =
+        ctx.vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
     compare_retdata(&actual_retdata, &expected_retdata)
 }
 
 pub(crate) fn check_new_call_contract_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "retdata_start",
         "retdata_end",
         CairoStruct::CallContractResponse,
-        vm,
-        ap_tracking,
-        ids_data,
+        ctx.vm,
+        ctx.ap_tracking,
+        ctx.ids_data,
         hint_processor.program,
     )
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "constructor_retdata_start",
         "constructor_retdata_end",
         CairoStruct::DeployResponse,
-        vm,
-        ap_tracking,
-        ids_data,
+        ctx.vm,
+        ctx.ap_tracking,
+        ctx.ids_data,
         hint_processor.program,
     )
 }
 
-pub(crate) fn initial_ge_required_gas(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let initial_gas = get_integer_from_var_name(Ids::InitialGas.into(), vm, ids_data, ap_tracking)?;
-    let required_gas =
-        get_integer_from_var_name(Ids::RequiredGas.into(), vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(
-        Ids::InitialGeRequiredGas.into(),
-        Felt::from(initial_gas >= required_gas),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+pub(crate) fn initial_ge_required_gas(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let initial_gas = ctx.get_integer(Ids::InitialGas.into())?;
+    let required_gas = ctx.get_integer(Ids::RequiredGas.into())?;
+    ctx.insert_value(Ids::InitialGeRequiredGas.into(), Felt::from(initial_gas >= required_gas))?;
     Ok(())
 }
 
-fn load_tx_nonce(
-    nonce: Nonce,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    insert_value_from_var_name(Ids::Nonce.into(), nonce.0, vm, ids_data, ap_tracking)?;
+fn load_tx_nonce(nonce: Nonce, mut ctx: HintArgs<'_>) -> OsHintResult {
+    ctx.insert_value(Ids::Nonce.into(), nonce.0)?;
     Ok(())
 }
 
 pub(crate) fn load_tx_nonce_account<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -731,12 +588,12 @@ pub(crate) fn load_tx_nonce_account<S: StateReader>(
         .tx_tracker
         .get_account_tx()?
         .nonce();
-    load_tx_nonce(nonce, hint_args)
+    load_tx_nonce(nonce, ctx)
 }
 
 pub(crate) fn load_tx_nonce_l1_handler<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -744,47 +601,47 @@ pub(crate) fn load_tx_nonce_l1_handler<S: StateReader>(
         .tx_tracker
         .get_tx()?
         .nonce();
-    load_tx_nonce(nonce, hint_args)
+    load_tx_nonce(nonce, ctx)
 }
 
 fn write_syscall_result_helper<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
     ids_type: Ids,
     struct_type: CairoStruct,
     key_name: &str,
 ) -> OsHintResult {
     let key = StorageKey(PatriciaKey::try_from(
-        vm.get_integer(get_address_of_nested_fields(
-            ids_data,
-            ids_type,
-            struct_type,
-            vm,
-            ap_tracking,
-            &[key_name],
-            hint_processor.program,
-        )?)?
-        .into_owned(),
+        ctx.vm
+            .get_integer(get_address_of_nested_fields(
+                ctx.ids_data,
+                ids_type,
+                struct_type,
+                ctx.vm,
+                ctx.ap_tracking,
+                &[key_name],
+                hint_processor.program,
+            )?)?
+            .into_owned(),
     )?);
 
-    let contract_address = ContractAddress(
-        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
-            .try_into()?,
-    );
+    let contract_address =
+        ContractAddress(ctx.get_integer(Ids::ContractAddress.into())?.try_into()?);
 
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
     let prev_value = current_execution_helper.cached_state.get_storage_at(contract_address, key)?;
 
-    insert_value_from_var_name(Ids::PrevValue.into(), prev_value, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::PrevValue.into(), prev_value)?;
 
-    let request_value = vm
+    let request_value = ctx
+        .vm
         .get_integer(get_address_of_nested_fields(
-            ids_data,
+            ctx.ids_data,
             ids_type,
             struct_type,
-            vm,
-            ap_tracking,
+            ctx.vm,
+            ctx.ap_tracking,
             &["value"],
             hint_processor.program,
         )?)?
@@ -792,16 +649,16 @@ fn write_syscall_result_helper<S: StateReader>(
 
     current_execution_helper.cached_state.set_storage_at(contract_address, key, request_value)?;
 
-    set_state_entry(contract_address.key(), vm, exec_scopes, ids_data, ap_tracking)
+    set_state_entry(contract_address.key(), ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)
 }
 
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     write_syscall_result_helper(
         hint_processor,
-        hint_args,
+        ctx,
         Ids::SyscallPtr,
         CairoStruct::StorageWritePtr,
         "address",
@@ -810,11 +667,11 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
 
 pub(crate) fn write_syscall_result<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     write_syscall_result_helper(
         hint_processor,
-        hint_args,
+        ctx,
         Ids::Request,
         CairoStruct::StorageWriteRequest,
         "key",
@@ -823,7 +680,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
 
 pub(crate) fn declare_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -840,13 +697,7 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
             message: format!("Unsupported declare version: {:?}.", declare_tx.version()),
         });
     }
-    insert_value_from_var_name(
-        Ids::SenderAddress.into(),
-        declare_tx.sender_address().0.key(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::SenderAddress.into(), declare_tx.sender_address().0.key())?;
     let account_deployment_data: Vec<_> = get_account_deployment_data(
         hint_processor.execution_helpers_manager.get_current_execution_helper()?,
     )?
@@ -855,51 +706,26 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
     .map(MaybeRelocatable::from)
     .collect();
 
-    insert_value_from_var_name(
-        Ids::AccountDeploymentDataSize.into(),
-        account_deployment_data.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
-    insert_value_from_var_name(
-        Ids::AccountDeploymentData.into(),
-        account_deployment_data_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    let class_hash_base = vm.gen_arg(&vec![MaybeRelocatable::from(declare_tx.class_hash().0)])?;
-    insert_value_from_var_name(
-        Ids::ClassHashPtr.into(),
-        class_hash_base,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::CompiledClassHash.into(),
-        declare_tx.compiled_class_hash().0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::AccountDeploymentDataSize.into(), account_deployment_data.len())?;
+    let account_deployment_data_base = ctx.vm.gen_arg(&account_deployment_data)?;
+    ctx.insert_value(Ids::AccountDeploymentData.into(), account_deployment_data_base)?;
+    let class_hash_base =
+        ctx.vm.gen_arg(&vec![MaybeRelocatable::from(declare_tx.class_hash().0)])?;
+    ctx.insert_value(Ids::ClassHashPtr.into(), class_hash_base)?;
+    ctx.insert_value(Ids::CompiledClassHash.into(), declare_tx.compiled_class_hash().0)?;
 
     Ok(())
 }
 
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
-    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
-    let old_block_number =
-        get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?;
-    let old_block_hash =
-        get_integer_from_var_name(Ids::OldBlockHash.into(), vm, ids_data, ap_tracking)?;
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(ctx.constants)?;
+    let old_block_number = ctx.get_integer(Ids::OldBlockNumber.into())?;
+    let old_block_hash = ctx.get_integer(Ids::OldBlockHash.into())?;
 
     log::debug!("writing block number: {old_block_number} -> block hash: {old_block_hash}");
 
@@ -913,35 +739,34 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
 
 fn assert_value_cached_by_reading<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
     id: Ids,
     cairo_struct_type: CairoStruct,
     nested_fields: &[&str],
 ) -> OsHintResult {
     let key = StorageKey(PatriciaKey::try_from(
-        vm.get_integer(get_address_of_nested_fields(
-            ids_data,
-            id,
-            cairo_struct_type,
-            vm,
-            ap_tracking,
-            nested_fields,
-            hint_processor.program,
-        )?)?
-        .into_owned(),
+        ctx.vm
+            .get_integer(get_address_of_nested_fields(
+                ctx.ids_data,
+                id,
+                cairo_struct_type,
+                ctx.vm,
+                ctx.ap_tracking,
+                nested_fields,
+                hint_processor.program,
+            )?)?
+            .into_owned(),
     )?);
 
-    let contract_address = ContractAddress(
-        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
-            .try_into()?,
-    );
+    let contract_address =
+        ContractAddress(ctx.get_integer(Ids::ContractAddress.into())?.try_into()?);
 
     let value = hint_processor
         .get_current_execution_helper()?
         .cached_state
         .get_storage_at(contract_address, key)?;
 
-    let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
+    let ids_value = ctx.get_integer(Ids::Value.into())?;
 
     if value != ids_value {
         return Err(OsHintError::InconsistentStorageValue(Box::new(
@@ -958,11 +783,11 @@ fn assert_value_cached_by_reading<S: StateReader>(
 
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
         hint_processor,
-        hint_args,
+        ctx,
         Ids::Request,
         CairoStruct::StorageReadRequest,
         &["key"],
@@ -971,12 +796,11 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
 
 pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-
-    hint_args: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
         hint_processor,
-        hint_args,
+        ctx,
         Ids::SyscallPtr,
         CairoStruct::StorageReadPtr,
         &["request", "address"],
@@ -985,16 +809,16 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
-            stored_block_hash_buffer: *Const::StoredBlockHashBuffer.fetch(constants)?,
+            stored_block_hash_buffer: *Const::StoredBlockHashBuffer.fetch(ctx.constants)?,
         })?;
 
     let ids_old_block_number = BlockNumber(
-        get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?
+        ctx.get_integer(Ids::OldBlockNumber.into())?
             .try_into()
             .expect("Block number should fit in u64"),
     );
@@ -1004,30 +828,17 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
             actual: ids_old_block_number,
         });
     }
-    insert_value_from_var_name(
-        Ids::OldBlockHash.into(),
-        old_block_hash.0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::OldBlockHash.into(), old_block_hash.0)?;
     Ok(())
 }
 
-pub(crate) fn check_retdata_for_debug(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
-) -> OsHintResult {
+pub(crate) fn check_retdata_for_debug(ctx: HintArgs<'_>) -> OsHintResult {
     // Fetch the result, up to 100 elements.
-    let retdata = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
-    let retdata_size = felt_to_usize(&get_integer_from_var_name(
-        Ids::RetdataSize.into(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)?;
-    let result = vm.get_range(retdata, min(retdata_size, 100_usize));
+    let retdata = ctx.get_ptr(Ids::Retdata.into())?;
+    let retdata_size = felt_to_usize(&ctx.get_integer(Ids::RetdataSize.into())?)?;
+    let result = ctx.vm.get_range(retdata, min(retdata_size, 100_usize));
 
-    let validated = MaybeRelocatable::from(Const::Validated.fetch(constants)?);
+    let validated = MaybeRelocatable::from(Const::Validated.fetch(ctx.constants)?);
 
     if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validated)) {
         log::info!("Invalid return value from __validate__:");
