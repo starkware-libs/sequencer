@@ -17,7 +17,7 @@ apollo_storage.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 cairo-lang-starknet-classes.workspace = true
-ethers.workspace = true
+alloy-primitives.workspace = true
 flate2.workspace = true
 hex.workspace = true
 hyper = { workspace = true, features = ["full"] }
