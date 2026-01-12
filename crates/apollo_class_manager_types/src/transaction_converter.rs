@@ -1,4 +1,4 @@
-use apollo_proof_manager_types::SharedProofManagerClient;
+use apollo_proof_manager_types::{ProofManagerClientError, SharedProofManagerClient};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -40,6 +40,8 @@ pub enum TransactionConverterError {
     ClassManagerClientError(#[from] ClassManagerClientError),
     #[error("Class of hash: {class_hash} not found")]
     ClassNotFound { class_hash: ClassHash },
+    #[error(transparent)]
+    ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -85,7 +87,6 @@ pub trait TransactionConverterTrait: Send + Sync {
 #[derive(Clone)]
 pub struct TransactionConverter {
     class_manager_client: SharedClassManagerClient,
-    #[allow(dead_code)]
     proof_manager_client: SharedProofManagerClient,
     chain_id: ChainId,
 }
@@ -200,7 +201,10 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction> {
         let tx_without_hash = match tx {
-            RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx.into()),
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
+                InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
+            }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
                     self.class_manager_client.add_class(tx.contract_class).await?;
@@ -310,7 +314,32 @@ impl TransactionConverter {
         )?)
     }
 
-    fn _verify_proof(
+    async fn handle_proof_verification(
+        &self,
+        proof_facts: &ProofFacts,
+        proof: &Proof,
+    ) -> TransactionConverterResult<()> {
+        // If the proof facts are empty, it is a standard transaction that does not use client-side
+        // proving and we skip proof verification. We return Ok only if the proof facts are
+        // empty (and not the proof) because the proof facts are trusted and we do not want
+        // transactions that are missing proofs but contain proof facts to be accepted.
+        if proof_facts.is_empty() {
+            return Ok(());
+        }
+
+        let contains_proof = self.proof_manager_client.contains_proof(proof_facts.clone()).await?;
+        // If the proof already exists in the proof manager, indicating it has already been
+        // verified, we skip proof verification.
+        if contains_proof {
+            return Ok(());
+        }
+
+        self.verify_proof(proof_facts.clone(), proof.clone())?;
+        self.proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await?;
+        Ok(())
+    }
+
+    fn verify_proof(
         &self,
         _proof_facts: ProofFacts,
         _proof: Proof,
