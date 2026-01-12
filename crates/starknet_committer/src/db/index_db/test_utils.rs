@@ -18,8 +18,8 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, Storage};
 
 use crate::block_committer::input::try_node_index_into_contract_address;
 use crate::db::db_layout::DbLayout;
-use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::facts_db::FactsNodeLayout;
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,

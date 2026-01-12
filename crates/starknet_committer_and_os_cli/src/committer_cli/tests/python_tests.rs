@@ -12,7 +12,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
-use starknet_committer::db::facts_db::db::FactsNodeLayout;
+use starknet_committer::db::facts_db::FactsNodeLayout;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::{
     TreeHashFunctionImpl,
