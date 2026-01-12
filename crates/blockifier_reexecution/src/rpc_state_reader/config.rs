@@ -25,7 +25,7 @@ impl Default for RpcStateReaderConfig {
     }
 }
 
-#[cfg(any(feature = "testing", test))]
+#[cfg(test)]
 impl RpcStateReaderConfig {
     pub fn create_for_testing() -> Self {
         Self::from_url("http://localhost:8080".to_string())

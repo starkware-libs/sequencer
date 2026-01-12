@@ -1,4 +1,3 @@
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::state_api::StateReader;
@@ -8,7 +7,8 @@ use serde_json::json;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use crate::rpc_objects::{
+use crate::rpc_state_reader::config::RpcStateReaderConfig;
+use crate::rpc_state_reader::rpc_objects::{
     BlockId,
     GetClassHashAtParams,
     GetCompiledClassParams,
@@ -17,7 +17,7 @@ use crate::rpc_objects::{
     RpcResponse,
     RpcSuccessResponse,
 };
-use crate::rpc_state_reader::RpcStateReader;
+use crate::rpc_state_reader::rpc_state_reader::RpcStateReader;
 
 async fn run_rpc_server() -> mockito::ServerGuard {
     mockito::Server::new_async().await

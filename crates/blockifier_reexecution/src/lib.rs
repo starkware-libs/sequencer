@@ -1,17 +1,18 @@
 pub mod cli;
 pub mod compile;
 pub mod errors;
+pub mod rpc_state_reader;
 pub mod serde_utils;
 pub mod state_reader;
 pub mod utils;
 
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutionOutput;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use errors::ReexecutionResult;
+use rpc_state_reader::config::RpcStateReaderConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::Transaction;

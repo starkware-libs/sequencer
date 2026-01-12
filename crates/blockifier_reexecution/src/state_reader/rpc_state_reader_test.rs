@@ -12,9 +12,6 @@
 use std::env;
 use std::sync::{Arc, Mutex};
 
-use apollo_gateway::rpc_objects::BlockId;
-use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
-use apollo_gateway_config::rpc_state_reader_config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -32,6 +29,9 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::cli::guess_chain_id_from_node_url;
 use crate::compile::legacy_to_contract_class_v0;
+use crate::rpc_state_reader::config::RpcStateReaderConfig;
+use crate::rpc_state_reader::rpc_objects::BlockId;
+use crate::rpc_state_reader::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::rpc_state_reader::{
     ConsecutiveRpcStateReaders,
