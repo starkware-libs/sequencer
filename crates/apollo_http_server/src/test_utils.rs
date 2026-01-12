@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
@@ -16,6 +17,7 @@ use reqwest::{Body, Client, Response, StatusCode};
 use serde::Serialize;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use tokio::time::sleep;
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::http_server::HttpServer;
@@ -98,12 +100,35 @@ async fn http_client_server_setup(
     http_server_config: HttpServerConfig,
 ) -> HttpTestClient {
     // Create and run the server.
-    let mut http_server = HttpServer::new(
-        http_server_config.clone(),
-        Arc::new(mock_config_manager_client),
-        Arc::new(mock_gateway_client),
-    );
-    tokio::spawn(async move { http_server.run().await });
+
+    let config_manager_client = Arc::new(mock_config_manager_client);
+    let gateway_client = Arc::new(mock_gateway_client);
+
+    // Spawn an http server wrapped in a retry mechanism
+    let mut remaining_retries: u8 = 5;
+    loop {
+        // Create the server struct (consumed by the spawned task).
+        let mut http_server = HttpServer::new(
+            http_server_config.clone(),
+            config_manager_client.clone(),
+            gateway_client.clone(),
+        );
+        // Spawn the server.
+        let handle = tokio::spawn(async move { http_server.run().await });
+
+        // Let it run for a few milliseconds to ensure it has successfully started.
+        const SLEEP_DURATION: Duration = Duration::from_millis(10);
+        sleep(SLEEP_DURATION).await;
+
+        // Check if the server is still running, if so, continue. Otherwise, log and repeat.
+        if !handle.is_finished() {
+            break;
+        } else {
+            println!("Server handle: {handle:?}");
+            remaining_retries -= 1;
+            assert!(remaining_retries > 0, "Failed spawning test http server");
+        }
+    }
 
     let (ip, port) = http_server_config.ip_and_port();
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -162,6 +187,7 @@ pub async fn add_tx_http_client(
     port_index: u16,
 ) -> HttpTestClient {
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    println!("Using port index {port_index}");
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
     let http_server_config =
