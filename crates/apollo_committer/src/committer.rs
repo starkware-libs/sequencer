@@ -11,13 +11,14 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_storage::rocksdb_storage::RocksDbStorage;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
@@ -31,7 +32,6 @@ use starknet_committer::db::serde_db_utils::{
     DbBlockNumber,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::error;
 
@@ -41,8 +41,42 @@ use crate::metrics::register_metrics;
 #[path = "committer_test.rs"]
 mod committer_test;
 
-pub type ApolloStorage = MapStorage;
-pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockImpl>;
+pub type ApolloStorage = RocksDbStorage;
+
+// TODO(Yoav): Move this to committer_test.rs and use index db reader.
+pub struct CommitBlockMock;
+
+#[async_trait]
+impl CommitBlockTrait for CommitBlockMock {
+    /// Sets the class trie root hash to the first class hash in the state diff.
+    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
+        input: Input<I>,
+        _trie_reader: &mut Reader,
+        _time_measurement: Option<&mut TimeMeasurement>,
+    ) -> BlockCommitmentResult<FilledForest> {
+        let class_hash = input
+            .state_diff
+            .class_hash_to_compiled_class_hash
+            .iter()
+            .next()
+            .unwrap_or_default()
+            .0
+            .0;
+        Ok(FilledForest {
+            storage_tries: HashMap::new(),
+            contracts_trie: FilledTreeImpl {
+                tree_map: HashMap::new(),
+                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+            },
+            classes_trie: FilledTreeImpl {
+                tree_map: HashMap::new(),
+                root_hash: HashOutput(class_hash),
+            },
+        })
+    }
+}
+
+pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockMock>;
 
 pub trait StorageConstructor: Storage {
     fn create_storage() -> Self;

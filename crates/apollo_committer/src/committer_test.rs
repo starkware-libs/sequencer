@@ -22,36 +22,10 @@ use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use super::Committer;
-
-pub struct CommitBlockMock;
+use super::{CommitBlockMock, Committer};
 
 pub type ApolloTestStorage = MapStorage;
 pub type ApolloTestCommitter = Committer<ApolloTestStorage, CommitBlockMock>;
-
-#[async_trait]
-impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
-        input: Input<I>,
-        _trie_reader: &mut Reader,
-        _time_measurement: Option<&mut TimeMeasurement>,
-    ) -> BlockCommitmentResult<FilledForest> {
-        let class_hash =
-            input.state_diff.class_hash_to_compiled_class_hash.iter().next().unwrap().0.0;
-        Ok(FilledForest {
-            storage_tries: HashMap::new(),
-            contracts_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-            },
-            classes_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput(class_hash),
-            },
-        })
-    }
-}
 
 async fn new_test_committer() -> ApolloTestCommitter {
     Committer::new(CommitterConfig::default()).await
