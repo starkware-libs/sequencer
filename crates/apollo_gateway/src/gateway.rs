@@ -169,6 +169,11 @@ impl Gateway {
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         if let Some((proof_facts, proof)) = proof_data {
+            let proof_manager_client = self.transaction_converter.get_proof_manager_client();
+            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
+            {
+                error!("Failed to set proof in proof manager: {}", e);
+            }
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
                 if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
@@ -265,7 +270,7 @@ pub fn create_gateway(
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
-        proof_manager_client,
+        proof_manager_client.clone(),
         config.chain_info.chain_id.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
