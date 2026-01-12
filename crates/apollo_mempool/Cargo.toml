@@ -32,7 +32,7 @@ apollo_network_types.workspace = true
 apollo_time = { workspace = true }
 async-trait.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["deref", "from"] }
 indexmap.workspace = true
 rand.workspace = true
 starknet_api.workspace = true
