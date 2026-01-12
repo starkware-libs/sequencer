@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use serde_json::Value;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
@@ -11,6 +10,7 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::facts_db::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_packing};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};

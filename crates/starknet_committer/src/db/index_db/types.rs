@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use ethnum::U256;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::SERIALIZE_HASH_BYTES;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -25,6 +24,7 @@ use starknet_patricia_storage::errors::{DeserializationError, SerializationResul
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
+use crate::db::facts_db::node_serde::SERIALIZE_HASH_BYTES;
 use crate::db::index_db::leaves::INDEX_LAYOUT_DB_KEY_SEPARATOR;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 
