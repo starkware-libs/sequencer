@@ -4,10 +4,6 @@ pub mod gateway;
 pub mod gateway_fixed_block_state_reader;
 pub mod metrics;
 pub mod proof_archive_writer;
-pub mod rpc_objects;
-pub mod rpc_state_reader;
-#[cfg(test)]
-mod rpc_state_reader_test;
 mod state_reader;
 #[cfg(any(feature = "testing", test))]
 mod state_reader_test_utils;
