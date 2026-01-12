@@ -241,6 +241,8 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
+// TODO(Einat): turn test back on when port issue is fixed.
+#[ignore]
 #[rstest]
 #[case::missing_version(
     0,
@@ -256,7 +258,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
         message: "Version field is not a valid hex string: badversion".to_string(), //Note: whitespaces are removed when parsing malformed tx jsons
-    }
+        }
 )]
 #[case::old_version(2, Some("0x1"), StarknetError {
             code: StarknetErrorCode::KnownErrorCode(
