@@ -17,10 +17,16 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_functio
 use starknet_patricia_storage::db_object::{
     DBObject,
     EmptyDeserializationContext,
+    HasDynamicPrefix,
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{
+    create_db_key_no_separator,
+    DbKey,
+    DbKeyPrefix,
+    DbValue,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hash_function::hash::TreeHashFunctionImpl;
@@ -57,6 +63,10 @@ where
     TreeHashFunctionImpl: TreeHashFunction<L>,
 {
     type DeserializeContext = IndexNodeContext;
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key_no_separator(self.get_prefix(key_context), suffix)
+    }
 
     fn serialize(&self) -> SerializationResult<DbValue> {
         match &self.0.data {
@@ -178,14 +188,9 @@ impl<'a> SubTreeTrait<'a> for IndexLayoutSubTree<'a> {
         Self::NodeDeserializeContext { is_leaf: self.is_leaf() }
     }
 
-    fn get_root_prefix<L: Leaf>(
-        &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
-    ) -> DbKeyPrefix {
-        L::get_static_prefix(key_context)
-    }
-
-    fn get_root_suffix(&self) -> Vec<u8> {
-        self.root_index.0.to_be_bytes().to_vec()
+    fn get_root_db_key<L: Leaf>(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey {
+        let prefix = L::get_static_prefix(key_context);
+        let suffix = self.root_index.0.to_be_bytes();
+        create_db_key_no_separator(prefix, &suffix)
     }
 }

@@ -8,10 +8,16 @@ use starknet_patricia_storage::db_object::{
     DBObject,
     EmptyDeserializationContext,
     EmptyKeyContext,
+    HasDynamicPrefix,
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
-use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{
+    create_db_key_no_separator,
+    DbKey,
+    DbKeyPrefix,
+    DbValue,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
@@ -105,6 +111,11 @@ impl_leaf_for_wrappers!(
 
 impl DBObject for IndexLayoutContractState {
     type DeserializeContext = EmptyDeserializationContext;
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key_no_separator(self.get_prefix(key_context), suffix)
+    }
+
     fn serialize(&self) -> Result<DbValue, SerializationError> {
         serialize_felts(&[self.0.class_hash.0, self.0.storage_root_hash.0, self.0.nonce.0])
     }
@@ -131,6 +142,10 @@ impl DBObject for IndexLayoutContractState {
 impl DBObject for IndexLayoutCompiledClassHash {
     type DeserializeContext = EmptyDeserializationContext;
 
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key_no_separator(self.get_prefix(key_context), suffix)
+    }
+
     fn serialize(&self) -> Result<DbValue, SerializationError> {
         serialize_felts(&[self.0.0])
     }
@@ -147,6 +162,10 @@ impl DBObject for IndexLayoutCompiledClassHash {
 
 impl DBObject for IndexLayoutStarknetStorageValue {
     type DeserializeContext = EmptyDeserializationContext;
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key_no_separator(self.get_prefix(key_context), suffix)
+    }
 
     fn serialize(&self) -> Result<DbValue, SerializationError> {
         serialize_felts(&[self.0.0])
