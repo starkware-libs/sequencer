@@ -12,8 +12,8 @@ use crate::db::create_original_skeleton_tests::{
     test_create_original_skeleton,
     CreateTreeCase,
 };
-use crate::db::index_db::db::IndexNodeLayout;
 use crate::db::index_db::test_utils::convert_facts_db_to_index_db;
+use crate::db::index_db::IndexNodeLayout;
 use crate::hash_function::mock_hash::MockTreeHashFunction;
 
 impl TreeHashFunction<MockLeaf> for MockTreeHashFunction {
