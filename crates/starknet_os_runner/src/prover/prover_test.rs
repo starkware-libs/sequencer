@@ -6,7 +6,7 @@ use bzip2::read::BzDecoder;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_types_core::felt::Felt;
 
-use crate::proving::prove;
+use crate::prover::prover::prove;
 
 /// Resolves a path relative to the crate's resources directory.
 fn resolve_test_resource_path(relative_path: &str) -> std::io::Result<std::path::PathBuf> {
