@@ -14,6 +14,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
+use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
 use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
@@ -61,6 +62,13 @@ impl NodeLayoutFor<ContractState> for FactsNodeLayout {
 
 impl NodeLayoutFor<CompiledClassHash> for FactsNodeLayout {
     type DbLeaf = CompiledClassHash;
+}
+
+impl DbLayout for FactsNodeLayout {
+    type ContractStateDbLeaf = ContractState;
+    type CompiledClassHashDbLeaf = CompiledClassHash;
+    type StarknetStorageValueDbLeaf = StarknetStorageValue;
+    type NodeLayout = FactsNodeLayout;
 }
 
 pub struct FactsDb<S: Storage> {

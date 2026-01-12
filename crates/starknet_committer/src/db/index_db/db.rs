@@ -13,6 +13,7 @@ use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
+use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
 use crate::db::index_db::leaves::{
@@ -80,6 +81,13 @@ impl NodeLayoutFor<ContractState> for IndexNodeLayout {
 
 impl NodeLayoutFor<CompiledClassHash> for IndexNodeLayout {
     type DbLeaf = IndexLayoutCompiledClassHash;
+}
+
+impl DbLayout for IndexNodeLayout {
+    type ContractStateDbLeaf = IndexLayoutContractState;
+    type CompiledClassHashDbLeaf = IndexLayoutCompiledClassHash;
+    type StarknetStorageValueDbLeaf = IndexLayoutStarknetStorageValue;
+    type NodeLayout = IndexNodeLayout;
 }
 
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
