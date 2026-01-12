@@ -72,6 +72,7 @@ pub struct Gateway {
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
     pub proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    pub proof_manager_client: SharedProofManagerClient,
 }
 
 impl Gateway {
@@ -82,6 +83,7 @@ impl Gateway {
         transaction_converter: Arc<dyn TransactionConverterTrait>,
         stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        proof_manager_client: SharedProofManagerClient,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
@@ -97,6 +99,7 @@ impl Gateway {
             mempool_client,
             transaction_converter,
             proof_archive_writer,
+            proof_manager_client,
         }
     }
 
@@ -169,6 +172,11 @@ impl Gateway {
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         if let Some((proof_facts, proof)) = proof_data {
+            let proof_manager_client = self.proof_manager_client.clone();
+            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
+            {
+                error!("Failed to set proof in proof manager: {}", e);
+            }
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
                 if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
@@ -265,7 +273,7 @@ pub fn create_gateway(
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
-        proof_manager_client,
+        proof_manager_client.clone(),
         config.chain_info.chain_id.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
@@ -287,6 +295,7 @@ pub fn create_gateway(
         transaction_converter,
         stateless_tx_validator,
         proof_archive_writer,
+        proof_manager_client,
     )
 }
 

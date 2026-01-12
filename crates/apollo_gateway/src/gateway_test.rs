@@ -36,6 +36,7 @@ use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
@@ -53,6 +54,7 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
@@ -136,6 +138,7 @@ fn mock_dependencies() -> MockDependencies {
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     let mock_proof_archive_writer = MockProofArchiveWriterTrait::new();
+    let mock_proof_manager_client = MockProofManagerClient::new();
     MockDependencies {
         config,
         state_reader_factory,
@@ -143,6 +146,7 @@ fn mock_dependencies() -> MockDependencies {
         mock_transaction_converter,
         mock_stateless_transaction_validator,
         mock_proof_archive_writer,
+        mock_proof_manager_client,
     }
 }
 
@@ -153,6 +157,7 @@ struct MockDependencies {
     mock_transaction_converter: MockTransactionConverterTrait,
     mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
     mock_proof_archive_writer: MockProofArchiveWriterTrait,
+    mock_proof_manager_client: MockProofManagerClient,
 }
 
 impl MockDependencies {
@@ -165,6 +170,7 @@ impl MockDependencies {
             Arc::new(self.mock_transaction_converter),
             Arc::new(self.mock_stateless_transaction_validator),
             Arc::new(self.mock_proof_archive_writer),
+            Arc::new(self.mock_proof_manager_client),
         )
     }
 
@@ -174,6 +180,14 @@ impl MockDependencies {
 
     fn expect_validate_tx(&mut self, args: ValidationArgs, result: MempoolClientResult<()>) {
         self.mock_mempool_client.expect_validate_tx().once().with(eq(args)).return_once(|_| result);
+    }
+
+    fn expect_set_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
+        self.mock_proof_manager_client
+            .expect_set_proof()
+            .once()
+            .with(eq(proof_facts), eq(proof))
+            .return_once(|_, _| Ok(()));
     }
 }
 
@@ -290,6 +304,14 @@ async fn setup_mock_state(
         VALID_ACCOUNT_BALANCE,
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
     );
+
+    // If the transaction has proof facts, expect set_proof to be called on the proof manager.
+    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = input_tx {
+        if !invoke_tx.proof_facts.is_empty() {
+            mock_dependencies
+                .expect_set_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
+        }
+    }
 
     let mempool_add_tx_args = AddTransactionArgs {
         tx: expected_internal_tx.clone(),
@@ -580,6 +602,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -633,6 +656,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        proof_manager_client: Arc::new(mock_dependencies.mock_proof_manager_client),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;

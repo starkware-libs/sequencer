@@ -185,5 +185,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
         Arc::new(transaction_converter),
         stateless_tx_validator,
         proof_archive_writer,
+        proof_manager_client,
     )
 }
