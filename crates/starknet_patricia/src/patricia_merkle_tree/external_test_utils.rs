@@ -8,6 +8,7 @@ use starknet_patricia_storage::db_object::{
     DBObject,
     EmptyDeserializationContext,
     EmptyKeyContext,
+    HasDynamicPrefix,
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
@@ -22,6 +23,7 @@ use super::original_skeleton_tree::node::OriginalSkeletonNode;
 use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
+use crate::patricia_merkle_tree::filled_tree::node_serde::FACTS_DB_KEY_SEPARATOR;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::leaf::LeafWithEmptyKeyContext;
 
@@ -49,6 +51,10 @@ impl DBObject for MockLeaf {
         _deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+    }
+
+    fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
+        create_db_key(self.get_prefix(key_context), FACTS_DB_KEY_SEPARATOR, suffix)
     }
 }
 
@@ -117,11 +123,15 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
 }
 
 fn create_inner_node_patricia_key(val: Felt) -> DbKey {
-    create_db_key(PatriciaPrefix::InnerNode.into(), &val.to_bytes_be())
+    create_db_key(PatriciaPrefix::InnerNode.into(), FACTS_DB_KEY_SEPARATOR, &val.to_bytes_be())
 }
 
 pub fn create_leaf_patricia_key<L: LeafWithEmptyKeyContext>(val: u128) -> DbKey {
-    create_db_key(L::get_static_prefix(&EmptyKeyContext), &U256::from(val).to_be_bytes())
+    create_db_key(
+        L::get_static_prefix(&EmptyKeyContext),
+        FACTS_DB_KEY_SEPARATOR,
+        &U256::from(val).to_be_bytes(),
+    )
 }
 
 fn create_binary_val(left: Felt, right: Felt) -> DbValue {
@@ -196,7 +206,11 @@ pub fn create_root_edge_entry(old_root: u128, subtree_height: SubTreeHeight) -> 
     // Assumes path is 0.
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
-    let key = create_db_key(PatriciaPrefix::InnerNode.into(), &Felt::from(new_root).to_bytes_be());
+    let key = create_db_key(
+        PatriciaPrefix::InnerNode.into(),
+        FACTS_DB_KEY_SEPARATOR,
+        &Felt::from(new_root).to_bytes_be(),
+    );
     let value = DbValue(
         Felt::from(old_root)
             .to_bytes_be()

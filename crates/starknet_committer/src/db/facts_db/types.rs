@@ -2,12 +2,13 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
     FactNodeDeserializationContext,
     PatriciaPrefix,
+    FACTS_DB_KEY_SEPARATOR,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, UnmodifiedChildTraversal};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::HasStaticPrefix;
-use starknet_patricia_storage::storage_trait::DbKeyPrefix;
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix};
 
 use crate::block_committer::input::InputContext;
 
@@ -46,19 +47,14 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
         Self::NodeDeserializeContext { is_leaf: self.is_leaf(), node_hash: self.root_hash }
     }
 
-    fn get_root_prefix<L: Leaf>(
-        &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
-    ) -> DbKeyPrefix {
-        if self.is_leaf() {
+    fn get_root_db_key<L: Leaf>(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey {
+        let prefix: DbKeyPrefix = if self.is_leaf() {
             PatriciaPrefix::Leaf(L::get_static_prefix(key_context)).into()
         } else {
             PatriciaPrefix::InnerNode.into()
-        }
-    }
-
-    fn get_root_suffix(&self) -> Vec<u8> {
-        self.root_hash.0.to_bytes_be().to_vec()
+        };
+        let suffix = self.root_hash.0.to_bytes_be();
+        create_db_key(prefix, FACTS_DB_KEY_SEPARATOR, &suffix)
     }
 }
 /// Used for reading the roots in facts layout case.

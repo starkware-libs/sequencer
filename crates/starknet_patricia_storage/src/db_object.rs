@@ -1,6 +1,8 @@
 use crate::errors::{DeserializationError, SerializationResult};
 use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 
+const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
+
 pub struct EmptyKeyContext;
 
 pub trait HasDynamicPrefix {
@@ -49,6 +51,6 @@ pub trait DBObject: Sized + HasDynamicPrefix {
 
     /// Returns a [DbKey] from a prefix and a suffix.
     fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
-        create_db_key(self.get_prefix(key_context), suffix)
+        create_db_key(self.get_prefix(key_context), EMPTY_DB_KEY_SEPARATOR, suffix)
     }
 }
