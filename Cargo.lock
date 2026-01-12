@@ -3735,7 +3735,7 @@ dependencies = [
  "flate2",
  "google-cloud-storage",
  "indexmap 2.12.0",
- "mockito 1.7.0",
+ "mockito",
  "pretty_assertions",
  "reqwest 0.12.24",
  "retry",
@@ -12080,7 +12080,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
  "async-trait",
- "axum",
+ "axum 0.6.20",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
@@ -12089,6 +12089,7 @@ dependencies = [
  "cairo-vm",
  "clap",
  "futures",
+ "hyper 0.14.32",
  "indexmap 2.12.0",
  "proving_utils",
  "rstest",
@@ -12105,6 +12106,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
 ]
 
