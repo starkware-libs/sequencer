@@ -44,10 +44,6 @@ impl StorageTypeName for StorageLayout {
 
 /// Settings for a file-backed storage.
 pub struct FileBasedStorageFields {
-    /// A path to a directory to store the DB, output and checkpoints unless they are
-    /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
-    pub data_path: String,
-
     /// A path to a directory to store the DB if needed.
     pub storage_path: String,
 
