@@ -66,7 +66,7 @@ class BenchmarkData:
         # Extract and convert data to appropriate types
         try:
             # General data for all storage types.
-            self.initial_facts_in_db = [int(row["initial_facts_in_db"]) for row in data]
+            self.initial_db_entry_count = [int(row["initial_db_entry_count"]) for row in data]
             self.block_duration_millis = [float(row["block_duration_millis"]) for row in data]
             self.read_duration_millis = [float(row["read_duration_millis"]) for row in data]
             self.compute_duration_millis = [float(row["compute_duration_millis"]) for row in data]
@@ -198,7 +198,7 @@ class BenchmarkData:
         total_facts_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=self.initial_facts_in_db,
+                y=self.initial_db_entry_count,
                 mode="lines+markers",
                 name="Total facts in the DB",
             )
