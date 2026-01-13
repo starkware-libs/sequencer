@@ -119,6 +119,8 @@ where
     pub classes_provider: C,
     pub storage_proofs_provider: S,
     pub virtual_block_executor: V,
+    pub(crate) contract_class_manager: ContractClassManager,
+    pub(crate) block_number: BlockNumber,
 }
 
 impl<C, S, V> Runner<C, S, V>
@@ -127,22 +129,38 @@ where
     S: StorageProofProvider + Sync,
     V: VirtualBlockExecutor,
 {
-    pub fn new(classes_provider: C, storage_proofs_provider: S, virtual_block_executor: V) -> Self {
-        Self { classes_provider, storage_proofs_provider, virtual_block_executor }
+    pub fn new(
+        classes_provider: C,
+        storage_proofs_provider: S,
+        virtual_block_executor: V,
+        contract_class_manager: ContractClassManager,
+        block_number: BlockNumber,
+    ) -> Self {
+        Self {
+            classes_provider,
+            storage_proofs_provider,
+            virtual_block_executor,
+            contract_class_manager,
+            block_number,
+        }
     }
 
     /// Creates the OS hints required to run the given transactions virtually
-    /// on top of the given block number.
+    /// on top of the block number specified in the runner.
     ///
     /// Consumes the runner.
     pub async fn create_os_hints(
         self,
-        block_number: BlockNumber,
-        contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
         // Destructure self to move executor into spawn_blocking while keeping providers.
-        let Self { classes_provider, storage_proofs_provider, virtual_block_executor } = self;
+        let Self {
+            classes_provider,
+            storage_proofs_provider,
+            virtual_block_executor,
+            contract_class_manager,
+            block_number,
+        } = self;
 
         // Clone txs since we need them after spawn_blocking for VirtualOsBlockInput.
         let txs_for_execute = txs.clone();
@@ -223,11 +241,9 @@ where
     /// Returns the OS output containing the Cairo PIE and execution metrics.
     pub async fn run_os(
         self,
-        block_number: BlockNumber,
-        contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualOsRunnerOutput, RunnerError> {
-        let os_hints = self.create_os_hints(block_number, contract_class_manager, txs).await?;
+        let os_hints = self.create_os_hints(txs).await?;
         let output = run_virtual_os(os_hints)?;
         Ok(output)
     }
@@ -265,10 +281,8 @@ pub type RpcRunner = Runner<
 ///     contract_class_manager,
 /// );
 ///
-///
-/// let block_number = BlockNumber(800000);
-/// let runner = factory.create_runner(block_number);
-/// let output = runner.run_os(block_number, contract_class_manager.clone(), txs).await?;
+/// let runner = factory.create_runner(BlockNumber(800000));
+/// let output = runner.run_os(txs).await?;
 /// ```
 pub struct RpcRunnerFactory {
     /// URL of the RPC node.
@@ -322,6 +336,8 @@ impl RpcRunnerFactory {
             state_reader_and_contract_manager,
             storage_proofs_provider,
             virtual_block_executor,
+            self.contract_class_manager.clone(),
+            block_number,
         )
     }
 }
