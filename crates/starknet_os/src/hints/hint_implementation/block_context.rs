@@ -4,7 +4,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::execution::utils::set_state_entry;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::vm_utils::insert_values_to_fields;
 
@@ -12,7 +12,7 @@ use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn guess_block_info<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let block_info = &hint_processor.get_current_execution_helper()?.os_block_input.block_info;
     let block_info_ptr = ctx.vm.add_memory_segment();
@@ -33,7 +33,7 @@ pub(crate) fn guess_block_info<S: StateReader>(
 
 pub(crate) fn chain_id_and_fee_token_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let chain_info = &hint_processor.os_hints_config.chain_info;
     ctx.insert_value(Ids::ChainId, Felt::try_from(&chain_info.chain_id)?)?;
@@ -41,7 +41,7 @@ pub(crate) fn chain_id_and_fee_token_address<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn get_block_hash_mapping(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn get_block_hash_mapping(ctx: HintContext<'_>) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(ctx.constants)?;
     set_state_entry(
         block_hash_contract_address,

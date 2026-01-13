@@ -5,7 +5,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::io::os_input::CommitmentInfo;
 
@@ -39,7 +39,7 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 
 fn set_preimage_for_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let CommitmentInfo { previous_root, updated_root, tree_height, .. } =
         hint_processor.get_commitment_info()?;
@@ -57,7 +57,7 @@ fn set_preimage_for_commitments<S: StateReader>(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     // Do nothing here and use `address_to_storage_commitment_info` directly from the execution
     // helper.
@@ -66,7 +66,7 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
 
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.commitment_type = CommitmentType::State;
     set_preimage_for_commitments(hint_processor, ctx)
@@ -74,7 +74,7 @@ pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
 
 pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.commitment_type = CommitmentType::Class;
     set_preimage_for_commitments(hint_processor, ctx)
@@ -82,7 +82,7 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let contract_address: ContractAddress = ctx.get_integer(Ids::ContractAddress)?.try_into()?;
     hint_processor.commitment_type = CommitmentType::Contract(contract_address);
@@ -101,7 +101,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
 
 pub(crate) fn should_use_read_optimized_patricia_update<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     // TODO(Yoni): this hint is a placeholder for future optimizations without changing the program
     // hash.
@@ -110,7 +110,7 @@ pub(crate) fn should_use_read_optimized_patricia_update<S: StateReader>(
 
 pub(crate) fn guess_state_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let state_changes_start =
         if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
@@ -123,7 +123,7 @@ pub(crate) fn guess_state_ptr<S: StateReader>(
 
 pub(crate) fn update_state_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let contract_state_changes_end = ctx.get_ptr(Ids::FinalSquashedContractStateChangesEnd)?;
@@ -134,7 +134,7 @@ pub(crate) fn update_state_ptr<S: StateReader>(
 
 pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let class_changes_start =
         if let Some(state_update_pointers) = &hint_processor.get_mut_state_update_pointers() {
@@ -147,7 +147,7 @@ pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
 
 pub(crate) fn update_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.get_mut_state_update_pointers() {
         let classes_changes_end = ctx.get_ptr(Ids::SquashedDictEnd)?;

@@ -9,13 +9,13 @@ use starknet_api::core::ClassHash;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     ctx.insert_value(Ids::NCompiledClassFacts, hint_processor.deprecated_class_hashes.len())?;
     ctx.exec_scopes.enter_scope(HashMap::new());
@@ -24,7 +24,7 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let (class_hash, deprecated_class) =
         hint_processor.deprecated_compiled_classes_iter.next().ok_or_else(|| {
@@ -44,7 +44,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
     let computed_hash_addr = get_address_of_nested_fields(
         ctx.ids_data,

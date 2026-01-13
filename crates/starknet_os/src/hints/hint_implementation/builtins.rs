@@ -9,11 +9,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
-pub(crate) fn selected_builtins(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn selected_builtins(ctx: HintContext<'_>) -> OsHintResult {
     let n_selected_builtins = ctx.get_integer(Ids::NSelectedBuiltins)?;
     let new_scope =
         HashMap::from([(Scope::NSelectedBuiltins.into(), any_box!(n_selected_builtins))]);
@@ -21,7 +21,7 @@ pub(crate) fn selected_builtins(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn select_builtin(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn select_builtin(mut ctx: HintContext<'_>) -> OsHintResult {
     let n_selected_builtins: Felt = ctx.exec_scopes.get(Scope::NSelectedBuiltins.into())?;
     let selected_encodings_ptr = ctx.get_ptr(Ids::SelectedEncodings)?;
     let all_encodings_ptr = ctx.get_ptr(Ids::AllEncodings)?;
@@ -42,7 +42,7 @@ pub(crate) fn select_builtin(mut ctx: HintArgs<'_>) -> OsHintResult {
 /// Assumption: selected builtins encoding is an ordered subset of builtin_params.
 pub(crate) fn update_builtin_ptrs<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_builtins = ctx.get_integer(Ids::NBuiltins)?;
 

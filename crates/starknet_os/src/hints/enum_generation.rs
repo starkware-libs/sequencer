@@ -72,7 +72,7 @@ macro_rules! define_hint_enum_helper {
             pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
                 &self,
                 $hp_arg: &mut CHP,
-                hint_args: HintArgs<'_>
+                ctx: HintContext<'_>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
@@ -80,7 +80,7 @@ macro_rules! define_hint_enum_helper {
                         $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
                         $crate::log_time!(
                             $implementation $(::<$generic_type>)?(
-                                $($passed_arg, )? hint_args
+                                $($passed_arg, )? ctx
                             ), Self::$hint_name
                         )
                     })+
@@ -135,14 +135,14 @@ macro_rules! define_hint_enum {
             pub fn execute_hint$(<$generic_var: $generic>)?(
                 &self,
                 hint_processor: &mut $hp,
-                hint_args: HintArgs<'_>
+                ctx: HintContext<'_>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         hint_processor.unused_hints.remove(&Self::$hint_name.into());
                         $crate::log_time!(
-                            $implementation(hint_processor, hint_args), Self::$hint_name
+                            $implementation(hint_processor, ctx), Self::$hint_name
                         )
                     })+
 
@@ -169,7 +169,7 @@ macro_rules! define_hint_extension_enum {
             pub fn execute_hint_extensive<S: StateReader>(
                 &self,
                 hint_processor: &mut SnosHintProcessor<'_, S>,
-                hint_extension_args: HintArgs<'_>,
+                ctx: HintContext<'_>,
             ) -> OsHintExtensionResult {
                 match self {
                     $(Self::$hint_name => {
@@ -178,7 +178,7 @@ macro_rules! define_hint_extension_enum {
                             .unused_hints
                             .remove(&Self::$hint_name.into());
                         $crate::log_time!(
-                            $implementation::<S>(hint_processor, hint_extension_args),
+                            $implementation::<S>(hint_processor, ctx),
                             Self::$hint_name
                         )
                     })+

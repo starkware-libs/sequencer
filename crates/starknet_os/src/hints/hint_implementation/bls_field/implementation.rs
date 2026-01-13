@@ -3,7 +3,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
@@ -13,7 +13,7 @@ use crate::vm_utils::get_address_of_nested_fields;
 /// * value is in the range [0, 2 ** 256).
 pub(crate) fn compute_ids_low<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let d0 = ctx
         .vm
