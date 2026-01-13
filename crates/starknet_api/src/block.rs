@@ -417,7 +417,10 @@ impl GasPrice {
         Ok(self
             .checked_mul_u128(eth_to_fri_rate)
             .ok_or_else(|| {
-                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+                StarknetApiError::GasPriceConversionError(format!(
+                    "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                    self, eth_to_fri_rate
+                ))
             })?
             .checked_div(WEI_PER_ETH)
             .expect("WEI_PER_ETH must be non-zero"))
@@ -425,7 +428,10 @@ impl GasPrice {
     pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         self.checked_mul_u128(WEI_PER_ETH)
             .ok_or_else(|| {
-                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+                StarknetApiError::GasPriceConversionError(format!(
+                    "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                    self, eth_to_fri_rate
+                ))
             })?
             .checked_div(eth_to_fri_rate)
             .ok_or_else(|| {
