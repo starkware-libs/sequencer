@@ -504,17 +504,20 @@ fn test_empty_function_flow(#[case] runnable: RunnableCairo1) {
     assert!(!call_info.execution.failed);
 }
 
-/// Test that storage is correctly reverted when nested calls write to the same key.
+/// Test that storage, events, and L1 messages are correctly reverted when nested calls write to
+/// the same key.
 ///
 /// Scenario:
 /// - catch_write_revert_panic calls call_write_rewrite_panic and catches/ignores the revert
 /// - call_write_rewrite_panic calls write_1, then writes storage = 2, then panics
-/// - write_1 writes storage = 1
+/// - write_1 writes storage = 1, emits a dummy event, and sends a dummy L1 message
 ///
 /// After call_write_rewrite_panic's revert, storage should be 0 (original), not 1 (write_1's
 /// write). This tests the fix for a bug where call_write_rewrite_panic would capture write_1's
 /// written value (1) as the "original" instead of the true original (0), causing incorrect state
 /// after revert.
+///
+/// Additionally, verifies that events and L1 messages emitted in write_1 are also reverted.
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_nested_call_storage_revert(runnable_version: RunnableCairo1) {
@@ -528,7 +531,7 @@ fn test_nested_call_storage_revert(runnable_version: RunnableCairo1) {
     // Call catch_write_revert_panic which:
     // 1. Calls call_write_rewrite_panic
     // 2. call_write_rewrite_panic calls write_1
-    // 3. write_1 writes storage = 1
+    // 3. write_1 writes storage = 1, emits an event, and sends an L1 message
     // 4. call_write_rewrite_panic writes storage = 2
     // 5. call_write_rewrite_panic panics (gets reverted)
     // 6. catch_write_revert_panic catches the revert and reads storage (should be 0)
@@ -554,4 +557,18 @@ fn test_nested_call_storage_revert(runnable_version: RunnableCairo1) {
     // Double-check by reading storage directly.
     let final_value = state.get_storage_at(contract_address, storage_key).unwrap();
     assert_eq!(final_value, felt!(0_u8), "Storage should be 0 after revert");
+
+    // Verify that events and L1 messages are reverted across the entire call hierarchy.
+    // write_1 emits an event and sends an L1 message, but these should be cleared because
+    // its parent (call_write_rewrite_panic) panicked.
+    let events = call_info.get_sorted_events();
+    let messages = call_info.get_sorted_l2_to_l1_messages();
+    assert!(
+        events.is_empty(),
+        "All events should be reverted across the call hierarchy; got {events:?}."
+    );
+    assert!(
+        messages.is_empty(),
+        "All L1 messages should be reverted across the call hierarchy; got {messages:?}."
+    );
 }
