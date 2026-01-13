@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 use crate::build_proposal::ProposalBuildArguments;
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
-    get_oracle_rate_and_prices,
+    get_l1_prices_in_fri_and_wei,
     retrospective_block_hash,
     wait_for_retrospective_block_hash,
     RetrospectiveBlockHashError,
@@ -24,7 +24,7 @@ const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x123456
 
 async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
     let timestamp = args.deps.clock.unix_now();
-    let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
+    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
@@ -38,9 +38,10 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices.base_fee_per_gas,
-        l1_data_gas_price_wei: l1_prices.blob_fee,
-        eth_to_fri_rate,
+        l1_gas_price_wei: l1_prices_wei.l1_gas_price,
+        l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
+        l1_gas_price_fri: l1_prices_fri.l1_gas_price,
+        l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
     }
 }
 
