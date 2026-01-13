@@ -45,7 +45,6 @@ impl StreamSender {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(any(feature = "testing", test), derive(PartialEq))]
 pub(crate) enum RetrospectiveBlockHashError {
     #[error(
         "Failed retrieving block hash for block {block_number:?}, because both Batcher and 
