@@ -21,7 +21,8 @@ async fn multiple_account_txs_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([12, 13, 14]),
+        .instance_indices([12, 13, 14])
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }

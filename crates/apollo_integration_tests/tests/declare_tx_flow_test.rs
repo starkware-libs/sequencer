@@ -20,7 +20,8 @@ async fn declare_tx_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([0, 1, 2]),
+        .instance_indices([0, 1, 2])
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }
