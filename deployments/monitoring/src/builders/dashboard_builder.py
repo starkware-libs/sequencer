@@ -117,7 +117,7 @@ def remove_cluster_and_namespace_from_display_name():
         "options": {
             # Remove 'cluster' and 'namespace' label from display name if it is a panel with
             # combined namespaces (meaning it contains 'cluster' but not 'location').
-            "regex": "^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
+            "regex": r"^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
             "renamePattern": "$1$2",
         },
     }

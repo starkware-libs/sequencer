@@ -61,7 +61,7 @@ vagrant ssh
 
 # Inside the VM, deploy the sequencer stack
 cd ~/sequencer/deployments/local-testing
-./deploy.sh up
+./manifests/deploy.sh up
 ```
 
 #### Vagrant Features
@@ -114,7 +114,7 @@ vagrant box list    # List installed Vagrant boxes
 **Workflow Tips:**
 - After making code changes on your host, run `vagrant rsync` to sync them to the VM
 - The VM starts in `~/sequencer` directory automatically
-- All prerequisites are pre-installed, so you can immediately run `./deploy.sh up`
+- All prerequisites are pre-installed, so you can immediately run `./manifests/deploy.sh up`
 - The VM uses bash with helpful aliases (`k=kubectl`, `kctx=kubectx`, `kns=kubens`)
 
 ### Option 2: Direct k3d (Host Machine)
@@ -153,7 +153,7 @@ vagrant ssh
 
 # 4. Inside the VM, deploy everything
 cd ~/sequencer/deployments/local-testing
-./deploy.sh up
+./manifests/deploy.sh up
 ```
 
 ### Using Direct k3d
@@ -161,28 +161,28 @@ cd ~/sequencer/deployments/local-testing
 ```bash
 # Deploy everything (cluster, binaries, state, images, services, monitoring)
 # Note: State is automatically copied to sequencer pod after it becomes ready
-./deploy.sh up
+./manifests/deploy.sh up
 
 # Tear down everything
-./deploy.sh down
+./manifests/deploy.sh down
 
 # Just rebuild and push Docker images
 ./deploy.sh build
 
 # Build Rust binaries locally
-./deploy.sh build-binaries
+./manifests/deploy.sh build-binaries
 
 # Generate initial sequencer state
-./deploy.sh generate-state
+./manifests/deploy.sh generate-state
 
 # Copy state to sequencer pod and restart (after deploying sequencer)
-./deploy.sh copy-state
+./manifests/deploy.sh copy-state
 
 # View sequencer logs
-./deploy.sh logs
+./manifests/deploy.sh logs
 
 # Check status
-./deploy.sh status
+./manifests/deploy.sh status
 ```
 
 ## Architecture
@@ -233,14 +233,14 @@ The deployment uses:
 - Helm chart for monitoring stack (kube-prometheus-stack)
 - Reuses dashboard builders from `deployments/monitoring/src/`
 
-**Sequencer Overlay**: The sequencer uses overlay `hybrid.testing.node-0` by default. To change this, edit `SEQUENCER_OVERLAY` in `deploy.sh`.
+**Sequencer Overlay**: The sequencer uses overlay `hybrid.testing.node-0` by default. To change this, edit `SEQUENCER_OVERLAY` in `manifests/deploy.sh`.
 
 **Configuration**: Sequencer configuration is handled via cdk8s overlays. Set `recorder_url`, `l1_gas_price_provider_config`, ports, etc. directly in your overlay YAML files at `deployments/sequencer/configs/overlays/hybrid/testing/node-0/`.
 
 **State Management**: 
 1. `sequencer_node_setup` runs locally to generate state in `deployments/local-testing/output/data/node_0`
-2. `deploy.sh up` automatically waits for the sequencer pod to be ready and copies state to it
-3. If automatic state copy fails or you need to retry, run `./deploy.sh copy-state` manually
+2. `manifests/deploy.sh up` automatically waits for the sequencer pod to be ready and copies state to it
+3. If automatic state copy fails or you need to retry, run `./manifests/deploy.sh copy-state` manually
 4. The sequencer pod will read the state from its PVC on restart
 
 ## Service Deployment
@@ -289,12 +289,12 @@ All services are deployed using their existing cdk8s projects. Manifests are gen
 - Try deleting existing cluster: `k3d cluster delete sequencer-local`
 
 ### Images not found
-- Run `./deploy.sh build` to rebuild and push images
+- Run `./manifests/deploy.sh build` to rebuild and push images
 - Check registry: `docker ps | grep sequencer-registry`
 
 ### Monitoring installation timeout
 - The kube-prometheus-stack chart is large and may take 10-15 minutes to install
-- If installation times out, you can retry: `./deploy.sh install-monitoring`
+- If installation times out, you can retry: `./manifests/deploy.sh install-monitoring`
 - Check installation progress: `kubectl get pods -n sequencer | grep prometheus`
 - The deployment will continue even if monitoring installation fails
 
@@ -302,12 +302,12 @@ All services are deployed using their existing cdk8s projects. Manifests are gen
 - Check pod status: `kubectl -n sequencer get pods`
 - View logs: `kubectl -n sequencer logs <pod-name>`
 - Ensure state was generated: Check that `deployments/local-testing/output/data/node_0` exists
-- Ensure state was copied: Run `./deploy.sh copy-state` after deploying sequencer
+- Ensure state was copied: Run `./manifests/deploy.sh copy-state` after deploying sequencer
 
 ### State issues
 - State is generated locally by running `sequencer_node_setup` binary
 - Generated state is in `deployments/local-testing/output/data/node_0`
-- Copy state to pod: `./deploy.sh copy-state` (this also restarts the pod)
+- Copy state to pod: `./manifests/deploy.sh copy-state` (this also restarts the pod)
 - Verify state in pod: `kubectl exec -n sequencer <pod-name> -- ls -la /data`
 
 ### Config issues

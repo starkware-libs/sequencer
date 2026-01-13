@@ -31,10 +31,12 @@ ANVIL_PORT="8545"
 SKIP_DOCKER_BUILD=false
 SKIP_INSTALL_MONITORING=false
 SKIP_BUILD_RUST_BINARIES=false
+REUSE_EXISTING_IMAGES=true  # Default: check if images exist and skip building if they do
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SEQUENCER_ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+LOCAL_TESTING_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"  # deployments/local-testing
+SEQUENCER_ROOT_DIR="$(cd "${LOCAL_TESTING_DIR}/../.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,23 +63,23 @@ verify_k3d_cluster() {
     if ! k3d cluster list | grep -q "${CLUSTER_NAME}"; then
         log_error "k3d cluster '${CLUSTER_NAME}' does not exist!"
         log_error "Please create it first with: $0 up"
-        log_error "Or create it manually: k3d cluster create ${CLUSTER_NAME} --config ${SCRIPT_DIR}/k3d/cluster-config.yaml"
+        log_error "Or create it manually: k3d cluster create ${CLUSTER_NAME} --config ${LOCAL_TESTING_DIR}/k3d/cluster-config.yaml"
         exit 1
     fi
-    
+
     # Get current kubectl context
     local current_context=$(kubectl config current-context 2>/dev/null || echo "")
-    
+
     # Expected context format for k3d: k3d-${CLUSTER_NAME}
     local expected_context="k3d-${CLUSTER_NAME}"
-    
+
     if [ -z "$current_context" ]; then
         log_error "No kubectl context is set!"
         log_error "Please set the context to the k3d cluster:"
         log_error "  k3d kubeconfig merge ${CLUSTER_NAME} --kubeconfig-switch-context"
         exit 1
     fi
-    
+
     if [ "$current_context" != "$expected_context" ]; then
         log_error "Current kubectl context is '${current_context}', but expected '${expected_context}'"
         log_error "This script only works with the local k3d cluster '${CLUSTER_NAME}'"
@@ -87,14 +89,14 @@ verify_k3d_cluster() {
         log_error "For safety, this script will not proceed with a different cluster context."
         exit 1
     fi
-    
+
     # Verify we can actually reach the cluster
     if ! kubectl cluster-info --request-timeout=5s &>/dev/null; then
         log_error "Cannot reach the k3d cluster '${CLUSTER_NAME}'"
         log_error "The cluster may not be running. Check with: k3d cluster list"
         exit 1
     fi
-    
+
     log_info "Verified: Using k3d cluster '${CLUSTER_NAME}' (context: ${current_context})"
 }
 
@@ -104,26 +106,26 @@ install_anvil() {
         log_info "Anvil is already installed: $(which anvil)"
         return 0
     fi
-    
+
     log_info "Anvil not found, installing..."
-    
+
     # Try to install to ~/.local/bin (common local bin directory)
     local install_dir="${HOME}/.local/bin"
     mkdir -p "$install_dir"
-    
+
     # Check if install directory is in PATH
     if [[ ":$PATH:" != *":${install_dir}:"* ]]; then
         log_warn "~/.local/bin is not in PATH. Adding it temporarily..."
         export PATH="${install_dir}:${PATH}"
     fi
-    
+
     # Download and install Anvil
     log_info "Downloading Anvil v0.3.0..."
     cd "$install_dir" || {
         log_error "Failed to change to ${install_dir}"
         exit 1
     }
-    
+
     curl -L https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz | tar -xz --wildcards 'anvil' || {
         log_error "Failed to download/install Anvil"
         log_error "Please install manually:"
@@ -131,29 +133,29 @@ install_anvil() {
         log_error "  mv anvil ~/.local/bin/  # or another directory in your PATH"
         exit 1
     }
-    
+
     chmod +x anvil
     cd - > /dev/null
-    
+
     log_info "Anvil installed to ${install_dir}/anvil"
-    
+
     # Verify it's accessible
     if ! command -v anvil &> /dev/null; then
         log_error "Anvil installed but not in PATH. Please add ${install_dir} to your PATH"
         log_error "  export PATH=\"${install_dir}:\$PATH\""
         exit 1
     fi
-    
+
     log_info "Anvil installation verified: $(which anvil)"
 }
 
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     local missing=0
     local missing_tools=()
-    
+
     # Required tools with installation instructions
     declare -A tool_instructions=(
         ["docker"]="Install Docker: https://docs.docker.com/engine/install/"
@@ -167,7 +169,7 @@ check_prerequisites() {
         ["python3"]="Install Python 3.10+: https://www.python.org/downloads/"
         ["curl"]="Install curl: Usually pre-installed on Linux/Mac. For Ubuntu: sudo apt-get install curl"
     )
-    
+
     # Check all required tools
     for cmd in docker k3d kubectl helm cargo rustc pipenv cdk8s python3 curl; do
         printf "\r${GREEN}[INFO]${NC} Checking: %-10s" "$cmd"
@@ -211,7 +213,7 @@ check_prerequisites() {
         fi
     done
     printf "\n"
-    
+
     if [ "$missing" -eq 1 ]; then
         log_error ""
         log_error "Missing required tools: ${missing_tools[*]}"
@@ -226,7 +228,7 @@ check_prerequisites() {
         done
         exit 1
     fi
-    
+
     # Check for Anvil (required for sequencer_node_setup)
     if ! command -v anvil &> /dev/null; then
         log_warn "Anvil not found (required for state generation)"
@@ -235,7 +237,7 @@ check_prerequisites() {
     else
         log_info "✓ anvil: $(which anvil)"
     fi
-    
+
     # Verify Docker is running
     if ! docker info > /dev/null 2>&1; then
         log_error "Docker is installed but not running"
@@ -243,7 +245,7 @@ check_prerequisites() {
         exit 1
     fi
     log_info "✓ Docker is running"
-    
+
     # Verify overlay path exists (convert dot notation to path)
     local overlay_path="${SEQUENCER_ROOT_DIR}/deployments/sequencer/configs/overlays/$(echo ${SEQUENCER_OVERLAY} | tr '.' '/')"
     if [ ! -d "$overlay_path" ]; then
@@ -253,7 +255,7 @@ check_prerequisites() {
     else
         log_info "✓ Sequencer overlay found: ${SEQUENCER_OVERLAY}"
     fi
-    
+
     log_info ""
     log_info "All prerequisites met ✓"
 }
@@ -261,39 +263,39 @@ check_prerequisites() {
 # Build Rust binaries locally
 build_binaries() {
     log_info "Building Rust binaries..."
-    
+
     cd "${SEQUENCER_ROOT_DIR}"
-    
+
     # Build sequencer_node_setup and sequencer_simulator
     # Note: Python script sequencer_simulator.py calls the Rust sequencer_simulator binary
     cargo build --bin sequencer_node_setup --bin sequencer_simulator || {
         log_error "Failed to build binaries"
         exit 1
     }
-    
+
     # Restore executable permissions (in case they were lost)
     chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator 2>/dev/null || true
-    
+
     log_info "Binaries built successfully"
 }
 
 # Generate initial state data
 generate_state() {
     log_info "Generating initial sequencer state..."
-    
+
     # Ensure Anvil is in PATH
     if ! command -v anvil &> /dev/null; then
         log_error "Anvil not found in PATH. Please ensure Anvil is installed and in PATH"
-        log_error "Run: ./deploy.sh up (which will install Anvil automatically)"
+        log_error "Run: ./manifests/deploy.sh up (which will install Anvil automatically)"
         exit 1
     fi
-    
+
     log_info "Using Anvil: $(which anvil)"
-    
+
     # Use output directory under local-testing project
-    local output_dir="${SCRIPT_DIR}/output"
+    local output_dir="${LOCAL_TESTING_DIR}/output"
     local data_prefix="/data"
-    
+
     # Clean output directory if it exists (to avoid KeyAlreadyExists errors)
     if [ -d "${output_dir}" ]; then
         log_info "Cleaning existing output directory: ${output_dir}"
@@ -301,10 +303,10 @@ generate_state() {
             log_warn "Failed to clean output directory, continuing anyway..."
         }
     fi
-    
+
     # Run sequencer_node_setup from sequencer root (needs access to crates, etc.)
     cd "${SEQUENCER_ROOT_DIR}"
-    
+
     # Run sequencer_node_setup to generate state (using absolute path for output)
     ./target/debug/sequencer_node_setup \
         --output-base-dir "${output_dir}" \
@@ -316,9 +318,9 @@ generate_state() {
         log_error "Make sure Anvil is installed and accessible: which anvil"
         exit 1
     }
-    
+
     cd - > /dev/null
-    
+
     log_info "State generated in ${output_dir}/data/node_0"
 }
 
@@ -326,15 +328,15 @@ generate_state() {
 copy_state_and_restart() {
     verify_k3d_cluster
     log_info "Copying state to sequencer pod and restarting..."
-    
-    local data_dir="${SCRIPT_DIR}/output/data/node_0"
-    
+
+    local data_dir="${LOCAL_TESTING_DIR}/output/data/node_0"
+
     if [ ! -d "$data_dir" ]; then
         log_error "State directory not found: ${data_dir}"
         log_error "Run 'generate_state' first or ensure sequencer_node_setup completed"
         exit 1
     fi
-    
+
     # Determine which service to copy state to based on layout
     local service_label
     if [ "$SEQUENCER_LAYOUT" == "hybrid" ]; then
@@ -346,33 +348,33 @@ copy_state_and_restart() {
         service_label="app=sequencer"
         log_info "Using ${SEQUENCER_LAYOUT} layout"
     fi
-    
+
     # Find sequencer pod
     local pod_name
     pod_name=$(kubectl get pods -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    
+
     if [ -z "$pod_name" ]; then
         log_warn "No sequencer pod found with label ${service_label}"
         log_warn "Make sure sequencer is deployed first. Check with: kubectl get pods -n ${NAMESPACE}"
         return
     fi
-    
+
     log_info "Found sequencer pod: ${pod_name}"
-    
+
     # Copy state data to pod
     log_info "Copying state data to pod..."
     kubectl cp "${data_dir}/." "${NAMESPACE}/${pod_name}:/data" --retries=3 || {
         log_error "Failed to copy state to pod"
         exit 1
     }
-    
+
     # Restart pod to read the new state
     log_info "Restarting pod to load new state..."
     kubectl delete pod "${pod_name}" -n "${NAMESPACE}" || {
         log_error "Failed to restart pod"
         exit 1
     }
-    
+
     # Wait for pod to be ready
     log_info "Waiting for pod to become ready..."
     kubectl wait --for=condition=Ready \
@@ -382,23 +384,95 @@ copy_state_and_restart() {
         log_error "Pod did not become ready"
         exit 1
     }
-    
+
     log_info "State copied and pod restarted successfully"
+}
+
+# Check if images exist in the registry
+check_images_exist() {
+    local images=("dummy-recorder" "dummy-eth-to-strk-oracle" "sequencer")
+    local all_exist=true
+
+    # Ensure registry is accessible
+    if ! docker ps | grep -q "${REGISTRY_NAME}"; then
+        log_info "Registry not running, images need to be built"
+        return 1  # Registry not running, images don't exist
+    fi
+
+    # Wait a moment for registry to be fully ready
+    sleep 1
+
+    log_info "Checking if images exist in registry (${REGISTRY_URL})..."
+    for image_name in "${images[@]}"; do
+        local image_exists=false
+        local full_image="${REGISTRY_URL}/${image_name}:local"
+
+            # Method 1: Check registry API directly (most reliable for k3d)
+        local registry_container=$(docker ps --filter "name=${REGISTRY_NAME}" --format "{{.Names}}" | head -1)
+        if [ -n "$registry_container" ]; then
+            # Use registry API v2 to check if image exists
+            # k3d registry stores images at /var/lib/registry/docker/registry/v2/repositories/
+            if docker exec "$registry_container" sh -c "test -d /var/lib/registry/docker/registry/v2/repositories/${image_name}" 2>/dev/null; then
+                image_exists=true
+            fi
+        fi
+
+        # Method 2: Try docker manifest inspect (works with newer Docker and proper registry setup)
+        if [ "$image_exists" = false ]; then
+            if docker manifest inspect "$full_image" &>/dev/null 2>&1; then
+                image_exists=true
+            fi
+        fi
+
+        # Method 3: Check if image exists locally (might have been pulled before)
+        if [ "$image_exists" = false ]; then
+            if docker images "$full_image" 2>/dev/null | grep -q "${image_name}"; then
+                image_exists=true
+            fi
+        fi
+
+        if [ "$image_exists" = false ]; then
+            log_info "  ✗ Image ${image_name}:local not found"
+            all_exist=false
+        else
+            log_info "  ✓ Image ${image_name}:local found"
+        fi
+    done
+
+    if [ "$all_exist" = true ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Build and push Docker images
 build_images() {
+    # Check if we should reuse existing images
+    if [ "$REUSE_EXISTING_IMAGES" = true ]; then
+        log_info "Checking for existing images (REUSE_EXISTING_IMAGES=true)..."
+        if check_images_exist; then
+            log_info "✓ All required images already exist in registry, skipping build..."
+            log_info "  (Use --force-build to rebuild anyway)"
+            return 0
+        else
+            log_info "Some images missing or registry not accessible, building all images..."
+        fi
+    else
+        log_info "REUSE_EXISTING_IMAGES=false, building images..."
+    fi
+
     log_info "Building and pushing Docker images..."
-    
+
     export DOCKER_BUILDKIT=1
     export COMPOSE_DOCKER_CLI_BUILD=1
-    
+
     # Ensure registry is running
     if ! docker ps | grep -q "${REGISTRY_NAME}"; then
         log_warn "Registry not running, starting cluster first..."
         create_cluster
     fi
-    
+
     # Build images
     # Note: sequencer-simulator Docker image is NOT needed - simulator runs as Python script locally
     local images=(
@@ -406,26 +480,30 @@ build_images() {
         "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
-    
+
+    # Detect number of CPU cores for parallel compilation
+    local cpu_cores=$(nproc 2>/dev/null || echo "4")
+    log_info "Using ${cpu_cores} CPU cores for parallel compilation"
+
     for image_spec in "${images[@]}"; do
         IFS=':' read -r image_name dockerfile_path <<< "$image_spec"
         log_info "Building ${image_name}..."
-        
-        local build_args=""
+
+        local build_args="--build-arg CARGO_BUILD_JOBS=${cpu_cores}"
         if [ "$image_name" == "sequencer" ]; then
-            build_args="--build-arg BUILD_MODE=debug"
+            build_args="${build_args} --build-arg BUILD_MODE=debug"
         fi
-        
+
         docker build \
             $build_args \
             -f "${SEQUENCER_ROOT_DIR}/${dockerfile_path}" \
             -t "${REGISTRY_URL}/${image_name}:local" \
             "${SEQUENCER_ROOT_DIR}"
-        
+
         log_info "Pushing ${image_name}..."
         docker push "${REGISTRY_URL}/${image_name}:local"
     done
-    
+
     log_info "All images built and pushed"
 }
 
@@ -433,26 +511,26 @@ build_images() {
 rollout_restart_all() {
     verify_k3d_cluster
     log_info "Restarting all deployments and statefulsets to pick up new images..."
-    
+
     # Restart all deployments
     local deployments=$(kubectl get deployments -n "${NAMESPACE}" -o name 2>/dev/null || echo "")
     if [ -n "$deployments" ]; then
         log_info "Restarting deployments..."
         kubectl rollout restart deployments -n "${NAMESPACE}"
     fi
-    
+
     # Restart all statefulsets
     local statefulsets=$(kubectl get statefulsets -n "${NAMESPACE}" -o name 2>/dev/null || echo "")
     if [ -n "$statefulsets" ]; then
         log_info "Restarting statefulsets..."
         kubectl rollout restart statefulsets -n "${NAMESPACE}"
     fi
-    
+
     # Wait for rollouts to complete
     log_info "Waiting for rollouts to complete..."
     kubectl rollout status deployments -n "${NAMESPACE}" --timeout=300s 2>/dev/null || true
     kubectl rollout status statefulsets -n "${NAMESPACE}" --timeout=300s 2>/dev/null || true
-    
+
     log_info "All workloads restarted ✓"
 }
 
@@ -477,31 +555,31 @@ prompt_deploy_after_build() {
 # Create k3d cluster
 create_cluster() {
     log_info "Creating k3d cluster..."
-    
+
     if k3d cluster list | grep -q "${CLUSTER_NAME}"; then
         log_warn "Cluster ${CLUSTER_NAME} already exists"
         log_info "Note: If you changed port mappings in k3d/cluster-config.yaml, you may need to delete and recreate the cluster"
         return
     fi
-    
+
     k3d cluster create "${CLUSTER_NAME}" \
-        --config "${SCRIPT_DIR}/k3d/cluster-config.yaml" \
+        --config "${LOCAL_TESTING_DIR}/k3d/cluster-config.yaml" \
         --wait
-    
+
     # Connect kubectl to cluster
     k3d kubeconfig merge "${CLUSTER_NAME}" --kubeconfig-switch-context
-    
+
     # Wait for cluster to be ready
     log_info "Waiting for cluster to be ready..."
     kubectl cluster-info --request-timeout=30s
-    
+
     log_info "Cluster created successfully"
 }
 
 # Delete k3d cluster
 delete_cluster() {
     log_info "Deleting k3d cluster..."
-    
+
     if k3d cluster list | grep -q "${CLUSTER_NAME}"; then
         k3d cluster delete "${CLUSTER_NAME}"
         log_info "Cluster deleted"
@@ -514,7 +592,7 @@ delete_cluster() {
 install_monitoring() {
     verify_k3d_cluster
     log_info "Installing Prometheus/Grafana stack..."
-    
+
     # Add prometheus-community repo if not already added
     if ! helm repo list | grep -q prometheus-community; then
         log_info "Adding prometheus-community Helm repository..."
@@ -527,7 +605,7 @@ install_monitoring() {
             exit 1
         }
     fi
-    
+
     # Install or upgrade without --wait to avoid hanging on LoadBalancer services
     # LoadBalancer services in k3d may not get external IPs immediately, causing --wait to hang
     log_info "Installing/upgrading kube-prometheus-stack (without wait to avoid hanging on LoadBalancer)..."
@@ -535,11 +613,11 @@ install_monitoring() {
         prometheus-community/kube-prometheus-stack \
         --namespace "${NAMESPACE}" \
         --create-namespace \
-        --values "${SCRIPT_DIR}/helm/prometheus-stack-values.yaml" \
+        --values "${LOCAL_TESTING_DIR}/helm/prometheus-stack-values.yaml" \
         --timeout 5m || {
         log_warn "Helm install/upgrade had issues, but continuing..."
     }
-    
+
     # Wait for pods to be ready manually (more reliable than Helm's --wait for LoadBalancer)
     local max_wait=180
     local waited=0
@@ -547,10 +625,10 @@ install_monitoring() {
     while [ $waited -lt $max_wait ]; do
         local grafana_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
         local prometheus_ready=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
-        
+
         # Show progress with elapsed time and status
         printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%3ds | Grafana: %-10s | Prometheus: %-10s" "$waited" "$max_wait" "${grafana_ready:-Pending}" "${prometheus_ready:-Pending}"
-        
+
         if [ "$grafana_ready" = "Running" ] && [ "$prometheus_ready" = "Running" ]; then
             printf "\n"
             log_info "Monitoring pods are ready ✓"
@@ -559,12 +637,12 @@ install_monitoring() {
         sleep 2
         waited=$((waited + 2))
     done
-    
+
     if [ $waited -ge $max_wait ]; then
         printf "\n"
         log_warn "Monitoring pods did not become ready within ${max_wait}s timeout, but continuing..."
     fi
-    
+
     # Patch Prometheus service to NodePort (Prometheus Operator may not respect Helm values)
     log_info "Patching Prometheus service to NodePort for direct access on localhost:9090..."
     kubectl patch svc kube-prometheus-stack-prometheus -n "${NAMESPACE}" \
@@ -572,18 +650,18 @@ install_monitoring() {
         2>/dev/null || {
         log_warn "Failed to patch Prometheus service, but continuing..."
     }
-    
+
     # Create ServiceMonitor for sequencer metrics (scrapes /monitoring/metrics on port 8082)
     log_info "Creating ServiceMonitor for sequencer metrics..."
-    kubectl apply -f "${SCRIPT_DIR}/manifests/servicemonitor-sequencer.yaml" 2>/dev/null || {
+    kubectl apply -f "${SCRIPT_DIR}/servicemonitor-sequencer.yaml" 2>/dev/null || {
         log_warn "Failed to create ServiceMonitor, but continuing..."
     }
-    
+
     # Note: Helm chart creates Prometheus datasource with UID "prometheus" (lowercase)
     # The upload_dashboards function handles updating datasource UIDs as needed
-    
+
     log_info "Monitoring stack installed successfully"
-    
+
     # Upload dashboards right after monitoring is installed
     upload_dashboards || {
         log_warn "Dashboard upload had issues, but continuing with deployment..."
@@ -594,16 +672,16 @@ install_monitoring() {
 deploy_anvil() {
     verify_k3d_cluster
     log_info "Deploying Anvil..."
-    
+
     local anvil_path="${SEQUENCER_ROOT_DIR}/deployments/anvil"
-    local anvil_output="${SCRIPT_DIR}/manifests/anvil"
+    local anvil_output="${SCRIPT_DIR}/anvil"
     mkdir -p "$anvil_output"
-    
+
     # Ensure namespace exists (Anvil uses same namespace as sequencer)
     kubectl create namespace "${ANVIL_NAMESPACE}" 2>/dev/null || true
-    
+
     cd "$anvil_path"
-    
+
     # Install dependencies (use explicit PIPFILE to avoid conflicts)
     # Always sync dependencies to ensure virtualenv is up to date
     if [ ! -f "Pipfile.lock" ]; then
@@ -624,7 +702,7 @@ deploy_anvil() {
             }
         }
     fi
-    
+
     # Import cdk8s dependencies if needed
     if [ ! -d "imports" ]; then
         log_info "Running cdk8s import for anvil..."
@@ -633,28 +711,28 @@ deploy_anvil() {
             exit 1
         }
     fi
-    
+
     # Use explicit PIPFILE when running pipenv to prevent creating files in parent dirs
     PIPENV_PIPFILE="${anvil_path}/Pipfile" cdk8s synth --app "pipenv run python main.py --namespace ${ANVIL_NAMESPACE}" --output "$anvil_output" || {
         log_error "Failed to generate anvil manifests"
         exit 1
     }
     cd - > /dev/null
-    
+
     # Apply Anvil manifests
     kubectl create namespace "${ANVIL_NAMESPACE}" || true
     kubectl apply -R -f "$anvil_output" || {
         log_error "Failed to apply anvil manifests"
         exit 1
     }
-    
+
     # Wait for Anvil to be ready
     log_info "Waiting for Anvil to become ready..."
     kubectl wait --namespace "${ANVIL_NAMESPACE}" --for=condition=Ready -l app=anvil pod --timeout=60s || {
         log_error "Anvil pod did not become ready"
         exit 1
     }
-    
+
     log_info "Anvil deployed successfully"
 }
 
@@ -662,33 +740,33 @@ deploy_anvil() {
 extract_anvil_addresses() {
     verify_k3d_cluster
     log_info "Extracting Anvil addresses from logs..."
-    
+
     local anvil_pod
     anvil_pod=$(kubectl get pods -n "${ANVIL_NAMESPACE}" -l app=anvil -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    
+
     if [ -z "$anvil_pod" ]; then
         log_error "Anvil pod not found"
         return 1
     fi
-    
+
     # Wait a bit for Anvil to start and log addresses
     sleep 3
-    
+
     local addresses
     addresses=$(kubectl logs -n "${ANVIL_NAMESPACE}" "$anvil_pod" 2>/dev/null | grep -oP '0x[a-fA-F0-9]{40}' | head -n 2 || echo "")
-    
+
     if [ -z "$addresses" ]; then
         log_warn "Could not extract Anvil addresses from logs"
         log_warn "You may need to provide sender/receiver addresses manually for simulator"
         return 1
     fi
-    
+
     SENDER_ADDRESS=$(echo "$addresses" | head -n 1)
     RECEIVER_ADDRESS=$(echo "$addresses" | tail -n 1)
-    
+
     log_info "SENDER_ADDRESS=$SENDER_ADDRESS"
     log_info "RECEIVER_ADDRESS=$RECEIVER_ADDRESS"
-    
+
     export SENDER_ADDRESS
     export RECEIVER_ADDRESS
 }
@@ -698,7 +776,7 @@ extract_anvil_addresses() {
 rerun_simulator() {
     verify_k3d_cluster
     log_info "Resetting sequencer state and running simulator test..."
-    
+
     # Determine which service to target based on layout
     local service_label
     local sts_name
@@ -707,26 +785,26 @@ rerun_simulator() {
     else
         service_label="app=sequencer"
     fi
-    
+
     # Find the StatefulSet name
     sts_name=$(kubectl get statefulsets -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    
+
     if [ -z "$sts_name" ]; then
         # Try to find by common naming pattern
         sts_name=$(kubectl get statefulsets -n "${NAMESPACE}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     fi
-    
+
     if [ -z "$sts_name" ]; then
         log_error "No StatefulSet found in namespace ${NAMESPACE}"
         exit 1
     fi
-    
+
     log_info "Found StatefulSet: ${sts_name}"
-    
+
     # Step 1: Scale down StatefulSet to 0 (stops pod without recreation)
     log_info "Scaling down StatefulSet to 0 replicas..."
     kubectl scale statefulset -n "${NAMESPACE}" "${sts_name}" --replicas=0
-    
+
     # Wait for pod to terminate
     log_info "Waiting for pod to terminate..."
     local max_wait=60
@@ -742,15 +820,15 @@ rerun_simulator() {
         waited=$((waited + 2))
     done
     echo ""  # New line after progress
-    
+
     # Step 2: Delete sequencer PVC (now safe since no pod is using it)
     # StatefulSet PVCs follow pattern: <volumeClaimTemplateName>-<statefulsetName>-<ordinal>
     log_info "Wiping sequencer PVC data..."
     local pvc_name=""
-    
+
     # Try to find PVC by label first
     pvc_name=$(kubectl get pvc -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    
+
     # If not found by label, try common naming patterns for the StatefulSet
     if [ -z "$pvc_name" ]; then
         # Common patterns: data-<sts>-0, <sts>-data-0, sequencer-core-data
@@ -761,7 +839,7 @@ rerun_simulator() {
             fi
         done
     fi
-    
+
     if [ -n "$pvc_name" ]; then
         log_info "Deleting PVC: ${pvc_name}"
         kubectl delete pvc -n "${NAMESPACE}" "${pvc_name}" --wait=true || true
@@ -772,27 +850,27 @@ rerun_simulator() {
         log_info "Available PVCs in namespace:"
         kubectl get pvc -n "${NAMESPACE}" -o custom-columns=NAME:.metadata.name,STATUS:.status.phase 2>/dev/null || true
     fi
-    
+
     # Step 3: Regenerate state
     log_info "Regenerating state..."
     generate_state
-    
+
     # Step 4: Reapply the sequencer manifests (this recreates the PVC and scales up)
     log_info "Reapplying sequencer manifests..."
-    local sequencer_manifest_dir="${SCRIPT_DIR}/manifests/sequencer"
+    local sequencer_manifest_dir="${SCRIPT_DIR}/sequencer"
     kubectl apply -R -f "$sequencer_manifest_dir" || {
         log_error "Failed to reapply sequencer manifests"
         exit 1
     }
-    
+
     # Step 5: Ensure StatefulSet is scaled back to 1
     log_info "Scaling StatefulSet back to 1 replica..."
     kubectl scale statefulset -n "${NAMESPACE}" "${sts_name}" --replicas=1
-    
+
     # Step 6: Wait for pod and copy state
     log_info "Waiting for new pod and copying state..."
     wait_and_copy_state
-    
+
     # Step 7: Extract Anvil addresses and run simulator
     log_info "Running simulator test..."
     extract_anvil_addresses || {
@@ -800,7 +878,7 @@ rerun_simulator() {
         exit 1
     }
     run_simulator
-    
+
     log_info "Reset and test complete ✓"
 }
 
@@ -810,30 +888,34 @@ prepare_box() {
     log_info "════════════════════════════════════════════════════════════"
     log_info "  Preparing VM for Vagrant box packaging"
     log_info "════════════════════════════════════════════════════════════"
-    
+
     export DOCKER_BUILDKIT=1
     export COMPOSE_DOCKER_CLI_BUILD=1
-    
+
     # Step 1: Build Docker images (cache layers locally)
     log_info ""
     log_info "Step 1/4: Building Docker images to cache layers..."
     log_info "─────────────────────────────────────────────────────────────"
-    
+
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
         "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
-    
+
+    # Detect number of CPU cores for parallel compilation
+    local cpu_cores=$(nproc 2>/dev/null || echo "4")
+    log_info "Using ${cpu_cores} CPU cores for parallel compilation"
+
     for image_spec in "${images[@]}"; do
         IFS=':' read -r image_name dockerfile_path <<< "$image_spec"
         log_info "Building ${image_name}..."
-        
-        local build_args=""
+
+        local build_args="--build-arg CARGO_BUILD_JOBS=${cpu_cores}"
         if [ "$image_name" == "sequencer" ]; then
-            build_args="--build-arg BUILD_MODE=debug"
+            build_args="${build_args} --build-arg BUILD_MODE=debug"
         fi
-        
+
         # Build locally only (no push, no registry needed)
         docker build \
             $build_args \
@@ -844,37 +926,37 @@ prepare_box() {
         }
     done
     log_info "Docker images built ✓"
-    
+
     # Step 2: Build Rust binaries (warm cargo cache)
     log_info ""
     log_info "Step 2/4: Building Rust binaries to warm cargo cache..."
     log_info "─────────────────────────────────────────────────────────────"
-    
+
     cd "${SEQUENCER_ROOT_DIR}"
     cargo build --release --bin sequencer_node || log_warn "sequencer_node build failed"
     cargo build --release --bin sequencer_node_setup || log_warn "sequencer_node_setup build failed"
     cargo build --release --bin sequencer_simulator || log_warn "sequencer_simulator build failed"
     cd "${SCRIPT_DIR}"
     log_info "Rust binaries built ✓"
-    
+
     # Step 3: Clean up caches and logs
     log_info ""
     log_info "Step 3/4: Cleaning up unnecessary files..."
     log_info "─────────────────────────────────────────────────────────────"
-    
+
     # Clean apt cache
     log_info "Cleaning apt cache..."
     sudo apt-get clean
     sudo apt-get autoremove -y
-    
+
     # Clean old logs
     log_info "Cleaning logs..."
     sudo journalctl --vacuum-time=1d 2>/dev/null || true
     sudo rm -rf /var/log/*.gz /var/log/*.1 /var/log/*.old 2>/dev/null || true
-    
+
     # Clean npm cache if exists
     rm -rf ~/.npm/_cacache/ 2>/dev/null || true
-    
+
     # Keep Rust target directory (contains built binaries)
     # Only clean incremental build cache to save space
     log_info "Cleaning Rust incremental build cache (keeping binaries)..."
@@ -882,26 +964,26 @@ prepare_box() {
     rm -rf "${SEQUENCER_ROOT_DIR}/target/debug/incremental/" 2>/dev/null || true
     rm -rf "${SEQUENCER_ROOT_DIR}/target/release/.fingerprint/" 2>/dev/null || true
     rm -rf "${SEQUENCER_ROOT_DIR}/target/debug/.fingerprint/" 2>/dev/null || true
-    
+
     # Keep cargo registry index but remove extracted crate cache
     rm -rf ~/.cargo/registry/cache/ 2>/dev/null || true
-    
+
     # Clean pipenv cache
     rm -rf ~/.cache/pipenv/ 2>/dev/null || true
-    
+
     log_info "Cleanup complete ✓"
-    
+
     # Step 4: Zero free space for better compression
     log_info ""
     log_info "Step 4/4: Zeroing free space for better compression..."
     log_info "─────────────────────────────────────────────────────────────"
     log_info "This may take a few minutes..."
-    
+
     sudo dd if=/dev/zero of=/zero.fill bs=1M 2>/dev/null || true
     sudo rm -f /zero.fill
-    
+
     log_info "Free space zeroed ✓"
-    
+
     # Done
     log_info ""
     log_info "════════════════════════════════════════════════════════════"
@@ -926,7 +1008,7 @@ prepare_box() {
 # Run simulator binary directly
 run_simulator() {
     log_info "Running sequencer simulator to test transactions..."
-    
+
     # Check if addresses were extracted
     if [ -z "${SENDER_ADDRESS:-}" ] || [ -z "${RECEIVER_ADDRESS:-}" ]; then
         log_warn "Anvil addresses not available, skipping simulator"
@@ -940,25 +1022,25 @@ run_simulator() {
         log_warn "    --receiver_address <address>"
         return 1
     fi
-    
+
     # Port-forward Anvil to localhost
     log_info "Setting up port-forward to Anvil..."
     local anvil_pod
     anvil_pod=$(kubectl get pods -n "${ANVIL_NAMESPACE}" -l app=anvil -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    
+
     if [ -z "$anvil_pod" ]; then
         log_error "Anvil pod not found"
         return 1
     fi
-    
+
     # Start port-forward in background
     kubectl port-forward -n "${ANVIL_NAMESPACE}" "$anvil_pod" "${ANVIL_PORT}:${ANVIL_PORT}" > /dev/null 2>&1 &
     local pf_pid=$!
     sleep 2
-    
+
     # Run simulator
     cd "${SEQUENCER_ROOT_DIR}"
-    
+
     # Create and use a virtual environment for simulator dependencies
     local venv_dir="${SCRIPT_DIR}/.venv"
     if [ ! -d "$venv_dir" ]; then
@@ -969,11 +1051,11 @@ run_simulator() {
             return 1
         }
     fi
-    
+
     # Install Python dependencies in venv
     local venv_python="${venv_dir}/bin/python"
     local venv_pip="${venv_dir}/bin/pip"
-    
+
     if ! "$venv_python" -c "import kubernetes" 2>/dev/null; then
         log_info "Installing Python dependencies for simulator..."
         if [ -f "scripts/requirements.txt" ]; then
@@ -990,15 +1072,15 @@ run_simulator() {
             }
         fi
     fi
-    
+
     log_info "Running sequencer simulator..."
-    
+
     # Clean up any existing port-forwards that might conflict
     log_info "Cleaning up any existing port-forwards on ports 8080 and 8082..."
     pkill -f "kubectl.*port-forward.*8080" 2>/dev/null || true
     pkill -f "kubectl.*port-forward.*8082" 2>/dev/null || true
     sleep 1
-    
+
     # Set default namespace for kubectl commands (simulator uses kubectl without explicit namespace)
     local current_context=$(kubectl config current-context 2>/dev/null || echo "")
     if [ -n "$current_context" ]; then
@@ -1006,7 +1088,7 @@ run_simulator() {
             log_warn "Failed to set namespace context, simulator may fail"
         }
     fi
-    
+
     "$venv_python" ./scripts/system_tests/sequencer_simulator.py \
         --state_sync_monitoring_endpoint_port 8082 \
         --http_server_port 8080 \
@@ -1021,15 +1103,15 @@ run_simulator() {
         kill $pf_pid 2>/dev/null || true
         return 1
     }
-    
+
     # Restore original namespace
     if [ -n "$current_context" ]; then
         kubectl config set-context --current --namespace=default 2>/dev/null || true
     fi
-    
+
     # Clean up port-forward
     kill $pf_pid 2>/dev/null || true
-    
+
     log_info "Simulator completed successfully!"
     cd - > /dev/null
 }
@@ -1037,32 +1119,32 @@ run_simulator() {
 # Generate cdk8s manifests for services
 generate_cdk8s_manifests() {
     log_info "Generating Kubernetes manifests via cdk8s..."
-    
-    local manifests_dir="${SCRIPT_DIR}/manifests"
-    
+
+    local manifests_dir="${SCRIPT_DIR}"
+
     # Generate manifests for supporting services (dummy services)
     # Format: "directory_name:output_subdir:image_name"
     local services=(
         "dummy_recorder:dummy-recorder:${REGISTRY_URL}/dummy-recorder:local"
         "dummy_eth2strk_oracle:dummy-eth2strk-oracle:${REGISTRY_URL}/dummy-eth-to-strk-oracle:local"
     )
-    
+
     for service_spec in "${services[@]}"; do
         IFS=':' read -r service_dir output_subdir image <<< "$service_spec"
         log_info "Generating manifests for ${service_dir}..."
-        
+
         local service_path="${SEQUENCER_ROOT_DIR}/deployments/${service_dir}"
         if [ ! -d "$service_path" ]; then
             log_error "Service directory not found: ${service_path}"
             exit 1
         fi
-        
+
         local output_dir="${manifests_dir}/${output_subdir}"
         mkdir -p "$output_dir"
-        
+
         # Run cdk8s synth with custom output directory
         cd "$service_path"
-        
+
         # Install dependencies (use explicit PIPFILE to avoid conflicts)
         # Always sync dependencies to ensure virtualenv is up to date
         if [ ! -f "Pipfile.lock" ]; then
@@ -1083,7 +1165,7 @@ generate_cdk8s_manifests() {
                 }
             }
         fi
-        
+
         # Import cdk8s dependencies if needed
         if [ ! -d "imports" ]; then
             log_info "Running cdk8s import for ${service_dir}..."
@@ -1092,7 +1174,7 @@ generate_cdk8s_manifests() {
                 exit 1
             }
         fi
-        
+
         # Use explicit PIPFILE when running pipenv to prevent creating files in parent dirs
         PIPENV_PIPFILE="${service_path}/Pipfile" cdk8s synth --app "pipenv run python main.py --namespace ${NAMESPACE} --image ${image}" --output "$output_dir" || {
             log_error "Failed to generate manifests for ${service_dir}"
@@ -1100,20 +1182,20 @@ generate_cdk8s_manifests() {
         }
         cd - > /dev/null
     done
-    
+
     log_info "Dummy service manifests generated in ${manifests_dir}/"
 }
 
 # Generate sequencer manifests only
 generate_sequencer_manifests() {
     log_info "Generating sequencer manifests with overlay ${SEQUENCER_OVERLAY}..."
-    local manifests_dir="${SCRIPT_DIR}/manifests"
+    local manifests_dir="${SCRIPT_DIR}"
     local sequencer_path="${SEQUENCER_ROOT_DIR}/deployments/sequencer"
     local sequencer_output="${manifests_dir}/sequencer"
     mkdir -p "$sequencer_output"
-    
+
     cd "$sequencer_path"
-    
+
     # Install dependencies and import if needed
     if [ ! -d "imports" ]; then
         log_info "Running cdk8s import for sequencer..."
@@ -1122,7 +1204,7 @@ generate_sequencer_manifests() {
             exit 1
         }
     fi
-    
+
     # Install dependencies (use explicit PIPFILE to avoid conflicts)
     # Always sync dependencies to ensure virtualenv is up to date
     if [ ! -f "Pipfile.lock" ]; then
@@ -1143,14 +1225,14 @@ generate_sequencer_manifests() {
             }
         }
     fi
-    
+
     # Use explicit PIPFILE when running pipenv to prevent creating files in parent dirs
     PIPENV_PIPFILE="${sequencer_path}/Pipfile" cdk8s synth --app "pipenv run python main.py --namespace ${NAMESPACE} -l ${SEQUENCER_LAYOUT} -o ${SEQUENCER_OVERLAY} --image ${REGISTRY_URL}/sequencer:local" --output "$sequencer_output" || {
         log_error "Failed to generate sequencer manifests"
         exit 1
     }
     cd - > /dev/null
-    
+
     log_info "Sequencer manifests generated in ${sequencer_output}/"
 }
 
@@ -1158,13 +1240,13 @@ generate_sequencer_manifests() {
 apply_dummy_services() {
     verify_k3d_cluster
     log_info "Applying dummy service manifests..."
-    
+
     # Create namespace first
-    kubectl apply -f "${SCRIPT_DIR}/manifests/namespace.yaml"
+    kubectl apply -f "${SCRIPT_DIR}/namespace.yaml"
     kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/"${NAMESPACE}" --timeout=30s || true
-    
-    local manifests_dir="${SCRIPT_DIR}/manifests"
-    
+
+    local manifests_dir="${SCRIPT_DIR}"
+
     # Apply dummy services
     for service_subdir in dummy-recorder dummy-eth2strk-oracle; do
         local service_manifest_dir="${manifests_dir}/${service_subdir}"
@@ -1179,7 +1261,7 @@ apply_dummy_services() {
             exit 1
         fi
     done
-    
+
     # Wait for dummy services to be ready
     log_info "Waiting for dummy services to be ready..."
     kubectl wait --for=condition=available deployment/dummy-recorder-deployment -n "${NAMESPACE}" --timeout=120s || {
@@ -1190,7 +1272,7 @@ apply_dummy_services() {
         log_error "Dummy ETH-STRK oracle did not become ready"
         exit 1
     }
-    
+
     log_info "Dummy services deployed and ready"
 }
 
@@ -1198,10 +1280,10 @@ apply_dummy_services() {
 apply_sequencer() {
     verify_k3d_cluster
     log_info "Applying sequencer manifests..."
-    
-    local manifests_dir="${SCRIPT_DIR}/manifests"
+
+    local manifests_dir="${SCRIPT_DIR}"
     local sequencer_manifest_dir="${manifests_dir}/sequencer"
-    
+
     if [ -d "$sequencer_manifest_dir" ] && [ "$(ls -A "$sequencer_manifest_dir" 2>/dev/null)" ]; then
         log_info "Applying sequencer manifests..."
         kubectl apply -R -f "$sequencer_manifest_dir" || {
@@ -1212,7 +1294,7 @@ apply_sequencer() {
         log_error "No sequencer manifests found. Run generate_sequencer_manifests first."
         exit 1
     fi
-    
+
     log_info "Sequencer manifests applied"
 }
 
@@ -1220,27 +1302,27 @@ apply_sequencer() {
 wait_and_copy_state() {
     verify_k3d_cluster
     log_info "Waiting for sequencer pod to be ready before copying state (timeout: 180s)..."
-    
+
     local service_label
     if [ "$SEQUENCER_LAYOUT" == "hybrid" ]; then
         service_label="service=sequencer-core"
     else
         service_label="app=sequencer"
     fi
-    
+
     # Wait for pod to exist and be ready
     local max_wait=180
     local waited=0
     local pod_ready=false
-    
+
     while [ $waited -lt $max_wait ]; do
         local pod_name
         pod_name=$(kubectl get pods -n "${NAMESPACE}" -l "${service_label}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-        
+
         local pod_phase="NotFound"
         if [ -n "$pod_name" ]; then
             pod_phase=$(kubectl get pod -n "${NAMESPACE}" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-            
+
             if [ "$pod_phase" == "Running" ]; then
                 printf "\n"
                 log_info "Sequencer pod is running ✓, copying state..."
@@ -1253,14 +1335,14 @@ wait_and_copy_state() {
                 fi
             fi
         fi
-        
+
         # Show progress with elapsed time and status
         printf "\r${GREEN}[INFO]${NC} Waiting... %3ds/%ds | Pod: %-12s" "$waited" "$max_wait" "$pod_phase"
-        
+
         sleep 3
         waited=$((waited + 3))
     done
-    
+
     if [ "$pod_ready" = false ]; then
         printf "\n"
         log_error "Sequencer pod did not become ready in time (waited ${waited}s)"
@@ -1272,7 +1354,7 @@ wait_and_copy_state() {
 upload_dashboards() {
     verify_k3d_cluster
     log_info "Uploading Grafana dashboards..."
-    
+
     # Wait for Grafana to be ready
     kubectl wait --for=condition=available \
         --timeout=2m \
@@ -1282,7 +1364,7 @@ upload_dashboards() {
         log_warn "You can upload dashboards manually later via Grafana UI"
         return
     }
-    
+
     # Use the same virtual environment as the simulator (or create one if it doesn't exist)
     local venv_dir="${SCRIPT_DIR}/.venv"
     if [ ! -d "$venv_dir" ]; then
@@ -1292,26 +1374,26 @@ upload_dashboards() {
             return
         }
     fi
-    
+
     # Install Python dependencies in venv
     local monitoring_dir="${SEQUENCER_ROOT_DIR}/deployments/monitoring"
     local venv_pip="${venv_dir}/bin/pip"
     local venv_python="${venv_dir}/bin/python"
-    
+
     if [ -f "${monitoring_dir}/src/requirements.txt" ]; then
         "$venv_pip" install -q -r "${monitoring_dir}/src/requirements.txt" 2>/dev/null || {
             log_warn "Failed to install Python dependencies, skipping dashboard upload"
             return
         }
     fi
-    
+
     # Create/update Prometheus datasource with correct UID for dashboards
     # Dashboards expect UID "Prometheus" but Helm may create "prometheus"
     log_info "Ensuring Prometheus datasource has correct UID..."
     local max_wait=90
     local waited=0
     local datasource_created=false
-    
+
     # Wait for Grafana API to be ready
     log_info "Waiting for Grafana API to be ready (timeout: ${max_wait}s)..."
     while [ $waited -lt $max_wait ]; do
@@ -1324,13 +1406,13 @@ upload_dashboards() {
         sleep 3
         waited=$((waited + 3))
     done
-    
+
     if [ $waited -ge $max_wait ]; then
         printf "\n"
         log_error "Grafana API not ready after ${max_wait}s, cannot create datasource"
         return 1
     fi
-    
+
     # Check if datasource with UID "Prometheus" already exists
     log_info "Checking for existing Prometheus datasource..."
     local existing=$(curl -s -f -u admin:admin http://localhost:3000/api/datasources/uid/Prometheus 2>/dev/null)
@@ -1348,11 +1430,11 @@ prom = [d for d in ds if d.get('type') == 'prometheus']
 if prom:
     print(f\"{prom[0]['id']}|{prom[0].get('uid', '')}|{prom[0].get('name', '')}\")
 " 2>/dev/null || echo "")
-        
+
         if [ -n "$prom_ds" ] && [ "$prom_ds" != "None" ]; then
             IFS='|' read -r prom_ds_id prom_ds_uid prom_ds_name <<< "$prom_ds"
             log_info "Found existing Prometheus datasource (ID: ${prom_ds_id}, UID: ${prom_ds_uid}, Name: ${prom_ds_name})"
-            
+
             # Try to update the existing datasource with correct UID
             log_info "Attempting to update existing datasource with UID 'Prometheus'..."
             local update_result=$(curl -s -w "\n%{http_code}" -u admin:admin -X PUT -H "Content-Type: application/json" \
@@ -1360,7 +1442,7 @@ if prom:
                 "http://localhost:3000/api/datasources/${prom_ds_id}" 2>&1)
             local update_http_code=$(echo "$update_result" | tail -1)
             local update_response=$(echo "$update_result" | head -n -1)
-            
+
             if [ "$update_http_code" = "200" ] && echo "$update_response" | grep -q '"uid":"Prometheus"'; then
                 log_info "✓ Prometheus datasource updated successfully with UID 'Prometheus'"
                 datasource_created=true
@@ -1379,7 +1461,7 @@ if prom:
                 http://localhost:3000/api/datasources 2>&1)
             local http_code=$(echo "$result" | tail -1)
             local response=$(echo "$result" | head -n -1)
-            
+
             if [ "$http_code" = "200" ] && echo "$response" | grep -q '"uid":"Prometheus"'; then
                 log_info "✓ Prometheus datasource created successfully with UID 'Prometheus'"
                 datasource_created=true
@@ -1389,7 +1471,7 @@ if prom:
             fi
         fi
     fi
-    
+
     # Verify datasource was created and is accessible
     if [ "$datasource_created" = true ]; then
         log_info "Verifying datasource connectivity..."
@@ -1409,7 +1491,7 @@ if prom:
         # Don't return 1 - continue with dashboard upload anyway
         # The dashboards might work if we update their datasource references later
     fi
-    
+
     # Get the actual datasource UID (may be "prometheus" lowercase from Helm)
     log_info "Getting actual Prometheus datasource UID..."
     local all_ds_final=$(curl -s -f -u admin:admin http://localhost:3000/api/datasources 2>/dev/null || echo "[]")
@@ -1422,15 +1504,15 @@ if prom:
 else:
     print('prometheus')
 " 2>/dev/null)
-    
+
     log_info "Actual Prometheus datasource UID: '${actual_ds_uid}'"
-    
+
     # If dashboards expect "Prometheus" but we have "prometheus", we'll fix it after upload
     if [ "$actual_ds_uid" != "Prometheus" ]; then
         log_warn "Datasource UID is '${actual_ds_uid}' but dashboards expect 'Prometheus'"
         log_info "Will update dashboard datasource references after upload"
     fi
-    
+
     # Delete existing sequencer dashboards before re-uploading
     log_info "Deleting existing sequencer dashboards..."
     local existing_dashboards=$(curl -s -u admin:admin 'http://localhost:3000/api/search?query=&type=dash-db' 2>/dev/null || echo "[]")
@@ -1443,7 +1525,7 @@ for d in dashboards:
     if 'sequencer' in title or 'sequencer' in url:
         print(d.get('uid', ''))
 " 2>/dev/null)
-    
+
     local deleted_dash_count=0
     for dash_uid in $dashboard_uids; do
         if [ -n "$dash_uid" ]; then
@@ -1451,13 +1533,13 @@ for d in dashboards:
             deleted_dash_count=$((deleted_dash_count + 1))
         fi
     done
-    
+
     if [ $deleted_dash_count -gt 0 ]; then
         log_info "Deleted ${deleted_dash_count} existing sequencer dashboard(s)"
     else
         log_info "No existing sequencer dashboards to delete"
     fi
-    
+
     # Delete existing alert rules in the Sequencer folder before re-uploading
     log_info "Deleting existing alert rules..."
     local folder_uid=$(curl -s -u admin:admin http://localhost:3000/api/folders 2>/dev/null | python3 -c "
@@ -1468,7 +1550,7 @@ for f in folders:
         print(f.get('uid', ''))
         break
 " 2>/dev/null)
-    
+
     if [ -n "$folder_uid" ]; then
         local alert_rules=$(curl -s -u admin:admin "http://localhost:3000/api/v1/provisioning/alert-rules" 2>/dev/null)
         local rule_uids=$(echo "$alert_rules" | python3 -c "
@@ -1478,7 +1560,7 @@ for rule in rules:
     if rule.get('folderUID') == '$folder_uid':
         print(rule.get('uid', ''))
 " 2>/dev/null)
-        
+
         local deleted_alert_count=0
         for rule_uid in $rule_uids; do
             if [ -n "$rule_uid" ]; then
@@ -1486,7 +1568,7 @@ for rule in rules:
                 deleted_alert_count=$((deleted_alert_count + 1))
             fi
         done
-        
+
         if [ $deleted_alert_count -gt 0 ]; then
             log_info "Deleted ${deleted_alert_count} existing alert rule(s)"
         else
@@ -1495,29 +1577,32 @@ for rule in rules:
     else
         log_info "Sequencer folder not found, no alerts to delete"
     fi
-    
+
     # Upload dashboards using existing builder with retries
     # Note: This requires Grafana to be accessible on localhost:3000
     log_info "Uploading dashboards (this may take a moment)..."
     local upload_retries=0
     local upload_success=false
     local upload_output=""
-    
+
     while [ $upload_retries -lt 3 ]; do
         if [ $upload_retries -gt 0 ]; then
             log_info "Retry ${upload_retries}/3: Waiting 5 seconds before retry..."
             sleep 5
         fi
-        
+
         upload_output=$("$venv_python" "${monitoring_dir}/src/main.py" \
             --dev-dashboards-file "${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana.json" \
             --dev-alerts-file "${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana_alerts_testnet.json" \
+            --namespace "${NAMESPACE}" \
+            --cluster "${CLUSTER_NAME}" \
             --out-dir /tmp/grafana_builder \
             --env dev \
+            --config-file "${monitoring_dir}/examples/config/alert_overrides_testnet.yaml" \
             --grafana-url "http://localhost:3000" \
             --datasource-uid "${actual_ds_uid}" 2>&1)
         local upload_exit_code=$?
-        
+
         if [ $upload_exit_code -eq 0 ]; then
             log_info "Dashboard upload script completed successfully"
             echo "$upload_output" | grep -i "dashboard\|success\|upload" | head -5 || true
@@ -1527,10 +1612,10 @@ for rule in rules:
             log_warn "Upload attempt ${upload_retries} failed (exit code: ${upload_exit_code})"
             echo "$upload_output" | tail -10 || true
         fi
-        
+
         upload_retries=$((upload_retries + 1))
     done
-    
+
     if [ "$upload_success" = false ]; then
         log_error "Dashboard upload failed after 3 retries"
         log_error "Last output:"
@@ -1538,17 +1623,17 @@ for rule in rules:
         log_error "You can upload dashboards manually later via Grafana UI at http://localhost:3000"
         return 1
     fi
-    
+
     # Wait for Grafana to process the dashboards
     log_info "Waiting for Grafana to process dashboards..."
     sleep 8
-    
+
     # Verify dashboards and datasource were actually created (with retries)
         log_info "Verifying dashboards and datasource..."
         local verify_retries=0
         local dashboard_count=0
         local ds_count=0
-        
+
         while [ $verify_retries -lt 8 ]; do
             # Check datasource
             local ds_final=$(curl -s -f -u admin:admin http://localhost:3000/api/datasources 2>/dev/null || echo "[]")
@@ -1564,7 +1649,7 @@ except Exception as e:
     print(0)
     print(f\"Error: {e}\", file=sys.stderr)
 " 2>/dev/null)
-            
+
             # Check dashboards (search for dash-db type specifically)
             local dashboards=$(curl -s -u admin:admin 'http://localhost:3000/api/search?query=&type=dash-db' 2>/dev/null || echo "[]")
             dashboard_count=$(echo "$dashboards" | python3 -c "
@@ -1580,28 +1665,28 @@ except Exception as e:
     print(0)
     print(f\"Error: {e}\", file=sys.stderr)
 " 2>/dev/null)
-            
+
             if [ "$dashboard_count" -gt 0 ] && [ "$ds_count" -gt 0 ]; then
                 log_info "✓ Verification successful on attempt $((verify_retries + 1))"
                 break
             fi
-            
+
             if [ $((verify_retries % 2)) -eq 0 ]; then
                 log_info "Verification attempt $((verify_retries + 1))/8: Found ${ds_count} datasource(s), ${dashboard_count} dashboard(s)..."
             fi
-            
+
             sleep 3
             verify_retries=$((verify_retries + 1))
         done
-        
+
         # Final verification with detailed output
         log_info "Final verification..."
         local ds_final=$(curl -s -f -u admin:admin http://localhost:3000/api/datasources 2>/dev/null || echo "[]")
         local all_dashboards=$(curl -s -u admin:admin 'http://localhost:3000/api/search?query=&type=dash-db' 2>/dev/null || echo "[]")
-        
+
         ds_count=$(echo "$ds_final" | python3 -c "import sys, json; ds = json.load(sys.stdin); print(len([d for d in ds if d.get('type') == 'prometheus']))" 2>/dev/null || echo "0")
         dashboard_count=$(echo "$all_dashboards" | python3 -c "import sys, json; dash = json.load(sys.stdin); print(len([d for d in dash if 'sequencer' in d.get('title', '').lower() or 'sequencer' in d.get('url', '').lower()]))" 2>/dev/null || echo "0")
-        
+
         if [ "$ds_count" -eq 0 ]; then
             log_error "⚠ No Prometheus datasources found in Grafana!"
             log_error "This is a problem. The datasource should exist."
@@ -1619,7 +1704,7 @@ except:
     pass
 " 2>/dev/null || true
         fi
-        
+
         if [ "$dashboard_count" -gt 0 ]; then
             log_info "✓ Successfully verified ${dashboard_count} sequencer dashboard(s) in Grafana"
             echo "$all_dashboards" | python3 -c "
@@ -1634,7 +1719,7 @@ except:
 " 2>/dev/null || true
             log_info ""
             log_info "✓ Dashboards are ready! Access Grafana at http://localhost:3000"
-            
+
             # Fix datasource UID in dashboards if it doesn't match
             if [ "$actual_ds_uid" != "Prometheus" ]; then
                 log_info "Updating dashboard datasource references from 'Prometheus' to '${actual_ds_uid}'..."
@@ -1671,7 +1756,7 @@ if updated:
 else:
     print('')
 " 2>/dev/null)
-                            
+
                             if [ -n "$fixed_json" ]; then
                                 # Update dashboard
                                 curl -s -u admin:admin -X POST -H "Content-Type: application/json" \
@@ -1687,7 +1772,7 @@ else:
                     log_info "✓ Updated datasource references in ${fixed_count} dashboard(s)"
                 fi
             fi
-            
+
             # Show dashboard URLs
             echo "$dashboards" | python3 -c "import sys, json; dash = json.load(sys.stdin); [print(f\"    - {d.get('title', 'N/A')}: http://localhost:3000{d.get('url', '')}\") for d in dash]" 2>/dev/null || true
             log_info ""
@@ -1700,7 +1785,7 @@ else:
             log_warn "This might be a timing issue. Try:"
             log_warn "  1. Wait 10-20 seconds and refresh Grafana"
             log_warn "  2. Check Grafana UI: http://localhost:3000"
-            log_warn "  3. Run: ./deploy.sh install-monitoring (to retry upload)"
+            log_warn "  3. Run: ./manifests/deploy.sh install-monitoring (to retry upload)"
         fi
 }
 
@@ -1708,7 +1793,7 @@ else:
 # Usage: upload_alerts [dev|testnet|mainnet]
 upload_alerts() {
     local alert_env="${1:-dev}"  # Default to dev
-    
+
     # Validate environment
     case "$alert_env" in
         dev|testnet|mainnet)
@@ -1719,15 +1804,15 @@ upload_alerts() {
             return 1
             ;;
     esac
-    
+
     # Use the base alerts file path - the Python script will resolve to the correct
     # environment-specific file (_mainnet or _testnet) based on the --env parameter
     # dev -> mainnet, testnet -> testnet, mainnet -> mainnet (see helpers.py alert_env_filename_suffix)
     local alerts_file="${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana_alerts.json"
-    
+
     verify_k3d_cluster
     log_info "Uploading Grafana alert rules (env: ${alert_env})..."
-    
+
     # Wait for Grafana to be ready
     kubectl wait --for=condition=available \
         --timeout=2m \
@@ -1736,7 +1821,7 @@ upload_alerts() {
         log_warn "Grafana not ready, skipping alert upload"
         return 1
     }
-    
+
     # Use the same virtual environment as the simulator (or create one if it doesn't exist)
     local venv_dir="${SCRIPT_DIR}/.venv"
     if [ ! -d "$venv_dir" ]; then
@@ -1746,19 +1831,19 @@ upload_alerts() {
             return 1
         }
     fi
-    
+
     # Install Python dependencies in venv
     local monitoring_dir="${SEQUENCER_ROOT_DIR}/deployments/monitoring"
     local venv_pip="${venv_dir}/bin/pip"
     local venv_python="${venv_dir}/bin/python"
-    
+
     if [ -f "${monitoring_dir}/src/requirements.txt" ]; then
         "$venv_pip" install -q -r "${monitoring_dir}/src/requirements.txt" 2>/dev/null || {
             log_error "Failed to install Python dependencies"
             return 1
         }
     fi
-    
+
     # Wait for Grafana API to be ready
     log_info "Waiting for Grafana API to be ready (timeout: 60s)..."
     local max_wait=60
@@ -1773,13 +1858,13 @@ upload_alerts() {
         sleep 3
         waited=$((waited + 3))
     done
-    
+
     if [ $waited -ge $max_wait ]; then
         printf "\n"
         log_error "Grafana API not ready after ${max_wait}s"
         return 1
     fi
-    
+
     # Get the actual datasource UID
     local all_ds=$(curl -s -f -u admin:admin http://localhost:3000/api/datasources 2>/dev/null || echo "[]")
     local actual_ds_uid=$(echo "$all_ds" | python3 -c "
@@ -1791,9 +1876,9 @@ if prom:
 else:
     print('prometheus')
 " 2>/dev/null)
-    
+
     log_info "Using Prometheus datasource UID: '${actual_ds_uid}'"
-    
+
     # Delete existing alert rules in the Sequencer folder before re-uploading
     log_info "Deleting existing alert rules..."
     local folder_uid=$(curl -s -u admin:admin http://localhost:3000/api/folders 2>/dev/null | python3 -c "
@@ -1804,7 +1889,7 @@ for f in folders:
         print(f.get('uid', ''))
         break
 " 2>/dev/null)
-    
+
     if [ -n "$folder_uid" ]; then
         # Get all alert rules and delete them
         local alert_rules=$(curl -s -u admin:admin "http://localhost:3000/api/v1/provisioning/alert-rules" 2>/dev/null)
@@ -1815,7 +1900,7 @@ for rule in rules:
     if rule.get('folderUID') == '$folder_uid':
         print(rule.get('uid', ''))
 " 2>/dev/null)
-        
+
         local deleted_count=0
         for rule_uid in $rule_uids; do
             if [ -n "$rule_uid" ]; then
@@ -1823,7 +1908,7 @@ for rule in rules:
                 deleted_count=$((deleted_count + 1))
             fi
         done
-        
+
         if [ $deleted_count -gt 0 ]; then
             log_info "Deleted ${deleted_count} existing alert rule(s)"
         else
@@ -1832,7 +1917,7 @@ for rule in rules:
     else
         log_info "Sequencer folder not found, no alerts to delete"
     fi
-    
+
     # Upload alert rules only (no dashboards file)
     # The Python script will resolve to dev_grafana_alerts_<suffix>.json based on env
     # dev->mainnet, testnet->testnet, mainnet->mainnet
@@ -1851,7 +1936,7 @@ for rule in rules:
         --grafana-url "http://localhost:3000" \
         --datasource-uid "${actual_ds_uid}" 2>&1)
     local upload_exit_code=$?
-    
+
     if [ $upload_exit_code -eq 0 ]; then
         # Count how many alerts were uploaded
         local uploaded_count=$(echo "$upload_output" | grep -c "uploaded to Grafana successfully" || echo "0")
@@ -1873,10 +1958,10 @@ for rule in rules:
 # Main deployment
 deploy_up() {
     log_info "Starting deployment..."
-    
+
     check_prerequisites
     create_cluster
-    
+
     # Step 1: Install monitoring stack first (Grafana/Prometheus)
     # This allows monitoring to collect metrics from the start
     if [ "$SKIP_INSTALL_MONITORING" = true ]; then
@@ -1886,23 +1971,23 @@ deploy_up() {
             log_warn "Monitoring installation had issues, but continuing with deployment..."
         }
     fi
-    
+
     if [ "$SKIP_DOCKER_BUILD" = true ]; then
         log_info "Skipping Docker image build (--skip-docker-build flag set)"
     else
         build_images
     fi
-    
+
     # Step 2: Deploy Anvil (required for l1 service and simulator)
     deploy_anvil
     extract_anvil_addresses || {
         log_warn "Could not extract Anvil addresses, simulator may not work"
     }
-    
+
     # Step 3: Generate and deploy dummy services
     generate_cdk8s_manifests
     apply_dummy_services
-    
+
     # Step 4: Generate state (after dummy services are ready)
     if [ "$SKIP_BUILD_RUST_BINARIES" = true ]; then
         log_info "Skipping Rust binary build (--skip-build-rust-binaries flag set)"
@@ -1910,19 +1995,19 @@ deploy_up() {
         build_binaries
     fi
     generate_state
-    
+
     # Step 5: Generate and deploy sequencer
     generate_sequencer_manifests
     apply_sequencer
-    
+
     # Step 6: Copy state and restart sequencer core
     wait_and_copy_state
-    
+
     # Step 7: Run simulator to test transactions
     run_simulator || {
         log_warn "Simulator test failed or skipped"
     }
-    
+
     log_info ""
     log_info "Deployment complete!"
     log_info ""
@@ -1943,9 +2028,9 @@ deploy_up() {
     log_info "  3. Open in incognito/private window"
     log_info ""
     log_info "Useful commands:"
-    log_info "  - Check status: ./deploy.sh status"
-    log_info "  - View logs: ./deploy.sh logs"
-    log_info "  - Rerun simulator test: ./deploy.sh rerun-simulator"
+    log_info "  - Check status: ./manifests/deploy.sh status"
+    log_info "  - View logs: ./manifests/deploy.sh logs"
+    log_info "  - Rerun simulator test: ./manifests/deploy.sh rerun-simulator"
 }
 
 # Teardown
@@ -1955,11 +2040,11 @@ deploy_down() {
         log_warn "Cluster ${CLUSTER_NAME} does not exist, nothing to tear down"
         return 0
     fi
-    
+
     # Verify we're using the correct context (safety check)
     local current_context=$(kubectl config current-context 2>/dev/null || echo "")
     local expected_context="k3d-${CLUSTER_NAME}"
-    
+
     if [ -n "$current_context" ] && [ "$current_context" != "$expected_context" ]; then
         log_error "Current kubectl context is '${current_context}', but expected '${expected_context}'"
         log_error "This script only works with the local k3d cluster '${CLUSTER_NAME}'"
@@ -1969,11 +2054,11 @@ deploy_down() {
         log_error "For safety, this script will not delete a different cluster."
         exit 1
     fi
-    
+
     log_info "Tearing down deployment..."
-    
+
     delete_cluster
-    
+
     log_info "Teardown complete"
 }
 
@@ -1988,7 +2073,7 @@ show_logs() {
     else
         selector="app=sequencer"
     fi
-    
+
     if kubectl get pods -n "${NAMESPACE}" -l "${selector}" &>/dev/null; then
         kubectl logs -f -l "${selector}" -n "${NAMESPACE}" || {
             log_warn "Failed to get logs, showing all pods:"
@@ -2005,7 +2090,7 @@ show_status() {
     verify_k3d_cluster
     log_info "Cluster status:"
     k3d cluster list
-    
+
     log_info ""
     log_info "Namespace resources:"
     kubectl get all,jobs,pvc -n "${NAMESPACE}"
@@ -2018,6 +2103,15 @@ main() {
         case "$1" in
             --skip-docker-build)
                 SKIP_DOCKER_BUILD=true
+                shift
+                ;;
+            --reuse-images|--reuse-existing-images)
+                REUSE_EXISTING_IMAGES=true
+                shift
+                ;;
+            --force-build)
+                REUSE_EXISTING_IMAGES=false
+                SKIP_DOCKER_BUILD=false
                 shift
                 ;;
             --skip-install-monitoring)
@@ -2037,7 +2131,7 @@ main() {
                 ;;
         esac
     done
-    
+
     case "${1:-}" in
         up)
             deploy_up
@@ -2099,7 +2193,9 @@ main() {
             echo "Usage: $0 [flags] {up|down|create-cluster|build|restart|build-binaries|generate-state|copy-state|install-monitoring|update-dashboards|update-alerts|rerun-simulator|prepare-box|logs|status}"
             echo ""
             echo "Flags:"
-            echo "  --skip-docker-build       - Skip Docker image build (use existing images)"
+            echo "  --skip-docker-build       - Skip Docker image build completely (use existing images)"
+            echo "  --reuse-images            - Check if images exist, skip building if they do (default: false)"
+            echo "  --force-build             - Force rebuild all images even if they exist"
             echo "  --skip-install-monitoring - Skip Prometheus/Grafana installation"
             echo "  --skip-build-rust-binaries - Skip Rust binary compilation"
             echo ""
