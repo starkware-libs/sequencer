@@ -13,6 +13,7 @@ use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
+use tokio::task::AbortHandle;
 use tracing::instrument;
 
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
@@ -249,7 +250,7 @@ pub struct ClassHashStorage {
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
-    storage_reader_server: Option<Arc<GenericStorageReaderServer>>,
+    storage_reader_server_handle: Option<AbortHandle>,
 }
 
 impl ClassHashStorage {
@@ -264,11 +265,10 @@ impl ClassHashStorage {
                 storage_reader_server_config,
             )?;
 
-        Ok(Self {
-            reader,
-            writer: Arc::new(Mutex::new(writer)),
-            storage_reader_server: storage_reader_server.map(Arc::new),
-        })
+        let storage_reader_server_handle =
+            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+
+        Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
 
     fn writer(&self) -> ClassHashStorageResult<LockedWriter<'_>> {
