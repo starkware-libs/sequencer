@@ -67,24 +67,24 @@ message TransactionBatch {
 message ProposalFin {
     // Identifies a Starknet block based on the content streamed in the proposal.
     Hash proposal_commitment = 1;
+    // Number of executed transactions in the proposal.
+    uint64 executed_transaction_count = 2;
 }
 
 // Network format:
 // 1. First message is ProposalInit
-// 2. Last message is ProposalFin
+// 2. block_info is sent once
+// 3. Last message is ProposalFin
 //
 // Empty block - no other messages sent.
 //
 // Block with transactions:
-// 3. block_info is sent once
 // 4. transactions is sent repeatedly
-// 5. executed_transaction_count is sent once
 message ProposalPart {
     oneof message {
-        ProposalInit init                 = 1;
-        ProposalFin fin                   = 2;
-        BlockInfo block_info              = 3;
-        TransactionBatch transactions     = 4;
-        uint64 executed_transaction_count = 5;
+        ProposalInit init         = 1;
+        ProposalFin fin           = 2;
+        BlockInfo block_info      = 3;
+        TransactionBatch transactions = 4;
     }
 }

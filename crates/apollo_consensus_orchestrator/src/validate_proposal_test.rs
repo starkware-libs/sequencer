@@ -122,6 +122,7 @@ async fn validate_empty_proposal() {
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: 0,
         }))
         .await
         .unwrap();
@@ -150,18 +151,15 @@ async fn validate_proposal_success() {
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
-    // Send transactions, then executed transaction count, and finally Fin part.
+    // Send transactions and finally Fin part with executed transaction count.
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(n_executed_txs_count.try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
         }))
         .await
         .unwrap();
@@ -193,8 +191,11 @@ async fn validation_timeout() {
 #[tokio::test]
 async fn invalid_second_proposal_part() {
     let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    // Send an invalid proposal part (not BlockInfo or Fin).
-    content_sender.send(ProposalPart::ExecutedTransactionCount(0)).await.unwrap();
+    // Send an invalid proposal part (not BlockInfo or Fin). Send Transactions as 2nd part.
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: vec![] }))
+        .await
+        .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidSecondProposalPart(_))));
@@ -230,94 +231,6 @@ async fn validate_block_fail() {
 }
 
 #[tokio::test]
-async fn send_executed_transaction_count_more_than_once() {
-    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    // Setup batcher to validate the block.
-    proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
-    // Batcher aborts the proposal.
-    proposal_args
-        .deps
-        .batcher
-        .expect_send_proposal_content()
-        .withf(move |input: &SendProposalContentInput| {
-            input.proposal_id == proposal_args.proposal_id
-                && input.content == SendProposalContent::Abort
-        })
-        .returning(|_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
-    // Send executed transaction count more than once.
-    content_sender.send(ProposalPart::ExecutedTransactionCount(0)).await.unwrap();
-    content_sender.send(ProposalPart::ExecutedTransactionCount(0)).await.unwrap();
-
-    let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(err,_))
-        if err.contains("Received executed transaction count more than once"));
-}
-
-#[tokio::test]
-async fn receive_fin_without_executed_transaction_count() {
-    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    // Setup batcher to validate the block.
-    proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
-    // Batcher aborts the proposal.
-    proposal_args
-        .deps
-        .batcher
-        .expect_send_proposal_content()
-        .withf(move |input: &SendProposalContentInput| {
-            input.proposal_id == proposal_args.proposal_id
-                && input.content == SendProposalContent::Abort
-        })
-        .returning(|_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
-    // Send Fin part without sending executed transaction count.
-    content_sender
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ConsensusProposalCommitment::default(),
-        }))
-        .await
-        .unwrap();
-
-    let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(err,_))
-        if err.contains("Received Fin without executed transaction count"));
-}
-
-#[tokio::test]
-async fn receive_txs_after_executed_transaction_count() {
-    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    // Setup batcher to validate the block.
-    proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
-    // Batcher aborts the proposal.
-    proposal_args
-        .deps
-        .batcher
-        .expect_send_proposal_content()
-        .withf(move |input: &SendProposalContentInput| {
-            input.proposal_id == proposal_args.proposal_id
-                && input.content == SendProposalContent::Abort
-        })
-        .returning(|_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
-    content_sender.send(ProposalPart::ExecutedTransactionCount(0)).await.unwrap();
-    // Send transactions after executed transaction count.
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
-        .await
-        .unwrap();
-
-    let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(err,_))
-        if err.contains("Received transactions after executed transaction count"));
-}
-
-#[tokio::test]
 async fn proposal_fin_mismatch() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 0;
@@ -343,14 +256,12 @@ async fn proposal_fin_mismatch() {
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
-    content_sender
-        .send(ProposalPart::ExecutedTransactionCount(n_executed.try_into().unwrap()))
-        .await
-        .unwrap();
-    // Send Fin part.
     let received_fin = ConsensusProposalCommitment::default();
     content_sender
-        .send(ProposalPart::Fin(ProposalFin { proposal_commitment: received_fin }))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: received_fin,
+            executed_transaction_count: n_executed.try_into().unwrap(),
+        }))
         .await
         .unwrap();
 
@@ -382,12 +293,9 @@ async fn batcher_returns_invalid_proposal() {
     let block_info = block_info(BlockNumber(0));
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(n_executed.try_into().unwrap()))
-        .await
-        .unwrap();
-    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: n_executed.try_into().unwrap(),
         }))
         .await
         .unwrap();
