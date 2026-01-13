@@ -63,6 +63,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
+    InvokeTransaction as ApiInvokeTransaction,
     L1HandlerTransaction,
     L2ToL1Payload,
     MessageToL1,
@@ -1098,23 +1099,16 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     )
     .to_syscall_result();
     let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(
             main_contract_address, test_execution_info_selector_name, &expected_execution_info
         ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         proof_facts,
     };
     // Put the tx hash in the signature.
-    let tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
-    test_builder.add_invoke_tx_from_args(
-        invoke_tx_args! {
-            signature: TransactionSignature(Arc::new(vec![tx.tx_hash.0])),
-            ..invoke_tx_args
-        },
-        None,
-    );
+    let mut tx = test_builder.create_funded_account_invoke(invoke_tx_args);
+    let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
+    tx_v3.signature = TransactionSignature(Arc::new(vec![tx.tx_hash.0]));
+    test_builder.add_invoke_tx(tx, None);
 
     // Test Cairo 1.0 deploy syscall.
     let salt = Felt::from(7);
@@ -1159,8 +1153,6 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     )
     .to_syscall_result();
     let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(
             main_contract_address,
             test_call_contract_selector_name,
@@ -1170,17 +1162,12 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
                 expected_execution_info.len().into()
             ].into_iter().chain(expected_execution_info.into_iter()).collect::<Vec<_>>()
         ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     // Put the tx hash in the signature.
-    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), chain_id).unwrap();
-    test_builder.add_invoke_tx_from_args(
-        invoke_tx_args! {
-            signature: TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0])),
-            ..invoke_tx_args
-        },
-        None,
-    );
+    let mut invoke_tx = test_builder.create_funded_account_invoke(invoke_tx_args);
+    let ApiInvokeTransaction::V3(tx_v3) = &mut invoke_tx.tx else { unreachable!() };
+    tx_v3.signature = TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0]));
+    test_builder.add_invoke_tx(invoke_tx, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
