@@ -101,11 +101,12 @@ pub struct TimeMeasurement {
     pub block_timers: BlockTimers,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
-    pub facts_in_db: Vec<usize>, // Number of facts in the DB prior to the current block.
-    pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of finalizing the
-                                  * measurement. */
+    pub initial_db_entry_count: Vec<usize>, /* Number of DB entries prior to the current
+                                             * block. */
+    pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of finalizing
+                                         * the measurement. */
     pub block_number: usize,
-    pub total_facts: usize,
+    pub total_db_entry_count: usize,
     pub current_block_measurement: BlockMeasurement,
 
     // Storage related statistics.
@@ -119,8 +120,8 @@ impl TimeMeasurement {
             total_time: 0,
             block_measurements: Vec::with_capacity(size),
             block_number: 0,
-            total_facts: 0,
-            facts_in_db: Vec::with_capacity(size),
+            total_db_entry_count: 0,
+            initial_db_entry_count: Vec::with_capacity(size),
             time_of_measurement: Vec::with_capacity(size),
             current_block_measurement: BlockMeasurement::default(),
             storage_stat_columns,
@@ -129,7 +130,7 @@ impl TimeMeasurement {
 
     fn clear_measurements(&mut self) {
         self.block_measurements.clear();
-        self.facts_in_db.clear();
+        self.initial_db_entry_count.clear();
     }
 
     pub fn start_measurement(&mut self, action: Action) {
@@ -158,8 +159,8 @@ impl TimeMeasurement {
 
         match action {
             Action::Write => {
-                self.facts_in_db.push(self.total_facts);
-                self.total_facts += facts_count;
+                self.initial_db_entry_count.push(self.total_db_entry_count);
+                self.total_db_entry_count += facts_count;
             }
             Action::EndToEnd => {
                 self.total_time += duration_in_millis;
@@ -255,7 +256,7 @@ impl TimeMeasurement {
                     "block_number",
                     "n_writes",
                     "n_reads",
-                    "initial_facts_in_db",
+                    "initial_db_entry_count",
                     "time_of_measurement",
                     "block_duration_millis",
                     "read_duration_millis",
@@ -276,7 +277,7 @@ impl TimeMeasurement {
                 (self.block_number - n_results + i).to_string(),
                 measurement.n_writes.to_string(),
                 measurement.n_reads.to_string(),
-                self.facts_in_db[i].to_string(),
+                self.initial_db_entry_count[i].to_string(),
                 self.time_of_measurement[i].to_string(),
                 measurement.block_duration.to_string(),
                 measurement.read_duration.to_string(),
@@ -301,7 +302,7 @@ impl TimeMeasurement {
             &fs::read_to_string(format!("{checkpoint_dir}/{largest_file_index}.json")).unwrap(),
         )
         .unwrap();
-        self.total_facts = checkpoint.total_facts;
+        self.total_db_entry_count = checkpoint.total_db_entry_count;
         self.block_number = checkpoint.block_number + 1;
         Some(HashOutput(checkpoint.contracts_trie_root_hash))
     }
@@ -316,7 +317,7 @@ impl TimeMeasurement {
         let checkpoint = Checkpoint {
             block_number,
             contracts_trie_root_hash: contracts_trie_root_hash.0,
-            total_facts: self.total_facts,
+            total_db_entry_count: self.total_db_entry_count,
         };
         fs::create_dir_all(checkpoint_dir).expect("Failed to create checkpoint directory.");
 
@@ -330,7 +331,7 @@ impl TimeMeasurement {
 struct Checkpoint {
     block_number: usize,
     contracts_trie_root_hash: Felt,
-    total_facts: usize,
+    total_db_entry_count: usize,
 }
 
 fn get_largest_file_index(output_dir: &str, file_suffix: &str) -> Option<usize> {
