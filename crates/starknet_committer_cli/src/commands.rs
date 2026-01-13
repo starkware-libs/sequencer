@@ -79,6 +79,9 @@ const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
 
 const INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS: usize = 1000;
 
+// TODO(Nimrod): Tune this value to match the storage marker.
+const MAINNET_BLOCK_NUMBER: usize = 5_000_000;
+
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
     indices: impl IntoIterator<Item = usize>,
@@ -228,14 +231,8 @@ impl BenchmarkFlavor {
 
     fn n_iterations(&self, n_iterations: usize) -> usize {
         match self {
-            BenchmarkFlavor::Constant
-            | BenchmarkFlavor::Continuous
-            | BenchmarkFlavor::Overlap
-            | BenchmarkFlavor::PeriodicPeaks => n_iterations,
-            BenchmarkFlavor::Mainnet => {
-                // TODO(Nimrod): Return the height stored in storage here.
-                unimplemented!();
-            }
+            Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
+            Self::Mainnet => MAINNET_BLOCK_NUMBER,
         }
     }
 }
