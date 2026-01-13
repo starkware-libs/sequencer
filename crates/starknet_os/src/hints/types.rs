@@ -115,4 +115,26 @@ impl HintContext<'_> {
             self.program,
         )
     }
+
+    /// Gets a Felt from a nested field of a cairo variable.
+    pub fn get_nested_field_felt(
+        &self,
+        id: Ids,
+        var_type: CairoStruct,
+        nested_fields: &[&str],
+    ) -> VmUtilsResult<Felt> {
+        let address = self.get_address_of_nested_fields(id, var_type, nested_fields)?;
+        Ok(self.vm.get_integer(address)?.into_owned())
+    }
+
+    /// Gets a pointer (Relocatable) from a nested field of a cairo variable.
+    pub fn get_nested_field_ptr(
+        &self,
+        id: Ids,
+        var_type: CairoStruct,
+        nested_fields: &[&str],
+    ) -> VmUtilsResult<Relocatable> {
+        let address = self.get_address_of_nested_fields(id, var_type, nested_fields)?;
+        Ok(self.vm.get_relocatable(address)?)
+    }
 }

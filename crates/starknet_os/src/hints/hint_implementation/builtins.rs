@@ -45,12 +45,11 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
 ) -> OsHintResult {
     let n_builtins = ctx.get_integer(Ids::NBuiltins)?;
 
-    let builtins_encoding_address = ctx.get_address_of_nested_fields(
+    let builtins_encoding = ctx.get_nested_field_ptr(
         Ids::BuiltinParams,
         CairoStruct::BuiltinParamsPtr,
         &["builtin_encodings"],
     )?;
-    let builtins_encoding = ctx.vm.get_relocatable(builtins_encoding_address)?;
 
     let n_selected_builtins = ctx.get_integer(Ids::NSelectedBuiltins)?;
 
