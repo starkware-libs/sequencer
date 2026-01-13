@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -70,6 +71,9 @@ const FLAVOR_PERIOD_PERIOD: usize = 500;
 const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
 
 const INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS: usize = 1000;
+
+// TODO(Nimrod): Tune this value to match the storage marker.
+const MAINNET_BLOCK_NUMBER: usize = 5_000_000;
 
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
@@ -209,10 +213,7 @@ impl BenchmarkFlavor {
     fn n_iterations(&self, n_iterations: usize) -> usize {
         match self {
             Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
-            Self::Mainnet => {
-                // TODO(Nimrod): Return the height stored in storage here.
-                unimplemented!();
-            }
+            Self::Mainnet => min(n_iterations, MAINNET_BLOCK_NUMBER),
         }
     }
 }
