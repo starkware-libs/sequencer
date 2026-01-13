@@ -21,7 +21,7 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 ///
 /// pub(crate) fn get_block_number<S: StateReader>(
 /// hint_processor: &mut SnosHintProcessor<'_, S>,
-/// ctx: HintContext<'_>,
+/// mut ctx: HintContext<'_>,
 /// ) -> OsHintResult
 /// {
 ///     assert_eq!(

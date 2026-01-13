@@ -49,7 +49,7 @@ fn set_preimage_for_commitments<S: StateReader>(
     // No need to insert the preimage map into the scope, as we extract it directly
     // from the execution helper.
 
-    let merkle_height = Const::MerkleHeight.fetch(ctx.constants)?;
+    let merkle_height = ctx.fetch_const(Const::MerkleHeight)?;
     let tree_height = Felt::from(*tree_height);
     verify_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
 
@@ -91,7 +91,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     ctx.insert_value(Ids::FinalContractStateRoot, commitment_info.updated_root.0)?;
 
     let tree_height = Felt::from(commitment_info.tree_height.0);
-    let merkle_height = Const::MerkleHeight.fetch(ctx.constants)?;
+    let merkle_height = ctx.fetch_const(Const::MerkleHeight)?;
     verify_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
 
     // No need to insert the preimage map into the scope, as we extract it directly
