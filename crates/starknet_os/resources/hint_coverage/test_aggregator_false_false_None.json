@@ -45,6 +45,9 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
+    "CommonHint": "GetPublicKeys"
+  },
+  {
     "AggregatorHint": "DisableDaPageCreation"
   },
   {
@@ -61,8 +64,5 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
-  },
-  {
-    "AggregatorHint": "GetPublicKeysFromAggregatorInput"
   }
 ]
