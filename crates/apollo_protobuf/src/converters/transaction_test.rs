@@ -1,9 +1,15 @@
 use apollo_test_utils::{get_rng, GetTestInstance};
 use lazy_static::lazy_static;
 use rand::random;
+use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    ProofFacts,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
@@ -115,12 +121,19 @@ fn convert_invoke_transaction_v1_to_vec_u8_and_back() {
     assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
-#[test]
-fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
+#[rstest]
+#[case::without_client_side_proving(false)]
+#[case::with_client_side_proving(true)]
+fn convert_invoke_transaction_v3_to_vec_u8_and_back(#[case] with_client_side_proving: bool) {
     let mut rng = get_rng();
     let mut transaction =
         starknet_api::transaction::InvokeTransactionV3::get_test_instance(&mut rng);
     transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
+
+    if with_client_side_proving {
+        transaction.proof_facts = ProofFacts::snos_proof_facts_for_testing();
+    }
+
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
@@ -162,6 +175,7 @@ fn fin_transaction_to_bytes_and_back() {
     assert!(res_data.0.is_none());
 }
 
+/// Verifies lossless protobuf serialization/deserialization for p2p sync transactions.
 fn assert_transaction_to_vec_u8_and_back(
     transaction: StarknetApiTransaction,
     transaction_output: TransactionOutput,
@@ -172,8 +186,14 @@ fn assert_transaction_to_vec_u8_and_back(
         transaction_output,
         transaction_hash: random_transaction_hash,
     }));
+
+    // Serialize: StarknetAPI → protobuf bytes (sent over network).
     let bytes_data = Vec::<u8>::from(data.clone());
+
+    // Deserialize: protobuf bytes → StarknetAPI (received from network).
     let res_data = DataOrFin::try_from(bytes_data).unwrap();
+
+    // Verify round-trip is lossless.
     assert_eq!(data, res_data);
 }
 

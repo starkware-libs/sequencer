@@ -1,4 +1,5 @@
 use apollo_test_utils::{get_rng, GetTestInstance};
+use rstest::rstest;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
@@ -99,11 +100,32 @@ fn convert_block_info_to_vec_u8_and_back() {
     assert_eq!(block_info, res_data);
 }
 
-#[test]
-fn convert_transaction_batch_to_vec_u8_and_back() {
+// Tests TransactionBatch byte serialization for consensus p2p communication.
+//
+// Case 1: Random transaction (any type: Declare/Deploy/Invoke/L1Handler, with default proof fields)
+// Case 2: InvokeV3 with client-side proving (both proof and proof_facts populated)
+#[rstest]
+#[case::random_transaction_batch(false)]
+#[case::with_client_side_proving(true)]
+fn convert_transaction_batch_to_vec_u8_and_back(#[case] with_client_side_proving: bool) {
+    use starknet_api::transaction::fields::{Proof, ProofFacts};
+
     let mut rng = get_rng();
 
-    let mut transaction_batch = TransactionBatch::get_test_instance(&mut rng);
+    let mut transaction_batch = if with_client_side_proving {
+        // InvokeV3 with client-side proving
+        let mut rpc_transaction = RpcInvokeTransactionV3::get_test_instance(&mut rng);
+        rpc_transaction.proof = Proof::proof_for_testing();
+        rpc_transaction.proof_facts = ProofFacts::snos_proof_facts_for_testing();
+
+        let consensus_tx = ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(
+            RpcInvokeTransaction::V3(rpc_transaction),
+        ));
+        TransactionBatch { transactions: vec![consensus_tx] }
+    } else {
+        // Random transaction batch
+        TransactionBatch::get_test_instance(&mut rng)
+    };
 
     add_gas_values_to_transaction(&mut transaction_batch.transactions);
 
