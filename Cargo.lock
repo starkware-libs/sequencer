@@ -1050,6 +1050,7 @@ dependencies = [
  "blockifier_test_utils",
  "mempool_test_utils",
  "mockall",
+ "proving_utils",
  "rstest",
  "serde",
  "serde_json",
@@ -1057,6 +1058,7 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -3735,7 +3737,7 @@ dependencies = [
  "flate2",
  "google-cloud-storage",
  "indexmap 2.12.0",
- "mockito 1.7.0",
+ "mockito",
  "pretty_assertions",
  "reqwest 0.12.24",
  "retry",
@@ -12078,6 +12080,7 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
+ "apollo_class_manager_types",
  "apollo_infra_utils",
  "async-trait",
  "blockifier",
