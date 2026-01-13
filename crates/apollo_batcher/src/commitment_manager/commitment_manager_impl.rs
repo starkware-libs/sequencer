@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
 use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
@@ -245,6 +245,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// hash using the global root, the parent block hash and the partial block hash components.
     /// Otherwise, returns the final commitment with no block hash.
     // TODO(Rotem): Test this function.
+    // TODO(Amos): Test blocks [0,10] in OS flow tests.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
         CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
@@ -257,8 +258,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (parent_hash, partial_block_hash_components) =
+                let (mut parent_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
+                if height == BlockNumber::ZERO {
+                    parent_hash = Some(BlockHash::GENESIS);
+                }
                 let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
                     height.prev().expect(
                         "For the genesis block, the block hash is constant and should not be \

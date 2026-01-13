@@ -276,6 +276,11 @@ pub enum BlockStatus {
 )]
 pub struct BlockHash(pub StarkHash);
 
+impl BlockHash {
+    // TODO(Amos): Use this anywhere the genesis block hash is used.
+    pub const GENESIS: Self = Self(StarkHash::ZERO);
+}
+
 /// The number of a [Block](`crate::block::Block`).
 #[derive(
     Debug,
@@ -295,6 +300,8 @@ pub struct BlockHash(pub StarkHash);
 pub struct BlockNumber(pub u64);
 
 impl BlockNumber {
+    pub const ZERO: Self = Self(0);
+
     /// Returns the next block number, without checking if it's in range.
     pub fn unchecked_next(&self) -> BlockNumber {
         BlockNumber(self.0 + 1)
