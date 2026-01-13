@@ -83,16 +83,16 @@ where
 }
 
 /// The classes required for a Starknet OS run.
-pub struct ClassesInput {
+pub(crate) struct ClassesInput {
     /// Cairo 1+ contract classes (CASM).
     /// Maps CompiledClassHash to the CASM contract class definition.
-    pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     /// Maps ClassHash to CompiledClassHash.
-    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[async_trait]
-pub trait ClassesProvider {
+pub(crate) trait ClassesProvider {
     /// Fetches all classes required for the OS run based on the executed class hashes.
     async fn get_classes(
         &self,
