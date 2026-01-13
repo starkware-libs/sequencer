@@ -12,9 +12,12 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
-use axum::body::{Bytes, HttpBody};
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::body::Bytes;
+use axum_08::http::StatusCode;
+use axum_08::response::{IntoResponse, Response};
+use axum_08::Json;
+use http_body_util::BodyExt;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
@@ -79,7 +82,7 @@ async fn gateway_output_json_conversion(
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
 
-    assert_eq!(status_code, hyper::StatusCode::OK, "{response_bytes:?}");
+    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
     let gateway_response: GatewayOutput = serde_json::from_slice(response_bytes).unwrap();
 
     let expected_gateway_response = read_json_file(expected_serialized_response_path);
@@ -90,7 +93,7 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-// TODO(Tsabary): there's a discrepancy with the used `StatusCode` crates: reqwest and hyper. Some
+// TODO(Tsabary): there's a discrepancy with the used `StatusCode` crates: reqwest and axum. Some
 // tests expect the former and some the other, based on the used test utils. Better sort this out
 // and make consistent across.
 
