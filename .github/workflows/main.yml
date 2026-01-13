@@ -145,3 +145,16 @@ jobs:
           scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+
+  # TODO(dan): Once all cargo-deny issues are resolved, consider merging this into code_style job.
+  cargo-deny:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run cargo-deny (security/license check)
+        continue-on-error: true  # Warning only until all issues are resolved
+        run: cargo deny check
