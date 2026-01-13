@@ -1,11 +1,11 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
     EndToEndTestScenario,
+    ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID,
 };
-use apollo_integration_tests::utils::ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;

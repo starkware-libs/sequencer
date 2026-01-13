@@ -1,5 +1,5 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
     end_to_end_flow,
     test_single_tx,
     EndToEndFlowArgs,

@@ -1,11 +1,11 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
+    create_l1_to_l2_messages_args,
     end_to_end_flow,
     test_single_tx,
     EndToEndFlowArgs,
     EndToEndTestScenario,
 };
-use apollo_integration_tests::utils::create_l1_to_l2_messages_args;
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::transaction::L1HandlerTransaction;
