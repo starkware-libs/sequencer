@@ -26,12 +26,7 @@ pub(crate) fn read_ec_point_from_address<S: StateReader>(
 ) -> OsHintResult {
     let not_on_curve = ctx.get_integer(Ids::NotOnCurve)?;
     let result = if not_on_curve == Felt::ZERO {
-        let ec_point_address = ctx.get_address_of_nested_fields(
-            Ids::Response,
-            CairoStruct::SecpNewResponsePtr,
-            &["ec_point"],
-        )?;
-        ctx.vm.get_relocatable(ec_point_address)?
+        ctx.get_nested_field_ptr(Ids::Response, CairoStruct::SecpNewResponsePtr, &["ec_point"])?
     } else {
         ctx.vm.add_memory_segment()
     };

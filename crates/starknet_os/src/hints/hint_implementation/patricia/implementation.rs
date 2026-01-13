@@ -74,9 +74,7 @@ pub(crate) fn set_bit<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let edge_path_address =
-        ctx.get_address_of_nested_fields(Ids::Edge, CairoStruct::NodeEdge, &["path"])?;
-    let edge_path = ctx.vm.get_integer(edge_path_address)?.into_owned();
+    let edge_path = ctx.get_nested_field_felt(Ids::Edge, CairoStruct::NodeEdge, &["path"])?;
     let new_length: u8 = ctx.fetch_as(Ids::NewLength)?;
 
     let bit = (edge_path.to_biguint() >> new_length) & BigUint::from(1u64);

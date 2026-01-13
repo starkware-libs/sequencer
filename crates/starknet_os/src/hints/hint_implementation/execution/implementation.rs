@@ -202,12 +202,11 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let address = ctx.get_address_of_nested_fields(
+    let account_contract_address = ctx.get_nested_field_felt(
         Ids::TxInfo,
         CairoStruct::TxInfoPtr,
         &["account_contract_address"],
     )?;
-    let account_contract_address = ctx.vm.get_integer(address)?.into_owned();
     set_state_entry(
         &account_contract_address,
         ctx.vm,
@@ -222,12 +221,11 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let class_hash_address = ctx.get_address_of_nested_fields(
+    let class_hash = ClassHash(ctx.get_nested_field_felt(
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
         &["class_hash"],
-    )?;
-    let class_hash = ClassHash(ctx.vm.get_integer(class_hash_address)?.into_owned());
+    )?);
 
     let is_deprecated = Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash));
     ctx.insert_value(Ids::IsDeprecated, is_deprecated)?;
@@ -259,18 +257,16 @@ pub(crate) fn enter_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let execution_info_address = ctx.get_address_of_nested_fields(
+    let execution_info_ptr = ctx.get_nested_field_ptr(
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
         &["execution_info"],
     )?;
-    let execution_info_ptr = ctx.vm.get_relocatable(execution_info_address)?;
-    let deprecated_tx_info_address = ctx.get_address_of_nested_fields(
+    let deprecated_tx_info_ptr = ctx.get_nested_field_ptr(
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
         &["deprecated_tx_info"],
     )?;
-    let deprecated_tx_info_ptr = ctx.vm.get_relocatable(deprecated_tx_info_address)?;
 
     hint_processor
         .get_mut_current_execution_helper()?
@@ -463,12 +459,11 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
         };
     }
 
-    let syscall_ptr_end_address = ctx.get_address_of_nested_fields(
+    let syscall_ptr_end = ctx.get_nested_field_ptr(
         Ids::EntryPointReturnValues,
         CairoStruct::EntryPointReturnValuesPtr,
         &["syscall_ptr"],
     )?;
-    let syscall_ptr_end = ctx.vm.get_relocatable(syscall_ptr_end_address)?;
     current_execution_helper
         .syscall_hint_processor
         .validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
