@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::OS_PROGRAM;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_integer_from_var_name;
-use cairo_vm::hint_processor::hint_processor_definition::HintReference;
-use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::vm::errors::hint_errors::HintError;
-use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -321,26 +317,6 @@ define_string_enum! {
         (UseKzgDa),
         (Value),
         (Word),
-    }
-}
-
-impl Ids {
-    pub fn fetch_as<T: TryFrom<Felt>>(
-        &self,
-        vm: &mut VirtualMachine,
-        ids_data: &HashMap<String, HintReference>,
-        ap_tracking: &ApTracking,
-    ) -> Result<T, OsHintError>
-    where
-        <T as TryFrom<Felt>>::Error: std::fmt::Debug,
-    {
-        let self_felt = get_integer_from_var_name((*self).into(), vm, ids_data, ap_tracking)?;
-        T::try_from(self_felt).map_err(|error| OsHintError::IdsConversion {
-            variant: *self,
-            felt: self_felt,
-            ty: std::any::type_name::<T>().into(),
-            reason: format!("{error:?}"),
-        })
     }
 }
 

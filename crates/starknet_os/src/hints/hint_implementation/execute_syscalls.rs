@@ -10,7 +10,7 @@ use crate::vm_utils::get_address_of_nested_fields;
 pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> OsHintResult {
     let request_block_number = ctx.get_integer(Ids::RequestBlockNumber)?;
     let current_block_number = ctx.get_integer(Ids::CurrentBlockNumber)?;
-    let stored_block_hash_buffer = Const::StoredBlockHashBuffer.fetch(ctx.constants)?;
+    let stored_block_hash_buffer = ctx.fetch_const(Const::StoredBlockHashBuffer)?;
     let is_block_number_in_block_hash_buffer =
         request_block_number > current_block_number - stored_block_hash_buffer;
     ctx.insert_value(
