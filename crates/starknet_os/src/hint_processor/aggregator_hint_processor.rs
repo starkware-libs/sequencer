@@ -97,6 +97,10 @@ impl HintProcessorLogic for AggregatorHintProcessor<'_> {
 impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'program> {
     impl_common_hint_processor_getters!();
 
+    fn get_public_keys(&self) -> Option<&[Felt]> {
+        self.input.public_keys.as_deref()
+    }
+
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
         panic!("Aggregator should not use randomness.");
     }

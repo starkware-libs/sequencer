@@ -15,7 +15,6 @@ use crate::hints::hint_implementation::aggregator::implementation::{
     get_aggregator_output,
     get_chain_id_and_fee_token_address_from_input,
     get_os_output_for_inner_blocks,
-    get_public_keys_from_aggregator_input,
     get_use_kzg_da_and_full_output_from_input,
     set_state_update_pointers_to_none,
     write_da_segment,
@@ -123,7 +122,6 @@ use crate::hints::hint_implementation::os::{
     get_block_hashes,
     get_n_blocks,
     get_n_class_hashes_to_migrate,
-    get_public_keys,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -138,6 +136,7 @@ use crate::hints::hint_implementation::os_logger::{
 };
 use crate::hints::hint_implementation::output::{
     calculate_keys_using_sha256_hash,
+    get_public_keys,
     set_compressed_start,
     set_encrypted_start,
     set_n_updates_small,
@@ -460,7 +459,8 @@ define_common_hint_enum!(
     (GuessKzgCommitmentsAndStoreDaSegment, guess_kzg_commitments_and_store_da_segment),
     (GuessClassesPtr, guess_classes_ptr),
     (UpdateContractAddrToStoragePtr, update_contract_addr_to_storage_ptr),
-    (SetStateUpdatePointersToNone, set_state_update_pointers_to_none)
+    (SetStateUpdatePointersToNone, set_state_update_pointers_to_none),
+    (GetPublicKeys, get_public_keys)
 );
 
 define_hint_enum!(
@@ -559,7 +559,6 @@ define_hint_enum!(
     (InitializeClassHashes, initialize_class_hashes),
     (CreateBlockAdditionalHints, create_block_additional_hints),
     (LogRemainingBlocks, log_remaining_blocks),
-    (GetPublicKeys, get_public_keys),
     (GetBlockHashes, get_block_hashes),
 );
 
@@ -571,8 +570,7 @@ define_hint_enum!(
     (GetAggregatorOutput, get_aggregator_output),
     (WriteDaSegment, write_da_segment),
     (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
-    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input),
-    (GetPublicKeysFromAggregatorInput, get_public_keys_from_aggregator_input),
+    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input)
 );
 
 define_hint_extension_enum!(

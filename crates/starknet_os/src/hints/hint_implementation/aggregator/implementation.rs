@@ -4,7 +4,6 @@ use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::aggregator::utils::FullOsOutputsData;
-use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 use crate::io::os_output_types::TryFromOutputIter;
@@ -107,14 +106,5 @@ pub(crate) fn get_chain_id_and_fee_token_address_from_input(
     let fee_token_address: Felt = hint_processor.input.fee_token_address;
     ctx.insert_value(Ids::ChainId, chain_id)?;
     ctx.insert_value(Ids::FeeTokenAddress, fee_token_address)?;
-    Ok(())
-}
-
-pub(crate) fn get_public_keys_from_aggregator_input(
-    hint_processor: &mut AggregatorHintProcessor<'_>,
-    ctx: HintArgs<'_>,
-) -> OsHintResult {
-    let public_keys = hint_processor.input.public_keys.clone();
-    load_public_keys_into_memory(ctx.vm, ctx.ids_data, ctx.ap_tracking, public_keys)?;
     Ok(())
 }

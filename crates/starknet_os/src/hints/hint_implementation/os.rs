@@ -8,7 +8,6 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
@@ -159,15 +158,6 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     _ctx: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.execution_helpers_manager.increment_current_helper_index();
-    Ok(())
-}
-
-pub(crate) fn get_public_keys<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
-) -> OsHintResult {
-    let public_keys = hint_processor.os_hints_config.public_keys.clone();
-    load_public_keys_into_memory(ctx.vm, ctx.ids_data, ctx.ap_tracking, public_keys)?;
     Ok(())
 }
 

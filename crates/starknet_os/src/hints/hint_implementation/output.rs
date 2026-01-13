@@ -1,11 +1,7 @@
 use std::cmp::min;
-use std::collections::HashMap;
 
-use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
-use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use cairo_vm::vm::vm_core::VirtualMachine;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
@@ -27,33 +23,18 @@ fn felt_to_bool(felt: Felt, id: Ids) -> Result<bool, OsHintError> {
     }
 }
 
-pub(crate) fn load_public_keys_into_memory(
-    vm: &mut VirtualMachine,
-    ids_data: &HashMap<String, HintReference>,
-    ap_tracking: &ApTracking,
-    public_keys: Option<Vec<Felt>>,
+pub(crate) fn get_public_keys<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &CHP,
+    mut ctx: HintArgs<'_>,
 ) -> OsHintResult {
-    use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
-
     let public_keys: Vec<MaybeRelocatable> =
-        public_keys.unwrap_or_default().into_iter().map(Into::into).collect();
+        hint_processor.get_public_keys().unwrap_or_default().iter().map(Into::into).collect();
 
-    let public_keys_segment = vm.gen_arg(&public_keys)?;
+    let public_keys_segment = ctx.vm.gen_arg(&public_keys)?;
 
-    insert_value_from_var_name(
-        Ids::PublicKeys.into(),
-        public_keys_segment,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::NPublicKeys.into(),
-        public_keys.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::PublicKeys, public_keys_segment)?;
+    ctx.insert_value(Ids::NPublicKeys, public_keys.len())?;
+
     Ok(())
 }
 
