@@ -181,10 +181,3 @@ impl MerkleProof {
         current_hash == *root
     }
 }
-
-#[test]
-fn ci_issue_test() {
-    // TODO(AndrewL): remove this test
-    // CI currently fails because a crate is not allowed to have no tests
-    assert_eq!(true, true);
-}
