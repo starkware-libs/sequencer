@@ -34,7 +34,7 @@ cairo-vm = { workspace = true, features = [
   "cairo-0-secp-hints",
   "extensive_hints",
 ] }
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["display"] }
 digest.workspace = true
 expect-test = { workspace = true, optional = true }
 indexmap.workspace = true

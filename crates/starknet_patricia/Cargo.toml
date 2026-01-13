@@ -21,7 +21,7 @@ rstest.workspace = true
 
 [dependencies]
 async-recursion.workspace = true
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["add", "display"] }
 ethnum.workspace = true
 num-bigint = { workspace = true, optional = true }
 rand.workspace = true

@@ -140,11 +140,11 @@ pub fn validate_schema(schema: &JSONSchema, result: &Value) -> bool {
 
 #[derive(Clone, Copy, derive_more::Display, EnumIter)]
 pub enum SpecFile {
-    #[display(fmt = "starknet_api_openrpc.json")]
+    #[display("starknet_api_openrpc.json")]
     StarknetApiOpenrpc,
-    #[display(fmt = "starknet_write_api.json")]
+    #[display("starknet_write_api.json")]
     WriteApi,
-    #[display(fmt = "starknet_trace_api_openrpc.json")]
+    #[display("starknet_trace_api_openrpc.json")]
     TraceApi,
 }
 
