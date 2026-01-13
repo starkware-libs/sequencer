@@ -19,7 +19,7 @@ pub(crate) fn dictionary_from_bucket(ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn get_prev_offset(mut ctx: HintContext<'_>) -> OsHintResult {
-    let dict_manager = ctx.exec_scopes.get_dict_manager()?;
+    let dict_manager = ctx.get_dict_manager()?;
 
     let dict_ptr = ctx.get_ptr(Ids::DictPtr)?;
     let bucket_index = get_maybe_relocatable_from_var_name(

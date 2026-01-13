@@ -229,7 +229,7 @@ pub(crate) fn enter_scope_execute_transactions_inner(ctx: HintContext<'_>) -> Os
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
     // variables since they are accessible via the hint processor.
-    let dict_manager = ctx.exec_scopes.get_dict_manager()?;
+    let dict_manager = ctx.get_dict_manager()?;
 
     let new_scope = HashMap::from([(Scope::DictManager.into(), any_box!(dict_manager))]);
     ctx.exec_scopes.enter_scope(new_scope);
