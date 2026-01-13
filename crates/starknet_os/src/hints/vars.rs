@@ -327,7 +327,7 @@ define_string_enum! {
 impl Ids {
     pub fn fetch_as<T: TryFrom<Felt>>(
         &self,
-        vm: &mut VirtualMachine,
+        vm: &VirtualMachine,
         ids_data: &HashMap<String, HintReference>,
         ap_tracking: &ApTracking,
     ) -> Result<T, OsHintError>

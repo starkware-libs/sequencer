@@ -15,7 +15,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Const, Ids};
 
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
@@ -54,5 +54,23 @@ impl HintContext<'_> {
 
     pub fn get_relocatable(&self, var_id: Ids) -> Result<Relocatable, HintError> {
         get_relocatable_from_var_name(var_id.into(), self.vm, self.ids_data, self.ap_tracking)
+    }
+
+    pub fn fetch_as<T: TryFrom<Felt>>(&self, var_id: Ids) -> Result<T, OsHintError>
+    where
+        <T as TryFrom<Felt>>::Error: std::fmt::Debug,
+    {
+        var_id.fetch_as(self.vm, self.ids_data, self.ap_tracking)
+    }
+
+    pub fn fetch_const(&self, constant: Const) -> Result<&Felt, HintError> {
+        constant.fetch(self.constants)
+    }
+
+    pub fn fetch_const_as<T: TryFrom<Felt>>(&self, constant: Const) -> Result<T, OsHintError>
+    where
+        <T as TryFrom<Felt>>::Error: std::fmt::Debug,
+    {
+        constant.fetch_as(self.constants)
     }
 }

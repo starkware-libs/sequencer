@@ -32,7 +32,7 @@ pub(crate) fn guess_kzg_commitments_and_store_da_segment<
     let da_segment: Vec<Felt> =
         ctx.vm.get_integer_range(state_updates_start, da_size)?.into_iter().map(|s| *s).collect();
 
-    let blob_length_felt = Const::BlobLength.fetch(ctx.constants)?;
+    let blob_length_felt = ctx.fetch_const(Const::BlobLength)?;
     let blob_length = usize::try_from(blob_length_felt.to_biguint()).map_err(|error| {
         OsHintError::ConstConversion {
             variant: Const::BlobLength,

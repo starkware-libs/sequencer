@@ -64,7 +64,7 @@ pub(crate) fn set_component_hashes<S: StateReader>(
 }
 
 pub(crate) fn sha2_finalize(ctx: HintContext<'_>) -> OsHintResult {
-    let batch_size = &Const::ShaBatchSize.fetch(ctx.constants)?.to_bigint();
+    let batch_size = &ctx.fetch_const(Const::ShaBatchSize)?.to_bigint();
     let n = &ctx.get_integer(Ids::N)?.to_bigint();
     // Calculate the modulus operation, not the remainder.
     let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
@@ -76,7 +76,7 @@ pub(crate) fn sha2_finalize(ctx: HintContext<'_>) -> OsHintResult {
          {N_MISSING_BLOCKS_BOUND}). Got n: {n} and batch size: {batch_size}."
     );
     let sha256_input_chunk_size_felts =
-        felt_to_usize(Const::Sha256InputChunkSize.fetch(ctx.constants)?)?;
+        felt_to_usize(ctx.fetch_const(Const::Sha256InputChunkSize)?)?;
     assert!(
         (0..SHA256_INPUT_CHUNK_SIZE_BOUND).contains(&sha256_input_chunk_size_felts),
         "sha256_input_chunk_size_felts: {sha256_input_chunk_size_felts} is expected to be in the \
