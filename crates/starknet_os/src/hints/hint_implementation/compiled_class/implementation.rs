@@ -18,7 +18,7 @@ use crate::hints::hint_implementation::compiled_class::utils::{
     BytecodeSegmentNode,
     CompiledClassFact,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
@@ -27,7 +27,7 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
-pub(crate) fn assign_bytecode_segments(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn assign_bytecode_segments(ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
         ctx.exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
 
@@ -40,7 +40,7 @@ pub(crate) fn assign_bytecode_segments(ctx: HintArgs<'_>) -> OsHintResult {
     }
 }
 
-pub(crate) fn assert_end_of_bytecode_segments(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn assert_end_of_bytecode_segments(ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         ctx.exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
     if bytecode_segments.next().is_some() {
@@ -53,7 +53,7 @@ pub(crate) fn assert_end_of_bytecode_segments(ctx: HintArgs<'_>) -> OsHintResult
 
 pub(crate) fn enter_scope_with_bytecode_segment_structure<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structures: &BTreeMap<CompiledClassHash, BytecodeSegmentNode> =
         ctx.exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
@@ -84,7 +84,7 @@ pub(crate) fn enter_scope_with_bytecode_segment_structure<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn delete_memory_data(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn delete_memory_data(ctx: HintContext<'_>) -> OsHintResult {
     let data_ptr = ctx.get_ptr(Ids::DataPtr)?;
     if ctx.vm.is_accessed(&data_ptr)? {
         return Err(OsHintError::AssertionFailed {
@@ -95,14 +95,14 @@ pub(crate) fn delete_memory_data(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn is_leaf(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn is_leaf(mut ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         ctx.exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
     let is_leaf = bytecode_segment_structure.is_leaf();
     Ok(ctx.insert_value(Ids::IsLeaf, Felt::from(is_leaf))?)
 }
 
-pub(crate) fn iter_current_segment_info(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn iter_current_segment_info(mut ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         ctx.exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
     let current_segment_info = bytecode_segments
@@ -143,7 +143,7 @@ pub(crate) fn iter_current_segment_info(mut ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn load_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     ctx.exec_scopes.exit_scope()?;
     let expected_hash_address = get_address_of_nested_fields(
@@ -169,7 +169,7 @@ pub(crate) fn load_class<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_segment_hash<H: HashFunction>(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_ap_to_segment_hash<H: HashFunction>(ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         ctx.exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
 
@@ -179,7 +179,7 @@ pub(crate) fn set_ap_to_segment_hash<H: HashFunction>(ctx: HintArgs<'_>) -> OsHi
 // Hint extensions.
 pub(crate) fn load_classes_and_create_bytecode_segment_structures<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
     let identifier_getter = hint_processor.program;
     let mut hint_extension = HintExtension::new();

@@ -6,7 +6,7 @@ use paste::paste;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 
@@ -21,7 +21,7 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 ///
 /// pub(crate) fn get_block_number<S: StateReader>(
 /// hint_processor: &mut SnosHintProcessor<'_, S>,
-/// ctx: HintArgs<'_>,
+/// ctx: HintContext<'_>,
 /// ) -> OsHintResult
 /// {
 ///     assert_eq!(
@@ -57,7 +57,7 @@ macro_rules! create_syscall_func {
         $(
             pub(crate) fn $name<S: StateReader>(
                 hint_processor: &mut SnosHintProcessor<'_, S>,
-                ctx: HintArgs<'_>
+                ctx: HintContext<'_>
             ) -> OsHintResult {
                 assert_eq!(
                     ctx.exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
@@ -114,7 +114,7 @@ create_syscall_func!(
 
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert!(
         !ctx.exec_scopes

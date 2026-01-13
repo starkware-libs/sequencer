@@ -29,7 +29,7 @@ use crate::hints::hint_implementation::patricia::utils::{
     Path,
     UpdateTree,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
@@ -39,7 +39,7 @@ use crate::vm_utils::{
     insert_values_to_fields,
 };
 
-pub(crate) fn set_siblings(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_siblings(mut ctx: HintContext<'_>) -> OsHintResult {
     let descend: &Path = ctx.exec_scopes.get_ref(Scope::Descend.into())?;
 
     let length: u8 = descend.0.length.into();
@@ -53,7 +53,7 @@ pub(crate) fn set_siblings(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn is_case_right(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn is_case_right(ctx: HintContext<'_>) -> OsHintResult {
     let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
     let bit = ctx.get_integer(Ids::Bit)?;
 
@@ -72,7 +72,7 @@ pub(crate) fn is_case_right(ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn set_bit<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let edge_path_addr = get_address_of_nested_fields(
         ctx.ids_data,
@@ -93,7 +93,7 @@ pub(crate) fn set_bit<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_descend(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_ap_to_descend(ctx: HintContext<'_>) -> OsHintResult {
     let descent_map: &DescentMap = ctx.exec_scopes.get_ref(Scope::DescentMap.into())?;
 
     let height = SubTreeHeight(Ids::Height.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?);
@@ -116,7 +116,7 @@ pub(crate) fn set_ap_to_descend(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn assert_case_is_right(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn assert_case_is_right(ctx: HintContext<'_>) -> OsHintResult {
     let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
     if case != DecodeNodeCase::Right {
         return Err(OsHintError::AssertionFailed { message: "case != 'right".to_string() });
@@ -124,14 +124,14 @@ pub(crate) fn assert_case_is_right(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn write_case_not_left_to_ap(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn write_case_not_left_to_ap(ctx: HintContext<'_>) -> OsHintResult {
     let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
     let value = Felt::from(case != DecodeNodeCase::Left);
     insert_value_into_ap(ctx.vm, value)?;
     Ok(())
 }
 
-pub(crate) fn split_descend(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn split_descend(mut ctx: HintContext<'_>) -> OsHintResult {
     let descend: &Path = ctx.exec_scopes.get_ref(Scope::Descend.into())?;
     let length: u8 = descend.0.length.into();
     let path = descend.0.path;
@@ -144,7 +144,7 @@ pub(crate) fn split_descend(mut ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let height = ctx.get_integer(Ids::Height)?;
 
@@ -166,7 +166,7 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
 
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
@@ -212,7 +212,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 
 pub(crate) fn build_descent_map<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_updates: usize = Ids::NUpdates.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
 
@@ -273,12 +273,12 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
     Ok(())
 }
 
-pub(crate) fn enter_scope_node(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_node(ctx: HintContext<'_>) -> OsHintResult {
     let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
     enter_scope_specific_node(node, ctx.exec_scopes)
 }
 
-pub(crate) fn enter_scope_new_node(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_new_node(mut ctx: HintContext<'_>) -> OsHintResult {
     let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
 
     let (new_node, case_not_left) = match case {
@@ -296,7 +296,7 @@ pub(crate) fn enter_scope_new_node(mut ctx: HintArgs<'_>) -> OsHintResult {
     enter_scope_specific_node(new_node, ctx.exec_scopes)
 }
 
-fn enter_scope_next_node_bit(is_left: bool, ctx: HintArgs<'_>) -> OsHintResult {
+fn enter_scope_next_node_bit(is_left: bool, ctx: HintContext<'_>) -> OsHintResult {
     let ids_bit = ctx.get_integer(Ids::Bit)?;
     let left_bit = Felt::from(is_left);
 
@@ -310,25 +310,25 @@ fn enter_scope_next_node_bit(is_left: bool, ctx: HintArgs<'_>) -> OsHintResult {
     enter_scope_specific_node(new_node, ctx.exec_scopes)
 }
 
-pub(crate) fn enter_scope_next_node_bit_0(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_next_node_bit_0(ctx: HintContext<'_>) -> OsHintResult {
     enter_scope_next_node_bit(false, ctx)
 }
 
-pub(crate) fn enter_scope_next_node_bit_1(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_next_node_bit_1(ctx: HintContext<'_>) -> OsHintResult {
     enter_scope_next_node_bit(true, ctx)
 }
 
-pub(crate) fn enter_scope_left_child(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_left_child(ctx: HintContext<'_>) -> OsHintResult {
     let left_child: UpdateTree = ctx.exec_scopes.get(Scope::LeftChild.into())?;
     enter_scope_specific_node(left_child, ctx.exec_scopes)
 }
 
-pub(crate) fn enter_scope_right_child(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_right_child(ctx: HintContext<'_>) -> OsHintResult {
     let right_child: UpdateTree = ctx.exec_scopes.get(Scope::RightChild.into())?;
     enter_scope_specific_node(right_child, ctx.exec_scopes)
 }
 
-pub(crate) fn enter_scope_descend_edge(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_descend_edge(ctx: HintContext<'_>) -> OsHintResult {
     let mut new_node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
     let length: u8 = Ids::Length.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
 
@@ -356,7 +356,7 @@ pub(crate) fn enter_scope_descend_edge(ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn load_edge<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
@@ -399,7 +399,7 @@ pub(crate) fn load_edge<S: StateReader>(
 
 pub(crate) fn load_bottom<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let bottom_hash = HashOutput(
         ctx.vm
@@ -437,7 +437,7 @@ pub(crate) fn load_bottom<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn decode_node(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn decode_node(ctx: HintContext<'_>) -> OsHintResult {
     let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
         return Err(OsHintError::ExpectedInnerNode);

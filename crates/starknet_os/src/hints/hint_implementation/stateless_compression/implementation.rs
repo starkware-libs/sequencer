@@ -7,10 +7,10 @@ use starknet_types_core::felt::Felt;
 use super::utils::compress;
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::stateless_compression::utils::TOTAL_N_BUCKETS;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{Ids, Scope};
 
-pub(crate) fn dictionary_from_bucket(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn dictionary_from_bucket(ctx: HintContext<'_>) -> OsHintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
         .collect();
@@ -18,7 +18,7 @@ pub(crate) fn dictionary_from_bucket(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn get_prev_offset(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn get_prev_offset(mut ctx: HintContext<'_>) -> OsHintResult {
     let dict_manager = ctx.exec_scopes.get_dict_manager()?;
 
     let dict_ptr = ctx.get_ptr(Ids::DictPtr)?;
@@ -34,7 +34,7 @@ pub(crate) fn get_prev_offset(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn compression_hint(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn compression_hint(ctx: HintContext<'_>) -> OsHintResult {
     let data_start = ctx.get_ptr(Ids::DataStart)?;
     let data_end = ctx.get_ptr(Ids::DataEnd)?;
     let data_size = (data_end - data_start)?;
@@ -54,7 +54,7 @@ pub(crate) fn compression_hint(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn set_decompressed_dst(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_decompressed_dst(ctx: HintContext<'_>) -> OsHintResult {
     let decompressed_dst = ctx.get_ptr(Ids::DecompressedDst)?;
 
     let packed_felt = ctx.get_integer(Ids::PackedFelt)?;

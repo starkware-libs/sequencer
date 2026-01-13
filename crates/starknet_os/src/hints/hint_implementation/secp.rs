@@ -6,11 +6,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
-pub(crate) fn is_on_curve(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn is_on_curve(mut ctx: HintContext<'_>) -> OsHintResult {
     let secp_p = BigInt::from_bytes_be(num_bigint::Sign::Plus, &FqConfig::MODULUS.to_bytes_be());
     let y: BigInt = ctx.exec_scopes.get(Scope::Y.into())?;
     let y_square_int: BigInt = ctx.exec_scopes.get(Scope::YSquareInt.into())?;
@@ -23,7 +23,7 @@ pub(crate) fn is_on_curve(mut ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn read_ec_point_from_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let not_on_curve = ctx.get_integer(Ids::NotOnCurve)?;
     let ec_point_address = get_address_of_nested_fields(
