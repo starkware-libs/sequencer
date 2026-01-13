@@ -76,7 +76,7 @@ macro_rules! impl_common_hint_processor_logic {
                     exec_scopes,
                     ids_data: &hint_processor_data.ids_data,
                     ap_tracking: &hint_processor_data.ap_tracking,
-                    constants: &self.program.constants,
+                    program: self.program,
                 };
                 let hint_str = hint_processor_data.code.as_str();
                 if let Ok(hint) = AllHints::from_str(hint_str) {
