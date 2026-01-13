@@ -173,17 +173,11 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
             .get_sierra()
             .calculate_class_hash()
     );
-    // Add historical block hashes.
-    let block_hash_state_diff = generate_block_hash_storage_updates();
-    state_diff.extend(&block_hash_state_diff);
+    // Add historical block hashes to state_diff for commitment.
+    let block_hash_state_maps = generate_block_hash_storage_updates();
+    state_diff.extend(&block_hash_state_maps);
 
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
-
-    // Add historical block hashes.
-    let block_hash_state_maps = generate_block_hash_storage_updates();
-    final_state
-        .state
-        .apply_writes(&block_hash_state_maps, &final_state.class_hash_to_class.borrow());
 
     // Commits the state diff with block hash mappings.
     let committer_state_diff = create_committer_state_diff(state_diff);
