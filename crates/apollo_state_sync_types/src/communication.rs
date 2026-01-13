@@ -104,7 +104,6 @@ pub trait StateSyncClient: Send + Sync {
 }
 
 #[derive(Clone, Debug, Error)]
-#[cfg_attr(any(feature = "testing", test), derive(PartialEq))]
 pub enum StateSyncClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
