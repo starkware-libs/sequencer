@@ -102,9 +102,8 @@ pub(crate) struct GasPriceParams {
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
     pub l1_gas_tip_wei: GasPrice,
-    // TODO(guyn): replace these overrides with fri values
-    pub override_l1_gas_price_wei: Option<GasPrice>,
-    pub override_l1_data_gas_price_wei: Option<GasPrice>,
+    pub override_l1_gas_price_fri: Option<GasPrice>,
+    pub override_l1_data_gas_price_fri: Option<GasPrice>,
     pub override_eth_to_fri_rate: Option<u128>,
 }
 
@@ -131,6 +130,18 @@ impl L1PricesInFri {
 pub struct L1PricesInWei {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
+}
+
+impl L1PricesInWei {
+    pub fn convert_from_fri(
+        fri: L1PricesInFri,
+        eth_to_fri_rate: u128,
+    ) -> Result<Self, StarknetApiError> {
+        Ok(Self {
+            l1_gas_price: fri.l1_gas_price.fri_to_wei(eth_to_fri_rate)?,
+            l1_data_gas_price: fri.l1_data_gas_price.fri_to_wei(eth_to_fri_rate)?,
+        })
+    }
 }
 
 // Get the L1 gas prices in fri and wei, and the eth to fri rate.
@@ -171,7 +182,6 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         // Apply the eth/strk rate to get prices in fri.
         let l1_gas_prices_fri_result =
             L1PricesInFri::convert_from_wei(prices_in_wei.clone(), eth_to_fri_rate);
-
         // If conversion fails, leave return_value=None to try backup methods.
         if let Ok(prices_in_fri) = l1_gas_prices_fri_result {
             return (prices_in_fri, prices_in_wei, eth_to_fri_rate);
@@ -244,31 +254,29 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei(
         gas_price_params,
     )
     .await;
-    // TODO(guyn): replace overrides in wei with overrides in fri.
     // If there is an override to eth/strk rate, L1 gas price, or data gas price, apply it now.
     if let Some(override_value) = gas_price_params.override_eth_to_fri_rate {
         info!("Overriding eth to fri rate to {override_value}");
         values.2 = override_value;
-        values.0 = L1PricesInFri::convert_from_wei(values.1.clone(), override_value).unwrap();
+        values.1 = L1PricesInWei::convert_from_fri(values.0.clone(), override_value).unwrap();
     }
-    if let Some(override_value) = gas_price_params.override_l1_gas_price_wei {
-        info!("Overriding L1 gas price to {override_value} wei");
-        values.1.l1_gas_price = override_value;
-        values.0.l1_gas_price = override_value.wei_to_fri(values.2).unwrap_or_else(|err| {
+    if let Some(override_value) = gas_price_params.override_l1_gas_price_fri {
+        info!("Overriding L1 gas price to {override_value} fri");
+        values.0.l1_gas_price = override_value;
+        values.1.l1_gas_price = override_value.fri_to_wei(values.2).unwrap_or_else(|err| {
             panic!(
                 "Override L1 gas price should be small enough to multiply safely by the eth to \
-                 fri conversion rate: {err:?}",
+                 wei factor (10^18), and divide safely by the (non-zero) eth to fri rate: {err:?}",
             )
         });
     }
-    if let Some(override_value) = gas_price_params.override_l1_data_gas_price_wei {
-        info!("Overriding L1 data gas price to {override_value} wei");
-        values.1.l1_data_gas_price = override_value;
-        values.0.l1_data_gas_price = override_value.wei_to_fri(values.2).unwrap_or_else(|e| {
+    if let Some(override_value) = gas_price_params.override_l1_data_gas_price_fri {
+        info!("Overriding L1 data gas price to {override_value} fri");
+        values.0.l1_data_gas_price = override_value;
+        values.1.l1_data_gas_price = override_value.fri_to_wei(values.2).unwrap_or_else(|e| {
             panic!(
                 "Override L1 data gas price should be small enough to multiply safely by the eth \
-                 to fri conversion rate: {:?}",
-                e
+                 to wei factor (10^18), and divide safely by the (non-zero) eth to fri rate: {e:?}",
             )
         });
     }
@@ -294,6 +302,7 @@ pub(crate) fn apply_fee_transformations(
 pub(crate) fn convert_to_sn_api_block_info(
     block_info: &ConsensusBlockInfo,
 ) -> Result<starknet_api::block::BlockInfo, StarknetApiError> {
+    // TODO(guyn): add warn! if any of these are zero.
     let l1_gas_price_fri = NonzeroGasPrice::new(block_info.l1_gas_price_fri)?;
     let l1_data_gas_price_fri = NonzeroGasPrice::new(block_info.l1_data_gas_price_fri)?;
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
@@ -456,8 +465,8 @@ pub(crate) fn make_gas_price_params(config: &ContextDynamicConfig) -> GasPricePa
         max_l1_data_gas_price_wei: GasPrice(config.max_l1_data_gas_price_wei),
         l1_data_gas_price_multiplier: Ratio::new(config.l1_data_gas_price_multiplier_ppt, 1000),
         l1_gas_tip_wei: GasPrice(config.l1_gas_tip_wei),
-        override_l1_gas_price_wei: config.override_l1_gas_price_wei.map(GasPrice),
-        override_l1_data_gas_price_wei: config.override_l1_data_gas_price_wei.map(GasPrice),
+        override_l1_gas_price_fri: config.override_l1_gas_price_fri.map(GasPrice),
+        override_l1_data_gas_price_fri: config.override_l1_data_gas_price_fri.map(GasPrice),
         override_eth_to_fri_rate: config.override_eth_to_fri_rate,
     }
 }
