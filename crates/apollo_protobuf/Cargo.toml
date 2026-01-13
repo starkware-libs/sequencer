@@ -44,6 +44,7 @@ prost-build.workspace = true
 protoc-prebuilt.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
+rstest.workspace = true
 tempfile.workspace = true
 
 [package.metadata.cargo-machete]

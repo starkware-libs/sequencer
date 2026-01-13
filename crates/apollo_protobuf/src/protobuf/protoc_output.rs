@@ -342,8 +342,9 @@ pub struct DeployAccountV3 {
     #[prost(enumeration = "VolitionDomain", tag = "10")]
     pub fee_data_availability_mode: i32,
 }
-/// Contains all variants of mempool and an L1Handler variant to cover all transactions that can be
-/// in a new block.
+/// Contains all transaction types that can be in a new block:
+/// - User transactions (same types as MempoolTransaction: Declare, DeployAccount, Invoke)
+/// - L1Handler transactions (messages from L1, not propagated via mempool)
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConsensusTransaction {
