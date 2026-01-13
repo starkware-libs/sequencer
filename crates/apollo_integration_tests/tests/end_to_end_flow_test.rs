@@ -2,6 +2,7 @@ use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_l1_to_l2_messages_args,
+    ProposalMarginMillis,
     ACCOUNT_ID_0,
     ACCOUNT_ID_1,
     UNDEPLOYED_ACCOUNT_ID,
@@ -25,11 +26,14 @@ mod common;
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_end_to_end_flow() {
-    end_to_end_flow(EndToEndFlowArgs::new(
-        TestIdentifier::EndToEndFlowTest,
-        create_test_scenarios(),
-        BouncerWeights::default().proving_gas,
-    ))
+    end_to_end_flow(
+        EndToEndFlowArgs::new(
+            TestIdentifier::EndToEndFlowTest,
+            create_test_scenarios(),
+            BouncerWeights::default().proving_gas,
+        )
+        .proposal_margin_millis(ProposalMarginMillis::new(10, 100)),
+    )
     .await
 }
 

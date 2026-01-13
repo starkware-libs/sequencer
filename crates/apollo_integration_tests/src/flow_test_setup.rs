@@ -65,6 +65,7 @@ use crate::utils::{
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     AccumulatedTransactions,
+    ProposalMarginMillis,
 };
 
 pub const NUM_OF_SEQUENCERS: usize = 2;
@@ -95,6 +96,7 @@ impl FlowTestSetup {
         test_unique_index: u16,
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
+        proposal_margin_millis: Option<ProposalMarginMillis>,
     ) -> Self {
         let chain_info = ChainInfo::create_for_testing();
         let mut available_ports = AvailablePorts::new(test_unique_index, 0);
@@ -104,6 +106,7 @@ impl FlowTestSetup {
             create_consensus_manager_configs_and_channels(
                 available_ports.get_next_ports(NUM_OF_SEQUENCERS + 1),
                 &chain_info.chain_id,
+                proposal_margin_millis,
             );
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config] =
             consensus_manager_configs.try_into().unwrap();
@@ -322,6 +325,7 @@ impl FlowSequencerSetup {
 pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
     chain_id: &ChainId,
+    proposal_margin_millis: Option<ProposalMarginMillis>,
 ) -> (
     Vec<ConsensusManagerConfig>,
     BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
@@ -335,6 +339,7 @@ pub fn create_consensus_manager_configs_and_channels(
         network_configs,
         n_network_configs,
         chain_id,
+        proposal_margin_millis,
     );
 
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
