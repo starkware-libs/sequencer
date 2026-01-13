@@ -5,10 +5,12 @@ use std::sync::Arc;
 
 use apollo_infra_utils::run_until::run_until;
 use async_trait::async_trait;
+// todo(victork): finalise migration to hyper 1.x
+use http_1::StatusCode;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
+use hyper::{Body, Client, Request, Response, Server, Uri};
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
@@ -147,7 +149,7 @@ where
             T: Serialize + DeserializeOwned + Debug,
         {
             Ok(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
+                .status(hyper::StatusCode::BAD_REQUEST)
                 .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
                 .unwrap())
         }
@@ -456,7 +458,9 @@ async fn faulty_client_setup() {
             let status_code = http_response.status();
             let body_bytes = to_bytes(http_response.into_body()).await.unwrap();
             let response = SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes).unwrap();
-            Err(ClientError::ResponseError(status_code, response))
+            // Convert hyper::StatusCode to http_1::StatusCode for ClientError
+            let status_code_1 = StatusCode::from_u16(status_code.as_u16()).unwrap();
+            Err(ClientError::ResponseError(status_code_1, response))
         }
     }
     let faulty_a_client = FaultyAClient { socket: a_socket };
@@ -474,7 +478,7 @@ async fn unconnected_server() {
         socket.port(),
         &TEST_REMOTE_CLIENT_METRICS,
     );
-    let expected_error_contained_keywords = ["Connection refused"];
+    let expected_error_contained_keywords = ["client error (Connect)"];
     verify_error(client, &expected_error_contained_keywords).await;
 }
 
@@ -512,12 +516,12 @@ async fn retry_request() {
             let body = ComponentAResponse::AGetValue(VALID_VALUE_A);
             let ret = if *should_send_ok {
                 Response::builder()
-                    .status(StatusCode::OK)
+                    .status(hyper::StatusCode::OK)
                     .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
                     .unwrap()
             } else {
                 Response::builder()
-                    .status(StatusCode::IM_A_TEAPOT)
+                    .status(hyper::StatusCode::IM_A_TEAPOT)
                     .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
                     .unwrap()
             };
