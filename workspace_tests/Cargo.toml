@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Workspace-level tests."
 
 [dev-dependencies]
+expect-test.workspace = true
 toml_test_utils.path = "../toml_test_utils"
 
 [[test]]
