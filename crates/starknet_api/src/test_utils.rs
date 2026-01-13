@@ -56,6 +56,8 @@ pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
 pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 
 // Range of historical blocks to populate in the block hash contract.
+// This should represent the range block numbers between CURRENT_BLOCK_NUMBER - 51 <= block number
+// < CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER.
 pub const BLOCK_HASH_HISTORY_RANGE: u64 = 51;
 
 // The block timestamp of the BlockContext being used for testing.
@@ -387,7 +389,9 @@ impl ProofFacts {
         assert!(
             block_number < felt!(CURRENT_BLOCK_NUMBER)
                 && block_number >= felt!(block_hash_history_start),
-            "Block number is out of range"
+            "To have a matching block hash stored to this block number in tests the block number \
+             must be in the range of the block hash history range {block_hash_history_start} - \
+             {CURRENT_BLOCK_NUMBER}."
         );
         // TODO(AvivG): Change to valid values when available.
         let config_hash = felt!("0x1");
