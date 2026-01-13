@@ -8,7 +8,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 import kubernetes  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
@@ -17,6 +17,13 @@ from echonet.echonet_types import CONFIG, JsonObject
 from echonet.logger import get_logger
 
 logger = get_logger("sequencer_manager")
+
+REVERT_INACTIVITY_SUBSTRINGS: tuple[str, ...] = (
+    "Reverting Batcher's storage to height marker",
+    "Successfully reverted Batcher's storage to height marker",
+    "Reverting State Sync's storage to height marker",
+    "Successfully reverted State Sync's storage to height marker",
+)
 
 
 ConfigMutator = Callable[[JsonObject], None]
@@ -36,7 +43,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 200.0
+    scale_timeout_seconds: float = 1000.0
 
 
 class SequencerManager:
@@ -179,60 +186,54 @@ class SequencerManager:
 
             time.sleep(self._timing.poll_interval_seconds)
 
-    def wait_for_log_substring(
+    def wait_for_log_inactivity(
         self,
-        substring: str,
+        inactivity_substrings: Sequence[str],
+        inactivity_seconds: float = 15.0,
         timeout_seconds: float = 6000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
-        occurrences_required: int = 1,
         pod_name: Optional[str] = None,
     ) -> None:
         """
-        Block until `substring` appears in the pod logs `occurrences_required` times, or timeout.
+        Block until none of `inactivity_substrings` appear in the last `inactivity_seconds` of pod
+        logs.
         """
         pod = pod_name or self.pod_name
         logger.info(
-            "Waiting for log message '%s' in pod '%s' (ns=%s)... (required occurrences: %s)",
-            substring,
+            "Waiting for %ss of log inactivity in pod '%s' (ns=%s)... (substrings: %s)",
+            inactivity_seconds,
             pod,
             self._namespace,
-            occurrences_required,
+            ", ".join(inactivity_substrings),
         )
         start = time.time()
-        tail_arg = None if occurrences_required > 1 else tail_lines
 
         while True:
-            logs = self._read_pod_logs(pod_name=pod, tail_lines=tail_arg)
-
-            if occurrences_required > 1:
-                # If the container restarted, the message might exist only in previous logs.
-                logs_prev = self._read_pod_logs(pod_name=pod, tail_lines=tail_arg, previous=True)
-                if logs_prev:
-                    logs = f"{logs_prev}\n{logs}"
-
-            seen = logs.count(substring)
-            if seen >= occurrences_required:
+            logs_recent = self._read_pod_logs(
+                pod_name=pod,
+                tail_lines=tail_lines,
+                since_seconds=inactivity_seconds,
+            )
+            if not any(s in logs_recent for s in inactivity_substrings):
                 logger.info(
-                    "Found log message '%s' in pod '%s' (occurrences seen: %s/%s).",
-                    substring,
+                    "No revert activity logs were seen for the last %ss in pod '%s'.",
+                    inactivity_seconds,
                     pod,
-                    seen,
-                    occurrences_required,
                 )
                 return
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
-                    f"Timed out after {timeout_seconds}s waiting for log message "
-                    f"'{substring}' in pod '{pod}' (seen {seen}/{occurrences_required})."
+                    f"Timed out after {timeout_seconds}s waiting for {inactivity_seconds}s of log "
+                    f"inactivity in pod '{pod}'."
                 )
             time.sleep(poll_interval_seconds)
 
     def wait_for_synced_block_at_least(
         self,
         target_block: int,
-        timeout_seconds: float = 300.0,
+        timeout_seconds: float = 1000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
@@ -281,6 +282,7 @@ class SequencerManager:
         pod_name: str,
         tail_lines: Optional[int],
         previous: bool = False,
+        since_seconds: Optional[int] = None,
     ) -> str:
         try:
             logs = self._core_v1.read_namespaced_pod_log(
@@ -289,6 +291,7 @@ class SequencerManager:
                 tail_lines=tail_lines,
                 timestamps=False,
                 previous=previous,
+                since_seconds=since_seconds,
             )
             return logs or ""
         except ApiException as e:
@@ -312,9 +315,8 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
+        self.wait_for_log_inactivity(
+            inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS,
         )
 
         self.configure_revert(should_revert=False)
@@ -334,10 +336,7 @@ class SequencerManager:
 
         self.configure_revert(should_revert=True)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
-        )
+        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
 
         self.configure_start_sync()
         self.restart_node()
@@ -345,10 +344,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
-        )
+        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
 
         self.configure_revert(should_revert=False)
         self.restart_node()
