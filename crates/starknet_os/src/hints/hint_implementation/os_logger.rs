@@ -25,7 +25,7 @@ pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
         ctx.ids_data,
         ctx.ap_tracking,
         is_deprecated,
-        hint_processor.program,
+        ctx.program,
         ctx.vm,
     )
 }
@@ -45,7 +45,7 @@ pub(crate) fn os_logger_exit_syscall<S: StateReader>(
         ctx.ids_data,
         ctx.vm,
         ctx.ap_tracking,
-        hint_processor.program,
+        ctx.program,
     )?)
 }
 
@@ -59,7 +59,7 @@ pub(crate) fn log_enter_syscall<S: StateReader>(
         ctx.ids_data,
         ctx.ap_tracking,
         is_deprecated,
-        hint_processor.program,
+        ctx.program,
         ctx.vm,
     )
 }
