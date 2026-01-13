@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
 use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
@@ -258,11 +258,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (mut parent_hash, partial_block_hash_components) =
+                let (parent_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
-                if height == BlockNumber::ZERO {
-                    parent_hash = Some(BlockHash::GENESIS_PARENT_HASH);
-                }
                 let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
                     height.prev().expect(
                         "For the genesis block, the block hash is constant and should not be \

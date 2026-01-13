@@ -1450,10 +1450,7 @@ impl BatcherStorageReader for StorageReader {
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
         let txn = self.begin_ro_txn()?;
         let parent_hash = match height.prev() {
-            None => {
-                // The parent hash of the genesis block is zero.
-                Some(BlockHash::default())
-            }
+            None => Some(BlockHash::GENESIS_PARENT_HASH),
             Some(parent_height) => txn.get_block_hash(&parent_height)?,
         };
         let partial_block_hash_components = txn.get_partial_block_hash_components(&height)?;
