@@ -202,7 +202,6 @@ use crate::{
     internal_server_error_with_msg,
     run_server,
     ContinuationTokenAsStruct,
-    GENESIS_HASH,
 };
 
 const NODE_VERSION: &str = "NODE VERSION";
@@ -2894,7 +2893,7 @@ async fn test_get_events(
     let mut rng = get_rng();
 
     let mut event_index_to_event = HashMap::<EventIndex, Event>::new();
-    let mut parent_hash = BlockHash(felt!(GENESIS_HASH));
+    let mut parent_hash = BlockHash::GENESIS_PARENT_HASH;
     let mut rw_txn = storage_writer.begin_rw_txn().unwrap();
     for (i, block_metadata) in block_metadatas.iter().enumerate() {
         let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));

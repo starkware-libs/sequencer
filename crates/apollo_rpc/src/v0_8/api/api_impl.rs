@@ -50,7 +50,6 @@ use starknet_api::core::{
     BLOCK_HASH_TABLE_ADDRESS,
 };
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff as StarknetApiThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
@@ -154,7 +153,6 @@ use crate::{
     internal_server_error_with_msg,
     verify_storage_scope,
     ContinuationTokenAsStruct,
-    GENESIS_HASH,
 };
 
 const DONT_IGNORE_L1_DA_MODE: bool = false;
@@ -507,7 +505,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
             Ok(parent_block_number) => {
                 BlockHeader::from(get_block_header_by_number(&txn, parent_block_number)?).new_root
             }
-            Err(_) => GlobalRoot(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+            Err(_) => GlobalRoot::ROOT_OF_EMPTY_STATE,
         };
 
         // Get the block state diff.
@@ -1560,8 +1558,10 @@ async fn read_pending_data<Mode: TransactionKind>(
     let latest_header = match get_latest_block_number(txn)? {
         Some(latest_block_number) => get_block_header_by_number(txn, latest_block_number)?,
         None => starknet_api::block::BlockHeader {
+            // TODO(Shahak): Consider adding genesis hash to the config to support chains that have
+            // different genesis hash.
             block_header_without_hash: BlockHeaderWithoutHash {
-                parent_hash: BlockHash(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+                parent_hash: BlockHash::GENESIS_PARENT_HASH,
                 ..Default::default()
             },
             ..Default::default()
