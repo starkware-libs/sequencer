@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use apollo_infra_utils::run_until::run_until;
 use async_trait::async_trait;
+// todo(victork): finalise migration to hyper 1.x
+use http_1::StatusCode as StatusCode1;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
@@ -253,7 +255,7 @@ async fn remote_connection_concurrency() {
 
     match err {
         ClientError::ResponseError(status, server_err) => {
-            assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(status, StatusCode1::SERVICE_UNAVAILABLE);
             let msg = server_err.to_string();
             assert!(
                 msg.contains(BUSY_PREVIOUS_REQUESTS_MSG),
@@ -456,7 +458,9 @@ async fn faulty_client_setup() {
             let status_code = http_response.status();
             let body_bytes = to_bytes(http_response.into_body()).await.unwrap();
             let response = SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes).unwrap();
-            Err(ClientError::ResponseError(status_code, response))
+            // Convert hyper::StatusCode to http_1::StatusCode for ClientError
+            let status_code_1 = StatusCode1::from_u16(status_code.as_u16()).unwrap();
+            Err(ClientError::ResponseError(status_code_1, response))
         }
     }
     let faulty_a_client = FaultyAClient { socket: a_socket };
@@ -474,7 +478,7 @@ async fn unconnected_server() {
         socket.port(),
         &TEST_REMOTE_CLIENT_METRICS,
     );
-    let expected_error_contained_keywords = ["Connection refused"];
+    let expected_error_contained_keywords = ["client error (Connect)"];
     verify_error(client, &expected_error_contained_keywords).await;
 }
 
