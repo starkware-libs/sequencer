@@ -417,7 +417,7 @@ class PreResyncReportWriter:
             echonet_reverts=snapshot.revert_errors_echonet,
         )
 
-        logger.info("Echonet report snapshot before resync:\n%s", snapshot_text.rstrip())
+        logger.info(f"Echonet report snapshot before resync:\n{snapshot_text.rstrip()}")
 
         self._log_dir.mkdir(parents=True, exist_ok=True)
         ts_suffix = context.timestamp_utc.strftime("%Y%m%dT%H%M%SZ")
