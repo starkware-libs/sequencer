@@ -89,6 +89,7 @@ impl BenchmarkFlavor {
                 (block_number / FLAVOR_PERIOD_PERIOD) * updates_per_period
                     + total_leaves_added_in_period
             }
+            Self::Mainnet => unimplemented!(),
         }
     }
 
@@ -140,6 +141,7 @@ impl BenchmarkFlavor {
                 };
                 leaf_preimages_to_storage_keys(total_leaves..(total_leaves + new_leaves))
             }
+            Self::Mainnet => unimplemented!(),
         }
     }
 
@@ -294,6 +296,11 @@ fn apply_interference<S: AsyncStorage>(
     match interference_type {
         InterferenceType::None => {}
         InterferenceType::Read1KEveryBlock => {
+            // TODO(Nimrod): Implement interference for mainnet-flavor.
+            if benchmark_flavor == BenchmarkFlavor::Mainnet {
+                return;
+            }
+
             let total_leaves =
                 benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
             // Avoid creating an iterator over the entire range - select random leaves, with
