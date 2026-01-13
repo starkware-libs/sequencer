@@ -33,19 +33,19 @@ use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecuto
 // ================================================================================================
 
 /// Virtual block input containing all non-trivial fields for OS block input construction.
-pub struct VirtualOsBlockInput {
-    pub contract_state_commitment_info: CommitmentInfo,
-    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
-    pub contract_class_commitment_info: CommitmentInfo,
-    pub chain_info: OsChainInfo,
-    pub transactions: Vec<(InvokeTransaction, TransactionHash)>,
-    pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
-    pub block_info: BlockInfo,
-    pub initial_reads: StateMaps,
-    pub base_block_hash: BlockHash,
-    pub base_block_header_commitments: BlockHeaderCommitments,
-    pub prev_base_block_hash: BlockHash,
-    pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+pub(crate) struct VirtualOsBlockInput {
+    contract_state_commitment_info: CommitmentInfo,
+    address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    contract_class_commitment_info: CommitmentInfo,
+    chain_info: OsChainInfo,
+    transactions: Vec<(InvokeTransaction, TransactionHash)>,
+    tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
+    block_info: BlockInfo,
+    initial_reads: StateMaps,
+    base_block_hash: BlockHash,
+    base_block_header_commitments: BlockHeaderCommitments,
+    prev_base_block_hash: BlockHash,
+    compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
 impl From<VirtualOsBlockInput> for OsHints {
@@ -110,26 +110,28 @@ impl From<VirtualOsBlockInput> for OsHints {
 /// - `C`: Classes provider for fetching compiled classes
 /// - `S`: Storage proof provider for fetching Patricia proofs
 /// - `V`: Virtual block executor for transaction execution
-pub struct Runner<C, S, V>
+#[allow(dead_code)]
+pub(crate) struct Runner<C, S, V>
 where
     C: ClassesProvider + Sync,
     S: StorageProofProvider + Sync,
     V: VirtualBlockExecutor,
 {
-    pub classes_provider: C,
-    pub storage_proofs_provider: S,
-    pub virtual_block_executor: V,
+    pub(crate) classes_provider: C,
+    pub(crate) storage_proofs_provider: S,
+    pub(crate) virtual_block_executor: V,
     pub(crate) contract_class_manager: ContractClassManager,
     pub(crate) block_number: BlockNumber,
 }
 
+#[allow(dead_code)]
 impl<C, S, V> Runner<C, S, V>
 where
     C: ClassesProvider + Sync,
     S: StorageProofProvider + Sync,
     V: VirtualBlockExecutor,
 {
-    pub fn new(
+    pub(crate) fn new(
         classes_provider: C,
         storage_proofs_provider: S,
         virtual_block_executor: V,
@@ -149,7 +151,7 @@ where
     /// on top of the block number specified in the runner.
     ///
     /// Consumes the runner.
-    pub async fn create_os_hints(
+    pub(crate) async fn create_os_hints(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
@@ -259,7 +261,8 @@ where
 /// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching
 /// - `RpcStorageProofsProvider` for storage proofs
 /// - `RpcVirtualBlockExecutor` for transaction execution
-pub type RpcRunner = Runner<
+#[allow(dead_code)]
+pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
     RpcStorageProofsProvider,
     RpcVirtualBlockExecutor,
@@ -284,18 +287,20 @@ pub type RpcRunner = Runner<
 /// let runner = factory.create_runner(BlockNumber(800000));
 /// let output = runner.run_os(txs).await?;
 /// ```
-pub struct RpcRunnerFactory {
+#[allow(dead_code)]
+pub(crate) struct RpcRunnerFactory {
     /// URL of the RPC node.
-    pub node_url: Url,
+    node_url: Url,
     /// Chain ID for the network.
-    pub chain_id: ChainId,
+    chain_id: ChainId,
     /// Contract class manager for caching compiled classes.
-    pub contract_class_manager: ContractClassManager,
+    contract_class_manager: ContractClassManager,
 }
 
+#[allow(dead_code)]
 impl RpcRunnerFactory {
     /// Creates a new RPC runner factory.
-    pub fn new(
+    pub(crate) fn new(
         node_url: Url,
         chain_id: ChainId,
         contract_class_manager: ContractClassManager,
@@ -307,7 +312,7 @@ impl RpcRunnerFactory {
     ///
     /// The runner is ready to execute transactions on top of the specified block.
     /// Each runner is single-use (consumed when `run_os` is called).
-    pub fn create_runner(&self, block_number: BlockNumber) -> RpcRunner {
+    pub(crate) fn create_runner(&self, block_number: BlockNumber) -> RpcRunner {
         // Create the virtual block executor for this block.
         let virtual_block_executor = RpcVirtualBlockExecutor::new(
             self.node_url.to_string(),

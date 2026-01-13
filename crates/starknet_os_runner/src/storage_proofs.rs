@@ -34,7 +34,8 @@ use crate::virtual_block_executor::VirtualBlockExecutionData;
 /// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
 #[async_trait]
-pub trait StorageProofProvider {
+#[allow(dead_code)]
+pub(crate) trait StorageProofProvider {
     async fn get_storage_proofs(
         &self,
         block_number: BlockNumber,
@@ -43,26 +44,30 @@ pub trait StorageProofProvider {
 }
 
 /// Query parameters for fetching storage proofs from RPC.
-pub struct RpcStorageProofsQuery {
-    pub class_hashes: Vec<Felt>,
-    pub contract_addresses: Vec<ContractAddress>,
-    pub contract_storage_keys: Vec<ContractStorageKeys>,
+#[allow(dead_code)]
+pub(crate) struct RpcStorageProofsQuery {
+    pub(crate) class_hashes: Vec<Felt>,
+    pub(crate) contract_addresses: Vec<ContractAddress>,
+    pub(crate) contract_storage_keys: Vec<ContractStorageKeys>,
 }
 
 /// Complete OS input data built from RPC proofs.
-pub struct StorageProofs {
+#[allow(dead_code)]
+pub(crate) struct StorageProofs {
     /// State information discovered in the Patricia proof (nonces, class hashes)
     /// that might not have been explicitly read during transaction execution.
     /// This data is required by the OS to verify the contract state leaves.
-    pub proof_state: StateMaps,
-    pub commitment_infos: StateCommitmentInfos,
+    pub(crate) proof_state: StateMaps,
+    pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
 /// Wrapper around `JsonRpcClient` for fetching storage proofs.
-pub struct RpcStorageProofsProvider(pub JsonRpcClient<HttpTransport>);
+#[allow(dead_code)]
+pub(crate) struct RpcStorageProofsProvider(pub(crate) JsonRpcClient<HttpTransport>);
 
+#[allow(dead_code)]
 impl RpcStorageProofsProvider {
-    pub fn new(rpc_url: url::Url) -> Self {
+    pub(crate) fn new(rpc_url: url::Url) -> Self {
         let transport = HttpTransport::new(rpc_url);
         let client = JsonRpcClient::new(transport);
         Self(client)
@@ -76,7 +81,9 @@ impl RpcStorageProofsProvider {
     }
 
     /// Extract query parameters from the execution data.
-    pub fn prepare_query(execution_data: &VirtualBlockExecutionData) -> RpcStorageProofsQuery {
+    pub(crate) fn prepare_query(
+        execution_data: &VirtualBlockExecutionData,
+    ) -> RpcStorageProofsQuery {
         let class_hashes: Vec<Felt> =
             execution_data.executed_class_hashes.iter().map(|ch| ch.0).collect();
 
@@ -112,7 +119,7 @@ impl RpcStorageProofsProvider {
     ///
     /// This is a standard API contract for batched requests. Validation is performed in
     /// `to_storage_proofs` to detect any violations of this assumption.
-    pub async fn fetch_proofs(
+    pub(crate) async fn fetch_proofs(
         &self,
         block_number: BlockNumber,
         query: &RpcStorageProofsQuery,
@@ -140,7 +147,7 @@ impl RpcStorageProofsProvider {
     ///
     /// This function validates that the RPC response arrays match the expected lengths from
     /// the query, ensuring the RPC provider returned data in the correct order.
-    pub fn to_storage_proofs(
+    pub(crate) fn to_storage_proofs(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
     ) -> Result<StorageProofs, ProofProviderError> {
