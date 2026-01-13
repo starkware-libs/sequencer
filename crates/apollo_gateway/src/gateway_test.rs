@@ -11,6 +11,7 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
+    ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -126,6 +127,7 @@ fn mock_dependencies() -> MockDependencies {
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,
+        proof_archive_writer_config: ProofArchiveWriterConfig::default(),
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);

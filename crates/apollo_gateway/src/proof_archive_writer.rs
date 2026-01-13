@@ -1,3 +1,4 @@
+use apollo_gateway_config::config::ProofArchiveWriterConfig;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -22,13 +23,15 @@ pub enum ProofArchiveError {
 }
 
 #[derive(Clone, Default)]
-// TODO(Einat): Add GCS related fields.
-pub struct GcsProofArchiveWriter;
+pub struct GcsProofArchiveWriter {
+    // TODO(Einat): remove #[allow(dead_code)] once implemented.
+    #[allow(dead_code)]
+    config: ProofArchiveWriterConfig,
+}
 
 impl GcsProofArchiveWriter {
-    pub fn new() -> Self {
-        // TODO(Einat): connect to GCS client.
-        Self
+    pub fn new(config: ProofArchiveWriterConfig) -> Self {
+        Self { config }
     }
 }
 
