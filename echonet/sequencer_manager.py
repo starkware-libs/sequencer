@@ -99,7 +99,7 @@ class SequencerManager:
         Read the node JSON config from the sequencer ConfigMap, mutate it in-place, and patch it back.
         """
         configmap_name = self._spec.configmap_name
-        logger.info("Fetching ConfigMap '%s' in namespace '%s'...", configmap_name, self._namespace)
+        logger.info(f"Fetching ConfigMap '{configmap_name}' in namespace '{self._namespace}'...")
         configmap = self._core_v1.read_namespaced_config_map(configmap_name, self._namespace)
 
         config: JsonObject = json.loads(configmap.data["config"])
@@ -139,10 +139,7 @@ class SequencerManager:
     def scale(self, replicas: int) -> None:
         stateful_set_name = self._spec.statefulset_name
         logger.info(
-            "Scaling StatefulSet '%s' in namespace '%s' to %s replicas...",
-            stateful_set_name,
-            self._namespace,
-            replicas,
+            f"Scaling StatefulSet '{stateful_set_name}' in namespace '{self._namespace}' to {replicas} replicas..."
         )
         self._apps_v1.patch_namespaced_stateful_set_scale(
             name=stateful_set_name,
@@ -150,7 +147,7 @@ class SequencerManager:
             body={"spec": {"replicas": replicas}},
         )
         self._wait_for_statefulset_replicas(expected_replicas=replicas)
-        logger.info("Scaling to %s replicas done.", replicas)
+        logger.info(f"Scaling to {replicas} replicas done.")
 
     def restart_node(self) -> None:
         """Restart the node by scaling `1 -> 0 -> 1` (waits at each step)."""
@@ -160,9 +157,7 @@ class SequencerManager:
     def _wait_for_statefulset_replicas(self, expected_replicas: int) -> None:
         stateful_set_name = self._spec.statefulset_name
         logger.info(
-            "Waiting for StatefulSet '%s' to reach %s replicas...",
-            stateful_set_name,
-            expected_replicas,
+            f"Waiting for StatefulSet '{stateful_set_name}' to reach {expected_replicas} replicas..."
         )
         start = time.time()
 
@@ -172,10 +167,10 @@ class SequencerManager:
             )
             replicas = stateful_set.status.replicas or 0
             ready = stateful_set.status.ready_replicas or 0
-            logger.info("Current replicas: %s, ready: %s", replicas, ready)
+            logger.info(f"Current replicas: {replicas}, ready: {ready}")
 
             if replicas == expected_replicas and ready == expected_replicas:
-                logger.info("StatefulSet reached %s replicas.", expected_replicas)
+                logger.info(f"StatefulSet reached {expected_replicas} replicas.")
                 return
 
             if time.time() - start > self._timing.scale_timeout_seconds:
@@ -201,11 +196,8 @@ class SequencerManager:
         """
         pod = pod_name or self.pod_name
         logger.info(
-            "Waiting for %ss of log inactivity in pod '%s' (ns=%s)... (substrings: %s)",
-            inactivity_seconds,
-            pod,
-            self._namespace,
-            ", ".join(inactivity_substrings),
+            f"Waiting for {inactivity_seconds}s of log inactivity in pod '{pod}' (ns={self._namespace})... "
+            f"(substrings: {', '.join(inactivity_substrings)})"
         )
         start = time.time()
 
@@ -217,9 +209,7 @@ class SequencerManager:
             )
             if not any(s in logs_recent for s in inactivity_substrings):
                 logger.info(
-                    "No revert activity logs were seen for the last %ss in pod '%s'.",
-                    inactivity_seconds,
-                    pod,
+                    f"No revert activity logs were seen for the last {inactivity_seconds}s in pod '{pod}'."
                 )
                 return
 
@@ -241,10 +231,7 @@ class SequencerManager:
         """Wait until logs show a synced block height >= `target_block`."""
         pod = pod_name or self.pod_name
         logger.info(
-            "Waiting for synced block to be >= %s in pod '%s' (ns=%s)...",
-            target_block,
-            pod,
-            self._namespace,
+            f"Waiting for synced block to be >= {target_block} in pod '{pod}' (ns={self._namespace})..."
         )
 
         pattern = re.compile(r"Adding sync block to Batcher for height (\d+)")
@@ -259,15 +246,12 @@ class SequencerManager:
                 highest_seen = block_num if highest_seen is None else max(highest_seen, block_num)
                 if block_num >= target_block:
                     logger.info(
-                        "Found new block synced %s (>= %s) in pod '%s'.",
-                        block_num,
-                        target_block,
-                        pod,
+                        f"Found new block synced {block_num} (>= {target_block}) in pod '{pod}'."
                     )
                     return
 
             if highest_seen:
-                logger.info("Latest new block synced found in recent logs: %s", highest_seen)
+                logger.info(f"Latest new block synced found in recent logs: {highest_seen}")
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
@@ -297,7 +281,7 @@ class SequencerManager:
         except ApiException as e:
             if previous and getattr(e, "status", None) == 400:
                 return ""
-            logger.warning("Could not read logs for pod %s: %s", pod_name, e.reason)
+            logger.warning(f"Could not read logs for pod {pod_name}: {e.reason}")
             return ""
 
     def scale_to_zero(self) -> None:
@@ -332,7 +316,7 @@ class SequencerManager:
         - Stop sync at block + bounce + wait for pending
         - Disable revert + bounce
         """
-        logger.info("Starting resync workflow around block %s...", block_number)
+        logger.info(f"Starting resync workflow around block {block_number}...")
 
         self.configure_revert(should_revert=True)
         self.restart_node()
@@ -355,5 +339,5 @@ class SequencerManager:
 def _read_namespace_from_serviceaccount(namespace_path: str) -> str:
     with open(namespace_path, "r") as f:
         namespace = f.read().strip()
-    logger.info("Auto-detected namespace: %s", namespace)
+    logger.info(f"Auto-detected namespace: {namespace}")
     return namespace
