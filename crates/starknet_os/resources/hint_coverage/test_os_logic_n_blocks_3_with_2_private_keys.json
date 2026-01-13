@@ -183,6 +183,9 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
+    "CommonHint": "GetPublicKeys"
+  },
+  {
     "DeprecatedSyscallHint": "CallContract"
   },
   {
@@ -445,9 +448,6 @@
   },
   {
     "OsHint": "LogRemainingBlocks"
-  },
-  {
-    "OsHint": "GetPublicKeys"
   },
   {
     "OsHint": "GetBlockHashes"

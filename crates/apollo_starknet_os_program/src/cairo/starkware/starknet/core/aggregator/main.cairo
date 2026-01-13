@@ -37,7 +37,7 @@ func main{
     // Guess the committee's public keys.
     local public_keys: felt*;
     local n_public_keys: felt;
-    %{ GetPublicKeysFromAggregatorInput %}
+    %{ GetPublicKeys %}
 
     check_public_keys{hash_ptr=pedersen_ptr}(
         n_public_keys=n_public_keys,
