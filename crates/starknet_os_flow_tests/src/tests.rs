@@ -1077,39 +1077,6 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
     );
 
-    // Test get_execution_info; invoke a function that gets the expected execution info and compares
-    // it to the actual.
-    let test_execution_info_selector_name = "test_get_execution_info";
-    let test_execution_info_selector = selector_from_name(test_execution_info_selector_name);
-    let only_query = false;
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
-    let expected_execution_info = ExpectedExecutionInfo::new(
-        only_query,
-        *FUNDED_ACCOUNT_ADDRESS,
-        *FUNDED_ACCOUNT_ADDRESS,
-        main_contract_address,
-        chain_id.clone(),
-        test_execution_info_selector,
-        current_block_number,
-        BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
-        contract_address!(TEST_SEQUENCER_ADDRESS),
-        *NON_TRIVIAL_RESOURCE_BOUNDS,
-        test_builder.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        proof_facts.clone(),
-    )
-    .to_syscall_result();
-    let invoke_tx_args = invoke_tx_args! {
-        calldata: create_calldata(
-            main_contract_address, test_execution_info_selector_name, &expected_execution_info
-        ),
-        proof_facts,
-    };
-    // Put the tx hash in the signature.
-    let mut tx = test_builder.create_funded_account_invoke(invoke_tx_args);
-    let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
-    tx_v3.signature = TransactionSignature(Arc::new(vec![tx.tx_hash.0]));
-    test_builder.add_invoke_tx(tx, None);
-
     // Test Cairo 1.0 deploy syscall.
     let salt = Felt::from(7);
     let deploy_from_zero = Felt::ZERO;
@@ -1137,6 +1104,8 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 
     // Test calling test_get_execution_info.
     let test_call_contract_selector_name = "test_call_contract";
+    let test_execution_info_selector = selector_from_name("test_get_execution_info");
+    let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
         *FUNDED_ACCOUNT_ADDRESS,
