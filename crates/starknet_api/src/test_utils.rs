@@ -55,7 +55,8 @@ pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
 pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 
-// Range of historical blocks to populate in the block hash contract.
+// Offset (in blocks) from the current block number that determines the oldest
+// block number whose block hash will be populated in the block-hash contract.
 pub const BLOCK_HASH_HISTORY_RANGE: u64 = 51;
 
 // The block timestamp of the BlockContext being used for testing.
@@ -387,7 +388,8 @@ impl ProofFacts {
         assert!(
             block_number < felt!(CURRENT_BLOCK_NUMBER)
                 && block_number >= felt!(block_hash_history_start),
-            "Block number is out of range"
+            "To have a matching block hash stored in tests, the block number must be one whose \
+             block hash is populated in the block-hash contract."
         );
         // TODO(AvivG): Change to valid values when available.
         let config_hash = felt!("0x1");
