@@ -7,13 +7,14 @@ use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
-use axum::{async_trait, Json, Router, Server};
-use hyper::Error;
+//TODO(victork): finalise migration to hyper 1.x
+use axum_07::extract::Path;
+use axum_07::http::StatusCode;
+use axum_07::response::{IntoResponse, Response};
+use axum_07::routing::{get, post};
+use axum_07::{async_trait, Json, Router};
 use metrics_exporter_prometheus::PrometheusHandle;
+use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info, instrument};
 
@@ -63,14 +64,15 @@ impl MonitoringEndpoint {
             version = %self.version,
         ),
         level = "debug")]
-    pub async fn run(&self) -> Result<(), Error> {
+    pub async fn run(&self) -> Result<(), std::io::Error> {
         let MonitoringEndpointConfig { ip, port, .. } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 
         let app = self.app();
         info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
 
-        Server::bind(&endpoint_addr).serve(app.into_make_service()).await
+        let listener = TcpListener::bind(&endpoint_addr).await?;
+        axum_07::serve(listener, app).await
     }
 
     fn app(&self) -> Router {
