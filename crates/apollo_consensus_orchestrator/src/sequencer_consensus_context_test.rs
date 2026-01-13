@@ -1151,7 +1151,7 @@ async fn change_gas_price_overrides() {
 
     // Validate block number 1, round 1.
     let new_dynamic_config = ContextDynamicConfig {
-        min_l1_data_gas_price_wei: ODDLY_SPECIFIC_L1_DATA_GAS_PRICE,
+        override_l1_data_gas_price_fri: Some(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE),
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
@@ -1170,7 +1170,7 @@ async fn change_gas_price_overrides() {
 
     // Add the new overrides so validation passes.
     let mut modified_block_info = block_info(BlockNumber(1));
-    modified_block_info.l1_data_gas_price_wei = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
     // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
     // fri 1:1.
     modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
