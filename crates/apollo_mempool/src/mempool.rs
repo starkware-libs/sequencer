@@ -586,6 +586,7 @@ impl Mempool {
         Ok(())
     }
 
+    #[allow(dead_code)] // Still part of Mempool API, but not used since communication.rs uses NaiveMempool
     pub(crate) fn update_dynamic_config(&mut self, mempool_dynamic_config: MempoolDynamicConfig) {
         self.config.dynamic_config = mempool_dynamic_config;
     }
