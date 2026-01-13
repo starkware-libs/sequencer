@@ -22,12 +22,14 @@ use crate::utils::try_increment_nonce;
 #[path = "transaction_pool_test.rs"]
 pub mod transaction_pool_test;
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: all data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashToTransaction,
@@ -39,6 +41,7 @@ pub struct TransactionPool {
     size: PoolSize,
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl TransactionPool {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
         TransactionPool {
@@ -265,9 +268,11 @@ impl TransactionPool {
     }
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 #[derive(Debug, Default, Eq, PartialEq)]
 struct AccountTransactionIndex(HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl AccountTransactionIndex {
     /// If the transaction already exists in the mapping, the old value is returned.
     fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
@@ -324,12 +329,14 @@ impl AccountTransactionIndex {
     }
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct PoolSize {
     // Keeps track of the total size of the transactions in the pool.
     size_in_bytes: u64,
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl PoolSize {
     fn add(&mut self, tx_size_in_bytes: u64) {
         self.size_in_bytes = self
@@ -351,6 +358,7 @@ impl PoolSize {
 }
 
 /// Uniquely identify a transaction submission.
+#[allow(dead_code)] // Unused in naive mempool implementation
 #[derive(Clone, Debug)]
 pub(crate) struct SubmissionID {
     pub(crate) submission_time: DateTime,
@@ -386,12 +394,14 @@ impl PartialOrd for SubmissionID {
     }
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 struct TimedTransactionMap {
     txs_by_submission_time: BTreeMap<SubmissionID, TransactionReference>,
     hash_to_submission_id: HashMap<TransactionHash, SubmissionID>,
     clock: Arc<dyn Clock>,
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl TimedTransactionMap {
     fn new(clock: Arc<dyn Clock>) -> Self {
         TimedTransactionMap {
