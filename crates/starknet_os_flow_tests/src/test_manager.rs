@@ -483,6 +483,12 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.initial_state.block_context.block_info().block_number.next().unwrap()
     }
 
+    /// Returns the base (previous) block info from the initial state.
+    /// In virtual OS mode, this is the block info returned by get_execution_info.
+    pub(crate) fn base_block_info(&self) -> &BlockInfo {
+        self.initial_state.block_context.block_info()
+    }
+
     /// Returns the chain ID from the initial state's block context.
     pub(crate) fn chain_id(&self) -> ChainId {
         self.initial_state.block_context.chain_info().chain_id.clone()
