@@ -106,7 +106,7 @@ pub struct StateSyncResources {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub storage_reader_server: Option<GenericStorageReaderServer>,
+    pub storage_reader_server_handle: Option<JoinHandle<()>>,
 }
 
 impl StateSyncResources {
@@ -118,6 +118,8 @@ impl StateSyncResources {
                 storage_reader_server_config,
             )
             .expect("StateSyncRunner failed opening storage");
+        let storage_reader_server_handle =
+            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
@@ -135,7 +137,7 @@ impl StateSyncResources {
             shared_highest_block,
             pending_data,
             pending_classes,
-            storage_reader_server,
+            storage_reader_server_handle,
         }
     }
 }
@@ -162,7 +164,7 @@ impl StateSyncRunner {
             shared_highest_block,
             pending_data,
             pending_classes,
-            storage_reader_server,
+            storage_reader_server_handle,
         } = StateSyncResources::new(&storage_config, storage_reader_server_config);
 
         let register_metrics_future = register_metrics(storage_reader.clone()).boxed();
@@ -429,6 +431,14 @@ impl StateSyncRunner {
             storage_writer,
             Some(class_manager_client),
         )
+    }
+}
+
+impl Drop for StateSyncRunner {
+    fn drop(&mut self) {
+        if let Some(storage_reader_server_handle) = self.storage_reader_server_handle.take() {
+            storage_reader_server_handle.abort();
+        }
     }
 }
 
