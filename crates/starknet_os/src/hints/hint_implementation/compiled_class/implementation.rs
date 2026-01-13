@@ -65,7 +65,7 @@ pub(crate) fn enter_scope_with_bytecode_segment_structure<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
+        ctx.program,
     )?;
     let class_hash = CompiledClassHash(*ctx.vm.get_integer(class_hash_address)?.as_ref());
     let bytecode_segment_structure = bytecode_segment_structures
@@ -153,7 +153,7 @@ pub(crate) fn load_class<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
+        ctx.program,
     )?;
     let expected_hash = ctx.vm.get_integer(expected_hash_address)?;
     let computed_hash = ctx.get_integer(Ids::Hash)?;
@@ -181,7 +181,7 @@ pub(crate) fn load_classes_and_create_bytecode_segment_structures<S: StateReader
     hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
-    let identifier_getter = hint_processor.program;
+    let identifier_getter = ctx.program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = ctx.vm.add_memory_segment();
     let mut bytecode_segment_structures = BTreeMap::new();
@@ -195,7 +195,7 @@ pub(crate) fn load_classes_and_create_bytecode_segment_structures<S: StateReader
             ctx.vm,
             identifier_getter,
             compiled_class_facts_ptr,
-            ctx.constants,
+            &ctx.program.constants,
         )?;
 
         // Compiled classes are expected to end with a `ret` opcode followed by a pointer to

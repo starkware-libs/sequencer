@@ -11,7 +11,6 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn selected_builtins(ctx: HintContext<'_>) -> OsHintResult {
     let n_selected_builtins = ctx.get_integer(Ids::NSelectedBuiltins)?;
@@ -41,22 +40,16 @@ pub(crate) fn select_builtin(mut ctx: HintContext<'_>) -> OsHintResult {
 ///
 /// Assumption: selected builtins encoding is an ordered subset of builtin_params.
 pub(crate) fn update_builtin_ptrs<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_builtins = ctx.get_integer(Ids::NBuiltins)?;
 
-    let builtins_encoding_address = get_address_of_nested_fields(
-        ctx.ids_data,
+    let builtins_encoding = ctx.get_nested_field_ptr(
         Ids::BuiltinParams,
         CairoStruct::BuiltinParamsPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["builtin_encodings"],
-        hint_processor.program,
     )?;
-
-    let builtins_encoding = ctx.vm.get_relocatable(builtins_encoding_address)?;
 
     let n_selected_builtins = ctx.get_integer(Ids::NSelectedBuiltins)?;
 

@@ -5,7 +5,6 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
-use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> OsHintResult {
     let request_block_number = ctx.get_integer(Ids::RequestBlockNumber)?;
@@ -21,18 +20,14 @@ pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> 
 }
 
 pub(crate) fn relocate_sha256_segment<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let state_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
-        ctx.ids_data,
+    let state_ptr = ctx.get_nested_field_ptr(
         Ids::Response,
         CairoStruct::Sha256ProcessBlockResponsePtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["state_ptr"],
-        hint_processor.program,
-    )?)?;
+    )?;
     let actual_out_state_ptr = ctx.get_ptr(Ids::ActualOutState)?;
 
     // TODO(Nimrod): Use SHA256_STATE_SIZE_FELTS constant.
