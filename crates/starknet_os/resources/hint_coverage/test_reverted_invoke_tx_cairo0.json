@@ -357,7 +357,7 @@
     "OsHint": "LogRemainingBlocks"
   },
   {
-    "OsHint": "GetPublicKeys"
+    "CommonHint": "GetPublicKeys"
   },
   {
     "OsHint": "GetBlockHashes"

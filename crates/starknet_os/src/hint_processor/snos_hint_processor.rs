@@ -294,6 +294,10 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
     impl_common_hint_processor_getters!();
 
+    fn get_public_keys(&self) -> Option<&[Felt]> {
+        self.os_hints_config.public_keys.as_deref()
+    }
+
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
         &mut self.rng
     }
