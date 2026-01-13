@@ -106,6 +106,21 @@ pub type CreateL1ToL2MessagesArgsFn =
     fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 
+#[derive(Clone, Copy, Debug)]
+pub struct ProposalMarginMillis {
+    pub build_proposal_margin_millis: Duration,
+    pub validate_proposal_margin_millis: Duration,
+}
+
+impl ProposalMarginMillis {
+    pub fn new(build_proposal_margin_millis: u64, validate_proposal_margin_millis: u64) -> Self {
+        Self {
+            build_proposal_margin_millis: Duration::from_millis(build_proposal_margin_millis),
+            validate_proposal_margin_millis: Duration::from_millis(validate_proposal_margin_millis),
+        }
+    }
+}
+
 pub trait TestScenario {
     fn create_txs(
         &self,
@@ -344,6 +359,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
     n_composed_nodes: usize,
     chain_id: &ChainId,
+    proposal_margin_millis: Option<ProposalMarginMillis>,
 ) -> Vec<ConsensusManagerConfig> {
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
     let mut timeouts = TimeoutsConfig::default();
@@ -352,7 +368,21 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
-        .map(|network_config| ConsensusManagerConfig {
+        .map(|network_config| {
+            let mut context_config = ContextConfig {
+                static_config: ContextStaticConfig {
+                    num_validators,
+                    chain_id: chain_id.clone(),
+                    builder_address: ContractAddress::from(4_u128),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            if let Some(build_margin_millis) = proposal_margin_millis {
+                context_config.static_config.build_proposal_margin_millis = build_margin_millis.build_proposal_margin_millis;
+                context_config.static_config.validate_proposal_margin_millis = build_margin_millis.validate_proposal_margin_millis;
+            }
+            ConsensusManagerConfig {
             network_config,
             consensus_manager_config: ConsensusConfig {
                 dynamic_config: ConsensusDynamicConfig {
@@ -370,21 +400,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     startup_delay: Duration::from_secs(15),
                 },
             },
-            context_config: ContextConfig {
-                static_config: ContextStaticConfig {
-                    num_validators,
-                    chain_id: chain_id.clone(),
-                    builder_address: ContractAddress::from(4_u128),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+            context_config,
             cende_config: CendeConfig {
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
             ..Default::default()
-        })
+        }})
         .collect()
 }
 
@@ -812,6 +834,7 @@ pub struct EndToEndFlowArgs {
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
     pub allow_bootstrap_txs: bool,
+    pub proposal_margin_millis: Option<ProposalMarginMillis>,
 }
 
 impl EndToEndFlowArgs {
@@ -828,6 +851,7 @@ impl EndToEndFlowArgs {
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
             allow_bootstrap_txs: false,
+            proposal_margin_millis: None,
         }
     }
 
@@ -846,6 +870,20 @@ impl EndToEndFlowArgs {
     pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
         Self { instance_indices, ..self }
     }
+
+    pub fn proposal_margin_millis(
+        self,
+        build_proposal_margin_millis: u64,
+        validate_proposal_margin_millis: u64,
+    ) -> Self {
+        Self {
+            proposal_margin_millis: Some(ProposalMarginMillis::new(
+                build_proposal_margin_millis,
+                validate_proposal_margin_millis,
+            )),
+            ..self
+        }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -860,6 +898,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_full_blocks,
         expecting_reverted_transactions,
         allow_bootstrap_txs,
+        proposal_margin_millis,
     } = args;
     configure_tracing().await;
 
@@ -876,6 +915,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         block_max_capacity_gas,
         allow_bootstrap_txs,
         instance_indices,
+        proposal_margin_millis,
     )
     .await;
 

@@ -19,7 +19,8 @@ async fn reverted_l1_handler_tx_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .expecting_reverted_transactions(),
+        .expecting_reverted_transactions()
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }
