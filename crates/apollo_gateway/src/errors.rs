@@ -315,6 +315,9 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ProofManagerClientError(err) => {
             StarknetError::internal_with_logging("Proof manager client error", err)
         }
+        TransactionConverterError::ProofVerificationError(err) => {
+            StarknetError::internal_with_logging("Proof verification error", err)
+        }
         TransactionConverterError::ValidateCompiledClassHashError(err) => {
             convert_compiled_class_hash_error(err)
         }
