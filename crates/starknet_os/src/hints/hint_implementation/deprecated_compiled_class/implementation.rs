@@ -32,7 +32,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
         })?;
 
     let dep_class_base = ctx.vm.add_memory_segment();
-    deprecated_class.load_into(ctx.vm, hint_processor.program, dep_class_base, ctx.constants)?;
+    deprecated_class.load_into(ctx.vm, ctx.program, dep_class_base, &ctx.program.constants)?;
 
     let compiled_class_v0 = CompiledClassV0::try_from(deprecated_class)?;
 
@@ -53,7 +53,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
+        ctx.program,
     )?;
     let computed_hash = ctx.vm.get_integer(computed_hash_addr)?;
     let expected_hash = ctx.exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
@@ -79,7 +79,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         &["bytecode_ptr"],
-        hint_processor.program,
+        ctx.program,
     )?;
     let byte_code_ptr = ctx.vm.get_relocatable(byte_code_ptr_addr)?;
     let constants = dep_class.program.constants.clone();
