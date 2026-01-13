@@ -6,7 +6,6 @@ use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
-use crate::vm_utils::insert_values_to_fields;
 
 // Hint implementations.
 
@@ -17,16 +16,14 @@ pub(crate) fn guess_block_info<S: StateReader>(
     let block_info = &hint_processor.get_current_execution_helper()?.os_block_input.block_info;
     let block_info_ptr = ctx.vm.add_memory_segment();
     ctx.insert_value(Ids::BlockInfo, block_info_ptr)?;
-    insert_values_to_fields(
+    ctx.insert_to_fields(
         block_info_ptr,
         CairoStruct::BlockInfo,
-        ctx.vm,
         &[
             ("block_number", Felt::from(block_info.block_number.0).into()),
             ("block_timestamp", Felt::from(block_info.block_timestamp.0).into()),
             ("sequencer_address", (**block_info.sequencer_address).into()),
         ],
-        hint_processor.program,
     )?;
     Ok(())
 }

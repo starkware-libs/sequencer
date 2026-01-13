@@ -54,7 +54,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
                 ("storage_ptr", storage_ptr.into()),
                 ("nonce", nonce.0.into()),
             ],
-            hint_processor.program,
+            ctx.program,
         )?;
         initial_dict.insert((*contract_address.0.key()).into(), state_entry_base.into());
     }
@@ -183,10 +183,9 @@ pub(crate) fn get_block_hashes<S: StateReader>(
     ctx.insert_value(Ids::ParentHash, os_input.prev_block_hash.0)?;
 
     let header_commitments_ptr = ctx.vm.add_memory_segment();
-    insert_values_to_fields(
+    ctx.insert_to_fields(
         header_commitments_ptr,
         CairoStruct::BlockHeaderCommitments,
-        ctx.vm,
         &[
             ("transaction_commitment", commitments.transaction_commitment.0.into()),
             ("event_commitment", commitments.event_commitment.0.into()),
@@ -194,7 +193,6 @@ pub(crate) fn get_block_hashes<S: StateReader>(
             ("state_diff_commitment", commitments.state_diff_commitment.0.0.into()),
             ("concatenated_counts", commitments.concatenated_counts.into()),
         ],
-        hint_processor.program,
     )?;
     ctx.insert_value(Ids::HeaderCommitments, header_commitments_ptr)?;
 
