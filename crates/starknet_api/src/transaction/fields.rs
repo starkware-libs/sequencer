@@ -662,7 +662,8 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         }
 
-        let [program_hash, block_number_felt, block_hash, config_hash, ..] = snos_fields else {
+        let [program_hash, _version, block_number_felt, block_hash, config_hash, ..] = snos_fields
+        else {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "SNOS proof facts must have at least 5 fields, got {}",
                 proof_facts.0.len()
