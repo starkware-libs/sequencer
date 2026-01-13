@@ -157,8 +157,7 @@ pub(crate) fn set_encrypted_start(mut ctx: HintContext<'_>) -> OsHintResult {
 
 pub(crate) fn set_n_updates_small(mut ctx: HintContext<'_>) -> OsHintResult {
     let n_updates = ctx.get_integer(Ids::NUpdates)?;
-    let n_updates_small_packing_bounds =
-        Const::fetch(&Const::NUpdatesSmallPackingBound, ctx.constants)?;
+    let n_updates_small_packing_bounds = ctx.fetch_const(Const::NUpdatesSmallPackingBound)?;
     ctx.insert_value(
         Ids::IsNUpdatesSmall,
         Felt::from(&n_updates < n_updates_small_packing_bounds),

@@ -84,7 +84,7 @@ pub(crate) fn set_bit<S: StateReader>(
         hint_processor.program,
     )?;
     let edge_path = ctx.vm.get_integer(edge_path_addr)?.into_owned();
-    let new_length: u8 = Ids::NewLength.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
+    let new_length: u8 = ctx.fetch_as(Ids::NewLength)?;
 
     let bit = (edge_path.to_biguint() >> new_length) & BigUint::from(1u64);
     let bit_felt = Felt::from(&bit);
@@ -96,11 +96,11 @@ pub(crate) fn set_bit<S: StateReader>(
 pub(crate) fn set_ap_to_descend(ctx: HintContext<'_>) -> OsHintResult {
     let descent_map: &DescentMap = ctx.exec_scopes.get_ref(Scope::DescentMap.into())?;
 
-    let height = SubTreeHeight(Ids::Height.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?);
+    let height = SubTreeHeight(ctx.fetch_as(Ids::Height)?);
 
     // The path is from the root to the current node, so we can calculate its length.
     let path_to_upper_node = Path(PathToBottom::new(
-        Ids::Path.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?,
+        ctx.fetch_as(Ids::Path)?,
         EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0 - height.0)?,
     )?);
     let descent_start = DescentStart { height, path_to_upper_node };
@@ -214,7 +214,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let n_updates: usize = Ids::NUpdates.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
+    let n_updates: usize = ctx.fetch_as(Ids::NUpdates)?;
 
     let update_ptr_address = ctx.get_ptr(Ids::UpdatePtr)?;
 
@@ -237,7 +237,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
         ));
     }
 
-    let height = SubTreeHeight(Ids::Height.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?);
+    let height = SubTreeHeight(ctx.fetch_as(Ids::Height)?);
     let node = build_update_tree(height, modifications)?;
 
     let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
@@ -330,7 +330,7 @@ pub(crate) fn enter_scope_right_child(ctx: HintContext<'_>) -> OsHintResult {
 
 pub(crate) fn enter_scope_descend_edge(ctx: HintContext<'_>) -> OsHintResult {
     let mut new_node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
-    let length: u8 = Ids::Length.fetch_as(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
+    let length: u8 = ctx.fetch_as(Ids::Length)?;
 
     // We aim to traverse downward through the node until we reach the end of the descent.
     // In this implementation, the node is of type `UpdateTree`, which is not represented as a
