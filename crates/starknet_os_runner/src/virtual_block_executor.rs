@@ -131,7 +131,7 @@ pub struct VirtualBlockExecutionData {
 /// let execution_data = executor.execute(block_number, contract_class_manager, transactions)?;
 /// // Use execution_data to build OS input for proving...
 /// ```
-pub trait VirtualBlockExecutor {
+pub trait VirtualBlockExecutor: Send + 'static {
     /// Executes a virtual block based on the state and context at the given block number.
     ///
     /// # Arguments
