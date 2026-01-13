@@ -90,6 +90,9 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
+    "CommonHint": "GetPublicKeys"
+  },
+  {
     "OsHint": "GuessBlockInfo"
   },
   {
@@ -172,9 +175,6 @@
   },
   {
     "OsHint": "LogRemainingBlocks"
-  },
-  {
-    "OsHint": "GetPublicKeys"
   },
   {
     "OsHint": "GetBlockHashes"

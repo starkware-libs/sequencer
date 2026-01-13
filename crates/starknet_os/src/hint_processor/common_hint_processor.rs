@@ -25,6 +25,8 @@ pub(crate) trait CommonHintProcessor<'a> {
     // Indicates wether to create pages or not when serializing data-availability.
     fn get_serialize_data_availability_create_pages(&self) -> bool;
     fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor;
+    // Gets the public keys used for state diff encryption.
+    fn get_public_keys(&self) -> Option<&[Felt]>;
     // Gets the current randomness.
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng;
     // For testing, track hint coverage.

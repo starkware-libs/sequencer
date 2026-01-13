@@ -183,6 +183,9 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
+    "CommonHint": "GetPublicKeys"
+  },
+  {
     "OsHint": "LoadClass"
   },
   {
@@ -364,9 +367,6 @@
   },
   {
     "OsHint": "LogRemainingBlocks"
-  },
-  {
-    "OsHint": "GetPublicKeys"
   },
   {
     "OsHint": "GetBlockHashes"

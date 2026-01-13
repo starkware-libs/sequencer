@@ -171,6 +171,9 @@
     "CommonHint": "SetStateUpdatePointersToNone"
   },
   {
+    "CommonHint": "GetPublicKeys"
+  },
+  {
     "DeprecatedSyscallHint": "StorageWrite"
   },
   {
@@ -373,9 +376,6 @@
   },
   {
     "OsHint": "LogRemainingBlocks"
-  },
-  {
-    "OsHint": "GetPublicKeys"
   },
   {
     "OsHint": "GetBlockHashes"
