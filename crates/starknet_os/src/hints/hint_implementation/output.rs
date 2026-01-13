@@ -80,7 +80,7 @@ pub(crate) fn set_state_updates_start(mut ctx: HintContext<'_>) -> OsHintResult 
     let use_kzg_da_felt = ctx.get_integer(Ids::UseKzgDa)?;
 
     // Set `use_kzg_da` in globals since it will be used in `process_data_availability`
-    ctx.exec_scopes.insert_value(Scope::UseKzgDa.into(), use_kzg_da_felt);
+    ctx.insert_scope(Scope::UseKzgDa, use_kzg_da_felt);
 
     let compress_state_updates = ctx.get_integer(Ids::CompressStateUpdates)?;
 
@@ -103,7 +103,7 @@ pub(crate) fn set_state_updates_start(mut ctx: HintContext<'_>) -> OsHintResult 
 
 pub(crate) fn set_compressed_start(mut ctx: HintContext<'_>) -> OsHintResult {
     let n_keys = ctx.get_integer(Ids::NKeys)?;
-    let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+    let use_kzg_da_felt: Felt = ctx.get_scope(Scope::UseKzgDa)?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
@@ -120,7 +120,7 @@ pub(crate) fn set_compressed_start(mut ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn set_encrypted_start(mut ctx: HintContext<'_>) -> OsHintResult {
-    let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+    let use_kzg_da_felt: Felt = ctx.get_scope(Scope::UseKzgDa)?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 

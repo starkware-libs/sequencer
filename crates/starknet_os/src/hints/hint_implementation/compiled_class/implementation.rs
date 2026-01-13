@@ -27,13 +27,13 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
-pub(crate) fn assign_bytecode_segments(ctx: HintContext<'_>) -> OsHintResult {
+pub(crate) fn assign_bytecode_segments(mut ctx: HintContext<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
-        ctx.exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
+        ctx.get_scope(Scope::BytecodeSegmentStructure)?;
 
     match bytecode_segment_structure {
         BytecodeSegmentNode::InnerNode(node) => {
-            ctx.exec_scopes.insert_value(Scope::BytecodeSegments.into(), node.segments.into_iter());
+            ctx.insert_scope(Scope::BytecodeSegments, node.segments.into_iter());
             Ok(())
         }
         BytecodeSegmentNode::Leaf(_) => Err(OsHintError::AssignedLeafBytecodeSegment),

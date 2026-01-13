@@ -1,5 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
+use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::DictManager;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -15,7 +18,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
-use crate::hints::vars::{Const, Ids};
+use crate::hints::vars::{Const, Ids, Scope};
 
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
@@ -79,5 +82,22 @@ impl HintContext<'_> {
         <T as TryFrom<Felt>>::Error: std::fmt::Debug,
     {
         constant.fetch_as(self.constants)
+    }
+
+    // Scope helper methods.
+
+    /// Gets a value from the execution scopes.
+    pub(crate) fn get_scope<T: Clone + 'static>(&self, scope: Scope) -> Result<T, HintError> {
+        self.exec_scopes.get(scope.into())
+    }
+
+    /// Inserts a value into the execution scopes.
+    pub(crate) fn insert_scope<T: Clone + Send + Sync + 'static>(&mut self, scope: Scope, value: T) {
+        self.exec_scopes.insert_value(scope.into(), value)
+    }
+
+    /// Gets the dict manager from the execution scopes.
+    pub(crate) fn get_dict_manager(&self) -> Result<Rc<RefCell<DictManager>>, HintError> {
+        self.exec_scopes.get_dict_manager()
     }
 }

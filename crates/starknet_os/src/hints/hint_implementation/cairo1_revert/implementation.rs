@@ -16,7 +16,7 @@ pub(crate) fn prepare_state_entry_for_revert(mut ctx: HintContext<'_>) -> OsHint
 
     // Insert the contract address into the execution scopes instead of the entire storage.
     // Later, we use this address to revert the state.
-    ctx.exec_scopes.insert_value(Scope::ContractAddressForRevert.into(), contract_address);
+    ctx.insert_scope(Scope::ContractAddressForRevert, contract_address);
     Ok(())
 }
 
