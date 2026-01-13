@@ -1,6 +1,10 @@
 // Execution constraints for transaction execution (virtual OS version).
 
+<<<<<<< HEAD
 from starkware.cairo.common.bool import FALSE
+=======
+from starkware.cairo.common.dict_access import DictAccess
+>>>>>>> 740eb351b9 (starknet_os: add proof fact block number to block hash validations)
 from starkware.starknet.core.os.block_context import BlockContext
 
 // Checks that the number of transactions is one.
@@ -33,5 +37,11 @@ func check_is_reverted(is_reverted: felt) {
     with_attr error_message("Reverted transactions are not supported in virtual OS mode") {
         assert is_reverted = FALSE;
     }
+
+    
+func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
+    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt
+) {
+    // TODO(Meshi): enforce that the proof facts is a list of size 0 or 1 and contain 'CLIENT_SIDE'.
     return ();
 }
