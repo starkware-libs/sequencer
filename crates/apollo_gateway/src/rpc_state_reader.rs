@@ -1,32 +1,24 @@
 use apollo_gateway_config::config::RpcStateReaderConfig;
-use apollo_gateway_types::deprecated_gateway_error::StarknetError;
 use apollo_rpc::CompiledContractClass;
-use apollo_state_sync_types::communication::StateSyncClientResult;
-use async_trait::async_trait;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
-use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
-use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
-use crate::gateway_fixed_block_state_reader::{GatewayFixedBlockStateReader, StarknetResult};
 use crate::rpc_objects::{
-    BlockHeader,
     BlockId,
-    GetBlockWithTxHashesParams,
     GetClassHashAtParams,
     GetCompiledClassParams,
     GetNonceParams,
@@ -37,7 +29,6 @@ use crate::rpc_objects::{
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
     RPC_ERROR_INVALID_PARAMS,
 };
-use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[derive(Clone)]
 pub struct RpcStateReader {
@@ -169,80 +160,5 @@ impl BlockifierStateReader for RpcStateReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
-    }
-}
-
-pub struct RpcStateReaderFactory {
-    pub config: RpcStateReaderConfig,
-}
-
-impl FetchCompiledClasses for RpcStateReader {
-    fn get_compiled_classes(&self, _class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        todo!()
-    }
-
-    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
-        todo!()
-    }
-}
-
-impl GatewayStateReaderWithCompiledClasses for RpcStateReader {}
-
-// An alternative impl to get the synced state, not via the state-sync component. To be removed in
-// the future.
-#[async_trait]
-impl GatewayFixedBlockStateReader for RpcStateReader {
-    async fn get_block_info(&self) -> StarknetResult<BlockInfo> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
-        let reader = self.clone();
-
-        let get_block_with_tx_hashes_result = tokio::task::spawn_blocking(move || {
-            reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)
-        })
-        .await
-        .map_err(|e| StarknetError::internal_with_logging("JoinError", e))?
-        .map_err(|e| StarknetError::internal_with_logging("RPC error", e))?;
-
-        let block_header: BlockHeader = serde_json::from_value(get_block_with_tx_hashes_result)
-            .map_err(|e| StarknetError::internal_with_logging("Failed to parse block header", e))?;
-        let block_info = block_header.try_into().map_err(|e| {
-            StarknetError::internal_with_logging("Failed to convert block header to BlockInfo", e)
-        })?;
-        Ok(block_info)
-    }
-
-    async fn get_nonce(&self, contract_address: ContractAddress) -> StarknetResult<Nonce> {
-        let get_nonce_params = GetNonceParams { block_id: self.block_id, contract_address };
-        let reader = self.clone();
-        let result = tokio::task::spawn_blocking(move || {
-            reader.send_rpc_request("starknet_getNonce", get_nonce_params)
-        })
-        .await
-        .map_err(|e| StarknetError::internal_with_logging("JoinError", e))?;
-
-        match result {
-            Ok(value) => {
-                let nonce: Nonce = serde_json::from_value(value).map_err(|e| {
-                    StarknetError::internal_with_logging("Failed to parse nonce", e)
-                })?;
-                Ok(nonce)
-            }
-            Err(RPCStateReaderError::ContractAddressNotFound(_)) => Ok(Nonce::default()),
-            Err(e) => Err(StarknetError::internal_with_logging("RPC error", e)),
-        }
-    }
-}
-
-#[async_trait]
-impl StateReaderFactory for RpcStateReaderFactory {
-    async fn get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block(
-        &self,
-    ) -> StateSyncClientResult<(
-        Box<dyn GatewayStateReaderWithCompiledClasses>,
-        Box<dyn GatewayFixedBlockStateReader>,
-    )> {
-        let reader = RpcStateReader::from_latest(&self.config);
-        let fixed_client = RpcStateReader::from_latest(&self.config);
-        Ok((Box::new(reader), Box::new(fixed_client)))
     }
 }
