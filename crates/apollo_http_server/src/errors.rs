@@ -1,3 +1,5 @@
+use std::io;
+
 use apollo_config_manager_types::communication::ConfigManagerClientError;
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -6,8 +8,9 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
-use axum::response::{IntoResponse, Response};
-use hyper::StatusCode;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::http::StatusCode;
+use axum_08::response::{IntoResponse, Response};
 use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
@@ -17,7 +20,7 @@ use tracing::debug;
 #[derive(Debug, Error)]
 pub enum HttpServerRunError {
     #[error(transparent)]
-    ServerStartupError(#[from] hyper::Error),
+    ServerStartupError(#[from] io::Error),
 }
 
 /// Errors that may occur during the runtime of the HTTP server.
