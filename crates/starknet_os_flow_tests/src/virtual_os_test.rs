@@ -177,7 +177,8 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     };
 
     let selector = selector_from_name("test_get_execution_info");
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
+    let proof_facts =
+        if virtual_os { ProofFacts::default() } else { ProofFacts::snos_proof_facts_for_testing() };
     let expected_execution_info = ExpectedExecutionInfo {
         version: TransactionVersion::THREE,
         account_address: *FUNDED_ACCOUNT_ADDRESS,
