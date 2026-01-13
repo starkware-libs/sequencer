@@ -101,6 +101,21 @@ pub type CreateL1ToL2MessagesArgsFn =
     fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 
+#[derive(Clone, Copy, Debug)]
+pub struct ProposalMarginMillis {
+    pub build_proposal_margin_millis: Duration,
+    pub validate_proposal_margin_millis: Duration,
+}
+
+impl ProposalMarginMillis {
+    pub fn new(build_proposal_margin_millis: u64, validate_proposal_margin_millis: u64) -> Self {
+        Self {
+            build_proposal_margin_millis: Duration::from_millis(build_proposal_margin_millis),
+            validate_proposal_margin_millis: Duration::from_millis(validate_proposal_margin_millis),
+        }
+    }
+}
+
 pub trait TestScenario {
     fn create_txs(
         &self,
@@ -339,6 +354,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
     n_composed_nodes: usize,
     chain_id: &ChainId,
+    proposal_margin_millis: Option<ProposalMarginMillis>,
 ) -> Vec<ConsensusManagerConfig> {
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
     let mut timeouts = TimeoutsConfig::default();
@@ -347,7 +363,21 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
-        .map(|network_config| ConsensusManagerConfig {
+        .map(|network_config| {
+            let mut context_config = ContextConfig {
+                static_config: ContextStaticConfig {
+                    num_validators,
+                    chain_id: chain_id.clone(),
+                    builder_address: ContractAddress::from(4_u128),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            if let Some(build_margin_millis) = proposal_margin_millis {
+                context_config.static_config.build_proposal_margin_millis = build_margin_millis.build_proposal_margin_millis;
+                context_config.static_config.validate_proposal_margin_millis = build_margin_millis.validate_proposal_margin_millis;
+            }
+            ConsensusManagerConfig {
             network_config,
             consensus_manager_config: ConsensusConfig {
                 dynamic_config: ConsensusDynamicConfig {
@@ -365,21 +395,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     startup_delay: Duration::from_secs(15),
                 },
             },
-            context_config: ContextConfig {
-                static_config: ContextStaticConfig {
-                    num_validators,
-                    chain_id: chain_id.clone(),
-                    builder_address: ContractAddress::from(4_u128),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+            context_config,
             cende_config: CendeConfig {
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
             ..Default::default()
-        })
+        }})
         .collect()
 }
 

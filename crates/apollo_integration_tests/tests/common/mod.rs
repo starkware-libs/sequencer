@@ -19,6 +19,7 @@ use apollo_integration_tests::utils::{
     run_test_scenario,
     CreateL1ToL2MessagesArgsFn,
     CreateRpcTxsFn,
+    ProposalMarginMillis,
     TestTxHashesFn,
 };
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
@@ -34,6 +35,7 @@ pub struct EndToEndFlowArgs {
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
     pub allow_bootstrap_txs: bool,
+    pub proposal_margin_millis: Option<ProposalMarginMillis>,
 }
 
 impl EndToEndFlowArgs {
@@ -49,6 +51,7 @@ impl EndToEndFlowArgs {
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
             allow_bootstrap_txs: false,
+            proposal_margin_millis: None,
         }
     }
 
@@ -63,6 +66,20 @@ impl EndToEndFlowArgs {
     pub fn allow_bootstrap_txs(self) -> Self {
         Self { allow_bootstrap_txs: true, ..self }
     }
+
+    pub fn proposal_margin_millis(
+        self,
+        build_proposal_margin_millis: u64,
+        validate_proposal_margin_millis: u64,
+    ) -> Self {
+        Self {
+            proposal_margin_millis: Some(ProposalMarginMillis::new(
+                build_proposal_margin_millis,
+                validate_proposal_margin_millis,
+            )),
+            ..self
+        }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -76,6 +93,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_full_blocks,
         expecting_reverted_transactions,
         allow_bootstrap_txs,
+        proposal_margin_millis,
     } = args;
     configure_tracing().await;
 
@@ -91,6 +109,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         test_identifier.into(),
         block_max_capacity_gas,
         allow_bootstrap_txs,
+        proposal_margin_millis,
     )
     .await;
 
