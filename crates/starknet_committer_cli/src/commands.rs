@@ -1,9 +1,19 @@
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::LazyLock;
+
+use apollo_storage::db::DbConfig;
+use apollo_storage::mmap_file::MmapFileConfig;
+use apollo_storage::state::StateStorageReader;
+use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
 use rand::distributions::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
@@ -34,6 +44,25 @@ use crate::args::{
 };
 
 pub type InputImpl = Input<FactsDbInitialRead>;
+
+// This is based on the batcher's storage configuration on mainnet.
+static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| StorageConfig {
+    db_config: DbConfig {
+        path_prefix: PathBuf::from_str("/data/batcher").unwrap(),
+        chain_id: ChainId::Mainnet,
+        enforce_file_exists: false,
+        min_size: 1048576,
+        max_size: 1099511627776,
+        growth_step: 67108864,
+        max_readers: 8192,
+    },
+    mmap_file_config: MmapFileConfig {
+        max_size: 1099511627776,
+        growth_step: 2147483648,
+        max_object_size: 1073741824,
+    },
+    scope: StorageScope::StateOnly,
+});
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
@@ -153,7 +182,25 @@ impl BenchmarkFlavor {
         n_updates_arg: usize,
         block_number: usize,
         rng: &mut SmallRng,
+        storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
+        if self == &BenchmarkFlavor::Mainnet {
+            let block_number = u64::try_from(block_number).unwrap();
+            info!("Getting state diff for mainnet block number {block_number} from storage.");
+            let state_diff = storage_reader
+                .unwrap()
+                .begin_ro_txn()
+                .unwrap()
+                .get_state_diff(BlockNumber(block_number))
+                .unwrap()
+                .unwrap()
+                .into();
+            info!(
+                "Successfully retrieved state diff for mainnet block number {block_number} from \
+                 storage."
+            );
+            return state_diff;
+        }
         let leaf_keys = self.leaf_update_keys(n_updates_arg, block_number, rng);
         let n_updates = leaf_keys.len();
         generate_random_state_diff(rng, n_updates, Some(leaf_keys))
@@ -354,6 +401,13 @@ pub async fn run_storage_benchmark<S: Storage>(
         }
         None => HashOutput::default(),
     };
+
+    let storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
+        Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
+    } else {
+        None
+    };
+
     let curr_block_number = time_measurement.block_number;
     let n_iterations = flavor.n_iterations(n_iterations);
 
@@ -364,7 +418,12 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
         let input = InputImpl {
-            state_diff: flavor.generate_state_diff(n_updates_arg, block_number, &mut rng),
+            state_diff: flavor.generate_state_diff(
+                n_updates_arg,
+                block_number,
+                &mut rng,
+                storage_reader.as_ref(),
+            ),
             initial_read_context: FactsDbInitialRead(StateRoots {
                 contracts_trie_root_hash,
                 classes_trie_root_hash,
