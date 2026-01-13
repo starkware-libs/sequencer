@@ -73,14 +73,14 @@ pub(crate) fn get_class_hash_and_compiled_class_fact<S: StateReader>(
 
 pub(crate) fn key_lt_min_alias_alloc_value(mut ctx: HintContext<'_>) -> OsHintResult {
     let key = ctx.get_integer(Ids::Key)?;
-    let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(ctx.constants)?;
+    let min_value_for_alias_alloc = *ctx.fetch_const(Const::MinValueForAliasAlloc)?;
     Ok(ctx
         .insert_value(Ids::KeyLtMinAliasAllocValue, Felt::from(key < min_value_for_alias_alloc))?)
 }
 
 pub(crate) fn assert_key_big_enough_for_alias(ctx: HintContext<'_>) -> OsHintResult {
     let key = ctx.get_integer(Ids::Key)?;
-    let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(ctx.constants)?;
+    let min_value_for_alias_alloc = *ctx.fetch_const(Const::MinValueForAliasAlloc)?;
     if key < min_value_for_alias_alloc {
         Err(OsHintError::AssertionFailed {
             message: format!("Key {key} is too small for alias allocation."),
@@ -136,7 +136,7 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(ctx.constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(ctx.constants)?;
-    let initial_available_alias = *Const::InitialAvailableAlias.fetch(ctx.constants)?;
+    let initial_available_alias = *ctx.fetch_const(Const::InitialAvailableAlias)?;
     Ok(hint_processor.get_mut_current_execution_helper()?.cached_state.set_storage_at(
         aliases_contract_address,
         alias_counter_storage_key,
@@ -160,7 +160,7 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 
 pub(crate) fn contract_address_le_max_for_compression(mut ctx: HintContext<'_>) -> OsHintResult {
     let contract_address = ctx.get_integer(Ids::ContractAddress)?;
-    let max_contract_address = *Const::MaxNonCompressedContractAddress.fetch(ctx.constants)?;
+    let max_contract_address = *ctx.fetch_const(Const::MaxNonCompressedContractAddress)?;
     Ok(ctx.insert_value(
         Ids::ContractAddressLeMaxForCompression,
         Felt::from(contract_address <= max_contract_address),

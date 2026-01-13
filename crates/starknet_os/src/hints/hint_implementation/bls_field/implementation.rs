@@ -39,7 +39,7 @@ pub(crate) fn compute_ids_low<'program, CHP: CommonHintProcessor<'program>>(
             hint_processor.get_program(),
         )?)?
         .into_owned();
-    let base = Const::Base.fetch(ctx.constants)?;
+    let base = ctx.fetch_const(Const::Base)?;
     let mask = BigUint::from(u128::MAX);
 
     let low = (d0 + d1 * base).to_biguint() & mask;

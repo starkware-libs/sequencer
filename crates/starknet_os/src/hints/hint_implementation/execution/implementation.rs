@@ -462,7 +462,7 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
 
         match call_info.tracked_resource {
             TrackedResource::SierraGas => {
-                let initial_budget = Const::EntryPointInitialBudget.fetch(ctx.constants)?;
+                let initial_budget = ctx.fetch_const(Const::EntryPointInitialBudget)?;
                 predicted -= initial_budget;
                 if actual_gas != predicted {
                     return Err(OsHintError::AssertionFailed {
@@ -502,7 +502,7 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
 
 pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintContext<'_>) -> OsHintResult {
     let remaining_gas = ctx.get_integer(Ids::RemainingGas)?;
-    let initial_budget = Const::EntryPointInitialBudget.fetch(ctx.constants)?;
+    let initial_budget = ctx.fetch_const(Const::EntryPointInitialBudget)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
     Ok(ctx.insert_value(Ids::IsRemainingGasLtInitialBudget, remaining_gas_lt_initial_budget)?)
 }
@@ -718,7 +718,7 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
-    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(ctx.constants)?;
+    let block_hash_contract_address = ctx.fetch_const(Const::BlockHashContractAddress)?;
     let old_block_number = ctx.get_integer(Ids::OldBlockNumber)?;
     let old_block_hash = ctx.get_integer(Ids::OldBlockHash)?;
 
@@ -808,7 +808,7 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
-            stored_block_hash_buffer: *Const::StoredBlockHashBuffer.fetch(ctx.constants)?,
+            stored_block_hash_buffer: *ctx.fetch_const(Const::StoredBlockHashBuffer)?,
         })?;
 
     let ids_old_block_number = BlockNumber(
@@ -830,7 +830,7 @@ pub(crate) fn check_retdata_for_debug(ctx: HintContext<'_>) -> OsHintResult {
     let retdata_size = felt_to_usize(&ctx.get_integer(Ids::RetdataSize)?)?;
     let result = ctx.vm.get_range(retdata, min(retdata_size, 100_usize));
 
-    let validated = MaybeRelocatable::from(Const::Validated.fetch(ctx.constants)?);
+    let validated = MaybeRelocatable::from(ctx.fetch_const(Const::Validated)?);
 
     if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validated)) {
         log::info!("Invalid return value from __validate__:");
