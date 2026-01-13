@@ -531,6 +531,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .retrospective_block_hash_retry_interval_millis,
             use_state_sync_block_timestamp,
         };
+
         let handle = tokio::spawn(
             async move {
                 let res = build_proposal(args).await.map(|proposal_commitment| {
