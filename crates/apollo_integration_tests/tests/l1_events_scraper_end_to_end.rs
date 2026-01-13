@@ -19,13 +19,21 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 
-fn check_events_eq(expected: &[Event], actual: &[Event]) -> bool {
-    if expected != actual {
+/// Checks if two lists of events are almost equal, allowing for a small margin in scrape time.
+fn check_events_match(expected: &[Event], actual: &[Event]) -> bool {
+    if expected.len() != actual.len() {
         println!("Expected: {expected:?}\nActual: {actual:?}");
         return false;
     }
 
-    true
+    let all_match =
+        expected.iter().zip(actual.iter()).all(|(expected, actual)| expected.almost_eq(actual));
+
+    if !all_match {
+        println!("Expected: {expected:?}\nActual: {actual:?}");
+    }
+
+    all_match
 }
 
 #[tokio::test]
@@ -151,7 +159,7 @@ async fn scraper_end_to_end() {
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .withf(move |actual| check_events_eq(&expected_events_first_call, actual))
+        .withf(move |actual| check_events_match(&expected_events_first_call, actual))
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.
@@ -159,7 +167,7 @@ async fn scraper_end_to_end() {
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .withf(move |actual| check_events_eq(&[], actual))
+        .withf(move |actual| check_events_match(&[], actual))
         .returning(|_| Ok(()));
 
     let l1_scraper_config = L1ScraperConfig {
