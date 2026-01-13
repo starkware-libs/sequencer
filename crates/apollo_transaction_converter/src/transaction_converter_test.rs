@@ -1,6 +1,8 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -11,18 +13,51 @@ use mempool_test_utils::starknet_api_test_utils::{
     invoke_tx_client_side_proving,
 };
 use mockall::predicate::eq;
+use proving_utils::proof_encoding::ProofBytes;
 use rstest::rstest;
+use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
-use starknet_api::transaction::fields::Proof;
-use starknet_api::{compiled_class_hash, felt, proof_facts};
+use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_types_core::felt::Felt;
 
 use crate::transaction_converter::{
     TransactionConverter,
     TransactionConverterError,
     TransactionConverterTrait,
 };
+
+/// Resource file names for testing.
+const EXAMPLE_PROOF_FILE: &str = "example_proof.bz2";
+const EXAMPLE_PROOF_FACTS_FILE: &str = "example_proof_facts.json";
+
+/// Returns the absolute path to a resource file in this crate's resources directory.
+fn resolve_resource_path(file_name: &str) -> PathBuf {
+    let path = ["crates", "apollo_transaction_converter", "resources", file_name]
+        .iter()
+        .collect::<PathBuf>();
+    resolve_project_relative_path(&path.to_string_lossy())
+        .unwrap_or_else(|_| panic!("Failed to resolve resource path for {}", file_name))
+}
+
+/// Loads the example proof from the resources directory.
+/// Uses `ProofBytes::from_file()` to load the bz2-compressed proof file.
+pub fn get_proof_for_testing() -> Proof {
+    let proof_path = resolve_resource_path(EXAMPLE_PROOF_FILE);
+    let proof_bytes = ProofBytes::from_file(&proof_path)
+        .expect("Failed to load example_proof.bz2 from resources directory");
+    proof_bytes.into()
+}
+
+/// Loads the example proof facts from the resources directory.
+/// Parses the JSON file containing an array of hex-encoded felt values.
+pub fn get_proof_facts_for_testing() -> ProofFacts {
+    let proof_facts_path = resolve_resource_path(EXAMPLE_PROOF_FACTS_FILE);
+    let proof_facts_str = std::fs::read_to_string(&proof_facts_path)
+        .expect("Failed to read example_proof_facts.json from resources directory");
+    serde_json::from_str(&proof_facts_str).expect("Failed to parse example_proof_facts.json")
+}
 
 #[rstest]
 #[tokio::test]
@@ -67,9 +102,9 @@ async fn test_compiled_class_hash_mismatch() {
 #[rstest]
 #[tokio::test]
 async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
-    // Create an invoke transaction with proof facts and proof.
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
+    // Load proof and proof facts from resources directory.
+    let proof_facts = get_proof_facts_for_testing();
+    let proof = get_proof_for_testing();
     let invoke_tx = invoke_tx_client_side_proving(
         CairoVersion::Cairo1(RunnableCairo1::Casm),
         proof_facts.clone(),
@@ -77,7 +112,7 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
     );
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
-    // Expect contains proof to be called and return false (proof does not exist).
+    // Expect contains proof to be called and return false (proof does not exists).
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
@@ -120,8 +155,9 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 #[rstest]
 #[tokio::test]
 async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof() {
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
+    // Load proof and proof facts from resources directory.
+    let proof_facts = get_proof_facts_for_testing();
+    let proof = get_proof_for_testing();
     let invoke_tx = invoke_tx_client_side_proving(
         CairoVersion::Cairo1(RunnableCairo1::Casm),
         proof_facts.clone(),
