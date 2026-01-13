@@ -11447,6 +11447,7 @@ name = "starknet_committer_cli"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_storage",
  "blake2",
  "clap",
  "rand 0.8.5",
