@@ -11,7 +11,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
+use crate::vm_utils::LoadCairoObject;
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
@@ -32,7 +32,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
         })?;
 
     let dep_class_base = ctx.vm.add_memory_segment();
-    deprecated_class.load_into(ctx.vm, hint_processor.program, dep_class_base, ctx.constants)?;
+    deprecated_class.load_into(ctx.vm, ctx.program, dep_class_base, &ctx.program.constants)?;
 
     let compiled_class_v0 = CompiledClassV0::try_from(deprecated_class)?;
 
@@ -46,14 +46,10 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
-    let computed_hash_addr = get_address_of_nested_fields(
-        ctx.ids_data,
+    let computed_hash_addr = ctx.get_address_of_nested_fields(
         Ids::CompiledClassFact,
         CairoStruct::DeprecatedCompiledClassFactPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
     )?;
     let computed_hash = ctx.vm.get_integer(computed_hash_addr)?;
     let expected_hash = ctx.exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
@@ -72,14 +68,10 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     let hints: BTreeMap<usize, Vec<HintParams>> =
         (&dep_class.program.shared_program_data.hints_collection).into();
 
-    let byte_code_ptr_addr = get_address_of_nested_fields(
-        ctx.ids_data,
+    let byte_code_ptr_addr = ctx.get_address_of_nested_fields(
         Ids::CompiledClass,
         CairoStruct::DeprecatedCompiledClassPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["bytecode_ptr"],
-        hint_processor.program,
     )?;
     let byte_code_ptr = ctx.vm.get_relocatable(byte_code_ptr_addr)?;
     let constants = dep_class.program.constants.clone();

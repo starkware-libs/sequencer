@@ -32,7 +32,6 @@ use crate::hints::hint_implementation::patricia::utils::{
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
-    get_address_of_nested_fields,
     get_field_offset,
     get_size_of_cairo_struct,
     insert_value_to_nested_field,
@@ -71,19 +70,12 @@ pub(crate) fn is_case_right(ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn set_bit<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let edge_path_addr = get_address_of_nested_fields(
-        ctx.ids_data,
-        Ids::Edge,
-        CairoStruct::NodeEdge,
-        ctx.vm,
-        ctx.ap_tracking,
-        &["path"],
-        hint_processor.program,
-    )?;
-    let edge_path = ctx.vm.get_integer(edge_path_addr)?.into_owned();
+    let edge_path_address =
+        ctx.get_address_of_nested_fields(Ids::Edge, CairoStruct::NodeEdge, &["path"])?;
+    let edge_path = ctx.vm.get_integer(edge_path_address)?.into_owned();
     let new_length: u8 = ctx.fetch_as(Ids::NewLength)?;
 
     let bit = (edge_path.to_biguint() >> new_length) & BigUint::from(1u64);
@@ -199,7 +191,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         hint_processor.commitment_type.hash_builtin_struct(),
         ctx.vm,
         nested_fields_and_values.as_slice(),
-        hint_processor.program,
+        ctx.program,
     )?;
 
     // We don't support hash verification skipping and the scope variable
@@ -218,12 +210,10 @@ pub(crate) fn build_descent_map<S: StateReader>(
 
     let update_ptr_address = ctx.get_ptr(Ids::UpdatePtr)?;
 
-    let dict_access_size =
-        get_size_of_cairo_struct(CairoStruct::DictAccess, hint_processor.program)?;
+    let dict_access_size = get_size_of_cairo_struct(CairoStruct::DictAccess, ctx.program)?;
 
-    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.program)?;
-    let new_value_offset =
-        get_field_offset(CairoStruct::DictAccess, "new_value", hint_processor.program)?;
+    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", ctx.program)?;
+    let new_value_offset = get_field_offset(CairoStruct::DictAccess, "new_value", ctx.program)?;
 
     let mut modifications = Vec::new();
     for i in 0..n_updates {
@@ -383,7 +373,7 @@ pub(crate) fn load_edge<S: StateReader>(
             ("path", Felt::from(&path_to_bottom.path).into()),
             ("bottom", bottom_hash.0.into()),
         ],
-        hint_processor.program,
+        ctx.program,
     )?;
     let hash_ptr = ctx.get_ptr(Ids::HashPtr)?;
     insert_value_to_nested_field(
@@ -391,7 +381,7 @@ pub(crate) fn load_edge<S: StateReader>(
         hint_processor.commitment_type.hash_builtin_struct(),
         ctx.vm,
         &["result"],
-        hint_processor.program,
+        ctx.program,
         node.0 - Felt::from(path_to_bottom.length),
     )?;
     Ok(())
@@ -401,19 +391,9 @@ pub(crate) fn load_bottom<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let bottom_hash = HashOutput(
-        ctx.vm
-            .get_integer(get_address_of_nested_fields(
-                ctx.ids_data,
-                Ids::Edge,
-                CairoStruct::NodeEdge,
-                ctx.vm,
-                ctx.ap_tracking,
-                &["bottom"],
-                hint_processor.program,
-            )?)?
-            .into_owned(),
-    );
+    let bottom_address =
+        ctx.get_address_of_nested_fields(Ids::Edge, CairoStruct::NodeEdge, &["bottom"])?;
+    let bottom_hash = HashOutput(ctx.vm.get_integer(bottom_address)?.into_owned());
     let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
     let preimage = Preimage::try_from(
         commitment_facts.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?,
@@ -428,7 +408,7 @@ pub(crate) fn load_bottom<S: StateReader>(
         hint_processor.commitment_type.hash_builtin_struct(),
         ctx.vm,
         nested_fields_and_values.as_slice(),
-        hint_processor.program,
+        ctx.program,
     )?;
 
     // We don't support hash verification skipping and the scope variable

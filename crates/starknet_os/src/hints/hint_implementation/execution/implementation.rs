@@ -29,11 +29,7 @@ use crate::hints::hint_implementation::execution::utils::{
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
-use crate::vm_utils::{
-    get_address_of_nested_fields,
-    get_address_of_nested_fields_from_base_address,
-    LoadCairoObject,
-};
+use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoObject};
 
 pub(crate) fn load_next_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
@@ -54,7 +50,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
         ctx.ids_data,
         ctx.vm,
         ctx.ap_tracking,
-        hint_processor.program,
+        ctx.program,
     )?;
 
     Ok(())
@@ -90,9 +86,9 @@ pub(crate) fn load_common_tx_fields<S: StateReader>(
     let resource_bound_address = ctx.vm.add_memory_segment();
     resource_bounds.load_into(
         ctx.vm,
-        hint_processor.program,
+        ctx.program,
         resource_bound_address,
-        ctx.constants,
+        &ctx.program.constants,
     )?;
 
     // Insert.
@@ -120,7 +116,7 @@ pub(crate) fn exit_tx<S: StateReader>(
             ctx.ids_data,
             ctx.vm,
             ctx.ap_tracking,
-            hint_processor.program,
+            ctx.program,
         )?)
 }
 
@@ -199,21 +195,15 @@ pub(crate) fn get_contract_address_state_entry(mut ctx: HintContext<'_>) -> OsHi
 }
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let account_contract_address = ctx
-        .vm
-        .get_integer(get_address_of_nested_fields(
-            ctx.ids_data,
-            Ids::TxInfo,
-            CairoStruct::TxInfoPtr,
-            ctx.vm,
-            ctx.ap_tracking,
-            &["account_contract_address"],
-            hint_processor.program,
-        )?)?
-        .into_owned();
+    let address = ctx.get_address_of_nested_fields(
+        Ids::TxInfo,
+        CairoStruct::TxInfoPtr,
+        &["account_contract_address"],
+    )?;
+    let account_contract_address = ctx.vm.get_integer(address)?.into_owned();
     set_state_entry(&account_contract_address, &mut ctx)?;
     Ok(())
 }
@@ -222,20 +212,12 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let class_hash = ClassHash(
-        *ctx.vm.get_integer(
-            get_address_of_nested_fields(
-                ctx.ids_data,
-                Ids::ExecutionContext,
-                CairoStruct::ExecutionContextPtr,
-                ctx.vm,
-                ctx.ap_tracking,
-                &["class_hash"],
-                hint_processor.program,
-            )?
-            .to_owned(),
-        )?,
-    );
+    let class_hash_address = ctx.get_address_of_nested_fields(
+        Ids::ExecutionContext,
+        CairoStruct::ExecutionContextPtr,
+        &["class_hash"],
+    )?;
+    let class_hash = ClassHash(ctx.vm.get_integer(class_hash_address)?.into_owned());
 
     let is_deprecated = Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash));
     ctx.insert_value(Ids::IsDeprecated, is_deprecated)?;
@@ -267,24 +249,18 @@ pub(crate) fn enter_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let execution_info_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
-        ctx.ids_data,
+    let execution_info_address = ctx.get_address_of_nested_fields(
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["execution_info"],
-        hint_processor.program,
-    )?)?;
-    let deprecated_tx_info_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
-        ctx.ids_data,
+    )?;
+    let execution_info_ptr = ctx.vm.get_relocatable(execution_info_address)?;
+    let deprecated_tx_info_address = ctx.get_address_of_nested_fields(
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["deprecated_tx_info"],
-        hint_processor.program,
-    )?)?;
+    )?;
+    let deprecated_tx_info_ptr = ctx.vm.get_relocatable(deprecated_tx_info_address)?;
 
     hint_processor
         .get_mut_current_execution_helper()?
@@ -436,15 +412,12 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
         // Validate the predicted gas cost.
         // TODO(Yoni): remove this check once Cairo 0 is not supported.
         let remaining_gas = ctx.get_integer(Ids::RemainingGas)?;
-        let gas_builtin = ctx.vm.get_integer(get_address_of_nested_fields(
-            ctx.ids_data,
+        let gas_builtin_address = ctx.get_address_of_nested_fields(
             Ids::EntryPointReturnValues,
             CairoStruct::EntryPointReturnValuesPtr,
-            ctx.vm,
-            ctx.ap_tracking,
             &["gas_builtin"],
-            hint_processor.program,
-        )?)?;
+        )?;
+        let gas_builtin = ctx.vm.get_integer(gas_builtin_address)?;
         let actual_gas = remaining_gas - *gas_builtin;
 
         let call_info = current_execution_helper
@@ -477,14 +450,10 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
         };
     }
 
-    let syscall_ptr_end_address = get_address_of_nested_fields(
-        ctx.ids_data,
+    let syscall_ptr_end_address = ctx.get_address_of_nested_fields(
         Ids::EntryPointReturnValues,
         CairoStruct::EntryPointReturnValuesPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["syscall_ptr"],
-        hint_processor.program,
     )?;
     let syscall_ptr_end = ctx.vm.get_relocatable(syscall_ptr_end_address)?;
     current_execution_helper
@@ -502,7 +471,7 @@ pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintContext<'_>) -> Os
 }
 
 pub(crate) fn check_syscall_response<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     let actual_retdata = extract_actual_retdata(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
@@ -512,14 +481,14 @@ pub(crate) fn check_syscall_response<S: StateReader>(
         CairoStruct::DeprecatedCallContractResponse,
         ctx.vm,
         &["retdata_size"],
-        hint_processor.program,
+        ctx.program,
     )?)?;
     let retdata_base = ctx.vm.get_relocatable(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
         CairoStruct::DeprecatedCallContractResponse,
         ctx.vm,
         &["retdata"],
-        hint_processor.program,
+        ctx.program,
     )?)?;
     let expected_retdata =
         ctx.vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
@@ -527,7 +496,7 @@ pub(crate) fn check_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_call_contract_response<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
@@ -537,12 +506,12 @@ pub(crate) fn check_new_call_contract_response<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         ctx.ids_data,
-        hint_processor.program,
+        ctx.program,
     )
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
@@ -552,7 +521,7 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
         ctx.vm,
         ctx.ap_tracking,
         ctx.ids_data,
-        hint_processor.program,
+        ctx.program,
     )
 }
 
@@ -601,19 +570,8 @@ fn write_syscall_result_helper<S: StateReader>(
     struct_type: CairoStruct,
     key_name: &str,
 ) -> OsHintResult {
-    let key = StorageKey(PatriciaKey::try_from(
-        ctx.vm
-            .get_integer(get_address_of_nested_fields(
-                ctx.ids_data,
-                ids_type,
-                struct_type,
-                ctx.vm,
-                ctx.ap_tracking,
-                &[key_name],
-                hint_processor.program,
-            )?)?
-            .into_owned(),
-    )?);
+    let key_address = ctx.get_address_of_nested_fields(ids_type, struct_type, &[key_name])?;
+    let key = StorageKey(PatriciaKey::try_from(ctx.vm.get_integer(key_address)?.into_owned())?);
 
     let contract_address = ContractAddress(ctx.get_integer(Ids::ContractAddress)?.try_into()?);
 
@@ -623,18 +581,8 @@ fn write_syscall_result_helper<S: StateReader>(
 
     ctx.insert_value(Ids::PrevValue, prev_value)?;
 
-    let request_value = ctx
-        .vm
-        .get_integer(get_address_of_nested_fields(
-            ctx.ids_data,
-            ids_type,
-            struct_type,
-            ctx.vm,
-            ctx.ap_tracking,
-            &["value"],
-            hint_processor.program,
-        )?)?
-        .into_owned();
+    let value_address = ctx.get_address_of_nested_fields(ids_type, struct_type, &["value"])?;
+    let request_value = ctx.vm.get_integer(value_address)?.into_owned();
 
     current_execution_helper.cached_state.set_storage_at(contract_address, key, request_value)?;
 
@@ -733,19 +681,8 @@ fn assert_value_cached_by_reading<S: StateReader>(
     cairo_struct_type: CairoStruct,
     nested_fields: &[&str],
 ) -> OsHintResult {
-    let key = StorageKey(PatriciaKey::try_from(
-        ctx.vm
-            .get_integer(get_address_of_nested_fields(
-                ctx.ids_data,
-                id,
-                cairo_struct_type,
-                ctx.vm,
-                ctx.ap_tracking,
-                nested_fields,
-                hint_processor.program,
-            )?)?
-            .into_owned(),
-    )?);
+    let key_address = ctx.get_address_of_nested_fields(id, cairo_struct_type, nested_fields)?;
+    let key = StorageKey(PatriciaKey::try_from(ctx.vm.get_integer(key_address)?.into_owned())?);
 
     let contract_address = ContractAddress(ctx.get_integer(Ids::ContractAddress)?.try_into()?);
 
