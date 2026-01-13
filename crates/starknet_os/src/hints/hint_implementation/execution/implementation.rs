@@ -51,10 +51,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
         tx.tx_hash(),
         ctx.vm.get_current_step(),
         range_check_ptr,
-        ctx.ids_data,
-        ctx.vm,
-        ctx.ap_tracking,
-        ctx.program,
+        &ctx,
     )?;
 
     Ok(())
@@ -114,14 +111,7 @@ pub(crate) fn exit_tx<S: StateReader>(
         .execution_helpers_manager
         .get_mut_current_execution_helper()?
         .os_logger
-        .exit_tx(
-            ctx.vm.get_current_step(),
-            range_check_ptr,
-            ctx.ids_data,
-            ctx.vm,
-            ctx.ap_tracking,
-            ctx.program,
-        )?)
+        .exit_tx(ctx.vm.get_current_step(), range_check_ptr, &ctx)?)
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(

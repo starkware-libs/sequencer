@@ -1,20 +1,17 @@
 use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
-use cairo_vm::hint_processor::hint_processor_definition::HintReference;
-use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
 
 use crate::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids};
-use crate::vm_utils::{get_address_of_nested_fields, VmUtilsError};
+use crate::vm_utils::VmUtilsError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {
@@ -198,20 +195,12 @@ impl ResourceCounter {
     pub(crate) fn new(
         n_steps: usize,
         range_check_ptr: Relocatable,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<Self> {
         Ok(Self {
             n_steps,
             range_check_ptr,
-            builtin_ptrs_dict: Self::build_builtin_ptrs_dict(
-                ids_data,
-                vm,
-                ap_tracking,
-                os_program,
-            )?,
+            builtin_ptrs_dict: Self::build_builtin_ptrs_dict(ctx)?,
         })
     }
 
@@ -259,10 +248,7 @@ impl ResourceCounter {
     }
 
     fn build_builtin_ptrs_dict(
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<HashMap<BuiltinName, Relocatable>> {
         let mut builtin_ptrs_dict: HashMap<BuiltinName, Relocatable> = HashMap::new();
 
@@ -271,19 +257,13 @@ impl ResourceCounter {
             "selectable",
             CairoStruct::SelectableBuiltins,
             &mut builtin_ptrs_dict,
-            ids_data,
-            vm,
-            ap_tracking,
-            os_program,
+            ctx,
         )?;
         Self::insert_builtins(
             "non_selectable",
             CairoStruct::NonSelectableBuiltins,
             &mut builtin_ptrs_dict,
-            ids_data,
-            vm,
-            ap_tracking,
-            os_program,
+            ctx,
         )?;
 
         Ok(builtin_ptrs_dict)
@@ -293,15 +273,13 @@ impl ResourceCounter {
         inner_field_name: &str,
         inner_field_type: CairoStruct,
         builtin_ptrs_dict: &mut HashMap<BuiltinName, Relocatable>,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
         // We want all pointers except `segment_arena` and `sha256`.
         let excluded_builtins = ["segment_arena", "sha256"];
         let inner_struct_name: &str = inner_field_type.into();
-        let inner_members = os_program
+        let inner_members = ctx
+            .program
             .get_identifier(inner_struct_name)
             .ok_or(OsLoggerError::InnerBuiltinPtrsIdentifierMissing(inner_struct_name.into()))?
             .members
@@ -312,19 +290,15 @@ impl ResourceCounter {
             if excluded_builtins.contains(&member_name.as_str()) {
                 continue;
             }
-            let member_ptr = get_address_of_nested_fields(
-                ids_data,
+            let member_ptr = ctx.get_nested_field_address(
                 Ids::BuiltinPtrs,
                 CairoStruct::BuiltinPointersPtr,
-                vm,
-                ap_tracking,
                 &[inner_field_name, member_name.as_str()],
-                os_program,
             )?;
             builtin_ptrs_dict.insert(
                 BuiltinName::from_str(member_name)
                     .ok_or_else(|| OsLoggerError::UnknownBuiltin(member_name.clone()))?,
-                vm.get_relocatable(member_ptr)?,
+                ctx.vm.get_relocatable(member_ptr)?,
             );
         }
         Ok(())
@@ -365,17 +339,13 @@ impl OsLogger {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn enter_syscall(
         &mut self,
         selector: SyscallSelector,
         is_deprecated: bool,
         n_steps: usize,
         range_check_ptr: Relocatable,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
         if self.current_tx.is_none() {
             return Err(OsLoggerError::NotInTxContext);
@@ -390,14 +360,7 @@ impl OsLogger {
             }
         }
 
-        self.resource_counter_stack.push(ResourceCounter::new(
-            n_steps,
-            range_check_ptr,
-            ids_data,
-            vm,
-            ap_tracking,
-            os_program,
-        )?);
+        self.resource_counter_stack.push(ResourceCounter::new(n_steps, range_check_ptr, ctx)?);
         self.syscall_stack.push(SyscallTrace::new(selector, is_deprecated, self.tab_count));
 
         if selector.is_calling_syscall() {
@@ -408,16 +371,12 @@ impl OsLogger {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn exit_syscall(
         &mut self,
         selector: SyscallSelector,
         n_steps: usize,
         range_check_ptr: Relocatable,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
         let mut current_syscall = self.syscall_stack.pop().ok_or(OsLoggerError::CallStackEmpty)?;
         let enter_resources_counter =
@@ -430,8 +389,7 @@ impl OsLogger {
             });
         }
 
-        let exit_resources_counter =
-            ResourceCounter::new(n_steps, range_check_ptr, ids_data, vm, ap_tracking, os_program)?;
+        let exit_resources_counter = ResourceCounter::new(n_steps, range_check_ptr, ctx)?;
 
         current_syscall
             .finalize_resources(exit_resources_counter.sub_counter(&enter_resources_counter)?)?;
@@ -455,29 +413,18 @@ impl OsLogger {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn enter_tx(
         &mut self,
         tx_type: TransactionType,
         tx_hash: TransactionHash,
         n_steps: usize,
         range_check_ptr: Relocatable,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
         if self.current_tx.is_some() {
             return Err(OsLoggerError::InTxContext);
         }
-        self.resource_counter_stack.push(ResourceCounter::new(
-            n_steps,
-            range_check_ptr,
-            ids_data,
-            vm,
-            ap_tracking,
-            os_program,
-        )?);
+        self.resource_counter_stack.push(ResourceCounter::new(n_steps, range_check_ptr, ctx)?);
         self.current_tx = Some(OsTransactionTrace::new(tx_type, tx_hash));
         log::info!("Entering transaction: {tx_hash} (type: {tx_type:?})");
         // Increment tab_count to match the decrement in exit_tx's log call.
@@ -489,10 +436,7 @@ impl OsLogger {
         &mut self,
         n_steps: usize,
         range_check_ptr: Relocatable,
-        ids_data: &HashMap<String, HintReference>,
-        vm: &VirtualMachine,
-        ap_tracking: &ApTracking,
-        os_program: &Program,
+        ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
         let mut current_tx = self.current_tx.take().ok_or(OsLoggerError::ExitBeforeEnter)?;
 
@@ -503,8 +447,7 @@ impl OsLogger {
 
         let enter_resources_counter =
             self.resource_counter_stack.pop().ok_or(OsLoggerError::CallStackEmpty)?;
-        let exit_resources_counter =
-            ResourceCounter::new(n_steps, range_check_ptr, ids_data, vm, ap_tracking, os_program)?;
+        let exit_resources_counter = ResourceCounter::new(n_steps, range_check_ptr, ctx)?;
 
         current_tx
             .finalize_resources(exit_resources_counter.sub_counter(&enter_resources_counter)?)?;
