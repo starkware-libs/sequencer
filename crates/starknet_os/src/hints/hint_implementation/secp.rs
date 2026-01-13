@@ -12,8 +12,8 @@ use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn is_on_curve(mut ctx: HintContext<'_>) -> OsHintResult {
     let secp_p = BigInt::from_bytes_be(num_bigint::Sign::Plus, &FqConfig::MODULUS.to_bytes_be());
-    let y: BigInt = ctx.exec_scopes.get(Scope::Y.into())?;
-    let y_square_int: BigInt = ctx.exec_scopes.get(Scope::YSquareInt.into())?;
+    let y: BigInt = ctx.get_from_scope(Scope::Y)?;
+    let y_square_int: BigInt = ctx.get_from_scope(Scope::YSquareInt)?;
 
     let is_on_curve = ((y.pow(2)) % secp_p) == y_square_int;
     ctx.insert_value(Ids::IsOnCurve, Felt::from(is_on_curve))?;

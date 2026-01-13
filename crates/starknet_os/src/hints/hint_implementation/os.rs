@@ -14,7 +14,7 @@ use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintContext<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
         hint_processor
@@ -26,13 +26,13 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
                 (class_hash.0.into(), compiled_class_hash.0.into())
             })
             .collect();
-    ctx.exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
+    ctx.insert_into_scope(Scope::InitialDict, class_hash_to_compiled_class_hash);
     Ok(())
 }
 
 pub(crate) fn initialize_state_changes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintContext<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let cached_state = &hint_processor.get_current_execution_helper()?.cached_state;
     let writes_accessed_addresses: BTreeSet<_> =
@@ -57,7 +57,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
         )?;
         initial_dict.insert((*contract_address.0.key()).into(), state_entry_base.into());
     }
-    ctx.exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
+    ctx.insert_into_scope(Scope::InitialDict, initial_dict);
     Ok(())
 }
 

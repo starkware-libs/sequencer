@@ -54,7 +54,7 @@ pub(crate) fn set_siblings(mut ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn is_case_right(ctx: HintContext<'_>) -> OsHintResult {
-    let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
+    let case: DecodeNodeCase = ctx.get_from_scope(Scope::Case)?;
     let bit = ctx.get_integer(Ids::Bit)?;
 
     let case_right = Felt::from(case == DecodeNodeCase::Right);
@@ -93,7 +93,7 @@ pub(crate) fn set_bit<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_descend(ctx: HintContext<'_>) -> OsHintResult {
+pub(crate) fn set_ap_to_descend(mut ctx: HintContext<'_>) -> OsHintResult {
     let descent_map: &DescentMap = ctx.exec_scopes.get_ref(Scope::DescentMap.into())?;
 
     let height = SubTreeHeight(ctx.fetch_as(Ids::Height)?);
@@ -108,7 +108,7 @@ pub(crate) fn set_ap_to_descend(ctx: HintContext<'_>) -> OsHintResult {
     let case_descent = match descent_map.get(&descent_start) {
         None => Felt::ZERO,
         Some(path) => {
-            ctx.exec_scopes.insert_value(Scope::Descend.into(), path.clone());
+            ctx.insert_into_scope(Scope::Descend, path.clone());
             Felt::ONE
         }
     };
@@ -117,7 +117,7 @@ pub(crate) fn set_ap_to_descend(ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn assert_case_is_right(ctx: HintContext<'_>) -> OsHintResult {
-    let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
+    let case: DecodeNodeCase = ctx.get_from_scope(Scope::Case)?;
     if case != DecodeNodeCase::Right {
         return Err(OsHintError::AssertionFailed { message: "case != 'right".to_string() });
     }
@@ -125,7 +125,7 @@ pub(crate) fn assert_case_is_right(ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn write_case_not_left_to_ap(ctx: HintContext<'_>) -> OsHintResult {
-    let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
+    let case: DecodeNodeCase = ctx.get_from_scope(Scope::Case)?;
     let value = Felt::from(case != DecodeNodeCase::Left);
     insert_value_into_ap(ctx.vm, value)?;
     Ok(())
@@ -166,9 +166,9 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
 
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintContext<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
+    let node: UpdateTree = ctx.get_from_scope(Scope::Node)?;
     let UpdateTree::InnerNode(inner_node) = node else {
         return Err(OsHintError::ExpectedInnerNode);
     };
@@ -176,9 +176,9 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
     let case = inner_node.case();
     let (left_child, right_child) = inner_node.get_children();
 
-    ctx.exec_scopes.insert_value(Scope::LeftChild.into(), left_child.clone());
-    ctx.exec_scopes.insert_value(Scope::RightChild.into(), right_child.clone());
-    ctx.exec_scopes.insert_value(Scope::Case.into(), case.clone());
+    ctx.insert_into_scope(Scope::LeftChild, left_child.clone());
+    ctx.insert_into_scope(Scope::RightChild, right_child.clone());
+    ctx.insert_into_scope(Scope::Case, case.clone());
 
     let ids_node = HashOutput(ctx.get_integer(Ids::Node)?);
 
@@ -212,7 +212,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 
 pub(crate) fn build_descent_map<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintContext<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_updates: usize = ctx.fetch_as(Ids::NUpdates)?;
 
@@ -246,8 +246,8 @@ pub(crate) fn build_descent_map<S: StateReader>(
     let new_root = HashOutput(ctx.get_integer(Ids::NewRoot)?);
     let descent_map = patricia_guess_descents(height, &node, &preimage_map, prev_root, new_root)?;
 
-    ctx.exec_scopes.insert_value(Scope::Node.into(), node);
-    ctx.exec_scopes.insert_value(Scope::DescentMap.into(), descent_map);
+    ctx.insert_into_scope(Scope::Node, node);
+    ctx.insert_into_scope(Scope::DescentMap, descent_map);
 
     // We do not build `common_args` as it is a Python trick to enter new scopes with a
     // dict destructuring one-liner as the dict references itself. Neat trick that does not
@@ -274,16 +274,16 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
 }
 
 pub(crate) fn enter_scope_node(ctx: HintContext<'_>) -> OsHintResult {
-    let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
+    let node: UpdateTree = ctx.get_from_scope(Scope::Node)?;
     enter_scope_specific_node(node, ctx.exec_scopes)
 }
 
 pub(crate) fn enter_scope_new_node(mut ctx: HintContext<'_>) -> OsHintResult {
-    let case: DecodeNodeCase = ctx.exec_scopes.get(Scope::Case.into())?;
+    let case: DecodeNodeCase = ctx.get_from_scope(Scope::Case)?;
 
     let (new_node, case_not_left) = match case {
-        DecodeNodeCase::Left => (ctx.exec_scopes.get(Scope::LeftChild.into())?, Felt::ZERO),
-        DecodeNodeCase::Right => (ctx.exec_scopes.get(Scope::RightChild.into())?, Felt::ONE),
+        DecodeNodeCase::Left => (ctx.get_from_scope(Scope::LeftChild)?, Felt::ZERO),
+        DecodeNodeCase::Right => (ctx.get_from_scope(Scope::RightChild)?, Felt::ONE),
         DecodeNodeCase::Both => {
             return Err(OsHintError::AssertionFailed {
                 message: "Expected case not to be 'both'.".to_string(),
@@ -301,8 +301,8 @@ fn enter_scope_next_node_bit(is_left: bool, ctx: HintContext<'_>) -> OsHintResul
     let left_bit = Felt::from(is_left);
 
     let new_node = match ids_bit {
-        x if x == left_bit => ctx.exec_scopes.get(Scope::LeftChild.into())?,
-        x if x == Felt::ONE - left_bit => ctx.exec_scopes.get(Scope::RightChild.into())?,
+        x if x == left_bit => ctx.get_from_scope(Scope::LeftChild)?,
+        x if x == Felt::ONE - left_bit => ctx.get_from_scope(Scope::RightChild)?,
         _ => {
             return Err(OsHintError::ExpectedBit { id: Ids::Bit, felt: ids_bit });
         }
@@ -319,17 +319,17 @@ pub(crate) fn enter_scope_next_node_bit_1(ctx: HintContext<'_>) -> OsHintResult 
 }
 
 pub(crate) fn enter_scope_left_child(ctx: HintContext<'_>) -> OsHintResult {
-    let left_child: UpdateTree = ctx.exec_scopes.get(Scope::LeftChild.into())?;
+    let left_child: UpdateTree = ctx.get_from_scope(Scope::LeftChild)?;
     enter_scope_specific_node(left_child, ctx.exec_scopes)
 }
 
 pub(crate) fn enter_scope_right_child(ctx: HintContext<'_>) -> OsHintResult {
-    let right_child: UpdateTree = ctx.exec_scopes.get(Scope::RightChild.into())?;
+    let right_child: UpdateTree = ctx.get_from_scope(Scope::RightChild)?;
     enter_scope_specific_node(right_child, ctx.exec_scopes)
 }
 
 pub(crate) fn enter_scope_descend_edge(ctx: HintContext<'_>) -> OsHintResult {
-    let mut new_node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
+    let mut new_node: UpdateTree = ctx.get_from_scope(Scope::Node)?;
     let length: u8 = ctx.fetch_as(Ids::Length)?;
 
     // We aim to traverse downward through the node until we reach the end of the descent.
@@ -437,8 +437,8 @@ pub(crate) fn load_bottom<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn decode_node(ctx: HintContext<'_>) -> OsHintResult {
-    let node: UpdateTree = ctx.exec_scopes.get(Scope::Node.into())?;
+pub(crate) fn decode_node(mut ctx: HintContext<'_>) -> OsHintResult {
+    let node: UpdateTree = ctx.get_from_scope(Scope::Node)?;
     let UpdateTree::InnerNode(inner_node) = node else {
         return Err(OsHintError::ExpectedInnerNode);
     };
@@ -446,9 +446,9 @@ pub(crate) fn decode_node(ctx: HintContext<'_>) -> OsHintResult {
     let case = inner_node.case();
     let (left_child, right_child) = inner_node.get_children();
 
-    ctx.exec_scopes.insert_value(Scope::LeftChild.into(), left_child.clone());
-    ctx.exec_scopes.insert_value(Scope::RightChild.into(), right_child.clone());
-    ctx.exec_scopes.insert_value(Scope::Case.into(), case.clone());
+    ctx.insert_into_scope(Scope::LeftChild, left_child.clone());
+    ctx.insert_into_scope(Scope::RightChild, right_child.clone());
+    ctx.insert_into_scope(Scope::Case, case.clone());
 
     insert_value_into_ap(ctx.vm, Felt::from(case != DecodeNodeCase::Both))?;
 

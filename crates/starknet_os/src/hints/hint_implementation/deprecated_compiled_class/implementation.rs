@@ -36,8 +36,8 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
 
     let compiled_class_v0 = CompiledClassV0::try_from(deprecated_class)?;
 
-    ctx.exec_scopes.insert_value(Scope::ClassHash.into(), class_hash);
-    ctx.exec_scopes.insert_value(Scope::CompiledClass.into(), compiled_class_v0);
+    ctx.insert_into_scope(Scope::ClassHash, class_hash);
+    ctx.insert_into_scope(Scope::CompiledClass, compiled_class_v0);
 
     Ok(ctx.insert_value(Ids::CompiledClass, dep_class_base)?)
 }
@@ -56,7 +56,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         hint_processor.program,
     )?;
     let computed_hash = ctx.vm.get_integer(computed_hash_addr)?;
-    let expected_hash = ctx.exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
+    let expected_hash: ClassHash = ctx.get_from_scope(Scope::ClassHash)?;
 
     if computed_hash.as_ref() != &expected_hash.0 {
         return Err(OsHintError::AssertionFailed {
