@@ -275,7 +275,7 @@ use crate::hints::pythonic_hint_strings::patricia::{
 use crate::hints::pythonic_hint_strings::secp::IS_ON_CURVE;
 use crate::hints::pythonic_hint_strings::segment_arena::SEGMENTS_ADD;
 use crate::hints::pythonic_hint_strings::sha256::SHA2_FINALIZE;
-use crate::hints::types::{HintArgs, HintEnum};
+use crate::hints::types::{HintContext, HintEnum};
 use crate::{
     define_common_hint_enum,
     define_hint_enum,

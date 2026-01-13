@@ -8,7 +8,7 @@ use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
     split_bigint3,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{Const, Ids};
 
 pub(crate) fn guess_kzg_commitments_and_store_da_segment<
@@ -16,7 +16,7 @@ pub(crate) fn guess_kzg_commitments_and_store_da_segment<
     CHP: CommonHintProcessor<'program>,
 >(
     hint_processor: &mut CHP,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     log::debug!("Executing guess_kzg_commitments_and_store_da_segment hint.");
     let state_updates_start = ctx.get_ptr(Ids::StateUpdatesStart)?;
@@ -70,7 +70,7 @@ pub(crate) fn guess_kzg_commitments_and_store_da_segment<
     Ok(())
 }
 
-pub(crate) fn write_split_result(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn write_split_result(ctx: HintContext<'_>) -> OsHintResult {
     let value = ctx.get_integer(Ids::Value)?.to_bigint();
     let res_ptr = ctx.get_relocatable(Ids::Res)?;
 

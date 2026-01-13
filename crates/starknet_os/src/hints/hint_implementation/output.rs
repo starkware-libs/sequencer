@@ -13,7 +13,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{Const, Ids, Scope};
 
 pub(crate) const MAX_PAGE_SIZE: usize = 3800;
@@ -59,7 +59,7 @@ pub(crate) fn load_public_keys_into_memory(
 
 pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     if !hint_processor.get_serialize_data_availability_create_pages() {
         return Ok(());
@@ -95,7 +95,7 @@ pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'progra
     Ok(())
 }
 
-pub(crate) fn set_state_updates_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_state_updates_start(mut ctx: HintContext<'_>) -> OsHintResult {
     let use_kzg_da_felt = ctx.get_integer(Ids::UseKzgDa)?;
 
     // Set `use_kzg_da` in globals since it will be used in `process_data_availability`
@@ -120,7 +120,7 @@ pub(crate) fn set_state_updates_start(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn set_compressed_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_compressed_start(mut ctx: HintContext<'_>) -> OsHintResult {
     let n_keys = ctx.get_integer(Ids::NKeys)?;
     let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
@@ -138,7 +138,7 @@ pub(crate) fn set_compressed_start(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn set_encrypted_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_encrypted_start(mut ctx: HintContext<'_>) -> OsHintResult {
     let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
@@ -155,7 +155,7 @@ pub(crate) fn set_encrypted_start(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn set_n_updates_small(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn set_n_updates_small(mut ctx: HintContext<'_>) -> OsHintResult {
     let n_updates = ctx.get_integer(Ids::NUpdates)?;
     let n_updates_small_packing_bounds =
         Const::fetch(&Const::NUpdatesSmallPackingBound, ctx.constants)?;
@@ -166,7 +166,7 @@ pub(crate) fn set_n_updates_small(mut ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn calculate_keys_using_sha256_hash(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn calculate_keys_using_sha256_hash(mut ctx: HintContext<'_>) -> OsHintResult {
     // Generate a cryptographically secure random seed.
     let mut random_bytes = [0u8; 32];
     OsRng.fill_bytes(&mut random_bytes);

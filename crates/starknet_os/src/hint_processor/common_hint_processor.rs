@@ -9,7 +9,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 
 pub(crate) type VmHintResultType<T> = Result<T, VmHintError>;
 pub(crate) type VmHintResult = VmHintResultType<()>;
@@ -40,7 +40,7 @@ pub(crate) trait CommonHintProcessor<'a> {
     fn execute_cairo0_unique_hint(
         &mut self,
         hint: &AllHints,
-        hint_args: HintArgs<'_>,
+        ctx: HintContext<'_>,
         _hint_str: &str,
     ) -> VmHintExtensionResult;
 
@@ -71,7 +71,7 @@ macro_rules! impl_common_hint_processor_logic {
         ) -> VmHintExtensionResult {
             if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
                 // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
-                let hint_args = HintArgs {
+                let ctx = HintContext {
                     vm,
                     exec_scopes,
                     ids_data: &hint_processor_data.ids_data,
@@ -83,14 +83,14 @@ macro_rules! impl_common_hint_processor_logic {
                     // OS hint, Cairo0 syscall.
                     return match hint {
                         AllHints::StatelessHint(stateless) => {
-                            stateless.execute_hint(self, hint_args)?;
+                            stateless.execute_hint(self, ctx)?;
                             Ok(HintExtension::default())
                         }
                         AllHints::CommonHint(common_hint) => {
-                            common_hint.execute_hint(self, hint_args)?;
+                            common_hint.execute_hint(self, ctx)?;
                             Ok(HintExtension::default())
                         }
-                        _ => self.execute_cairo0_unique_hint(&hint, hint_args, hint_str),
+                        _ => self.execute_cairo0_unique_hint(&hint, ctx, hint_str),
                     };
                 } else {
                     // Cairo0 core hint.

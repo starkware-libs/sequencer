@@ -8,12 +8,12 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::Ids;
 
 pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let is_deprecated = true;
     log_enter_syscall_helper(
@@ -28,7 +28,7 @@ pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
 
 pub(crate) fn os_logger_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -47,7 +47,7 @@ pub(crate) fn os_logger_exit_syscall<S: StateReader>(
 
 pub(crate) fn log_enter_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let is_deprecated = false;
     log_enter_syscall_helper(

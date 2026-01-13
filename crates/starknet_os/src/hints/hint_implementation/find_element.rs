@@ -2,11 +2,11 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::Ids;
 
 // TODO(Nimrod): Delete this hint (should be implemented in the VM).
-pub(crate) fn search_sorted_optimistic(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn search_sorted_optimistic(mut ctx: HintContext<'_>) -> OsHintResult {
     let array_ptr = ctx.get_ptr(Ids::ArrayPtr)?;
     let elm_size = felt_to_usize(&ctx.get_integer(Ids::ElmSize)?)?;
 

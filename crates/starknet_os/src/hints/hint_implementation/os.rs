@@ -9,13 +9,13 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::output::load_public_keys_into_memory;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
         hint_processor
@@ -33,7 +33,7 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
 
 pub(crate) fn initialize_state_changes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let cached_state = &hint_processor.get_current_execution_helper()?.cached_state;
     let writes_accessed_addresses: BTreeSet<_> =
@@ -64,7 +64,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
 
 pub(crate) fn write_use_kzg_da_and_full_output_to_memory<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let os_hints_config = &hint_processor.os_hints_config;
     let use_kzg_da = Felt::from(os_hints_config.use_kzg_da && !os_hints_config.full_output);
@@ -76,7 +76,7 @@ pub(crate) fn write_use_kzg_da_and_full_output_to_memory<S: StateReader>(
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.serialize_data_availability_create_pages = true;
     Ok(())
@@ -85,7 +85,7 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 // Checks that the calculated block hash is consistent with the expected block hash (sanity check).
 pub(crate) fn check_block_hash_consistency<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let calculated_block_hash = ctx.get_integer(Ids::BlockHash)?;
@@ -103,14 +103,14 @@ pub(crate) fn check_block_hash_consistency<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn starknet_os_input(_ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn starknet_os_input(_ctx: HintContext<'_>) -> OsHintResult {
     // Nothing to do here; OS input already available on the hint processor.
     Ok(())
 }
 
 pub(crate) fn init_state_update_pointer<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.state_update_pointers = Some(StateUpdatePointers::new(ctx.vm));
     Ok(())
@@ -118,7 +118,7 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
 
 pub(crate) fn get_n_blocks<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_blocks = hint_processor.n_blocks();
     Ok(ctx.insert_value(Ids::NBlocks, n_blocks)?)
@@ -126,7 +126,7 @@ pub(crate) fn get_n_blocks<S: StateReader>(
 
 pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_classes =
         hint_processor.get_current_execution_helper()?.os_block_input.class_hashes_to_migrate.len();
@@ -135,7 +135,7 @@ pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
 }
 pub(crate) fn log_remaining_blocks<S: StateReader>(
     hint_processor: &SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let n_blocks = ctx.get_integer(Ids::NBlocks)?;
     match hint_processor.get_current_execution_helper() {
@@ -156,7 +156,7 @@ pub(crate) fn log_remaining_blocks<S: StateReader>(
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.execution_helpers_manager.increment_current_helper_index();
     Ok(())
@@ -164,7 +164,7 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
 
 pub(crate) fn get_public_keys<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let public_keys = hint_processor.os_hints_config.public_keys.clone();
     load_public_keys_into_memory(ctx.vm, ctx.ids_data, ctx.ap_tracking, public_keys)?;
@@ -173,7 +173,7 @@ pub(crate) fn get_public_keys<S: StateReader>(
 
 pub(crate) fn get_block_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let block_info = &os_input.block_info;

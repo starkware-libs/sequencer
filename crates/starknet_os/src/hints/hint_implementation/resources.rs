@@ -4,10 +4,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::Ids;
 
-pub(crate) fn remaining_gas_gt_max(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn remaining_gas_gt_max(mut ctx: HintContext<'_>) -> OsHintResult {
     let remaining_gas = ctx.get_integer(Ids::RemainingGas)?;
     let max_gas = ctx.get_integer(Ids::MaxGas)?;
     let remaining_gas_gt_max: Felt = (remaining_gas > max_gas).into();
@@ -16,7 +16,7 @@ pub(crate) fn remaining_gas_gt_max(mut ctx: HintArgs<'_>) -> OsHintResult {
 
 pub(crate) fn debug_expected_initial_gas<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_current_execution_helper()?;
@@ -42,7 +42,7 @@ pub(crate) fn debug_expected_initial_gas<S: StateReader>(
 
 pub(crate) fn is_sierra_gas_mode<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let gas_mode = hint_processor.get_current_call_info_tracker()?.call_info.tracked_resource;
 
