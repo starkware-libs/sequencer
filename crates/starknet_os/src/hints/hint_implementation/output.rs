@@ -1,11 +1,7 @@
 use std::cmp::min;
 use std::collections::HashMap;
 
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -62,15 +58,15 @@ pub(crate) fn load_public_keys_into_memory(
 
 pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    ctx: HintArgs<'_>,
 ) -> OsHintResult {
     if !hint_processor.get_serialize_data_availability_create_pages() {
         return Ok(());
     }
-    let onchain_data_start = get_ptr_from_var_name(Ids::DaStart.into(), vm, ids_data, ap_tracking)?;
-    let output_ptr = get_ptr_from_var_name(Ids::OutputPtr.into(), vm, ids_data, ap_tracking)?;
+    let onchain_data_start = ctx.get_ptr(Ids::DaStart)?;
+    let output_ptr = ctx.get_ptr(Ids::OutputPtr)?;
     let onchain_data_size = (output_ptr - onchain_data_start)?;
-    let output_builtin = vm.get_output_builtin_mut()?;
+    let output_builtin = ctx.vm.get_output_builtin_mut()?;
 
     let n_pages = onchain_data_size.div_ceil(MAX_PAGE_SIZE);
     for i in 0..n_pages {
@@ -98,17 +94,13 @@ pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'progra
     Ok(())
 }
 
-pub(crate) fn set_state_updates_start(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let use_kzg_da_felt =
-        get_integer_from_var_name(Ids::UseKzgDa.into(), vm, ids_data, ap_tracking)?;
+pub(crate) fn set_state_updates_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let use_kzg_da_felt = ctx.get_integer(Ids::UseKzgDa)?;
 
     // Set `use_kzg_da` in globals since it will be used in `process_data_availability`
-    exec_scopes.insert_value(Scope::UseKzgDa.into(), use_kzg_da_felt);
+    ctx.exec_scopes.insert_value(Scope::UseKzgDa.into(), use_kzg_da_felt);
 
-    let compress_state_updates =
-        get_integer_from_var_name(Ids::CompressStateUpdates.into(), vm, ids_data, ap_tracking)?;
+    let compress_state_updates = ctx.get_integer(Ids::CompressStateUpdates)?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
@@ -116,75 +108,64 @@ pub(crate) fn set_state_updates_start(
         felt_to_bool(compress_state_updates, Ids::CompressStateUpdates)?;
 
     let segment = if use_kzg_da || use_compress_state_updates {
-        vm.add_memory_segment()
+        ctx.vm.add_memory_segment()
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
-        vm.add_temporary_segment()
+        ctx.vm.add_temporary_segment()
     };
 
-    insert_value_from_var_name(Ids::StateUpdatesStart.into(), segment, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::StateUpdatesStart, segment)?;
 
     Ok(())
 }
 
-pub(crate) fn set_compressed_start(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
-    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+pub(crate) fn set_compressed_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let n_keys = ctx.get_integer(Ids::NKeys)?;
+    let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
     let segment = if use_kzg_da || n_keys > Felt::ZERO {
-        vm.add_memory_segment()
+        ctx.vm.add_memory_segment()
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
-        vm.add_temporary_segment()
+        ctx.vm.add_temporary_segment()
     };
 
-    insert_value_from_var_name(Ids::CompressedStart.into(), segment, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::CompressedStart, segment)?;
 
     Ok(())
 }
 
-pub(crate) fn set_encrypted_start(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+pub(crate) fn set_encrypted_start(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let use_kzg_da_felt = ctx.exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
     let segment = if use_kzg_da {
-        vm.add_memory_segment()
+        ctx.vm.add_memory_segment()
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
-        vm.add_temporary_segment()
+        ctx.vm.add_temporary_segment()
     };
 
-    insert_value_from_var_name(Ids::EncryptedStart.into(), segment, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::EncryptedStart, segment)?;
 
     Ok(())
 }
 
-pub(crate) fn set_n_updates_small(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let n_updates = get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
+pub(crate) fn set_n_updates_small(mut ctx: HintArgs<'_>) -> OsHintResult {
+    let n_updates = ctx.get_integer(Ids::NUpdates)?;
     let n_updates_small_packing_bounds =
-        Const::fetch(&Const::NUpdatesSmallPackingBound, constants)?;
-    insert_value_from_var_name(
-        Ids::IsNUpdatesSmall.into(),
+        Const::fetch(&Const::NUpdatesSmallPackingBound, ctx.constants)?;
+    ctx.insert_value(
+        Ids::IsNUpdatesSmall,
         Felt::from(&n_updates < n_updates_small_packing_bounds),
-        vm,
-        ids_data,
-        ap_tracking,
     )?;
     Ok(())
 }
 
-pub(crate) fn calculate_keys_using_sha256_hash(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
+pub(crate) fn calculate_keys_using_sha256_hash(mut ctx: HintArgs<'_>) -> OsHintResult {
     // Generate a cryptographically secure random seed.
     let mut random_bytes = [0u8; 32];
     OsRng.fill_bytes(&mut random_bytes);
@@ -194,13 +175,11 @@ pub(crate) fn calculate_keys_using_sha256_hash(
 
     // In addition, hash the compressed state diff for extra defense against potential attacks on
     // randomness source.
-    let compressed_start =
-        get_ptr_from_var_name(Ids::CompressedStart.into(), vm, ids_data, ap_tracking)?;
-    let compressed_end =
-        get_ptr_from_var_name(Ids::CompressedEnd.into(), vm, ids_data, ap_tracking)?;
+    let compressed_start = ctx.get_ptr(Ids::CompressedStart)?;
+    let compressed_end = ctx.get_ptr(Ids::CompressedEnd)?;
     let array_size = (compressed_end - compressed_start)?;
     for i in 0..array_size {
-        let felt = vm.get_integer((compressed_start + i)?)?;
+        let felt = ctx.vm.get_integer((compressed_start + i)?)?;
         hasher.update(felt.to_bytes_be());
     }
     let random_key_seed = hasher.finalize().to_vec();
@@ -213,7 +192,7 @@ pub(crate) fn calculate_keys_using_sha256_hash(
         let hash = Sha256::new().chain_update(&random_key_seed).chain_update(SYM_LABEL).finalize();
         Felt::from_bytes_be(&hash.into())
     };
-    insert_value_from_var_name(Ids::SymmetricKey.into(), symmetric_key, vm, ids_data, ap_tracking)?;
+    ctx.insert_value(Ids::SymmetricKey, symmetric_key)?;
 
     // Private keys: derive with a counter and truncate to 31 bytes (248 bits)
     // to ensure result is < 2^248 < EC group order < PRIME. This is required for
@@ -234,19 +213,13 @@ pub(crate) fn calculate_keys_using_sha256_hash(
         MaybeRelocatable::from(Felt::from_bytes_be(&key_bytes))
     };
 
-    let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
+    let n_keys = ctx.get_integer(Ids::NKeys)?;
     let num_private_keys = felt_to_usize(&n_keys)?;
     let private_keys: Vec<MaybeRelocatable> =
         (0..num_private_keys).map(|_| next_private_key()).collect();
-    let private_keys_start = vm.gen_arg(&private_keys)?;
+    let private_keys_start = ctx.vm.gen_arg(&private_keys)?;
 
-    insert_value_from_var_name(
-        Ids::SnPrivateKeys.into(),
-        private_keys_start,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    ctx.insert_value(Ids::SnPrivateKeys, private_keys_start)?;
 
     Ok(())
 }
