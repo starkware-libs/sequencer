@@ -788,8 +788,6 @@ auto_impl_get_test_instance! {
         pub prime: serde_json::Value,
         pub reference_manager: serde_json::Value,
     }
-    pub struct Proof(pub Arc<Vec<u32>>);
-    pub struct ProofFacts(pub Arc<Vec<Felt>>);
     pub struct ReceiptCommitment(pub StarkHash);
     pub enum Resource {
         L1Gas = 0,
@@ -1161,6 +1159,10 @@ default_impl_get_test_instance!(ContractAddress);
 default_impl_get_test_instance!(StarkHash);
 default_impl_get_test_instance!(StorageKey);
 default_impl_get_test_instance!(BigUint);
+// Most transactions do not use client-side proving, so these fields default to empty.
+// Use the explicit testing helpers when testing client-side proving.
+default_impl_get_test_instance!(starknet_api::transaction::fields::Proof);
+default_impl_get_test_instance!(starknet_api::transaction::fields::ProofFacts);
 
 impl GetTestInstance for StructAbiEntry {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
