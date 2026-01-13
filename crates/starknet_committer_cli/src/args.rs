@@ -36,6 +36,9 @@ pub enum BenchmarkFlavor {
     /// [N * C, (N + 1) * C).
     #[value(alias("continuous"))]
     Continuous,
+    /// Use SN-MAINNET state diffs for the benchmark.
+    #[value(alias("mainnet"))]
+    Mainnet,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]

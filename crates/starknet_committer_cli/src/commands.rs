@@ -33,6 +33,14 @@ use crate::args::{
     DEFAULT_DATA_PATH,
 };
 
+/// Benchmark flavors with random leaf updates.
+enum RandomBenchmarkFlavor {
+    Constant,
+    Continuous,
+    Overlap,
+    PeriodicPeaks,
+}
+
 pub type InputImpl = Input<FactsDbInitialRead>;
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
@@ -57,7 +65,7 @@ fn leaf_preimages_to_storage_keys(
         .collect()
 }
 
-impl BenchmarkFlavor {
+impl RandomBenchmarkFlavor {
     /// Returns the total amount of nonzero leaves in the system up to (not including) the block
     /// number.
     fn total_nonzero_leaves_up_to(&self, n_updates_arg: usize, block_number: usize) -> usize {
@@ -143,16 +151,34 @@ impl BenchmarkFlavor {
         }
     }
 
+    /// Converts from the general BenchmarkFlavor to RandomBenchmarkFlavor.
+    /// If the type is not random, returns None.
+    fn try_from_benchmark_flavor(flavor: BenchmarkFlavor) -> Option<Self> {
+        match flavor {
+            BenchmarkFlavor::Constant => Some(Self::Constant),
+            BenchmarkFlavor::Continuous => Some(Self::Continuous),
+            BenchmarkFlavor::Overlap => Some(Self::Overlap),
+            BenchmarkFlavor::PeriodicPeaks => Some(Self::PeriodicPeaks),
+            BenchmarkFlavor::Mainnet => None,
+        }
+    }
+}
+
+impl BenchmarkFlavor {
     /// The nonzero leaf indices in the system are uniquely determined by the block number (see
-    /// [Self::leaf_update_keys]), however, the actual state diff can be random depending on the
-    /// flavor (nonzero leaf updates can be randomized).
+    /// [RandomBenchmarkFlavor::leaf_update_keys]), however, the actual state diff can be random
+    /// depending on the flavor (nonzero leaf updates can be randomized).
     fn generate_state_diff(
         &self,
         n_updates_arg: usize,
         block_number: usize,
         rng: &mut SmallRng,
     ) -> StateDiff {
-        let leaf_keys = self.leaf_update_keys(n_updates_arg, block_number, rng);
+        let Some(random_flavor) = RandomBenchmarkFlavor::try_from_benchmark_flavor(*self) else {
+            // TODO(Nimrod): Implement mainnet-like state diff generation.
+            unimplemented!();
+        };
+        let leaf_keys = random_flavor.leaf_update_keys(n_updates_arg, block_number, rng);
         let n_updates = leaf_keys.len();
         generate_random_state_diff(rng, n_updates, Some(leaf_keys))
     }
@@ -294,8 +320,13 @@ fn apply_interference<S: AsyncStorage>(
     match interference_type {
         InterferenceType::None => {}
         InterferenceType::Read1KEveryBlock => {
+            let Some(random_benchmark_flavor) =
+                RandomBenchmarkFlavor::try_from_benchmark_flavor(benchmark_flavor)
+            else {
+                return;
+            };
             let total_leaves =
-                benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
+                random_benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
             // Avoid creating an iterator over the entire range - select random leaves, with
             // possible repetition. Probability of repitition will decrease as the number of
             // leaves increases.
