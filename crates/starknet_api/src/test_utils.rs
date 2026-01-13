@@ -381,6 +381,7 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
+        let version = Felt::ZERO;
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number = felt!(block_hash_history_start + 2);
         let block_hash = block_number * felt!(100_u64);
@@ -391,12 +392,18 @@ impl ProofFacts {
         );
         // TODO(AvivG): Change to valid values when available.
         let config_hash = felt!("0x1");
+        // These fields are not verified by the OS (they are application-related).
+        let authorized_account_address = felt!("0x10");
+        let messages_to_l1_segment_size = Felt::ZERO;
         proof_facts![
             felt!(VIRTUAL_SNOS),
             VIRTUAL_OS_PROGRAM_HASH,
+            version,
             block_number,
             block_hash,
-            config_hash
+            config_hash,
+            authorized_account_address,
+            messages_to_l1_segment_size
         ]
     }
 }
