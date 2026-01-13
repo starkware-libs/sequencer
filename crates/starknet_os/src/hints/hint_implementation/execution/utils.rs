@@ -122,7 +122,7 @@ pub(crate) fn get_calldata<'a, S: StateReader>(
 
 pub(crate) fn set_state_entry(key: &Felt, ctx: &mut HintContext<'_>) -> OsHintResult {
     let state_changes_ptr = ctx.get_ptr(Ids::ContractStateChanges)?;
-    let dict_manager = ctx.exec_scopes.get_dict_manager()?;
+    let dict_manager = ctx.get_dict_manager()?;
     let mut dict_manager_borrowed = dict_manager.borrow_mut();
     let state_entry =
         dict_manager_borrowed.get_tracker_mut(state_changes_ptr)?.get_value(&key.into())?;

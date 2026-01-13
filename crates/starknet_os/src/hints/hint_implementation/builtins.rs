@@ -21,14 +21,13 @@ pub(crate) fn selected_builtins(ctx: HintContext<'_>) -> OsHintResult {
 }
 
 pub(crate) fn select_builtin(mut ctx: HintContext<'_>) -> OsHintResult {
-    let n_selected_builtins: Felt = ctx.exec_scopes.get(Scope::NSelectedBuiltins.into())?;
+    let n_selected_builtins: Felt = ctx.get_from_scope(Scope::NSelectedBuiltins)?;
     let selected_encodings_ptr = ctx.get_ptr(Ids::SelectedEncodings)?;
     let all_encodings_ptr = ctx.get_ptr(Ids::AllEncodings)?;
     let select_builtin = n_selected_builtins != Felt::ZERO // Equivalent to n_selected_builtins > 0.
         && ctx.vm.get_integer(selected_encodings_ptr)? == ctx.vm.get_integer(all_encodings_ptr)?;
     if select_builtin {
-        ctx.exec_scopes
-            .insert_value(Scope::NSelectedBuiltins.into(), n_selected_builtins - Felt::ONE);
+        ctx.insert_into_scope(Scope::NSelectedBuiltins, n_selected_builtins - Felt::ONE);
     }
     ctx.insert_value(Ids::SelectBuiltin, Felt::from(select_builtin))?;
 
