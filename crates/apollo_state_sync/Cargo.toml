@@ -29,7 +29,6 @@ apollo_storage.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 papyrus_common.workspace = true
-starknet-types-core.workspace = true
 starknet_api.workspace = true
 tokio.workspace = true
 tracing.workspace = true

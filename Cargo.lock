@@ -2560,7 +2560,6 @@ dependencies = [
  "mockall",
  "papyrus_common",
  "rand_chacha 0.3.1",
- "starknet-types-core",
  "starknet_api",
  "tokio",
  "tracing",
