@@ -129,3 +129,24 @@ async fn test_forbidden_syscall(#[case] selector: &str) {
 }
 
 // TODO(Yoni): consider adding a positive test for all supported syscalls.
+
+#[rstest]
+#[tokio::test]
+/// Test that the virtual OS fails when a reverted transaction is added.
+async fn test_reverted_tx_os_error() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    // Add a reverting invoke transaction.
+    let calldata = create_calldata(contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]);
+    let tx = test_builder.create_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_invoke_tx(tx, Some("Panic for revert".to_string()));
+
+    test_builder
+        .build()
+        .await
+        .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
+}
