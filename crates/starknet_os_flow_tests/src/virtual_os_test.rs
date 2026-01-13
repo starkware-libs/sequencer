@@ -1,13 +1,22 @@
+use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::EthAddress;
-use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
+use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::{
+    InvokeTransaction as ApiInvokeTransaction,
+    L2ToL1Payload,
+    MessageToL1,
+    TransactionVersion,
+};
 use starknet_api::{calldata, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::test_manager::TestBuilder;
+use crate::test_manager::{TestBuilder, FUNDED_ACCOUNT_ADDRESS};
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 #[rstest]
 #[tokio::test]
@@ -129,3 +138,45 @@ async fn test_forbidden_syscall(#[case] selector: &str) {
 }
 
 // TODO(Yoni): consider adding a positive test for all supported syscalls.
+
+#[rstest]
+#[tokio::test]
+/// Tests that get_execution_info returns the base (previous) block info in virtual OS mode.
+/// This is a key difference from regular mode, where the block info is of the current block.
+async fn test_get_execution_info_returns_base_block_info() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    // In virtual OS mode, get_execution_info returns the base block info (the previous block),
+    // NOT the current execution block info as in regular mode.
+    let base_block_info = test_builder.base_block_info();
+    let selector = selector_from_name("test_get_execution_info");
+
+    let expected_execution_info = ExpectedExecutionInfo {
+        version: TransactionVersion::THREE,
+        account_address: *FUNDED_ACCOUNT_ADDRESS,
+        caller_address: *FUNDED_ACCOUNT_ADDRESS,
+        contract_address,
+        chain_id: Some(test_builder.chain_id()),
+        entry_point_selector: selector,
+        block_number: base_block_info.block_number,
+        block_timestamp: base_block_info.block_timestamp,
+        sequencer_address: base_block_info.sequencer_address,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        ..Default::default()
+    }
+    .to_syscall_result();
+
+    let calldata =
+        create_calldata(contract_address, "test_get_execution_info", &expected_execution_info);
+    let mut tx = test_builder.create_funded_account_invoke(invoke_tx_args! { calldata });
+    let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
+    tx_v3.signature = TransactionSignature(vec![tx.tx_hash.0].into());
+
+    test_builder.add_invoke_tx(tx, None);
+
+    test_builder.build().await.run_virtual_and_validate();
+}
