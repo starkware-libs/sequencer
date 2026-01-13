@@ -556,16 +556,27 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// nonce set (and incremented) and resource bounds set to the default (non-trivial).
     /// Assumes the tx should not be reverted.
     pub(crate) fn add_funded_account_invoke(&mut self, additional_args: InvokeTxArgs) {
+        let tx = self.create_funded_account_invoke(additional_args);
+        self.add_invoke_tx(tx, None);
+    }
+
+    /// Creates an invoke transaction from the funded account, with nonce set (and incremented)
+    /// and resource bounds set to the default (non-trivial).
+    pub(crate) fn create_funded_account_invoke(
+        &mut self,
+        additional_args: InvokeTxArgs,
+    ) -> InvokeTransaction {
         let nonce = self.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
-        self.add_invoke_tx_from_args(
-            InvokeTxArgs {
+        InvokeTransaction::create(
+            invoke_tx(InvokeTxArgs {
                 sender_address: *FUNDED_ACCOUNT_ADDRESS,
                 nonce,
                 resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
                 ..additional_args
-            },
-            None,
-        );
+            }),
+            &self.chain_id(),
+        )
+        .unwrap()
     }
 
     pub(crate) fn add_cairo0_declare_tx(&mut self, tx: DeclareTransaction, class_hash: ClassHash) {
