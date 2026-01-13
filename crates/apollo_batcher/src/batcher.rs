@@ -69,7 +69,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::block_builder::{
@@ -177,7 +177,7 @@ pub struct Batcher {
     commitment_manager: ApolloCommitmentManager,
 
     /// Task handle for the storage reader server, if enabled.
-    storage_reader_server_handle: Option<JoinHandle<()>>,
+    storage_reader_server_handle: Option<AbortHandle>,
 }
 
 impl Batcher {
@@ -193,7 +193,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
-        storage_reader_server_handle: Option<JoinHandle<()>>,
+        storage_reader_server_handle: Option<AbortHandle>,
     ) -> Self {
         Self {
             config,
