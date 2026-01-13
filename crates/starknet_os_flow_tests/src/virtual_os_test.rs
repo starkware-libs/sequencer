@@ -1,13 +1,25 @@
+use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::BlockTimestamp;
 use starknet_api::core::EthAddress;
-use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
-use starknet_api::{calldata, invoke_tx_args};
+use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
+use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
+use starknet_api::transaction::{
+    InvokeTransaction as ApiInvokeTransaction,
+    L2ToL1Payload,
+    MessageToL1,
+    TransactionVersion,
+};
+use starknet_api::{calldata, contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::test_manager::TestBuilder;
+use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 #[rstest]
 #[tokio::test]
@@ -129,3 +141,72 @@ async fn test_forbidden_syscall(#[case] selector: &str) {
 }
 
 // TODO(Yoni): consider adding a positive test for all supported syscalls.
+
+#[rstest]
+#[case::virtual_mode(true)]
+#[case::regular_mode(false)]
+#[tokio::test]
+/// Tests that get_execution_info returns the correct block info.
+/// In virtual OS mode, the base (previous) block info is returned.
+/// In regular mode, the current block info is returned.
+async fn test_get_execution_info(#[case] virtual_os: bool) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::<DictStateReader>::new_with_default_initial_state(
+            [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+            TestBuilderConfig::default(),
+            virtual_os,
+        )
+        .await;
+
+    // In virtual OS mode, get_execution_info returns the base block info (the previous block).
+    // In regular mode, it returns the current block info.
+    let base_block_info = test_builder.base_block_info();
+    let (block_number, block_timestamp, sequencer_address) = if virtual_os {
+        (
+            base_block_info.block_number,
+            base_block_info.block_timestamp,
+            base_block_info.sequencer_address,
+        )
+    } else {
+        (
+            base_block_info.block_number.next().unwrap(),
+            BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+            contract_address!(TEST_SEQUENCER_ADDRESS),
+        )
+    };
+
+    let selector = selector_from_name("test_get_execution_info");
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
+    let expected_execution_info = ExpectedExecutionInfo {
+        version: TransactionVersion::THREE,
+        account_address: *FUNDED_ACCOUNT_ADDRESS,
+        caller_address: *FUNDED_ACCOUNT_ADDRESS,
+        contract_address,
+        chain_id: Some(test_builder.chain_id()),
+        entry_point_selector: selector,
+        block_number,
+        block_timestamp,
+        sequencer_address,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        proof_facts: proof_facts.clone(),
+        ..Default::default()
+    }
+    .to_syscall_result();
+
+    let calldata =
+        create_calldata(contract_address, "test_get_execution_info", &expected_execution_info);
+    let mut tx =
+        test_builder.create_funded_account_invoke(invoke_tx_args! { calldata, proof_facts });
+    let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
+    tx_v3.signature = TransactionSignature(vec![tx.tx_hash.0].into());
+
+    test_builder.add_invoke_tx(tx, None);
+
+    if virtual_os {
+        test_builder.build().await.run_virtual_and_validate();
+    } else {
+        test_builder.build().await.run().perform_default_validations();
+    }
+}

@@ -473,12 +473,13 @@ pub fn proof_facts_as_cairo_array(proof_facts: ProofFacts) -> Vec<Felt> {
 
 /// Utility struct to test the execution info syscall.
 /// For simplicity, some fields are not included in the struct, and assumed empty.
+#[derive(Default)]
 pub struct ExpectedExecutionInfo {
     pub version: TransactionVersion,
     pub account_address: ContractAddress,
     pub max_fee: Fee,
     pub transaction_hash: TransactionHash,
-    pub chain_id: ChainId,
+    pub chain_id: Option<ChainId>,
     pub nonce: Nonce,
     pub resource_bounds: ValidResourceBounds,
     pub paymaster_data: PaymasterData,
@@ -519,7 +520,7 @@ impl ExpectedExecutionInfo {
             account_address,
             caller_address,
             contract_address,
-            chain_id,
+            chain_id: Some(chain_id),
             entry_point_selector,
             block_number,
             block_timestamp,
@@ -552,7 +553,7 @@ impl ExpectedExecutionInfo {
             self.max_fee.0.into(),
             Felt::ZERO,
             self.transaction_hash.0,
-            Felt::from_hex_unchecked(&self.chain_id.as_hex()),
+            Felt::from_hex_unchecked(&self.chain_id.unwrap_or(ChainId::Mainnet).as_hex()),
             self.nonce.0,
         ];
 
