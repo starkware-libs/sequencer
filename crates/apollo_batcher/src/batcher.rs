@@ -55,6 +55,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use futures::FutureExt;
@@ -1164,7 +1165,9 @@ impl Batcher {
                     Some(FirstBlockWithPartialBlockHash { block_number, .. }) => {
                         height >= *block_number
                     }
-                    None => true,
+                    // The hash of block `STORED_BLOCK_HASH_BUFFER` - 1 needs to be calculated,
+                    // to calculate the hash of block `STORED_BLOCK_HASH_BUFFER`.
+                    None => height.0 >= STORED_BLOCK_HASH_BUFFER - 1,
                 };
 
             // Get the final commitment.

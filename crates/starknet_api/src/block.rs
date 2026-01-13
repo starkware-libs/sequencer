@@ -276,6 +276,11 @@ pub enum BlockStatus {
 )]
 pub struct BlockHash(pub StarkHash);
 
+impl BlockHash {
+    // TODO(Amos): Use this anywhere the genesis block hash is used.
+    pub const GENESIS: Self = Self(StarkHash::ZERO);
+}
+
 /// The number of a [Block](`crate::block::Block`).
 #[derive(
     Debug,

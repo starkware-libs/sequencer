@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{BatcherResult, ProposalStatus};
 use apollo_batcher_types::errors::BatcherError;
-use blockifier::abi::constants;
+use blockifier::abi::constants::{self, STORED_BLOCK_HASH_BUFFER};
 use chrono::Utc;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use tracing::info;
@@ -79,4 +79,8 @@ pub(crate) fn proposal_status_from(
             Err(BatcherError::InternalError)
         }
     }
+}
+
+pub fn retrospective_block_is_genesis_block(height: &BlockNumber) -> bool {
+    height.0 == STORED_BLOCK_HASH_BUFFER - 1
 }
