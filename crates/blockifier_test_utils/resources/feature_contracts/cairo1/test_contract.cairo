@@ -1255,11 +1255,15 @@ mod TestContract {
     }
 
     // Test functions for storage revert behavior with nested calls.
-    // write_1: writes storage cell to 1.
+    // write_1: writes storage cell to 1, emits a dummy event and sends a dummy L1 message.
     #[external(v0)]
     fn write_1(ref self: ContractState, key: StorageAddress) {
         let address_domain = 0;
         syscalls::storage_write_syscall(address_domain, key, 1).unwrap_syscall();
+        // Emit a dummy event and send a dummy L1 message (should be reverted by caller panic).
+        let dummy_span = array![0].span();
+        syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
+        syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
     }
     // call_write_rewrite_panic: calls write_1, then writes storage cell to 2, then panics.
     #[external(v0)]
