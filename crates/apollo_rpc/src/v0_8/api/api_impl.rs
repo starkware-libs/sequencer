@@ -154,7 +154,6 @@ use crate::{
     internal_server_error_with_msg,
     verify_storage_scope,
     ContinuationTokenAsStruct,
-    GENESIS_HASH,
 };
 
 const DONT_IGNORE_L1_DA_MODE: bool = false;
@@ -507,7 +506,9 @@ impl JsonRpcServer for JsonRpcServerImpl {
             Ok(parent_block_number) => {
                 BlockHeader::from(get_block_header_by_number(&txn, parent_block_number)?).new_root
             }
-            Err(_) => GlobalRoot(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+            // TODO(Shahak): Consider adding genesis hash to the config to support chains that have
+            // different genesis hash.
+            Err(_) => GlobalRoot(BlockHash::GENESIS_PARENT_HASH.0),
         };
 
         // Get the block state diff.
@@ -1561,7 +1562,7 @@ async fn read_pending_data<Mode: TransactionKind>(
         Some(latest_block_number) => get_block_header_by_number(txn, latest_block_number)?,
         None => starknet_api::block::BlockHeader {
             block_header_without_hash: BlockHeaderWithoutHash {
-                parent_hash: BlockHash(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+                parent_hash: BlockHash::GENESIS_PARENT_HASH,
                 ..Default::default()
             },
             ..Default::default()
