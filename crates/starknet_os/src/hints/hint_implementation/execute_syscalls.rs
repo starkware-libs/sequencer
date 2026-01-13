@@ -3,11 +3,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
-pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> OsHintResult {
     let request_block_number = ctx.get_integer(Ids::RequestBlockNumber)?;
     let current_block_number = ctx.get_integer(Ids::CurrentBlockNumber)?;
     let stored_block_hash_buffer = Const::StoredBlockHashBuffer.fetch(ctx.constants)?;
@@ -22,7 +22,7 @@ pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintArgs<'_>) -> OsH
 
 pub(crate) fn relocate_sha256_segment<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let state_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
         ctx.ids_data,

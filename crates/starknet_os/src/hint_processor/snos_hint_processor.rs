@@ -45,7 +45,7 @@ use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
-use crate::hints::types::{HintArgs, HintEnum};
+use crate::hints::types::{HintContext, HintEnum};
 use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{CommitmentInfo, OsBlockInput, OsHintsConfig, OsInputError};
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
@@ -301,7 +301,7 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
     fn execute_cairo0_unique_hint(
         &mut self,
         hint: &AllHints,
-        hint_args: HintArgs<'_>,
+        ctx: HintContext<'_>,
         _hint_str: &str,
     ) -> VmHintExtensionResult {
         match hint {
@@ -312,20 +312,20 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
                 );
             }
             AllHints::OsHint(os_hint) => {
-                os_hint.execute_hint(self, hint_args)?;
+                os_hint.execute_hint(self, ctx)?;
             }
             AllHints::AggregatorHint(aggregator_hint) => {
                 panic!("Aggregator hints should not be used in the OS. Hint: {aggregator_hint:?}");
             }
             AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
-                deprecated_syscall_hint.execute_hint(self, hint_args)?;
+                deprecated_syscall_hint.execute_hint(self, ctx)?;
             }
             AllHints::HintExtension(hint_extension) => {
-                return Ok(hint_extension.execute_hint_extensive(self, hint_args)?);
+                return Ok(hint_extension.execute_hint_extensive(self, ctx)?);
             }
             #[cfg(any(test, feature = "testing"))]
             AllHints::TestHint => {
-                test_hint(_hint_str, self, hint_args)?;
+                test_hint(_hint_str, self, ctx)?;
             }
         }
         Ok(HintExtension::default())

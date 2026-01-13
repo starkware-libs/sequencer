@@ -13,16 +13,16 @@ use crate::hints::hint_implementation::execute_transactions::utils::{
     N_MISSING_BLOCKS_BOUND,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{Const, Ids};
 
-pub(crate) fn log_remaining_txs(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn log_remaining_txs(ctx: HintContext<'_>) -> OsHintResult {
     let n_txs = ctx.get_integer(Ids::NTxs)?;
     log::info!("execute_transactions_inner: {n_txs} transactions remaining.");
     Ok(())
 }
 
-pub(crate) fn fill_holes_in_rc96_segment(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn fill_holes_in_rc96_segment(ctx: HintContext<'_>) -> OsHintResult {
     let rc96_ptr = ctx.get_ptr(Ids::RangeCheck96Ptr)?;
     let segment_size = rc96_ptr.offset;
     let base = Relocatable::from((rc96_ptr.segment_index, 0));
@@ -41,7 +41,7 @@ pub(crate) fn fill_holes_in_rc96_segment(ctx: HintArgs<'_>) -> OsHintResult {
 /// Assumes the current transaction is of type Declare.
 pub(crate) fn set_component_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let account_tx = current_execution_helper.tx_tracker.get_account_tx()?;
@@ -63,7 +63,7 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     Ok(ctx.insert_value(Ids::ContractClassComponentHashes, class_component_hashes_base)?)
 }
 
-pub(crate) fn sha2_finalize(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn sha2_finalize(ctx: HintContext<'_>) -> OsHintResult {
     let batch_size = &Const::ShaBatchSize.fetch(ctx.constants)?.to_bigint();
     let n = &ctx.get_integer(Ids::N)?.to_bigint();
     // Calculate the modulus operation, not the remainder.
@@ -89,14 +89,16 @@ pub(crate) fn sha2_finalize(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(
+    mut ctx: HintContext<'_>,
+) -> OsHintResult {
     let temp_segment = ctx.vm.add_temporary_segment();
     Ok(ctx.insert_value(Ids::InitialTxsRangeCheckPtr, temp_segment)?)
 }
 
 pub(crate) fn load_actual_fee<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let actual_fee = Felt::from(
         hint_processor
@@ -111,14 +113,14 @@ pub(crate) fn load_actual_fee<S: StateReader>(
 
 pub(crate) fn skip_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     Ok(hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.skip_tx()?)
 }
 
 pub(crate) fn start_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     let tx_type = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_type();
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx(tx_type)?;
@@ -127,13 +129,13 @@ pub(crate) fn start_tx<S: StateReader>(
 
 pub(crate) fn os_input_transactions<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let num_txns = hint_processor.get_current_execution_helper()?.os_block_input.transactions.len();
     Ok(ctx.insert_value(Ids::NTxs, num_txns)?)
 }
 
-pub(crate) fn segments_add(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn segments_add(ctx: HintContext<'_>) -> OsHintResult {
     let segment = ctx.vm.add_memory_segment();
     Ok(insert_value_into_ap(ctx.vm, segment)?)
 }

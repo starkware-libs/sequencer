@@ -5,12 +5,12 @@ use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::aggregator::utils::FullOsOutputsData;
 use crate::hints::hint_implementation::output::load_public_keys_into_memory;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::Ids;
 use crate::io::os_output_types::TryFromOutputIter;
 use crate::vm_utils::LoadIntoVmMemory;
 
-pub(crate) fn allocate_segments_for_messages(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn allocate_segments_for_messages(mut ctx: HintContext<'_>) -> OsHintResult {
     let segment1 = ctx.vm.add_temporary_segment();
     let segment2 = ctx.vm.add_temporary_segment();
     let initial_carried_outputs = ctx.vm.gen_arg(&vec![segment1, segment2])?;
@@ -20,7 +20,7 @@ pub(crate) fn allocate_segments_for_messages(mut ctx: HintArgs<'_>) -> OsHintRes
 
 pub(crate) fn disable_da_page_creation(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     // Note that `serialize_os_output` splits its output to memory pages (see
     // `OutputBuiltinRunner.add_page`).
@@ -32,7 +32,7 @@ pub(crate) fn disable_da_page_creation(
 
 pub(crate) fn get_os_output_for_inner_blocks(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let mut bootloader_iter = hint_processor
         .input
@@ -56,7 +56,7 @@ pub(crate) fn get_os_output_for_inner_blocks(
 
 pub(crate) fn get_aggregator_output(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     // This impl differs from the python one, as we don't need to support an input of
     // polynomial_coefficients_to_kzg_commitment function anymore.
@@ -66,7 +66,7 @@ pub(crate) fn get_aggregator_output(
 
 pub(crate) fn write_da_segment(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     if let DataAvailability::Blob(da_file_path) = hint_processor.input.da.clone() {
         let da_segment = hint_processor.get_da_segment();
@@ -78,7 +78,7 @@ pub(crate) fn write_da_segment(
 
 pub(crate) fn get_use_kzg_da_and_full_output_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let use_kzg_da: Felt = match hint_processor.input.da {
         DataAvailability::Blob(_) => true,
@@ -93,7 +93,7 @@ pub(crate) fn get_use_kzg_da_and_full_output_from_input(
 
 pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     *hint_processor.get_mut_state_update_pointers() = None;
     Ok(())
@@ -101,7 +101,7 @@ pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcess
 
 pub(crate) fn get_chain_id_and_fee_token_address_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let chain_id: Felt = hint_processor.input.chain_id;
     let fee_token_address: Felt = hint_processor.input.fee_token_address;
@@ -112,7 +112,7 @@ pub(crate) fn get_chain_id_and_fee_token_address_from_input(
 
 pub(crate) fn get_public_keys_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let public_keys = hint_processor.input.public_keys.clone();
     load_public_keys_into_memory(ctx.vm, ctx.ids_data, ctx.ap_tracking, public_keys)?;

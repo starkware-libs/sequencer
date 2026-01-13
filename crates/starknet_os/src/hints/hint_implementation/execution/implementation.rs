@@ -26,7 +26,7 @@ use crate::hints::hint_implementation::execution::utils::{
     get_proof_facts,
     set_state_entry,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{
@@ -37,7 +37,7 @@ use crate::vm_utils::{
 
 pub(crate) fn load_next_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -62,7 +62,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
 
 pub(crate) fn load_common_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -107,7 +107,7 @@ pub(crate) fn load_common_tx_fields<S: StateReader>(
 
 pub(crate) fn exit_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let range_check_ptr = ctx.get_ptr(Ids::RangeCheckPtr)?;
     Ok(hint_processor
@@ -126,7 +126,7 @@ pub(crate) fn exit_tx<S: StateReader>(
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -155,7 +155,7 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
 
 pub(crate) fn assert_transaction_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let stored_transaction_hash = ctx.get_integer(Ids::TransactionHash)?;
     let calculated_tx_hash =
@@ -174,7 +174,7 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
     }
 }
 
-pub(crate) fn enter_scope_deprecated_syscall_handler(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_deprecated_syscall_handler(ctx: HintContext<'_>) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
         any_box!(SyscallHandlerType::DeprecatedSyscallHandler),
@@ -183,7 +183,7 @@ pub(crate) fn enter_scope_deprecated_syscall_handler(ctx: HintArgs<'_>) -> OsHin
     Ok(())
 }
 
-pub(crate) fn enter_scope_syscall_handler(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_syscall_handler(ctx: HintContext<'_>) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
         any_box!(SyscallHandlerType::SyscallHandler),
@@ -192,7 +192,7 @@ pub(crate) fn enter_scope_syscall_handler(ctx: HintArgs<'_>) -> OsHintResult {
     Ok(())
 }
 
-pub(crate) fn get_contract_address_state_entry(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn get_contract_address_state_entry(ctx: HintContext<'_>) -> OsHintResult {
     let contract_address = ctx.get_integer(Ids::ContractAddress)?;
     set_state_entry(&contract_address, ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)?;
     Ok(())
@@ -200,7 +200,7 @@ pub(crate) fn get_contract_address_state_entry(ctx: HintArgs<'_>) -> OsHintResul
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_contract_address = ctx
         .vm
@@ -226,7 +226,7 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
 
 pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let class_hash = ClassHash(
         *ctx.vm.get_integer(
@@ -249,7 +249,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn enter_scope_execute_transactions_inner(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn enter_scope_execute_transactions_inner(ctx: HintContext<'_>) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
     // variables since they are accessible via the hint processor.
@@ -263,7 +263,7 @@ pub(crate) fn enter_scope_execute_transactions_inner(ctx: HintArgs<'_>) -> OsHin
 
 pub(crate) fn end_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.end_tx()?;
     Ok(())
@@ -271,7 +271,7 @@ pub(crate) fn end_tx<S: StateReader>(
 
 pub(crate) fn enter_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let execution_info_ptr = ctx.vm.get_relocatable(get_address_of_nested_fields(
         ctx.ids_data,
@@ -302,7 +302,7 @@ pub(crate) fn enter_call<S: StateReader>(
 
 pub(crate) fn exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    _ctx: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     hint_processor
         .get_mut_current_execution_helper()?
@@ -314,7 +314,7 @@ pub(crate) fn exit_call<S: StateReader>(
 
 pub(crate) fn contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let tx = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?;
     let contract_address = match tx {
@@ -327,7 +327,7 @@ pub(crate) fn contract_address<S: StateReader>(
 
 pub(crate) fn tx_calldata<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let calldata: Vec<_> =
         get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?
@@ -343,7 +343,7 @@ pub(crate) fn tx_calldata<S: StateReader>(
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let tx = hint_processor
         .execution_helpers_manager
@@ -362,7 +362,7 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
 
 pub(crate) fn tx_version<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
     ctx.insert_value(Ids::TxVersion, version.0)?;
@@ -371,7 +371,7 @@ pub(crate) fn tx_version<S: StateReader>(
 
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_deployment_data: Vec<_> =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?
@@ -387,7 +387,7 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
 
 pub(crate) fn tx_proof_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let proof_facts: Vec<_> = get_proof_facts(hint_processor.get_current_execution_helper()?)?
         .0
@@ -402,7 +402,7 @@ pub(crate) fn tx_proof_facts<S: StateReader>(
 
 pub(crate) fn gen_signature_arg<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -419,7 +419,7 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
 
 pub(crate) fn is_reverted<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let is_reverted = hint_processor
         .execution_helpers_manager
@@ -434,7 +434,7 @@ pub(crate) fn is_reverted<S: StateReader>(
 
 pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -500,7 +500,7 @@ pub(crate) fn check_execution_and_exit_call<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintContext<'_>) -> OsHintResult {
     let remaining_gas = ctx.get_integer(Ids::RemainingGas)?;
     let initial_budget = Const::EntryPointInitialBudget.fetch(ctx.constants)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
@@ -509,7 +509,7 @@ pub(crate) fn is_remaining_gas_lt_initial_budget(mut ctx: HintArgs<'_>) -> OsHin
 
 pub(crate) fn check_syscall_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let actual_retdata = extract_actual_retdata(ctx.vm, ctx.ids_data, ctx.ap_tracking)?;
     let call_response_ptr = ctx.get_ptr(Ids::CallResponse)?;
@@ -534,7 +534,7 @@ pub(crate) fn check_syscall_response<S: StateReader>(
 
 pub(crate) fn check_new_call_contract_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "retdata_start",
@@ -549,7 +549,7 @@ pub(crate) fn check_new_call_contract_response<S: StateReader>(
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "constructor_retdata_start",
@@ -562,21 +562,21 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
     )
 }
 
-pub(crate) fn initial_ge_required_gas(mut ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn initial_ge_required_gas(mut ctx: HintContext<'_>) -> OsHintResult {
     let initial_gas = ctx.get_integer(Ids::InitialGas)?;
     let required_gas = ctx.get_integer(Ids::RequiredGas)?;
     ctx.insert_value(Ids::InitialGeRequiredGas, Felt::from(initial_gas >= required_gas))?;
     Ok(())
 }
 
-fn load_tx_nonce(nonce: Nonce, mut ctx: HintArgs<'_>) -> OsHintResult {
+fn load_tx_nonce(nonce: Nonce, mut ctx: HintContext<'_>) -> OsHintResult {
     ctx.insert_value(Ids::Nonce, nonce.0)?;
     Ok(())
 }
 
 pub(crate) fn load_tx_nonce_account<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -589,7 +589,7 @@ pub(crate) fn load_tx_nonce_account<S: StateReader>(
 
 pub(crate) fn load_tx_nonce_l1_handler<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -602,7 +602,7 @@ pub(crate) fn load_tx_nonce_l1_handler<S: StateReader>(
 
 fn write_syscall_result_helper<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
     ids_type: Ids,
     struct_type: CairoStruct,
     key_name: &str,
@@ -649,7 +649,7 @@ fn write_syscall_result_helper<S: StateReader>(
 
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     write_syscall_result_helper(
         hint_processor,
@@ -662,7 +662,7 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
 
 pub(crate) fn write_syscall_result<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     write_syscall_result_helper(
         hint_processor,
@@ -675,7 +675,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
 
 pub(crate) fn declare_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -714,7 +714,7 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
 
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
@@ -734,7 +734,7 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
 
 fn assert_value_cached_by_reading<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
     id: Ids,
     cairo_struct_type: CairoStruct,
     nested_fields: &[&str],
@@ -777,7 +777,7 @@ fn assert_value_cached_by_reading<S: StateReader>(
 
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
         hint_processor,
@@ -790,7 +790,7 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
 
 pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintArgs<'_>,
+    ctx: HintContext<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
         hint_processor,
@@ -803,7 +803,7 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    mut ctx: HintArgs<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
@@ -824,7 +824,7 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn check_retdata_for_debug(ctx: HintArgs<'_>) -> OsHintResult {
+pub(crate) fn check_retdata_for_debug(ctx: HintContext<'_>) -> OsHintResult {
     // Fetch the result, up to 100 elements.
     let retdata = ctx.get_ptr(Ids::Retdata)?;
     let retdata_size = felt_to_usize(&ctx.get_integer(Ids::RetdataSize)?)?;

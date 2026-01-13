@@ -27,7 +27,7 @@ pub trait HintEnum {
     fn to_str(&self) -> &'static str;
 }
 
-pub struct HintArgs<'a> {
+pub struct HintContext<'a> {
     pub vm: &'a mut VirtualMachine,
     pub exec_scopes: &'a mut ExecutionScopes,
     pub ids_data: &'a HashMap<String, HintReference>,
@@ -35,7 +35,7 @@ pub struct HintArgs<'a> {
     pub constants: &'a HashMap<String, Felt>,
 }
 
-impl HintArgs<'_> {
+impl HintContext<'_> {
     pub fn insert_value<T: Into<MaybeRelocatable>>(
         &mut self,
         var_id: Ids,

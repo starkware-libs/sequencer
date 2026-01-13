@@ -3,7 +3,7 @@ use blockifier::state::state_api::StateReader;
 use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintContext;
 
 /// Test hint for debugging. Implement this hint however you like, but should not be merged with
 /// an actual implementation.
@@ -22,7 +22,7 @@ use crate::hints::types::HintArgs;
 /// pub(crate) fn test_hint<S: StateReader>(
 ///     hint_str: &str,
 ///     hint_processor: &mut SnosHintProcessor<'_, S>,
-///     HintArgs { .. }: HintArgs<'_>,
+///     _ctx: HintContext<'_>,
 /// ) -> OsHintResult {
 ///     let hint_case = hint_str.trim_start().strip_prefix(TEST_HINT_PREFIX).unwrap().trim_start();
 ///     match hint_case[0] {
@@ -35,7 +35,7 @@ use crate::hints::types::HintArgs;
 pub(crate) fn test_hint<S: StateReader>(
     _hint_str: &str,
     _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     Ok(())
 }
@@ -44,7 +44,7 @@ pub(crate) fn test_hint<S: StateReader>(
 pub(crate) fn test_aggregator_hint(
     _hint_str: &str,
     _hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { .. }: HintArgs<'_>,
+    _ctx: HintContext<'_>,
 ) -> OsHintResult {
     Ok(())
 }
