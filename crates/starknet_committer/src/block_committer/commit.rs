@@ -29,6 +29,7 @@ pub trait CommitBlockTrait: Send {
     ) -> BlockCommitmentResult<FilledForest> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
+        let n_contracts_trie_modifications = contracts_trie_indices.len();
         let forest_sorted_indices = ForestSortedIndices {
             storage_tries_sorted_indices: storage_tries_indices
                 .iter_mut()
@@ -39,6 +40,14 @@ pub trait CommitBlockTrait: Send {
         };
         let actual_storage_updates = input.state_diff.actual_storage_updates();
         let actual_classes_updates = input.state_diff.actual_classes_updates();
+        // Record the number of modifications.
+        let n_storage_tries_modifications =
+            actual_storage_updates.values().map(|value| value.len()).sum();
+        measurements.set_number_of_modifications(
+            n_storage_tries_modifications,
+            n_contracts_trie_modifications,
+            actual_classes_updates.len(),
+        );
         // Reads - fetch_nodes.
 
         measurements.start_measurement(Action::Read);
