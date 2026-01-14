@@ -58,6 +58,7 @@ use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
+use tokio::task::AbortHandle;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
 
@@ -70,7 +71,7 @@ pub struct StateSyncRunner {
     new_block_dev_null_future: BoxFuture<'static, Never>,
     rpc_server_future: BoxFuture<'static, ()>,
     register_metrics_future: BoxFuture<'static, ()>,
-    pub storage_reader_server: Option<GenericStorageReaderServer>,
+    storage_reader_server_handle: Option<AbortHandle>,
 }
 
 #[async_trait]
@@ -100,13 +101,22 @@ impl ComponentStarter for StateSyncRunner {
     }
 }
 
+impl Drop for StateSyncRunner {
+    fn drop(&mut self) {
+        // Abort the storage reader server task if it was spawned.
+        if let Some(handle) = self.storage_reader_server_handle.take() {
+            handle.abort();
+        }
+    }
+}
+
 pub struct StateSyncResources {
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub storage_reader_server: Option<GenericStorageReaderServer>,
+    pub storage_reader_server_handle: Option<AbortHandle>,
 }
 
 impl StateSyncResources {
@@ -118,6 +128,8 @@ impl StateSyncResources {
                 storage_reader_server_config,
             )
             .expect("StateSyncRunner failed opening storage");
+        let storage_reader_server_handle =
+            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
@@ -135,7 +147,7 @@ impl StateSyncResources {
             shared_highest_block,
             pending_data,
             pending_classes,
-            storage_reader_server,
+            storage_reader_server_handle,
         }
     }
 }
@@ -162,7 +174,7 @@ impl StateSyncRunner {
             shared_highest_block,
             pending_data,
             pending_classes,
-            storage_reader_server,
+            storage_reader_server_handle,
         } = StateSyncResources::new(&storage_config, storage_reader_server_config);
 
         let register_metrics_future = register_metrics(storage_reader.clone()).boxed();
@@ -224,7 +236,7 @@ impl StateSyncRunner {
                     new_block_dev_null_future: pending().boxed(),
                     rpc_server_future,
                     register_metrics_future,
-                    storage_reader_server,
+                    storage_reader_server_handle,
                 },
                 storage_reader,
             );
@@ -335,7 +347,7 @@ impl StateSyncRunner {
                 new_block_dev_null_future,
                 rpc_server_future,
                 register_metrics_future,
-                storage_reader_server,
+                storage_reader_server_handle,
             },
             storage_reader,
         )
