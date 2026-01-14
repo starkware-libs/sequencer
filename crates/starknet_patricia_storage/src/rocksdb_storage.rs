@@ -1,6 +1,8 @@
+use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
 
+use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
@@ -8,6 +10,7 @@ use rust_rocksdb::{
     ColumnFamily,
     ColumnFamilyDescriptor,
     Options,
+    SliceTransform,
     WriteBatch,
     WriteOptions,
     DB,
@@ -18,18 +21,19 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
-    NoStats,
     PatriciaStorageResult,
     Storage,
+    StorageStats,
 };
 
 // General database Options.
 
-const DB_BLOCK_SIZE: usize = 4 * 1024; // 4MB
-const DB_CACHE_SIZE: usize = 2 * 1024 * 1024 * 1024; // 2GB
+const DB_CACHE_SIZE: usize = 8 * 1024 * 1024 * 1024; // 8GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
 const BLOOM_FILTER_NUM_BITS: f64 = 10.0;
+
+const KEY_PREFIX_BYTES_LENGTH: usize = 32;
 
 // Write Options.
 
@@ -58,8 +62,11 @@ impl Default for RocksDbOptions {
         opts.set_bytes_per_sync(BYTES_PER_SYNC);
         opts.set_write_buffer_size(WRITE_BUFFER_SIZE);
         opts.increase_parallelism(NUM_THREADS);
+        opts.set_max_subcompactions(NUM_THREADS.try_into().unwrap());
         opts.set_max_background_jobs(MAX_BACKGROUND_JOBS);
         opts.set_max_write_buffer_number(MAX_WRITE_BUFFERS);
+
+        opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
 
         let mut block = BlockBasedOptions::default();
         let cache = Cache::new_lru_cache(DB_CACHE_SIZE);
@@ -69,7 +76,6 @@ impl Default for RocksDbOptions {
         block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
         block.set_partition_filters(true);
 
-        block.set_block_size(DB_BLOCK_SIZE);
         block.set_cache_index_and_filter_blocks(true);
         // Make sure filter blocks are cached.
         block.set_pin_l0_filter_and_index_blocks_in_cache(true);
@@ -77,6 +83,10 @@ impl Default for RocksDbOptions {
         block.set_bloom_filter(BLOOM_FILTER_NUM_BITS, false);
 
         opts.set_block_based_table_factory(&block);
+
+        // Enable statistics collection.
+        opts.enable_statistics();
+        opts.set_statistics_level(StatsLevel::ExceptDetailedTimers);
 
         // Set write options.
         let mut write_options = WriteOptions::default();
@@ -99,9 +109,33 @@ impl RocksDbOptions {
     }
 }
 
+/// Statistics collected from RocksDB using its built-in statistics output.
+#[derive(Debug, Clone, Default)]
+pub struct RocksDbStats {
+    /// The raw statistics string from RocksDB.
+    pub stats: String,
+}
+
+impl Display for RocksDbStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.stats)
+    }
+}
+
+impl StorageStats for RocksDbStats {
+    fn column_titles() -> Vec<&'static str> {
+        vec!["rocksdb_stats"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![self.stats.clone()]
+    }
+}
+
 #[derive(Clone)]
 pub struct RocksDbStorage {
     db: Arc<DB>,
+    db_options: Arc<Options>,
     write_options: Arc<WriteOptions>,
     /// family according to its last byte. Otherwise, the database is opened with a single
     /// column family (default behavior).
@@ -119,12 +153,13 @@ impl RocksDbStorage {
                 .map(|i| ColumnFamilyDescriptor::new(format!("{i}"), Options::default()))
                 .collect()
         } else {
-            vec![ColumnFamilyDescriptor::new("default", Options::default())]
+            vec![ColumnFamilyDescriptor::new("default", options.db_options.clone())]
         };
 
         let db = Arc::new(DB::open_cf_descriptors(&options.db_options, path, cfs)?);
+        let db_options = Arc::new(options.db_options);
         let write_options = Arc::new(options.write_options);
-        Ok(Self { db, write_options, column_families })
+        Ok(Self { db, db_options, write_options, column_families })
     }
 
     pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
@@ -140,7 +175,7 @@ impl RocksDbStorage {
 }
 
 impl Storage for RocksDbStorage {
-    type Stats = NoStats;
+    type Stats = RocksDbStats;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let cf = self.get_column_family(key);
@@ -178,7 +213,8 @@ impl Storage for RocksDbStorage {
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
-        Ok(NoStats)
+        let stats = self.db_options.get_statistics().unwrap_or_default();
+        Ok(RocksDbStats { stats })
     }
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {

@@ -35,7 +35,7 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 pub struct IndexDb<S: Storage> {
-    storage: S,
+    pub storage: S,
 }
 
 impl<S: Storage> IndexDb<S> {
