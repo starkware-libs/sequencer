@@ -1,23 +1,23 @@
-/// Tests that a specific RPC server responds as expected to all methods required
-/// for the blockifier reexecution test.
+/// Tests for RpcStateReader.
 ///
-/// ## Usage
-/// Run with environment variables and feature flag:
-/// ```bash
-/// TEST_URL="http://your_rpc_url" BLOCK_NUMBER=123456 cargo test -p blockifier_reexecution --features blockifier_regression_https_testing
-/// ```
-/// - `TEST_URL`: URL of the RPC server. If not provided, a free public RPC URL is used, which
-///   may cause sporadic errors due to request limits.
-/// - `BLOCK_NUMBER`: Block number for testing. If not provided, defaults to the latest block.
+/// This module contains:
+/// - Mock-based unit tests that use mockito to test RPC methods in isolation
+/// - Integration tests that test against real RPC servers (requires feature flag)
 use std::env;
 use std::sync::{Arc, Mutex};
 
+use apollo_rpc::CompiledContractClass;
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_api::StateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use rstest::{fixture, rstest};
+use serde::Serialize;
+use serde_json::json;
 use starknet_api::block::{BlockInfo, BlockNumber};
-use starknet_api::class_hash;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -25,14 +25,22 @@ use starknet_api::transaction::{
     Transaction,
     TransactionVersion,
 };
+use starknet_api::{class_hash, contract_address, felt, nonce};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::cli::guess_chain_id_from_node_url;
 use crate::compile::legacy_to_contract_class_v0;
-use crate::rpc_state_reader::config::RpcStateReaderConfig;
-use crate::rpc_state_reader::rpc_objects::BlockId;
-use crate::rpc_state_reader::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
+use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
+use crate::state_reader::rpc_objects::{
+    BlockId,
+    GetClassHashAtParams,
+    GetCompiledClassParams,
+    GetNonceParams,
+    GetStorageAtParams,
+    RpcResponse,
+    RpcSuccessResponse,
+};
 use crate::state_reader::rpc_state_reader::{
     ConsecutiveRpcStateReaders,
     RetryConfig,
@@ -40,6 +48,185 @@ use crate::state_reader::rpc_state_reader::{
 };
 use crate::utils::RPC_NODE_URL;
 
+// ============================================================================
+// Mock-based unit tests
+// ============================================================================
+
+async fn run_rpc_server() -> mockito::ServerGuard {
+    mockito::Server::new_async().await
+}
+
+fn mock_rpc_interaction(
+    server: &mut mockito::ServerGuard,
+    json_rpc_version: &str,
+    method: &str,
+    params: impl Serialize,
+    expected_response: &RpcResponse,
+) -> mockito::Mock {
+    let request_body = json!({
+        "jsonrpc": json_rpc_version,
+        "id": 0,
+        "method": method,
+        "params": json!(params),
+    });
+    server
+        .mock("POST", "/")
+        .match_header("Content-Type", "application/json")
+        .match_body(mockito::Matcher::Json(request_body))
+        .with_status(201)
+        .with_body(serde_json::to_string(expected_response).unwrap())
+        .create()
+}
+
+#[tokio::test]
+async fn test_get_storage_at_mock() {
+    let mut server = run_rpc_server().await;
+    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
+
+    let expected_result = felt!("0x999");
+
+    let mock = mock_rpc_interaction(
+        &mut server,
+        &config.json_rpc_version,
+        "starknet_getStorageAt",
+        GetStorageAtParams {
+            block_id: BlockId::Latest,
+            contract_address: contract_address!("0x1"),
+            key: starknet_api::state::StorageKey::from(0u32),
+        },
+        &RpcResponse::Success(RpcSuccessResponse {
+            result: serde_json::to_value(expected_result).unwrap(),
+            ..Default::default()
+        }),
+    );
+
+    let client = RpcStateReader::from_latest(&config);
+    let result = tokio::task::spawn_blocking(move || {
+        client.get_storage_at(contract_address!("0x1"), starknet_api::state::StorageKey::from(0u32))
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(result, expected_result);
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_get_nonce_at_mock() {
+    let mut server = run_rpc_server().await;
+    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
+
+    let expected_result = nonce!(0x999);
+
+    let mock = mock_rpc_interaction(
+        &mut server,
+        &config.json_rpc_version,
+        "starknet_getNonce",
+        GetNonceParams { block_id: BlockId::Latest, contract_address: contract_address!("0x1") },
+        &RpcResponse::Success(RpcSuccessResponse {
+            result: serde_json::to_value(expected_result).unwrap(),
+            ..Default::default()
+        }),
+    );
+
+    let client = RpcStateReader::from_latest(&config);
+    let result = tokio::task::spawn_blocking(move || client.get_nonce_at(contract_address!("0x1")))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result, expected_result);
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_get_compiled_class_mock() {
+    let mut server = run_rpc_server().await;
+    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
+
+    let expected_result = CasmContractClass {
+        compiler_version: "0.0.0".to_string(),
+        prime: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+
+    let expected_sierra_version = SierraVersion::default();
+
+    let mock = mock_rpc_interaction(
+        &mut server,
+        &config.json_rpc_version,
+        "starknet_getCompiledContractClass",
+        GetCompiledClassParams { block_id: BlockId::Latest, class_hash: class_hash!("0x1") },
+        &RpcResponse::Success(RpcSuccessResponse {
+            result: serde_json::to_value((
+                CompiledContractClass::V1(expected_result.clone()),
+                SierraVersion::default(),
+            ))
+            .unwrap(),
+            ..Default::default()
+        }),
+    );
+
+    let client = RpcStateReader::from_latest(&config);
+    let result = tokio::task::spawn_blocking(move || client.get_compiled_class(class_hash!("0x1")))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1((expected_result, expected_sierra_version).try_into().unwrap())
+    );
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_get_class_hash_at_mock() {
+    let mut server = run_rpc_server().await;
+    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
+
+    let expected_result = class_hash!("0x999");
+
+    let mock = mock_rpc_interaction(
+        &mut server,
+        &config.json_rpc_version,
+        "starknet_getClassHashAt",
+        GetClassHashAtParams {
+            block_id: BlockId::Latest,
+            contract_address: contract_address!("0x1"),
+        },
+        &RpcResponse::Success(RpcSuccessResponse {
+            result: serde_json::to_value(expected_result).unwrap(),
+            ..Default::default()
+        }),
+    );
+
+    let client = RpcStateReader::from_latest(&config);
+    let result =
+        tokio::task::spawn_blocking(move || client.get_class_hash_at(contract_address!("0x1")))
+            .await
+            .unwrap()
+            .unwrap();
+    assert_eq!(result, expected_result);
+    mock.assert_async().await;
+}
+
+// ============================================================================
+// Integration tests (require blockifier_regression_https_testing feature)
+// ============================================================================
+/// Tests that a specific RPC server responds as expected to all methods required
+/// for the blockifier reexecution test.
+/// Usage:
+/// ## Running integration tests
+/// Run with environment variables and feature flag:
+/// ```bash
+/// TEST_URL="http://your_rpc_url" BLOCK_NUMBER=123456 cargo test -p blockifier_reexecution --features blockifier_regression_https_testing
+/// ```
+/// - `TEST_URL`: URL of the RPC server. If not provided, a free public RPC URL is used, which may
+///   cause sporadic errors due to request limits.
+/// - `BLOCK_NUMBER`: Block number for testing. If not provided, defaults to the latest block.
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
 
@@ -100,10 +287,8 @@ pub fn get_test_rpc_config() -> RpcStateReaderConfig {
 #[fixture]
 pub fn test_state_reader() -> RpcStateReader {
     RpcStateReader {
-        rpc_state_reader: GatewayRpcStateReader {
-            config: get_test_rpc_config(),
-            block_id: get_test_block_id(),
-        },
+        config: get_test_rpc_config(),
+        block_id: get_test_block_id(),
         retry_config: RetryConfig::default(),
         chain_id: ChainId::Mainnet,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
