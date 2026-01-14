@@ -18,10 +18,7 @@ env:
   overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
-  # TODO(Nadin): remove the `crates/**` path trigger, and change the crate triggers logic to detect
-  # changes that result in changes in the listed crates (current implementation checks only for
-  # changes in these specific ones).
-  path_triggers: "crates/**,.github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
+  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**/*"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
