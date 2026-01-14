@@ -6,8 +6,10 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::batcher_types::GetParentProposalCommitmentInput;
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
+use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
@@ -520,4 +522,15 @@ fn calculate_eth_to_fri_rate(block_info: &PreviousBlockInfo) -> Result<u128, Sta
         )));
     }
     Ok(eth_to_fri_rate)
+}
+
+pub(crate) async fn get_parent_proposal_commitment(
+    batcher: Arc<dyn BatcherClient>,
+    height: BlockNumber,
+) -> Result<Option<ProposalCommitment>, BatcherClientError> {
+    let response =
+        batcher.get_parent_proposal_commitment(GetParentProposalCommitmentInput { height }).await?;
+    Ok(response
+        .parent_proposal_commitment
+        .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)))
 }

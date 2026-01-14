@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    GetParentProposalCommitmentResponse,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -172,6 +173,11 @@ impl TestDeps {
                     .withf(move |input| input.height == block_number)
                     .return_const(Ok(()));
             }
+            // get_parent_proposal_commitment doesn't need to be in sequence - it can be called at
+            // any time
+            self.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+                Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+            });
             self.batcher.expect_propose_block().times(1).in_sequence(&mut seq).returning(
                 move |input: ProposeBlockInput| {
                     proposal_id_clone.set(input.proposal_id).unwrap();
@@ -222,6 +228,11 @@ impl TestDeps {
                     .withf(move |input| input.height == block_number)
                     .return_const(Ok(()));
             }
+            // get_parent_proposal_commitment doesn't need to be in sequence - it can be called at
+            // any time
+            self.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+                Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+            });
 
             let proposal_id_clone = Arc::clone(&proposal_id);
             self.batcher.expect_validate_block().times(1).in_sequence(&mut seq).returning(
@@ -377,6 +388,7 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo 
         l1_gas_price_wei,
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        parent_proposal_commitment: None,
     }
 }
 
