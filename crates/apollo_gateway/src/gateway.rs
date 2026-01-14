@@ -32,10 +32,11 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -130,6 +131,18 @@ impl Gateway {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
+        // Extract proof data early for potential archiving later.
+        let proof_data = match tx {
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref tx)) => {
+                if !tx.proof_facts.is_empty() {
+                    Some((tx.proof_facts.clone(), tx.proof.clone()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
                 metric_counters.record_add_tx_failure(&e);
@@ -155,6 +168,14 @@ impl Gateway {
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
+        if let Some((proof_facts, proof)) = proof_data {
+            let proof_archive_writer = self.proof_archive_writer.clone();
+            tokio::spawn(async move {
+                if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
+                    error!("Failed to archive proof to GCS: {}", e);
+                }
+            });
+        }
         let gateway_output = create_gateway_output(&internal_tx);
 
         let add_tx_args = AddTransactionArgsWrapper {
