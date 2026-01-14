@@ -7,7 +7,11 @@ use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{contract_address_into_node_index, Input, StateDiff};
-use crate::block_committer::measurements_util::{Action, MeasurementsTrait};
+use crate::block_committer::measurements_util::{
+    Action,
+    BlockModificationsCounts,
+    MeasurementsTrait,
+};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
@@ -29,6 +33,7 @@ pub trait CommitBlockTrait: Send {
     ) -> BlockCommitmentResult<FilledForest> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
+        let n_contracts_trie_modifications = contracts_trie_indices.len();
         let forest_sorted_indices = ForestSortedIndices {
             storage_tries_sorted_indices: storage_tries_indices
                 .iter_mut()
@@ -39,6 +44,14 @@ pub trait CommitBlockTrait: Send {
         };
         let actual_storage_updates = input.state_diff.actual_storage_updates();
         let actual_classes_updates = input.state_diff.actual_classes_updates();
+        // Record the number of modifications.
+        let n_storage_tries_modifications =
+            actual_storage_updates.values().map(|value| value.len()).sum();
+        measurements.set_number_of_modifications(BlockModificationsCounts {
+            storage_tries: n_storage_tries_modifications,
+            contracts_trie: n_contracts_trie_modifications,
+            classes_trie: actual_classes_updates.len(),
+        });
         // Reads - fetch_nodes.
 
         measurements.start_measurement(Action::Read);
