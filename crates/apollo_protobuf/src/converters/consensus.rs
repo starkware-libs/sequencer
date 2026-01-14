@@ -5,7 +5,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
@@ -208,6 +208,15 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             GasPrice(value.l1_gas_price_wei.ok_or(missing("l1_gas_price_wei"))?.into());
         let l1_data_gas_price_wei =
             GasPrice(value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into());
+        let starknet_version = match StarknetVersion::try_from(value.starknet_version.to_owned()) {
+            Ok(version) => version,
+            Err(_) => {
+                return Err(ProtobufConversionError::OutOfRangeValue {
+                    type_description: "starknet version",
+                    value_as_str: value.starknet_version,
+                });
+            }
+        };
         Ok(ConsensusBlockInfo {
             height,
             round,
@@ -221,6 +230,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             l1_data_gas_price_fri,
             l1_gas_price_wei,
             l1_data_gas_price_wei,
+            starknet_version,
         })
     }
 }
@@ -240,6 +250,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             l1_data_gas_price_fri: Some(value.l1_data_gas_price_fri.0.into()),
             l1_gas_price_wei: Some(value.l1_gas_price_wei.0.into()),
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
+            starknet_version: value.starknet_version.to_string(),
         }
     }
 }
