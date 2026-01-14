@@ -154,6 +154,20 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
+        (
+            ser_pointer_target_param(
+                "native_classes_whitelist",
+                &"[]".to_string(),
+                "Specifies whether to execute all class hashes or only specific ones using Cairo \
+                native. If limited, a specific list of class hashes is provided.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+                "gateway_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+            ]),
+        ),
     ];
     let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
         "versioned_constants_overrides".to_owned(),
