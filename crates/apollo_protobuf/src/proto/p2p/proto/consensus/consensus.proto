@@ -57,6 +57,7 @@ message BlockInfo {
     Uint128 l1_gas_price_wei          = 11;
     Uint128 l1_data_gas_price_wei     = 12;
     string starknet_version           = 13;
+    Hash version_constant_commitment   = 15;
 }
 
 message TransactionBatch {
