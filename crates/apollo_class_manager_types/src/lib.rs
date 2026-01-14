@@ -1,5 +1,3 @@
-pub mod transaction_converter;
-
 use std::error::Error;
 use std::sync::Arc;
 

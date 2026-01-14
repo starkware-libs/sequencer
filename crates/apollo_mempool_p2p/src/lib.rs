@@ -4,7 +4,6 @@ pub mod runner;
 
 use std::collections::HashMap;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -20,6 +19,7 @@ use apollo_network::metrics::{
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_proof_manager_types::SharedProofManagerClient;
+use apollo_transaction_converter::TransactionConverter;
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
 use tracing::{info_span, Instrument};
