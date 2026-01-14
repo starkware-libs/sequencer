@@ -46,6 +46,7 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        parent_proposal_commitment: None,
     }
 }
 

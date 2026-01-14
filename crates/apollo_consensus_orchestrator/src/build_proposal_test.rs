@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    GetParentProposalCommitmentResponse,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -27,6 +28,9 @@ use crate::test_utils::{
 async fn build_proposal_succeed() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Ok(GetProposalContentResponse {
@@ -47,6 +51,9 @@ async fn build_proposal_succeed() {
 async fn propose_block_fail() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on propose_block.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
@@ -62,6 +69,9 @@ async fn propose_block_fail() {
 async fn get_proposal_content_fail() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on get_proposal_content.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
@@ -78,6 +88,9 @@ async fn get_proposal_content_fail() {
 async fn interrupt_proposal() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     // Interrupt the proposal.
     proposal_args.cancel_token.cancel();
@@ -90,6 +103,9 @@ async fn interrupt_proposal() {
 async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and TX from get_proposal_content.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
@@ -111,6 +127,9 @@ async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
 async fn cende_fail() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and Finished from get_proposal_content.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
