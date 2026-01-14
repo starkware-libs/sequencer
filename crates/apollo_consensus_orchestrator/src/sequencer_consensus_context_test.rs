@@ -970,10 +970,11 @@ async fn override_prices_behavior(
     let actual_l2_gas_price = context.l2_gas_price.0;
 
     let previous_block = context.previous_block_info.clone().unwrap();
-    let actual_l1_gas_price = previous_block.l1_gas_price_wei.0;
-    let actual_l1_data_gas_price = previous_block.l1_data_gas_price_wei.0;
+    let actual_l1_gas_price = previous_block.l1_prices_wei.l1_gas_price.0;
+    let actual_l1_data_gas_price = previous_block.l1_prices_wei.l1_data_gas_price.0;
     let actual_conversion_rate = previous_block
-        .l1_gas_price_fri
+        .l1_prices_fri
+        .l1_gas_price
         .0
         .checked_mul(WEI_PER_ETH)
         .unwrap()
