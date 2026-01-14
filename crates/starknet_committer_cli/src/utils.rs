@@ -75,6 +75,19 @@ impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
         }
         Ok(duration_in_millis)
     }
+
+    fn set_number_of_modifications(
+        &mut self,
+        n_storage_tries_modifications: usize,
+        n_contracts_trie_modifications: usize,
+        n_classes_trie_modifications: usize,
+    ) {
+        self.current_measurement.set_number_of_modifications(
+            n_storage_tries_modifications,
+            n_contracts_trie_modifications,
+            n_classes_trie_modifications,
+        );
+    }
 }
 
 impl BenchmarkTimeMeasurement {
@@ -184,6 +197,9 @@ impl BenchmarkTimeMeasurement {
                     "read_duration_millis",
                     "compute_duration_millis",
                     "write_duration_millis",
+                    "n_storage_tries_modifications",
+                    "n_contracts_trie_modifications",
+                    "n_classes_trie_modifications",
                 ],
                 self.storage_stat_columns.clone(),
             ]
@@ -205,6 +221,9 @@ impl BenchmarkTimeMeasurement {
                 measurement.read_duration.to_string(),
                 measurement.compute_duration.to_string(),
                 measurement.write_duration.to_string(),
+                measurement.n_storage_tries_modifications.to_string(),
+                measurement.n_contracts_trie_modifications.to_string(),
+                measurement.n_classes_trie_modifications.to_string(),
             ];
             if i == n_results - 1 {
                 record

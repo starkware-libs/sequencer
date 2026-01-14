@@ -61,6 +61,13 @@ pub trait TimeMeasurementTrait {
         action: Action,
         entries_count: usize,
     ) -> Result<u128, MeasurementNotStartedError>;
+
+    fn set_number_of_modifications(
+        &mut self,
+        n_storage_tries_modifications: usize,
+        n_contracts_trie_modifications: usize,
+        n_classes_trie_modifications: usize,
+    );
 }
 
 pub struct NoTimeMeasurement;
@@ -75,6 +82,14 @@ impl TimeMeasurementTrait for NoTimeMeasurement {
     ) -> Result<u128, MeasurementNotStartedError> {
         Err(MeasurementNotStartedError)
     }
+
+    fn set_number_of_modifications(
+        &mut self,
+        _n_storage_tries_modifications: usize,
+        _n_contracts_trie_modifications: usize,
+        _n_classes_trie_modifications: usize,
+    ) {
+    }
 }
 
 #[derive(Default, Clone)]
@@ -85,6 +100,9 @@ pub struct BlockMeasurement {
     pub read_duration: u128,    // Duration of a read phase (milliseconds).
     pub compute_duration: u128, // Duration of a computation phase (milliseconds).
     pub write_duration: u128,   // Duration of a write phase (milliseconds).
+    pub n_storage_tries_modifications: usize,
+    pub n_contracts_trie_modifications: usize,
+    pub n_classes_trie_modifications: usize,
 }
 
 impl BlockMeasurement {
@@ -132,5 +150,16 @@ impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
         let duration_in_millis = self.block_timers.attempt_to_stop_measurement(&action)?;
         self.block_measurement.update_after_action(&action, entries_count, duration_in_millis);
         Ok(duration_in_millis)
+    }
+
+    fn set_number_of_modifications(
+        &mut self,
+        n_storage_tries_modifications: usize,
+        n_contracts_trie_modifications: usize,
+        n_classes_trie_modifications: usize,
+    ) {
+        self.block_measurement.n_storage_tries_modifications = n_storage_tries_modifications;
+        self.block_measurement.n_contracts_trie_modifications = n_contracts_trie_modifications;
+        self.block_measurement.n_classes_trie_modifications = n_classes_trie_modifications;
     }
 }
