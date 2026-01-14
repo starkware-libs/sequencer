@@ -6,7 +6,7 @@ use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{
-    StateSyncClient,
+    SharedStateSyncClient,
     StateSyncClientError,
     StateSyncClientResult,
 };
@@ -207,7 +207,7 @@ pub(crate) fn convert_to_sn_api_block_info(
 }
 
 pub(crate) async fn retrospective_block_hash(
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_info: &ConsensusBlockInfo,
 ) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
@@ -228,7 +228,7 @@ pub(crate) async fn retrospective_block_hash(
 }
 
 pub(crate) async fn wait_for_retrospective_block_hash(
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_info: &ConsensusBlockInfo,
     clock: &dyn Clock,
     deadline: DateTime,
