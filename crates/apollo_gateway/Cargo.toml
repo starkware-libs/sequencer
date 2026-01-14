@@ -15,6 +15,7 @@ testing = [
   "apollo_gateway_config/testing",
   "apollo_mempool_types/testing",
   "apollo_proof_manager_types/testing",
+  "apollo_transaction_converter/testing",
   "blockifier/testing",
   "blockifier_test_utils",
 ]
@@ -32,6 +33,7 @@ apollo_proc_macros.workspace = true
 apollo_proof_manager_types.workspace = true
 apollo_rpc.workspace = true
 apollo_state_sync_types.workspace = true
+apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -64,6 +66,7 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+apollo_transaction_converter = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true

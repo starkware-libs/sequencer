@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
 use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -21,7 +22,6 @@ use crate::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
 };
-use crate::{ClassHashes, MockClassManagerClient};
 
 #[rstest]
 #[tokio::test]
