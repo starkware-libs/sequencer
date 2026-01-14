@@ -61,7 +61,7 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-2xlarge-ubuntu-24-04-amd64-no-docker-cache
     timeout-minutes: 45
     env:
       MONITORING_ENABLED: false
