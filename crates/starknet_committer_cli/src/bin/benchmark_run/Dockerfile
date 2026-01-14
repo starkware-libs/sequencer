@@ -15,21 +15,21 @@ COPY target/release/starknet_committer_cli /usr/local/bin/starknet_committer_cli
 
 RUN chmod +x /usr/local/bin/starknet_committer_cli
 RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_committer_cli
+RUN chown -R committer_benchmark:committer_benchmark /data/batcher
 
 USER committer_benchmark
 
 # Run the storage benchmark command.
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
-CMD ["cached-aerospike", \
+CMD ["cached-mdbx", \
     "--n-iterations", "1000000", \
-    "--flavor", "constant", \
+    "--flavor", "mainnet", \
     "--n-updates", "1000", \
+    "--cache-size", "800000", \
+    "--include-inner-stats", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
-    "--aeroset", "fact_storage", \
-    "--namespace", "starkware", \
-    "--host", "aerospike", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \

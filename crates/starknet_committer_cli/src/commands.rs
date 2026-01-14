@@ -199,6 +199,11 @@ impl BenchmarkFlavor {
                 .unwrap()
                 .unwrap()
                 .into();
+            if block_number == 0 {
+                let actual_height =
+                    storage_reader.unwrap().begin_ro_txn().unwrap().get_state_marker().unwrap();
+                info!("Mainnet latest block number in storage is {actual_height}.");
+            }
             info!(
                 "Successfully retrieved state diff for mainnet block number {block_number} from \
                  storage."
