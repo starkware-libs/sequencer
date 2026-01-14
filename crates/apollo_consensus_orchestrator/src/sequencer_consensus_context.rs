@@ -82,7 +82,14 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{convert_to_sn_api_block_info, make_gas_price_params, StreamSender};
+use crate::utils::{
+    convert_to_sn_api_block_info,
+    make_gas_price_params,
+    L1PricesInFri,
+    L1PricesInWei,
+    PreviousBlockInfo,
+    StreamSender,
+};
 use crate::validate_proposal::{
     validate_proposal,
     BlockInfoValidation,
@@ -170,7 +177,7 @@ pub struct SequencerConsensusContext {
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
-    previous_block_info: Option<ConsensusBlockInfo>,
+    previous_block_info: Option<PreviousBlockInfo>,
 }
 
 #[derive(Clone)]
@@ -714,7 +721,7 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
 
-        self.previous_block_info = Some(block_info);
+        self.previous_block_info = Some(PreviousBlockInfo::from(&block_info));
 
         Ok(())
     }
@@ -756,28 +763,8 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
-        // TODO(Asmaa): Consider storing only the necessary fields from the previous block
-        // (L1 gas prices, timestamp) instead of the full ConsensusBlockInfo.
-        self.previous_block_info = Some(ConsensusBlockInfo {
-            height,
-            round: 0,
-            valid_round: None,
-            proposer: sync_block.block_header_without_hash.sequencer.0,
-            timestamp: timestamp.0,
-            builder: sync_block.block_header_without_hash.sequencer.0,
-            l1_da_mode: sync_block.block_header_without_hash.l1_da_mode,
-            l2_gas_price_fri: sync_block.block_header_without_hash.l2_gas_price.price_in_fri,
-            l1_gas_price_wei: sync_block.block_header_without_hash.l1_gas_price.price_in_wei,
-            l1_data_gas_price_wei: sync_block
-                .block_header_without_hash
-                .l1_data_gas_price
-                .price_in_wei,
-            l1_gas_price_fri: sync_block.block_header_without_hash.l1_gas_price.price_in_fri,
-            l1_data_gas_price_fri: sync_block
-                .block_header_without_hash
-                .l1_data_gas_price
-                .price_in_fri,
-        });
+        self.previous_block_info =
+            Some(previous_block_info_from_block_header(&sync_block.block_header_without_hash));
         self.interrupt_active_proposal().await;
 
         info!(
@@ -987,4 +974,20 @@ async fn send_reproposal(
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
     Ok(())
+}
+
+fn previous_block_info_from_block_header(
+    block_header: &BlockHeaderWithoutHash,
+) -> PreviousBlockInfo {
+    PreviousBlockInfo {
+        timestamp: block_header.timestamp.0,
+        l1_prices_wei: L1PricesInWei {
+            l1_gas_price: block_header.l1_gas_price.price_in_wei,
+            l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei,
+        },
+        l1_prices_fri: L1PricesInFri {
+            l1_gas_price: block_header.l1_gas_price.price_in_fri,
+            l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri,
+        },
+    }
 }
