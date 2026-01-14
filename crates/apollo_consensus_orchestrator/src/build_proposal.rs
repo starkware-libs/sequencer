@@ -40,6 +40,7 @@ use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusConte
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
+    get_parent_proposal_commitment,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
@@ -159,6 +160,20 @@ async fn initiate_build(
         &args.gas_price_params,
     )
     .await;
+
+    let parent_proposal_commitment =
+        get_parent_proposal_commitment(args.deps.batcher.clone(), args.proposal_init.height)
+            .await
+            .map_err(|err| {
+                BuildProposalError::Batcher(
+                    format!(
+                        "Failed to get parent proposal commitment for height {}.",
+                        args.proposal_init.height
+                    ),
+                    err,
+                )
+            })?;
+
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
         round: args.proposal_init.round,
@@ -173,6 +188,7 @@ async fn initiate_build(
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        parent_proposal_commitment,
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
