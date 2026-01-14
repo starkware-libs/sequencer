@@ -75,6 +75,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "gateway_config.authorized_declarer_accounts.#is_none",
     "gateway_config.authorized_declarer_accounts",
     "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "gateway_config.proof_archive_writer_config.bucket_name",
     "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.stateless_tx_validator_config.min_gas_price",
     "http_server_config.static_config.port",
