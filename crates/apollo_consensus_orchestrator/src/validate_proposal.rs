@@ -47,6 +47,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    PreviousBlockInfo,
     RetrospectiveBlockHashError,
 };
 
@@ -70,7 +71,7 @@ pub(crate) struct ProposalValidateArguments {
 pub(crate) struct BlockInfoValidation {
     pub height: BlockNumber,
     pub block_timestamp_window_seconds: u64,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
 }
