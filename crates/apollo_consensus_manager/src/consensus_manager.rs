@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
@@ -43,6 +42,7 @@ use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
+use apollo_transaction_converter::TransactionConverter;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
