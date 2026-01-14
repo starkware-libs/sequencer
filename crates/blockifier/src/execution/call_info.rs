@@ -37,6 +37,31 @@ macro_rules! retdata {
     };
 }
 
+trait OrderedItem {
+    type UnorderedItem;
+
+    /// converts to a tuple of (order, non-ordered struct).
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
+
+    fn get_items_from_call_execution<'a>(
+        execution: &'a CallExecution,
+    ) -> impl Iterator<Item = &'a Self>
+    where
+        Self: 'a;
+
+    fn sorted_items(call_info: &CallInfo) -> Vec<Self::UnorderedItem> {
+        call_info
+            .iter()
+            .flat_map(|call_info| {
+                Self::get_items_from_call_execution(&call_info.execution)
+                    .map(|item| item.to_ordered_tuple(call_info.call.storage_address))
+            })
+            .sorted_by_key(|(order, _)| *order)
+            .map(|(_, unordered_struct)| unordered_struct)
+            .collect()
+    }
+}
+
 // TODO(Arni): Consider rename `OrderedEvent` to `OrderableEvent`.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -44,6 +69,23 @@ macro_rules! retdata {
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
+}
+
+impl OrderedItem for OrderedEvent {
+    type UnorderedItem = Event;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (self.order, Event { from_address, content: self.event.clone() })
+    }
+
+    fn get_items_from_call_execution<'a>(
+        execution: &'a CallExecution,
+    ) -> impl Iterator<Item = &'a Self>
+    where
+        Self: 'a,
+    {
+        execution.events.iter()
+    }
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -346,24 +388,11 @@ impl CallInfo {
         })
     }
 
+    // TODO(Arni): Test this function (Probably first write the tests then refactor).
     /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
     /// order in which they were emitted.
     pub fn get_sorted_events(&self) -> Vec<Event> {
-        self.iter()
-            .flat_map(|call_info| {
-                call_info.execution.events.iter().map(|OrderedEvent { order, event }| {
-                    (
-                        *order,
-                        Event {
-                            from_address: call_info.call.storage_address,
-                            content: event.clone(),
-                        },
-                    )
-                })
-            })
-            .sorted_by_key(|(order, _)| *order)
-            .map(|(_, event)| event)
-            .collect()
+        OrderedEvent::sorted_items(self)
     }
 
     /// Returns a vector of Starknet MessageToL1 objects collected during the execution,
