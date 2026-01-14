@@ -158,6 +158,16 @@ impl BenchmarkFlavor {
         let n_updates = leaf_keys.len();
         generate_random_state_diff(rng, n_updates, Some(leaf_keys))
     }
+
+    fn n_iterations(&self, n_iterations: usize) -> usize {
+        match self {
+            Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
+            Self::Mainnet => {
+                // TODO(Nimrod): Return the height stored in storage here.
+                unimplemented!();
+            }
+        }
+    }
 }
 
 /// Multiplexer to avoid dynamic dispatch.
@@ -345,10 +355,10 @@ pub async fn run_storage_benchmark<S: Storage>(
         None => HashOutput::default(),
     };
     let curr_block_number = time_measurement.block_number;
+    let n_iterations = flavor.n_iterations(n_iterations);
 
     let mut classes_trie_root_hash = HashOutput::default();
     let mut facts_db = FactsDb::new(storage);
-
     for block_number in curr_block_number..n_iterations {
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
