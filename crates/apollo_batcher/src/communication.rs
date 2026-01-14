@@ -42,6 +42,11 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::RevertBlock(input) => {
                 BatcherResponse::RevertBlock(self.revert_block(input).await)
             }
+            BatcherRequest::GetParentProposalCommitment(input) => {
+                BatcherResponse::GetParentProposalCommitment(
+                    self.get_parent_proposal_commitment(input).await,
+                )
+            }
         }
     }
 }
