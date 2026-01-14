@@ -1,4 +1,3 @@
-use apollo_class_manager_types::transaction_converter::TransactionConverterError;
 use apollo_class_manager_types::{ClassManagerClientError, ClassManagerError};
 use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -10,6 +9,7 @@ use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_gateway_types::gateway_types::SUPPORTED_TRANSACTION_VERSIONS;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
+use apollo_transaction_converter::TransactionConverterError;
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::execution_resources::GasAmount;

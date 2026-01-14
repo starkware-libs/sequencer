@@ -2,11 +2,6 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverterError,
-    TransactionConverterResult,
-};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
@@ -38,6 +33,11 @@ use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proof_manager_types::{MockProofManagerClient, ProofManagerClient};
 use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_transaction_converter::{
+    MockTransactionConverterTrait,
+    TransactionConverterError,
+    TransactionConverterResult,
+};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::generate_block_hash_storage_updates;

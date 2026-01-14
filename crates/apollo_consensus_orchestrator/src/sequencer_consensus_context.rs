@@ -17,10 +17,6 @@ use apollo_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use apollo_batcher_types::communication::BatcherClient;
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverterError,
-    TransactionConverterTrait,
-};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{
     ConsensusContext,
@@ -46,6 +42,10 @@ use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientErr
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
+use apollo_transaction_converter::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
