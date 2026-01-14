@@ -15,11 +15,6 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverter,
-    TransactionConverterTrait,
-};
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
@@ -43,6 +38,11 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DateTime, DefaultClock};
+use apollo_transaction_converter::{
+    MockTransactionConverterTrait,
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::SinkExt;

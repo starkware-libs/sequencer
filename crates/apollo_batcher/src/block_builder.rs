@@ -5,17 +5,17 @@ use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterError,
-    TransactionConverterResult,
-    TransactionConverterTrait,
-};
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
+use apollo_transaction_converter::{
+    TransactionConverter,
+    TransactionConverterError,
+    TransactionConverterResult,
+    TransactionConverterTrait,
+};
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
