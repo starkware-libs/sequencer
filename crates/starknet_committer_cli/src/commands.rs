@@ -203,6 +203,11 @@ impl BenchmarkFlavor {
                 "Successfully retrieved state diff for mainnet block number {block_number} from \
                  storage."
             );
+            if block_number == 0 {
+                let actual_height =
+                    storage_reader.unwrap().begin_ro_txn().unwrap().get_state_marker().unwrap();
+                warn!("Storage state marker height is {actual_height}.");
+            }
             return state_diff;
         }
         let leaf_keys = self.leaf_update_keys(n_updates_arg, block_number, rng);
