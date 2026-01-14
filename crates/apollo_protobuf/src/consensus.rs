@@ -114,6 +114,8 @@ pub struct ConsensusBlockInfo {
     pub l1_gas_price_wei: GasPrice,
     /// L1 data gas price in WEI.
     pub l1_data_gas_price_wei: GasPrice,
+    /// Starknet protocol version.
+    pub starknet_version: starknet_api::block::StarknetVersion,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
@@ -146,6 +148,7 @@ impl Default for ConsensusBlockInfo {
             l1_data_gas_price_fri: Default::default(),
             l1_gas_price_wei: Default::default(),
             l1_data_gas_price_wei: Default::default(),
+            starknet_version: starknet_api::block::StarknetVersion::LATEST,
         }
     }
 }
