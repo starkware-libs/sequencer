@@ -29,6 +29,7 @@ apollo_starknet_client.workspace = true
 apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
+apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 cairo-vm.workspace = true
@@ -56,6 +57,7 @@ apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
+apollo_transaction_converter = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
