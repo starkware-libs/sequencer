@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use starknet_api::core::GlobalRoot;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -285,6 +286,15 @@ fn mock_create_builder_for_validate_block(
             Ok((Box::new(block_builder), abort_signal_sender()))
         },
     );
+}
+
+fn mock_storage_reader_for_revert() -> MockBatcherStorageReader {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_reversed_state_diff().returning(|_| Ok(test_state_diff()));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root().returning(|_| Ok(Some(GlobalRoot::default())));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader
 }
 
 fn mock_create_builder_for_propose_block(
@@ -783,8 +793,11 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
 
+    let storage_reader = mock_storage_reader_for_revert();
+
     let mock_dependencies = MockDependencies {
         storage_writer,
+        storage_reader,
         clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
         ..Default::default()
     };
@@ -1297,7 +1310,8 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
-    let mock_dependencies = MockDependencies { storage_writer, ..Default::default() };
+    let storage_reader = mock_storage_reader_for_revert();
+    let mock_dependencies = MockDependencies { storage_reader, storage_writer, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1305,6 +1319,7 @@ async fn revert_block() {
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
+
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
