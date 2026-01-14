@@ -1,6 +1,7 @@
 {
   "chain_id": "$$$_CHAIN_ID_$$$",
   "eth_fee_token_address": "$$$_ETH_FEE_TOKEN_ADDRESS_$$$",
+  "native_classes_whitelist": "$$$_NATIVE_CLASSES_WHITELIST_$$$",
   "recorder_url": "$$$_RECORDER_URL_$$$",
   "revert_config.revert_up_to_and_including": 18446744073709551615,
   "revert_config.should_revert": false,
