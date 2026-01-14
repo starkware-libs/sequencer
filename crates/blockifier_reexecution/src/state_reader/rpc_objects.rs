@@ -44,20 +44,20 @@ pub enum BlockId {
     Number(BlockNumber),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct GetNonceParams {
     pub block_id: BlockId,
     pub contract_address: ContractAddress,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct GetStorageAtParams {
     pub contract_address: ContractAddress,
     pub key: StorageKey,
     pub block_id: BlockId,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct GetClassHashAtParams {
     pub contract_address: ContractAddress,
     pub block_id: BlockId,
