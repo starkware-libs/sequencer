@@ -1,23 +1,31 @@
-use apollo_rpc::CompiledContractClass;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use std::sync::{Arc, Mutex};
+
 use blockifier::state::state_api::StateReader;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::core::ChainId;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use crate::rpc_state_reader::config::RpcStateReaderConfig;
-use crate::rpc_state_reader::rpc_objects::{
+use crate::state_reader::config::RpcStateReaderConfig;
+use crate::state_reader::rpc_objects::{
     BlockId,
     GetClassHashAtParams,
-    GetCompiledClassParams,
     GetNonceParams,
     GetStorageAtParams,
     RpcResponse,
     RpcSuccessResponse,
 };
-use crate::rpc_state_reader::rpc_state_reader::RpcStateReader;
+use crate::state_reader::rpc_state_reader::{RetryConfig, RpcStateReader};
+
+fn rpc_state_reader_from_latest(config: &RpcStateReaderConfig) -> RpcStateReader {
+    RpcStateReader {
+        config: config.clone(),
+        block_id: BlockId::Latest,
+        retry_config: RetryConfig::default(),
+        chain_id: ChainId::Mainnet,
+        contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+    }
+}
 
 async fn run_rpc_server() -> mockito::ServerGuard {
     mockito::Server::new_async().await
@@ -67,7 +75,7 @@ async fn test_get_storage_at() {
         }),
     );
 
-    let client = RpcStateReader::from_latest(&config);
+    let client = rpc_state_reader_from_latest(&config);
     let result = tokio::task::spawn_blocking(move || {
         client.get_storage_at(contract_address!("0x1"), starknet_api::state::StorageKey::from(0u32))
     })
@@ -96,56 +104,12 @@ async fn test_get_nonce_at() {
         }),
     );
 
-    let client = RpcStateReader::from_latest(&config);
+    let client = rpc_state_reader_from_latest(&config);
     let result = tokio::task::spawn_blocking(move || client.get_nonce_at(contract_address!("0x1")))
         .await
         .unwrap()
         .unwrap();
     assert_eq!(result, expected_result);
-    mock.assert_async().await;
-}
-
-#[tokio::test]
-async fn test_get_compiled_class() {
-    let mut server = run_rpc_server().await;
-    let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
-
-    let expected_result = CasmContractClass {
-        compiler_version: "0.0.0".to_string(),
-        prime: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
-
-    let expected_sierra_version = SierraVersion::default();
-
-    let mock = mock_rpc_interaction(
-        &mut server,
-        &config.json_rpc_version,
-        "starknet_getCompiledContractClass",
-        GetCompiledClassParams { block_id: BlockId::Latest, class_hash: class_hash!("0x1") },
-        &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value((
-                CompiledContractClass::V1(expected_result.clone()),
-                SierraVersion::default(),
-            ))
-            .unwrap(),
-            ..Default::default()
-        }),
-    );
-
-    let client = RpcStateReader::from_latest(&config);
-    let result = tokio::task::spawn_blocking(move || client.get_compiled_class(class_hash!("0x1")))
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        result,
-        RunnableCompiledClass::V1((expected_result, expected_sierra_version).try_into().unwrap())
-    );
     mock.assert_async().await;
 }
 
@@ -170,7 +134,7 @@ async fn test_get_class_hash_at() {
         }),
     );
 
-    let client = RpcStateReader::from_latest(&config);
+    let client = rpc_state_reader_from_latest(&config);
     let result =
         tokio::task::spawn_blocking(move || client.get_class_hash_at(contract_address!("0x1")))
             .await

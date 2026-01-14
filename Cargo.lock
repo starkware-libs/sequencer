@@ -3750,7 +3750,6 @@ dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
  "apollo_config",
- "apollo_rpc",
  "apollo_rpc_execution",
  "apollo_sierra_compilation_config",
  "assert_matches",

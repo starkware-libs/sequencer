@@ -15,7 +15,7 @@ use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress,
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
-use crate::rpc_state_reader::config::RpcStateReaderConfig;
+use crate::state_reader::config::RpcStateReaderConfig;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
