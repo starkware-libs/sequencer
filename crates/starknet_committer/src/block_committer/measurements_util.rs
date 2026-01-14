@@ -61,6 +61,13 @@ pub trait MeasurementsTrait {
         action: Action,
         entries_count: usize,
     ) -> Result<u128, MeasurementNotStartedError>;
+
+    fn set_number_of_modifications(
+        &mut self,
+        n_storage_tries_modifications: usize,
+        n_contracts_trie_modifications: usize,
+        n_classes_trie_modifications: usize,
+    );
 }
 
 pub struct NoMeasurements;
@@ -75,6 +82,14 @@ impl MeasurementsTrait for NoMeasurements {
     ) -> Result<u128, MeasurementNotStartedError> {
         Err(MeasurementNotStartedError)
     }
+
+    fn set_number_of_modifications(
+        &mut self,
+        _n_storage_tries_modifications: usize,
+        _n_contracts_trie_modifications: usize,
+        _n_classes_trie_modifications: usize,
+    ) {
+    }
 }
 
 #[derive(Default, Clone)]
@@ -85,11 +100,19 @@ pub struct BlockDurations {
     pub write: u128,   // Duration of a write phase (milliseconds).
 }
 
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+pub struct BlockModificationsCounts {
+    pub storage_tries: usize,
+    pub contracts_trie: usize,
+    pub classes_trie: usize,
+}
+
 #[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,
     pub n_reads: usize,
     pub durations: BlockDurations,
+    pub modifications_counts: BlockModificationsCounts,
 }
 
 impl BlockMeasurement {
@@ -137,5 +160,18 @@ impl MeasurementsTrait for SingleBlockMeasurements {
         let duration_in_millis = self.block_timers.attempt_to_stop_measurement(&action)?;
         self.block_measurement.update_after_action(&action, entries_count, duration_in_millis);
         Ok(duration_in_millis)
+    }
+
+    fn set_number_of_modifications(
+        &mut self,
+        n_storage_tries_modifications: usize,
+        n_contracts_trie_modifications: usize,
+        n_classes_trie_modifications: usize,
+    ) {
+        self.block_measurement.modifications_counts = BlockModificationsCounts {
+            storage_tries: n_storage_tries_modifications,
+            contracts_trie: n_contracts_trie_modifications,
+            classes_trie: n_classes_trie_modifications,
+        };
     }
 }
