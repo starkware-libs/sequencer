@@ -217,6 +217,10 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
                 });
             }
         };
+        let version_constant_commitment = value
+            .version_constant_commitment
+            .ok_or(missing("version_constant_commitment"))?
+            .try_into()?;
         Ok(ConsensusBlockInfo {
             height,
             round,
@@ -231,6 +235,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             l1_gas_price_wei,
             l1_data_gas_price_wei,
             starknet_version,
+            version_constant_commitment,
         })
     }
 }
@@ -251,6 +256,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             l1_gas_price_wei: Some(value.l1_gas_price_wei.0.into()),
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
             starknet_version: value.starknet_version.to_string(),
+            version_constant_commitment: Some(value.version_constant_commitment.into()),
         }
     }
 }
