@@ -1,33 +1,30 @@
 [package]
-name = "apollo_class_manager_types"
+name = "apollo_transaction_converter"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-description = "Type definitions and interfaces for the Apollo class manager component."
+description = "Transaction converter for Apollo sequencer, handling conversions between different transaction formats."
 
 [features]
-testing = ["mockall"]
+testing = ["apollo_class_manager_types/testing", "apollo_proof_manager_types/testing", "mockall"]
 
 [lints]
 workspace = true
 
 [dependencies]
-apollo_compile_to_casm_types.workspace = true
-apollo_infra.workspace = true
-apollo_proc_macros.workspace = true
+apollo_class_manager_types.workspace = true
+apollo_proof_manager_types.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 starknet_api.workspace = true
-strum = { workspace = true, features = ["derive"] }
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
