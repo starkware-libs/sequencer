@@ -111,14 +111,39 @@ pub(crate) struct GasPriceParams {
 }
 
 #[derive(Clone, Debug)]
-pub struct L1PricesInFri {
+pub(crate) struct L1PricesInFri {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
 }
 
+/// Contains only the necessary fields from the previous block needed for building/validating
+/// proposals. This is a minimal representation to avoid storing the full ConsensusBlockInfo.
+#[derive(Clone, Debug)]
+pub(crate) struct PreviousBlockInfo {
+    pub timestamp: u64,
+    pub l1_prices_wei: L1PricesInWei,
+    pub l1_prices_fri: L1PricesInFri,
+}
+
+impl From<&ConsensusBlockInfo> for PreviousBlockInfo {
+    fn from(block_info: &ConsensusBlockInfo) -> Self {
+        Self {
+            timestamp: block_info.timestamp,
+            l1_prices_wei: L1PricesInWei {
+                l1_gas_price: block_info.l1_gas_price_wei,
+                l1_data_gas_price: block_info.l1_data_gas_price_wei,
+            },
+            l1_prices_fri: L1PricesInFri {
+                l1_gas_price: block_info.l1_gas_price_fri,
+                l1_data_gas_price: block_info.l1_data_gas_price_fri,
+            },
+        }
+    }
+}
+
 impl L1PricesInFri {
-    pub fn convert_from_wei(
-        wei: L1PricesInWei,
+    pub(crate) fn convert_from_wei(
+        wei: &L1PricesInWei,
         eth_to_fri_rate: u128,
     ) -> Result<Self, StarknetApiError> {
         Ok(Self {
@@ -130,14 +155,14 @@ impl L1PricesInFri {
 
 // TODO(guyn): remove this once we no longer use wei anywhere
 #[derive(Clone, Debug)]
-pub struct L1PricesInWei {
+pub(crate) struct L1PricesInWei {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
 }
 
 impl L1PricesInWei {
     pub fn convert_from_fri(
-        fri: L1PricesInFri,
+        fri: &L1PricesInFri,
         eth_to_fri_rate: u128,
     ) -> Result<Self, StarknetApiError> {
         Ok(Self {
@@ -151,7 +176,7 @@ impl L1PricesInWei {
 pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
-    previous_block_info: Option<&ConsensusBlockInfo>,
+    previous_block_info: Option<&PreviousBlockInfo>,
     gas_price_params: &GasPriceParams,
 ) -> (L1PricesInFri, L1PricesInWei, u128) {
     // One of these paths should fill the return values:
@@ -184,7 +209,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         };
         // Apply the eth/strk rate to get prices in fri.
         let l1_gas_prices_fri_result =
-            L1PricesInFri::convert_from_wei(prices_in_wei.clone(), eth_to_fri_rate);
+            L1PricesInFri::convert_from_wei(&prices_in_wei, eth_to_fri_rate);
         // If conversion fails, leave return_value=None to try backup methods.
         if let Ok(prices_in_fri) = l1_gas_prices_fri_result {
             return (prices_in_fri, prices_in_wei, eth_to_fri_rate);
@@ -199,14 +224,8 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
     // One or both (oracle/provider) have failed to fetch, or failure in conversion, so we need to
     // try to use the previous block info.
     if let Some(block_info) = previous_block_info {
-        let prev_l1_gas_price_wei = L1PricesInWei {
-            l1_gas_price: block_info.l1_gas_price_wei,
-            l1_data_gas_price: block_info.l1_data_gas_price_wei,
-        };
-        let prev_l1_gas_price = L1PricesInFri {
-            l1_gas_price: block_info.l1_gas_price_fri,
-            l1_data_gas_price: block_info.l1_data_gas_price_fri,
-        };
+        let prev_l1_gas_price_wei = block_info.l1_prices_wei.clone();
+        let prev_l1_gas_price = block_info.l1_prices_fri.clone();
         // This calculation can panic if gas price is too high, or zero.
         // It can succeed but still give a zero rate if the price ratio is too small.
         let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info);
@@ -232,13 +251,11 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         l1_data_gas_price: gas_price_params.min_l1_data_gas_price_wei,
     };
     let default_l1_gas_prices_fri =
-        L1PricesInFri::convert_from_wei(default_l1_gas_prices_wei.clone(), DEFAULT_ETH_TO_FRI_RATE)
+        L1PricesInFri::convert_from_wei(&default_l1_gas_prices_wei, DEFAULT_ETH_TO_FRI_RATE)
             .expect("Default values should be convertible between wei and fri.");
     info!(
         "Using default values: fri prices: {:?}, wei prices: {:?}, eth to fri rate: {:?}",
-        default_l1_gas_prices_fri,
-        default_l1_gas_prices_wei.clone(),
-        DEFAULT_ETH_TO_FRI_RATE
+        default_l1_gas_prices_fri, default_l1_gas_prices_wei, DEFAULT_ETH_TO_FRI_RATE
     );
     (default_l1_gas_prices_fri, default_l1_gas_prices_wei, DEFAULT_ETH_TO_FRI_RATE)
 }
@@ -247,7 +264,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
 pub(crate) async fn get_l1_prices_in_fri_and_wei(
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
-    previous_block_info: Option<&ConsensusBlockInfo>,
+    previous_block_info: Option<&PreviousBlockInfo>,
     gas_price_params: &GasPriceParams,
 ) -> (L1PricesInFri, L1PricesInWei) {
     let mut values = get_l1_prices_in_fri_and_wei_and_conversion_rate(
@@ -264,7 +281,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei(
     if let Some(override_value) = gas_price_params.override_eth_to_fri_rate {
         info!("Overriding eth to fri rate to {override_value}");
         values.2 = override_value;
-        values.1 = L1PricesInWei::convert_from_fri(values.0.clone(), override_value).unwrap();
+        values.1 = L1PricesInWei::convert_from_fri(&values.0, override_value).unwrap();
     }
     if let Some(override_value) = gas_price_params.override_l1_gas_price_fri {
         info!("Overriding L1 gas price to {override_value} fri");
@@ -322,7 +339,8 @@ pub(crate) fn convert_to_sn_api_block_info(
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
     let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei)?;
     let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri)?;
-    let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info);
+    let previous_block_info = PreviousBlockInfo::from(block_info);
+    let eth_to_fri_rate = calculate_eth_to_fri_rate(&previous_block_info);
 
     let l2_gas_price_wei =
         NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(eth_to_fri_rate)?)
@@ -485,12 +503,13 @@ pub(crate) fn make_gas_price_params(config: &ContextDynamicConfig) -> GasPricePa
     }
 }
 
-fn calculate_eth_to_fri_rate(block_info: &ConsensusBlockInfo) -> u128 {
+fn calculate_eth_to_fri_rate(block_info: &PreviousBlockInfo) -> u128 {
     block_info
-        .l1_gas_price_fri
+        .l1_prices_fri
+        .l1_gas_price
         .0
         .checked_mul(WEI_PER_ETH)
         .expect("Gas price in Fri should be small enough to multiply by WEI_PER_ETH")
-        .checked_div(block_info.l1_gas_price_wei.0)
+        .checked_div(block_info.l1_prices_wei.l1_gas_price.0)
         .expect("Gas price in Wei should be non-zero")
 }
