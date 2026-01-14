@@ -389,6 +389,7 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo 
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         parent_proposal_commitment: None,
+        version_constant_commitment: Default::default(),
     }
 }
 
