@@ -9,6 +9,8 @@ use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
     GetHeightResponse,
+    GetParentProposalCommitmentInput,
+    GetParentProposalCommitmentResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -752,7 +754,14 @@ impl Batcher {
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
-        let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
+        let parent_proposal_commitment = self
+            .get_parent_proposal_commitment(GetParentProposalCommitmentInput { height })
+            .await
+            .map_err(|err| {
+                error!("Failed to get parent proposal commitment for height {}: {}", height, err);
+                BatcherError::InternalError
+            })?
+            .parent_proposal_commitment;
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -1116,19 +1125,23 @@ impl Batcher {
 
     // Returns the proposal commitment of the previous height.
     // NOTE: Assumes that the previous height was committed to the storage.
-    fn get_parent_proposal_commitment(
+    #[instrument(skip(self), err)]
+    pub async fn get_parent_proposal_commitment(
         &mut self,
-        height: BlockNumber,
-    ) -> BatcherResult<Option<ProposalCommitment>> {
+        get_parent_proposal_commitment_input: GetParentProposalCommitmentInput,
+    ) -> BatcherResult<GetParentProposalCommitmentResponse> {
+        let height = get_parent_proposal_commitment_input.height;
         let Some(prev_height) = height.prev() else {
             // This is the first block, so there is no parent proposal commitment.
-            return Ok(None);
+            return Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None });
         };
 
         match self.prev_proposal_commitment {
             Some((h, commitment)) => {
                 assert_eq!(h, prev_height, "Unexpected height of parent_proposal_commitment.");
-                Ok(Some(commitment))
+                Ok(GetParentProposalCommitmentResponse {
+                    parent_proposal_commitment: Some(commitment),
+                })
             }
             None => {
                 // Parent proposal commitment is not cached. Compute it from the stored state diff.
@@ -1148,9 +1161,11 @@ impl Batcher {
                 // TODO(dafna): Remove once the state sync bug is fixed.
                 state_diff.deprecated_declared_classes = Vec::new();
 
-                Ok(Some(ProposalCommitment {
-                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
-                }))
+                Ok(GetParentProposalCommitmentResponse {
+                    parent_proposal_commitment: Some(ProposalCommitment {
+                        state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                    }),
+                })
             }
         }
     }

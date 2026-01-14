@@ -150,4 +150,14 @@ pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GetParentProposalCommitmentInput {
+    pub height: BlockNumber,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetParentProposalCommitmentResponse {
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
+}
+
 pub type BatcherResult<T> = Result<T, BatcherError>;
