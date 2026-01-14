@@ -216,8 +216,8 @@
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
-    "privacy": "Public",
-    "value": "All"
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
@@ -2341,8 +2341,8 @@
   },
   "gateway_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
-    "privacy": "Public",
-    "value": "All"
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
   },
   "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
@@ -2888,6 +2888,11 @@
     "description": "The monitoring endpoint port.",
     "privacy": "Public",
     "value": 8082
+  },
+  "native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "privacy": "TemporaryValue",
+    "value": "[]"
   },
   "recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
