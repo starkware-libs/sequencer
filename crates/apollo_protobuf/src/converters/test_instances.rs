@@ -57,6 +57,7 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_wei: GasPrice,
         pub starknet_version: StarknetVersion,
         pub parent_proposal_commitment: Option<ProposalCommitment>,
+        pub version_constant_commitment: StarkHash,
     }
     pub enum ProposalPart {
         BlockInfo(ConsensusBlockInfo) = 0,
