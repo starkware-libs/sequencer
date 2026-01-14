@@ -167,7 +167,7 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
         .await;
     assert_matches!(
         result,
-        Err(CommitmentManagerError::WrongTaskHeight { expected, actual, .. })
+        Err(CommitmentManagerError::WrongCommitmentTaskHeight { expected, actual, .. })
         if expected == INITIAL_HEIGHT && actual == incorrect_height
     );
 
@@ -212,8 +212,7 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
 
 #[rstest]
 #[tokio::test]
-#[should_panic(expected = "Failed to send commitment task to state committer because the channel \
-                           is full. Block: 4")]
+#[should_panic(expected = "The channel is full. channel size: 1.")]
 async fn test_add_commitment_task_full(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
     let state_diff = test_state_diff();
