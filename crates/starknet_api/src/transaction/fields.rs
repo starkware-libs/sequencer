@@ -267,7 +267,7 @@ where
     serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
+pub fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -284,7 +284,7 @@ where
     serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
+pub fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
 where
     D: Deserializer<'de>,
 {
