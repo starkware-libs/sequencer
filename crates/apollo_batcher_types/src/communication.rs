@@ -21,6 +21,8 @@ use crate::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
     GetHeightResponse,
+    GetParentProposalCommitmentInput,
+    GetParentProposalCommitmentResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
@@ -82,6 +84,12 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+    /// Gets the parent proposal commitment for a given height.
+    /// Returns None if this is the first block (height 0).
+    async fn get_parent_proposal_commitment(
+        &self,
+        input: GetParentProposalCommitmentInput,
+    ) -> BatcherClientResult<GetParentProposalCommitmentResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -102,6 +110,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
+    GetParentProposalCommitment(GetParentProposalCommitmentInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -124,6 +133,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
+    GetParentProposalCommitment(BatcherResult<GetParentProposalCommitmentResponse>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -253,6 +263,20 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             RevertBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn get_parent_proposal_commitment(
+        &self,
+        input: GetParentProposalCommitmentInput,
+    ) -> BatcherClientResult<GetParentProposalCommitmentResponse> {
+        let request = BatcherRequest::GetParentProposalCommitment(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            GetParentProposalCommitment,
             BatcherClientError,
             BatcherError,
             Direct

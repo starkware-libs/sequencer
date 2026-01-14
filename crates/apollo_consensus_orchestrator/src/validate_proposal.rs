@@ -44,6 +44,7 @@ use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusConte
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
+    get_parent_proposal_commitment,
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
@@ -132,12 +133,26 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
+    let parent_proposal_commitment =
+        get_parent_proposal_commitment(args.deps.batcher.clone(), args.block_info.height)
+            .await
+            .map_err(|err| {
+                ValidateProposalError::Batcher(
+                    format!(
+                        "Failed to get parent proposal commitment for height {}.",
+                        args.block_info.height
+                    ),
+                    err,
+                )
+            })?;
+
     is_block_info_valid(
         &args.block_info_validation,
         &args.block_info,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
+        parent_proposal_commitment,
     )
     .await?;
 
@@ -224,7 +239,19 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
+    expected_parent_proposal_commitment: Option<apollo_consensus::types::ProposalCommitment>,
 ) -> ValidateProposalResult<()> {
+    // Validate that the parent_proposal_commitment in block_info matches what we got from batcher
+    if block_info_proposed.parent_proposal_commitment != expected_parent_proposal_commitment {
+        return Err(ValidateProposalError::InvalidBlockInfo(
+            block_info_proposed.clone(),
+            block_info_validation.clone(),
+            format!(
+                "Parent proposal commitment mismatch: expected {:?}, got {:?}",
+                expected_parent_proposal_commitment, block_info_proposed.parent_proposal_commitment
+            ),
+        ));
+    }
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
