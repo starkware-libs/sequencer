@@ -7,7 +7,7 @@ use std::fmt::Display;
 use bytes::{Buf, BufMut};
 use prost::DecodeError;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -118,6 +118,8 @@ pub struct ConsensusBlockInfo {
     pub starknet_version: starknet_api::block::StarknetVersion,
     /// Parent proposal commitment (None for the first block).
     pub parent_proposal_commitment: Option<ProposalCommitment>,
+    /// Version constant commitment.
+    pub version_constant_commitment: BlockHash,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
@@ -152,6 +154,7 @@ impl Default for ConsensusBlockInfo {
             l1_data_gas_price_wei: Default::default(),
             starknet_version: starknet_api::block::StarknetVersion::LATEST,
             parent_proposal_commitment: None,
+            version_constant_commitment: Default::default(),
         }
     }
 }

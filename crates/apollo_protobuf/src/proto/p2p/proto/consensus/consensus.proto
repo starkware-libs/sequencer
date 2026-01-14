@@ -57,6 +57,7 @@ message BlockInfo {
     Uint128 l1_data_gas_price_wei     = 12;
     string starknet_version           = 13;
     optional Hash parent_proposal_commitment = 14;
+    Hash version_constant_commitment   = 15;
 }
 
 message TransactionBatch {
