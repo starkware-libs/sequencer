@@ -18,6 +18,7 @@ apollo_proof_manager_types.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 starknet_api.workspace = true
+starknet-types-core.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

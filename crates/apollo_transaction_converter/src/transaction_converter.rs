@@ -29,6 +29,7 @@ use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
+use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tracing::info;
 
@@ -42,6 +43,8 @@ pub enum TransactionConverterError {
     ClassManagerClientError(#[from] ClassManagerClientError),
     #[error("Class of hash: {class_hash} not found")]
     ClassNotFound { class_hash: ClassHash },
+    #[error("Proof for proof facts hash: {facts_hash} not found.")]
+    ProofNotFound { facts_hash: Felt },
     #[error(transparent)]
     ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
@@ -112,6 +115,12 @@ impl TransactionConverter {
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
     }
 
+    async fn get_proof(&self, proof_facts: ProofFacts) -> TransactionConverterResult<Proof> {
+        self.proof_manager_client
+            .get_proof(proof_facts.clone())
+            .await?
+            .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts.hash() })
+    }
     async fn get_executable(
         &self,
         class_hash: ClassHash,
@@ -191,9 +200,8 @@ impl TransactionConverterTrait for TransactionConverter {
                     sender_address: tx.sender_address,
                     calldata: tx.calldata,
                     account_deployment_data: tx.account_deployment_data,
-                    proof_facts: tx.proof_facts,
-                    // TODO(AvivG): get proof from proof manager once implemented.
-                    proof: Proof::default(),
+                    proof_facts: tx.proof_facts.clone(),
+                    proof: self.get_proof(tx.proof_facts).await?,
                 })))
             }
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
