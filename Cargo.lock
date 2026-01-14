@@ -2452,6 +2452,7 @@ dependencies = [
 name = "apollo_staking"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_config",
  "apollo_consensus",
  "apollo_state_sync_types",
  "assert_matches",
@@ -2460,6 +2461,7 @@ dependencies = [
  "blockifier_test_utils",
  "mockall",
  "rstest",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",

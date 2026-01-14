@@ -7,11 +7,13 @@ license-file.workspace = true
 description = "Staking functionality for Starknet consensus participants."
 
 [dependencies]
+apollo_config.workspace = true
 apollo_consensus.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 mockall.workspace = true
+serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 static_assertions.workspace = true
