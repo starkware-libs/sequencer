@@ -9,6 +9,7 @@ description = "Tool for re-executing historical Starknet blocks to verify transa
 [features]
 blockifier_regression_https_testing = []
 cairo_native = ["blockifier/cairo_native"]
+testing = []
 
 [dependencies]
 apollo_compile_to_casm.workspace = true
