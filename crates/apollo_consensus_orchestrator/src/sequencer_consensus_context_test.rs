@@ -878,6 +878,7 @@ const LOW_OVERRIDE_L2_GAS_PRICE_FAIL: u128 = 1; // FRI
 #[case::override_l2_gas_price(Some(ODDLY_SPECIFIC_L2_GAS_PRICE), None, None, None, true)]
 #[case::override_l1_gas_price(None, Some(ODDLY_SPECIFIC_L1_GAS_PRICE), None, None, true)]
 #[case::override_l1_data_gas_price(None, None, Some(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE), None, true)]
+#[case::override_eth_to_strk_rate(None, None, None, Some(ODDLY_SPECIFIC_CONVERSION_RATE), true)]
 #[case::override_all_prices(
     Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
     Some(ODDLY_SPECIFIC_L1_GAS_PRICE),
@@ -915,7 +916,6 @@ async fn override_prices_behavior(
     #[case] build_success: bool,
 ) {
     // Use high gas usage to ensure the L2 gas price is high.
-
     let mock_l2_gas_used = VersionedConstants::latest_constants().max_block_size;
 
     let (mut deps, _network) = create_test_and_network_deps();
@@ -995,6 +995,14 @@ async fn override_prices_behavior(
         .checked_div(previous_block.l1_gas_price_wei.0)
         .unwrap();
 
+    let expected_wei_to_fri_rate = override_eth_to_fri_rate.unwrap_or(ETH_TO_FRI_RATE);
+    let expected_l1_gas_price = GasPrice(expected_l1_prices.base_fee_per_gas.0)
+        .wei_to_fri(expected_wei_to_fri_rate)
+        .unwrap()
+        .0;
+    let expected_l1_data_gas_price =
+        GasPrice(expected_l1_prices.blob_fee.0).wei_to_fri(expected_wei_to_fri_rate).unwrap().0;
+
     if let Some(override_l2_gas_price) = override_l2_gas_price_fri {
         // In this case the L2 gas price must match the given override.
         assert_eq!(
@@ -1014,29 +1022,28 @@ async fn override_prices_behavior(
     if let Some(override_l1_gas_price) = override_l1_gas_price_fri {
         assert_eq!(
             actual_l1_gas_price, override_l1_gas_price,
-            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price \
+            "Expected L1 gas price ({actual_l1_gas_price}) to match override l1 gas price \
              ({override_l1_gas_price})",
         );
     } else {
         assert_eq!(
-            actual_l1_gas_price, expected_l1_prices.base_fee_per_gas.0,
-            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price ({})",
-            expected_l1_prices.base_fee_per_gas.0
+            actual_l1_gas_price, expected_l1_gas_price,
+            "Expected L1 gas price ({actual_l1_gas_price}) to match default l1 gas price \
+             ({expected_l1_gas_price}) after conversion from to FRI.",
         );
     }
 
     if let Some(override_l1_data_gas_price) = override_l1_data_gas_price_fri {
         assert_eq!(
             actual_l1_data_gas_price, override_l1_data_gas_price,
-            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
-             price ({override_l1_data_gas_price})",
+            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match override l1 data \
+             gas price ({override_l1_data_gas_price})"
         );
     } else {
         assert_eq!(
-            actual_l1_data_gas_price, expected_l1_prices.blob_fee.0,
+            actual_l1_data_gas_price, expected_l1_data_gas_price,
             "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
-             price ({})",
-            expected_l1_prices.blob_fee.0
+             price ({expected_l1_data_gas_price}) after conversion from to FRI.",
         );
     }
 
