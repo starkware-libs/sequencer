@@ -43,15 +43,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         id: setup-pypy
         if: github.event_name != 'workflow_dispatch'
         with:
           python-version: "pypy3.9"
-          cache: "pip"
-          cache-dependency-path: scripts/requirements.txt
 
-      - name: Install Python dependencies
+      - name: Set up pip dependency caching
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: python
+
+      - name: Install Python Dependencies
         run: pip install -r scripts/requirements.txt
         if: github.event_name != 'workflow_dispatch'
 
