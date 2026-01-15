@@ -10,9 +10,9 @@ use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::types::HintContext;
 use crate::hints::vars::{Ids, Scope};
 
-pub(crate) fn prepare_state_entry_for_revert(ctx: HintContext<'_>) -> OsHintResult {
+pub(crate) fn prepare_state_entry_for_revert(mut ctx: HintContext<'_>) -> OsHintResult {
     let contract_address: ContractAddress = ctx.get_integer(Ids::ContractAddress)?.try_into()?;
-    set_state_entry(&contract_address, ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)?;
+    set_state_entry(&contract_address, &mut ctx)?;
 
     // Insert the contract address into the execution scopes instead of the entire storage.
     // Later, we use this address to revert the state.

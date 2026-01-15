@@ -41,13 +41,7 @@ pub(crate) fn chain_id_and_fee_token_address<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn get_block_hash_mapping(ctx: HintContext<'_>) -> OsHintResult {
+pub(crate) fn get_block_hash_mapping(mut ctx: HintContext<'_>) -> OsHintResult {
     let block_hash_contract_address = *ctx.fetch_const(Const::BlockHashContractAddress)?;
-    set_state_entry(
-        &block_hash_contract_address,
-        ctx.vm,
-        ctx.exec_scopes,
-        ctx.ids_data,
-        ctx.ap_tracking,
-    )
+    set_state_entry(&block_hash_contract_address, &mut ctx)
 }

@@ -192,15 +192,15 @@ pub(crate) fn enter_scope_syscall_handler(ctx: HintContext<'_>) -> OsHintResult 
     Ok(())
 }
 
-pub(crate) fn get_contract_address_state_entry(ctx: HintContext<'_>) -> OsHintResult {
+pub(crate) fn get_contract_address_state_entry(mut ctx: HintContext<'_>) -> OsHintResult {
     let contract_address = ctx.get_integer(Ids::ContractAddress)?;
-    set_state_entry(&contract_address, ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)?;
+    set_state_entry(&contract_address, &mut ctx)?;
     Ok(())
 }
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    ctx: HintContext<'_>,
+    mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let account_contract_address = ctx
         .vm
@@ -214,13 +214,7 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
             hint_processor.program,
         )?)?
         .into_owned();
-    set_state_entry(
-        &account_contract_address,
-        ctx.vm,
-        ctx.exec_scopes,
-        ctx.ids_data,
-        ctx.ap_tracking,
-    )?;
+    set_state_entry(&account_contract_address, &mut ctx)?;
     Ok(())
 }
 
@@ -644,7 +638,7 @@ fn write_syscall_result_helper<S: StateReader>(
 
     current_execution_helper.cached_state.set_storage_at(contract_address, key, request_value)?;
 
-    set_state_entry(contract_address.key(), ctx.vm, ctx.exec_scopes, ctx.ids_data, ctx.ap_tracking)
+    set_state_entry(contract_address.key(), &mut ctx)
 }
 
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
