@@ -20,21 +20,50 @@ pub enum Action {
     Write,
 }
 
-pub struct TimeMeasurement {
+#[derive(Default)]
+pub struct BlockTimers {
     pub block_timer: Option<Instant>,
     pub read_timer: Option<Instant>,
     pub compute_timer: Option<Instant>,
     pub writer_timer: Option<Instant>,
-    pub total_time: u64, // Total duration of all blocks (milliseconds).
+}
+
+impl BlockTimers {
+    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Instant> {
+        match action {
+            Action::EndToEnd => &mut self.block_timer,
+            Action::Read => &mut self.read_timer,
+            Action::Compute => &mut self.compute_timer,
+            Action::Write => &mut self.writer_timer,
+        }
+    }
+
+    pub fn start_measurement(&mut self, action: Action) {
+        *self.get_mut_timers(&action) = Some(Instant::now());
+    }
+
+    /// Stops the measurement for the given action and returns the duration in milliseconds.
+    pub fn stop_measurement(&mut self, action: &Action) -> u128 {
+        let instant_timer = self
+            .get_mut_timers(action)
+            .as_mut()
+            .expect("stop_measurement called before start_measurement");
+        instant_timer.elapsed().as_millis()
+    }
+}
+
+pub struct TimeMeasurement {
+    pub block_timers: BlockTimers,
+    pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub n_new_facts: Vec<usize>,
     pub n_read_facts: Vec<usize>,
-    pub block_durations: Vec<u64>, // Duration of an end-to-end block commit (milliseconds).
-    pub read_durations: Vec<u64>,  // Duration of a block facts read (milliseconds).
-    pub compute_durations: Vec<u64>, // Duration of a block new facts computation (milliseconds).
-    pub write_durations: Vec<u64>, // Duration of a block new facts write (milliseconds).
-    pub facts_in_db: Vec<usize>,   // Number of facts in the DB prior to the current block.
+    pub block_durations: Vec<u128>, // Duration of an end-to-end block commit (milliseconds).
+    pub read_durations: Vec<u128>,  // Duration of a block facts read (milliseconds).
+    pub compute_durations: Vec<u128>, // Duration of a block new facts computation (milliseconds).
+    pub write_durations: Vec<u128>, // Duration of a block new facts write (milliseconds).
+    pub facts_in_db: Vec<usize>,    // Number of facts in the DB prior to the current block.
     pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of the measurement
-                                    * for each action. */
+                                     * for each action. */
     pub block_number: usize,
     pub total_facts: usize,
 
@@ -45,10 +74,7 @@ pub struct TimeMeasurement {
 impl TimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            block_timer: None,
-            read_timer: None,
-            compute_timer: None,
-            writer_timer: None,
+            block_timers: BlockTimers::default(),
             total_time: 0,
             n_new_facts: Vec::with_capacity(size),
             n_read_facts: Vec::with_capacity(size),
@@ -64,15 +90,6 @@ impl TimeMeasurement {
         }
     }
 
-    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Instant> {
-        match action {
-            Action::EndToEnd => &mut self.block_timer,
-            Action::Read => &mut self.read_timer,
-            Action::Compute => &mut self.compute_timer,
-            Action::Write => &mut self.writer_timer,
-        }
-    }
-
     fn clear_measurements(&mut self) {
         self.n_new_facts.clear();
         self.block_durations.clear();
@@ -85,28 +102,23 @@ impl TimeMeasurement {
     }
 
     pub fn start_measurement(&mut self, action: Action) {
-        *self.get_mut_timers(&action) = Some(Instant::now());
+        self.block_timers.start_measurement(action);
     }
 
     /// Stops the measurement for the given action and adds the duration to the corresponding
     /// vector. For Read/Write actions, `facts_count` is the number of facts read from / written
     /// to the DB. For other actions, it is ignored.
     pub fn stop_measurement(&mut self, action: Action, facts_count: usize) {
-        let instant_timer = self
-            .get_mut_timers(&action)
-            .as_mut()
-            .expect("stop_measurement called before start_measurement");
-        let instant_duration = instant_timer.elapsed();
+        let duration_in_millis = self.block_timers.stop_measurement(&action);
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
-            instant_duration.as_millis(),
+            duration_in_millis,
         );
-        let millis: u64 = instant_duration.as_millis().try_into().unwrap();
         match action {
             Action::EndToEnd => {
-                self.block_durations.push(millis);
-                self.total_time += millis;
+                self.block_durations.push(duration_in_millis);
+                self.total_time += duration_in_millis;
                 self.facts_in_db.push(self.total_facts);
                 self.time_of_measurement
                     .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
@@ -114,14 +126,14 @@ impl TimeMeasurement {
                 self.block_number += 1;
             }
             Action::Read => {
-                self.read_durations.push(millis);
+                self.read_durations.push(duration_in_millis);
                 self.n_read_facts.push(facts_count);
             }
             Action::Compute => {
-                self.compute_durations.push(millis);
+                self.compute_durations.push(duration_in_millis);
             }
             Action::Write => {
-                self.write_durations.push(millis);
+                self.write_durations.push(duration_in_millis);
                 self.n_new_facts.push(facts_count);
             }
         }
@@ -147,7 +159,7 @@ impl TimeMeasurement {
         let n_windows = self.n_results() / window_size;
         for i in 0..n_windows {
             let window_start = i * window_size;
-            let sum: u64 =
+            let sum: u128 =
                 self.block_durations[window_start..window_start + window_size].iter().sum();
             let sum_of_facts: usize =
                 self.n_new_facts[window_start..window_start + window_size].iter().sum();
