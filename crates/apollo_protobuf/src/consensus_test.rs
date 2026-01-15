@@ -17,7 +17,11 @@ fn wei_to_fri_converts_correctly() {
 fn wei_to_fri_errors_on_gas_too_high() {
     assert!(
         GasPrice(u128::pow(2, 127)).wei_to_fri(4)
-            == Err(StarknetApiError::GasPriceConversionError("Gas price is too high".to_string()))
+            == Err(StarknetApiError::GasPriceConversionError(format!(
+                "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                GasPrice(u128::pow(2, 127)),
+                4
+            )))
     );
 }
 
@@ -26,7 +30,11 @@ fn fri_to_wei_errors_on_gas_too_high() {
     // Note this fails even if rate is 1, since we first multiply by WEI_PER_ETH=10^9
     assert!(
         GasPrice(u128::pow(2, 127)).fri_to_wei(1)
-            == Err(StarknetApiError::GasPriceConversionError("Gas price is too high".to_string()))
+            == Err(StarknetApiError::GasPriceConversionError(format!(
+                "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                GasPrice(u128::pow(2, 127)),
+                1
+            )))
     );
 }
 
