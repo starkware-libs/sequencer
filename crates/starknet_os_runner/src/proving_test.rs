@@ -1,7 +1,7 @@
 use std::fs;
 
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
-use starknet_types_core::felt::Felt;
+use starknet_api::transaction::fields::ProofFacts;
 
 use crate::proving::{prove, resolve_resource_path};
 
@@ -32,7 +32,7 @@ async fn test_prove_cairo_pie_10_transfers() {
     // Read expected proof facts.
     let expected_proof_facts_str = fs::read_to_string(&expected_proof_facts_path)
         .expect("Failed to read expected proof facts file");
-    let expected_proof_facts: Vec<Felt> = serde_json::from_str(&expected_proof_facts_str)
+    let expected_proof_facts: ProofFacts = serde_json::from_str(&expected_proof_facts_str)
         .expect("Failed to parse expected proof facts");
 
     // Compare proof facts.
