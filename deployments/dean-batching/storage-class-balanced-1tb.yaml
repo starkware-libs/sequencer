@@ -1,0 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hyperdisk-balanced-1000gb
+parameters:
+  type: hyperdisk-balanced
+  provisioned-iops-on-create: "80000"  # Higher IOPS for 1TB disk
+  provisioned-throughput-on-create: "1200Mi"  # Max throughput for Balanced
+provisioner: pd.csi.storage.gke.io
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+

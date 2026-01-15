@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batching-test-200k-v2-unified
+  namespace: dean-batching-200k-v2-unified
+  labels:
+    test: 200k-blocks-v2-unified
+    disk-type: hyperdisk-balanced
+    version: unified-queue-design
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: batching-test-200k-v2-unified
+        test: 200k-blocks-v2-unified
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        role: "apollo-core-service-c4d-standard-8"
+      tolerations:
+        - key: key
+          operator: "Equal"
+          value: "apollo-core-service-c4d-standard-8"
+          effect: "NoSchedule"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "mkdir -p /data/workspace && chmod -R 777 /data && ls -la /data/ && echo 'Permissions fixed!'"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      containers:
+      - name: batching-test
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-file_level_batching-151ea12
+        workingDir: /tmp
+        env:
+        - name: RUST_LOG
+          value: info
+        - name: BLOCKS_TO_SYNC
+          value: "200000"
+        - name: BATCH_SIZE
+          value: "1000"
+        - name: PATH
+          value: /app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          set -e
+          
+          echo "========================================="
+          echo "DEAN'S BATCHING TEST V2: UNIFIED QUEUE"
+          echo "0 → 200K Blocks"
+          echo "========================================="
+          echo ""
+          echo "Configuration:"
+          echo "  Blocks to sync: 200,000"
+          echo "  Batch size: 1,000"
+          echo "  Version: V2 - Unified Queue Design"
+          echo "  Design: ALL 5 streams → middle_queue → batch_queue"
+          echo "  Features:"
+          echo "    - FuturesOrdered for ALL streams"
+          echo "    - No HashMap buffering"
+          echo "    - No manual ordering"
+          echo "    - Automatic ordering via FuturesOrdered"
+          echo "  Disk: Hyperdisk Balanced 500GB"
+          echo ""
+          
+          # Copy test script to /tmp first (always writable)
+          echo "Setting up test script..."
+          cp /test-scripts/test_batching.sh /tmp/test_batching.sh
+          chmod +x /tmp/test_batching.sh
+          
+          # Clean workspace
+          echo "Cleaning workspace..."
+          cd /data/workspace
+          find . -mindepth 1 -maxdepth 1 ! -name 'lost+found' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Verify clean
+          if [ -d "data_with_batching" ] || [ -d "data_without_batching" ]; then
+            echo "ERROR: Workspace not clean!"
+            exit 1
+          fi
+          echo "✓ Workspace clean"
+          echo ""
+          
+          # Run the test script from /tmp
+          cd /data/workspace
+          /tmp/test_batching.sh 2>&1 | tee test_output.log
+          
+          echo ""
+          echo "========================================="
+          echo "TEST COMPLETE - V2 UNIFIED QUEUE"
+          echo "========================================="
+          echo ""
+          echo "New design eliminated:"
+          echo "  ✓ HashMap out-of-order buffering"
+          echo "  ✓ Manual consecutive block tracking"
+          echo "  ✓ try_flush_consecutive_batch() complexity"
+          echo "  ✓ Marker mismatch issues"
+          echo "  ✓ OOM risk from unbounded HashMap"
+          echo ""
+        resources:
+          requests:
+            cpu: "4"
+            memory: "24Gi"
+          limits:
+            cpu: "8"
+            memory: "48Gi"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: configs
+          mountPath: /configs
+          readOnly: true
+        - name: test-scripts
+          mountPath: /test-scripts
+          readOnly: true
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dean-200k-v2-unified-pvc
+      - name: configs
+        configMap:
+          name: sequencer-configs
+      - name: test-scripts
+        configMap:
+          name: dean-test-scripts
+

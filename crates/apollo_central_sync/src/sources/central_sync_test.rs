@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -108,6 +109,8 @@ fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
         collect_pending_data: false,
         // TODO(Shahak): Add test where store_sierras_and_casms is set to false.
         store_sierras_and_casms: true,
+        enable_block_batching: false,
+        block_batch_size: 100,
     }
 }
 
@@ -116,7 +119,7 @@ async fn run_sync(
     reader: StorageReader,
     writer: StorageWriter,
     central: impl CentralSourceTrait + Send + Sync + 'static,
-    base_layer: impl BaseLayerSourceTrait + Send + Sync,
+    base_layer: impl BaseLayerSourceTrait + Send + Sync + 'static,
     config: SyncConfig,
     class_manager_client: Option<Arc<dyn ClassManagerClient>>,
 ) -> StateSyncResult {
@@ -125,6 +128,7 @@ async fn run_sync(
     pending_source.expect_get_pending_data().returning(|| Ok(PendingData::default()));
 
     let state_sync = GenericStateSync {
+        pending_blocks: HashMap::new(),
         config,
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),
@@ -140,6 +144,8 @@ async fn run_sync(
         // up until that block we call add_class_and_executable_unsafe and from that block we call
         // add_class.
         class_manager_client,
+        middle_queue: futures_util::stream::FuturesOrdered::new(),
+        batch_queue: Vec::new(),
     };
 
     state_sync.run().await?;

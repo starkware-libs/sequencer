@@ -1,14 +1,18 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dean-batching-test
+  name: batching-test-500k
   namespace: dean-batching
+  labels:
+    test: 500k-blocks
+    disk-type: hyperdisk-balanced
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: dean-batching-test
+        app: batching-test-500k
+        test: 500k-blocks
     spec:
       restartPolicy: Never
       nodeSelector:
@@ -21,41 +25,61 @@ spec:
       initContainers:
       - name: fix-permissions
         image: busybox
-        command: ["sh", "-c", "mkdir -p /data/workspace && chmod -R 777 /data/workspace && echo 'Permissions fixed!'"]
+        command: ["sh", "-c", "mkdir -p /data/workspace && chmod -R 777 /data && ls -la /data/ && echo 'Permissions fixed!'"]
         volumeMounts:
         - name: data
           mountPath: /data
       containers:
-      - name: test
+      - name: batching-test
         image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
-        workingDir: /data/workspace
-        command: ["/bin/bash", "-c"]
+        workingDir: /tmp
         env:
         - name: RUST_LOG
           value: info
         - name: BLOCKS_TO_SYNC
-          value: "200000"
+          value: "500000"
         - name: BATCH_SIZE
           value: "1000"
         - name: PATH
           value: /app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        command: ["/bin/bash"]
         args:
+        - -c
         - |
           set -e
           
           echo "========================================="
-          echo "DEAN'S BATCHING TEST: 0 → 200K"
+          echo "DEAN'S BATCHING TEST: 0 → 500K"
+          echo "Hyperdisk Balanced 1TB Performance Test"
           echo "========================================="
           echo ""
-          echo "Using test_batching.sh script (same approach as deploy_batching_test.sh)"
+          echo "Configuration:"
+          echo "  Blocks to sync: 500,000"
+          echo "  Batch size: 1,000"
+          echo "  Disk: Hyperdisk Balanced 1TB (80k IOPS, 1200 MB/s)"
           echo ""
           
-          # Copy test script from ConfigMap
-          cp /test-scripts/test_batching.sh .
-          chmod +x test_batching.sh
+          # Copy test script to /tmp first (always writable)
+          echo "Setting up test script..."
+          cp /test-scripts/test_batching.sh /tmp/test_batching.sh
+          chmod +x /tmp/test_batching.sh
           
-          # Run the test script
-          ./test_batching.sh 2>&1 | tee test_output.log
+          # Clean workspace
+          echo "Cleaning workspace..."
+          cd /data/workspace
+          find . -mindepth 1 -maxdepth 1 ! -name 'lost+found' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Verify clean
+          if [ -d "data_with_batching" ] || [ -d "data_without_batching" ]; then
+            echo "ERROR: Workspace not clean!"
+            exit 1
+          fi
+          echo "✓ Workspace clean"
+          echo ""
+          
+          # Run the test script from /tmp
+          cd /data/workspace
+          /tmp/test_batching.sh 2>&1 | tee test_output.log
           
           echo ""
           echo "========================================="
@@ -63,10 +87,10 @@ spec:
           echo "========================================="
         resources:
           requests:
-            cpu: "7"
+            cpu: "4"
             memory: "16Gi"
           limits:
-            cpu: "16"
+            cpu: "8"
             memory: "32Gi"
         volumeMounts:
         - name: data
@@ -76,14 +100,14 @@ spec:
           readOnly: true
         - name: test-scripts
           mountPath: /test-scripts
-          readOnly: true
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: dean-hyperdisk-pvc
+          claimName: dean-hyperdisk-extreme-pvc
       - name: configs
         configMap:
           name: sequencer-configs
       - name: test-scripts
         configMap:
           name: dean-test-scripts
+
