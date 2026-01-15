@@ -26,6 +26,7 @@ use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
 
@@ -202,7 +203,14 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         let executed_class_hashes = transaction_executor
             .bouncer
             .lock()
-            .expect("Bouncer lock failed.")
+            .map_err(|e| {
+                error!(
+                    "Unexpected error: failed to acquire bouncer lock after transaction \
+                     execution. This should never happen: {}",
+                    e
+                );
+                VirtualBlockExecutorError::BouncerLockError(e.to_string())
+            })?
             .get_executed_class_hashes();
 
         Ok(VirtualBlockExecutionData {
