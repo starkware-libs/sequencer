@@ -21,11 +21,12 @@ use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{TransactionSignature, ValidResourceBounds};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
@@ -85,6 +86,7 @@ struct MempoolTestContentBuilder {
     config: MempoolConfig,
     content: MempoolTestContent,
     gas_price_threshold: GasPrice,
+    fake_clock: Arc<FakeClock>,
 }
 
 impl MempoolTestContentBuilder {
@@ -99,7 +101,12 @@ impl MempoolTestContentBuilder {
             },
             content: MempoolTestContent::default(),
             gas_price_threshold: GasPrice::default(),
+            fake_clock: Arc::new(FakeClock::default()),
         }
+    }
+
+    fn get_fake_clock(&self) -> Arc<FakeClock> {
+        self.fake_clock.clone()
     }
 
     fn with_pool<P>(mut self, pool_txs: P) -> Self
@@ -132,14 +139,13 @@ impl MempoolTestContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.config = MempoolConfig {
-            static_config: MempoolStaticConfig {
-                enable_fee_escalation: true,
-                fee_escalation_percentage,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+        self.config.static_config.enable_fee_escalation = true;
+        self.config.static_config.fee_escalation_percentage = fee_escalation_percentage;
+        self
+    }
+
+    fn with_validate_resource_bounds_config(mut self, validate_resource_bounds: bool) -> Self {
+        self.config.static_config.validate_resource_bounds = validate_resource_bounds;
         self
     }
 
@@ -1359,6 +1365,104 @@ fn expired_staged_txs_are_not_deleted() {
     let expected_mempool_content =
         MempoolTestContentBuilder::new().with_pool([staged_tx.tx, another_tx.tx]).build();
     expected_mempool_content.assert_eq(&mempool.content());
+}
+
+/// Shows How the mempool behaves when a bootstrap declare transaction do make it to the mempool
+/// when the the mempool is not in bootstrap mode i.e. the configuration `validate_resource_bounds`
+/// is set to true.
+#[rstest]
+fn bootstrap_declare_in_pending_after_add() {
+    let validate_resource_bounds = true;
+    // Start with an empty mempool.
+    let fake_clock = Arc::new(FakeClock::default());
+    let gas_price_threshold = GasPrice(0x1dcd65000); // 12500000000 in decimal
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig { validate_resource_bounds, ..Default::default() },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+    mempool.update_gas_price(gas_price_threshold);
+
+    // Create and add a bootstrap declare transaction.
+    use starknet_api::executable_transaction::DeclareTransaction;
+    use starknet_api::transaction::fields::ValidResourceBounds;
+    let bootstrap_declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(1),
+        sender_address: DeclareTransaction::bootstrap_address(),
+        nonce: nonce!(0),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        signature: TransactionSignature::default(),
+    ));
+    add_tx(&mut mempool, &bootstrap_declare);
+
+    // Initially, declare transactions go to delayed_declares.
+    let snapshot_before_delay = mempool.mempool_snapshot().unwrap();
+    assert!(snapshot_before_delay.delayed_declares.contains(&bootstrap_declare.tx.tx_hash()));
+    assert!(snapshot_before_delay.transactions.is_empty());
+
+    // Advance time past the declare delay to make the transaction ready.
+    let declare_delay = mempool.config.static_config.declare_delay;
+    fake_clock.advance(declare_delay + Duration::from_secs(1));
+
+    // Trigger add_ready_declares by calling get_txs, which moves the declare from delayed_declares
+    // to the pool and queue. Since validate_resource_bounds is true and the transaction has
+    // max_l2_gas_price = 0 (which is < gas_price_threshold), it will be added to pending_queue.
+    let _ = mempool.get_txs(1).unwrap();
+
+    // Verify the final snapshot matches the expected state.
+    let snapshot = mempool.mempool_snapshot().unwrap();
+    assert_eq!(snapshot.transactions, vec![bootstrap_declare.tx.tx_hash()]);
+    assert_eq!(snapshot.delayed_declares, vec![]);
+    assert_eq!(snapshot.transaction_queue.gas_price_threshold, gas_price_threshold);
+    assert_eq!(snapshot.transaction_queue.priority_queue, vec![]);
+    assert_eq!(snapshot.transaction_queue.pending_queue, vec![bootstrap_declare.tx.tx_hash()]);
+    assert_eq!(snapshot.mempool_state.committed, HashMap::new());
+    assert_eq!(snapshot.mempool_state.staged, HashMap::new());
+}
+
+/// Shows there is a bug in the mempool where if a bootstrap declare ends up in the pending queue it
+/// is never removed from that queue, even after the TTL expires.
+// TODO(Arni): fix this bug.
+#[rstest]
+fn bootstrap_declare_in_pending_queue_after_ttl(
+    #[values(true, false)] validate_resource_bounds: bool,
+) {
+    // Create a bootstrap declare transaction (zero resource bounds, bootstrap address, nonce 0).
+    let bootstrap_declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(1),
+        sender_address: DeclareTransaction::bootstrap_address(),
+        nonce: nonce!(0),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        signature: TransactionSignature::default(),
+    ));
+
+    // Use MempoolTestContentBuilder to create a mempool with the bootstrap declare in the pending
+    // queue.
+    let builder = MempoolTestContentBuilder::new();
+    let fake_clock = builder.get_fake_clock();
+    let transaction_ttl = builder.config.dynamic_config.transaction_ttl;
+    let mut mempool = builder
+        .with_validate_resource_bounds_config(validate_resource_bounds)
+        .with_pending_queue([TransactionReference::new(&bootstrap_declare.tx)])
+        .build_full_mempool();
+
+    // Advance the clock beyond the TTL.
+    fake_clock.advance(transaction_ttl + Duration::from_secs(5));
+
+    // Assert the bootstrap declare is still in the pending queue.
+    let snapshot = mempool.mempool_snapshot().unwrap();
+    assert_eq!(snapshot.transaction_queue.pending_queue, vec![bootstrap_declare.tx.tx_hash]);
+
+    // Add another transaction to trigger `remove_expired_txs`.
+    let another_tx =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &another_tx);
+
+    // Assert the bootstrap declare is still in the pending queue.
+    let second_snapshot = mempool.mempool_snapshot().unwrap();
+    assert_eq!(second_snapshot.transaction_queue.pending_queue, vec![bootstrap_declare.tx.tx_hash]);
 }
 
 #[rstest]
