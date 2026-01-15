@@ -80,9 +80,9 @@ pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
-// In order for gas price in ETH to be greather than 0 (required) we must have large enough
+// In order for gas price in ETH to be greater than 0 (required) we must have large enough
 // values here.
-pub(crate) const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
+pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
