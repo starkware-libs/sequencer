@@ -75,7 +75,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::fields::{ContractAddressSalt, Proof, ProofFacts};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
@@ -110,6 +110,7 @@ pub trait TestScenario {
 
 pub struct ConsensusTxs {
     pub n_invoke_txs: usize,
+    pub n_invoke_txs_with_proof: usize,
     pub n_l1_handler_txs: usize,
 }
 
@@ -120,14 +121,20 @@ impl TestScenario for ConsensusTxs {
         account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
         const SHOULD_REVERT: bool = false;
+        let mut invoke_txs = create_invoke_txs(tx_generator, account_id, self.n_invoke_txs);
+        invoke_txs.extend(create_invoke_txs_with_proof(
+            tx_generator,
+            account_id,
+            self.n_invoke_txs_with_proof,
+        ));
         (
-            create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
+            invoke_txs,
             create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs, SHOULD_REVERT),
         )
     }
 
     fn n_txs(&self) -> usize {
-        self.n_invoke_txs + self.n_l1_handler_txs
+        self.n_invoke_txs + self.n_invoke_txs_with_proof + self.n_l1_handler_txs
     }
 }
 
@@ -527,6 +534,23 @@ pub fn create_invoke_txs(
         .collect()
 }
 
+pub fn create_invoke_txs_with_proof(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    account_id: AccountId,
+    n_txs: usize,
+) -> Vec<RpcTransaction> {
+    (0..n_txs)
+        .map(|_| {
+            tx_generator.account_with_id_mut(account_id).generate_trivial_rpc_invoke_tx_with_proof(
+                1,
+                // TODO(Avi): use valid proof facts and proof.
+                ProofFacts::snos_proof_facts_for_testing(),
+                Proof::default(),
+            )
+        })
+        .collect()
+}
+
 pub fn create_l1_to_l2_messages_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
     n_txs: usize,
@@ -622,6 +646,7 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 19,
         max_signature_length: 2,
+        allow_client_side_proving: true,
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
