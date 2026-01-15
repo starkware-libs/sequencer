@@ -225,8 +225,8 @@ where
                 });
             }
             // Returns the precomputed global root.
-            let db_state_root = self.load_global_root(height).await?;
-            return Ok(CommitBlockResponse { state_root: db_state_root });
+            let db_global_root = self.load_global_root(height).await?;
+            return Ok(CommitBlockResponse { global_root: db_global_root });
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
@@ -264,7 +264,7 @@ where
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(&block_measurements.block_measurement);
         self.update_offset(next_offset);
-        Ok(CommitBlockResponse { state_root: global_root })
+        Ok(CommitBlockResponse { global_root })
     }
 
     /// Applies the given state diff to revert the changes of the given height.

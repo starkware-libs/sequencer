@@ -357,7 +357,7 @@ impl MockStateCommitter {
             let result = match task {
                 CommitterTaskInput::Commit(commit_request) => {
                     CommitterTaskOutput::Commit(CommitmentTaskOutput {
-                        response: CommitBlockResponse { state_root: GlobalRoot::default() },
+                        response: CommitBlockResponse { global_root: GlobalRoot::default() },
                         height: commit_request.height,
                     })
                 }
