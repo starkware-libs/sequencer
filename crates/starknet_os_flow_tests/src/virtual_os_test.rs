@@ -210,3 +210,23 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
         test_builder.build().await.run().perform_default_validations();
     }
 }
+
+#[rstest]
+#[tokio::test]
+/// Test that the virtual OS handles a transaction with a storage write.
+async fn test_storage_write() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    // Write a value to storage.
+    let storage_address = Felt::from(123);
+    let storage_value = Felt::from(456);
+    let calldata =
+        create_calldata(contract_address, "test_storage_write", &[storage_address, storage_value]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    test_builder.build().await.run_virtual_and_validate();
+}
