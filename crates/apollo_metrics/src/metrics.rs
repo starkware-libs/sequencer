@@ -25,6 +25,7 @@ pub enum MetricScope {
     Batcher,
     Blockifier,
     ClassManager,
+    Committer,
     Consensus,
     ConsensusManager,
     ConsensusOrchestrator,
