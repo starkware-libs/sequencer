@@ -23,11 +23,11 @@ const_assert_ne!(INFRA_PORT_PLACEHOLDER, DEFAULT_INVALID_PORT);
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct StateSyncConfig {
-    #[serde(rename = "state_sync_config.central_sync_client_config.#is_none")]
+    #[serde(rename = "state_sync_config.static_config.central_sync_client_config.#is_none")]
     state_sync_config_central_sync_client_config_is_none: bool,
-    #[serde(rename = "state_sync_config.p2p_sync_client_config.#is_none")]
+    #[serde(rename = "state_sync_config.static_config.p2p_sync_client_config.#is_none")]
     state_sync_config_p2p_sync_client_config_is_none: bool,
-    #[serde(rename = "state_sync_config.network_config.#is_none")]
+    #[serde(rename = "state_sync_config.static_config.network_config.#is_none")]
     state_sync_config_network_config_is_none: bool,
 }
 
