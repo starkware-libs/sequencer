@@ -639,3 +639,45 @@ fn test_client_side_proving_flag(
         assert_matches!(tx_validator.validate(&tx), Ok(()));
     }
 }
+
+// Tests that proof_facts and proof must be either both empty or both non-empty.
+#[rstest]
+#[case::both_empty(None, None, true)]
+#[case::both_non_empty(
+    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(Proof::proof_for_testing()),
+    true
+)]
+#[case::proof_facts_only(Some(ProofFacts::snos_proof_facts_for_testing()), None, false)]
+#[case::proof_only(None, Some(Proof::proof_for_testing()), false)]
+fn test_proof_facts_and_proof_consistency(
+    #[case] proof_facts: Option<ProofFacts>,
+    #[case] proof: Option<Proof>,
+    #[case] should_pass: bool,
+) {
+    let config = StatelessTransactionValidatorConfig {
+        allow_client_side_proving: true,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    };
+    let tx_validator = StatelessTransactionValidator { config };
+
+    let rpc_tx_args = RpcTransactionArgs {
+        proof_facts: proof_facts.clone().unwrap_or_default(),
+        proof: proof.clone().unwrap_or_default(),
+        ..Default::default()
+    };
+
+    let tx = rpc_tx_for_testing(TransactionType::Invoke, rpc_tx_args);
+
+    if should_pass {
+        assert_matches!(tx_validator.validate(&tx), Ok(()));
+    } else {
+        assert_eq!(
+            tx_validator.validate(&tx).unwrap_err(),
+            StatelessTransactionValidatorError::ProofFactsAndProofConsistency {
+                proof_facts_is_empty: proof_facts.is_none(),
+                proof_is_empty: proof.is_none(),
+            }
+        );
+    }
+}
