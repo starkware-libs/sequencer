@@ -1,12 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
+    create_deploy_account_tx_and_invoke_tx,
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
     EndToEndTestScenario,
-};
-use apollo_integration_tests::utils::{
-    create_deploy_account_tx_and_invoke_tx,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use blockifier::bouncer::BouncerWeights;
