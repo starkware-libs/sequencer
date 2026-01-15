@@ -184,7 +184,7 @@ class SequencerManager:
     def wait_for_log_inactivity(
         self,
         inactivity_substrings: Sequence[str],
-        inactivity_seconds: float = 15.0,
+        inactivity_seconds: float = 15,
         timeout_seconds: float = 6000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
@@ -205,7 +205,8 @@ class SequencerManager:
             logs_recent = self._read_pod_logs(
                 pod_name=pod,
                 tail_lines=tail_lines,
-                since_seconds=inactivity_seconds,
+                # K8s `sinceSeconds` must be an integer; passing a float can yield 400 Bad Request.
+                since_seconds=int(inactivity_seconds),
             )
             if not any(s in logs_recent for s in inactivity_substrings):
                 logger.info(
