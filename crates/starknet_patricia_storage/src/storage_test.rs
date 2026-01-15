@@ -12,7 +12,7 @@ use crate::storage_trait::{AsyncStorage, DbKey, DbValue};
 #[rstest]
 #[case::rocksdb_storage(
     RocksDbStorage::open(
-        Path::new("/tmp/test_rocksdb_storage"), RocksDbOptions::default(), false
+        Path::new("/tmp/test_rocksdb_storage"), RocksDbOptions::default()
     ).unwrap()
 )]
 #[case::mdbx_storage(MdbxStorage::open(Path::new("/tmp/test_mdbx_storage")).unwrap())]

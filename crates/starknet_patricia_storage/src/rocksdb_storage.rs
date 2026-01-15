@@ -103,39 +103,19 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: Arc<DB>,
     write_options: Arc<WriteOptions>,
-    /// family according to its last byte. Otherwise, the database is opened with a single
-    /// column family (default behavior).
-    column_families: bool,
 }
 
 impl RocksDbStorage {
-    pub fn open(
-        path: &Path,
-        options: RocksDbOptions,
-        column_families: bool,
-    ) -> PatriciaStorageResult<Self> {
-        let cfs = if column_families {
-            (0..1 << u8::BITS)
-                .map(|i| ColumnFamilyDescriptor::new(format!("{i}"), Options::default()))
-                .collect()
-        } else {
-            vec![ColumnFamilyDescriptor::new("default", Options::default())]
-        };
+    pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
+        let cfs = vec![ColumnFamilyDescriptor::new("default", Options::default())];
 
         let db = Arc::new(DB::open_cf_descriptors(&options.db_options, path, cfs)?);
         let write_options = Arc::new(options.write_options);
-        Ok(Self { db, write_options, column_families })
+        Ok(Self { db, write_options })
     }
 
-    pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
-        if self.column_families {
-            let last_byte = key.0.last().unwrap_or(&0u8);
-            self.db
-                .cf_handle(&format!("{last_byte}"))
-                .unwrap_or_else(|| panic!("Column family not found: {last_byte}"))
-        } else {
-            self.db.cf_handle("default").unwrap()
-        }
+    pub fn get_column_family(&self, _key: &DbKey) -> &ColumnFamily {
+        self.db.cf_handle("default").unwrap()
     }
 }
 
