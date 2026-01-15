@@ -25,6 +25,8 @@ CMD ["cached-aerospike", \
     "--n-iterations", "1000000", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
+    "--cache-size", "800000", \
+    "--include-inner-stats", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
     "--aeroset", "fact_storage", \
