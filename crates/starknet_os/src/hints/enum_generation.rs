@@ -69,7 +69,7 @@ macro_rules! define_hint_enum_helper {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name $(, $hint_str)?)),+);
 
         impl $enum_name {
-            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
+            pub(crate) fn execute_hint<CHP: CommonHintProcessor>(
                 &self,
                 $hp_arg: &mut CHP,
                 ctx: HintContext<'_>

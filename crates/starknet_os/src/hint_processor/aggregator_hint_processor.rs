@@ -94,7 +94,7 @@ impl HintProcessorLogic for AggregatorHintProcessor<'_> {
     impl_common_hint_processor_logic!();
 }
 
-impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'program> {
+impl CommonHintProcessor for AggregatorHintProcessor<'_> {
     impl_common_hint_processor_getters!();
 
     fn get_public_keys(&self) -> Option<&[Felt]> {

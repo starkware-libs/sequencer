@@ -14,7 +14,7 @@ pub(crate) type VmHintResultType<T> = Result<T, VmHintError>;
 pub(crate) type VmHintResult = VmHintResultType<()>;
 pub(crate) type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
-pub(crate) trait CommonHintProcessor<'a> {
+pub(crate) trait CommonHintProcessor {
     fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers>;
     // KZG fields.
     fn get_da_segment(&mut self) -> &mut Option<Vec<Felt>>;

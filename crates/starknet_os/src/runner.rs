@@ -35,7 +35,7 @@ pub struct RunnerReturnObject {
 
 // TODO(Aner): replace the return type with Result<StarknetRunnerOutput,...>
 // TODO(Aner): Make generic (CommonHintProcessor trait) depend on testing flag.
-pub(crate) fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
+pub(crate) fn run_program<HP: HintProcessor + CommonHintProcessor>(
     layout: LayoutName,
     program: &Program,
     hint_processor: &mut HP,

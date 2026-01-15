@@ -90,7 +90,7 @@ pub(crate) fn get_use_kzg_da_and_full_output_from_input(
     Ok(())
 }
 
-pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn set_state_update_pointers_to_none<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     _ctx: HintContext<'_>,
 ) -> OsHintResult {
