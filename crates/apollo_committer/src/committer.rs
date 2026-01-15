@@ -19,7 +19,10 @@ use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::{Input, InputContext};
-use starknet_committer::block_committer::timing_util::{TimeMeasurement, TimeMeasurementTrait};
+use starknet_committer::block_committer::timing_util::{
+    SingleBlockTimeMeasurement,
+    TimeMeasurementTrait,
+};
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
@@ -314,7 +317,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             initial_read_context: MockIndexInitialRead {},
             config: self.config.reader_config.clone(),
         };
-        let time_measurement = None::<&mut TimeMeasurement>;
+        let time_measurement = None::<&mut SingleBlockTimeMeasurement>;
         let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
             .await
             .map_err(|err| self.map_internal_error(err))?;
