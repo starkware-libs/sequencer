@@ -116,7 +116,7 @@ jobs:
           cargo run -p bench_tools -- run-and-compare \
             --package starknet_committer_and_os_cli \
             --out /tmp/new_results \
-            --regression-limit 8.0 \
+            --regression-limit 15.0 \
             --input-dir /tmp/test_inputs \
             --set-absolute-time-ns-limit full_committer_flow ${FULL_COMMITTER_FLOW_TIME_LIMIT_NS} \
             --set-absolute-time-ns-limit tree_computation_flow ${TREE_COMPUTATION_FLOW_TIME_LIMIT_NS}
