@@ -1,12 +1,14 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::{create_invoke_txs, ACCOUNT_ID_1};
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
 
 const N_TXS: usize = 15;
 

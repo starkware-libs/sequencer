@@ -1,4 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
@@ -13,10 +19,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{ContractAddressSalt, TransactionSignature};
 use starknet_api::{calldata, felt};
-
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
 
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 9;
 

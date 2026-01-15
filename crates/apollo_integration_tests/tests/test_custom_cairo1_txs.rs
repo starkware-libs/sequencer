@@ -1,4 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::ACCOUNT_ID_0 as CAIRO1_ACCOUNT_ID;
 use blockifier::bouncer::BouncerWeights;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -18,10 +24,6 @@ use starknet_api::transaction::fields::{ContractAddressSalt, Tip};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
-
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
 
 const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 
