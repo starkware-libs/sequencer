@@ -46,15 +46,14 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
-    let computed_hash_addr = ctx.get_address_of_nested_fields(
+    let computed_hash = ctx.get_nested_field_felt(
         Ids::CompiledClassFact,
         CairoStruct::DeprecatedCompiledClassFactPtr,
         &["hash"],
     )?;
-    let computed_hash = ctx.vm.get_integer(computed_hash_addr)?;
     let expected_hash = ctx.exec_scopes.get::<ClassHash>(Scope::ClassHash.into())?;
 
-    if computed_hash.as_ref() != &expected_hash.0 {
+    if computed_hash != expected_hash.0 {
         return Err(OsHintError::AssertionFailed {
             message: format!(
                 "Computed compiled_class_hash is inconsistent with the hash in the os_input. \
@@ -68,12 +67,11 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     let hints: BTreeMap<usize, Vec<HintParams>> =
         (&dep_class.program.shared_program_data.hints_collection).into();
 
-    let byte_code_ptr_addr = ctx.get_address_of_nested_fields(
+    let byte_code_ptr = ctx.get_nested_field_ptr(
         Ids::CompiledClass,
         CairoStruct::DeprecatedCompiledClassPtr,
         &["bytecode_ptr"],
     )?;
-    let byte_code_ptr = ctx.vm.get_relocatable(byte_code_ptr_addr)?;
     let constants = dep_class.program.constants.clone();
 
     let mut hint_extension = HintExtension::new();

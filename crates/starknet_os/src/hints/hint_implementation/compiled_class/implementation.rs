@@ -57,12 +57,11 @@ pub(crate) fn enter_scope_with_bytecode_segment_structure<S: StateReader>(
     let bytecode_segment_structures: &BTreeMap<CompiledClassHash, BytecodeSegmentNode> =
         ctx.exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
 
-    let class_hash_address = ctx.get_address_of_nested_fields(
+    let class_hash = CompiledClassHash(ctx.get_nested_field_felt(
         Ids::CompiledClassFact,
         CairoStruct::CompiledClassFactPtr,
         &["hash"],
-    )?;
-    let class_hash = CompiledClassHash(*ctx.vm.get_integer(class_hash_address)?.as_ref());
+    )?);
     let bytecode_segment_structure = bytecode_segment_structures
         .get(&class_hash)
         .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(class_hash))?;
@@ -141,14 +140,13 @@ pub(crate) fn load_class<S: StateReader>(
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     ctx.exec_scopes.exit_scope()?;
-    let expected_hash_address = ctx.get_address_of_nested_fields(
+    let expected_hash = ctx.get_nested_field_felt(
         Ids::CompiledClassFact,
         CairoStruct::CompiledClassFactPtr,
         &["hash"],
     )?;
-    let expected_hash = ctx.vm.get_integer(expected_hash_address)?;
     let computed_hash = ctx.get_integer(Ids::Hash)?;
-    if &computed_hash != expected_hash.as_ref() {
+    if computed_hash != expected_hash {
         return Err(OsHintError::AssertionFailed {
             message: format!(
                 "Computed compiled_class_hash is inconsistent with the hash in the os_input. \

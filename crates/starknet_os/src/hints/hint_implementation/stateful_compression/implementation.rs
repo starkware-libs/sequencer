@@ -171,10 +171,9 @@ pub(crate) fn load_storage_ptr_and_prev_state<'program, CHP: CommonHintProcessor
     hint_processor: &mut CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let key_address =
-        ctx.get_address_of_nested_fields(Ids::StateChanges, CairoStruct::DictAccessPtr, &["key"])?;
-    let contract_address =
-        ContractAddress(ctx.vm.get_integer(key_address)?.into_owned().try_into()?);
+    let key_felt =
+        ctx.get_nested_field_felt(Ids::StateChanges, CairoStruct::DictAccessPtr, &["key"])?;
+    let contract_address = ContractAddress(key_felt.try_into()?);
     let (state_entry, storage_ptr) = get_contract_state_entry_and_storage_ptr(
         hint_processor.get_mut_state_update_pointers(),
         ctx.vm,
@@ -191,13 +190,9 @@ pub(crate) fn update_contract_addr_to_storage_ptr<'program, CHP: CommonHintProce
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = hint_processor.get_mut_state_update_pointers() {
-        let key_address = ctx.get_address_of_nested_fields(
-            Ids::StateChanges,
-            CairoStruct::DictAccessPtr,
-            &["key"],
-        )?;
-        let contract_address =
-            ContractAddress(ctx.vm.get_integer(key_address)?.into_owned().try_into()?);
+        let key_felt =
+            ctx.get_nested_field_felt(Ids::StateChanges, CairoStruct::DictAccessPtr, &["key"])?;
+        let contract_address = ContractAddress(key_felt.try_into()?);
         let squashed_new_state = ctx.get_ptr(Ids::SquashedNewState)?;
         let squashed_storage_ptr_end = ctx.get_ptr(Ids::SquashedStoragePtrEnd)?;
 

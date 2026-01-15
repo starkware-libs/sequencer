@@ -23,12 +23,11 @@ pub(crate) fn relocate_sha256_segment<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let state_ptr_address = ctx.get_address_of_nested_fields(
+    let state_ptr = ctx.get_nested_field_ptr(
         Ids::Response,
         CairoStruct::Sha256ProcessBlockResponsePtr,
         &["state_ptr"],
     )?;
-    let state_ptr = ctx.vm.get_relocatable(state_ptr_address)?;
     let actual_out_state_ptr = ctx.get_ptr(Ids::ActualOutState)?;
 
     // TODO(Nimrod): Use SHA256_STATE_SIZE_FELTS constant.
