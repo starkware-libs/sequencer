@@ -276,11 +276,6 @@ pub struct RocksdbArgs {
     /// memory, as there is no locality of related data.
     #[clap(long, short, action=ArgAction::SetTrue)]
     pub allow_mmap: bool,
-
-    /// If true, the storage will use column families.
-    /// False by default.
-    #[clap(long, action=ArgAction::SetTrue)]
-    pub use_column_families: bool,
 }
 
 impl StorageFromArgs for RocksdbArgs {
