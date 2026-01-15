@@ -118,7 +118,7 @@ pub struct L1PricesInFri {
 
 impl L1PricesInFri {
     pub fn convert_from_wei(
-        wei: L1PricesInWei,
+        wei: &L1PricesInWei,
         eth_to_fri_rate: u128,
     ) -> Result<Self, StarknetApiError> {
         Ok(Self {
@@ -133,18 +133,6 @@ impl L1PricesInFri {
 pub struct L1PricesInWei {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
-}
-
-impl L1PricesInWei {
-    pub fn convert_from_fri(
-        fri: L1PricesInFri,
-        eth_to_fri_rate: u128,
-    ) -> Result<Self, StarknetApiError> {
-        Ok(Self {
-            l1_gas_price: fri.l1_gas_price.fri_to_wei(eth_to_fri_rate)?,
-            l1_data_gas_price: fri.l1_data_gas_price.fri_to_wei(eth_to_fri_rate)?,
-        })
-    }
 }
 
 // Get the L1 gas prices in fri and wei, and the eth to fri rate.
@@ -184,7 +172,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         };
         // Apply the eth/strk rate to get prices in fri.
         let l1_gas_prices_fri_result =
-            L1PricesInFri::convert_from_wei(prices_in_wei.clone(), eth_to_fri_rate);
+            L1PricesInFri::convert_from_wei(&prices_in_wei, eth_to_fri_rate);
         // If conversion fails, leave return_value=None to try backup methods.
         if let Ok(prices_in_fri) = l1_gas_prices_fri_result {
             return (prices_in_fri, prices_in_wei, eth_to_fri_rate);
@@ -232,7 +220,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         l1_data_gas_price: gas_price_params.min_l1_data_gas_price_wei,
     };
     let default_l1_gas_prices_fri =
-        L1PricesInFri::convert_from_wei(default_l1_gas_prices_wei.clone(), DEFAULT_ETH_TO_FRI_RATE)
+        L1PricesInFri::convert_from_wei(&default_l1_gas_prices_wei, DEFAULT_ETH_TO_FRI_RATE)
             .expect("Default values should be convertible between wei and fri.");
     info!(
         "Using default values: fri prices: {:?}, wei prices: {:?}, eth to fri rate: {:?}",
@@ -264,7 +252,8 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei(
     if let Some(override_value) = gas_price_params.override_eth_to_fri_rate {
         info!("Overriding eth to fri rate to {override_value}");
         values.2 = override_value;
-        values.1 = L1PricesInWei::convert_from_fri(values.0.clone(), override_value).unwrap();
+        values.0 = L1PricesInFri::convert_from_wei(&values.1, override_value)
+            .unwrap_or_else(|err| panic!("Failed to convert L1 prices to FRI: {err:?}"));
     }
     if let Some(override_value) = gas_price_params.override_l1_gas_price_fri {
         info!("Overriding L1 gas price to {override_value} fri");
