@@ -28,7 +28,8 @@ async fn bootstrap_declare() {
             create_bootstrap_declare_scenario(),
             GasAmount(29000000),
         )
-        .allow_bootstrap_txs(),
+        .allow_bootstrap_txs()
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }

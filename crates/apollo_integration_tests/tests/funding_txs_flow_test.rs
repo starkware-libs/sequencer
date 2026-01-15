@@ -21,7 +21,8 @@ async fn funding_txs_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([6, 7, 8]),
+        .instance_indices([6, 7, 8])
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }

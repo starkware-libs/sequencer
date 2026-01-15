@@ -1118,6 +1118,7 @@ async fn get_sequencer_setup_configs(
         ),
         component_configs_len,
         &chain_info.chain_id,
+        None,
     );
 
     let node_indices: HashSet<usize> = (0..component_configs_len).collect();

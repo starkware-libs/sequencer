@@ -18,7 +18,8 @@ async fn l1_to_l2_message_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([9, 10, 11]),
+        .instance_indices([9, 10, 11])
+        .proposal_margin_millis(100, 1000),
     )
     .await
 }
