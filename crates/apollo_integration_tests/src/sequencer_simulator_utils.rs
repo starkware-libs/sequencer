@@ -95,7 +95,7 @@ impl SequencerSimulator {
         sender_account: AccountId,
     ) {
         const N_TXS: usize = 50;
-        const SLEEP_DURATION: Duration = Duration::from_secs(1);
+        const SLEEP_DURATION: Duration = Duration::from_millis(100);
 
         let mut i = 1;
         loop {

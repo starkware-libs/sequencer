@@ -88,6 +88,8 @@ pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 
 const ALLOW_BOOTSTRAP_TXS: bool = false;
+const AWAIT_ALIVE_INTERVAL_MS: u64 = 100;
+const AWAIT_ALIVE_ATTEMPTS: usize = 2500;
 
 fn block_max_capacity_gas() -> GasAmount {
     BouncerWeights::default().proving_gas
@@ -425,6 +427,7 @@ impl IntegrationTestManager {
         get_node_executable_path();
         info!("Running nodes: {nodes_to_run:?}.");
 
+        // TODO(Tsabary): run these in parallel.
         nodes_to_run.into_iter().for_each(|index| {
             let node_setup = self
                 .idle_nodes
@@ -439,7 +442,7 @@ impl IntegrationTestManager {
         });
 
         // Wait for the nodes to start
-        self.await_alive(5000, 50).await;
+        self.await_alive(AWAIT_ALIVE_INTERVAL_MS, AWAIT_ALIVE_ATTEMPTS).await;
     }
 
     pub async fn run_node_services(
@@ -448,19 +451,21 @@ impl IntegrationTestManager {
     ) {
         get_node_executable_path();
         info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
+        // TODO(Tsabary): run these in parallel.
         nodes_services_to_run.into_iter().for_each(|(node_index, services)| {
             let running_node = self
                 .running_nodes
                 .get_mut(&node_index)
                 .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
 
+            // TODO(Tsabary): run these in parallel.
             for service in services {
                 running_node.run_service(service);
             }
         });
 
         // Wait for the rerun executables to start
-        self.await_alive(5000, 50).await;
+        self.await_alive(AWAIT_ALIVE_INTERVAL_MS, AWAIT_ALIVE_ATTEMPTS).await;
     }
 
     pub fn modify_config_idle_nodes<F>(
@@ -596,6 +601,7 @@ impl IntegrationTestManager {
                 .running_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
+            // TODO(Tsabary): should this function call `shutdown_node_services` per node as well?
             running_node.executable_handles.values().for_each(|handle| {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
