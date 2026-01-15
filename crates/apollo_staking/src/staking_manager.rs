@@ -21,6 +21,7 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
+use crate::config::StakingManagerConfig;
 use crate::contract_types::{
     ContractStaker,
     EPOCH_LENGTH,
@@ -43,22 +44,6 @@ mod staking_manager_test;
 // resulting in a failure to retrieve the committee.
 const MIN_EPOCH_LENGTH: u64 = 10;
 const_assert!(MIN_EPOCH_LENGTH >= STORED_BLOCK_HASH_BUFFER);
-
-// TODO(Dafna): implement SerializeConfig and Validate for this struct. Specifically, the Validate
-// should check that proposer_prediction_window_in_heights >= STORED_BLOCK_HASH_BUFFER.
-pub struct StakingManagerConfig {
-    pub staking_contract_address: ContractAddress,
-    pub max_cached_epochs: usize,
-
-    // The desired number of committee members to select from the available stakers.
-    // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
-    pub committee_size: usize,
-
-    // Defines how many heights in advance the proposer can be predicted.
-    // While the exact identity may depend on staker prediction constraints,
-    // the proposer selection logic becomes deterministic at this offset.
-    pub proposer_prediction_window_in_heights: u64,
-}
 
 struct CommitteeData {
     committee_members: Arc<Committee>,
