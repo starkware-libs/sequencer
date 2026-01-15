@@ -288,7 +288,6 @@ impl StorageFromArgs for RocksdbArgs {
         RocksDbStorage::open(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
             self.rocksdb_options(),
-            self.use_column_families,
         )
         .unwrap()
     }
