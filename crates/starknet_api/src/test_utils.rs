@@ -381,10 +381,13 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
+        Self::snos_proof_facts_for_testing_with_index(0)
+    }
+    pub fn snos_proof_facts_for_testing_with_index(index: u64) -> Self {
         let version = Felt::ZERO;
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number = felt!(block_hash_history_start + 2);
-        let block_hash = block_number * felt!(100_u64);
+        let block_hash = block_number * felt!(100_u64) + felt!(index);
         assert!(
             block_number < felt!(CURRENT_BLOCK_NUMBER)
                 && block_number >= felt!(block_hash_history_start),

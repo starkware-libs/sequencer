@@ -20,7 +20,8 @@ async fn main() {
     assert!(REVERT_UP_TO_AND_INCLUDING < BLOCK_TO_REVERT_FROM);
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
 
-    const N_INVOKE_TXS: usize = 50;
+    const N_INVOKE_TXS: usize = 25;
+    const N_INVOKE_TXS_WITH_PROOF: usize = 25;
     const N_L1_HANDLER_TXS: usize = 5;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 5;
@@ -58,7 +59,12 @@ async fn main() {
 
     info!("Sending transactions and verifying state.");
     integration_test_manager
-        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_REVERT_FROM)
+        .send_txs_and_verify(
+            N_INVOKE_TXS,
+            N_INVOKE_TXS_WITH_PROOF,
+            N_L1_HANDLER_TXS,
+            BLOCK_TO_REVERT_FROM,
+        )
         .await;
 
     info!("Shutting down nodes.");
@@ -113,7 +119,12 @@ async fn main() {
 
     info!("Sending transactions and verifying state.");
     integration_test_manager
-        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT)
+        .send_txs_and_verify(
+            N_INVOKE_TXS,
+            N_INVOKE_TXS_WITH_PROOF,
+            N_L1_HANDLER_TXS,
+            BLOCK_TO_WAIT_FOR_AFTER_REVERT,
+        )
         .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
