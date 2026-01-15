@@ -21,6 +21,7 @@ use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
@@ -77,6 +78,9 @@ impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
             .clone();
         // Disable casm hash migration for virtual block execution.
         versioned_constants.enable_casm_hash_migration = false;
+        // Enable Sierra gas for all Cairo 1 contracts.
+        // Version (0, 0, 0) is reserved for Cairo 0, so set to (0, 0, 1) for Cairo 1.
+        versioned_constants.min_sierra_version_for_sierra_gas = SierraVersion::new(0, 0, 1);
 
         let block_context = BlockContext::new(
             block_info,
