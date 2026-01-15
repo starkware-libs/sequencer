@@ -60,7 +60,7 @@ pub struct MempoolStaticConfig {
     pub fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
     // If true, only transactions with max L2 gas price per unit bound that are above the threshold
     // are inserted into the priority queue. If false, all transactions are inserted into the
-    // priority queue.
+    // priority queue and the gas price threshold is not updated.
     pub validate_resource_bounds: bool,
     // Time to wait before allowing a Declare transaction to be returned in `get_txs`.
     // Declare transactions are delayed to allow other nodes sufficient time to compile them.
