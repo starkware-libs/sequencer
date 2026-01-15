@@ -504,6 +504,11 @@
     "privacy": "Public",
     "value": false
   },
+  "committer_config.verify_state_diff_hash": {
+    "description": "If true, the committer will verify the state diff hash.",
+    "privacy": "Public",
+    "value": true
+  },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
