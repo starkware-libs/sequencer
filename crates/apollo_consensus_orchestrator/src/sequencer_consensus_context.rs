@@ -66,6 +66,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
@@ -102,7 +103,7 @@ type HeightToIdToContent = BTreeMap<
     BlockNumber,
     BTreeMap<
         ProposalCommitment,
-        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, Option<Felt>, ProposalId),
     >,
 >;
 
@@ -126,7 +127,8 @@ impl BuiltProposals {
         &self,
         height: &BlockNumber,
         commitment: &ProposalCommitment,
-    ) -> &(ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+    ) -> &(ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, Option<Felt>, ProposalId)
+    {
         self.data
             .get(height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
@@ -144,12 +146,13 @@ impl BuiltProposals {
         proposal_commitment: &ProposalCommitment,
         block_info: ConsensusBlockInfo,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
+        concatenated_counts: Option<Felt>,
         proposal_id: &ProposalId,
     ) {
-        self.data
-            .entry(*height)
-            .or_default()
-            .insert(*proposal_commitment, (block_info, transactions, *proposal_id));
+        self.data.entry(*height).or_default().insert(
+            *proposal_commitment,
+            (block_info, transactions, concatenated_counts, *proposal_id),
+        );
     }
 }
 
@@ -623,7 +626,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         info!(?id, ?init, "Reproposing.");
         let height = init.height;
-        let (block_info, txs, _) = self
+        let (block_info, txs, concatenated_counts, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -634,9 +637,15 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                let res =
-                    send_reproposal(id, block_info, txs, &mut stream_sender, transaction_converter)
-                        .await;
+                let res = send_reproposal(
+                    id,
+                    block_info,
+                    txs,
+                    concatenated_counts,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
                 match res {
                     Ok(()) => {
                         info!(?id, ?init, "Reproposal succeeded.");
@@ -686,7 +695,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let block_info;
         {
             let mut proposals = self.valid_proposals.lock().unwrap();
-            (block_info, transactions, proposal_id) =
+            (block_info, transactions, _, proposal_id) =
                 proposals.get_proposal(&height, &commitment).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
@@ -939,6 +948,7 @@ async fn send_reproposal(
     id: ProposalCommitment,
     block_info: ConsensusBlockInfo,
     txs: Vec<Vec<InternalConsensusTransaction>>,
+    concatenated_counts: Option<Felt>,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
@@ -958,7 +968,8 @@ async fn send_reproposal(
     }
     let executed_transaction_count: u64 =
         n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
-    let fin = ProposalFin { proposal_commitment: id, executed_transaction_count };
+    let fin =
+        ProposalFin { proposal_commitment: id, executed_transaction_count, concatenated_counts };
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
     Ok(())
