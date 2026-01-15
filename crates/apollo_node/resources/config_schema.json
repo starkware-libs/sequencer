@@ -2069,22 +2069,22 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_wei": {
-    "description": "Replace the L1 data gas price (wei) with this value.",
+  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri": {
+    "description": "Replace the L1 data gas price (fri) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_wei.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_wei": {
-    "description": "Replace the L1 gas price (wei) with this value.",
+  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri": {
+    "description": "Replace the L1 gas price (fri) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_wei.#is_none": {
+  "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true

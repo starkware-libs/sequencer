@@ -864,6 +864,9 @@ const ODDLY_SPECIFIC_CONVERSION_RATE: u128 = 12345678901234567890;
 // That also means that the L2 gas (in fri) must be bigger than the ratio of the conversion rate and
 // the eth-to-wei factor. Must use a large enough number that conversion to wei works
 const LOW_OVERRIDE_L2_GAS_PRICE: u128 = 25; // FRI
+// Must be larger than 10 since ETH_TO_WEI is 10^18 and LOW_OVERRIDE_CONVERSION_RATE is 10^19
+const LOW_OVERRIDE_L1_GAS_PRICE: u128 = 100; // FRI
+const LOW_OVERRIDE_L1_DATA_GAS_PRICE: u128 = 100; // FRI
 // ETH_TO_FRI_RATE must be larger/equal to 10^18 (wei to eth conversion factor)
 const LOW_OVERRIDE_CONVERSION_RATE: u128 = u128::pow(10, 19);
 
@@ -891,8 +894,8 @@ const LOW_OVERRIDE_L2_GAS_PRICE_FAIL: u128 = 1; // FRI
 )]
 #[case::low_overrides(
     Some(LOW_OVERRIDE_L2_GAS_PRICE),
-    Some(1),
-    Some(1),
+    Some(LOW_OVERRIDE_L1_GAS_PRICE),
+    Some(LOW_OVERRIDE_L1_DATA_GAS_PRICE),
     Some(LOW_OVERRIDE_CONVERSION_RATE),
     true
 )]
@@ -906,8 +909,8 @@ const LOW_OVERRIDE_L2_GAS_PRICE_FAIL: u128 = 1; // FRI
 #[tokio::test]
 async fn override_prices_behavior(
     #[case] override_l2_gas_price_fri: Option<u128>,
-    #[case] override_l1_gas_price_wei: Option<u128>,
-    #[case] override_l1_data_gas_price_wei: Option<u128>,
+    #[case] override_l1_gas_price_fri: Option<u128>,
+    #[case] override_l1_data_gas_price_fri: Option<u128>,
     #[case] override_eth_to_fri_rate: Option<u128>,
     #[case] build_success: bool,
 ) {
@@ -940,12 +943,11 @@ async fn override_prices_behavior(
     deps.state_sync_client.expect_add_new_block().return_once(|_| Ok(()));
     deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
 
-    // TODO(guyn): replace these overrides with fri values
     let context_config = ContextConfig {
         dynamic_config: ContextDynamicConfig {
             override_l2_gas_price_fri,
-            override_l1_gas_price_wei,
-            override_l1_data_gas_price_wei,
+            override_l1_gas_price_fri,
+            override_l1_data_gas_price_fri,
             override_eth_to_fri_rate,
             ..Default::default()
         },
@@ -966,10 +968,16 @@ async fn override_prices_behavior(
     let fin_result = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap().await;
 
     // In cases where we expect the batcher to fail the block build.
-    if !build_success {
+    if build_success {
+        assert!(
+            fin_result.is_ok(),
+            "Expected build to succeed, but got error: {:?}",
+            fin_result.err()
+        );
+    } else {
         // The build fails because the L2 gas price in wei we get, after using the eth/fri rate we
         // calculated from the block info, is zero.
-        assert!(fin_result.is_err());
+        assert!(fin_result.is_err(), "Expected build to fail, but got success: {:?}", fin_result);
         return;
     }
 
@@ -981,14 +989,14 @@ async fn override_prices_behavior(
     let actual_l2_gas_price = context.l2_gas_price.0;
 
     let previous_block = context.previous_block_info.clone().unwrap();
-    let actual_l1_gas_price = previous_block.l1_gas_price_wei.0;
-    let actual_l1_data_gas_price = previous_block.l1_data_gas_price_wei.0;
+    let actual_l1_gas_price = previous_block.l1_gas_price_fri.0;
+    let actual_l1_data_gas_price = previous_block.l1_data_gas_price_fri.0;
     let actual_conversion_rate = previous_block
         .l1_gas_price_fri
         .0
         .checked_mul(WEI_PER_ETH)
         .unwrap()
-        .checked_div(actual_l1_gas_price)
+        .checked_div(previous_block.l1_gas_price_wei.0)
         .unwrap();
 
     if let Some(override_l2_gas_price) = override_l2_gas_price_fri {
@@ -1007,7 +1015,7 @@ async fn override_prices_behavior(
         );
     }
 
-    if let Some(override_l1_gas_price) = override_l1_gas_price_wei {
+    if let Some(override_l1_gas_price) = override_l1_gas_price_fri {
         assert_eq!(
             actual_l1_gas_price, override_l1_gas_price,
             "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price \
@@ -1021,7 +1029,7 @@ async fn override_prices_behavior(
         );
     }
 
-    if let Some(override_l1_data_gas_price) = override_l1_data_gas_price_wei {
+    if let Some(override_l1_data_gas_price) = override_l1_data_gas_price_fri {
         assert_eq!(
             actual_l1_data_gas_price, override_l1_data_gas_price,
             "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
