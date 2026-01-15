@@ -87,6 +87,11 @@ pub enum StatelessTransactionValidatorError {
         "Transactions with client-side proving (non-empty proof_facts or proof) are not accepted."
     )]
     ClientSideProvingNotAllowed,
+    #[error(
+        "Proof facts and proof must be either both empty or both non-empty. Got:
+        proof facts is empty: {proof_facts_is_empty:?}, proof is empty: {proof_is_empty:?}."
+    )]
+    ProofFactsAndProofConsistency { proof_facts_is_empty: bool, proof_is_empty: bool },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -109,7 +114,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. }
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. }
             | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. }
-            | StatelessTransactionValidatorError::ClientSideProvingNotAllowed => {
+            | StatelessTransactionValidatorError::ClientSideProvingNotAllowed
+            | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -186,6 +192,11 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
             StatelessTransactionValidatorError::ClientSideProvingNotAllowed => {
                 StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.CLIENT_SIDE_PROVING_NOT_ALLOWED".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.PROOF_FACTS_AND_PROOF_CONSISTENCY".to_string(),
                 )
             }
         };

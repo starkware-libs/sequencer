@@ -44,6 +44,7 @@ impl StatelessTransactionValidator {
 
         if let RpcTransaction::Invoke(invoke_tx) = tx {
             self.validate_client_side_proving_allowed(invoke_tx)?;
+            self.validate_proof_facts_and_proof_consistency(invoke_tx)?;
         }
 
         if let RpcTransaction::Declare(declare_tx) = tx {
@@ -235,6 +236,21 @@ impl StatelessTransactionValidator {
         let has_proof_data = !tx.proof_facts.is_empty() || !tx.proof.is_empty();
         if has_proof_data {
             return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
+        }
+
+        Ok(())
+    }
+
+    fn validate_proof_facts_and_proof_consistency(
+        &self,
+        tx: &RpcInvokeTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let RpcInvokeTransaction::V3(tx) = tx;
+        if tx.proof_facts.is_empty() ^ tx.proof.is_empty() {
+            return Err(StatelessTransactionValidatorError::ProofFactsAndProofConsistency {
+                proof_facts_is_empty: tx.proof_facts.is_empty(),
+                proof_is_empty: tx.proof.is_empty(),
+            });
         }
 
         Ok(())
