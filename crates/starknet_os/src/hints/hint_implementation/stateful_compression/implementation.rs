@@ -21,7 +21,7 @@ use crate::vm_utils::LoadCairoObject;
 pub(crate) fn enter_scope_with_aliases(ctx: HintContext<'_>) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
     // new scope as they are not needed.
-    let dict_manager = ctx.exec_scopes.get_dict_manager()?;
+    let dict_manager = ctx.get_dict_manager()?;
     let new_scope = HashMap::from([(Scope::DictManager.into(), any_box!(dict_manager))]);
     ctx.exec_scopes.enter_scope(new_scope);
     Ok(())
