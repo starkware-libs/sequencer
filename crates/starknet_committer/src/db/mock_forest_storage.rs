@@ -23,6 +23,8 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+pub const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
+
 pub struct MockIndexInitialRead {}
 
 impl InputContext for MockIndexInitialRead {}
@@ -39,11 +41,14 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
             ForestMetadataType::CommitmentOffset => DbKey("commitment_offset".into()),
             ForestMetadataType::StateDiffHash(block_number) => create_db_key(
                 DbKeyPrefix::new(b"state_diff_hash".into()),
+                EMPTY_DB_KEY_SEPARATOR,
                 &block_number.serialize(),
             ),
-            ForestMetadataType::StateRoot(block_number) => {
-                create_db_key(DbKeyPrefix::new(b"state_root".into()), &block_number.serialize())
-            }
+            ForestMetadataType::StateRoot(block_number) => create_db_key(
+                DbKeyPrefix::new(b"state_root".into()),
+                EMPTY_DB_KEY_SEPARATOR,
+                &block_number.serialize(),
+            ),
         }
     }
 
