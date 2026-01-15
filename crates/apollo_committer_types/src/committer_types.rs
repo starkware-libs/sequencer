@@ -13,8 +13,7 @@ pub struct CommitBlockRequest {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockResponse {
-    // TODO(Yoav): Rename to global_root.
-    pub state_root: GlobalRoot,
+    pub global_root: GlobalRoot,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
