@@ -96,7 +96,8 @@ pub struct TimeMeasurement {
     pub block_timers: BlockTimers,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
-    pub facts_in_db: Vec<usize>, // Number of facts in the DB prior to the current block.
+    pub initial_facts_in_db: Vec<usize>, /* Number of facts in the DB prior to the current
+                                          * block. */
     pub block_number: usize,
     pub total_facts: usize,
     pub current_block_measurement: BlockMeasurement,
@@ -113,7 +114,7 @@ impl TimeMeasurement {
             block_measurements: Vec::with_capacity(size),
             block_number: 0,
             total_facts: 0,
-            facts_in_db: Vec::with_capacity(size),
+            initial_facts_in_db: Vec::with_capacity(size),
             current_block_measurement: BlockMeasurement::default(),
             storage_stat_columns,
         }
@@ -121,7 +122,7 @@ impl TimeMeasurement {
 
     fn clear_measurements(&mut self) {
         self.block_measurements.clear();
-        self.facts_in_db.clear();
+        self.initial_facts_in_db.clear();
     }
 
     pub fn start_measurement(&mut self, action: Action) {
@@ -147,7 +148,7 @@ impl TimeMeasurement {
 
         if let Action::EndToEnd = action {
             self.total_time += duration_in_millis;
-            self.facts_in_db.push(self.total_facts);
+            self.initial_facts_in_db.push(self.total_facts);
             self.total_facts += self.current_block_measurement.n_new_facts;
             self.block_number += 1;
             self.block_measurements.push(self.current_block_measurement.clone());
@@ -258,7 +259,7 @@ impl TimeMeasurement {
                 (self.block_number - n_results + i).to_string(),
                 measurement.n_new_facts.to_string(),
                 measurement.n_read_facts.to_string(),
-                self.facts_in_db[i].to_string(),
+                self.initial_facts_in_db[i].to_string(),
                 measurement.time_of_measurement.to_string(),
                 measurement.block_duration.to_string(),
                 measurement.read_duration.to_string(),
