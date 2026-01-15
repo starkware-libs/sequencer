@@ -23,7 +23,7 @@ fn felt_to_bool(felt: Felt, id: Ids) -> Result<bool, OsHintError> {
     }
 }
 
-pub(crate) fn get_public_keys<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn get_public_keys<CHP: CommonHintProcessor>(
     hint_processor: &CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
@@ -38,7 +38,7 @@ pub(crate) fn get_public_keys<'program, CHP: CommonHintProcessor<'program>>(
     Ok(())
 }
 
-pub(crate) fn set_proof_fact_topology<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn set_proof_fact_topology<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     ctx: HintContext<'_>,
 ) -> OsHintResult {

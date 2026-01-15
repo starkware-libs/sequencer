@@ -10,7 +10,7 @@ use crate::hints::vars::{CairoStruct, Const, Ids};
 ///
 /// * The limbs of value are in the range [0, BASE * 3).
 /// * value is in the range [0, 2 ** 256).
-pub(crate) fn compute_ids_low<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn compute_ids_low<CHP: CommonHintProcessor>(
     _hint_processor: &mut CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {

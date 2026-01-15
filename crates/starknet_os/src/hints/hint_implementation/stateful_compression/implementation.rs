@@ -167,7 +167,7 @@ pub(crate) fn contract_address_le_max_for_compression(mut ctx: HintContext<'_>) 
     )?)
 }
 
-pub(crate) fn load_storage_ptr_and_prev_state<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn load_storage_ptr_and_prev_state<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
@@ -185,7 +185,7 @@ pub(crate) fn load_storage_ptr_and_prev_state<'program, CHP: CommonHintProcessor
     Ok(())
 }
 
-pub(crate) fn update_contract_addr_to_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn update_contract_addr_to_storage_ptr<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     ctx: HintContext<'_>,
 ) -> OsHintResult {

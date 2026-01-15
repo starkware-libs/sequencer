@@ -291,7 +291,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
     impl_common_hint_processor_logic!();
 }
 
-impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
+impl<S: StateReader> CommonHintProcessor for SnosHintProcessor<'_, S> {
     impl_common_hint_processor_getters!();
 
     fn get_public_keys(&self) -> Option<&[Felt]> {

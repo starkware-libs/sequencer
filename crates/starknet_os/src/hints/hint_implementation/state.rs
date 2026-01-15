@@ -132,7 +132,7 @@ pub(crate) fn update_state_ptr<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn guess_classes_ptr<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
@@ -145,7 +145,7 @@ pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     Ok(ctx.insert_value(Ids::SquashedDict, class_changes_start)?)
 }
 
-pub(crate) fn update_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
+pub(crate) fn update_classes_ptr<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
