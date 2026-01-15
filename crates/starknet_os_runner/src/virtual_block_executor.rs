@@ -181,12 +181,15 @@ pub trait VirtualBlockExecutor: Send + 'static {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Get initial state reads.
-        let initial_reads = transaction_executor
+        let mut initial_reads = transaction_executor
             .block_state
             .as_ref()
             .ok_or(VirtualBlockExecutorError::StateUnavailable)?
             .get_initial_reads()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+        // Clear declared_contracts as this field is not used by the OS.
+        // and passing entries with value=true would cause an assertion failure later.
+        initial_reads.declared_contracts.clear();
 
         let executed_class_hashes = transaction_executor
             .bouncer
