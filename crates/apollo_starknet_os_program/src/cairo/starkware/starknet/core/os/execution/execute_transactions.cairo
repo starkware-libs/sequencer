@@ -66,6 +66,7 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
     update_class_hash_in_execution_context,
 )
 from starkware.starknet.core.os.execution.execution_constraints import (
+    check_is_reverted,
     check_n_txs,
     check_sender_address,
     check_tx_type,
@@ -506,6 +507,7 @@ func execute_invoke_function_transaction{
 
     local is_reverted;
     %{ IsReverted %}
+    check_is_reverted(is_reverted);
     if (is_reverted == FALSE) {
         // Execute only non-reverted transactions.
         with remaining_gas {
