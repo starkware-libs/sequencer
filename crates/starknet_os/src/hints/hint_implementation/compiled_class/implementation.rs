@@ -21,7 +21,6 @@ use crate::hints::hint_implementation::compiled_class::utils::{
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
-    get_address_of_nested_fields,
     get_address_of_nested_fields_from_base_address,
     CairoSized,
     LoadCairoObject,
@@ -52,20 +51,16 @@ pub(crate) fn assert_end_of_bytecode_segments(ctx: HintContext<'_>) -> OsHintRes
 }
 
 pub(crate) fn enter_scope_with_bytecode_segment_structure<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structures: &BTreeMap<CompiledClassHash, BytecodeSegmentNode> =
         ctx.exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
 
-    let class_hash_address = get_address_of_nested_fields(
-        ctx.ids_data,
+    let class_hash_address = ctx.get_address_of_nested_fields(
         Ids::CompiledClassFact,
         CairoStruct::CompiledClassFactPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
     )?;
     let class_hash = CompiledClassHash(*ctx.vm.get_integer(class_hash_address)?.as_ref());
     let bytecode_segment_structure = bytecode_segment_structures
@@ -142,18 +137,14 @@ pub(crate) fn iter_current_segment_info(mut ctx: HintContext<'_>) -> OsHintResul
 }
 
 pub(crate) fn load_class<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
     ctx.exec_scopes.exit_scope()?;
-    let expected_hash_address = get_address_of_nested_fields(
-        ctx.ids_data,
+    let expected_hash_address = ctx.get_address_of_nested_fields(
         Ids::CompiledClassFact,
         CairoStruct::CompiledClassFactPtr,
-        ctx.vm,
-        ctx.ap_tracking,
         &["hash"],
-        hint_processor.program,
     )?;
     let expected_hash = ctx.vm.get_integer(expected_hash_address)?;
     let computed_hash = ctx.get_integer(Ids::Hash)?;
@@ -181,7 +172,7 @@ pub(crate) fn load_classes_and_create_bytecode_segment_structures<S: StateReader
     hint_processor: &mut SnosHintProcessor<'_, S>,
     mut ctx: HintContext<'_>,
 ) -> OsHintExtensionResult {
-    let identifier_getter = hint_processor.program;
+    let identifier_getter = ctx.program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = ctx.vm.add_memory_segment();
     let mut bytecode_segment_structures = BTreeMap::new();
@@ -195,7 +186,7 @@ pub(crate) fn load_classes_and_create_bytecode_segment_structures<S: StateReader
             ctx.vm,
             identifier_getter,
             compiled_class_facts_ptr,
-            ctx.constants,
+            &ctx.program.constants,
         )?;
 
         // Compiled classes are expected to end with a `ret` opcode followed by a pointer to

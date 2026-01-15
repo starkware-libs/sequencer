@@ -1,7 +1,6 @@
 use cairo_lang_casm::hints::StarknetHint;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
-use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
@@ -16,8 +15,6 @@ pub(crate) type VmHintResult = VmHintResultType<()>;
 pub(crate) type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub(crate) trait CommonHintProcessor<'a> {
-    // The program being run. The hint processor does not require ownership.
-    fn get_program(&self) -> &'a Program;
     fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers>;
     // KZG fields.
     fn get_da_segment(&mut self) -> &mut Option<Vec<Felt>>;
@@ -78,7 +75,7 @@ macro_rules! impl_common_hint_processor_logic {
                     exec_scopes,
                     ids_data: &hint_processor_data.ids_data,
                     ap_tracking: &hint_processor_data.ap_tracking,
-                    constants: &self.program.constants,
+                    program: self.program,
                 };
                 let hint_str = hint_processor_data.code.as_str();
                 if let Ok(hint) = AllHints::from_str(hint_str) {
@@ -146,10 +143,6 @@ macro_rules! impl_common_hint_processor_logic {
 #[macro_export]
 macro_rules! impl_common_hint_processor_getters {
     () => {
-        fn get_program(&self) -> &'program Program {
-            self.program
-        }
-
         fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
             &mut self.state_update_pointers
         }
