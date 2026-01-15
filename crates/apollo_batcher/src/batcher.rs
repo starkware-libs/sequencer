@@ -176,7 +176,8 @@ pub struct Batcher {
 
     commitment_manager: ApolloCommitmentManager,
 
-    /// Task handle for the storage reader server, if enabled.
+    // Kept alive to maintain the server running.
+    #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
 }
 
@@ -1265,15 +1266,6 @@ fn log_txs_execution_result(
         }
 
         info!("{}", log_msg);
-    }
-}
-
-impl Drop for Batcher {
-    fn drop(&mut self) {
-        // Abort the storage reader server task if it was spawned.
-        if let Some(handle) = self.storage_reader_server_handle.take() {
-            handle.abort();
-        }
     }
 }
 
