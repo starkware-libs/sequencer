@@ -13,6 +13,10 @@ use starknet_committer::block_committer::timing_util::{
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
+#[cfg(test)]
+#[path = "utils_test.rs"]
+pub mod test;
+
 pub struct BenchmarkTimeMeasurement {
     pub current_measurement: SingleBlockTimeMeasurement,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
