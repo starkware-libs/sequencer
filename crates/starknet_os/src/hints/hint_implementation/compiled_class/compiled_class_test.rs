@@ -44,74 +44,30 @@ use crate::vm_utils::LoadCairoObject;
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_V1_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["2465830960397366651630337424688985223696318975358245616442091026520915066924"];
-||||||| a47c421711
-    expect!["2158915115820046300425733868468648197467281201437434820446561818843691420185"];
-=======
-    expect!["1697054664603934145285803312146517015002650846440443765533050768930679560122"];
->>>>>>> origin/main-v0.14.1
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["poseidon_builtin: 14710"];
 const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["175605"];
-||||||| a47c421711
-    expect!["poseidon_builtin: 11132"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["133140"];
-=======
-    expect!["poseidon_builtin: 11460"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["137083"];
->>>>>>> origin/main-v0.14.1
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["poseidon_builtin: 448, range_check_builtin: 225"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13408"];
-||||||| a47c421711
-    expect!["poseidon_builtin: 346, range_check_builtin: 172"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["10362"];
-=======
-    expect!["poseidon_builtin: 358, range_check_builtin: 177"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["10737"];
->>>>>>> origin/main-v0.14.1
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
 const EXPECTED_V2_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["2043404626900023237509450458529893927112695050599973111535112525179439904688"];
-||||||| a47c421711
-    expect!["572342720623502979350382593394067165666630065184187601189507520791974681170"];
-=======
-    expect!["760161043946628305666780105371127598378405164814586623394159326665751991931"];
->>>>>>> origin/main-v0.14.1
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["range_check_builtin: 29954"];
 const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["570373"];
-||||||| a47c421711
-    expect!["range_check_builtin: 22666"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["432757"];
-=======
-    expect!["range_check_builtin: 23339"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["446089"];
->>>>>>> origin/main-v0.14.1
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-<<<<<<< HEAD
     expect!["range_check_builtin: 1273"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["54209"];
-||||||| a47c421711
-    expect!["range_check_builtin: 979"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["41697"];
-=======
-    expect!["range_check_builtin: 1015"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["43336"];
->>>>>>> origin/main-v0.14.1
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
