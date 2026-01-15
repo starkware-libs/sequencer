@@ -38,6 +38,7 @@ auto_impl_get_test_instance! {
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
         pub executed_transaction_count: u64,
+        pub concatenated_counts: starknet_types_core::felt::Felt,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,

@@ -115,7 +115,8 @@ pub(crate) async fn build_proposal(
         .await
         .map_err(|e| BuildProposalError::SendError(format!("Failed to send block info: {e:?}")))?;
 
-    let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
+    let (proposal_commitment, content, concatenated_counts) =
+        get_proposal_content(&mut args).await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -125,6 +126,7 @@ pub(crate) async fn build_proposal(
         &proposal_commitment,
         block_info,
         content,
+        concatenated_counts,
         &args.proposal_id,
     );
     Ok(proposal_commitment)
@@ -224,7 +226,11 @@ async fn initiate_build(
 /// 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
     args: &mut ProposalBuildArguments,
-) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
+) -> BuildProposalResult<(
+    ProposalCommitment,
+    Vec<Vec<InternalConsensusTransaction>>,
+    starknet_types_core::felt::Felt,
+)> {
     let mut content = Vec::new();
     loop {
         if args.cancel_token.is_cancelled() {
@@ -273,7 +279,7 @@ async fn get_proposal_content(
                         ))
                     })?;
             }
-            GetProposalContent::Finished { id, final_n_executed_txs } => {
+            GetProposalContent::Finished { id, final_n_executed_txs, concatenated_counts } => {
                 let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
                 content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
 
@@ -315,12 +321,16 @@ async fn get_proposal_content(
                 let executed_transaction_count: u64 = final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                let fin = ProposalFin { proposal_commitment, executed_transaction_count };
+                let fin = ProposalFin {
+                    proposal_commitment,
+                    executed_transaction_count,
+                    concatenated_counts,
+                };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
                 })?;
-                return Ok((proposal_commitment, content));
+                return Ok((proposal_commitment, content, concatenated_counts));
             }
         }
     }

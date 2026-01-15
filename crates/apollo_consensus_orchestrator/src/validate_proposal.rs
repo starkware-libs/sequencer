@@ -220,6 +220,7 @@ pub(crate) async fn validate_proposal(
         &built_block,
         args.block_info,
         content,
+        received_fin.concatenated_counts,
         &args.proposal_id,
     );
 

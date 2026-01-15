@@ -14,6 +14,7 @@ use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
 
 use crate::errors::BatcherError;
 
@@ -69,7 +70,7 @@ pub struct GetProposalContentResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finished { id: ProposalCommitment, final_n_executed_txs: usize },
+    Finished { id: ProposalCommitment, final_n_executed_txs: usize, concatenated_counts: Felt },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
