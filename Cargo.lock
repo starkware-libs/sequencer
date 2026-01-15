@@ -1069,6 +1069,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "indexmap 2.12.0",
+ "rand 0.8.5",
  "starknet_api",
  "starknet_committer",
  "starknet_patricia",

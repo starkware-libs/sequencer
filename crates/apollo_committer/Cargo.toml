@@ -15,10 +15,11 @@ apollo_committer_types.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+rand.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_patricia.workspace = true
-starknet_patricia_storage.workspace = true
+starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 tracing.workspace = true
 
 [dev-dependencies]

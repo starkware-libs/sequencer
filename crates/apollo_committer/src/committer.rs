@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
+use std::path::Path;
 
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{
@@ -35,6 +36,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
@@ -44,7 +46,7 @@ use crate::metrics::register_metrics;
 #[path = "committer_test.rs"]
 mod committer_test;
 
-pub type ApolloStorage = MapStorage;
+pub type ApolloStorage = RocksDbStorage;
 
 // TODO(Yoav): Move this to committer_test.rs and use index db reader.
 pub struct CommitBlockMock;
@@ -79,9 +81,18 @@ pub trait StorageConstructor: Storage {
     fn create_storage() -> Self;
 }
 
-impl StorageConstructor for ApolloStorage {
+impl StorageConstructor for MapStorage {
     fn create_storage() -> Self {
         Self::default()
+    }
+}
+
+impl StorageConstructor for RocksDbStorage {
+    fn create_storage() -> Self {
+        // Concatenate a random hex string to the RocksDB path to avoid collisions.
+        let rand_hex = format!("{:08x}", rand::random::<u32>());
+        let path = format!("/tmp/committer_storage/rocksdb/{rand_hex}");
+        Self::open(Path::new(&path), RocksDbOptions::default(), false).unwrap()
     }
 }
 
