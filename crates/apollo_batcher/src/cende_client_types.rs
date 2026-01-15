@@ -58,6 +58,9 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+#[cfg(test)]
+#[path = "cende_client_types_test.rs"]
+mod cende_client_types_test;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct L1ToL2Nonce(pub StarkHash);
@@ -263,24 +266,26 @@ trait OrderedItem {
         let main_call_info_iterator = execution_info.non_optional_call_infos();
 
         // Collect all the structs from the call infos, along with their order.
-        let mut accumulated_sortable_structs = vec![];
+        let mut accumulated_sorted_structs = vec![];
         for main_call_info in main_call_info_iterator {
+            let mut main_call_accumulated_sortable_structs = vec![];
             for call_info in main_call_info.iter() {
                 let sortable_structs = Self::get_items_from_call_execution(&call_info.execution)
                     .map(|ordered_struct| {
                         ordered_struct.to_ordered_tuple(call_info.call.storage_address)
                     });
-                accumulated_sortable_structs.extend(sortable_structs);
+                main_call_accumulated_sortable_structs.extend(sortable_structs);
             }
+            // Sort the structs by their order, per main call info.
+            main_call_accumulated_sortable_structs.sort_by_key(|(order, _)| *order);
+            accumulated_sorted_structs.extend(
+                main_call_accumulated_sortable_structs
+                    .into_iter()
+                    .map(|(_, unordered_struct)| unordered_struct),
+            );
         }
-        // Sort the items by their order.
-        accumulated_sortable_structs.sort_by_key(|(order, _)| *order);
 
-        // Return the sorted items .
-        accumulated_sortable_structs
-            .into_iter()
-            .map(|(_, unordered_sturct)| unordered_sturct)
-            .collect()
+        accumulated_sorted_structs
     }
 }
 
