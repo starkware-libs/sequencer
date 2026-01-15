@@ -201,6 +201,7 @@ impl TestDeps {
                         content: GetProposalContent::Finished {
                             id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                             final_n_executed_txs: args.n_executed_txs_count,
+                            concatenated_counts: starknet_types_core::felt::Felt::ZERO,
                         },
                     })
                 });
@@ -397,6 +398,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            concatenated_counts: Some(starknet_types_core::felt::Felt::ZERO),
         }))
         .await
         .unwrap();
