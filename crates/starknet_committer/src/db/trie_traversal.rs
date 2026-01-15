@@ -26,7 +26,7 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::{DbKey, Storage};
 use tracing::warn;
 
 use crate::block_committer::input::{
@@ -245,12 +245,8 @@ pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
     let mut subtrees_roots = vec![];
-    let db_keys: Vec<DbKey> = subtrees
-        .iter()
-        .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>(key_context), &subtree.get_root_suffix())
-        })
-        .collect();
+    let db_keys: Vec<DbKey> =
+        subtrees.iter().map(|subtree| subtree.get_root_db_key::<L>(key_context)).collect();
 
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
