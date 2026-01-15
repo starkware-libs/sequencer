@@ -15,7 +15,8 @@ async fn main() {
     integration_test_setup("restart_service_multiple_nodes").await;
     const INITIAL_BLOCK_TO_WAIT_FOR: usize = 20;
     const BLOCK_TO_WAIT_FOR_INCREMENT: usize = 5;
-    const N_INVOKE_TXS: usize = 20;
+    const N_INVOKE_TXS: usize = 10;
+    const N_INVOKE_TXS_WITH_PROOF: usize = 10;
     const N_L1_HANDLER_TXS: usize = 1;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 0;
@@ -72,7 +73,12 @@ async fn main() {
              nodes."
         );
         integration_test_manager
-            .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, block_to_wait_for)
+            .send_txs_and_verify(
+                N_INVOKE_TXS,
+                N_INVOKE_TXS_WITH_PROOF,
+                N_L1_HANDLER_TXS,
+                block_to_wait_for,
+            )
             .await;
     }
 
