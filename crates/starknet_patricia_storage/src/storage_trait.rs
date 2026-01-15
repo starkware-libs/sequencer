@@ -205,9 +205,9 @@ impl Serialize for DbKey {
     }
 }
 
-/// Returns a `DbKey` from a prefix and a suffix.
-pub fn create_db_key(prefix: DbKeyPrefix, suffix: &[u8]) -> DbKey {
-    DbKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+/// Returns a `DbKey` from a prefix , separator, and suffix.
+pub fn create_db_key(prefix: DbKeyPrefix, separator: &[u8], suffix: &[u8]) -> DbKey {
+    DbKey([prefix.to_bytes(), separator, suffix].concat().to_vec())
 }
 
 /// Extracts the suffix from a `DbKey`. If the key doesn't match the prefix, None is returned.

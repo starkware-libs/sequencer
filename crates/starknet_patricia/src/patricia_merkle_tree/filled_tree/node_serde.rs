@@ -29,6 +29,8 @@ pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + ED
 #[allow(dead_code)]
 pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 
+pub const FACT_LAYOUT_DB_KEY_SEPARATOR: &[u8] = b":";
+
 #[derive(Debug)]
 pub enum PatriciaPrefix {
     InnerNode,
@@ -65,6 +67,8 @@ pub struct FactNodeDeserializationContext {
 }
 
 impl<L: Leaf> DBObject for FactDbFilledNode<L> {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = FactNodeDeserializationContext;
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
