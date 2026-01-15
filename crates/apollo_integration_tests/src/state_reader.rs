@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use apollo_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use apollo_class_manager::{ClassStorage, FsClassStorage};
 use apollo_class_manager_config::config::FsClassStorageConfig;
-use apollo_committer_config::config::CommitterStorageConfig;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
@@ -79,7 +79,7 @@ pub struct StorageTestConfig {
     pub state_sync_storage_config: StorageConfig,
     pub class_manager_storage_config: FsClassStorageConfig,
     pub consensus_storage_config: StorageConfig,
-    pub committer_storage_config: CommitterStorageConfig,
+    pub committer_db_path: PathBuf,
 }
 
 impl StorageTestConfig {
@@ -88,14 +88,14 @@ impl StorageTestConfig {
         state_sync_storage_config: StorageConfig,
         class_manager_storage_config: FsClassStorageConfig,
         consensus_storage_config: StorageConfig,
-        committer_storage_config: CommitterStorageConfig,
+        committer_db_path: PathBuf,
     ) -> Self {
         Self {
             batcher_storage_config,
             state_sync_storage_config,
             class_manager_storage_config,
             consensus_storage_config,
-            committer_storage_config,
+            committer_db_path,
         }
     }
 }
@@ -207,14 +207,13 @@ impl StorageTestSetup {
             storage_exec_paths.as_ref().map(|p| p.get_committer_path_with_db_suffix());
         let (committer_db_path, committer_storage_handle) =
             create_dir_for_testing(committer_db_path);
-        let committer_storage_config = CommitterStorageConfig { path: committer_db_path };
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,
                 state_sync_storage_config,
                 class_manager_storage_config,
                 consensus_storage_config,
-                committer_storage_config,
+                committer_db_path,
             ),
             storage_handles: StorageTestHandles::new(
                 batcher_storage_handle,
