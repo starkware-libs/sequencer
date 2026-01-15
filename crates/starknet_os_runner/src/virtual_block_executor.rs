@@ -32,7 +32,8 @@ use crate::errors::VirtualBlockExecutorError;
 /// Captures execution data for a virtual block (multiple transactions).
 ///
 /// This struct contains all the execution data needed for proof generation.
-pub struct BaseBlockInfo {
+#[allow(dead_code)]
+pub(crate) struct BaseBlockInfo {
     pub(crate) block_context: BlockContext,
     /// The block hash of the base block,
     /// in which the virtual block is executed.
@@ -98,15 +99,16 @@ impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
     }
 }
 
-pub struct VirtualBlockExecutionData {
+#[allow(dead_code)]
+pub(crate) struct VirtualBlockExecutionData {
     /// Execution outputs for all transactions in the virtual block.
-    pub execution_outputs: Vec<TransactionExecutionOutput>,
+    pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     /// The initial state reads (accessed state) during execution.
-    pub initial_reads: StateMaps,
+    pub(crate) initial_reads: StateMaps,
     /// The class hashes of all contracts executed in the virtual block.
-    pub executed_class_hashes: HashSet<ClassHash>,
+    pub(crate) executed_class_hashes: HashSet<ClassHash>,
     /// The base block info for the virtual block.
-    pub base_block_info: BaseBlockInfo,
+    pub(crate) base_block_info: BaseBlockInfo,
 }
 
 /// Executes a virtual block of transactions.
@@ -135,7 +137,8 @@ pub struct VirtualBlockExecutionData {
 /// let execution_data = executor.execute(block_number, contract_class_manager, transactions)?;
 /// // Use execution_data to build OS input for proving...
 /// ```
-pub trait VirtualBlockExecutor: Send + 'static {
+#[allow(dead_code)]
+pub(crate) trait VirtualBlockExecutor: Send + 'static {
     /// Executes a virtual block based on the state and context at the given block number.
     ///
     /// # Arguments
@@ -259,15 +262,17 @@ pub trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
-pub struct RpcVirtualBlockExecutor {
+#[allow(dead_code)]
+pub(crate) struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
-    pub rpc_state_reader: RpcStateReader,
+    pub(crate) rpc_state_reader: RpcStateReader,
     /// Whether transaction validation is enabled during execution.
-    pub validate_txs: bool,
+    pub(crate) validate_txs: bool,
 }
 
+#[allow(dead_code)]
 impl RpcVirtualBlockExecutor {
-    pub fn new(node_url: String, chain_id: ChainId, block_number: BlockNumber) -> Self {
+    pub(crate) fn new(node_url: String, chain_id: ChainId, block_number: BlockNumber) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
                 node_url,
