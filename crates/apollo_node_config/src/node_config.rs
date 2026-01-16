@@ -99,6 +99,20 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ),
         (
             ser_pointer_target_param(
+                "native_classes_whitelist",
+                &"[]".to_string(),
+                "Specifies whether to execute all class hashes or only specific ones using Cairo \
+                native. If limited, a specific list of class hashes is provided.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+                "gateway_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
                 "starknet_url",
                 &POINTER_TARGET_VALUE.to_string(),
                 "URL for communicating with Starknet.",
