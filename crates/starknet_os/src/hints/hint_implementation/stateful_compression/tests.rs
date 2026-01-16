@@ -1,7 +1,8 @@
 use core::panic;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
+use apollo_starknet_os_program::test_programs::{ALIASES_TEST_BYTES, DUMMY_TEST_BYTES};
+use assert_matches::assert_matches;
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -9,7 +10,9 @@ use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::state::StorageKey;
@@ -26,11 +29,13 @@ use crate::test_utils::cairo_runner::{
     PointerArg,
     ValueArg,
 };
+use crate::test_utils::errors::Cairo0EntryPointRunnerError;
 use crate::test_utils::utils::{
     allocate_squashed_cairo_dict,
     flatten_cairo_dict,
     get_entrypoint_runner_config,
     parse_squashed_cairo_dict,
+    run_cairo_function_and_check_result,
     test_cairo_function,
 };
 
@@ -57,6 +62,26 @@ fn test_constants() {
         &[],
         HashMap::new(),
     )
+}
+
+#[rstest]
+fn test_dummy(#[values(0, 1, 2)] offset_increase: u8) {
+    let error = run_cairo_function_and_check_result(
+        &EntryPointRunnerConfig { layout: LayoutName::all_cairo, ..Default::default() },
+        DUMMY_TEST_BYTES,
+        "dummy",
+        &[Felt::from(offset_increase).into()],
+        &[ImplicitArg::Builtin(BuiltinName::pedersen)],
+        &[],
+        &[EndpointArg::Value(ValueArg::Single(Felt::ONE.into()))],
+        HashMap::new(),
+    )
+    .unwrap_err();
+    assert_matches!(
+        error,
+        Cairo0EntryPointRunnerError::VmRunner(RunnerError::InvalidStopPointer(boxed_error))
+        if boxed_error.2.offset == offset_increase as usize
+    );
 }
 
 #[rstest]
