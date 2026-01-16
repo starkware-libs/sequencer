@@ -26,6 +26,10 @@ RUN ./install_build_tools.sh
 RUN rustup toolchain install
 RUN cargo install cargo-chef
 
+ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
+ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"
+ENV TABLEGEN_190_PREFIX="/usr/lib/llvm-19/"
+
 # Define python venv and install python packages.
 ENV VIRTUAL_ENV=/opt/sequencer_venv
 RUN python3 -m venv ${VIRTUAL_ENV}
