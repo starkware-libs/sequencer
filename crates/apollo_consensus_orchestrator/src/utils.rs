@@ -308,7 +308,15 @@ pub(crate) fn apply_fee_transformations(
 pub(crate) fn convert_to_sn_api_block_info(
     block_info: &ConsensusBlockInfo,
 ) -> Result<starknet_api::block::BlockInfo, StarknetApiError> {
-    // TODO(guyn): add warn! if any of these are zero.
+    if block_info.l1_gas_price_fri.0 == 0
+        || block_info.l1_gas_price_wei.0 == 0
+        || block_info.l1_data_gas_price_fri.0 == 0
+        || block_info.l1_data_gas_price_wei.0 == 0
+        || block_info.l2_gas_price_fri.0 == 0
+    {
+        warn!("Zero gas price detected in block info: {:?}", block_info);
+    }
+
     let l1_gas_price_fri = NonzeroGasPrice::new(block_info.l1_gas_price_fri)?;
     let l1_data_gas_price_fri = NonzeroGasPrice::new(block_info.l1_data_gas_price_fri)?;
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
