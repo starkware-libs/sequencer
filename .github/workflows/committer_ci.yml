@@ -15,19 +15,38 @@ on:
       - "crates/starknet_api/**"
       - "crates/starknet_committer/**"
       - "crates/starknet_patricia/**"
+      - "crates/starknet_patricia_storage/**"
+  push:
+    branches:
+      - main
+      - "main-v*"
+      - "release-*"
+    paths:
+      - ".github/workflows/committer_ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_committer_and_os_cli/**"
+      - "crates/starknet_api/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_patricia/**"
+      - "crates/starknet_patricia_storage/**"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to benchmark (leave empty for current)"
+        required: false
+        type: string
 
 env:
   RUSTFLAGS: "-D warnings"
   FULL_COMMITTER_FLOW_TIME_LIMIT_NS: "1000000000"
   TREE_COMPUTATION_FLOW_TIME_LIMIT_NS: "1800000000"
+  BENCHMARK_REGRESSION_LIMIT_PERCENT: "20"
 
-# On PR events, cancel existing CI runs on this same PR for this workflow.
-# Also, create different concurrency groups for different pushed commits, on push events.
+# On PR events, cancel existing CI runs on this same PR.
+# On push events, group by branch to avoid gh-pages conflicts (no cancellation).
 concurrency:
-  group: >
-    ${{ github.workflow }}-
-    ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -63,14 +82,35 @@ jobs:
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
+  # Benchmarking job - behavior depends on event type:
+  #
+  # ┌─────────────────────┬───────────────────────────────────────────────────────┐
+  # │ Event               │ Behavior                                              │
+  # ├─────────────────────┼───────────────────────────────────────────────────────┤
+  # │ pull_request        │ Benchmark base branch, then head branch, compare.     │
+  # │                     │ Enforces regression limits and absolute time limits.  │
+  # ├─────────────────────┼───────────────────────────────────────────────────────┤
+  # │ push (main branches)│ Benchmark current branch, publish results to gh-pages │
+  # │ workflow_dispatch   │ for historical tracking and visualization.            │
+  # └─────────────────────┴───────────────────────────────────────────────────────┘
   benchmarking:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      contents: write # Required for pushing to gh-pages on push events.
     steps:
-      # Checkout the base branch to benchmark the old code.
-      - uses: actions/checkout@v4
+      # PR-only: Checkout the base branch to benchmark the old code.
+      - name: Checkout base branch (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
+
+      # Push/dispatch: Checkout the specified or current branch.
+      - name: Checkout repository (push/dispatch)
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
@@ -96,27 +136,90 @@ jobs:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: "google-github-actions/setup-gcloud@v2"
 
-      # Benchmark the base branch code.
-      - run: cargo run -p bench_tools -- run --package starknet_committer_and_os_cli --out /tmp/base_results
+      # PR-only: Benchmark the base branch code.
+      - name: Benchmark base branch (PR only)
+        if: github.event_name == 'pull_request'
+        run: cargo run -p bench_tools -- run --package starknet_committer_and_os_cli --out /tmp/base_results
 
-      # Save the input files from the base branch to use in the second benchmark.
-      - run: cp -r crates/starknet_committer_and_os_cli/test_inputs /tmp/test_inputs
+      # PR-only: Save the input files from the base branch to use in the second benchmark.
+      - name: Save test inputs (PR only)
+        if: github.event_name == 'pull_request'
+        run: cp -r crates/starknet_committer_and_os_cli/test_inputs /tmp/test_inputs
 
-      # Checkout the current branch to benchmark the new code.
-      - uses: actions/checkout@v4
+      # PR-only: Checkout the current branch to benchmark the new code.
+      - name: Checkout current branch (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
         with:
           clean: false
 
-      # Re-install pip requirements in case they changed between branches.
-      - run: pip install -r scripts/requirements.txt
+      # PR-only: Re-install pip requirements in case they changed between branches.
+      - name: Re-install pip requirements (PR only)
+        if: github.event_name == 'pull_request'
+        run: pip install -r scripts/requirements.txt
 
-      # Benchmark the current branch and compare to the previous run.
-      # Use the saved inputs and enforce absolute time limits (full_committer_flow: 25ms, tree_computation_flow: 20ms).
-      - run: |
+      # PR-only: Benchmark the current branch and compare to the previous run.
+      # Use the saved inputs and enforce absolute time limits and regression limit.
+      - name: Benchmark and compare (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
           cargo run -p bench_tools -- run-and-compare \
             --package starknet_committer_and_os_cli \
             --out /tmp/new_results \
-            --regression-limit 20.0 \
+            --regression-limit ${BENCHMARK_REGRESSION_LIMIT_PERCENT} \
             --input-dir /tmp/test_inputs \
             --set-absolute-time-ns-limit full_committer_flow ${FULL_COMMITTER_FLOW_TIME_LIMIT_NS} \
             --set-absolute-time-ns-limit tree_computation_flow ${TREE_COMPUTATION_FLOW_TIME_LIMIT_NS}
+
+      # Push/dispatch: Run benchmarks and publish to GitHub Pages.
+      - name: Run benchmarks (push/dispatch)
+        if: github.event_name != 'pull_request'
+        run: |
+          cargo run -p bench_tools -- run \
+            --package starknet_committer_and_os_cli \
+            --out /tmp/benchmark_results \
+            --github-action-benchmark-output-file benchmark_output.json
+
+      # Push/dispatch: Sanitize branch name and compute alert threshold.
+      - name: Prepare publish variables (push/dispatch)
+        if: github.event_name != 'pull_request'
+        id: branch
+        env:
+          BRANCH_NAME: ${{ inputs.branch || github.ref_name }}
+        run: |
+          SANITIZED="${BRANCH_NAME//\//-}"
+          echo "name=${SANITIZED}" >> $GITHUB_OUTPUT
+          echo "alert_threshold=$((100 + BENCHMARK_REGRESSION_LIMIT_PERCENT))%" >> $GITHUB_OUTPUT
+          echo "Branch: ${BRANCH_NAME} -> Directory: ${SANITIZED}"
+
+      # Push/dispatch: Clean up downloaded test inputs to avoid conflicts when switching to gh-pages.
+      - name: Clean up test inputs (push/dispatch)
+        if: github.event_name != 'pull_request'
+        run: git checkout -- crates/starknet_committer_and_os_cli/test_inputs/
+
+      # Push/dispatch: Store benchmark results to GitHub Pages.
+      - name: Store benchmark results (push/dispatch)
+        if: github.event_name != 'pull_request'
+        uses: starkware-libs/github-action-benchmark@v1
+        with:
+          tool: "customSmallerIsBetter"
+          output-file-path: benchmark_output.json
+          benchmark-data-dir-path: dev/bench/${{ steps.branch.outputs.name }}
+          gh-pages-branch: gh-pages
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          # Alert if performance regresses by more than the threshold.
+          alert-threshold: ${{ steps.branch.outputs.alert_threshold }}
+          # Comment on commit if threshold exceeded.
+          comment-on-alert: true
+          fail-on-alert: false
+
+      # Push/dispatch: Upload raw benchmark results as artifact for debugging.
+      # always() ensures artifacts are uploaded even if benchmarks fail, to help diagnose issues.
+      - name: Upload benchmark artifacts (push/dispatch)
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ steps.branch.outputs.name }}-${{ github.sha }}
+          path: target/criterion/*/new/estimates.json
+          retention-days: 30
