@@ -107,9 +107,9 @@ impl From<VirtualOsBlockInput> for OsHints {
 /// Generic runner for executing transactions and generating OS input.
 ///
 /// The runner is parameterized by its providers:
-/// - `C`: Classes provider for fetching compiled classes
-/// - `S`: Storage proof provider for fetching Patricia proofs
-/// - `V`: Virtual block executor for transaction execution
+/// - `C`: Classes provider for fetching compiled classes.
+/// - `S`: Storage proof provider for fetching Patricia proofs.
+/// - `V`: Virtual block executor for transaction execution.
 #[allow(dead_code)]
 pub(crate) struct Runner<C, S, V>
 where
@@ -151,7 +151,7 @@ where
     /// on top of the block number specified in the runner.
     ///
     /// Consumes the runner.
-    pub(crate) async fn create_os_hints(
+    pub(crate) async fn create_virtual_os_hints(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
@@ -230,22 +230,22 @@ where
         Ok(virtual_os_block_input.into())
     }
 
-    /// Runs the Starknet OS with the given transactions.
+    /// Runs the Starknet virtual OS with the given transactions.
     ///
     /// This method:
-    /// 1. Executes transactions to collect state reads
-    /// 2. Fetches storage proofs and classes
-    /// 3. Builds OS hints
-    /// 4. Runs the OS in stateless mode (all state pre-loaded in input)
+    /// 1. Executes transactions to collect state reads.
+    /// 2. Fetches storage proofs and classes.
+    /// 3. Builds virtual OS hints.
+    /// 4. Runs the virtual OS.
     ///
     /// Consumes the runner since the virtual block executor is single-use per block.
     ///
-    /// Returns the OS output containing the Cairo PIE and execution metrics.
-    pub async fn run_os(
+    /// Returns the virtual OS output containing the Cairo PIE and execution metrics.
+    pub async fn run_virtual_os(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualOsRunnerOutput, RunnerError> {
-        let os_hints = self.create_os_hints(txs).await?;
+        let os_hints = self.create_virtual_os_hints(txs).await?;
         let output = run_virtual_os(os_hints)?;
         Ok(output)
     }
@@ -258,9 +258,9 @@ where
 /// Type alias for an RPC-based runner.
 ///
 /// This runner uses:
-/// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching
-/// - `RpcStorageProofsProvider` for storage proofs
-/// - `RpcVirtualBlockExecutor` for transaction execution
+/// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching.
+/// - `RpcStorageProofsProvider` for storage proofs.
+/// - `RpcVirtualBlockExecutor` for transaction execution.
 #[allow(dead_code)]
 pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
