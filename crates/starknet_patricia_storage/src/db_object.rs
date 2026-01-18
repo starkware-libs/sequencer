@@ -33,6 +33,9 @@ impl<T: HasStaticPrefix> HasDynamicPrefix for T {
 pub struct EmptyDeserializationContext;
 
 pub trait DBObject: Sized + HasDynamicPrefix {
+    /// The separator between the prefix and the suffix in the db key.
+    const DB_KEY_SEPARATOR: &[u8];
+
     /// Extra data needed to deserialize the object. For example, facts layout nodes need the node
     /// hash and an indication of whether or not it's a leaf node (index layout nodes only need the
     /// latter).
@@ -49,6 +52,6 @@ pub trait DBObject: Sized + HasDynamicPrefix {
 
     /// Returns a [DbKey] from a prefix and a suffix.
     fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
-        create_db_key(self.get_prefix(key_context), suffix)
+        create_db_key(self.get_prefix(key_context), Self::DB_KEY_SEPARATOR, suffix)
     }
 }
