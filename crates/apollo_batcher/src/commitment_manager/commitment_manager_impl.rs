@@ -30,6 +30,10 @@ use crate::commitment_manager::types::{
     FinalBlockCommitment,
     TasksTiming,
 };
+use crate::metrics::{
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST,
+};
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
@@ -140,7 +144,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             match self.results_receiver.try_recv() {
                 Ok(result) => {
                     let task_duration = self.tasks_timing.stop_timing(&result);
-                    // TODO(Rotem): add a metric for the task duration.
+                    if let Some(task_duration) = task_duration {
+                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST.record_lossy(task_duration);
+                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration);
+                    }
                     results.push(result.expect_commitment())
                 }
                 Err(TryRecvError::Empty) => break,
