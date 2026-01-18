@@ -11,6 +11,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use mockall::predicate::eq;
 use rstest::rstest;
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_api::transaction::fields::Proof;
@@ -76,16 +77,13 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
     );
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
+    // Expect contains_proof to be called and return false (proof does not exist).
+    // Expect set_proof not to be called when converting rpc tx to internal rpc tx.
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
         .with(eq(proof_facts.clone()))
         .return_once(|_| Ok(false));
-    mock_proof_manager_client
-        .expect_set_proof()
-        .once()
-        .with(eq(proof_facts), eq(proof))
-        .return_once(|_, _| Ok(()));
 
     let mock_class_manager_client = MockClassManagerClient::new();
 
@@ -122,8 +120,7 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 
 #[rstest]
 #[tokio::test]
-async fn test_proof_verification_skipped_when_proof_already_exists() {
-    // Create an invoke transaction with proof_facts and proof.
+async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof() {
     let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
     let proof = Proof::from(vec![1u32, 2u32, 3u32]);
     let invoke_tx = invoke_tx_client_side_proving(
@@ -132,14 +129,24 @@ async fn test_proof_verification_skipped_when_proof_already_exists() {
         proof.clone(),
     );
 
+    let consensus_tx = ConsensusTransaction::RpcTransaction(invoke_tx);
+
     let mut mock_proof_manager_client = MockProofManagerClient::new();
-    // Expect contains_proof to be called and return true (proof already exists).
+
+    // Expect contains_proof to be called during convert_rpc_tx_to_internal_rpc_tx.
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts))
-        .return_once(|_| Ok(true));
-    // Since proof already exists, expect set_proof to NOT be called.
+        .with(eq(proof_facts.clone()))
+        .return_once(|_| Ok(false));
+
+    // Expect set_proof to be called after the conversion succeeds.
+    // This is specific to convert_consensus_tx_to_internal_consensus_tx.
+    mock_proof_manager_client
+        .expect_set_proof()
+        .once()
+        .with(eq(proof_facts), eq(proof))
+        .return_once(|_, _| Ok(()));
 
     let mock_class_manager_client = MockClassManagerClient::new();
 
@@ -149,7 +156,10 @@ async fn test_proof_verification_skipped_when_proof_already_exists() {
         ChainInfo::create_for_testing().chain_id,
     );
 
-    // Convert the RPC transaction to an internal RPC transaction.
-    // This should succeed and only call contains_proof, not set_proof.
-    transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
+    // Convert the consensus transaction to an internal consensus transaction.
+    // This should call contains_proof and set_proof.
+    transaction_converter
+        .convert_consensus_tx_to_internal_consensus_tx(consensus_tx)
+        .await
+        .unwrap();
 }
