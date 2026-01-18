@@ -1,13 +1,16 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
+use apollo_staking_config::config::StakingManagerConfig;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use static_assertions::const_assert;
+use tracing::warn;
 
 use crate::committee_provider::{
     Committee,
@@ -16,7 +19,6 @@ use crate::committee_provider::{
     CommitteeProviderResult,
     Staker,
 };
-use crate::config::StakingManagerConfig;
 use crate::staking_contract::StakingContract;
 use crate::utils::BlockRandomGenerator;
 
@@ -85,6 +87,7 @@ pub struct StakingManager {
 
     random_generator: Box<dyn BlockRandomGenerator>,
     config: StakingManagerConfig,
+    config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 impl CommitteeDataCache {
@@ -110,14 +113,31 @@ impl StakingManager {
         state_sync_client: SharedStateSyncClient,
         random_generator: Box<dyn BlockRandomGenerator>,
         config: StakingManagerConfig,
+        config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
         Self {
             staking_contract,
             state_sync_client,
-            committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
+            committee_data_cache: CommitteeDataCache::new(config.static_config.max_cached_epochs),
             cached_epoch: None,
             random_generator,
             config,
+            config_manager_client,
+        }
+    }
+
+    async fn update_dynamic_config(&mut self) {
+        let Some(client) = &self.config_manager_client else {
+            return;
+        };
+
+        match client.get_staking_manager_dynamic_config().await {
+            Ok(dynamic_config) => {
+                self.config.dynamic_config = dynamic_config;
+            }
+            Err(error) => {
+                warn!("Failed to fetch staking manager dynamic config: {error}");
+            }
         }
     }
 
@@ -176,15 +196,16 @@ impl StakingManager {
         stakers.sort_by_key(|staker| (staker.weight, staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        stakers.into_iter().rev().take(self.config.committee_size).collect()
+        stakers.into_iter().rev().take(self.config.dynamic_config.committee_size).collect()
     }
 
     async fn proposer_randomness_block_hash(
         &self,
         current_block_number: BlockNumber,
     ) -> CommitteeProviderResult<Option<BlockHash>> {
-        let randomness_source_block =
-            current_block_number.0.checked_sub(self.config.proposer_prediction_window_in_heights);
+        let randomness_source_block = current_block_number
+            .0
+            .checked_sub(self.config.static_config.proposer_prediction_window_in_heights);
 
         match randomness_source_block {
             None => {
@@ -265,6 +286,8 @@ impl CommitteeProvider for StakingManager {
         &mut self,
         height: BlockNumber,
     ) -> CommitteeProviderResult<Arc<Committee>> {
+        self.update_dynamic_config().await;
+
         let committee_data = self.committee_data_at_height(height).await?;
         Ok(committee_data.committee_members.clone())
     }
