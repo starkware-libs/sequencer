@@ -133,11 +133,11 @@ fn assert_error_contains_keywords(error: String, expected_error_contained_keywor
     }
 }
 
-async fn create_client_and_faulty_server<T>(body: T) -> ComponentAClient
+async fn create_client_and_faulty_server<T>(index: u16, body: T) -> ComponentAClient
 where
     T: Serialize + DeserializeOwned + Debug + Send + Sync + 'static + Clone,
 {
-    let socket = available_ports_factory(0).get_next_local_host_socket();
+    let socket = available_ports_factory(index).get_next_local_host_socket();
     task::spawn(async move {
         async fn handler<T>(
             _http_request: Request<Body>,
@@ -176,6 +176,7 @@ where
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
 /// This test also verifies that the number of connections to the remote server metric is updated
 /// correctly.
+// Uses available_ports_factory with index 1.
 #[tokio::test]
 async fn remote_connection_concurrency() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -401,6 +402,7 @@ async fn setup_for_tests(
     task::yield_now().await;
 }
 
+// Uses available_ports_factory with index 2.
 #[tokio::test]
 async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
@@ -428,6 +430,7 @@ async fn proper_setup() {
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
+// Uses available_ports_factory with index 3.
 #[tokio::test]
 async fn faulty_client_setup() {
     let mut available_ports = available_ports_factory(3);
@@ -465,6 +468,7 @@ async fn faulty_client_setup() {
     verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
+// Uses available_ports_factory with index 4.
 #[tokio::test]
 async fn unconnected_server() {
     let socket = available_ports_factory(4).get_next_local_host_socket();
@@ -479,15 +483,16 @@ async fn unconnected_server() {
 }
 
 // TODO(Nadin): add DESERIALIZE_REQ_ERROR_MESSAGE to the expected error keywords in the first case.
+// Uses available_ports_factory with indices 8,9.
 #[rstest]
 #[case::request_deserialization_failure(
-    create_client_and_faulty_server(
+    create_client_and_faulty_server(8,
         ServerError::RequestDeserializationFailure(MOCK_SERVER_ERROR.to_string())
     ).await,
     &[StatusCode::BAD_REQUEST.as_str()],
 )]
 #[case::response_deserialization_failure(
-    create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
+    create_client_and_faulty_server(9, ARBITRARY_DATA.to_string()).await,
     &[BAD_REQUEST_ERROR_MESSAGE],
 )]
 #[tokio::test]
@@ -498,6 +503,7 @@ async fn faulty_server(
     verify_error(client, expected_error_contained_keywords).await;
 }
 
+// Uses available_ports_factory with index 5.
 #[tokio::test]
 async fn retry_request() {
     let socket = available_ports_factory(5).get_next_local_host_socket();
