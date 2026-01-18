@@ -5,6 +5,8 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
+use crate::alert_placeholders::ComparisonValueOrPlaceholder;
+
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
 pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 pub(crate) const SECS_IN_MIN: u64 = 60;
@@ -108,7 +110,7 @@ pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
     comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    comparison_value: f64,
+    comparison_value: ComparisonValueOrPlaceholder,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
@@ -118,10 +120,17 @@ pub(crate) struct AlertCondition {
 impl AlertCondition {
     pub(crate) fn new(
         comparison_op: AlertComparisonOp,
-        comparison_value: f64,
+        comparison_value: impl Into<ComparisonValueOrPlaceholder>,
         logical_op: AlertLogicalOp,
     ) -> Self {
-        Self { comparison_op, comparison_value, logical_op }
+        Self { comparison_op, comparison_value: comparison_value.into(), logical_op }
+    }
+
+    pub(crate) fn get_comparison_value_placeholder_name(&self) -> Option<&String> {
+        match &self.comparison_value {
+            ComparisonValueOrPlaceholder::Placeholder(placeholder_name) => Some(placeholder_name),
+            ComparisonValueOrPlaceholder::ConcreteValue(_) => None,
+        }
     }
 }
 
@@ -201,6 +210,8 @@ pub(crate) struct Alert {
     observer_applicable: ObserverApplicability,
     #[serde(skip)]
     alert_env_filtering: AlertEnvFiltering,
+    #[serde(skip)]
+    placeholder_names: HashSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -235,6 +246,16 @@ impl Alert {
         observer_applicable: ObserverApplicability,
         alert_env_filtering: AlertEnvFiltering,
     ) -> Self {
+        // Collect all placeholder names from the conditions and validate that there are no
+        // duplicates.
+        let placeholder_names = conditions
+            .iter()
+            .filter_map(|condition| condition.get_comparison_value_placeholder_name())
+            .try_fold(HashSet::new(), |mut set, name| {
+                set.insert(name.clone()).then_some(set).ok_or(name)
+            })
+            .unwrap_or_else(|duplicate| panic!("Duplicate placeholder name found: {duplicate}"));
+
         Self {
             name: name.to_string(),
             title: title.to_string(),
@@ -248,6 +269,13 @@ impl Alert {
             severity,
             observer_applicable,
             alert_env_filtering,
+            placeholder_names,
         }
+    }
+
+    // TODO(Tsabary): Remove `#[allow(dead_code)]` once used.
+    #[allow(dead_code)]
+    pub(crate) fn get_placeholder_names(&self) -> &HashSet<String> {
+        &self.placeholder_names
     }
 }
