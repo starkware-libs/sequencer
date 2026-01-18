@@ -439,6 +439,42 @@
           "extra_params": {
             "log_query": "\"BATCHER_FIN_PROPOSER\""
           }
+        },
+        {
+          "title": "Commit Block Latency",
+          "description": "The latency of commit tasks in the commitment manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Commit block latency\""
+          }
+        },
+        {
+          "title": "Commitment Manager Results Count",
+          "description": "The number of commit results received from the commitment manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Revert Block Latency",
+          "description": "The latency of revert tasks in the commitment manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Revert block latency\""
+          }
         }
       ],
       "collapsed": true
