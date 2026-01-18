@@ -200,6 +200,9 @@ where
             .compiled_class_hashes
             .extend(&classes.class_hash_to_compiled_class_hash);
 
+        // Clear declared_contracts - not used by the OS.
+        execution_data.initial_reads.declared_contracts.clear();
+
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
             contract_state_commitment_info: storage_proofs

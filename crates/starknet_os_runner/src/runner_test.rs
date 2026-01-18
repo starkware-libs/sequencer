@@ -6,7 +6,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::privacy_transaction::create_signed_invoke_v3;
+use starknet_api::test_utils::privacy_transaction::create_privacy_invoke_tx;
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
@@ -94,8 +94,7 @@ async fn test_run_os_with_privacy_transaction(sepolia_runner_factory: RpcRunnerF
     let block_number = fetch_sepolia_block_number().await;
 
     // Create privacy transaction from pre-signed constants.
-    let invoke_v3 = create_signed_invoke_v3();
-    let tx = InvokeTransaction::V3(invoke_v3);
+    let tx = create_privacy_invoke_tx();
     let tx_hash =
         Transaction::Invoke(tx.clone()).calculate_transaction_hash(&ChainId::Sepolia).unwrap();
 
