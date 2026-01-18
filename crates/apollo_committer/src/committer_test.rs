@@ -8,6 +8,7 @@ use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
@@ -19,7 +20,7 @@ pub type ApolloTestStorage = MapStorage;
 pub type ApolloTestCommitter = Committer<ApolloTestStorage, CommitBlockMock>;
 
 async fn new_test_committer() -> ApolloTestCommitter {
-    Committer::new(CommitterConfig::default()).await
+    Committer::new(CommitterConfig { verify_state_diff_hash: false, ..Default::default() }).await
 }
 
 fn get_state_diff(state_diff_info: u64) -> ThinStateDiff {
@@ -258,4 +259,31 @@ async fn revert_invalid_height() {
     );
 
     assert_eq!(committer.offset, BlockNumber(offset));
+}
+
+#[tokio::test]
+async fn verify_state_diff_hash_succeeds() {
+    let mut committer = new_test_committer().await;
+    committer.config.verify_state_diff_hash = true;
+    let state_diff = get_state_diff(1);
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    let height = BlockNumber(0);
+    committer
+        .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
+        .await
+        .unwrap();
+    assert_eq!(committer.offset, BlockNumber(height.0 + 1));
+}
+
+#[tokio::test]
+#[should_panic(expected = "State diff hash mismatch for block number 0.")]
+async fn verify_state_diff_hash_fails() {
+    let mut committer = new_test_committer().await;
+    committer.config.verify_state_diff_hash = true;
+    let state_diff = get_state_diff(1);
+    let state_diff_commitment = Some(StateDiffCommitment(PoseidonHash(17.into())));
+    let height = BlockNumber(0);
+    let _ = committer
+        .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
+        .await;
 }
