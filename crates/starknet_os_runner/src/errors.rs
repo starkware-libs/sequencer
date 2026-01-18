@@ -52,6 +52,8 @@ pub enum ClassesProviderError {
         "Starknet os does not support deprecated contract classes, class hash: {0} is deprecated"
     )]
     DeprecatedContractError(ClassHash),
+    #[error("Unexpected error: bytecode of a class contained a non-integer value")]
+    InvalidBytecodeElement,
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]

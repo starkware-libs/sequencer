@@ -18,6 +18,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use futures::future::try_join_all;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 use crate::errors::ClassesProviderError;
 
@@ -36,10 +37,16 @@ pub(crate) fn compiled_class_v1_to_casm(
         .program
         .iter_data()
         .map(|maybe_relocatable| match maybe_relocatable {
-            MaybeRelocatable::Int(felt) => BigUintAsHex { value: felt.to_biguint() },
-            _ => panic!("Expected all bytecode elements to be MaybeRelocatable::Int"),
+            MaybeRelocatable::Int(felt) => Ok(BigUintAsHex { value: felt.to_biguint() }),
+            MaybeRelocatable::RelocatableValue(relocatable) => {
+                error!(
+                    "Unexpected error: bytecode of a class contained a relocatable value: {:?}",
+                    relocatable
+                );
+                Err(ClassesProviderError::InvalidBytecodeElement)
+            }
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(CasmContractClass {
         prime,
