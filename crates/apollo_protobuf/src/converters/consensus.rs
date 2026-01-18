@@ -5,7 +5,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
@@ -215,6 +215,11 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
         };
         let parent_proposal_commitment =
             value.parent_proposal_commitment.map(|hash| hash.try_into()).transpose()?;
+        let version_constant_commitment = value
+            .version_constant_commitment
+            .ok_or(missing("version_constant_commitment"))?
+            .try_into()
+            .map(BlockHash)?;
         Ok(ConsensusBlockInfo {
             height,
             round,
@@ -230,6 +235,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             l1_data_gas_price_wei,
             starknet_version,
             parent_proposal_commitment,
+            version_constant_commitment,
         })
     }
 }
@@ -251,6 +257,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
             starknet_version: value.starknet_version.to_string(),
             parent_proposal_commitment: value.parent_proposal_commitment.map(|c| c.into()),
+            version_constant_commitment: Some(value.version_constant_commitment.into()),
         }
     }
 }
