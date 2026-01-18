@@ -183,14 +183,22 @@ fn account_contract() -> FeatureContract {
 }
 
 fn invoke_args() -> InvokeTxArgs {
+    invoke_args_impl(ProofFacts::default(), Proof::default())
+}
+
+fn invoke_args_with_client_side_proving() -> InvokeTxArgs {
+    invoke_args_impl(ProofFacts::snos_proof_facts_for_testing(), Proof::proof_for_testing())
+}
+
+fn invoke_args_impl(proof_facts: ProofFacts, proof: Proof) -> InvokeTxArgs {
     let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let mut args = invoke_tx_args!(
         resource_bounds: valid_resource_bounds_for_testing(),
         sender_address: account_contract().get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
-        proof: Proof::proof_for_testing(),
+        proof_facts,
+        proof,
     );
     let internal_tx = args.get_internal_tx();
     args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
@@ -387,7 +395,13 @@ async fn test_add_tx_negative(
 #[tokio::test]
 async fn test_add_tx_positive(
     mut mock_dependencies: MockDependencies,
-    #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
+    #[values(
+        invoke_args(),
+        invoke_args_with_client_side_proving(),
+        deploy_account_args(),
+        declare_args()
+    )]
+    tx_args: impl TestingTxArgs,
 ) {
     setup_mock_state(&mut mock_dependencies, &tx_args, Ok(())).await;
 
