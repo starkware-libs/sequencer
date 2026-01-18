@@ -36,6 +36,9 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
 
     ConsensusBlockInfo {
         height: args.proposal_init.height,
+        round: args.proposal_init.round,
+        valid_round: args.proposal_init.valid_round,
+        proposer: args.proposal_init.proposer,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,

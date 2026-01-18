@@ -14,7 +14,6 @@ use crate::consensus::{
     ConsensusBlockInfo,
     ProposalCommitment,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -35,12 +34,6 @@ auto_impl_get_test_instance! {
         Prevote = 0,
         Precommit = 1,
     }
-    pub struct ProposalInit {
-        pub height: BlockNumber,
-        pub round: u32,
-        pub valid_round: Option<u32>,
-        pub proposer: ContractAddress,
-    }
     pub struct ProposalCommitment(pub StarkHash);
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
@@ -51,6 +44,9 @@ auto_impl_get_test_instance! {
     }
     pub struct ConsensusBlockInfo {
         pub height: BlockNumber,
+        pub round: u32,
+        pub valid_round: Option<u32>,
+        pub proposer: ContractAddress,
         pub timestamp: u64,
         pub builder: ContractAddress,
         pub l1_da_mode: L1DataAvailabilityMode,
@@ -61,10 +57,9 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_wei: GasPrice,
     }
     pub enum ProposalPart {
-        Init(ProposalInit) = 0,
+        BlockInfo(ConsensusBlockInfo) = 0,
         Fin(ProposalFin) = 1,
-        BlockInfo(ConsensusBlockInfo) = 2,
-        Transactions(TransactionBatch) = 3,
+        Transactions(TransactionBatch) = 2,
     }
 
 }

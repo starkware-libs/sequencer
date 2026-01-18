@@ -349,7 +349,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
+pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -365,6 +365,9 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         .expect("L1 data gas price must be non-zero");
     ConsensusBlockInfo {
         height,
+        round,
+        valid_round: None,
+        proposer: Default::default(),
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
@@ -380,11 +383,9 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 // content_receiver.
 pub(crate) async fn send_proposal_to_validator_context(
     context: &mut SequencerConsensusContext,
-    block_info: ConsensusBlockInfo,
 ) -> mpsc::Receiver<ProposalPart> {
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.get_config().static_config.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await

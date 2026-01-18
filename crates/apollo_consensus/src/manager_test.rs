@@ -34,9 +34,9 @@ use starknet_types_core::felt::Felt;
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
+    block_info,
     precommit,
     prevote,
-    proposal_init,
     MockTestContext,
     NoOpHeightVotedStorage,
     TestProposalPart,
@@ -148,7 +148,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     // Send messages for height 2 followed by those for height 1.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
@@ -156,7 +156,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
@@ -237,7 +237,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     // Send messages for height 2.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -279,7 +279,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_2)).await;
@@ -337,7 +337,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     // reach a decision.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_1, *PROPOSER_ID)).await;
@@ -361,7 +361,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(0);
     let (mut content_sender, content_receiver) = mpsc::channel(0);
     content_sender
-        .try_send(TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID)))
+        .try_send(TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID)))
         .unwrap();
     proposal_receiver_sender.try_send(content_receiver).unwrap();
 
@@ -416,7 +416,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 2 (should be dropped when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
@@ -425,7 +425,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 1 (should be cached when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
@@ -434,7 +434,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 0 (current height - needed to reach consensus).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
@@ -543,12 +543,12 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     // Send proposals for rounds 0 and 1, proposal for round 1 should be dropped.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
     )
     .await;
 
@@ -627,7 +627,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         // Send proposal for round 2.
         send_proposal(
             &mut proposal_sender_clone,
-            vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_2, *PROPOSER_ID))],
+            vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_2, *PROPOSER_ID))],
         )
         .await;
         // Send votes for round 2.
@@ -809,7 +809,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
@@ -868,7 +868,7 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
@@ -990,7 +990,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Send proposal first
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
 
@@ -1118,7 +1118,7 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
     // Send a valid proposal and valid votes.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;

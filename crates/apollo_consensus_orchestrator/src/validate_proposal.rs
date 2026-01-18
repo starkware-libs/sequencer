@@ -54,6 +54,7 @@ const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
 
 pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
+    pub block_info: ConsensusBlockInfo,
     pub block_info_validation: BlockInfoValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
@@ -79,11 +80,6 @@ enum HandledProposalPart {
     Invalid(String),
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
-}
-
-enum SecondProposalPart {
-    BlockInfo(ConsensusBlockInfo),
-    Fin(ProposalFin),
 }
 
 type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
@@ -114,8 +110,6 @@ pub(crate) enum ValidateProposalError {
     ValidationTimeout(String),
     #[error("Proposal interrupted while {0}")]
     ProposalInterrupted(String),
-    #[error("Got an invalid second proposal part: {0:?}.")]
-    InvalidSecondProposalPart(Option<ProposalPart>),
     #[error("Batcher returned Invalid status: {0}.")]
     InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
@@ -137,25 +131,9 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
-    let block_info = match await_second_proposal_part(
-        &args.cancel_token,
-        deadline,
-        &mut args.content_receiver,
-        args.deps.clock.as_ref(),
-    )
-    .await?
-    {
-        SecondProposalPart::BlockInfo(block_info) => block_info,
-        SecondProposalPart::Fin(ProposalFin {
-            proposal_commitment,
-            executed_transaction_count: _,
-        }) => {
-            return Ok(proposal_commitment);
-        }
-    };
     is_block_info_valid(
-        args.block_info_validation.clone(),
-        block_info.clone(),
+        &args.block_info_validation,
+        &args.block_info,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
@@ -165,7 +143,7 @@ pub(crate) async fn validate_proposal(
     initiate_validation(
         args.deps.batcher.clone(),
         args.deps.state_sync_client,
-        block_info.clone(),
+        &args.block_info,
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
         args.deps.clock.as_ref(),
@@ -224,7 +202,7 @@ pub(crate) async fn validate_proposal(
     valid_proposals.insert_proposal_for_height(
         &args.block_info_validation.height,
         &built_block,
-        block_info,
+        args.block_info,
         content,
         &args.proposal_id,
     );
@@ -240,8 +218,8 @@ pub(crate) async fn validate_proposal(
 
 #[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
 async fn is_block_info_valid(
-    block_info_validation: BlockInfoValidation,
-    block_info_proposed: ConsensusBlockInfo,
+    block_info_validation: &BlockInfoValidation,
+    block_info_proposed: &ConsensusBlockInfo,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
@@ -306,8 +284,8 @@ async fn is_block_info_valid(
         ))
     {
         return Err(ValidateProposalError::InvalidBlockInfo(
-            block_info_proposed,
-            block_info_validation,
+            block_info_proposed.clone(),
+            block_info_validation.clone(),
             format!(
                 "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
                  proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
@@ -334,45 +312,10 @@ fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> 
 // The second proposal part when validating a proposal must be:
 // 1. Fin - empty proposal.
 // 2. BlockInfo - required to begin executing TX batches.
-async fn await_second_proposal_part(
-    cancel_token: &CancellationToken,
-    deadline: DateTime,
-    content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    clock: &dyn Clock,
-) -> ValidateProposalResult<SecondProposalPart> {
-    tokio::select! {
-        _ = cancel_token.cancelled() => {
-            Err(ValidateProposalError::ProposalInterrupted(
-                "waiting for second proposal part".to_string(),
-            ))
-        }
-        _ = clock.sleep_until(deadline) => {
-            Err(ValidateProposalError::ValidationTimeout(
-                "waiting for second proposal part".to_string(),
-            ))
-        }
-        proposal_part = content_receiver.next() => {
-            match proposal_part {
-                Some(ProposalPart::BlockInfo(block_info)) => {
-                    Ok(SecondProposalPart::BlockInfo(block_info))
-                }
-                Some(ProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count })) => {
-                    warn!("Received an empty proposal.");
-                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count }))
-                }
-                x => {
-                    Err(ValidateProposalError::InvalidSecondProposalPart(x
-                    ))
-                }
-            }
-        }
-    }
-}
-
 async fn initiate_validation(
     batcher: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: ConsensusBlockInfo,
+    block_info: &ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
@@ -386,11 +329,11 @@ async fn initiate_validation(
         retrospective_block_hash: retrospective_block_hash(
             batcher.clone(),
             state_sync_client,
-            &block_info,
+            block_info,
         )
         .await
         .map_err(ValidateProposalError::from)?,
-        block_info: convert_to_sn_api_block_info(&block_info)?,
+        block_info: convert_to_sn_api_block_info(block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
     batcher.validate_block(input.clone()).await.map_err(|err| {
