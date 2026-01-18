@@ -2,21 +2,25 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
-use hyper::body::to_bytes;
-use hyper::header::CONTENT_TYPE;
-use hyper::server::conn::AddrIncoming;
-use hyper::service::make_service_fn;
-use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
+// TODO(victork): finalise migration to hyper 1.x
+use bytes::Bytes;
+use http_1::header::CONTENT_TYPE;
+use http_1::StatusCode;
+use http_body_util::{BodyExt, Full};
+use hyper_1::body::Incoming;
+use hyper_1::service::{service_fn, Service};
+use hyper_1::{Request as HyperRequest, Response as HyperResponse};
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
-use tower::{service_fn, Service, ServiceExt};
 use tracing::{debug, error, instrument, trace, warn};
 use validator::Validate;
 
@@ -112,13 +116,13 @@ where
 
     #[instrument(skip_all,fields(request_id = %request_id))]
     async fn remote_component_server_handler(
-        http_request: HyperRequest<Body>,
+        http_request: HyperRequest<Incoming>,
         request_id: RequestId,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
-    ) -> Result<HyperResponse<Body>, hyper::Error> {
+    ) -> Result<HyperResponse<Full<Bytes>>, hyper_1::Error> {
         trace!("Received HTTP request: {http_request:?}");
-        let body_bytes = to_bytes(http_request.into_body()).await?;
+        let body_bytes = http_request.into_body().collect().await?.to_bytes();
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
         metrics.increment_total_received();
@@ -145,11 +149,11 @@ where
                         HyperResponse::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                            .body(Body::from(
+                            .body(Full::new(Bytes::from(
                                 SerdeWrapper::new(response)
                                     .wrapper_serialize()
                                     .expect("Response serialization should succeed"),
-                            ))
+                            )))
                     }
                     Err(error) => {
                         panic!(
@@ -161,10 +165,12 @@ where
             Err(error) => {
                 error!("Failed to deserialize request: {error:?}");
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
-                HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
-                    SerdeWrapper::new(server_error)
-                        .wrapper_serialize()
-                        .expect("Server error serialization should succeed"),
+                HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Full::new(
+                    Bytes::from(
+                        SerdeWrapper::new(server_error)
+                            .wrapper_serialize()
+                            .expect("Server error serialization should succeed"),
+                    ),
                 ))
             }
         }
@@ -178,8 +184,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Debug + LabeledRequest + 'static,
-    Response: Serialize + DeserializeOwned + Send + Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + Debug + LabeledRequest + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
 {
     async fn start(&mut self) {
         let bind_socket = SocketAddr::new(self.config.bind_ip, self.port);
@@ -189,32 +195,37 @@ where
         );
         let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
 
-        let make_svc = make_service_fn(|_conn| {
-            let connection_semaphore = connection_semaphore.clone();
-            let local_client = self.local_client.clone();
-            let metrics = self.metrics;
-
+        // Note: In hyper 0.14, we used tower's `.boxed()` to erase the service type and have a
+        // single `Server::serve(make_svc)` call. In hyper 1.x, the Service trait changed (no
+        // `poll_ready`, `&self` instead of `&mut self`), so tower's BoxService doesn't work.
+        // Rather than implement our own BoxedService, we duplicate the `serve_connection` call
+        // in each match arm below.
+        let make_svc = |io: TokioIo<tokio::net::TcpStream>,
+                        max_streams: u32,
+                        connection_semaphore: Arc<Semaphore>,
+                        local_client: LocalComponentClient<Request, Response>,
+                        metrics: &'static RemoteServerMetrics| {
             async move {
                 match connection_semaphore.try_acquire_owned() {
                     Ok(permit) => {
                         metrics.increment_number_of_connections();
                         trace!("Acquired semaphore permit for connection");
-                        let handle_request_service = service_fn(move |req: HyperRequest<Body>| {
-                            trace!("Received request: {:?}", req);
-                            let request_id = req
-                                .headers()
-                                .get(REQUEST_ID_HEADER)
-                                .and_then(|header| header.to_str().ok())
-                                .and_then(|s| s.parse::<RequestId>().ok())
-                                .expect("Request ID should be present in the request headers");
-                            Self::remote_component_server_handler(
-                                req,
-                                request_id,
-                                local_client.clone(),
-                                metrics,
-                            )
-                        })
-                        .boxed();
+                        let handle_request_service =
+                            service_fn(move |req: HyperRequest<Incoming>| {
+                                trace!("Received request: {:?}", req);
+                                let request_id = req
+                                    .headers()
+                                    .get(REQUEST_ID_HEADER)
+                                    .and_then(|header| header.to_str().ok())
+                                    .and_then(|s| s.parse::<RequestId>().ok())
+                                    .expect("Request ID should be present in the request headers");
+                                Self::remote_component_server_handler(
+                                    req,
+                                    request_id,
+                                    local_client.clone(),
+                                    metrics,
+                                )
+                            });
 
                         // Bundle the service and the acquired permit to limit concurrency at the
                         // connection level.
@@ -223,34 +234,47 @@ where
                             _permit: Some(permit),
                             remote_server_metrics: metrics,
                         };
-                        Ok::<_, hyper::Error>(service)
+
+                        let result = ServerBuilder::new(TokioExecutor::new())
+                            .http2()
+                            .max_concurrent_streams(max_streams)
+                            .serve_connection(io, service)
+                            .await;
+
+                        // Note: In hyper 0.14, Server::serve() could fail for the entire server.
+                        // In hyper 1.x, errors are per-connection, so we log instead of panicking.
+                        if let Err(e) = result {
+                            error!("Remote component server start error: {e}");
+                        }
                     }
                     Err(_) => {
                         trace!("Too many connections, denying a new connection");
                         // Marked `async` to conform to the expected `Service` trait, requiring the
                         // handler to return a `Future`.
-                        let reject_request_service = service_fn(move |_req| async {
-                            let body: Vec<u8> =
-                                SerdeWrapper::new(ServerError::RequestDeserializationFailure(
-                                    BUSY_PREVIOUS_REQUESTS_MSG.to_string(),
-                                ))
-                                .wrapper_serialize()
-                                .expect("Server error serialization should succeed");
-                            let response: HyperResponse<Body> = HyperResponse::builder()
-                                // Return a 503 Service Unavailable response to indicate that the server is
-                                // busy, which should indicate the load balancer to divert the request to
-                                // another server.
-                                .status(StatusCode::SERVICE_UNAVAILABLE)
-                                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                                .body(Body::from(body))
-                                .expect("Should be able to construct server http response.");
-                            // Explicitly mention the type, helping the Rust compiler avoid
-                            // Error type ambiguity.
-                            let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
-                                Ok(response);
-                            wrapped_response
-                        })
-                        .boxed();
+                        let reject_request_service =
+                            service_fn(move |_req: HyperRequest<Incoming>| async {
+                                let body: Vec<u8> =
+                                    SerdeWrapper::new(ServerError::RequestDeserializationFailure(
+                                        BUSY_PREVIOUS_REQUESTS_MSG.to_string(),
+                                    ))
+                                    .wrapper_serialize()
+                                    .expect("Server error serialization should succeed");
+                                let response: HyperResponse<Full<Bytes>> = HyperResponse::builder()
+                                    // Return a 503 Service Unavailable response to indicate that
+                                    // the server is busy, which should indicate the load balancer
+                                    // to divert the request to another server.
+                                    .status(StatusCode::SERVICE_UNAVAILABLE)
+                                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                    .body(Full::new(Bytes::from(body)))
+                                    .expect("Should be able to construct server http response.");
+                                // Explicitly mention the type, helping the Rust compiler avoid
+                                // Error type ambiguity.
+                                let wrapped_response: Result<
+                                    HyperResponse<Full<Bytes>>,
+                                    hyper_1::Error,
+                                > = Ok(response);
+                                wrapped_response
+                            });
 
                         // No permit is acquired, so no need to hold one.
                         let service = PermitGuardedService {
@@ -258,22 +282,52 @@ where
                             _permit: None,
                             remote_server_metrics: metrics,
                         };
-                        Ok::<_, hyper::Error>(service)
+
+                        let result = ServerBuilder::new(TokioExecutor::new())
+                            .http2()
+                            .max_concurrent_streams(max_streams)
+                            .serve_connection(io, service)
+                            .await;
+
+                        if let Err(e) = result {
+                            error!("Remote component server start error: {e}");
+                        }
                     }
                 }
             }
-        });
+        };
 
-        let mut incoming = AddrIncoming::bind(&bind_socket).unwrap_or_else(|e| {
+        let listener = TcpListener::bind(&bind_socket).await.unwrap_or_else(|e| {
             panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
-        incoming.set_nodelay(self.config.set_tcp_nodelay);
 
-        Server::builder(incoming)
-            .http2_max_concurrent_streams(self.config.max_streams_per_connection)
-            .serve(make_svc)
-            .await
-            .unwrap_or_else(|e| panic!("Remote component server start error: {e}"));
+        loop {
+            let (stream, _) = match listener.accept().await {
+                Ok(conn) => conn,
+                Err(e) => {
+                    error!("Failed to accept connection: {e}");
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
+
+            if self.config.set_tcp_nodelay {
+                if let Err(e) = stream.set_nodelay(true) {
+                    warn!("Failed to set TCP_NODELAY: {e}");
+                }
+            }
+
+            let io = TokioIo::new(stream);
+            let max_streams = self.config.max_streams_per_connection;
+
+            tokio::spawn(make_svc(
+                io,
+                max_streams,
+                connection_semaphore.clone(),
+                self.local_client.clone(),
+                self.metrics,
+            ));
+        }
     }
 }
 
@@ -307,11 +361,7 @@ where
     type Error = S::Error;
     type Future = S::Future;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
-    }
-
-    fn call(&mut self, req: Req) -> Self::Future {
+    fn call(&self, req: Req) -> Self::Future {
         self.inner.call(req)
     }
 }
