@@ -792,7 +792,6 @@ impl ConsensusContext for SequencerConsensusContext {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.update_dynamic_config().await;
             self.current_height = Some(height);
-            assert_eq!(round, 0);
             self.current_round = round;
             self.queued_proposals.clear();
             // The Batcher must be told when we begin to work on a new height. The implicit model is
