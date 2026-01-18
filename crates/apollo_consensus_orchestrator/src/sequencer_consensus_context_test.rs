@@ -969,11 +969,7 @@ async fn override_prices_behavior(
 
     // In cases where we expect the batcher to fail the block build.
     if build_success {
-        assert!(
-            fin_result.is_ok(),
-            "Expected build to succeed, but got error: {:?}",
-            fin_result.err()
-        );
+        assert!(fin_result.is_ok(), "Expected build to succeed, but got error: {:?}", fin_result);
     } else {
         // The build fails because the L2 gas price in wei we get, after using the eth/fri rate we
         // calculated from the block info, is zero.
