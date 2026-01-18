@@ -5,7 +5,7 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
-use crate::alert_placeholders::ComparisonValueOrPlaceholder;
+use crate::alert_placeholders::{ComparisonValueOrPlaceholder, SeverityValueOrPlaceholder};
 
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
 pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
@@ -205,7 +205,7 @@ pub(crate) struct Alert {
     #[serde(rename = "intervalSec")]
     evaluation_interval_sec: u64,
     // The severity level of the alert.
-    severity: AlertSeverity,
+    severity: SeverityValueOrPlaceholder,
     // Indicates if relevant for observer nodes.
     observer_applicable: ObserverApplicability,
     #[serde(skip)]
@@ -242,15 +242,23 @@ impl Alert {
         conditions: Vec<AlertCondition>,
         pending_duration: impl ToString,
         evaluation_interval_sec: u64,
-        severity: AlertSeverity,
+        severity: impl Into<SeverityValueOrPlaceholder>,
         observer_applicable: ObserverApplicability,
         alert_env_filtering: AlertEnvFiltering,
     ) -> Self {
-        // Collect all placeholder names from the conditions and validate that there are no
-        // duplicates.
+        let severity = severity.into();
+
+        // Collect all placeholder names from the conditions and severity field, and validate
+        // that there are no duplicates.
+        let severity_placeholder = match &severity {
+            SeverityValueOrPlaceholder::Placeholder(name) => Some(name),
+            SeverityValueOrPlaceholder::ConcreteValue(_) => None,
+        };
+
         let placeholder_names = conditions
             .iter()
             .filter_map(|condition| condition.get_comparison_value_placeholder_name())
+            .chain(severity_placeholder)
             .try_fold(HashSet::new(), |mut set, name| {
                 set.insert(name.clone()).then_some(set).ok_or(name)
             })
