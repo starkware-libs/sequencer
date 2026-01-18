@@ -22,7 +22,7 @@ fn test_program_bytecode_lengths() {
     "#]]
     .assert_debug_eq(&OS_PROGRAM.data_len());
     expect![[r#"
-        11621
+        11610
     "#]]
     .assert_debug_eq(&VIRTUAL_OS_PROGRAM.data_len());
 }
