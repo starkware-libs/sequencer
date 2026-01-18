@@ -249,6 +249,59 @@ impl AccountTransaction {
         }
     }
 
+    fn validate_proof_block_number(
+        proof_block_number: u64,
+        current_block_number: BlockNumber,
+    ) -> TransactionPreValidationResult<()> {
+        // Proof block must be old enough to have a stored block hash.
+        // Stored block hashes are guaranteed only up to: current - STORED_BLOCK_HASH_BUFFER.
+        let max_allowed =
+            current_block_number.0.checked_sub(STORED_BLOCK_HASH_BUFFER).ok_or_else(|| {
+                TransactionPreValidationError::InvalidProofFacts(format!(
+                    "The current block number {current_block_number} is below the required \
+                     block-hash retention buffer: {STORED_BLOCK_HASH_BUFFER}."
+                ))
+            })?;
+
+        if proof_block_number >= max_allowed {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "The proof block number {proof_block_number} is too recent. The maximum allowed \
+                 block number is {max_allowed}."
+            )));
+        }
+
+        Ok(())
+    }
+
+    fn validate_proof_block_hash(
+        proof_block_hash: Felt,
+        proof_block_number: u64,
+        os_constants: &OsConstants,
+        state: &mut dyn State,
+    ) -> TransactionPreValidationResult<()> {
+        if proof_block_hash == Felt::ZERO {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "Proof block hash is zero for block {proof_block_number}."
+            )));
+        }
+
+        // Compare the proof's block hash with the stored block hash.
+        let block_hash_contract_address =
+            os_constants.os_contract_addresses.block_hash_contract_address();
+
+        let stored_block_hash = state
+            .get_storage_at(block_hash_contract_address, StorageKey::from(proof_block_number))?;
+
+        if stored_block_hash != proof_block_hash {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "Block hash mismatch for block {proof_block_number}. Proof block hash: \
+                 {proof_block_hash}, stored block hash: {stored_block_hash}."
+            )));
+        }
+
+        Ok(())
+    }
+
     fn validate_proof_facts(
         &self,
         os_constants: &OsConstants,
@@ -272,43 +325,11 @@ impl AccountTransaction {
             ProofFactsVariant::Snos(snos_proof_facts) => snos_proof_facts,
         };
 
-        // Proof block must be old enough to have a stored block hash.
-        // Stored block hashes are guaranteed only up to: current - STORED_BLOCK_HASH_BUFFER.
-        let max_allowed =
-            current_block_number.0.checked_sub(STORED_BLOCK_HASH_BUFFER).ok_or_else(|| {
-                TransactionPreValidationError::InvalidProofFacts(format!(
-                    "The current block number {current_block_number} is too recent to have a \
-                     stored block hash."
-                ))
-            })?;
-
-        let proof_block_number = snos_proof_facts.block_number.0;
-        if proof_block_number >= max_allowed {
-            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
-                "The proof block number {proof_block_number} is too recent. The maximum allowed \
-                 block number is {max_allowed}."
-            )));
-        }
-
-        // Compare the proof's block hash with the stored block hash.
-        let block_hash_contract_address =
-            os_constants.os_contract_addresses.block_hash_contract_address();
-
-        let stored_block_hash = state
-            .get_storage_at(block_hash_contract_address, StorageKey::from(proof_block_number))?;
-
         let proof_block_hash = snos_proof_facts.block_hash.0;
-        if proof_block_hash == Felt::ZERO {
-            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
-                "Stored block hash is zero for block {proof_block_number}."
-            )));
-        }
-        if stored_block_hash != proof_block_hash {
-            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
-                "Block hash mismatch for block {proof_block_number}. Proof block hash: \
-                 {proof_block_hash}, stored block hash: {stored_block_hash}."
-            )));
-        }
+        let proof_block_number = snos_proof_facts.block_number.0;
+
+        Self::validate_proof_block_number(proof_block_number, current_block_number)?;
+        Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
 
         // Validates the proof facts program hash.
         let allowed = &os_constants.allowed_virtual_os_program_hashes;
