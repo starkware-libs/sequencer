@@ -185,6 +185,9 @@ mod test_instances;
 #[cfg(test)]
 mod open_storage_test;
 
+#[cfg(test)]
+mod batching_test;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
@@ -612,6 +615,7 @@ impl StorageReader {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(self.open_readers_metric),
+            None, // No active_transaction flag for read-only transactions.
         ))
     }
 
@@ -660,6 +664,12 @@ pub struct StorageWriter {
     queue_state_marker: BlockNumber,
     queue_compiled_class_marker: BlockNumber,
     queue_base_layer_marker: BlockNumber,
+    /// Flag to track if we're inside an active transaction (between begin_rw_txn and commit).
+    /// When true, auto-flush is blocked to ensure atomicity of the transaction.
+    /// This prevents the batch from being flushed mid-transaction, which would break
+    /// the atomicity guarantee (e.g., splitting a block's header/body/state across flushes).
+    /// Wrapped in `Arc<AtomicBool>` so it can be shared with StorageTxn and reset on commit.
+    active_transaction: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl StorageWriter {
@@ -691,6 +701,7 @@ impl StorageWriter {
             queue_state_marker: BlockNumber::default(),
             queue_compiled_class_marker: BlockNumber::default(),
             queue_base_layer_marker: BlockNumber::default(),
+            active_transaction: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -699,11 +710,18 @@ impl StorageWriter {
     /// Returns [`StorageError::BatchingApiMixingError`] if batching is enabled and the batch
     /// queue is not empty. This prevents mixing the old transaction API with the new queue API,
     /// which would break ordering consistency.
+    ///
+    /// Sets the `active_transaction` flag to true, which blocks auto-flush until commit() is
+    /// called. This ensures atomicity: all operations between begin_rw_txn() and commit() are
+    /// guaranteed to be flushed together, preventing partial block writes.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
         // Prevent mixing old API with new API when batching is enabled and queue has items.
         if self.batch_config.enable_batching && !self.batch_queue.is_empty() {
             return Err(StorageError::BatchingApiMixingError { queue_len: self.batch_queue.len() });
         }
+
+        // Set the active_transaction flag to block auto-flush until commit().
+        self.active_transaction.store(true, std::sync::atomic::Ordering::SeqCst);
 
         Ok(StorageTxn::new(
             self.db_writer.begin_rw_txn()?,
@@ -711,6 +729,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            Some(self.active_transaction.clone()),
         ))
     }
 
@@ -753,7 +772,14 @@ impl StorageWriter {
     }
 
     /// Flushes the batch if needed (batching disabled or batch size reached).
+    /// Doesn't flush if we're inside an active transaction (active_transaction=true),
+    /// to ensure atomicity of operations between begin_rw_txn() and commit().
     fn flush_if_needed(&mut self) -> StorageResult<()> {
+        // Block auto-flush if we're inside an active transaction.
+        if self.active_transaction.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(());
+        }
+
         if !self.batch_config.enable_batching
             || self.batch_queue.len() >= self.batch_config.batch_size
         {
@@ -775,6 +801,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            None, // No active_transaction flag for read-only transactions.
         );
         let disk_marker = txn.get_state_marker()?;
         Ok(disk_marker.max(self.queue_state_marker))
@@ -792,6 +819,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            None,
         );
         let disk_marker = txn.get_header_marker()?;
         Ok(disk_marker.max(self.queue_header_marker))
@@ -809,6 +837,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            None,
         );
         let disk_marker = txn.get_body_marker()?;
         Ok(disk_marker.max(self.queue_body_marker))
@@ -826,6 +855,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            None,
         );
         let disk_marker = txn.get_class_marker()?;
         Ok(disk_marker.max(self.queue_compiled_class_marker))
@@ -843,6 +873,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             MetricsHandler::new(None),
+            None,
         );
         let disk_marker = txn.get_base_layer_block_marker()?;
         Ok(disk_marker.max(self.queue_base_layer_marker))
@@ -988,12 +1019,22 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     scope: StorageScope,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
+    /// Reference to the active_transaction flag in StorageWriter.
+    /// When the transaction commits, this flag is reset to false to allow auto-flush to resume.
+    /// Only present for RW transactions.
+    active_transaction_flag: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
+    /// Resets the active_transaction flag to false, allowing auto-flush to resume.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
+        // Reset the active_transaction flag before committing.
+        if let Some(flag) = &self.active_transaction_flag {
+            flag.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+
         self.file_handlers.flush();
         Ok(self.txn.commit()?)
     }
@@ -1006,8 +1047,16 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         tables: Arc<Tables>,
         scope: StorageScope,
         metric_updater: MetricsHandler,
+        active_transaction_flag: Option<Arc<std::sync::atomic::AtomicBool>>,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self {
+            txn,
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+            active_transaction_flag,
+        }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
