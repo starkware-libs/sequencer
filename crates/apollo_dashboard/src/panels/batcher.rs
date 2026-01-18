@@ -2,6 +2,8 @@ use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
     BUILDING_HEIGHT,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST,
     GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
@@ -145,6 +147,21 @@ fn get_panel_num_txs_in_proposal() -> Panel {
     .with_log_query("BATCHER_FIN_PROPOSER")
 }
 
+fn get_panel_commitment_manager_commit_latency() -> Panel {
+    Panel::from_gauge_histogram(&COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY)
+        .with_unit(Unit::Seconds)
+        .with_log_query("\"commitment task\"")
+    // TODO(Rotem): make log query more specific.
+}
+
+fn get_panel_commitment_manager_results_count() -> Panel {
+    Panel::from_hist(
+        &COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST,
+        "Commitment Manager Results Count",
+        "The number of commit results received from the commitment manager",
+    )
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -159,6 +176,8 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_block_close_reasons(),
             get_panel_num_batches_in_proposal(),
             get_panel_num_txs_in_proposal(),
+            get_panel_commitment_manager_commit_latency(),
+            get_panel_commitment_manager_results_count(),
         ],
     )
 }
