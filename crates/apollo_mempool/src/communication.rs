@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
@@ -18,27 +16,26 @@ use apollo_mempool_types::mempool_types::{
     ValidationArgs,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use tracing::warn;
 
-use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
+use crate::naive_mempool::NaiveMempool;
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool(
-    config: MempoolConfig,
+    _config: MempoolConfig,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
-        Mempool::new(config, Arc::new(DefaultClock)),
+        NaiveMempool::new(),
         mempool_p2p_propagator_client,
         config_manager_client,
     )
@@ -46,14 +43,14 @@ pub fn create_mempool(
 
 /// Wraps the mempool to enable inbound async communication from other components.
 pub struct MempoolCommunicationWrapper {
-    mempool: Mempool,
+    mempool: NaiveMempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
 }
 
 impl MempoolCommunicationWrapper {
     pub fn new(
-        mempool: Mempool,
+        mempool: NaiveMempool,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
         config_manager_client: SharedConfigManagerClient,
     ) -> Self {
