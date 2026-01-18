@@ -1222,6 +1222,7 @@ dependencies = [
  "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
+ "apollo_staking_config",
  "async-trait",
  "notify",
  "serde_json",
@@ -1252,6 +1253,7 @@ dependencies = [
  "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
+ "apollo_staking_config",
  "async-trait",
  "mockall",
  "serde",
@@ -2166,6 +2168,7 @@ dependencies = [
  "apollo_monitoring_endpoint_config",
  "apollo_reverts",
  "apollo_sierra_compilation_config",
+ "apollo_staking_config",
  "apollo_state_sync_config",
  "blockifier",
  "clap",
@@ -2453,8 +2456,9 @@ dependencies = [
 name = "apollo_staking"
 version = "0.17.0-rc.0"
 dependencies = [
- "apollo_config",
+ "apollo_config_manager_types",
  "apollo_consensus",
+ "apollo_staking_config",
  "apollo_state_sync_types",
  "assert_matches",
  "async-trait",
@@ -2462,12 +2466,22 @@ dependencies = [
  "blockifier_test_utils",
  "mockall",
  "rstest",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_staking_config"
+version = "0.17.0-rc.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
 ]
 
 [[package]]

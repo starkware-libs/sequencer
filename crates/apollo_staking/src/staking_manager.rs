@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
+use apollo_staking_config::config::StakingManagerConfig;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -12,6 +14,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use static_assertions::const_assert;
+use tracing::warn;
 
 use crate::committee_provider::{
     Committee,
@@ -21,7 +24,6 @@ use crate::committee_provider::{
     ExecutionContext,
     Staker,
 };
-use crate::config::StakingManagerConfig;
 use crate::contract_types::{
     ContractStaker,
     EPOCH_LENGTH,
@@ -92,6 +94,7 @@ pub struct StakingManager {
 
     random_generator: Box<dyn BlockRandomGenerator>,
     config: StakingManagerConfig,
+    config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 impl CommitteeDataCache {
@@ -115,12 +118,29 @@ impl StakingManager {
     pub fn new(
         random_generator: Box<dyn BlockRandomGenerator>,
         config: StakingManagerConfig,
+        config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
         Self {
-            committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
+            committee_data_cache: CommitteeDataCache::new(config.static_config.max_cached_epochs),
             cached_epoch: None,
             random_generator,
             config,
+            config_manager_client,
+        }
+    }
+
+    async fn update_dynamic_config(&mut self) {
+        let Some(client) = &self.config_manager_client else {
+            return;
+        };
+
+        match client.get_staking_manager_dynamic_config().await {
+            Ok(dynamic_config) => {
+                self.config.dynamic_config = dynamic_config;
+            }
+            Err(error) => {
+                warn!("Failed to fetch staking manager dynamic config: {error}");
+            }
         }
     }
 
@@ -155,7 +175,7 @@ impl StakingManager {
         let call_info = call_view_entry_point(
             execution_context.state_reader,
             execution_context.block_context,
-            self.config.staking_contract_address,
+            self.config.static_config.staking_contract_address,
             GET_STAKERS_ENTRY_POINT,
             Calldata(vec![Felt::from(epoch)].into()),
         )?;
@@ -194,7 +214,7 @@ impl StakingManager {
         stakers.sort_by_key(|staker| (staker.weight, staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        stakers.into_iter().rev().take(self.config.committee_size).collect()
+        stakers.into_iter().rev().take(self.config.dynamic_config.committee_size).collect()
     }
 
     async fn proposer_randomness_block_hash(
@@ -202,8 +222,9 @@ impl StakingManager {
         current_block_number: BlockNumber,
         state_sync_client: SharedStateSyncClient,
     ) -> CommitteeProviderResult<Option<BlockHash>> {
-        let randomness_source_block =
-            current_block_number.0.checked_sub(self.config.proposer_prediction_window_in_heights);
+        let randomness_source_block = current_block_number
+            .0
+            .checked_sub(self.config.static_config.proposer_prediction_window_in_heights);
 
         match randomness_source_block {
             None => {
@@ -266,7 +287,7 @@ impl StakingManager {
             let call_info = call_view_entry_point(
                 execution_context.state_reader,
                 execution_context.block_context,
-                self.config.staking_contract_address,
+                self.config.static_config.staking_contract_address,
                 GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
                 Calldata(Arc::new(vec![])),
             )?;
@@ -294,11 +315,13 @@ where
     // Returns the committee for the epoch at the given height.
     // The height must be within the bounds of the current epoch, or the next epoch's min bounds
     // (see `MIN_EPOCH_LENGTH`).
-    fn get_committee(
+    async fn get_committee(
         &mut self,
         height: BlockNumber,
         execution_context: ExecutionContext<S>,
     ) -> CommitteeProviderResult<Arc<Committee>> {
+        self.update_dynamic_config().await;
+
         let epoch = self.epoch_at_height(height, execution_context.clone())?;
 
         let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
